@@ -96,10 +96,10 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
     do_reduce_transfers(rest, nb_transfers, [transfer | acc])
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(uco_ledger = %{}) do
+  @spec cast(map()) :: t()
+  def cast(uco_ledger = %{}) do
     %__MODULE__{
-      transfers: Map.get(uco_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
+      transfers: Map.get(uco_ledger, :transfers, []) |> Enum.map(&Transfer.cast/1)
     }
   end
 

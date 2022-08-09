@@ -23,7 +23,7 @@ defmodule ArchethicWeb.API.TransactionController do
         tx =
           changeset
           |> TransactionPayload.to_map()
-          |> Transaction.from_map()
+          |> Transaction.cast()
 
         case Archethic.send_new_transaction(tx) do
           :ok ->
@@ -99,7 +99,7 @@ defmodule ArchethicWeb.API.TransactionController do
         fee =
           changeset
           |> TransactionPayload.to_map()
-          |> Transaction.from_map()
+          |> Transaction.cast()
           |> Mining.get_transaction_fee(uco_usd)
 
         conn

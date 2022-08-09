@@ -124,11 +124,11 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
     }
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(ledger = %{}) do
+  @spec cast(map()) :: t()
+  def cast(ledger = %{}) do
     %__MODULE__{
-      uco: Map.get(ledger, :uco, %UCOLedger{}) |> UCOLedger.from_map(),
-      token: Map.get(ledger, :token, %TokenLedger{}) |> TokenLedger.from_map()
+      uco: Map.get(ledger, :uco, %UCOLedger{}) |> UCOLedger.cast(),
+      token: Map.get(ledger, :token, %TokenLedger{}) |> TokenLedger.cast()
     }
   end
 

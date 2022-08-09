@@ -196,8 +196,8 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<8::8, rest::bitstring>>), do: {:node_movements, rest}
   defp do_reduce_inconsistencies(<<9::8, rest::bitstring>>), do: {:errors, rest}
 
-  @spec from_map(map()) :: t()
-  def from_map(stamp = %{}) do
+  @spec cast(map()) :: t()
+  def cast(stamp = %{}) do
     %__MODULE__{
       node_public_key: Map.get(stamp, :node_public_key),
       signature: Map.get(stamp, :signature),

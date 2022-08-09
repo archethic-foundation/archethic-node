@@ -155,8 +155,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     }
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(%{
+  @spec cast(map()) :: t()
+  def cast(%{
         address: address,
         timestamp: timestamp,
         type: type,
