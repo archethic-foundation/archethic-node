@@ -36,7 +36,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             Encoding.decode(version, column, data, acc)
           end)
           |> Utils.atomize_keys()
-          |> Transaction.from_map()
+          |> Transaction.cast()
 
         :file.close(fd)
 
@@ -153,7 +153,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
               Encoding.decode(version, column, data, acc)
             end)
             |> Utils.atomize_keys()
-            |> Transaction.from_map()
+            |> Transaction.cast()
 
           if tx.address == limit_address do
             {Enum.reverse([tx | acc]), false, nil}

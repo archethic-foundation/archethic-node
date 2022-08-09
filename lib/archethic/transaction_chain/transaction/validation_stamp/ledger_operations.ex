@@ -568,15 +568,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     reduce_unspent_outputs(rest, nb, [unspent_output | acc])
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(ledger_ops = %{}) do
+  @spec cast(map()) :: t()
+  def cast(ledger_ops = %{}) do
     %__MODULE__{
       transaction_movements:
         Map.get(ledger_ops, :transaction_movements, [])
-        |> Enum.map(&TransactionMovement.from_map/1),
+        |> Enum.map(&TransactionMovement.cast/1),
       unspent_outputs:
         Map.get(ledger_ops, :unspent_outputs, [])
-        |> Enum.map(&UnspentOutput.from_map/1),
+        |> Enum.map(&UnspentOutput.cast/1),
       fee: Map.get(ledger_ops, :fee)
     }
   end

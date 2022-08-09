@@ -108,7 +108,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
       ...>  amount: 1_050_000_000,
       ...>  token_id: 0
       ...> }
-      ...> |> Transfer.from_map()
+      ...> |> Transfer.cast()
       %Transfer{
          token: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
@@ -118,8 +118,8 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
          token_id: 0
       }
   """
-  @spec from_map(map()) :: t()
-  def from_map(transfer = %{}) do
+  @spec cast(map()) :: t()
+  def cast(transfer = %{}) do
     %__MODULE__{
       token: Map.get(transfer, :token),
       to: Map.get(transfer, :to),

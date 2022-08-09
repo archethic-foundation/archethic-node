@@ -129,9 +129,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> %{
       ...> to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...> amount: 30_000_000,
-      ...> type: "UCO"
+      ...> type: :UCO
       ...> }
-      ...> |> TransactionMovement.from_map()
+      ...> |> TransactionMovement.cast()
       %TransactionMovement{
         to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 30_000_000,
@@ -142,11 +142,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
       ...>  194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 30_000_000,
-      ...>  type: "Token", token_address: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92,
-      ...>  122, 206, 185, 71, 140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215,
-      ...>  143, 175>>, token_id: 0
+      ...>  type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71,
+      ...>   140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...>  }
-      ...>  |> TransactionMovement.from_map()
+      ...>  |> TransactionMovement.cast()
       %TransactionMovement{
         to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
          159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
@@ -156,20 +155,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       }
 
   """
-  @spec from_map(map()) :: t()
-  def from_map(movement = %{}) do
-    res = %__MODULE__{
+  @spec cast(map()) :: t()
+  def cast(movement = %{}) do
+    %__MODULE__{
       to: Map.get(movement, :to),
-      amount: Map.get(movement, :amount)
+      amount: Map.get(movement, :amount),
+      type: Map.get(movement, :type)
     }
-
-    case Map.get(movement, :type) do
-      "Token" ->
-        %{res | type: {:token, Map.get(movement, :token_address), Map.get(movement, :token_id)}}
-
-      _ ->
-        %{res | type: :UCO}
-    end
   end
 
   @doc """

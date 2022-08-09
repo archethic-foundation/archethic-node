@@ -131,7 +131,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
       ...>  type: :UCO
-      ...>  } |> UnspentOutput.from_map()
+      ...>  } |> UnspentOutput.cast()
       %UnspentOutput{
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
@@ -147,7 +147,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  amount: 1_050_000_000,
       ...>  type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
-      ...> } |> UnspentOutput.from_map()
+      ...> } |> UnspentOutput.cast()
       %UnspentOutput{
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
@@ -156,8 +156,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: nil
       }
   """
-  @spec from_map(map()) :: __MODULE__.t()
-  def from_map(unspent_output = %{}) do
+  @spec cast(map()) :: __MODULE__.t()
+  def cast(unspent_output = %{}) do
     %__MODULE__{
       from: Map.get(unspent_output, :from),
       amount: Map.get(unspent_output, :amount),

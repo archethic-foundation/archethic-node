@@ -70,8 +70,8 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger.Transfer do
     }
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(transfer = %{}) do
+  @spec cast(map()) :: t()
+  def cast(transfer = %{}) do
     %__MODULE__{
       to: Map.get(transfer, :to),
       amount: Map.get(transfer, :amount)

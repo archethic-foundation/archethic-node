@@ -189,13 +189,13 @@ defmodule Archethic.TransactionChain.TransactionData do
     reduce_recipients(rest, nb_recipients, [recipient_address | acc])
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(data = %{}) do
+  @spec cast(map()) :: t()
+  def cast(data = %{}) do
     %__MODULE__{
       content: Map.get(data, :content, ""),
       code: Map.get(data, :code, ""),
-      ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.from_map(),
-      ownerships: Map.get(data, :ownerships, []) |> Enum.map(&Ownership.from_map/1),
+      ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.cast(),
+      ownerships: Map.get(data, :ownerships, []) |> Enum.map(&Ownership.cast/1),
       recipients: Map.get(data, :recipients, [])
     }
   end

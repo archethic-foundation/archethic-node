@@ -823,8 +823,8 @@ defmodule Archethic.TransactionChain.Transaction do
     }
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(tx = %{}) do
+  @spec cast(map()) :: t()
+  def cast(tx = %{}) do
     type =
       case Map.get(tx, :type) do
         nil ->
@@ -841,14 +841,14 @@ defmodule Archethic.TransactionChain.Transaction do
       version: Map.get(tx, :version),
       address: Map.get(tx, :address),
       type: type,
-      data: Map.get(tx, :data, %TransactionData{}) |> TransactionData.from_map(),
+      data: Map.get(tx, :data, %TransactionData{}) |> TransactionData.cast(),
       previous_public_key: Map.get(tx, :previous_public_key),
       previous_signature: Map.get(tx, :previous_signature),
       origin_signature: Map.get(tx, :origin_signature),
-      validation_stamp: Map.get(tx, :validation_stamp) |> ValidationStamp.from_map(),
+      validation_stamp: Map.get(tx, :validation_stamp) |> ValidationStamp.cast(),
       cross_validation_stamps:
         (Map.get(tx, :cross_validation_stamps) || [])
-        |> Enum.map(&CrossValidationStamp.from_map/1)
+        |> Enum.map(&CrossValidationStamp.cast/1)
     }
   end
 end

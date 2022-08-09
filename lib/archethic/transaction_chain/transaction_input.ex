@@ -141,8 +141,8 @@ defmodule Archethic.TransactionChain.TransactionInput do
     end
   end
 
-  @spec from_map(map()) :: __MODULE__.t()
-  def from_map(input = %{}) do
+  @spec cast(map()) :: __MODULE__.t()
+  def cast(input = %{}) do
     res = %__MODULE__{
       amount: Map.get(input, :amount),
       from: Map.get(input, :from),
