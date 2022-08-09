@@ -95,7 +95,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
       code: """
         condition inherit: [
           # We need to ensure the type stays consistent
-          type: :node
+          type: :node,
+          content: true
         ]
       """,
       content:
