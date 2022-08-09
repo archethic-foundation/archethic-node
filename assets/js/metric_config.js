@@ -4,12 +4,12 @@ import * as echarts from 'echarts';
 function structure_metric_points(latest_points) {
 
   var points_default_value = {
-    "archethic_archethic_election_validation_nodes_durations_duration": 0.0,
+    "archethic_election_validation_nodes_duration": 0.0,
     "archethic_election_storage_nodes_duration": 0.0,
-    "archethic_archethic_mining_pending_transaction_validation_duration_validation_duration": 0.0,
+    "archethic_archethic_mining_pending_transaction_validation_duration": 0.0,
     "archethic_mining_proof_of_work_duration": 0.0,
-    "archethic_mining_archethic_mining_full_transaction_validation_duration_duration": 0.0,
-    "archethic_archethic_contract_parsing_duration_duration": 0.0,
+    "archethic_mining_full_transaction_validation_duration": 0.0,
+    "archethic_contract_parsing_duration": 0.0,
     "archethic_mining_fetch_context_duration": 0.0,
     "archethic_p2p_send_message_duration": 0.0,
     "archethic_db_duration": 0.0,
