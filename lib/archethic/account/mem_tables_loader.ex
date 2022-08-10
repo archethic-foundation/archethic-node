@@ -81,20 +81,26 @@ defmodule Archethic.Account.MemTablesLoader do
     UCOLedger.spend_all_unspent_outputs(previous_address)
     TokenLedger.spend_all_unspent_outputs(previous_address)
 
-    :ok = set_transaction_movements(address, transaction_movements, timestamp, tx_type)
-    :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
-
     burn_storage_nodes =
       Election.storage_nodes(LedgerOperations.burning_address(), P2P.authorized_nodes(timestamp))
 
-    if Utils.key_in_node_list?(burn_storage_nodes, Crypto.first_node_public_key()) and
-         fee > 0 do
-      UCOLedger.add_unspent_output(
-        LedgerOperations.burning_address(),
-        %UnspentOutput{from: address, amount: fee, type: :UCO},
-        timestamp
-      )
-    end
+    transaction_movements =
+      if Utils.key_in_node_list?(burn_storage_nodes, Crypto.first_node_public_key()) and
+           fee > 0 do
+        [
+          %TransactionMovement{
+            to: LedgerOperations.burning_address(),
+            amount: fee,
+            type: :UCO
+          }
+          | transaction_movements
+        ]
+      else
+        transaction_movements
+      end
+
+    :ok = set_transaction_movements(address, transaction_movements, timestamp, tx_type)
+    :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
