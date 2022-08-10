@@ -233,6 +233,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   defp list_transaction_from_chain(date = %DateTime{} \\ DateTime.utc_now()) do
     %Node{network_patch: patch} = P2P.get_node_info()
 
+    # reduce beacon chain load time
     node_list = P2P.authorized_nodes()
 
     ref_time = DateTime.truncate(date, :millisecond)
