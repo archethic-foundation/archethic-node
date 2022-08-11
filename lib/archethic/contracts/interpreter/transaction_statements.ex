@@ -59,7 +59,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
       iex> TransactionStatements.add_token_transfer(%Transaction{data: %TransactionData{}}, [
       ...>   {"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
       ...>   {"amount", 1_000_000_000},
-      ...>   {"token", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"},
+      ...>   {"token_address", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"},
       ...>   {"token_id",  0}
       ...> ])
       %Transaction{
@@ -83,15 +83,14 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   """
   @spec add_token_transfer(Transaction.t(), list()) :: Transaction.t()
   def add_token_transfer(tx = %Transaction{}, args) when is_list(args) do
-    %{"to" => to, "amount" => amount, "token" => token, "token_id" => token_id} =
-      Enum.into(args, %{})
+    map_args = %{"to" => to, "amount" => amount, "token_address" => token} = Enum.into(args, %{})
 
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:token), Access.key(:transfers)],
       &[
         %TokenTransfer{
-          token_id: token_id,
+          token_id: Map.get(map_args, "token_id", 0),
           to: decode_binary(to),
           amount: amount,
           token: decode_binary(token)

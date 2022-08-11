@@ -25,6 +25,8 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.PubSub
@@ -429,6 +431,85 @@ defmodule Archethic.Contracts.WorkerTest do
       receive do
         {:transaction_sent, tx} ->
           assert %Transaction{data: %TransactionData{content: "price increased 0.21"}} = tx
+      after
+        3_000 ->
+          raise "Timeout"
+      end
+    end
+
+    test "ICO crowdsale", %{
+      constants: constants = %{"address" => contract_address}
+    } do
+      code = """
+
+      # Ensure the next transaction will be a transfer
+      condition inherit: [
+        type: transfer,
+        token_transfers: size() == 1
+        # TODO: to provide more security, we should check the destination address is within the previous transaction inputs
+      ]
+
+      # Define conditions to accept incoming transactions
+      condition transaction: [
+        type: transfer,
+        uco_transfers: size() > 0
+      ]
+
+      actions triggered_by: transaction do
+        # Get the amount of uco send to this contract
+        amount_send = transaction.uco_transfers[contract.address]
+
+        if amount_send > 0 do
+          # Convert UCO to the number of tokens to credit. Each UCO worth 10000 token
+          token_to_credit = amount_send * 10000
+
+          # Send the new transaction
+          set_type transfer
+          add_token_transfer to: transaction.address, token_address: contract.address, amount: token_to_credit
+        end
+      end
+      """
+
+      {:ok, contract} = Interpreter.parse(code)
+
+      contract = %{
+        contract
+        | constants: %Constants{contract: Map.put(constants, "code", code)}
+      }
+
+      {:ok, _pid} = Worker.start_link(contract)
+
+      assert :ok =
+               Worker.execute(contract_address, %Transaction{
+                 address: "@Bob3",
+                 type: :transfer,
+                 data: %TransactionData{
+                   ledger: %Ledger{
+                     uco: %UCOLedger{
+                       transfers: [
+                         %Transfer{to: contract_address, amount: 100_000_000}
+                       ]
+                     }
+                   },
+                   recipients: [contract_address]
+                 }
+               })
+
+      receive do
+        {:transaction_sent,
+         %Transaction{
+           data: %TransactionData{
+             ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
+           }
+         }} ->
+          assert [
+                   %TokenTransfer{
+                     amount: 100_000_000 * 10_000,
+                     to: "@Bob3",
+                     token: "@SC1",
+                     token_id: 0
+                   }
+                 ] == token_transfers
       after
         3_000 ->
           raise "Timeout"
