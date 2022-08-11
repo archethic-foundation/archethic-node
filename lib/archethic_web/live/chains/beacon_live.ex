@@ -233,7 +233,9 @@ defmodule ArchethicWeb.BeaconChainLive do
   defp list_transaction_from_chain(date = %DateTime{} \\ DateTime.utc_now()) do
     %Node{network_patch: patch} = P2P.get_node_info()
 
-    node_list = P2P.authorized_nodes()
+    node_list =
+      P2P.authorized_and_available_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
 
     ref_time = DateTime.truncate(date, :millisecond)
 
@@ -257,12 +259,9 @@ defmodule ArchethicWeb.BeaconChainLive do
       transactions =
         case TransactionChain.fetch_last_address_remotely(address, nodes) do
           {:ok, last_address} ->
-            last_address
-            |> TransactionChain.stream_remotely(nodes)
-            |> Stream.flat_map(& &1)
-            |> Stream.filter(&(&1.type == :beacon))
-            |> Stream.map(&deserialize_beacon_transaction/1)
-            |> Enum.to_list()
+            fetch(last_address, nodes)
+
+            fetch(last_address, nodes)
 
           {:error, :network_issue} ->
             []
@@ -274,6 +273,25 @@ defmodule ArchethicWeb.BeaconChainLive do
     |> List.flatten()
     |> Enum.uniq_by(& &1.address)
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  defp fetch(last_address, nodes) do
+    paging_address = TransactionChain.get_last_local_address(last_address)
+
+    if paging_address != last_address do
+      last_address
+      |> TransactionChain.stream_remotely(nodes, paging_address)
+      |> Stream.flat_map(& &1)
+      |> Stream.filter(&(&1.type == :beacon))
+      |> Stream.map(&deserialize_beacon_transaction/1)
+      |> Enum.to_list()
+    else
+      TransactionChain.get_locally(last_address)
+      |> Enum.map(& &1)
+      |> Enum.filter(&(&1.type == :beacon))
+      |> Enum.map(&deserialize_beacon_transaction/1)
+      |> Enum.to_list()
+    end
   end
 
   defp deserialize_beacon_transaction(%Transaction{
