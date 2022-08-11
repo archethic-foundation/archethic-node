@@ -233,9 +233,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   defp list_transaction_from_chain(date = %DateTime{} \\ DateTime.utc_now()) do
     %Node{network_patch: patch} = P2P.get_node_info()
 
-    node_list =
-      P2P.authorized_and_available_nodes()
-      |> Enum.filter(&Node.locally_available?/1)
+    node_list = P2P.authorized_and_available_nodes()
 
     ref_time = DateTime.truncate(date, :millisecond)
 
@@ -250,6 +248,7 @@ defmodule ArchethicWeb.BeaconChainLive do
       nodes =
         subset
         |> Election.beacon_storage_nodes(next_summary_date, node_list)
+        |> Enum.filter(&Node.locally_available?/1)
         |> P2P.nearest_nodes(patch)
 
       {address, nodes, subset}
@@ -259,9 +258,12 @@ defmodule ArchethicWeb.BeaconChainLive do
       transactions =
         case TransactionChain.fetch_last_address_remotely(address, nodes) do
           {:ok, last_address} ->
-            fetch(last_address, nodes)
+            {:ok, tx_chains} = Archethic.get_transaction_chain(last_address)
 
-            fetch(last_address, nodes)
+            tx_chains
+            |> Enum.filter(&(&1.type == :beacon))
+            |> Enum.map(&deserialize_beacon_transaction/1)
+            |> Enum.to_list()
 
           {:error, :network_issue} ->
             []
@@ -275,25 +277,7 @@ defmodule ArchethicWeb.BeaconChainLive do
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 
-  defp fetch(last_address, nodes) do
-    paging_address = TransactionChain.get_last_local_address(last_address)
-
-    if paging_address != last_address do
-      last_address
-      |> TransactionChain.stream_remotely(nodes, paging_address)
-      |> Stream.flat_map(& &1)
-      |> Stream.filter(&(&1.type == :beacon))
-      |> Stream.map(&deserialize_beacon_transaction/1)
-      |> Enum.to_list()
-    else
-      TransactionChain.get_locally(last_address)
-      |> Enum.map(& &1)
-      |> Enum.filter(&(&1.type == :beacon))
-      |> Enum.map(&deserialize_beacon_transaction/1)
-      |> Enum.to_list()
-    end
-  end
-
+  # defp deserialize_beacon_transaction()
   defp deserialize_beacon_transaction(%Transaction{
          type: :beacon,
          data: %TransactionData{content: content}
