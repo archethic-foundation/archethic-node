@@ -412,8 +412,14 @@ defmodule Archethic.P2P.Message do
     <<233::8, address::binary, ReplicationError.serialize_reason(reason)::8>>
   end
 
-  def encode(%ValidationError{reason: reason, address: address}) do
-    <<234::8, Error.serialize_reason(reason)::8, address::binary>>
+  def encode(%ValidationError{context: :network_issue, reason: reason, address: address}) do
+    <<234::8, address::binary, reason |> byte_size() |> VarInt.from_value()::binary,
+      reason::binary, 0::8>>
+  end
+
+  def encode(%ValidationError{context: :invalid_transaction, reason: reason, address: address}) do
+    <<234::8, address::binary, reason |> byte_size() |> VarInt.from_value()::binary,
+      reason::binary, 1::8>>
   end
 
   def encode(%FirstAddress{address: address}) do
@@ -909,10 +915,18 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def decode(<<234::8, reason::8, rest::bitstring>>) do
-    reason = ValidationError.deserialize_reason(reason)
+  def decode(<<234::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {%ValidationError{reason: reason, address: address}, rest}
+
+    {reason_size, rest} = VarInt.get_value(rest)
+
+    case rest do
+      <<reason::binary-size(reason_size), 0::8, rest::bitstring>> ->
+        {%ValidationError{reason: reason, context: :network_issue, address: address}, rest}
+
+      <<reason::binary-size(reason_size), 1::8, rest::bitstring>> ->
+        {%ValidationError{reason: reason, context: :invalid_transaction, address: address}, rest}
+    end
   end
 
   def decode(<<235::8, rest::bitstring>>) do
@@ -1183,8 +1197,8 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%ValidationError{reason: reason, address: address}) do
-    TransactionSubscriber.report_error(reason, address)
+  def process(%ValidationError{context: context, reason: reason, address: address}) do
+    TransactionSubscriber.report_error(address, context, reason)
     %Ok{}
   end
 

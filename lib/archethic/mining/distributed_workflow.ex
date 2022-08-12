@@ -239,7 +239,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       ) do
     role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
 
-    valid_transaction? =
+    new_context =
       case PendingTransactionValidation.validate(tx) do
         :ok ->
           Logger.debug("Pending transaction valid",
@@ -247,7 +247,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
             transaction_type: tx.type
           )
 
-          true
+          ValidationContext.set_pending_transaction_validation(context, true)
 
         {:error, reason} ->
           Logger.debug("Invalid transaction - #{inspect(reason)}",
@@ -255,7 +255,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
             transaction_type: tx.type
           )
 
-          false
+          ValidationContext.set_pending_transaction_validation(context, false, reason)
       end
 
     next_events =
@@ -276,7 +276,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       Map.put(
         data,
         :context,
-        ValidationContext.set_pending_transaction_validation(context, valid_transaction?)
+        new_context
       )
 
     {:next_state, role, new_data, next_events}
@@ -511,7 +511,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         )
 
         next_events = [
-          {:next_event, :internal, {:notify_error, :network_issue}}
+          {:next_event, :internal, {:notify_error, :timeout}}
         ]
 
         {:keep_state_and_data, next_events}
@@ -640,7 +640,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     MaliciousDetection.start_link(context)
 
     next_events = [
-      {:next_event, :internal, {:notify_error, :network_issue}}
+      {:next_event, :internal, {:notify_error, :consensus_not_reached}}
     ]
 
     {:keep_state_and_data, next_events}
@@ -812,7 +812,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         )
 
         next_events = [
-          {:next_event, :internal, {:notify_error, :network_issue}}
+          {:next_event, :internal, {:notify_error, :timeout}}
         ]
 
         {:keep_state_and_data, next_events}
@@ -853,7 +853,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     next_events = [
-      {:next_event, :internal, {:notify_error, :network_issue}}
+      {:next_event, :internal, {:notify_error, :timeout}}
     ]
 
     {:keep_state_and_data, next_events}
@@ -867,13 +867,44 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             _context = %ValidationContext{
               welcome_node: welcome_node = %Node{},
-              transaction: %Transaction{address: tx_address}
+              transaction: %Transaction{address: tx_address},
+              pending_transaction_error_detail: pending_error_detail
             }
         }
       ) do
-    Logger.error("error state #{inspect(tx_address |> Base.encode16())}")
-    # notify_error_to_welcome_node
-    message = %ValidationError{reason: reason, address: tx_address}
+    {error_context, error_reason} =
+      case reason do
+        {:transaction_errors_detected, errors} ->
+          reason =
+            errors
+            |> Enum.map(fn
+              :invalid_pending_transaction -> pending_error_detail
+              :invalid_inherit_constraints -> "Inherit constraints not respected"
+            end)
+            |> Enum.join(". ")
+
+          {:invalid_transaction, reason}
+
+        :insufficient_funds ->
+          {:invalid_transaction, "Insufficient funds"}
+
+        :invalid_proof_of_work ->
+          {:invalid_transaction, "Invalid origin signature"}
+
+        reason ->
+          {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
+      end
+
+    Logger.warning("Invalid transaction #{inspect(error_reason)}",
+      transaction_address: Base.encode16(tx_address)
+    )
+
+    Logger.debug("Notify error back to the welcome node",
+      transaction_address: Base.encode16(tx_address)
+    )
+
+    # Notify error to the welcome node
+    message = %ValidationError{context: error_context, reason: error_reason, address: tx_address}
 
     Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
       P2P.send_message(

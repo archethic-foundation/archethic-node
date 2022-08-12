@@ -33,9 +33,10 @@ defmodule ArchethicWeb.TransactionSubscriber do
   @doc """
   Report a transaction error
   """
-  @spec report_error(atom(), binary()) :: :ok
-  def report_error(error, tx_address) when is_binary(tx_address) do
-    GenServer.cast(__MODULE__, {:error, tx_address, error})
+  @spec report_error(binary(), atom(), binary()) :: :ok
+  def report_error(tx_address, context, reason)
+      when is_binary(tx_address) and is_binary(reason) do
+    GenServer.cast(__MODULE__, {:error, tx_address, context, reason})
   end
 
   def init(_) do
@@ -45,18 +46,16 @@ defmodule ArchethicWeb.TransactionSubscriber do
   end
 
   def handle_cast(
-        {:error, tx_address, error},
+        {:error, tx_address, context, error},
         state
       ) do
-    Logger.debug("error in processing transaction: #{inspect({tx_address, error})}")
-
     Subscription.publish(
       Endpoint,
-      %{address: tx_address, error: error},
+      %{address: tx_address, context: context, reason: error},
       transaction_error: tx_address
     )
 
-    {:noreply, new_state}
+    {:noreply, state}
   end
 
   def handle_cast({:register, tx_address, start_time}, state) do
