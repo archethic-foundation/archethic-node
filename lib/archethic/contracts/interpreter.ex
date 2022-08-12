@@ -696,7 +696,7 @@ defmodule Archethic.Contracts.Interpreter do
          node = [
            {{:atom, "to"}, _to},
            {{:atom, "amount"}, _amount},
-           {{:atom, "token"}, _token_address},
+           {{:atom, "token_address"}, _token_address},
            {{:atom, "token_id"}, _token_id}
          ],
          acc = {:ok, %{scope: {:function, "add_token_transfer", :actions}}}
@@ -708,7 +708,7 @@ defmodule Archethic.Contracts.Interpreter do
          node = {{:atom, arg}, _},
          acc = {:ok, %{scope: {:function, "add_token_transfer", :actions}}}
        )
-       when arg in ["to", "amount", "token", "token_id"],
+       when arg in ["to", "amount", "token_address", "token_id"],
        do: {node, acc}
 
   # Whitelist the add_ownership argument list
@@ -1183,7 +1183,10 @@ defmodule Archethic.Contracts.Interpreter do
 
     {%{"next_transaction" => next_transaction}, _} =
       Code.eval_quoted(quoted_code,
-        scope: Map.put(constants, "next_transaction", %Transaction{data: %TransactionData{}})
+        scope:
+          Map.put(constants, "next_transaction", %Transaction{
+            data: %TransactionData{}
+          })
       )
 
     next_transaction
