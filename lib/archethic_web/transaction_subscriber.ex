@@ -50,12 +50,6 @@ defmodule ArchethicWeb.TransactionSubscriber do
       ) do
     Logger.debug("error in processing transaction: #{inspect({tx_address, error})}")
 
-    new_state =
-      Map.update(state, tx_address, %{status: :error}, fn state ->
-        state
-        |> Map.put(:status, :error)
-      end)
-
     Subscription.publish(
       Endpoint,
       %{address: tx_address, error: error},
@@ -131,9 +125,6 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
     new_state =
       Enum.filter(state, fn
-        {_address, %{status: :error}} ->
-          false
-
         {_address, %{status: :confirmed}} ->
           true
 

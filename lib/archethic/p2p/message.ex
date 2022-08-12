@@ -1185,6 +1185,7 @@ defmodule Archethic.P2P.Message do
 
   def process(%ValidationError{reason: reason, address: address}) do
     TransactionSubscriber.report_error(reason, address)
+    %Ok{}
   end
 
   def process(%GetTransaction{address: tx_address}) do
