@@ -1301,8 +1301,8 @@ defmodule Archethic.P2P.Message do
           {:error, :transaction_already_exists} ->
             %ReplicationError{address: tx.address, reason: :transaction_already_exists}
 
-          {:error, :invalid_transaction} ->
-            %ReplicationError{address: tx.address, reason: :invalid_transaction}
+          {:error, invalid_tx_error} ->
+            %ReplicationError{address: tx.address, reason: invalid_tx_error}
         end
 
       if replying_node_public_key do
@@ -1319,10 +1319,10 @@ defmodule Archethic.P2P.Message do
         %Ok{}
 
       {:error, :transaction_already_exists} ->
-        %Error{reason: :transaction_already_exists}
+        %ReplicationError{address: tx.address, reason: :transaction_already_exists}
 
-      {:error, :invalid_transaction} ->
-        %Error{reason: :invalid_transaction}
+      {:error, invalid_tx_reason} ->
+        %ReplicationError{address: tx.address, reason: invalid_tx_reason}
     end
   end
 

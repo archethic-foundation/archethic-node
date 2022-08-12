@@ -53,7 +53,7 @@ defmodule Archethic.Replication do
   and update the internal ledger and views
   """
   @spec validate_and_store_transaction_chain(validated_tx :: Transaction.t()) ::
-          :ok | {:error, :invalid_transaction} | {:error, :transaction_already_exists}
+          :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
   def validate_and_store_transaction_chain(
         tx = %Transaction{
           address: address,
@@ -130,7 +130,7 @@ defmodule Archethic.Replication do
             transaction_type: type
           )
 
-          {:error, :invalid_transaction}
+          {:error, reason}
       end
     end
   end
@@ -141,7 +141,7 @@ defmodule Archethic.Replication do
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
   """
   @spec validate_and_store_transaction(Transaction.t()) ::
-          :ok | {:error, :invalid_transaction} | {:error, :transaction_already_exists}
+          :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
   def validate_and_store_transaction(
         tx = %Transaction{
           address: address,
@@ -194,7 +194,7 @@ defmodule Archethic.Replication do
             transaction_type: type
           )
 
-          {:error, :invalid_transaction}
+          {:error, reason}
       end
     end
   end

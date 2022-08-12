@@ -19,7 +19,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     errors: []
   ]
 
-  @type error :: :contract_validation | :oracle_validation
+  @type error :: :pending_transaction | :contract_validation | :oracle_validation
 
   @typedoc """
   Validation performed by a coordinator:

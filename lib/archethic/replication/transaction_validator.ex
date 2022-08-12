@@ -31,13 +31,13 @@ defmodule Archethic.Replication.TransactionValidator do
           :invalid_atomic_commitment
           | :invalid_node_election
           | :invalid_proof_of_work
-          | :invalid_proof_of_election
           | :invalid_validation_stamp_signature
           | :invalid_transaction_fee
           | :invalid_transaction_movements
           | :insufficient_funds
           | :invalid_unspent_outputs
           | :invalid_chain
+          | :invalid_transaction_with_inconsistencies
           | :invalid_contract_acceptance
           | {:transaction_errors_detected, list(ValidationStamp.error())}
 
@@ -376,7 +376,7 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_type: tx.type
       )
 
-      {:error, :invalid_inputs}
+      {:error, :invalid_unspent_outputs}
     end
   end
 
