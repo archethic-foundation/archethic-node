@@ -57,19 +57,24 @@ defmodule Archethic.Contracts.Contract.Constants do
       "previous_public_key" => previous_public_key,
       "recipients" => recipients,
       "uco_transfers" =>
-        uco_transfers
-        |> Enum.map(fn %UCOTransfer{to: to, amount: amount} ->
-          %{"to" => to, "amount" => amount}
+        Enum.reduce(uco_transfers, %{}, fn %UCOTransfer{to: to, amount: amount}, acc ->
+          Map.update(acc, to, amount, &(&1 + amount))
         end),
       "token_transfers" =>
-        token_transfers
-        |> Enum.map(fn %TokenTransfer{
-                         to: to,
-                         amount: amount,
-                         token: token_address,
-                         token_id: token_id
-                       } ->
-          %{"to" => to, "amount" => amount, "token" => token_address, "token_id" => token_id}
+        Enum.reduce(token_transfers, %{}, fn %TokenTransfer{
+                                               to: to,
+                                               amount: amount,
+                                               token: token_address,
+                                               token_id: token_id
+                                             },
+                                             acc ->
+          token_transfer = %{
+            "amount" => amount,
+            "token_address" => token_address,
+            "token_id" => token_id
+          }
+
+          Map.update(acc, to, [token_transfer], &[token_transfer | &1])
         end)
     }
   end
@@ -106,7 +111,7 @@ defmodule Archethic.Contracts.Contract.Constants do
             transfers:
               constants
               |> Map.get("uco_transfers", [])
-              |> Enum.map(fn %{"to" => to, "amount" => amount} ->
+              |> Enum.map(fn {to, amount} ->
                 %UCOTransfer{to: to, amount: amount}
               end)
           },
@@ -114,13 +119,22 @@ defmodule Archethic.Contracts.Contract.Constants do
             transfers:
               constants
               |> Map.get("token_transfers", [])
-              |> Enum.map(fn %{
-                               "to" => to,
-                               "amount" => amount,
-                               "token" => token,
-                               "token_id" => token_id
-                             } ->
-                %TokenTransfer{to: to, amount: amount, token: token, token_id: token_id}
+              |> Enum.reduce([], fn {to, token_transfers}, acc ->
+                token_transfers =
+                  Enum.map(token_transfers, fn %{
+                                                 "amount" => amount,
+                                                 "token_address" => token_address,
+                                                 "token_id" => token_id
+                                               } ->
+                    %TokenTransfer{
+                      to: to,
+                      amount: amount,
+                      token: token_address,
+                      token_id: token_id
+                    }
+                  end)
+
+                token_transfers ++ acc
               end)
           }
         }

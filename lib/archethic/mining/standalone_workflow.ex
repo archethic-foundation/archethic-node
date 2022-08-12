@@ -157,7 +157,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   def handle_info(
         {:replication_error, reason},
-        _state = %{context: %ValidationContext{transaction: %Transaction{address: tx_address}}}
+        state = %{context: %ValidationContext{transaction: %Transaction{address: tx_address}}}
       ) do
     Logger.warning("Invalid transaction #{inspect(reason)}")
     # notify welcome node
@@ -170,7 +170,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       )
     end)
 
-    :stop
+    {:stop, :normal, state}
   end
 
   def handle_info(

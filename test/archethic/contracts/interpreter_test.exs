@@ -139,7 +139,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                                              38, 169, 3, 101, 30, 216, 98, 86, 53, 24, 29, 218,
                                              35, 111, 236, 194, 33, 209, 231, 228>>},
                                           {"amount", 20_000_000_000},
-                                          {"token",
+                                          {"token_address",
                                            <<174, 180, 166, 245, 171, 109, 130, 190, 34, 60, 88,
                                              103, 235, 165, 254, 97, 111, 82, 244, 16, 220, 248,
                                              59, 69, 175, 241, 88, 221, 64, 174, 138, 195>>},
@@ -277,7 +277,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                actions triggered_by: transaction do
                  set_type transfer
                  add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1040000000
-                 add_token_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, token: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\", token_id: 0
+                 add_token_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, token_address: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\", token_id: 0
                  set_content \"Receipt\"
                  add_ownership secret: \"MyEncryptedSecret\", secret_key: \"MySecretKey\", authorized_public_keys: ["70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A"]
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
@@ -545,7 +545,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
           # Send the new transaction
           set_type transfer
-          add_token_transfer to: transaction.address, token: contract.address, amount: token_to_credit, token_id: token_id
+          add_token_transfer to: transaction.address, token_address: contract.address, amount: token_to_credit, token_id: token_id
         end
       end
       """
