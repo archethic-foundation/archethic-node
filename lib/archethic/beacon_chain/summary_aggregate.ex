@@ -109,7 +109,8 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         {subset,
          data
          |> Map.update!(:node_availabilities, &aggregate_node_availabilities/1)
-         |> Map.update!(:node_average_availabilities, &aggregate_node_average_availabilities/1)}
+         |> Map.update!(:node_average_availabilities, &aggregate_node_average_availabilities/1)
+         |> Map.update!(:end_of_node_synchronizations, &Enum.uniq/1)}
       end)
       |> Enum.into(%{})
     end)
