@@ -876,12 +876,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
       case reason do
         {:transaction_errors_detected, errors} ->
           reason =
-            errors
-            |> Enum.map(fn
-              :invalid_pending_transaction -> pending_error_detail
-              :invalid_inherit_constraints -> "Inherit constraints not respected"
-            end)
-            |> Enum.join(". ")
+            Enum.map_join(
+              errors,
+              ". ",
+              fn
+                :invalid_pending_transaction -> pending_error_detail
+                :invalid_inherit_constraints -> "Inherit constraints not respected"
+              end
+            )
 
           {:invalid_transaction, reason}
 

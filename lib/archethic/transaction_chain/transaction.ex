@@ -526,7 +526,6 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>     6>>,
       ...>   type: :beacon,
       ...>   validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
-      ...>     errors: [],
       ...>     ledger_operations: %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
       ...>       fee: 0,
       ...>       transaction_movements: [],
@@ -724,7 +723,6 @@ defmodule Archethic.TransactionChain.Transaction do
             6>>,
           type: :beacon,
           validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
-            errors: [],
             ledger_operations: %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
               fee: 0,
               transaction_movements: [],
