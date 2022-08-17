@@ -159,7 +159,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   def handle_info(
         {:replication_error, reason},
-        _state = %{
+        state = %{
           context: %ValidationContext{
             transaction: %Transaction{address: tx_address},
             pending_transaction_error_detail: pending_error_detail
@@ -209,7 +209,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       )
     end)
 
-    :stop
+    {:stop, :normal, state}
   end
 
   def handle_info(
