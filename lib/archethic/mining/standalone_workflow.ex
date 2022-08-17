@@ -168,18 +168,11 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       ) do
     {error_context, error_reason} =
       case reason do
-        {:transaction_errors_detected, errors} ->
-          reason =
-            Enum.map_join(
-              errors,
-              ". ",
-              fn
-                :invalid_pending_transaction -> pending_error_detail
-                :invalid_inherit_constraints -> "Inherit constraints not respected"
-              end
-            )
+        :invalid_pending_transaction ->
+          {:invalid_transaction, pending_error_detail}
 
-          {:invalid_transaction, reason}
+        :invalid_inherit_constraints ->
+          {:invalid_transaction, "Inherit constraints not respected"}
 
         :insufficient_funds ->
           {:invalid_transaction, "Insufficient funds"}
