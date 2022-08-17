@@ -14,7 +14,6 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   alias Archethic.PubSub
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
@@ -33,7 +32,7 @@ defmodule ArchethicWeb.BeaconChainLive do
       PubSub.register_to_current_epoch_of_slot_time()
       PubSub.register_to_new_transaction_attestations()
       # register for client to able to get the current added transaction to the beacon pool
-      BeaconChain.register_to_beacon_pool_updates()
+      Task.start(fn -> BeaconChain.register_to_beacon_pool_updates() end)
     end
 
     beacon_dates =
@@ -157,12 +156,14 @@ defmodule ArchethicWeb.BeaconChainLive do
             |> update(:live_cache, &[tx_summary | &1])
             |> assign(:summary_passed?, false)
             |> assign(:update_time, DateTime.utc_now())
+            |> assign(:fetching, false)
 
           _ ->
             socket
             |> update(:transactions, &Enum.uniq([tx_summary | &1]))
             |> update(:live_cache, &[tx_summary | &1])
             |> assign(:update_time, DateTime.utc_now())
+            |> assign(:fetching, false)
         end
 
       {:noreply, new_socket}
@@ -230,7 +231,7 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   defp list_transactions_from_summary(nil), do: []
 
-  defp list_transaction_from_chain(date = %DateTime{} \\ DateTime.utc_now()) do
+  def list_transaction_from_chain(date = %DateTime{} \\ DateTime.utc_now()) do
     %Node{network_patch: patch} = P2P.get_node_info()
 
     node_list = P2P.authorized_and_available_nodes()
@@ -254,20 +255,21 @@ defmodule ArchethicWeb.BeaconChainLive do
       {address, nodes, subset}
     end)
     |> Flow.partition(key: {:elem, 2})
-    |> Flow.reduce(fn -> [] end, fn {address, nodes, _subset}, acc ->
-      transactions =
-        case TransactionChain.fetch_last_address_remotely(address, nodes) do
-          {:ok, last_address} ->
-            {:ok, tx_chains} = Archethic.get_transaction_chain(last_address)
-
-            tx_chains
-            |> Enum.filter(&(&1.type == :beacon))
-            |> Enum.map(&deserialize_beacon_transaction/1)
-            |> Enum.to_list()
-
-          {:error, :network_issue} ->
-            []
+    |> Flow.reduce(fn -> [] end, fn {address, _nodes, _subset}, acc ->
+      tx_chains =
+        try do
+          Archethic.get_transaction_chain(address)
+        rescue
+          _ -> []
         end
+
+      transactions =
+        tx_chains
+        |> Enum.to_list()
+        |> List.flatten()
+        |> Enum.filter(&(&1.type == :beacon))
+        |> Enum.map(&deserialize_beacon_transaction/1)
+        |> Enum.to_list()
 
       transactions ++ acc
     end)
