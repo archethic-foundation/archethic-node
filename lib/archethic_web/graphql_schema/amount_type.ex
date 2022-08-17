@@ -14,7 +14,7 @@ defmodule ArchethicWeb.GraphQLSchema.AmountType do
   end
 
   defp do_serialize(amount) do
-    amount / @unit_uco
+    amount
   end
 
   defp do_parse(amount) do
