@@ -602,7 +602,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
       if ValidationContext.atomic_commitment?(new_context) do
         {:next_state, :replication, %{data | context: new_context}}
       else
-        {:next_state, :consensus_not_reached, %{data | context: new_context}}
+        next_events = [
+          {:next_event, :internal, {:notify_error, :consensus_not_reached}}
+        ]
+
+        {:next_state, :consensus_not_reached, %{data | context: new_context}, next_events}
       end
     else
       {:keep_state, %{data | context: new_context}}
@@ -639,11 +643,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     MaliciousDetection.start_link(context)
 
-    next_events = [
-      {:next_event, :internal, {:notify_error, :consensus_not_reached}}
-    ]
-
-    {:keep_state_and_data, next_events}
+    :keep_state_and_data
   end
 
   def handle_event(
