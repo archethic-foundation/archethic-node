@@ -31,15 +31,16 @@ defmodule Archethic.Replication.TransactionValidator do
           :invalid_atomic_commitment
           | :invalid_node_election
           | :invalid_proof_of_work
-          | :invalid_proof_of_election
           | :invalid_validation_stamp_signature
           | :invalid_transaction_fee
           | :invalid_transaction_movements
           | :insufficient_funds
           | :invalid_unspent_outputs
           | :invalid_chain
+          | :invalid_transaction_with_inconsistencies
           | :invalid_contract_acceptance
-          | {:transaction_errors_detected, list(ValidationStamp.error())}
+          | :invalid_pending_transaction
+          | :invalid_inherit_constraints
 
   @doc """
   Validate transaction with context
@@ -137,7 +138,7 @@ defmodule Archethic.Replication.TransactionValidator do
          :ok <- validate_node_election(tx),
          :ok <- validate_transaction_fee(tx),
          :ok <- validate_transaction_movements(tx) do
-      validate_no_additional_errors(tx)
+      validate_no_additional_error(tx)
     end
   end
 
@@ -298,19 +299,19 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
-  defp validate_no_additional_errors(%Transaction{validation_stamp: %ValidationStamp{errors: []}}),
+  defp validate_no_additional_error(%Transaction{validation_stamp: %ValidationStamp{error: nil}}),
     do: :ok
 
-  defp validate_no_additional_errors(
-         tx = %Transaction{validation_stamp: %ValidationStamp{errors: errors}}
+  defp validate_no_additional_error(
+         tx = %Transaction{validation_stamp: %ValidationStamp{error: error}}
        ) do
     Logger.info(
-      "Contains errors: #{inspect(errors)}",
+      "Contains errors: #{inspect(error)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    {:error, {:transaction_errors_detected, errors}}
+    {:error, error}
   end
 
   defp check_inputs(
@@ -376,7 +377,7 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_type: tx.type
       )
 
-      {:error, :invalid_inputs}
+      {:error, :invalid_unspent_outputs}
     end
   end
 

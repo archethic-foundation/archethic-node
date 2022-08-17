@@ -96,7 +96,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       validation_context = create_context()
 
       %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:errors]}]
+        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:error]}]
       } =
         validation_context
         |> ValidationContext.add_validation_stamp(
@@ -318,7 +318,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
-      errors: [:contract_validation]
+      error: :invalid_pending_transaction
     }
     |> ValidationStamp.sign()
   end

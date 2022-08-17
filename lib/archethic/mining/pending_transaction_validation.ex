@@ -390,8 +390,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok
     else
       {:error, reason} ->
-        Logger.debug("Invalid token token specification: #{inspect(reason)}")
-        {:error, "Invalid token transaction - Invalid specification"}
+        {:error, "Invalid token transaction - Invalid specification #{inspect(reason)}"}
 
       %{"type" => "fungible", "properties" => properties} when length(properties) > 1 ->
         {:error, "Invalid token transaction - Fungible should have only 1 set of properties"}
