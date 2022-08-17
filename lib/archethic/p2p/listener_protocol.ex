@@ -1,5 +1,9 @@
 defmodule Archethic.P2P.ListenerProtocol do
   @moduledoc false
+  # ListenerProtocol handles Incoming new messages from other nodes and
+  # no response is processed here.
+  # Connection modules handles this nodes request get messages and
+  # then its response is processed.
 
   require Logger
 
@@ -13,17 +17,22 @@ defmodule Archethic.P2P.ListenerProtocol do
   end
 
   def init({ref, transport, opts}) do
-    {:ok, socket} = :ranch.handshake(ref)
-    :ok = transport.setopts(socket, opts)
+    if :persistent_term.get(:archethic_up, nil) do
+      {:ok, socket} = :ranch.handshake(ref)
+      :ok = transport.setopts(socket, opts)
 
-    {:ok, {ip, port}} = :inet.peername(socket)
+      {:ok, {ip, port}} = :inet.peername(socket)
 
-    :gen_server.enter_loop(__MODULE__, [], %{
-      socket: socket,
-      transport: transport,
-      ip: ip,
-      port: port
-    })
+      :gen_server.enter_loop(__MODULE__, [], %{
+        socket: socket,
+        transport: transport,
+        ip: ip,
+        port: port
+      })
+    else
+      # node is Bootstrapping, reject any incoming request messages
+      {:stop, :node_bootstrapping}
+    end
   end
 
   def handle_info(
