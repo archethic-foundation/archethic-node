@@ -99,6 +99,11 @@ defmodule Archethic.BeaconChain.SubsetTest do
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
       pid = start_supervised!({Subset, subset: subset})
 
+      MockClient
+      |> stub(:send_message, fn _, _txn = %NewBeaconTransaction{}, _ ->
+        :ok
+      end)
+
       tx_time = DateTime.utc_now()
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 

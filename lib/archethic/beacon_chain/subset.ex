@@ -242,8 +242,8 @@ defmodule Archethic.BeaconChain.Subset do
         TransactionChain.write_transaction_at(beacon_transaction, genesis_address)
         SummaryCache.add_slot(subset, current_slot)
       else
-        next_time = SlotTimer.next_slot(time)
-        broadcast_beacon_transaction(subset, next_time, beacon_transaction)
+        next_summary_time = SummaryTimer.next_summary(time)
+        broadcast_beacon_transaction(subset, next_summary_time, beacon_transaction)
       end
     end
   end

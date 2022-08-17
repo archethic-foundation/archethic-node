@@ -5,9 +5,10 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
   alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.SubsetRegistry
 
-  alias Archethic.Crypto
-
+  alias Archethic.P2P
   alias Archethic.P2P.Node
+
+  alias Archethic.Crypto
 
   setup do
     Enum.each(BeaconChain.list_subsets(), fn subset ->
@@ -17,44 +18,17 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
     :ok
   end
 
-  test "should start scheduler when the current become authorized" do
-    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
-
-    send(
-      pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
-    )
-
-    assert %{timer: _} = :sys.get_state(pid)
-  end
-
-  test "should stop scheduler when the current become unauthorized" do
-    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
-
-    send(
-      pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
-    )
-
-    assert %{timer: timer} = :sys.get_state(pid)
-
-    send(
-      pid,
-      {:node_update, %Node{authorized?: false, first_public_key: Crypto.first_node_public_key()}}
-    )
-
-    Process.sleep(200)
-    assert false == Process.read_timer(timer)
-  end
-
   test "receive create_slot message after timer elapsed" do
-    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
+    SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
     current = DateTime.utc_now()
 
-    send(
-      pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
-    )
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: true,
+      authorization_date: DateTime.utc_now()
+    })
 
     receive do
       {:create_slot, time} ->
@@ -62,13 +36,30 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
     end
   end
 
+  test "should not send create slot event if node is unavailable" do
+    SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
+
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: false,
+      authorization_date: DateTime.utc_now()
+    })
+
+    refute_receive({:create_slot, _}, 1200)
+  end
+
   test "handle_info/3 receive a slot creation message" do
     {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *"], [])
 
-    send(
-      pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
-    )
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: true,
+      authorization_date: DateTime.utc_now()
+    })
 
     send(pid, :new_slot)
 

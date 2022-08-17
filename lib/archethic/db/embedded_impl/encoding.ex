@@ -152,7 +152,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   def decode(_version, "data.recipients", <<rest::binary>>, acc) do
     {nb, rest} = rest |> VarInt.get_value()
-    recipients = Utils.deserialize_addresses(rest, nb, [])
+    {recipients, _} = Utils.deserialize_addresses(rest, nb, [])
     put_in(acc, [Access.key(:data, %{}), :recipients], recipients)
   end
 

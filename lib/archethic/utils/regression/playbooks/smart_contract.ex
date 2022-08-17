@@ -68,12 +68,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
           code: """
           condition inherit: [
             type: transfer,
-            uco_transfers: [
-              %{
-                to: "#{Base.encode16(recipient_address2)}",
-                amount: #{amount_to_send}
-              }
-            ]
+            uco_transfers: %{ "#{Base.encode16(recipient_address2)}" => #{amount_to_send} }
           ]
 
           actions triggered_by: interval, at: "* * * * * *" do

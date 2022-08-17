@@ -89,9 +89,9 @@ defmodule Archethic.ContractsTest do
       code = """
       condition inherit: [
         content: regex_match?("hello"),
-        uco_transfers: [%{
-          to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 1000000000
-        }],
+        uco_transfers: %{
+          "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 1000000000
+        },
         type: transfer
       ]
 
@@ -136,7 +136,7 @@ defmodule Archethic.ContractsTest do
 
       code = """
       condition inherit: [
-        uco_transfers: [%{ to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 1000000000}]
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" =>  1000000000}
       ]
 
       actions triggered_by: datetime, at: #{time} do
@@ -181,7 +181,7 @@ defmodule Archethic.ContractsTest do
 
       code = """
       condition inherit: [
-        uco_transfers: [%{ to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 1000000000 }]
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 1000000000 }
       ]
 
       actions triggered_by: datetime, at: #{DateTime.to_unix(ref_time)} do
@@ -219,7 +219,7 @@ defmodule Archethic.ContractsTest do
     test "should return false when the transaction have been triggered by interval but timestamp doesn't match " do
       code = """
       condition inherit: [
-        uco_transfers: [%{ to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 1000000000}]
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 1000000000}
       ]
 
       actions triggered_by: interval, at: "0 * * * * *" do
@@ -259,7 +259,7 @@ defmodule Archethic.ContractsTest do
     test "should return false when the transaction have been triggered by interval and the timestamp does match " do
       code = """
       condition inherit: [
-        uco_transfers: [%{ to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 1000000000}]
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" =>  1000000000}
       ]
 
       actions triggered_by: interval, at: "0 * * * * *" do

@@ -180,7 +180,7 @@ defmodule Archethic.Mining do
           :ok
   def confirm_replication(tx_address, signature, node_public_key) do
     pid = get_mining_process!(tx_address)
-    send(pid, {:ack_replication, signature, node_public_key})
+    if pid, do: send(pid, {:ack_replication, signature, node_public_key})
     :ok
   end
 
@@ -190,7 +190,7 @@ defmodule Archethic.Mining do
   @spec notify_replication_error(binary(), any()) :: :ok
   def notify_replication_error(tx_address, error_reason) do
     pid = get_mining_process!(tx_address)
-    send(pid, {:replication_error, error_reason})
+    if pid, do: send(pid, {:replication_error, error_reason})
     :ok
   end
 
