@@ -19,7 +19,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           | :transaction_movements
           | :unspent_outputs
           | :node_movements
-          | :errors
+          | :error
 
   @typedoc """
   A cross validation stamp is composed from:
@@ -129,7 +129,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp serialize_inconsistency(:transaction_movements), do: 6
   defp serialize_inconsistency(:unspent_outputs), do: 7
   defp serialize_inconsistency(:node_movements), do: 8
-  defp serialize_inconsistency(:errors), do: 9
+  defp serialize_inconsistency(:error), do: 9
 
   @doc """
   Deserialize an encoded cross validation stamp
@@ -194,7 +194,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:transaction_movements, rest}
   defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:unspent_outputs, rest}
   defp do_reduce_inconsistencies(<<8::8, rest::bitstring>>), do: {:node_movements, rest}
-  defp do_reduce_inconsistencies(<<9::8, rest::bitstring>>), do: {:errors, rest}
+  defp do_reduce_inconsistencies(<<9::8, rest::bitstring>>), do: {:error, rest}
 
   @spec cast(map()) :: t()
   def cast(stamp = %{}) do

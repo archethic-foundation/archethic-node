@@ -16,10 +16,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     :proof_of_election,
     ledger_operations: %LedgerOperations{},
     recipients: [],
-    errors: []
+    error: nil
   ]
 
-  @type error :: :contract_validation | :oracle_validation
+  @type error :: :invalid_pending_transaction | :invalid_inherit_constraints
 
   @typedoc """
   Validation performed by a coordinator:
@@ -31,7 +31,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   - Recipients: List of the last smart contract chain resolved addresses
   - Contract validation: Determine if the transaction coming from a contract is valid according to the constraints
   - Signature: generated from the coordinator private key to avoid non-repudiation of the stamp
-  - Errors: list of errors returned by the pending transaction validation or after mining context
+  - Error: Error returned by the pending transaction validation or after mining context
   """
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),
@@ -41,7 +41,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
           proof_of_election: binary(),
           ledger_operations: LedgerOperations.t(),
           recipients: list(Crypto.versioned_hash()),
-          errors: list(atom())
+          error: error() | nil
         }
 
   @spec sign(__MODULE__.t()) :: __MODULE__.t()
@@ -66,7 +66,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         proof_of_election: poe,
         ledger_operations: ops,
         recipients: recipients,
-        errors: errors
+        error: error
       }) do
     %__MODULE__{
       timestamp: timestamp,
@@ -75,7 +75,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       proof_of_election: poe,
       ledger_operations: ops,
       recipients: recipients,
-      errors: errors
+      error: error
     }
   end
 
@@ -127,7 +127,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       1, 0,
       # Nb of resolved recipients addresses
       1, 0,
-      # Nb errors reported
+      # No error reported
       0,
       # Signature size
       64,
@@ -146,7 +146,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         proof_of_election: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
-        errors: errors,
+        error: error,
         signature: nil
       }) do
     pow =
@@ -161,8 +161,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, encoded_recipients_len::binary,
-      :erlang.list_to_binary(recipients)::binary, length(errors)::8,
-      serialize_errors(errors)::bitstring>>
+      :erlang.list_to_binary(recipients)::binary, serialize_error(error)::8>>
   end
 
   def serialize(%__MODULE__{
@@ -172,7 +171,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         proof_of_election: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
-        errors: errors,
+        error: error,
         signature: signature
       }) do
     pow =
@@ -187,8 +186,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, encoded_recipients_len::binary,
-      :erlang.list_to_binary(recipients)::binary, length(errors)::8,
-      serialize_errors(errors)::bitstring, byte_size(signature)::8, signature::binary>>
+      :erlang.list_to_binary(recipients)::binary, serialize_error(error)::8,
+      byte_size(signature)::8, signature::binary>>
   end
 
   @doc """
@@ -227,7 +226,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
             unspent_outputs: []
           },
           recipients: [],
-          errors: [],
+          error: nil,
           signature: <<67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
             126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
             238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
@@ -250,10 +249,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     {recipients_length, rest} = rest |> VarInt.get_value()
 
-    {recipients, <<nb_errors::8, rest::bitstring>>} =
+    {recipients, <<error_byte::8, rest::bitstring>>} =
       deserialize_list_of_recipients_addresses(rest, recipients_length, [])
 
-    {errors, rest} = deserialize_errors(rest, nb_errors)
+    error = deserialize_error(error_byte)
 
     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>> = rest
 
@@ -265,7 +264,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         proof_of_election: poe,
         ledger_operations: ledger_ops,
         recipients: recipients,
-        errors: errors,
+        error: error,
         signature: signature
       },
       rest
@@ -283,7 +282,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.cast(),
       recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature),
-      errors: Map.get(stamp, :errors, [])
+      error: Map.get(stamp, :error)
     }
   end
 
@@ -298,7 +297,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         ledger_operations: ledger_operations,
         recipients: recipients,
         signature: signature,
-        errors: errors
+        error: error
       }) do
     %{
       timestamp: timestamp,
@@ -308,7 +307,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       ledger_operations: LedgerOperations.to_map(ledger_operations),
       recipients: recipients,
       signature: signature,
-      errors: errors
+      error: error
     }
   end
 
@@ -350,28 +349,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     ])
   end
 
-  defp serialize_errors(errors, acc \\ [])
-  defp serialize_errors([], acc), do: :erlang.list_to_bitstring(acc)
+  defp serialize_error(nil), do: 0
+  defp serialize_error(:invalid_pending_transaction), do: 1
+  defp serialize_error(:invalid_inherit_constraints), do: 2
 
-  defp serialize_errors([error | rest], acc) do
-    serialize_errors(rest, [serialize_error(error) | acc])
-  end
-
-  defp deserialize_errors(bitstring, nb_errors, acc \\ [])
-
-  defp deserialize_errors(rest, nb_errors, acc) when length(acc) == nb_errors do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_errors(<<error::8, rest::bitstring>>, nb_errors, acc) do
-    deserialize_errors(rest, nb_errors, [deserialize_error(error) | acc])
-  end
-
-  defp serialize_error(:pending_transaction), do: 0
-  defp serialize_error(:contract_validation), do: 1
-  defp serialize_error(:oracle_validation), do: 2
-
-  defp deserialize_error(0), do: :pending_transaction
-  defp deserialize_error(1), do: :contract_validation
-  defp deserialize_error(2), do: :oracle_validation
+  defp deserialize_error(0), do: nil
+  defp deserialize_error(1), do: :invalid_pending_transaction
+  defp deserialize_error(2), do: :invalid_inherit_constraints
 end

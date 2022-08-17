@@ -89,15 +89,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         Enum.map(io_storage_nodes, & &1.first_public_key)
       )
 
-    valid_pending_transaction? =
-      case PendingTransactionValidation.validate(tx) do
-        :ok ->
-          true
-
-        _ ->
-          false
-      end
-
     validation_context =
       ValidationContext.new(
         transaction: tx,
@@ -110,7 +101,18 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         validation_time: validation_time,
         resolved_addresses: resolved_addresses
       )
-      |> ValidationContext.set_pending_transaction_validation(valid_pending_transaction?)
+
+    validation_context =
+      case PendingTransactionValidation.validate(tx) do
+        :ok ->
+          ValidationContext.set_pending_transaction_validation(validation_context, true)
+
+        {:error, reason} ->
+          ValidationContext.set_pending_transaction_validation(validation_context, false, reason)
+      end
+
+    validation_context =
+      validation_context
       |> ValidationContext.put_transaction_context(
         prev_tx,
         unspent_outputs,
@@ -157,11 +159,41 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   def handle_info(
         {:replication_error, reason},
-        state = %{context: %ValidationContext{transaction: %Transaction{address: tx_address}}}
+        state = %{
+          context: %ValidationContext{
+            transaction: %Transaction{address: tx_address},
+            pending_transaction_error_detail: pending_error_detail
+          }
+        }
       ) do
-    Logger.warning("Invalid transaction #{inspect(reason)}")
-    # notify welcome node
-    message = %ValidationError{address: tx_address, reason: reason}
+    {error_context, error_reason} =
+      case reason do
+        :invalid_pending_transaction ->
+          {:invalid_transaction, pending_error_detail}
+
+        :invalid_inherit_constraints ->
+          {:invalid_transaction, "Inherit constraints not respected"}
+
+        :insufficient_funds ->
+          {:invalid_transaction, "Insufficient funds"}
+
+        :invalid_proof_of_work ->
+          {:invalid_transaction, "Invalid origin signature"}
+
+        reason ->
+          {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
+      end
+
+    Logger.warning("Invalid transaction #{inspect(reason)}",
+      transaction_address: Base.encode16(tx_address)
+    )
+
+    Logger.debug("Notify error back to the welcome node",
+      transaction_address: Base.encode16(tx_address)
+    )
+
+    # Notify error to the welcome node
+    message = %ValidationError{address: tx_address, context: error_context, reason: error_reason}
 
     Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
       P2P.send_message(
