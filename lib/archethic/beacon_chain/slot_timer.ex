@@ -11,10 +11,10 @@ defmodule Archethic.BeaconChain.SlotTimer do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SubsetRegistry
 
-  alias Archethic.Crypto
-
-  alias Archethic.P2P.Node
   alias Archethic.P2P
+  alias Archethic.P2P.Node
+
+  alias Archethic.Crypto
 
   alias Archethic.PubSub
 
@@ -95,50 +95,9 @@ defmodule Archethic.BeaconChain.SlotTimer do
     :ets.new(:archethic_slot_timer, [:named_table, :public, read_concurrency: true])
     :ets.insert(:archethic_slot_timer, {:interval, interval})
 
-    PubSub.register_to_node_update()
-
     Logger.info("Starting SlotTimer")
 
-    case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
-      %Node{authorized?: true} ->
-        Logger.info("SlotTimer scheduled during init")
-
-        {:ok, %{interval: interval, timer: schedule_new_slot(interval)}, :hibernate}
-
-      _ ->
-        Logger.info("SlotTimer scheduler waitng for Node Update Message")
-
-        {:ok, %{interval: interval}}
-    end
-  end
-
-  @doc false
-  def handle_info(
-        {:node_update, %Node{authorized?: true, first_public_key: key}},
-        state = %{interval: interval}
-      ) do
-    if key == Crypto.first_node_public_key() do
-      state
-      |> Map.get(:timer)
-      |> cancel_timer()
-
-      timer = schedule_new_slot(interval)
-      {:noreply, Map.put(state, :timer, timer), :hibernate}
-    else
-      {:noreply, state}
-    end
-  end
-
-  def handle_info({:node_update, %Node{authorized?: false, first_public_key: key}}, state) do
-    if key == Crypto.first_node_public_key() do
-      state
-      |> Map.get(:timer)
-      |> cancel_timer()
-
-      {:noreply, Map.delete(state, :timer), :hibernate}
-    else
-      {:noreply, state}
-    end
+    {:ok, %{interval: interval, timer: schedule_new_slot(interval)}, :hibernate}
   end
 
   def handle_info(
@@ -153,7 +112,14 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
     Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
     PubSub.notify_current_epoch_of_slot_timer(slot_time)
-    Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
+
+    case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
+      %Node{authorized?: true, available?: true} ->
+        Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
+
+      _ ->
+        :skip
+    end
 
     {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
@@ -186,9 +152,6 @@ defmodule Archethic.BeaconChain.SlotTimer do
   defp schedule_new_slot(interval) do
     Process.send_after(self(), :new_slot, Utils.time_offset(interval) * 1000)
   end
-
-  defp cancel_timer(nil), do: :ok
-  defp cancel_timer(timer), do: Process.cancel_timer(timer)
 
   def config_change(nil), do: :ok
 
