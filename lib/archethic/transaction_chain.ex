@@ -604,7 +604,7 @@ defmodule Archethic.TransactionChain do
   Stream the transactions from a chain
   """
   @spec stream(binary(), list()) :: Enumerable.t() | list(Transaction.t())
-  def stream(address, fields) do
+  def stream(address, fields \\ []) do
     Stream.resource(
       fn -> DB.get_transaction_chain(address, fields, []) end,
       fn
@@ -717,17 +717,8 @@ defmodule Archethic.TransactionChain do
       |> List.first()
     end
 
-    # Get transaction chain size to calculate timeout
-    chain_size =
-      case Archethic.get_transaction_chain_length(address) do
-        {:ok, chain_size} ->
-          chain_size
-
-        _ ->
-          1
-      end
-
-    timeout = Message.get_max_timeout() + Message.get_max_timeout() * chain_size
+    # We got transactions by batch of 10 transactions
+    timeout = Message.get_max_timeout() + Message.get_max_timeout() * 10
 
     case P2P.quorum_read(
            nodes,
@@ -888,5 +879,24 @@ defmodule Archethic.TransactionChain do
 
   def fetch_chain_db({chain, true, paging_address}, acc) do
     fetch_chain_db(get(paging_address, [], paging_state: paging_address), acc ++ chain)
+  end
+
+  @spec scan_chain(genesis_address :: binary(), limit_address :: binary(), fields :: list()) ::
+          Enumerable.t()
+  def scan_chain(genesis_address, limit_address, fields \\ []) do
+    Stream.resource(
+      fn -> DB.scan_chain(genesis_address, limit_address, fields, nil) end,
+      fn
+        {transactions, true, paging_state} ->
+          {transactions, DB.scan_chain(genesis_address, limit_address, fields, paging_state)}
+
+        {transactions, false, _} ->
+          {transactions, :eof}
+
+        :eof ->
+          {:halt, nil}
+      end,
+      fn _ -> :ok end
+    )
   end
 end
