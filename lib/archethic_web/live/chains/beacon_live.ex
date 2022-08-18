@@ -256,7 +256,7 @@ defmodule ArchethicWeb.BeaconChainLive do
     end)
     |> Flow.partition(key: {:elem, 2})
     |> Flow.reduce(fn -> [] end, fn {address, _nodes, _subset}, acc ->
-      tx_chains =
+      {:ok, tx_chains} =
         try do
           Archethic.get_transaction_chain(address)
         rescue
