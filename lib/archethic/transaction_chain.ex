@@ -75,17 +75,17 @@ defmodule Archethic.TransactionChain do
   defdelegate list_addresses_by_type(type), to: DB
 
   @doc """
-  Get the last transaction address from a transaction chain
+  Get the last transaction address from a transaction chain with the latest time
   """
-  @spec get_last_address(binary()) :: binary()
+  @spec get_last_address(binary()) :: {binary(), DateTime.t()}
   defdelegate get_last_address(address),
     to: DB,
     as: :get_last_chain_address
 
   @doc """
-  Get the last transaction address from a transaction chain before a given date
+  Get the last transaction address from a transaction chain before a given date along its last time
   """
-  @spec get_last_address(binary(), DateTime.t()) :: binary()
+  @spec get_last_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
   defdelegate get_last_address(address, timestamp),
     to: DB,
     as: :get_last_chain_address
@@ -238,9 +238,8 @@ defmodule Archethic.TransactionChain do
           | {:error, :transaction_not_exists}
           | {:error, :invalid_transaction}
   def get_last_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
-    address
-    |> get_last_address()
-    |> get_transaction(fields)
+    {address, _} = get_last_address(address)
+    get_transaction(address, fields)
   end
 
   @doc """
@@ -844,8 +843,8 @@ defmodule Archethic.TransactionChain do
     case fetch_genesis_address_remotely(address) do
       {:ok, genesis_address} ->
         case get_last_address(genesis_address) do
-          ^genesis_address -> nil
-          last_address -> last_address
+          {^genesis_address, _} -> nil
+          {last_address, _} -> last_address
         end
 
       _ ->

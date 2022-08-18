@@ -349,7 +349,7 @@ defmodule ArchethicTest do
 
       MockDB
       |> stub(:get_last_chain_address, fn _address ->
-        "@Alice5"
+        {"@Alice5", DateTime.utc_now()}
       end)
 
       MockDB

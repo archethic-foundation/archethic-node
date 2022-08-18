@@ -32,6 +32,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       scan_summary_table(subset_summary_filename)
     end)
 
+    fill_last_addresses(db_path)
     fill_type_stats(db_path)
   end
 
@@ -56,9 +57,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
       genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
 
-      # Register last addresses of genesis address
-      true = :ets.insert(:archethic_db_last_index, {genesis_address, current_address})
-
       true =
         :ets.insert(
           :archethic_db_tx_index,
@@ -81,6 +79,19 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         :file.close(fd)
         nil
     end
+  end
+
+  defp fill_last_addresses(db_path) do
+    Enum.each(list_genesis_addresses(), fn genesis_address ->
+      # Register last addresses of genesis address
+      {last_address, timestamp} = get_last_chain_address(genesis_address, db_path)
+
+      true =
+        :ets.insert(
+          :archethic_db_last_index,
+          {genesis_address, last_address, DateTime.to_unix(timestamp, :millisecond)}
+        )
+    end)
   end
 
   defp fill_type_stats(db_path) do
@@ -325,14 +336,15 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     filename = chain_addresses_path(db_path, genesis_address)
 
     :ok = File.write!(filename, encoded_data, [:binary, :append])
-    true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address})
+    true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time})
     :ok
   end
 
   @doc """
   Return the last address of the chain
   """
-  @spec get_last_chain_address(address :: binary(), db_path :: String.t()) :: binary()
+  @spec get_last_chain_address(address :: binary(), db_path :: String.t()) ::
+          {binary(), DateTime.t()}
   def get_last_chain_address(address, db_path) do
     # We try with a transaction on a chain, to identity the genesis address
     case get_tx_entry(address, db_path) do
@@ -343,20 +355,25 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
             # If not present, the we search in the index file
             unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
 
-            search_last_address_until(genesis_address, unix_time, db_path) || address
+            search_last_address_until(genesis_address, unix_time, db_path) ||
+              {address, DateTime.utc_now()}
 
-          [{_, last_address}] ->
-            last_address
+          [{_, last_address, last_time}] ->
+            {last_address, DateTime.from_unix!(last_time, :millisecond)}
         end
 
       {:error, :not_exists} ->
         # We try if the request address is the genesis address to fetch the in memory index
         case :ets.lookup(:archethic_db_last_index, address) do
           [] ->
-            address
+            # If not present, the we search in the index file
+            unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
 
-          [{_, last_address}] ->
-            last_address
+            search_last_address_until(address, unix_time, db_path) ||
+              {address, DateTime.utc_now()}
+
+          [{_, last_address, last_time}] ->
+            {last_address, DateTime.from_unix!(last_time, :millisecond)}
         end
     end
   end
@@ -365,28 +382,31 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   Return the last address of the chain before or equal to the given date
   """
   @spec get_last_chain_address(address :: binary(), until :: DateTime.t(), db_path :: String.t()) ::
-          binary()
+          {last_addresss :: binary(), last_time :: DateTime.t()}
   def get_last_chain_address(address, datetime = %DateTime{}, db_path) do
     unix_time = DateTime.to_unix(datetime, :millisecond)
 
     # We get the genesis address of this given transaction address
     case get_tx_entry(address, db_path) do
       {:ok, %{genesis_address: genesis_address}} ->
-        search_last_address_until(genesis_address, unix_time, db_path) || address
+        search_last_address_until(genesis_address, unix_time, db_path) || {address, datetime}
 
       {:error, :not_exists} ->
         # We try to search with given address as genesis address
         # Then `address` acts the genesis address
-        search_last_address_until(address, unix_time, db_path) || address
+        search_last_address_until(address, unix_time, db_path) || {address, datetime}
     end
   end
 
   defp search_last_address_until(genesis_address, until, db_path) do
     filepath = chain_addresses_path(db_path, genesis_address)
 
-    case File.open(filepath, [:binary, :read]) do
-      {:ok, fd} ->
-        do_search_last_address_until(fd, until)
+    with {:ok, fd} <- File.open(filepath, [:binary, :read]),
+         {address, timestamp} <- do_search_last_address_until(fd, until) do
+      {address, DateTime.from_unix!(timestamp, :millisecond)}
+    else
+      nil ->
+        nil
 
       {:error, _} ->
         nil
@@ -400,21 +420,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
          {:ok, hash} <- :file.read(fd, hash_size) do
       address = <<curve_id::8, hash_id::8, hash::binary>>
 
-      if timestamp < until do
-        do_search_last_address_until(fd, until, address)
-      else
-        cond do
-          timestamp == until ->
-            :file.close(fd)
-            address
+      cond do
+        timestamp < until ->
+          do_search_last_address_until(fd, until, {address, timestamp})
 
-          timestamp < until ->
-            do_search_last_address_until(fd, until, address)
+        timestamp == until ->
+          :file.close(fd)
+          {address, timestamp}
 
-          true ->
-            :file.close(fd)
-            acc
-        end
+        true ->
+          :file.close(fd)
+          acc
       end
     else
       :eof ->
