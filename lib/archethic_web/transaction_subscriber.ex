@@ -79,7 +79,10 @@ defmodule ArchethicWeb.TransactionSubscriber do
         state
       ) do
     %{nb_confirmations: nb_confirmations, max_confirmations: max_confirmations} =
-      Map.get(state, tx_address, %{nb_confirmations: 0, max_confirmations: 0})
+      Map.get(state, tx_address, %{
+        nb_confirmations: 0,
+        max_confirmations: get_max_confirmations(tx_address)
+      })
 
     total_confirmations = nb_confirmations + length(confirmations)
 
