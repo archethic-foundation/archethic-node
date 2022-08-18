@@ -1437,8 +1437,8 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
-    address = TransactionChain.get_last_address(address, timestamp)
-    %LastTransactionAddress{address: address}
+    {address, time} = TransactionChain.get_last_address(address, timestamp)
+    %LastTransactionAddress{address: address, timestamp: time}
   end
 
   def process(%NotifyLastTransactionAddress{

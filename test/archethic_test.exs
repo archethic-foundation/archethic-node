@@ -150,7 +150,7 @@ defmodule ArchethicTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+          {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
         _, %GetTransaction{}, _ ->
           {:ok, %Transaction{previous_public_key: "Alice1"}}
@@ -187,7 +187,7 @@ defmodule ArchethicTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+          {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
         _, %GetTransaction{}, _ ->
           {:ok, %NotFound{}}

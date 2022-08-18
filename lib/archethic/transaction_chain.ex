@@ -562,10 +562,14 @@ defmodule Archethic.TransactionChain do
           {:ok, binary()} | {:error, :network_issue}
   def fetch_last_address_remotely(address, nodes, timestamp = %DateTime{} \\ DateTime.utc_now())
       when is_binary(address) and is_list(nodes) do
-    # TODO: implement conflict resolver to get the latest address
+    conflict_resolver = fn results ->
+      Enum.max_by(results, &DateTime.to_unix(&1.timestamp, :millisecond))
+    end
+
     case P2P.quorum_read(
            nodes,
-           %GetLastTransactionAddress{address: address, timestamp: timestamp}
+           %GetLastTransactionAddress{address: address, timestamp: timestamp},
+           conflict_resolver
          ) do
       {:ok, %LastTransactionAddress{address: last_address}} ->
         {:ok, last_address}
