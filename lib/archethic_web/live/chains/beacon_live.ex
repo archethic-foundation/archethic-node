@@ -254,7 +254,7 @@ defmodule ArchethicWeb.BeaconChainLive do
 
       {address, nodes, subset}
     end)
-    |> Flow.partition(key: {:elem, 2})
+    |> Flow.partition(key: {:elem, 2}, max_demand: 50, stages: 50)
     |> Flow.reduce(fn -> [] end, fn {address, _nodes, _subset}, acc ->
       {:ok, tx_chains} =
         try do
