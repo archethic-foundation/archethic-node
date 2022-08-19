@@ -165,7 +165,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_genesis_address(binary()) ::
           binary()
   def get_genesis_address(address) do
-    nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
     {:ok, address} = download_first_address(nodes, address)
     address
   end
@@ -175,7 +175,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_genesis_public_key(binary()) :: binary()
   def get_genesis_public_key(address) do
-    nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
     {:ok, key} = download_first_public_key(nodes, address)
     key
   end

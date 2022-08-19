@@ -36,7 +36,7 @@ defmodule Archethic do
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
   def search_transaction(address) when is_binary(address) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     nodes =
       storage_nodes
@@ -118,7 +118,7 @@ defmodule Archethic do
       {:ok, last_address} ->
         nodes =
           last_address
-          |> Election.chain_storage_nodes(P2P.available_nodes())
+          |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
           |> P2P.nearest_nodes()
           |> Enum.filter(&Node.locally_available?/1)
 
@@ -145,7 +145,7 @@ defmodule Archethic do
   @spec get_balance(binary) :: {:ok, Account.balance()} | {:error, :network_issue}
   def get_balance(address) when is_binary(address) do
     address
-    |> Election.chain_storage_nodes(P2P.available_nodes())
+    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_balance(address)
@@ -171,7 +171,7 @@ defmodule Archethic do
   def get_transaction_inputs(address) when is_binary(address) do
     nodes =
       address
-      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
@@ -185,7 +185,7 @@ defmodule Archethic do
   def get_transaction_chain(address) when is_binary(address) do
     nodes =
       address
-      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
@@ -222,7 +222,7 @@ defmodule Archethic do
   def get_transaction_chain_by_paging_address(address, paging_address) when is_binary(address) do
     nodes =
       address
-      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
@@ -263,7 +263,7 @@ defmodule Archethic do
   def get_transaction_chain_length(address) when is_binary(address) do
     nodes =
       address
-      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 

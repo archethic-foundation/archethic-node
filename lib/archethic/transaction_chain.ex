@@ -543,7 +543,7 @@ defmodule Archethic.TransactionChain do
       when is_binary(address) do
     nodes =
       address
-      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
@@ -862,7 +862,7 @@ defmodule Archethic.TransactionChain do
   def fetch_genesis_address_remotely(address) when is_binary(address) do
     nodes =
       address
-      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 

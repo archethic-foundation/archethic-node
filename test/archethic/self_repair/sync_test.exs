@@ -305,7 +305,6 @@ defmodule Archethic.SelfRepair.SyncTest do
       ]
 
       tx_address = transfer_tx.address
-
       me = self()
 
       MockDB
@@ -364,13 +363,18 @@ defmodule Archethic.SelfRepair.SyncTest do
   end
 
   defp create_p2p_context do
+    pb_key1 = Crypto.derive_keypair("key11", 0) |> elem(0)
+    pb_key3 = Crypto.derive_keypair("key33", 0) |> elem(0)
+
     welcome_node = %Node{
-      first_public_key: "key1",
-      last_public_key: "key1",
+      first_public_key: pb_key1,
+      last_public_key: pb_key1,
       available?: true,
       geo_patch: "BBB",
       network_patch: "BBB",
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      authorized?: true,
+      reward_address: Crypto.derive_address(pb_key1),
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       enrollment_date: DateTime.utc_now()
     }
 
@@ -391,13 +395,15 @@ defmodule Archethic.SelfRepair.SyncTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         http_port: 4000,
-        first_public_key: "key3",
-        last_public_key: "key3",
-        available?: true,
+        first_public_key: pb_key3,
+        last_public_key: pb_key3,
         geo_patch: "BBB",
         network_patch: "BBB",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        authorization_date: DateTime.utc_now()
+        reward_address: Crypto.derive_address(pb_key3),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        enrollment_date: DateTime.utc_now()
       }
     ]
 

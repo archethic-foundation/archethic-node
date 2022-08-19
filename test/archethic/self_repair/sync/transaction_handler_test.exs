@@ -37,14 +37,18 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   setup do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
+    pb_key1 = Crypto.derive_keypair("key11", 0) |> elem(0)
+    pb_key3 = Crypto.derive_keypair("key33", 0) |> elem(0)
 
     welcome_node = %Node{
-      first_public_key: "key1",
-      last_public_key: "key1",
+      first_public_key: pb_key1,
+      last_public_key: pb_key1,
       available?: true,
       geo_patch: "BBB",
       network_patch: "BBB",
-      reward_address: :crypto.strong_rand_bytes(32),
+      authorized?: true,
+      reward_address: Crypto.derive_address(pb_key1),
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       enrollment_date: DateTime.utc_now()
     }
 
@@ -64,13 +68,15 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: "key3",
-        last_public_key: "key3",
-        available?: true,
+        first_public_key: pb_key3,
+        last_public_key: pb_key3,
         geo_patch: "BBB",
         network_patch: "BBB",
-        reward_address: :crypto.strong_rand_bytes(32),
-        authorization_date: DateTime.utc_now()
+        reward_address: Crypto.derive_address(pb_key3),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        enrollment_date: DateTime.utc_now()
       }
     ]
 
