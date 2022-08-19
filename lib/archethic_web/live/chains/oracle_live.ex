@@ -168,9 +168,10 @@ defmodule ArchethicWeb.OracleChainLive do
   end
 
   defp list_transactions_by_date(date = %DateTime{}) do
-    date
-    |> Crypto.derive_oracle_address(0)
-    |> TransactionChain.get_last_address()
+    oracle_genesis_address = Crypto.derive_oracle_address(date, 0)
+    {last_address, _} = TransactionChain.get_last_address(oracle_genesis_address)
+
+    last_address
     |> get_transaction_chain()
     |> Stream.map(fn %Transaction{
                        address: address,

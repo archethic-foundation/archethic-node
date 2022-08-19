@@ -104,7 +104,7 @@ defmodule Archethic.BootstrapTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+          {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
         _, %GetTransactionInputs{}, _ ->
           {:ok, %TransactionInputList{inputs: []}}

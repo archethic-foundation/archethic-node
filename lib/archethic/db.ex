@@ -31,11 +31,16 @@ defmodule Archethic.DB do
 
   @callback list_addresses_by_type(Transaction.transaction_type()) ::
               Enumerable.t() | list(binary())
-  @callback get_last_chain_address(binary()) :: binary()
-  @callback get_last_chain_address(binary(), DateTime.t()) :: binary()
+  @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
+  @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
   @callback get_first_chain_address(binary()) :: binary()
   @callback get_first_public_key(Crypto.key()) :: binary()
-
+  @callback scan_chain(
+              genesis_address :: binary(),
+              limit_address :: binary(),
+              fields :: list(),
+              paging_state :: nil | binary()
+            ) :: Enumerable.t()
   @callback register_stats(DateTime.t(), float(), non_neg_integer(), non_neg_integer()) :: :ok
   @callback get_latest_tps() :: float()
   @callback get_latest_burned_fees() :: non_neg_integer()

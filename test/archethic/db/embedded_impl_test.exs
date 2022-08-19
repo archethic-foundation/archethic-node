@@ -244,6 +244,56 @@ defmodule Archethic.DB.EmbeddedTest do
     end
   end
 
+  describe "scan_chain/4" do
+    test "should return the list of all the transactions until the one given" do
+      transactions =
+        Enum.map(1..20, fn i ->
+          TransactionFactory.create_valid_transaction([],
+            index: i,
+            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+          )
+        end)
+
+      genesis_address = transactions |> List.first() |> Transaction.previous_address()
+      :ok = EmbeddedImpl.write_transaction_chain(transactions)
+
+      assert {txs, false, nil} =
+               EmbeddedImpl.scan_chain(genesis_address, Enum.at(transactions, 2).address)
+
+      assert Enum.take(transactions, 3) == txs
+    end
+
+    test "should return a page and its paging state" do
+      transactions =
+        Enum.map(1..20, fn i ->
+          TransactionFactory.create_valid_transaction([],
+            index: i,
+            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+          )
+        end)
+
+      EmbeddedImpl.write_transaction_chain(transactions)
+      genesis_address = transactions |> List.first() |> Transaction.previous_address()
+
+      {page, true, paging_state} =
+        EmbeddedImpl.scan_chain(genesis_address, Enum.at(transactions, 12).address)
+
+      assert length(page) == 10
+      assert page == Enum.take(transactions, 10)
+      assert paging_state == Enum.at(transactions, 9).address
+
+      {page2, false, nil} =
+        EmbeddedImpl.scan_chain(
+          genesis_address,
+          Enum.at(transactions, 12).address,
+          [],
+          paging_state
+        )
+
+      assert length(page2) == 3
+    end
+  end
+
   describe "chain_size/1" do
     test "should return 0 when there are not transactions" do
       assert 0 == EmbeddedImpl.chain_size(:crypto.strong_rand_bytes(32))
@@ -335,17 +385,30 @@ defmodule Archethic.DB.EmbeddedTest do
 
       EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
 
-      assert tx3.address == EmbeddedImpl.get_last_chain_address(tx1.address)
-      assert tx3.address == EmbeddedImpl.get_last_chain_address(tx2.address)
-      assert tx3.address == EmbeddedImpl.get_last_chain_address(tx3.address)
-      assert tx3.address == EmbeddedImpl.get_last_chain_address(Transaction.previous_address(tx1))
+      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
+               EmbeddedImpl.get_last_chain_address(tx1.address)
+
+      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
+               EmbeddedImpl.get_last_chain_address(tx2.address)
+
+      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
+               EmbeddedImpl.get_last_chain_address(tx3.address)
+
+      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
+               EmbeddedImpl.get_last_chain_address(Transaction.previous_address(tx1))
     end
   end
 
   describe "get_last_chain_address/2" do
     test "should return the same given address if not previous chain" do
+      now = DateTime.utc_now()
       address = :crypto.strong_rand_bytes(32)
-      assert ^address = EmbeddedImpl.get_last_chain_address(address)
+      assert {^address, last_time} = EmbeddedImpl.get_last_chain_address(address)
+
+      assert DateTime.compare(
+               now |> DateTime.truncate(:millisecond),
+               last_time |> DateTime.truncate(:millisecond)
+             ) == :eq
     end
 
     test "should get the last address of chain for the exact time of last address timestamp" do
@@ -369,16 +432,16 @@ defmodule Archethic.DB.EmbeddedTest do
 
       EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
 
-      assert tx3.address ==
+      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx3.address, tx3.validation_stamp.timestamp)
 
-      assert tx2.address ==
+      assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx2.address, tx2.validation_stamp.timestamp)
 
-      assert tx1.address ==
+      assert {tx1.address, ~U[2020-03-30 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
 
-      assert tx1.address ==
+      assert {tx1.address, ~U[2020-03-30 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(
                  Transaction.previous_address(tx1),
                  tx1.validation_stamp.timestamp
@@ -406,22 +469,22 @@ defmodule Archethic.DB.EmbeddedTest do
 
       EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
 
-      assert tx3.address ==
+      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx2.address, tx3.validation_stamp.timestamp)
 
-      assert tx3.address ==
+      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx1.address, tx3.validation_stamp.timestamp)
 
-      assert tx2.address ==
+      assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(
                  tx1.address,
                  DateTime.add(tx2.validation_stamp.timestamp, 100)
                )
 
-      assert tx2.address ==
+      assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx1.address, tx2.validation_stamp.timestamp)
 
-      assert tx1.address ==
+      assert {tx1.address, ~U[2020-03-30 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(
                  tx1.address,
                  DateTime.add(tx1.validation_stamp.timestamp, 100)
@@ -673,9 +736,10 @@ defmodule Archethic.DB.EmbeddedTest do
       genesis_address = Transaction.previous_address(tx1)
 
       EmbeddedImpl.write_transaction(tx1)
-      EmbeddedImpl.add_last_transaction_address(genesis_address, tx2.address, DateTime.utc_now())
+      now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      EmbeddedImpl.add_last_transaction_address(genesis_address, tx2.address, now)
 
-      assert tx2.address == EmbeddedImpl.get_last_chain_address(tx1.address)
+      assert {tx2.address, now} == EmbeddedImpl.get_last_chain_address(tx1.address)
     end
   end
 

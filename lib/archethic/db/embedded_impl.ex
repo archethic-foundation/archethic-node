@@ -191,9 +191,10 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Return the last address from the given transaction's address until the given date
+  Return the last address from the given transaction's address until the given date along with its timestamp
   """
-  @spec get_last_chain_address(address :: binary(), until :: DateTime.t()) :: binary()
+  @spec get_last_chain_address(address :: binary(), until :: DateTime.t()) ::
+          {address :: binary(), last_address_timestamp :: DateTime.t()}
   def get_last_chain_address(address, date = %DateTime{} \\ DateTime.utc_now())
       when is_binary(address) do
     ChainIndex.get_last_chain_address(address, date, db_path())
@@ -248,6 +249,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   def list_last_transaction_addresses do
     ChainIndex.list_genesis_addresses()
     |> Stream.map(&get_last_chain_address/1)
+    |> Stream.map(fn {address, _time} -> address end)
   end
 
   @doc """
@@ -310,4 +312,13 @@ defmodule Archethic.DB.EmbeddedImpl do
           }
         }
   defdelegate get_last_p2p_summaries, to: P2PView, as: :get_views
+
+  @doc """
+  Read chain from the beginning until a given limit address
+  """
+  @spec scan_chain(binary(), binary(), list(), binary() | nil) ::
+          {list(Transaction.t()), boolean(), binary() | nil}
+  def scan_chain(genesis_address, limit_address, fields \\ [], paging_state \\ nil) do
+    ChainReader.scan_chain(genesis_address, limit_address, fields, paging_state, db_path())
+  end
 end

@@ -459,8 +459,8 @@ defmodule Archethic.P2P.Message do
     <<240::8, Summary.serialize(summary)::bitstring>>
   end
 
-  def encode(%LastTransactionAddress{address: address}) do
-    <<241::8, address::binary>>
+  def encode(%LastTransactionAddress{address: address, timestamp: timestamp}) do
+    <<241::8, address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
   def encode(%FirstPublicKey{public_key: public_key}) do
@@ -971,8 +971,12 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<241::8, rest::bitstring>>) do
-    {address, rest} = Utils.deserialize_address(rest)
-    {%LastTransactionAddress{address: address}, rest}
+    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+
+    {%LastTransactionAddress{
+       address: address,
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
+     }, rest}
   end
 
   def decode(<<242::8, rest::bitstring>>) do
@@ -1433,8 +1437,8 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
-    address = TransactionChain.get_last_address(address, timestamp)
-    %LastTransactionAddress{address: address}
+    {address, time} = TransactionChain.get_last_address(address, timestamp)
+    %LastTransactionAddress{address: address, timestamp: time}
   end
 
   def process(%NotifyLastTransactionAddress{

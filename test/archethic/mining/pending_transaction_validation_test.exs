@@ -363,7 +363,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
-      |> stub(:get_last_chain_address, fn _, _ -> address end)
+      |> stub(:get_last_chain_address, fn _, _ -> {address, DateTime.utc_now()} end)
 
       tx =
         Transaction.new(
@@ -428,7 +428,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
-      |> stub(:get_last_chain_address, fn _, _ -> address end)
+      |> stub(:get_last_chain_address, fn _, _ -> {address, DateTime.utc_now()} end)
 
       tx =
         Transaction.new(

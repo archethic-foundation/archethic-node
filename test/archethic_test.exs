@@ -10,12 +10,12 @@ defmodule ArchethicTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.GetBalance
+  alias Archethic.P2P.Message.GetFirstAddress
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.GetFirstAddress
 
   alias Archethic.P2P.Message.FirstAddress
   alias Archethic.P2P.Message.LastTransactionAddress
@@ -150,7 +150,7 @@ defmodule ArchethicTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+          {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
         _, %GetTransaction{}, _ ->
           {:ok, %Transaction{previous_public_key: "Alice1"}}
@@ -187,7 +187,7 @@ defmodule ArchethicTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+          {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
         _, %GetTransaction{}, _ ->
           {:ok, %NotFound{}}
@@ -300,6 +300,9 @@ defmodule ArchethicTest do
 
       MockClient
       |> stub(:send_message, fn
+        _, %GetFirstAddress{address: "@Alice2"}, _ ->
+          {:ok, %FirstAddress{address: "@Alice0"}}
+
         _, %GetTransactionChain{}, _ ->
           {:ok,
            %TransactionList{
@@ -309,12 +312,6 @@ defmodule ArchethicTest do
                %Transaction{address: "@Alice2"}
              ]
            }}
-
-        _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 3}
-
-        _, %GetFirstAddress{}, _ ->
-          {:ok, %NotFound{}}
       end)
 
       assert {:ok,
@@ -348,116 +345,40 @@ defmodule ArchethicTest do
       })
 
       MockDB
-      |> stub(:get_last_chain_address, fn _address ->
-        "@Alice5"
-      end)
-
-      MockDB
-      |> stub(:get_transaction_chain, fn _address, _, _ ->
+      |> stub(:scan_chain, fn "@Alice0", _, _, _ ->
         {[
-           %Transaction{address: "@Alice0"},
            %Transaction{address: "@Alice1"},
            %Transaction{address: "@Alice2"},
            %Transaction{address: "@Alice3"},
-           %Transaction{address: "@Alice4"},
-           %Transaction{address: "@Alice5"}
+           %Transaction{address: "@Alice4"}
          ], false, nil}
       end)
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetTransactionChain{address: "@Alice2", paging_state: "@Alice5"}, _ ->
+        _, %GetFirstAddress{address: "@Alice6"}, _ ->
+          {:ok, %FirstAddress{address: "@Alice0"}}
+
+        _, %GetTransactionChain{address: "@Alice6", paging_state: "@Alice4"}, _ ->
           {:ok,
            %TransactionList{
              transactions: [
+               %Transaction{address: "@Alice5"},
                %Transaction{address: "@Alice6"},
                %Transaction{address: "@Alice7"}
              ]
            }}
-
-        _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 2}
-
-        _, %GetFirstAddress{}, _ ->
-          {:ok, %FirstAddress{address: "@Alice0"}}
       end)
 
       assert {:ok,
               [
-                %Transaction{address: "@Alice0"},
                 %Transaction{address: "@Alice1"},
                 %Transaction{address: "@Alice2"},
                 %Transaction{address: "@Alice3"},
                 %Transaction{address: "@Alice4"},
                 %Transaction{address: "@Alice5"},
-                %Transaction{address: "@Alice6"},
-                %Transaction{address: "@Alice7"}
-              ]} = Archethic.get_transaction_chain("@Alice2")
-    end
-
-    test "should get_transaction_chain from network when GetFirstAddress fails" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.last_node_public_key(),
-        last_public_key: Crypto.last_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA"
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      MockClient
-      |> expect(:send_message, fn _, %GetFirstAddress{}, _ ->
-        {:ok, %NotFound{}}
-      end)
-
-      MockDB
-      |> stub(:get_last_chain_address, fn address ->
-        address
-      end)
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetTransactionChain{address: "@Alice2", paging_state: nil}, _ ->
-          {:ok,
-           %TransactionList{
-             transactions: [
-               %Transaction{address: "@Alice0"},
-               %Transaction{address: "@Alice1"},
-               %Transaction{address: "@Alice2"},
-               %Transaction{address: "@Alice3"},
-               %Transaction{address: "@Alice4"},
-               %Transaction{address: "@Alice5"}
-             ]
-           }}
-
-        _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 6}
-
-        _, %GetFirstAddress{}, _ ->
-          {:ok, %NotFound{}}
-      end)
-
-      assert {:ok,
-              [
-                %Transaction{address: "@Alice0"},
-                %Transaction{address: "@Alice1"},
-                %Transaction{address: "@Alice2"},
-                %Transaction{address: "@Alice3"},
-                %Transaction{address: "@Alice4"},
-                %Transaction{address: "@Alice5"}
-              ]} = Archethic.get_transaction_chain("@Alice2")
+                %Transaction{address: "@Alice6"}
+              ]} = Archethic.get_transaction_chain("@Alice6")
     end
   end
 
