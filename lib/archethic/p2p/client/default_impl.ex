@@ -69,13 +69,4 @@ defmodule Archethic.P2P.Client.DefaultImpl do
       end
     end
   end
-
-  @doc """
-  When receiving a message from a node, we set it connected
-  """
-  @impl Client
-  @spec set_connected(Crypto.key()) :: :ok
-  def set_connected(node_public_key) do
-    Connection.set_connected(node_public_key)
-  end
 end

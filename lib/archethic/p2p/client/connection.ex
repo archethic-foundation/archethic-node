@@ -48,22 +48,6 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
-  @doc """
-  Set the sate to connected
-  """
-  @spec set_connected(Crypto.key()) :: :ok
-  def set_connected(public_key) do
-    GenStateMachine.cast(via_tuple(public_key), {:connect, self()})
-
-    receive do
-      :ok ->
-        :ok
-    after
-      1000 ->
-        :ok
-    end
-  end
-
   # fetch cnnoection details from registery for a node from its public key
   defp via_tuple(public_key), do: {:via, Registry, {ConnectionRegistry, public_key}}
 
@@ -126,12 +110,7 @@ defmodule Archethic.P2P.Client.Connection do
       {:ok, socket} ->
         {:next_state, {:connected, socket}, data}
 
-      {:error, reason} ->
-        Logger.debug(
-          "Error during node connection to #{:inet.ntoa(ip)}:#{port} - #{reason} ",
-          node: Base.encode16(node_public_key)
-        )
-
+      {:error, _} ->
         MemTable.decrease_node_availability(node_public_key)
         actions = [{{:timeout, :reconnect}, 500, nil}]
         {:keep_state_and_data, actions}

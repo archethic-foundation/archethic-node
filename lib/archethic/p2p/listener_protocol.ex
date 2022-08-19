@@ -48,7 +48,6 @@ defmodule Archethic.P2P.ListenerProtocol do
     } = Archethic.P2P.MessageEnvelop.decode(msg)
 
     Archethic.P2P.MemTable.increase_node_availability(sender_public_key)
-    Archethic.P2P.Client.set_connected(sender_public_key)
 
     Task.Supervisor.start_child(TaskSupervisor, fn ->
       response = Archethic.P2P.Message.process(message)
