@@ -52,12 +52,13 @@ defmodule Archethic.OracleChain.MemTable do
       iex> MemTable.add_oracle_data("uco", %{ "eur" => 0.02 }, ~U[2021-06-04 10:00:00Z])
       iex> MemTable.add_oracle_data("uco", %{ "eur" => 0.04 }, ~U[2021-06-04 15:00:00Z])
       iex> MemTable.get_oracle_data("uco", ~U[2021-06-04 10:10:00Z])
-      {:ok, %{ "eur" => 0.02 }}
+      {:ok, %{ "eur" => 0.02 }, ~U[2021-06-04 10:00:00Z]}
       iex> MemTable.get_oracle_data("uco", ~U[2021-06-04 20:10:40Z])
-      {:ok, %{ "eur" => 0.04 }}
+      {:ok, %{ "eur" => 0.04 }, ~U[2021-06-04 15:00:00Z]}
 
   """
-  @spec get_oracle_data(any(), DateTime.t()) :: {:ok, map()} | {:error, :not_found}
+  @spec get_oracle_data(any(), DateTime.t()) ::
+          {:ok, data :: map(), oracle_datetime :: DateTime.t()} | {:error, :not_found}
   def get_oracle_data(type, date = %DateTime{}) do
     timestamp =
       date
@@ -70,13 +71,13 @@ defmodule Archethic.OracleChain.MemTable do
           :"$end_of_table" ->
             {:error, :not_found}
 
-          key ->
+          key = {time, _} ->
             [{_, data}] = :ets.lookup(:archethic_oracle, key)
-            {:ok, data}
+            {:ok, data, DateTime.from_unix!(time)}
         end
 
       [{_, data}] ->
-        {:ok, data}
+        {:ok, data, date}
     end
   end
 end

@@ -12,6 +12,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.PageType
   alias __MODULE__.TransactionAttestation
   alias __MODULE__.TransactionError
+  alias __MODULE__.OracleData
 
   import_types(HexType)
   import_types(DateTimeType)
@@ -21,6 +22,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   import_types(TransactionAttestation)
   import_types(TransactionError)
   import_types(PageType)
+  import_types(OracleData)
 
   query do
     @desc """
@@ -128,6 +130,22 @@ defmodule ArchethicWeb.GraphQLSchema do
         {:ok, Resolver.network_transactions(type, page)}
       end)
     end
+
+    field :oracle_data, :oracle_data do
+      arg(:timestamp, :timestamp)
+
+      resolve(fn args, _ ->
+        datetime = Map.get(args, :timestamp, DateTime.utc_now())
+
+        case Archethic.OracleChain.get_oracle_data("uco", datetime) do
+          {:ok, %{"eur" => eur, "usd" => usd}, datetime} ->
+            {:ok, %{services: %{uco: %{eur: eur, usd: usd}}, timestamp: datetime}}
+
+          {:error, :not_found} ->
+            {:error, "Not data found at this date"}
+        end
+      end)
+    end
   end
 
   subscription do
@@ -142,11 +160,38 @@ defmodule ArchethicWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    Subscribe to be notified when a transaction is on error
+    """
     field :transaction_error, :transaction_error do
       arg(:address, non_null(:address))
 
       config(fn args, _info ->
         {:ok, topic: args.address}
+      end)
+    end
+
+    @desc """
+    Subscribe to be notified when a new oracle data is stored
+    """
+    field :oracle_update, :oracle_data do
+      config(fn _args, _info ->
+        {:ok, topic: "oracle-topic"}
+      end)
+
+      resolve(fn %{timestamp: timestamp, services: %{"uco" => %{"eur" => eur, "usd" => usd}}},
+                 _,
+                 _ ->
+        {:ok,
+         %{
+           timestamp: timestamp,
+           services: %{
+             uco: %{
+               eur: eur,
+               usd: usd
+             }
+           }
+         }}
       end)
     end
   end
