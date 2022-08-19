@@ -64,8 +64,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         {[], false, ""}
 
       {:ok, %{genesis_address: genesis_address}} ->
+        filepath = ChainWriter.chain_path(db_path, genesis_address)
+        fd = File.open!(filepath, [:binary, :read])
+
         {transactions, more?, paging_state} =
-          process_get_chain({address, fields, opts, db_path}, genesis_address)
+          process_get_chain(fd, address, fields, opts, db_path)
 
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
           query: "get_transaction_chain"
@@ -75,20 +78,18 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  defp process_get_chain({address, fields, opts, db_path}, genesis_address) do
-    filepath = ChainWriter.chain_path(db_path, genesis_address)
-    fd = File.open!(filepath, [:binary, :read])
+  defp process_get_chain(fd, address, fields, opts, db_path) do
     # Set the file cursor position to the paging state
     case Keyword.get(opts, :paging_state) do
       nil ->
         :file.position(fd, 0)
-        process_get_chain({address, fields}, {fd})
+        do_process_get_chain(fd, address, fields)
 
       paging_address ->
         case ChainIndex.get_tx_entry(paging_address, db_path) do
           {:ok, %{offset: offset, size: size}} ->
             :file.position(fd, offset + size)
-            process_get_chain({address, fields}, {fd})
+            do_process_get_chain(fd, address, fields)
 
           {:error, :not_exists} ->
             {[], false, ""}
@@ -96,11 +97,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  defp process_get_chain({address, fields}, {fd}) do
+  defp do_process_get_chain(fd, address, fields) do
     column_names = fields_to_column_names(fields)
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-    {transactions, more?, paging_state} = scan_chain(fd, column_names, address)
+    {transactions, more?, paging_state} = do_scan_chain(fd, column_names, address)
     :file.close(fd)
 
     {transactions, more?, paging_state}
@@ -138,7 +139,42 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  defp scan_chain(fd, fields, limit_address, acc \\ []) do
+  @doc """
+  Read chain from the beginning until a given limit address
+  """
+  @spec scan_chain(
+          genesis_address :: binary(),
+          limit_address :: binary(),
+          list(),
+          paging_address :: nil | binary(),
+          db_path :: binary()
+        ) ::
+          {list(Transaction.t()), boolean(), binary() | nil}
+  def scan_chain(genesis_address, limit_address, fields, paging_address, db_path) do
+    filepath = ChainWriter.chain_path(db_path, genesis_address)
+    column_names = fields_to_column_names(fields)
+
+    case File.open(filepath, [:binary, :read]) do
+      {:ok, fd} ->
+        if paging_address do
+          case ChainIndex.get_tx_entry(paging_address, db_path) do
+            {:ok, %{offset: offset, size: size}} ->
+              :file.position(fd, offset + size)
+              do_scan_chain(fd, column_names, limit_address)
+
+            {:error, :not_exists} ->
+              {[], false, ""}
+          end
+        else
+          do_scan_chain(fd, column_names, limit_address)
+        end
+
+      {:error, _} ->
+        {[], false, nil}
+    end
+  end
+
+  defp do_scan_chain(fd, fields, limit_address, acc \\ []) do
     case :file.read(fd, 8) do
       {:ok, <<size::32, version::32>>} ->
         if length(acc) == @page_size do
@@ -158,7 +194,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           if tx.address == limit_address do
             {Enum.reverse([tx | acc]), false, nil}
           else
-            scan_chain(fd, fields, limit_address, [tx | acc])
+            do_scan_chain(fd, fields, limit_address, [tx | acc])
           end
         end
 
