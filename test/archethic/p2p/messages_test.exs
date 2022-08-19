@@ -829,7 +829,8 @@ defmodule Archethic.P2P.MessageTest do
 
     test "LastTransactionAddress message" do
       msg = %LastTransactionAddress{
-        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
       }
 
       assert msg ==

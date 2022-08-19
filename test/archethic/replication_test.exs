@@ -215,7 +215,7 @@ defmodule Archethic.ReplicationTest do
       |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
         :ok
       end)
-      |> expect(:get_last_chain_address, fn _ -> "@Alice2" end)
+      |> expect(:get_last_chain_address, fn _ -> {"@Alice2", DateTime.utc_now()} end)
 
       assert :ok =
                Replication.acknowledge_previous_storage_nodes(
@@ -224,7 +224,7 @@ defmodule Archethic.ReplicationTest do
                  DateTime.utc_now()
                )
 
-      assert "@Alice2" == TransactionChain.get_last_address("@Alice1")
+      assert {"@Alice2", _} = TransactionChain.get_last_address("@Alice1")
     end
 
     test "should notify previous storage pool if transaction exists" do
@@ -232,7 +232,7 @@ defmodule Archethic.ReplicationTest do
       |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
         :ok
       end)
-      |> expect(:get_last_chain_address, fn _ -> "@Alice2" end)
+      |> expect(:get_last_chain_address, fn _ -> {"@Alice2", DateTime.utc_now()} end)
       |> stub(:get_transaction, fn _, _ ->
         {:ok, %Transaction{previous_public_key: "Alice1"}}
       end)
@@ -264,7 +264,7 @@ defmodule Archethic.ReplicationTest do
                  DateTime.utc_now()
                )
 
-      assert "@Alice2" == TransactionChain.get_last_address("@Alice1")
+      assert {"@Alice2", _} = TransactionChain.get_last_address("@Alice1")
 
       assert_receive :notification_sent, 500
     end

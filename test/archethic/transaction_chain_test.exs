@@ -29,33 +29,81 @@ defmodule Archethic.TransactionChainTest do
 
   import Mox
 
-  test "resolve_last_address/1 should retrieve the last address for a chain" do
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetLastTransactionAddress{timestamp: ~U[2021-03-25 15:11:29Z]}, _ ->
-        {:ok, %LastTransactionAddress{address: "@Alice1"}}
+  describe "resolve_last_address/1 should retrieve the last address for a chain" do
+    test "when not conflicts" do
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{timestamp: ~U[2021-03-25 15:11:29Z]}, _ ->
+          {:ok, %LastTransactionAddress{address: "@Alice1", timestamp: DateTime.utc_now()}}
 
-      _, %GetLastTransactionAddress{timestamp: ~U[2021-03-25 15:12:29Z]}, _ ->
-        {:ok, %LastTransactionAddress{address: "@Alice2"}}
-    end)
+        _, %GetLastTransactionAddress{timestamp: ~U[2021-03-25 15:12:29Z]}, _ ->
+          {:ok,
+           %LastTransactionAddress{
+             address: "@Alice2",
+             timestamp: DateTime.utc_now() |> DateTime.add(2)
+           }}
+      end)
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.first_node_public_key(),
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    assert {:ok, "@Alice1"} =
-             TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:11:29Z])
+      assert {:ok, "@Alice1"} =
+               TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:11:29Z])
 
-    assert {:ok, "@Alice2"} =
-             TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:12:29Z])
+      assert {:ok, "@Alice2"} =
+               TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:12:29Z])
+    end
+
+    test "with conflicts" do
+      MockClient
+      |> stub(:send_message, fn
+        %Node{port: 3000}, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: "@Alice1", timestamp: DateTime.utc_now()}}
+
+        %Node{port: 3001}, %GetLastTransactionAddress{}, _ ->
+          {:ok,
+           %LastTransactionAddress{
+             address: "@Alice2",
+             timestamp: DateTime.utc_now() |> DateTime.add(2)
+           }}
+      end)
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3001,
+        first_public_key: :crypto.strong_rand_bytes(34),
+        last_public_key: :crypto.strong_rand_bytes(34),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      assert {:ok, "@Alice2"} =
+               TransactionChain.resolve_last_address("@Alice1", DateTime.utc_now())
+    end
   end
 
   describe "fetch_transaction_remotely/2" do

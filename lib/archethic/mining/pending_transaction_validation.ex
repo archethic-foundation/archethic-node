@@ -321,19 +321,19 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          type: :mint_rewards,
          data: %TransactionData{content: content}
        }) do
+    total_fee = DB.get_latest_burned_fees()
+
     with :ok <- verify_token_creation(content),
-         {:ok, %{"supply" => supply}} <- Jason.decode(content),
-         true <- supply == DB.get_latest_burned_fees(),
+         {:ok, %{"supply" => ^total_fee}} <- Jason.decode(content),
          network_pool_address <- SharedSecrets.get_network_pool_address(),
-         false <-
-           DB.get_last_chain_address(network_pool_address, Reward.last_scheduling_date()) !=
-             network_pool_address do
+         {^network_pool_address, _} <-
+           DB.get_last_chain_address(network_pool_address, Reward.last_scheduling_date()) do
       :ok
     else
-      false ->
+      {:ok, %{"supply" => _}} ->
         {:error, "The supply do not match burned fees from last summary"}
 
-      true ->
+      {_, _} ->
         {:error, "There is already a mint rewards transaction since last schedule"}
 
       e ->

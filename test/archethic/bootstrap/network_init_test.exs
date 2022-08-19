@@ -80,7 +80,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     MockClient
     |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
-      {:ok, %LastTransactionAddress{address: address}}
+      {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
     end)
 
     MockDB
@@ -306,7 +306,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %TransactionInputList{inputs: []}}
 
       _, %GetLastTransactionAddress{address: address}, _ ->
-        {:ok, %LastTransactionAddress{address: address}}
+        {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
@@ -354,7 +354,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %TransactionInputList{inputs: []}}
 
       _, %GetLastTransactionAddress{address: address}, _ ->
-        {:ok, %LastTransactionAddress{address: address}}
+        {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
@@ -401,7 +401,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %TransactionInputList{inputs: []}}
 
       _, %GetLastTransactionAddress{address: address}, _ ->
-        {:ok, %LastTransactionAddress{address: address}}
+        {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
