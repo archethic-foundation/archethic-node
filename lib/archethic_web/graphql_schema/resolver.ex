@@ -41,15 +41,40 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     t2 = Task.async(fn -> get_transaction_content(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
-         {:ok, {:ok, transaction_content}} <- Task.yield(t2) do
+         {:ok,
+          {:ok,
+           %{
+             "name" => name,
+             "supply" => supply,
+             "symbol" => symbol,
+             "type" => type,
+             "properties" => properties
+           }}} <- Task.yield(t2) do
+      data_to_digest =
+        case type do
+          "fungible" ->
+            %{genesis_address: Base.encode16(genesis_address), name: name, symbol: symbol}
+
+          "non-fungible" ->
+            %{
+              genesis_address: Base.encode16(genesis_address),
+              name: name,
+              symbol: symbol,
+              properties: properties
+            }
+        end
+
+      token_id = :crypto.hash(:sha256, Jason.encode!(data_to_digest)) |> Base.encode16()
+
       {:ok,
        %{
          genesis: genesis_address,
-         name: Map.get(transaction_content, "name"),
-         supply: Map.get(transaction_content, "supply"),
-         symbol: Map.get(transaction_content, "symbol"),
-         type: Map.get(transaction_content, "type"),
-         properties: do_reduce_properties(Map.get(transaction_content, "properties"))
+         name: name,
+         supply: supply,
+         symbol: symbol,
+         type: type,
+         properties: do_reduce_properties(properties),
+         id: token_id
        }}
     else
       {:ok, {:error, :network_issue}} ->
@@ -84,14 +109,12 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     end
   end
 
-  defp do_reduce_properties(properties) do
-    if properties do
-      Enum.map(List.flatten(properties), fn %{"name" => n, "value" => v} ->
+  defp do_reduce_properties(property_list) do
+    Enum.map(property_list, fn properties ->
+      Enum.map(properties, fn %{"name" => n, "value" => v} ->
         %{name: n, value: v}
       end)
-    else
-      []
-    end
+    end)
   end
 
   def get_inputs(address) do

@@ -239,7 +239,8 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:symbol, :string)
     field(:supply, :integer)
     field(:type, :string)
-    field(:properties, list_of(:tokenProperty))
+    field(:properties, list_of(list_of(:tokenProperty)))
+    field(:id, :string)
   end
 
   @desc """
