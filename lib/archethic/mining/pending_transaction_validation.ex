@@ -32,6 +32,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.Utils
 
@@ -187,20 +188,33 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :node_shared_secrets,
-         data: %TransactionData{
-           content: content,
-           ownerships: [%Ownership{secret: secret, authorized_keys: authorized_keys}]
+  defp do_accept_transaction(
+         tx = %Transaction{
+           type: :node_shared_secrets,
+           data: %TransactionData{
+             content: content,
+             ownerships: [%Ownership{secret: secret, authorized_keys: authorized_keys}]
+           }
          }
-       })
+       )
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do
     nodes = P2P.authorized_nodes() ++ NodeRenewal.candidates()
 
-    with {:ok, _, _} <- NodeRenewal.decode_transaction_content(content),
-         true <- Enum.all?(Map.keys(authorized_keys), &Utils.key_in_node_list?(nodes, &1)) do
+    last_scheduling_date = SharedSecrets.get_last_scheduling_date(DateTime.utc_now())
+
+    with :ok <- validate_scheduling_network_tx_time(last_scheduling_date, tx),
+         {:ok, _, _} <-
+           NodeRenewal.decode_transaction_content(content),
+         true <-
+           Enum.all?(
+             Map.keys(authorized_keys),
+             &Utils.key_in_node_list?(nodes, &1)
+           ) do
       :ok
     else
+      {:error, :time} ->
+        {:error, "Invalid node node shared secrets trigger time "}
+
       :error ->
         {:error, "Invalid node shared secrets transaction content"}
 
@@ -442,6 +456,29 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:error, :invalid_ip} ->
         {:error, :invalid_ip}
+    end
+  end
+
+  defp validate_scheduling_network_tx_time(last_scheduling_date, tx) do
+    case TransactionChain.get_transaction(Transaction.previous_address(tx)) do
+      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} ->
+        if DateTime.compare(timestamp, last_scheduling_date) ==
+             :gt do
+          Logger.debug(
+            "Last scheduling date: #{last_scheduling_date} - Previous Tx date: #{timestamp} - Now: #{DateTime.utc_now()}"
+          )
+
+          Logger.warning("Not more than two times in the same interval",
+            transaction_type: tx.type
+          )
+
+          {:error, :time}
+        else
+          :ok
+        end
+
+      {:error, _} ->
+        :ok
     end
   end
 end

@@ -116,4 +116,29 @@ defmodule Archethic.SharedSecrets do
         :biometric
     end
   end
+
+  @doc """
+  Get the last shared secrets scheduling date from a given date
+  """
+  @spec get_last_scheduling_date(DateTime.t()) :: DateTime.t()
+  def get_last_scheduling_date(date_from = %DateTime{}) do
+    interval =
+      Application.get_env(:archethic, NodeRenewalScheduler)
+      |> Keyword.fetch!(:interval)
+
+    cron_expression = Crontab.CronExpression.Parser.parse!(interval, true)
+
+    naive_date_from =
+      date_from
+      |> DateTime.truncate(:millisecond)
+      |> DateTime.to_naive()
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      DateTime.truncate(date_from, :millisecond)
+    else
+      cron_expression
+      |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
+  end
 end
