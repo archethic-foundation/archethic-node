@@ -355,16 +355,25 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :oracle,
-         data: %TransactionData{
-           content: content
+  defp do_accept_transaction(
+         tx = %Transaction{
+           type: :oracle,
+           data: %TransactionData{
+             content: content
+           }
          }
-       }) do
-    if OracleChain.valid_services_content?(content) do
+       ) do
+    last_scheduling_date = OracleChain.get_last_scheduling_date(DateTime.utc_now())
+
+    with :ok <- validate_scheduling_network_tx_time(last_scheduling_date, tx),
+         true <- OracleChain.valid_services_content?(content) do
       :ok
     else
-      {:error, "Invalid oracle transaction"}
+      {:error, :time} ->
+        {:error, "Invalid oracle trigger time "}
+
+      false ->
+        {:error, "Invalid oracle transaction"}
     end
   end
 
