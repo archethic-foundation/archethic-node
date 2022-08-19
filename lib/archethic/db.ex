@@ -31,8 +31,8 @@ defmodule Archethic.DB do
 
   @callback list_addresses_by_type(Transaction.transaction_type()) ::
               Enumerable.t() | list(binary())
-  @callback get_last_chain_address(binary()) :: binary()
-  @callback get_last_chain_address(binary(), DateTime.t()) :: binary()
+  @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
+  @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
   @callback get_first_chain_address(binary()) :: binary()
   @callback get_first_public_key(Crypto.key()) :: binary()
 

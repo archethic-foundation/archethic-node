@@ -36,7 +36,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
       assert 1 == ChainIndex.count_transactions_by_type(:oracle)
     end
 
-    test "should load transactions tables and bloom filters", %{db_path: db_path} do
+    test "should load transactions tables", %{db_path: db_path} do
       {:ok, pid} = ChainIndex.start_link(path: db_path)
       tx_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       genesis_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -53,10 +53,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
 
       assert {100, 1} = ChainIndex.get_file_stats(genesis_address)
 
-      :ets.tab2list(:archethic_db_last_index)
-      assert ^tx_address = ChainIndex.get_last_chain_address(genesis_address, db_path)
+      assert {^tx_address, _} = ChainIndex.get_last_chain_address(genesis_address, db_path)
 
-      # Remove the transaction from the cache and try the bloom filter
+      # Remove the transaction from the cache and try to fetch from the file instead
       :ets.delete(:archethic_db_tx_index, tx_address)
       assert true == ChainIndex.transaction_exists?(tx_address, db_path)
       assert false == ChainIndex.transaction_exists?(:crypto.strong_rand_bytes(32), db_path)
