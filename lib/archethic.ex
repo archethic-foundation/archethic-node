@@ -189,28 +189,53 @@ defmodule Archethic do
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
-    try do
-      {local_chain, paging_address} =
-        case TransactionChain.get_last_local_address(address) do
-          nil -> {[], nil}
-          last_address -> {TransactionChain.get_locally(last_address), last_address}
-        end
-
-      remote_chain =
-        if address != paging_address do
+    # We directly check if the transaction exists and retrieve the genesis
+    # Otherwise we are requesting the genesis address remotly
+    genesis_address =
+      with ^address <- TransactionChain.get_genesis_address(address),
+           {:ok, genesis_address} <- TransactionChain.fetch_genesis_address_remotely(address) do
+        genesis_address
+      else
+        _ ->
           address
-          |> TransactionChain.stream_remotely(nodes, paging_address)
-          |> Enum.to_list()
-          |> List.flatten()
-        else
-          []
-        end
+      end
 
-      {:ok, local_chain ++ remote_chain}
-    catch
-      _ ->
-        {:error, :network_issue}
-    end
+    %{transactions: local_chain, last_address: last_local_address} =
+      genesis_address
+      |> TransactionChain.scan_chain(address)
+      |> Enum.reduce_while(%{transactions: [], last_address: nil}, fn transaction, acc ->
+        # We stop at the desire the transaction
+        if acc.last_address == address do
+          {:halt, acc}
+        else
+          new_acc =
+            acc
+            |> Map.update!(:transactions, &(&1 ++ [transaction]))
+            # We log the last local address
+            |> Map.put(:last_address, transaction.address)
+
+          {:cont, new_acc}
+        end
+      end)
+
+    remote_chain =
+      if address != last_local_address do
+        address
+        |> TransactionChain.stream_remotely(nodes, last_local_address)
+        |> Stream.flat_map(& &1)
+        |> Stream.transform(nil, fn
+          _tx, ^address ->
+            {:halt, address}
+
+          tx, _ ->
+            {[tx], tx.address}
+        end)
+        |> Enum.to_list()
+      else
+        []
+      end
+
+    {:ok, local_chain ++ remote_chain}
   end
 
   @doc """

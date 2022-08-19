@@ -312,4 +312,13 @@ defmodule Archethic.DB.EmbeddedImpl do
           }
         }
   defdelegate get_last_p2p_summaries, to: P2PView, as: :get_views
+
+  @doc """
+  Read chain from the beginning until a given limit address
+  """
+  @spec scan_chain(binary(), binary(), list(), binary() | nil) ::
+          {list(Transaction.t()), boolean(), binary() | nil}
+  def scan_chain(genesis_address, limit_address, fields \\ [], paging_state \\ nil) do
+    ChainReader.scan_chain(genesis_address, limit_address, fields, paging_state, db_path())
+  end
 end
