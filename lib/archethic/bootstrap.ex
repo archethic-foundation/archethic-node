@@ -210,6 +210,8 @@ defmodule Archethic.Bootstrap do
     SelfRepair.start_scheduler()
 
     :persistent_term.put(:archethic_up, :up)
+    send(Archethic.P2P.Listener, :start_listener)
+    :ok
   end
 
   defp first_initialization(

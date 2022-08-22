@@ -102,8 +102,7 @@ defmodule Archethic.P2P.Client.Connection do
         data = %{
           ip: ip,
           port: port,
-          transport: transport,
-          node_public_key: node_public_key
+          transport: transport
         }
       ) do
     case transport.handle_connect(ip, port) do
@@ -111,7 +110,6 @@ defmodule Archethic.P2P.Client.Connection do
         {:next_state, {:connected, socket}, data}
 
       {:error, _} ->
-        MemTable.decrease_node_availability(node_public_key)
         actions = [{{:timeout, :reconnect}, 500, nil}]
         {:keep_state_and_data, actions}
     end

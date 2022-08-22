@@ -15,6 +15,10 @@ defmodule Archethic.P2P.Listener do
     transport = Keyword.get(opts, :transport)
     port = Keyword.get(opts, :port)
 
+    {:ok, {transport, port}}
+  end
+
+  def handle_info(:start_listener, {transport, port}) do
     ranch_transport =
       case transport do
         :tcp ->
@@ -34,7 +38,7 @@ defmodule Archethic.P2P.Listener do
       {:ok, listener_pid} ->
         Logger.info("P2P #{transport} Endpoint running on port #{port}")
 
-        {:ok, %{listener_pid: listener_pid}}
+        {:noreply, %{listener_pid: listener_pid}}
 
       {:error, :eaddrinuse} ->
         Logger.error(
@@ -42,6 +46,13 @@ defmodule Archethic.P2P.Listener do
         )
 
         System.stop(1)
+
+      {:error, {:already_started, pid}} ->
+        {:noreply, %{listener_pid: pid}}
     end
+  end
+
+  def handle_info(:start_listener, state) do
+    {:noreply, state}
   end
 end
