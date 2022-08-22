@@ -105,17 +105,54 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :node_rewards,
-         data: %TransactionData{
-           ledger: %Ledger{
-             token: %TokenLedger{transfers: token_transfers}
+  defp do_accept_transaction(
+         tx = %Transaction{
+           type: :node_rewards,
+           data: %TransactionData{
+             ledger: %Ledger{
+               token: %TokenLedger{transfers: token_transfers}
+             }
            }
          }
-       }) do
-    case Reward.get_transfers() do
-      ^token_transfers ->
-        :ok
+       ) do
+    last_scheduling_date = Reward.get_last_scheduling_date(DateTime.utc_now())
+
+    previous_address = Transaction.previous_address(tx)
+
+    valid_time? =
+      case TransactionChain.get_transaction(previous_address, [
+             :type,
+             validation_stamp: :timestamp
+           ]) do
+        {:ok,
+         %Transaction{
+           type: :mint_rewards
+         }} ->
+          true
+
+        {:ok,
+         %Transaction{
+           type: :node_rewards,
+           validation_stamp: %ValidationStamp{timestamp: rewards_timestamp}
+         }} ->
+          DateTime.compare(rewards_timestamp, last_scheduling_date) == :lt
+
+        {:error, _} ->
+          true
+      end
+
+    with true <- valid_time?,
+         ^token_transfers <- Reward.get_transfers() do
+      :ok
+    else
+      false ->
+        Logger.debug("last scheduling date: #{last_scheduling_date} - now: #{DateTime.utc_now()}")
+
+        Logger.warning("Invalid reward time scheduling",
+          transaction_address: Base.encode16(tx.address)
+        )
+
+        {:error, "Invalid node rewards trigger time "}
 
       _ ->
         {:error, "Invalid network pool transfers"}

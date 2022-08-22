@@ -26,6 +26,7 @@ defmodule Archethic.Reward do
 
   alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.Reward.MemTablesLoader
+
   @unit_uco 100_000_000
 
   @doc """
@@ -214,5 +215,30 @@ defmodule Archethic.Reward do
 
   def is_reward_token?(token_address) when is_binary(token_address) do
     RewardTokens.exists?(token_address)
+  end
+
+  @doc """
+  Return the last scheduling date
+  """
+  @spec get_last_scheduling_date(DateTime.t()) :: DateTime.t()
+  def get_last_scheduling_date(date_from = %DateTime{}) do
+    interval =
+      Application.get_env(:archethic, Scheduler)
+      |> Keyword.fetch!(:interval)
+
+    cron_expression = Crontab.CronExpression.Parser.parse!(interval, true)
+
+    naive_date_from =
+      date_from
+      |> DateTime.truncate(:millisecond)
+      |> DateTime.to_naive()
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      DateTime.truncate(date_from, :millisecond)
+    else
+      cron_expression
+      |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
   end
 end
