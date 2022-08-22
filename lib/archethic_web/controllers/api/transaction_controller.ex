@@ -5,8 +5,21 @@ defmodule ArchethicWeb.API.TransactionController do
 
   alias Archethic
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.{
+    Transaction,
+    TransactionData,
+    TransactionSummary
+  }
+
+  alias Archethic.P2P
+
+  alias Archethic.P2P.Message.{
+    GetTransactionSummary,
+    NotFound
+  }
+
+  alias Archethic.P2P.Node
+  alias Archethic.Election
 
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -25,22 +38,26 @@ defmodule ArchethicWeb.API.TransactionController do
           |> TransactionPayload.to_map()
           |> Transaction.cast()
 
-        case Archethic.search_transaction(tx.address) do
-          {:ok, _} ->
+        tx_address = tx.address
+
+        storage_nodes = Election.chain_storage_nodes(tx_address, P2P.available_nodes())
+
+        [node | _] =
+          storage_nodes
+          |> P2P.nearest_nodes()
+          |> Enum.filter(&Node.locally_available?/1)
+
+        case P2P.send_message(node, %GetTransactionSummary{address: tx_address}) do
+          {:ok, %TransactionSummary{address: ^tx_address}} ->
             conn |> put_status(422) |> json(%{status: "error - transaction already exists!"})
 
-          {:error, :network_issue} ->
-            conn
-            |> put_status(422)
-            |> json(%{status: "error - network issue"})
-
-          {:error, :transaction_invalid} ->
-            conn
-            |> put_status(422)
-            |> json(%{status: "error - transaction is invalid"})
-
-          {:error, :transaction_not_exists} ->
+          {:ok, %NotFound{}} ->
             send_transaction(conn, tx)
+
+          {:error, e} ->
+            Logger.error("Cannot get transaction summary - #{inspect(e)}",
+              node: Base.encode16(node.first_public_key)
+            )
         end
 
       changeset ->
