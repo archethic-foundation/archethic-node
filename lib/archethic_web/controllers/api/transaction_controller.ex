@@ -42,12 +42,15 @@ defmodule ArchethicWeb.API.TransactionController do
 
         storage_nodes = Election.chain_storage_nodes(tx_address, P2P.available_nodes())
 
-        [node | _] =
+        nodes =
           storage_nodes
           |> P2P.nearest_nodes()
           |> Enum.filter(&Node.locally_available?/1)
 
-        case P2P.send_message(node, %GetTransactionSummary{address: tx_address}) do
+        case P2P.quorum_read(
+               nodes,
+               %GetTransactionSummary{address: tx_address}
+             ) do
           {:ok, %TransactionSummary{address: ^tx_address}} ->
             conn |> put_status(422) |> json(%{status: "error - transaction already exists!"})
 
@@ -55,9 +58,7 @@ defmodule ArchethicWeb.API.TransactionController do
             send_transaction(conn, tx)
 
           {:error, e} ->
-            Logger.error("Cannot get transaction summary - #{inspect(e)}",
-              node: Base.encode16(node.first_public_key)
-            )
+            Logger.error("Cannot get transaction summary - #{inspect(e)}")
         end
 
       changeset ->
