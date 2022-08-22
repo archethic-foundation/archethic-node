@@ -25,21 +25,37 @@ defmodule ArchethicWeb.API.TransactionController do
           |> TransactionPayload.to_map()
           |> Transaction.cast()
 
-        case Archethic.send_new_transaction(tx) do
-          :ok ->
-            TransactionSubscriber.register(tx.address, System.monotonic_time())
-
-            conn
-            |> put_status(201)
-            |> json(%{
-              transaction_address: Base.encode16(tx.address),
-              status: "pending"
-            })
+        case Archethic.search_transaction(tx.address) do
+          {:ok, _} ->
+            conn |> put_status(422) |> json(%{status: "error - transaction already exists!"})
 
           {:error, :network_issue} ->
             conn
             |> put_status(422)
-            |> json(%{status: "error - transaction may be invalid"})
+            |> json(%{status: "error - network issue"})
+
+          {:error, :transaction_invalid} ->
+            conn
+            |> put_status(422)
+            |> json(%{status: "error - transaction is invalid"})
+
+          {:error, :transaction_not_exists} ->
+            case Archethic.send_new_transaction(tx) do
+              :ok ->
+                TransactionSubscriber.register(tx.address, System.monotonic_time())
+
+                conn
+                |> put_status(201)
+                |> json(%{
+                  transaction_address: Base.encode16(tx.address),
+                  status: "pending"
+                })
+
+              {:error, :network_issue} ->
+                conn
+                |> put_status(422)
+                |> json(%{status: "error - transaction may be invalid"})
+            end
         end
 
       changeset ->
