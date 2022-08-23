@@ -156,7 +156,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           transaction_address: Base.encode16(tx.address)
         )
 
-        {:error, "Invalid node rewards trigger time "}
+        {:error, "Invalid node rewards trigger time"}
 
       _ ->
         {:error, "Invalid network pool transfers"}
@@ -261,7 +261,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok
     else
       {:error, :time} ->
-        {:error, "Invalid node node shared secrets trigger time "}
+        {:error, "Invalid node shared secrets trigger time"}
 
       :error ->
         {:error, "Invalid node shared secrets transaction content"}
@@ -439,7 +439,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok
     else
       {:error, :time} ->
-        {:error, "Invalid oracle trigger time "}
+        {:error, "Invalid oracle trigger time"}
 
       false ->
         {:error, "Invalid oracle transaction"}
@@ -543,8 +543,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp validate_scheduling_network_tx_time(last_scheduling_date, tx) do
     case TransactionChain.get_transaction(Transaction.previous_address(tx)) do
       {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} ->
-        if DateTime.compare(timestamp, last_scheduling_date) ==
-             :gt do
+        if DateTime.compare(timestamp, last_scheduling_date) in [:gt, :eq] do
           Logger.debug(
             "Last scheduling date: #{last_scheduling_date} - Previous Tx date: #{timestamp} - Now: #{DateTime.utc_now()}"
           )
