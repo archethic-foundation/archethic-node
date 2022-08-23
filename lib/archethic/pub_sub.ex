@@ -112,11 +112,27 @@ defmodule Archethic.PubSub do
   end
 
   @doc """
+  Unregister a process to a new transaction publication by type
+  """
+  @spec unregister_to_new_transaction_by_type(Transaction.transaction_type()) :: :ok
+  def unregister_to_new_transaction_by_type(type) when is_atom(type) do
+    Registry.unregister(PubSubRegistry, {:new_transaction, type})
+  end
+
+  @doc """
   Register a process to a new transaction publication by address
   """
   @spec register_to_new_transaction_by_address(binary()) :: {:ok, pid()}
   def register_to_new_transaction_by_address(address) when is_binary(address) do
     Registry.register(PubSubRegistry, {:new_transaction, address}, [])
+  end
+
+  @doc """
+  Unregister a process to a new transaction publication by address
+  """
+  @spec unregister_to_new_transaction_by_address(binary()) :: :ok
+  def unregister_to_new_transaction_by_address(address) when is_binary(address) do
+    Registry.unregister(PubSubRegistry, {:new_transaction, address})
   end
 
   @doc """
