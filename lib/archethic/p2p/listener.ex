@@ -18,7 +18,11 @@ defmodule Archethic.P2P.Listener do
     {:ok, {transport, port}}
   end
 
-  def handle_info(:start_listener, {transport, port}) do
+  def listen() do
+    GenServer.cast(__MODULE__, :start_listener)
+  end
+
+  def handle_cast(:start_listener, {transport, port}) do
     ranch_transport =
       case transport do
         :tcp ->
@@ -46,13 +50,6 @@ defmodule Archethic.P2P.Listener do
         )
 
         System.stop(1)
-
-      {:error, {:already_started, pid}} ->
-        {:noreply, %{listener_pid: pid}}
     end
-  end
-
-  def handle_info(:start_listener, state) do
-    {:noreply, state}
   end
 end

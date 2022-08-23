@@ -319,11 +319,11 @@ defmodule Archethic.BeaconChain do
     |> Flow.partition(stages: System.schedulers_online() * 4, key: {:key, :summary_time})
     |> Flow.reduce(
       fn -> %{} end,
-      fn summary, acc ->
+      fn summary = %Summary{summary_time: time}, acc ->
         Map.update(
           acc,
-          summary.summary_time,
-          %SummaryAggregate{} |> SummaryAggregate.add_summary(summary),
+          time,
+          %SummaryAggregate{summary_time: time} |> SummaryAggregate.add_summary(summary),
           &SummaryAggregate.add_summary(&1, summary)
         )
       end

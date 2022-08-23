@@ -80,6 +80,8 @@ defmodule Archethic.P2P.Client.Connection do
       ) do
     Logger.warning("Connection closed", node: Base.encode16(node_public_key))
 
+    MemTable.decrease_node_availability(node_public_key)
+
     # Notify clients the connection is lost
     # and cancel the existing timeouts
     actions =

@@ -13,6 +13,7 @@ defmodule Archethic.Bootstrap do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Listener
 
   alias Archethic.SelfRepair
 
@@ -210,8 +211,7 @@ defmodule Archethic.Bootstrap do
     SelfRepair.start_scheduler()
 
     :persistent_term.put(:archethic_up, :up)
-    send(Archethic.P2P.Listener, :start_listener)
-    :ok
+    Listener.listen()
   end
 
   defp first_initialization(

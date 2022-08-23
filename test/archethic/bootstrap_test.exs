@@ -34,8 +34,6 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.P2P.Message.GetFirstAddress
   alias Archethic.P2P.Message.NotFound
 
-  alias Archethic.P2P.Listener
-
   alias Archethic.Replication
 
   alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
@@ -60,7 +58,6 @@ defmodule Archethic.BootstrapTest do
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
-    start_supervised!({Listener, transport: :tcp, port: 4000})
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
