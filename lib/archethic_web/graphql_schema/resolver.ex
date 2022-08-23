@@ -54,14 +54,18 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       data_to_digest =
         case type do
           "fungible" ->
-            %{genesis_address: Base.encode16(genesis_address), name: name, symbol: symbol}
-
-          "non-fungible" ->
             %{
               genesis_address: Base.encode16(genesis_address),
               name: name,
               symbol: symbol,
               properties: properties
+            }
+
+          "non-fungible" ->
+            %{
+              genesis_address: Base.encode16(genesis_address),
+              name: name,
+              symbol: symbol
             }
         end
 
