@@ -41,14 +41,17 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   @doc """
   Determines if the transaction is accepted into the network
   """
-  @spec validate(Transaction.t()) :: :ok | {:error, any()}
-  def validate(tx = %Transaction{address: address, type: type}) do
+  @spec validate(Transaction.t(), DateTime.t()) :: :ok | {:error, any()}
+  def validate(
+        tx = %Transaction{address: address, type: type},
+        validation_time = %DateTime{} \\ DateTime.utc_now()
+      ) do
     start = System.monotonic_time()
 
     with true <- Transaction.verify_previous_signature?(tx),
          :ok <- validate_contract(tx),
          :ok <- validate_content_size(tx),
-         :ok <- do_accept_transaction(tx) do
+         :ok <- do_accept_transaction(tx, validation_time) do
       :telemetry.execute(
         [:archethic, :mining, :pending_transaction_validation],
         %{duration: System.monotonic_time() - start},
@@ -113,9 +116,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                token: %TokenLedger{transfers: token_transfers}
              }
            }
-         }
+         },
+         validation_time
        ) do
-    last_scheduling_date = Reward.get_last_scheduling_date(DateTime.utc_now())
+    last_scheduling_date = Reward.get_last_scheduling_date(validation_time)
 
     previous_address = Transaction.previous_address(tx)
 
@@ -159,13 +163,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :node,
-         data: %TransactionData{
-           content: content
+  defp do_accept_transaction(
+         %Transaction{
+           type: :node,
+           data: %TransactionData{
+             content: content
+           },
+           previous_public_key: previous_public_key
          },
-         previous_public_key: previous_public_key
-       }) do
+         _
+       ) do
     with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate} <-
            Node.decode_transaction_content(content),
          {:auth_origin, true} <-
@@ -201,12 +208,15 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :origin,
-         data: %TransactionData{
-           content: content
-         }
-       }) do
+  defp do_accept_transaction(
+         %Transaction{
+           type: :origin,
+           data: %TransactionData{
+             content: content
+           }
+         },
+         _
+       ) do
     with {origin_public_key, rest} <-
            Utils.deserialize_public_key(content),
          <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
@@ -232,12 +242,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
              content: content,
              ownerships: [%Ownership{secret: secret, authorized_keys: authorized_keys}]
            }
-         }
+         },
+         validation_time
        )
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do
     nodes = P2P.authorized_nodes() ++ NodeRenewal.candidates()
 
-    last_scheduling_date = SharedSecrets.get_last_scheduling_date(DateTime.utc_now())
+    last_scheduling_date = SharedSecrets.get_last_scheduling_date(validation_time)
 
     with :ok <- validate_scheduling_network_tx_time(last_scheduling_date, tx),
          {:ok, _, _} <-
@@ -260,14 +271,15 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{type: :node_shared_secrets}) do
+  defp do_accept_transaction(%Transaction{type: :node_shared_secrets}, _) do
     {:error, "Invalid node shared secrets transaction"}
   end
 
   defp do_accept_transaction(
          tx = %Transaction{
            type: :code_proposal
-         }
+         },
+         _
        ) do
     with {:ok, prop} <- CodeProposal.from_transaction(tx),
          true <- Governance.valid_code_changes?(prop) do
@@ -284,7 +296,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            data: %TransactionData{
              recipients: [proposal_address]
            }
-         }
+         },
+         _
        ) do
     with {:ok, first_public_key} <- get_first_public_key(tx),
          {:member, true} <-
@@ -308,17 +321,23 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :keychain,
-         data: %TransactionData{content: "", ownerships: []}
-       }) do
+  defp do_accept_transaction(
+         %Transaction{
+           type: :keychain,
+           data: %TransactionData{content: "", ownerships: []}
+         },
+         _
+       ) do
     {:error, "Invalid Keychain transaction"}
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :keychain,
-         data: %TransactionData{content: content, ownerships: _ownerships}
-       }) do
+  defp do_accept_transaction(
+         %Transaction{
+           type: :keychain,
+           data: %TransactionData{content: content, ownerships: _ownerships}
+         },
+         _
+       ) do
     schema =
       :archethic
       |> Application.app_dir("priv/json-schemas/did-core.json")
@@ -339,18 +358,24 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :keychain_access,
-         data: %TransactionData{ownerships: []}
-       }) do
+  defp do_accept_transaction(
+         %Transaction{
+           type: :keychain_access,
+           data: %TransactionData{ownerships: []}
+         },
+         _
+       ) do
     {:error, "Invalid Keychain access transaction"}
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :keychain_access,
-         data: %TransactionData{ownerships: ownerships},
-         previous_public_key: previous_public_key
-       }) do
+  defp do_accept_transaction(
+         %Transaction{
+           type: :keychain_access,
+           data: %TransactionData{ownerships: ownerships},
+           previous_public_key: previous_public_key
+         },
+         _
+       ) do
     if Enum.any?(ownerships, &Ownership.authorized_public_key?(&1, previous_public_key)) do
       :ok
     else
@@ -358,20 +383,26 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :token,
-         data: %TransactionData{content: content}
-       }) do
+  defp do_accept_transaction(
+         %Transaction{
+           type: :token,
+           data: %TransactionData{content: content}
+         },
+         _
+       ) do
     verify_token_creation(content)
   end
 
   # To accept mint_rewards transaction, we ensure that the supply correspond to the
   # burned fees from the last summary and that there is no transaction since the last
   # reward schedule
-  defp do_accept_transaction(%Transaction{
-         type: :mint_rewards,
-         data: %TransactionData{content: content}
-       }) do
+  defp do_accept_transaction(
+         %Transaction{
+           type: :mint_rewards,
+           data: %TransactionData{content: content}
+         },
+         _
+       ) do
     total_fee = DB.get_latest_burned_fees()
 
     with :ok <- verify_token_creation(content),
@@ -398,9 +429,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            data: %TransactionData{
              content: content
            }
-         }
+         },
+         validation_time
        ) do
-    last_scheduling_date = OracleChain.get_last_scheduling_date(DateTime.utc_now())
+    last_scheduling_date = OracleChain.get_last_scheduling_date(validation_time)
 
     with :ok <- validate_scheduling_network_tx_time(last_scheduling_date, tx),
          true <- OracleChain.valid_services_content?(content) do
@@ -414,13 +446,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{
-         type: :oracle_summary,
-         data: %TransactionData{
-           content: content
+  defp do_accept_transaction(
+         %Transaction{
+           type: :oracle_summary,
+           data: %TransactionData{
+             content: content
+           },
+           previous_public_key: previous_public_key
          },
-         previous_public_key: previous_public_key
-       }) do
+         _
+       ) do
     previous_address = Crypto.derive_address(previous_public_key)
 
     transactions =
@@ -433,7 +468,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(_), do: :ok
+  defp do_accept_transaction(_, _), do: :ok
 
   defp verify_token_creation(content) do
     schema =
