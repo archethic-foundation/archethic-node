@@ -5,7 +5,6 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
 
   import_types(ArchethicWeb.GraphQLSchema.ContentType)
   import_types(ArchethicWeb.GraphQLSchema.AddressType)
-  import_types(ArchethicWeb.GraphQLSchema.AmountType)
   import_types(ArchethicWeb.GraphQLSchema.HashType)
   import_types(ArchethicWeb.GraphQLSchema.PublicKeyType)
 
@@ -70,13 +69,13 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   @desc "[UCOTransfer] represents the an asset transfer"
   object :uco_transfer do
     field(:to, :address)
-    field(:amount, :amount)
+    field(:amount, :integer)
   end
 
   @desc "[TokenTransfer] represents the an asset transfer"
   object :token_transfer do
     field(:to, :address)
-    field(:amount, :amount)
+    field(:amount, :integer)
     field(:token, :address)
     field(:token_id, :integer)
   end
@@ -143,7 +142,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   object :ledger_operations do
     field(:transaction_movements, list_of(:transaction_movement))
     field(:unspent_outputs, list_of(:unspent_output))
-    field(:fee, :amount)
+    field(:fee, :integer)
   end
 
   @desc """
@@ -157,7 +156,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   """
   object :unspent_output do
     field(:from, :address)
-    field(:amount, :amount)
+    field(:amount, :integer)
     field(:type, :string)
     field(:token_address, :address)
     field(:token_id, :integer)
@@ -176,7 +175,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   """
   object :transaction_input do
     field(:from, :address)
-    field(:amount, :amount)
+    field(:amount, :integer)
     field(:type, :string)
     field(:token_address, :address)
     field(:spent, :boolean)
@@ -195,7 +194,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   """
   object :transaction_movement do
     field(:to, :address)
-    field(:amount, :amount)
+    field(:amount, :integer)
     field(:type, :string)
     field(:token_address, :address)
     field(:token_id, :integer)
@@ -219,7 +218,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - token: token balances
   """
   object :balance do
-    field(:uco, :amount)
+    field(:uco, :integer)
     field(:token, list_of(:token_balance))
   end
 
@@ -262,7 +261,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   """
   object :token_balance do
     field(:address, :address)
-    field(:amount, :amount)
+    field(:amount, :integer)
     field(:token_id, :integer)
   end
 

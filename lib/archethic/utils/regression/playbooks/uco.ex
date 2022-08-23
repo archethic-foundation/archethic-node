@@ -13,6 +13,7 @@ defmodule Archethic.Utils.Regression.Playbook.UCO do
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   alias Archethic.Utils.Regression.Playbook
+  @unit_uco 100_000_000
 
   use Playbook
 
@@ -50,8 +51,8 @@ defmodule Archethic.Utils.Regression.Playbook.UCO do
     new_balance = Playbook.get_uco_balance(recipient_address, host, port)
 
     true =
-      ((new_balance * 100_000_000) |> Float.round() |> trunc()) -
-        ((prev_balance * 100_000_000) |> Float.round() |> trunc()) == 100_000_000 * 10
+      new_balance -
+        prev_balance == trunc(@unit_uco * 10)
 
     Logger.info("#{Base.encode16(recipient_address)} received 10 UCO")
 
@@ -71,7 +72,7 @@ defmodule Archethic.Utils.Regression.Playbook.UCO do
               transfers: [
                 %UCOTransfer{
                   to: new_recipient_address,
-                  amount: 5 * 100_000_000
+                  amount: trunc(5 * @unit_uco)
                 }
               ]
             }
@@ -86,13 +87,13 @@ defmodule Archethic.Utils.Regression.Playbook.UCO do
     Process.sleep(1_000)
 
     # Ensure the second recipient received the 5.0 UCO
-    5.0 = Playbook.get_uco_balance(new_recipient_address, host, port)
+    500_000_000 = Playbook.get_uco_balance(new_recipient_address, host, port)
     Logger.info("#{Base.encode16(new_recipient_address)} received 5.0 UCO")
 
     # Ensure the first recipient amount have decreased
     recipient_balance2 = Playbook.get_uco_balance(recipient_address, host, port)
     # 5.0 - transaction fee
-    true = recipient_balance2 <= new_balance - 5.0
+    true = recipient_balance2 <= new_balance - 500_000_000
     Logger.info("#{Base.encode16(recipient_address)} now got #{recipient_balance2} UCO")
   end
 
@@ -110,7 +111,7 @@ defmodule Archethic.Utils.Regression.Playbook.UCO do
               transfers: [
                 %UCOTransfer{
                   to: recipient_address,
-                  amount: 10 * 100_000_000
+                  amount: trunc(10 * @unit_uco)
                 }
               ]
             }
@@ -121,7 +122,7 @@ defmodule Archethic.Utils.Regression.Playbook.UCO do
       )
 
     Process.sleep(1_000)
-    0.0 = Playbook.get_uco_balance(recipient_address, host, port)
+    0 = Playbook.get_uco_balance(recipient_address, host, port)
     0 = Playbook.get_chain_size(from_seed, Crypto.default_curve(), host, port)
 
     Logger.info("Transaction with insufficient funds is rejected")
