@@ -157,7 +157,7 @@ defmodule Archethic.OracleChain do
     naive_from_date = from_date |> DateTime.truncate(:second) |> DateTime.to_naive()
 
     if Crontab.DateChecker.matches_date?(cron_expression, naive_from_date) do
-      DateTime.truncate(from_date, :millisecond)
+      DateTime.truncate(from_date, :second)
     else
       cron_expression
       |> Crontab.Scheduler.get_previous_run_date!(naive_from_date)

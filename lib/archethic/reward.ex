@@ -230,11 +230,11 @@ defmodule Archethic.Reward do
 
     naive_date_from =
       date_from
-      |> DateTime.truncate(:millisecond)
+      |> DateTime.truncate(:second)
       |> DateTime.to_naive()
 
     if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
-      DateTime.truncate(date_from, :millisecond)
+      DateTime.truncate(date_from, :second)
     else
       cron_expression
       |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
