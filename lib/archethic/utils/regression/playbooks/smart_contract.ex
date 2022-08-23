@@ -9,6 +9,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   alias Archethic.TransactionChain.TransactionData.Ownership
 
   alias Archethic.Utils.Regression.Playbook
+  @unit_uco 100_000_000
 
   require Logger
 
@@ -32,7 +33,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
 
   defp run_interval_date_trigger(host, port, storage_node_public_key) do
     recipient_address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    amount_to_send = trunc(0.1 * 100_000_000)
+    amount_to_send = trunc(0.1 * @unit_uco)
 
     contract_owner_address =
       Crypto.derive_keypair("contract_playbook_seed", 0, :ed25519)
@@ -94,7 +95,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
       end)
 
     # The recipient address should have received 4 times, 0.1 UCO
-    true = balance == 0.4
+    true = balance == trunc(0.4 * @unit_uco)
 
     :ok
   end

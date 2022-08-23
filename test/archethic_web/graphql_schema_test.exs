@@ -314,7 +314,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
           "query" => "query { balance(address: \"#{Base.encode16(addr)}\") { uco } }"
         })
 
-      assert %{"data" => %{"balance" => %{"uco" => 2.18}}} = json_response(conn, 200)
+      assert %{"data" => %{"balance" => %{"uco" => 218_000_000}}} = json_response(conn, 200)
     end
 
     test "should retrieve the token balance of an address", %{conn: conn} do
@@ -340,7 +340,11 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert %{
                "data" => %{
                  "balance" => %{
-                   "token" => [%{"amount" => 2.0}, %{"amount" => 5.0}, %{"amount" => 10.0}]
+                   "token" => [
+                     %{"amount" => 200_000_000},
+                     %{"amount" => 500_000_000},
+                     %{"amount" => 1_000_000_000}
+                   ]
                  }
                }
              } = json_response(conn, 200)
@@ -377,7 +381,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
                  "transaction_inputs" => [
                    %{
                      "type" => "UCO",
-                     "amount" => 0.202,
+                     "amount" => 20_200_000,
                      "timestamp" => 1_614_951_694
                    }
                  ]
