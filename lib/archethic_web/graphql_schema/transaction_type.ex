@@ -231,6 +231,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - supply: Supply of the token
   - type: Type of the token
   - properties: Properties of the token (if any)
+  - id: Unique identification of the token on the chain
   """
   object :token do
     field(:genesis, :address)
@@ -238,7 +239,8 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:symbol, :string)
     field(:supply, :integer)
     field(:type, :string)
-    field(:properties, list_of(:tokenProperty))
+    field(:properties, list_of(list_of(:tokenProperty)))
+    field(:id, :string)
   end
 
   @desc """
