@@ -40,7 +40,11 @@ defmodule Archethic.Bootstrap.TransactionHandler do
         )
 
         storage_nodes =
-          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
+          Election.chain_storage_nodes_with_type(
+            tx.address,
+            tx.type,
+            P2P.authorized_and_available_nodes()
+          )
 
         await_confirmation(tx.address, storage_nodes)
 

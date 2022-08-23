@@ -30,7 +30,9 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         type: type,
         movements_addresses: mvt_addresses
       }) do
-    node_list = [P2P.get_node_info() | P2P.available_nodes()] |> P2P.distinct_nodes()
+    node_list =
+      [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
+
     chain_storage_nodes = Election.chain_storage_nodes_with_type(address, type, node_list)
 
     if Utils.key_in_node_list?(chain_storage_nodes, Crypto.first_node_public_key()) do
@@ -62,7 +64,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
     storage_nodes =
       address
-      |> Election.chain_storage_nodes_with_type(type, P2P.available_nodes())
+      |> Election.chain_storage_nodes_with_type(type, P2P.authorized_and_available_nodes())
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
@@ -96,7 +98,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           type: type
         }
       ) do
-    node_list = [P2P.get_node_info() | P2P.available_nodes()] |> P2P.distinct_nodes()
+    node_list =
+      [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
 
     cond do
       Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list) ->

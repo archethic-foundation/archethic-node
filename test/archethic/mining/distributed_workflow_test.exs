@@ -105,7 +105,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes()),
+          Election.chain_storage_nodes_with_type(
+            tx.address,
+            tx.type,
+            P2P.authorized_and_available_nodes()
+          ),
           P2P.authorized_nodes()
         )
 
@@ -182,7 +186,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
+          Election.chain_storage_nodes_with_type(
+            tx.address,
+            tx.type,
+            P2P.authorized_and_available_nodes()
+          )
         )
 
       MockClient
@@ -208,7 +216,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         last_public_key: "key1",
         reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         geo_patch: "AAA",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
       }
 
       {:ok, coordinator_pid} =
@@ -278,7 +288,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
+          Election.chain_storage_nodes_with_type(
+            tx.address,
+            tx.type,
+            P2P.authorized_and_available_nodes()
+          )
         )
 
       MockClient
@@ -397,7 +411,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
+          Election.chain_storage_nodes_with_type(
+            tx.address,
+            tx.type,
+            P2P.authorized_and_available_nodes()
+          )
         )
 
       MockClient
@@ -520,7 +538,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
+          Election.chain_storage_nodes_with_type(
+            tx.address,
+            tx.type,
+            P2P.authorized_and_available_nodes()
+          )
         )
 
       me = self()
@@ -700,7 +722,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
+          Election.chain_storage_nodes_with_type(
+            tx.address,
+            tx.type,
+            P2P.authorized_and_available_nodes()
+          )
         )
 
       me = self()
