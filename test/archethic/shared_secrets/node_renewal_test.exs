@@ -17,7 +17,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
 
   import Mox
 
-  test "new_node_shared_secrets_transaction/3 should create a new node shared secrets transaction" do
+  test "new_node_shared_secrets_transaction/4 should create a new node shared secrets transaction" do
     aes_key = :crypto.strong_rand_bytes(32)
 
     %Transaction{
@@ -30,7 +30,8 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
       SharedSecrets.new_node_shared_secrets_transaction(
         [Crypto.last_node_public_key()],
         "daily_nonce_seed",
-        aes_key
+        aes_key,
+        0
       )
 
     assert Ownership.authorized_public_key?(ownership, Crypto.first_node_public_key())

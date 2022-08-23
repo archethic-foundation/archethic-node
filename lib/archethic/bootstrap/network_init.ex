@@ -78,7 +78,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
       SharedSecrets.new_node_shared_secrets_transaction(
         [Crypto.first_node_public_key()],
         daily_nonce_seed,
-        secret_key
+        secret_key,
+        0
       )
 
     tx
