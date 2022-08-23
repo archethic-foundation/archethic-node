@@ -43,13 +43,14 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
          {:ok,
           {:ok,
-           %{
+           definition = %{
              "name" => name,
              "supply" => supply,
              "symbol" => symbol,
-             "type" => type,
-             "properties" => properties
+             "type" => type
            }}} <- Task.yield(t2) do
+      properties = Map.get(definition, "properties", [])
+
       data_to_digest =
         case type do
           "fungible" ->
