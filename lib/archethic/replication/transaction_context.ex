@@ -67,7 +67,7 @@ defmodule Archethic.Replication.TransactionContext do
     address
     # returns the storage nodes for the transaction chain based on the transaction address
     # from a list of available node
-    |> Election.chain_storage_nodes(P2P.available_nodes())
+    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
     #  Returns the nearest storages nodes from the local node as per the patch
     #  when the input is a list of nodes
     |> P2P.nearest_nodes()

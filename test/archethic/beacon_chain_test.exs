@@ -203,7 +203,11 @@ defmodule Archethic.BeaconChainTest do
       }
 
       storage_nodes =
-        Election.chain_storage_nodes_with_type(addr1, :transfer, P2P.available_nodes())
+        Election.chain_storage_nodes_with_type(
+          addr1,
+          :transfer,
+          P2P.authorized_and_available_nodes()
+        )
 
       beacon_summary = %Summary{
         subset: "A",
@@ -243,7 +247,11 @@ defmodule Archethic.BeaconChainTest do
       addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       storage_nodes =
-        Election.chain_storage_nodes_with_type(addr1, :transfer, P2P.available_nodes())
+        Election.chain_storage_nodes_with_type(
+          addr1,
+          :transfer,
+          P2P.authorized_and_available_nodes()
+        )
 
       tx_summary = %TransactionSummary{
         address: addr1,

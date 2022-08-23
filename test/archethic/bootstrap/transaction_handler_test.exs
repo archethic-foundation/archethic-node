@@ -39,11 +39,14 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
   test "send_transaction/2 should send the transaction to a welcome node" do
     node = %Node{
       ip: {80, 10, 101, 202},
-      port: 4390,
+      port: 3005,
       http_port: 4000,
       first_public_key: "key1",
       last_public_key: "key1",
-      available?: true
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      enrollment_date: DateTime.utc_now()
     }
 
     :ok = P2P.add_and_connect_node(node)

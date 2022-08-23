@@ -19,7 +19,7 @@ defmodule Archethic.AccountTest do
 
   describe "get_balance/1" do
     setup do
-      expect(MockDB, :list_transactions_by_type, fn _, _ ->
+      stub(MockDB, :list_transactions_by_type, fn _, _ ->
         [
           %Transaction{
             address: "@RewardToken0",

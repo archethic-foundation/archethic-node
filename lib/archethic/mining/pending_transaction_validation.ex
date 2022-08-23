@@ -414,7 +414,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     previous_address = Transaction.previous_address(tx)
 
     previous_address
-    |> Election.chain_storage_nodes(P2P.available_nodes())
+    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_first_public_key(previous_address)
