@@ -22,6 +22,4 @@ defmodule Archethic.P2P.Client do
               {:ok, Message.response()}
               | {:error, :timeout}
               | {:error, :closed}
-
-  @callback set_connected(Crypto.key()) :: :ok
 end

@@ -298,7 +298,7 @@ defmodule Archethic.BeaconChain do
     authorized_nodes = P2P.authorized_and_available_nodes()
 
     list_subsets()
-    |> Flow.from_enumerable()
+    |> Flow.from_enumerable(stages: 256)
     |> Flow.flat_map(fn subset ->
       # Foreach subset and date we compute concurrently the node election
       dates
@@ -316,15 +316,22 @@ defmodule Archethic.BeaconChain do
       fetch_summaries(node, addresses)
     end)
     # We repartition by summary time to aggregate summaries for a date
-    |> Flow.partition(key: {:key, :summary_time})
+    |> Flow.partition(stages: System.schedulers_online() * 4, key: {:key, :summary_time})
     |> Flow.reduce(
-      fn -> %SummaryAggregate{} end,
-      &SummaryAggregate.add_summary(&2, &1)
+      fn -> %{} end,
+      fn summary = %Summary{summary_time: time}, acc ->
+        Map.update(
+          acc,
+          time,
+          %SummaryAggregate{summary_time: time} |> SummaryAggregate.add_summary(summary),
+          &SummaryAggregate.add_summary(&1, summary)
+        )
+      end
     )
-    |> Flow.emit(:state)
+    |> Flow.on_trigger(&{Map.values(&1), &1})
     |> Stream.reject(&SummaryAggregate.empty?/1)
     |> Stream.map(&SummaryAggregate.aggregate/1)
-    |> Enum.sort_by(& &1.summary_time)
+    |> Enum.sort_by(& &1.summary_time, {:asc, DateTime})
   end
 
   defp get_summary_address_by_node(date, subset, authorized_nodes) do
@@ -341,9 +348,15 @@ defmodule Archethic.BeaconChain do
   end
 
   defp fetch_summaries(node, addresses) do
+    Logger.info(
+      "Self repair start download #{Enum.count(addresses)} summaries on node #{Base.encode16(node.first_public_key)}"
+    )
+
     addresses
     |> Stream.chunk_every(10)
-    |> Stream.flat_map(&batch_summaries_fetching(&1, node))
+    |> Task.async_stream(&batch_summaries_fetching(&1, node))
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
   end
 

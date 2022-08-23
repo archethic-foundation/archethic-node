@@ -8,7 +8,6 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   alias Archethic.P2P.Client.Connection
   alias Archethic.P2P.Client.ConnectionSupervisor
   alias Archethic.P2P.Client.Transport.TCPImpl
-  alias Archethic.P2P.MemTable
   alias Archethic.P2P.Message
   alias Archethic.P2P.Node
 
@@ -62,20 +61,10 @@ defmodule Archethic.P2P.Client.DefaultImpl do
             node: Base.encode16(node_public_key)
           )
 
-          MemTable.decrease_node_availability(node_public_key)
           BeaconUpdate.unsubscribe(node_public_key)
 
           {:error, reason}
       end
     end
-  end
-
-  @doc """
-  When receiving a message from a node, we set it connected
-  """
-  @impl Client
-  @spec set_connected(Crypto.key()) :: :ok
-  def set_connected(node_public_key) do
-    Connection.set_connected(node_public_key)
   end
 end

@@ -15,6 +15,14 @@ defmodule Archethic.P2P.Listener do
     transport = Keyword.get(opts, :transport)
     port = Keyword.get(opts, :port)
 
+    {:ok, {transport, port}}
+  end
+
+  def listen() do
+    GenServer.cast(__MODULE__, :start_listener)
+  end
+
+  def handle_cast(:start_listener, {transport, port}) do
     ranch_transport =
       case transport do
         :tcp ->
@@ -34,7 +42,7 @@ defmodule Archethic.P2P.Listener do
       {:ok, listener_pid} ->
         Logger.info("P2P #{transport} Endpoint running on port #{port}")
 
-        {:ok, %{listener_pid: listener_pid}}
+        {:noreply, %{listener_pid: listener_pid}}
 
       {:error, :eaddrinuse} ->
         Logger.error(

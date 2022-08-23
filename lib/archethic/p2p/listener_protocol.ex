@@ -17,22 +17,17 @@ defmodule Archethic.P2P.ListenerProtocol do
   end
 
   def init({ref, transport, opts}) do
-    if :persistent_term.get(:archethic_up, nil) do
-      {:ok, socket} = :ranch.handshake(ref)
-      :ok = transport.setopts(socket, opts)
+    {:ok, socket} = :ranch.handshake(ref)
+    :ok = transport.setopts(socket, opts)
 
-      {:ok, {ip, port}} = :inet.peername(socket)
+    {:ok, {ip, port}} = :inet.peername(socket)
 
-      :gen_server.enter_loop(__MODULE__, [], %{
-        socket: socket,
-        transport: transport,
-        ip: ip,
-        port: port
-      })
-    else
-      # node is Bootstrapping, reject any incoming request messages
-      {:stop, :node_bootstrapping}
-    end
+    :gen_server.enter_loop(__MODULE__, [], %{
+      socket: socket,
+      transport: transport,
+      ip: ip,
+      port: port
+    })
   end
 
   def handle_info(
@@ -41,16 +36,15 @@ defmodule Archethic.P2P.ListenerProtocol do
       ) do
     :inet.setopts(socket, active: :once)
 
-    %Archethic.P2P.MessageEnvelop{
-      message_id: message_id,
-      message: message,
-      sender_public_key: sender_public_key
-    } = Archethic.P2P.MessageEnvelop.decode(msg)
-
-    Archethic.P2P.MemTable.increase_node_availability(sender_public_key)
-    Archethic.P2P.Client.set_connected(sender_public_key)
-
     Task.Supervisor.start_child(TaskSupervisor, fn ->
+      %Archethic.P2P.MessageEnvelop{
+        message_id: message_id,
+        message: message,
+        sender_public_key: sender_public_key
+      } = Archethic.P2P.MessageEnvelop.decode(msg)
+
+      Archethic.P2P.MemTable.increase_node_availability(sender_public_key)
+
       response = Archethic.P2P.Message.process(message)
 
       encoded_response =
