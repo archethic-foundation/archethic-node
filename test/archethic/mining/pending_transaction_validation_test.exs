@@ -453,13 +453,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
     test "should return error when there is already a oracle transaction since the last schedule" do
       MockDB
-      |> expect(:get_transaction, fn _, _ ->
-        {:ok,
-         %Transaction{
-           validation_stamp: %ValidationStamp{
-             timestamp: ~U[2022-01-01 00:10:00Z]
-           }
-         }}
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
       end)
 
       tx = Transaction.new(:oracle, %TransactionData{}, "seed", 0)
@@ -470,13 +465,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
     test "should return error when there is already a node shared secrets transaction since the last schedule" do
       MockDB
-      |> expect(:get_transaction, fn _, _ ->
-        {:ok,
-         %Transaction{
-           validation_stamp: %ValidationStamp{
-             timestamp: ~U[2022-01-01 00:00:00Z]
-           }
-         }}
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
       end)
 
       tx =
@@ -501,14 +491,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
     test "should return error when there is already a node rewards transaction since the last schedule" do
       MockDB
-      |> expect(:get_transaction, fn _, _ ->
-        {:ok,
-         %Transaction{
-           type: :node_rewards,
-           validation_stamp: %ValidationStamp{
-             timestamp: ~U[2022-01-01 00:00:00Z]
-           }
-         }}
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
       end)
 
       tx =

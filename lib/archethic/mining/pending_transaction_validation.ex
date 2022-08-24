@@ -32,7 +32,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.TokenLedger
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Archethic.Utils
 
@@ -121,37 +120,14 @@ defmodule Archethic.Mining.PendingTransactionValidation do
        ) do
     last_scheduling_date = Reward.get_last_scheduling_date(validation_time)
 
-    previous_address = Transaction.previous_address(tx)
+    network_pool_address = SharedSecrets.get_network_pool_address()
 
-    valid_time? =
-      case TransactionChain.get_transaction(previous_address, [
-             :type,
-             validation_stamp: :timestamp
-           ]) do
-        {:ok,
-         %Transaction{
-           type: :mint_rewards
-         }} ->
-          true
-
-        {:ok,
-         %Transaction{
-           type: :node_rewards,
-           validation_stamp: %ValidationStamp{timestamp: rewards_timestamp}
-         }} ->
-          DateTime.compare(rewards_timestamp, last_scheduling_date) == :lt
-
-        {:error, _} ->
-          true
-      end
-
-    with true <- valid_time?,
+    with {^network_pool_address, _} <-
+           DB.get_last_chain_address(network_pool_address, last_scheduling_date),
          ^token_transfers <- Reward.get_transfers() do
       :ok
     else
-      false ->
-        Logger.debug("last scheduling date: #{last_scheduling_date} - now: #{DateTime.utc_now()}")
-
+      {_, _} ->
         Logger.warning("Invalid reward time scheduling",
           transaction_address: Base.encode16(tx.address)
         )
@@ -236,7 +212,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(
-         tx = %Transaction{
+         %Transaction{
            type: :node_shared_secrets,
            data: %TransactionData{
              content: content,
@@ -250,7 +226,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     last_scheduling_date = SharedSecrets.get_last_scheduling_date(validation_time)
 
-    with :ok <- validate_scheduling_network_tx_time(last_scheduling_date, tx),
+    genesis_address =
+      SharedSecrets.genesis_daily_nonce_public_key()
+      |> Crypto.derive_address()
+
+    {last_address, _} = DB.get_last_chain_address(genesis_address)
+
+    with {^last_address, _} <- DB.get_last_chain_address(genesis_address, last_scheduling_date),
          {:ok, _, _} <-
            NodeRenewal.decode_transaction_content(content),
          true <-
@@ -260,14 +242,14 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            ) do
       :ok
     else
-      {:error, :time} ->
-        {:error, "Invalid node shared secrets trigger time"}
-
       :error ->
         {:error, "Invalid node shared secrets transaction content"}
 
       false ->
         {:error, "Invalid node shared secrets transaction authorized nodes"}
+
+      _address ->
+        {:error, "Invalid node shared secrets trigger time"}
     end
   end
 
@@ -424,7 +406,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(
-         tx = %Transaction{
+         %Transaction{
            type: :oracle,
            data: %TransactionData{
              content: content
@@ -434,11 +416,19 @@ defmodule Archethic.Mining.PendingTransactionValidation do
        ) do
     last_scheduling_date = OracleChain.get_last_scheduling_date(validation_time)
 
-    with :ok <- validate_scheduling_network_tx_time(last_scheduling_date, tx),
+    genesis_address =
+      validation_time
+      |> OracleChain.next_summary_date()
+      |> Crypto.derive_oracle_address(0)
+
+    {last_address, _} = DB.get_last_chain_address(genesis_address)
+
+    with {^last_address, _} <-
+           DB.get_last_chain_address(genesis_address, last_scheduling_date),
          true <- OracleChain.valid_services_content?(content) do
       :ok
     else
-      {:error, :time} ->
+      {_, _} ->
         {:error, "Invalid oracle trigger time"}
 
       false ->
@@ -537,28 +527,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:error, :invalid_ip} ->
         {:error, :invalid_ip}
-    end
-  end
-
-  defp validate_scheduling_network_tx_time(last_scheduling_date, tx) do
-    case TransactionChain.get_transaction(Transaction.previous_address(tx)) do
-      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} ->
-        if DateTime.compare(timestamp, last_scheduling_date) in [:gt, :eq] do
-          Logger.debug(
-            "Last scheduling date: #{last_scheduling_date} - Previous Tx date: #{timestamp} - Now: #{DateTime.utc_now()}"
-          )
-
-          Logger.warning("Not more than two times in the same interval",
-            transaction_type: tx.type
-          )
-
-          {:error, :time}
-        else
-          :ok
-        end
-
-      {:error, _} ->
-        :ok
     end
   end
 end

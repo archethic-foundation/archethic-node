@@ -138,7 +138,11 @@ defmodule Archethic.OracleChain do
   """
   @spec next_summary_date(DateTime.t()) :: DateTime.t()
   def next_summary_date(date_from = %DateTime{}) do
-    Scheduler.get_summary_interval()
+    interval =
+      Application.get_env(:archethic, Scheduler)
+      |> Keyword.fetch!(:summary_interval)
+
+    interval
     |> CronParser.parse!(true)
     |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
     |> DateTime.from_naive!("Etc/UTC")
