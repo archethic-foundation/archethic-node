@@ -27,7 +27,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @typedoc """
   - Transaction movements: represents the pending transaction ledger movements
   - Unspent outputs: represents the new unspent outputs
-  - fee: represents the transaction fee distributed across the node movements
+  - fee: represents the transaction fee
   """
   @type t() :: %__MODULE__{
           transaction_movements: list(TransactionMovement.t()),

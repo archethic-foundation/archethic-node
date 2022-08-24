@@ -18,7 +18,6 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           | :transaction_fee
           | :transaction_movements
           | :unspent_outputs
-          | :node_movements
           | :error
 
   @typedoc """
@@ -128,7 +127,6 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp serialize_inconsistency(:transaction_fee), do: 5
   defp serialize_inconsistency(:transaction_movements), do: 6
   defp serialize_inconsistency(:unspent_outputs), do: 7
-  defp serialize_inconsistency(:node_movements), do: 8
   defp serialize_inconsistency(:error), do: 9
 
   @doc """
@@ -193,7 +191,6 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<5::8, rest::bitstring>>), do: {:transaction_fee, rest}
   defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:transaction_movements, rest}
   defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:unspent_outputs, rest}
-  defp do_reduce_inconsistencies(<<8::8, rest::bitstring>>), do: {:node_movements, rest}
   defp do_reduce_inconsistencies(<<9::8, rest::bitstring>>), do: {:error, rest}
 
   @spec cast(map()) :: t()
