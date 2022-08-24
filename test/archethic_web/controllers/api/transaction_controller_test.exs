@@ -36,7 +36,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
               "uco" => %{
                 "transfers" => [
                   %{
-                    "amount" => trunc(100_000_000),
+                    "amount" => 100_000_000,
                     "to" => "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
                   }
                 ]
@@ -54,7 +54,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
         })
 
       assert %{
-               "fee" => trunc(0.05001344 * 100_000_000),
+               "fee" => 5_001_344,
                "rates" => %{
                  "eur" => 0.2,
                  "usd" => 0.2
