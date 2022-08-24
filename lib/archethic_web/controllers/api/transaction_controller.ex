@@ -5,8 +5,21 @@ defmodule ArchethicWeb.API.TransactionController do
 
   alias Archethic
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.{
+    Transaction,
+    TransactionData,
+    TransactionSummary
+  }
+
+  alias Archethic.P2P
+
+  alias Archethic.P2P.Message.{
+    GetTransactionSummary,
+    NotFound
+  }
+
+  alias Archethic.P2P.Node
+  alias Archethic.Election
 
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -25,21 +38,28 @@ defmodule ArchethicWeb.API.TransactionController do
           |> TransactionPayload.to_map()
           |> Transaction.cast()
 
-        case Archethic.send_new_transaction(tx) do
-          :ok ->
-            TransactionSubscriber.register(tx.address, System.monotonic_time())
+        tx_address = tx.address
 
-            conn
-            |> put_status(201)
-            |> json(%{
-              transaction_address: Base.encode16(tx.address),
-              status: "pending"
-            })
+        storage_nodes =
+          Election.chain_storage_nodes(tx_address, P2P.authorized_and_available_nodes())
 
-          {:error, :network_issue} ->
-            conn
-            |> put_status(422)
-            |> json(%{status: "error - transaction may be invalid"})
+        nodes =
+          storage_nodes
+          |> P2P.nearest_nodes()
+          |> Enum.filter(&Node.locally_available?/1)
+
+        case P2P.quorum_read(
+               nodes,
+               %GetTransactionSummary{address: tx_address}
+             ) do
+          {:ok, %TransactionSummary{address: ^tx_address}} ->
+            conn |> put_status(422) |> json(%{status: "error - transaction already exists!"})
+
+          {:ok, %NotFound{}} ->
+            send_transaction(conn, tx)
+
+          {:error, e} ->
+            Logger.error("Cannot get transaction summary - #{inspect(e)}")
         end
 
       changeset ->
@@ -51,6 +71,25 @@ defmodule ArchethicWeb.API.TransactionController do
         |> put_status(400)
         |> put_view(ErrorView)
         |> render("400.json", changeset: changeset)
+    end
+  end
+
+  defp send_transaction(conn, tx = %Transaction{}) do
+    case Archethic.send_new_transaction(tx) do
+      :ok ->
+        TransactionSubscriber.register(tx.address, System.monotonic_time())
+
+        conn
+        |> put_status(201)
+        |> json(%{
+          transaction_address: Base.encode16(tx.address),
+          status: "pending"
+        })
+
+      {:error, :network_issue} ->
+        conn
+        |> put_status(422)
+        |> json(%{status: "error - transaction may be invalid"})
     end
   end
 
