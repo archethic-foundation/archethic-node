@@ -103,13 +103,20 @@ defmodule Archethic.OracleChain do
   @spec get_uco_price(DateTime.t()) :: list({binary(), float()})
   def get_uco_price(date = %DateTime{}) do
     case MemTable.get_oracle_data("uco", date) do
-      {:ok, prices} ->
+      {:ok, prices, _} ->
         Enum.map(prices, fn {pair, price} -> {String.to_existing_atom(pair), price} end)
 
       _ ->
         [eur: 0.05, usd: 0.07]
     end
   end
+
+  @doc """
+  Get the oracle data by date for a given service
+  """
+  @spec get_oracle_data(binary(), DateTime.t()) ::
+          {:ok, map(), DateTime.t()} | {:error, :not_found}
+  defdelegate get_oracle_data(service, date), to: MemTable
 
   def config_change(changed_conf) do
     changed_conf

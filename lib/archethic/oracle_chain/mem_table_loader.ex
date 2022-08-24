@@ -43,6 +43,16 @@ defmodule Archethic.OracleChain.MemTableLoader do
 
     content
     |> Jason.decode!()
+    |> tap(fn data ->
+      Absinthe.Subscription.publish(
+        ArchethicWeb.Endpoint,
+        %{
+          services: data,
+          timestamp: timestamp
+        },
+        oracle_update: "oracle-topic"
+      )
+    end)
     |> Enum.each(fn {service, data} ->
       MemTable.add_oracle_data(service, data, timestamp)
     end)
