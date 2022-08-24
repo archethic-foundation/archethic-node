@@ -40,7 +40,8 @@ defmodule ArchethicWeb.API.TransactionController do
 
         tx_address = tx.address
 
-        storage_nodes = Election.chain_storage_nodes(tx_address, P2P.available_nodes())
+        storage_nodes =
+          Election.chain_storage_nodes(tx_address, P2P.authorized_and_available_nodes())
 
         nodes =
           storage_nodes
