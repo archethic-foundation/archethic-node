@@ -150,7 +150,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
   def init_network_reward_pool() do
     Logger.info("Create mining reward pool")
 
-    Reward.new_rewards_mint(@genesis_network_pool_amount)
+    Reward.new_rewards_mint(@genesis_network_pool_amount, 0)
     |> self_validation()
     |> self_replication()
   end

@@ -43,8 +43,11 @@ defmodule Archethic.Reward.Scheduler do
     case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
       %Node{authorized?: true, available?: true} ->
         Logger.info("Reward Scheduler scheduled during init")
+        PubSub.register_to_new_transaction_by_type(:mint_rewards)
+        PubSub.register_to_new_transaction_by_type(:node_rewards)
 
-        {:ok, :idle, %{interval: interval}, {:next_event, :internal, :schedule}}
+        index = Crypto.number_of_network_pool_keys()
+        {:ok, :idle, %{interval: interval, index: index}, {:next_event, :internal, :schedule}}
 
       _ ->
         Logger.info("Reward Scheduler waitng for Node Update Message")
@@ -60,11 +63,16 @@ defmodule Archethic.Reward.Scheduler do
         {:node_update,
          %Node{authorized?: true, available?: true, first_public_key: first_public_key}},
         :idle,
-        _data
+        data
       ) do
     if Crypto.first_node_public_key() == first_public_key do
+      index = Crypto.number_of_network_pool_keys()
+
+      PubSub.register_to_new_transaction_by_type(:mint_rewards)
+      PubSub.register_to_new_transaction_by_type(:node_rewards)
+
       Logger.info("Start the network pool reward scheduler")
-      {:keep_state_and_data, {:next_event, :internal, :schedule}}
+      {:keep_state, Map.put(data, :index, index), {:next_event, :internal, :schedule}}
     else
       :keep_state_and_data
     end
@@ -78,11 +86,14 @@ defmodule Archethic.Reward.Scheduler do
       )
       when state != :idle do
     if Crypto.first_node_public_key() == first_public_key do
-      data
-      |> Map.get(:timer, make_ref())
-      |> Process.cancel_timer()
+      case Map.pop(data, :timer) do
+        {nil, _} ->
+          {:next_state, :idle, data}
 
-      {:next_state, :idle, Map.delete(state, :timer)}
+        {timer, new_data} ->
+          Process.cancel_timer(timer)
+          {:next_state, :idle, new_data}
+      end
     else
       :keep_state_and_data
     end
@@ -95,11 +106,14 @@ defmodule Archethic.Reward.Scheduler do
         data
       ) do
     if Crypto.first_node_public_key() == first_public_key do
-      data
-      |> Map.get(:timer, make_ref())
-      |> Process.cancel_timer()
+      case Map.pop(data, :timer) do
+        {nil, _} ->
+          {:next_state, :idle, data}
 
-      {:next_state, :idle, Map.delete(data, :timer)}
+        {timer, new_data} ->
+          Process.cancel_timer(timer)
+          {:next_state, :idle, new_data}
+      end
     else
       :keep_state_and_data
     end
@@ -113,24 +127,35 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(
         :info,
-        {:new_transaction, address, :mint_rewards, _timestamp},
+        {:new_transaction, _address, :mint_rewards, _timestamp},
         :triggered,
-        _data
+        data
       ) do
-    PubSub.unregister_to_new_transaction_by_address(address)
-
-    send_node_rewards()
-    :keep_state_and_data
+    new_data = %{index: index} = Map.update!(data, :index, &(&1 + 1))
+    send_node_rewards(index)
+    {:keep_state, new_data}
   end
 
   def handle_event(
         :info,
-        {:new_transaction, address, :node_rewards, _timestamp},
+        {:new_transaction, _address, :mint_rewards, _timestamp},
+        :scheduled,
+        data
+      ) do
+    Logger.debug(
+      "Reschedule rewards after reception of mint rewards transaction in scheduled state instead of triggered state"
+    )
+
+    new_data = Map.update!(data, :index, &(&1 + 1))
+    {:keep_state, new_data, {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:new_transaction, _address, :node_rewards, _timestamp},
         :triggered,
         data
       ) do
-    PubSub.unregister_to_new_transaction_by_address(address)
-
     case Map.get(data, :watcher) do
       nil ->
         :ignore
@@ -139,17 +164,29 @@ defmodule Archethic.Reward.Scheduler do
         Process.exit(pid, :normal)
     end
 
-    {:keep_state, data, {:next_event, :internal, :schedule}}
+    {:keep_state, Map.update!(data, :index, &(&1 + 1)), {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:new_transaction, _address, :node_rewards, _timestamp},
+        :scheduled,
+        data
+      ) do
+    Logger.debug(
+      "Reschedule rewards after reception of node rewards transaction in scheduled state instead of triggered state"
+    )
+
+    {:keep_state, Map.update!(data, :index, &(&1 + 1)), {:next_event, :internal, :schedule}}
   end
 
   def handle_event(
         :info,
         {:DOWN, _ref, :process, pid, _},
         :triggered,
-        data = %{watcher: {address, watcher_pid}}
+        data = %{watcher: watcher_pid}
       )
       when watcher_pid == pid do
-    PubSub.unregister_to_new_transaction_by_address(address)
     {:keep_state, Map.delete(data, :watcher), {:next_event, :internal, :schedule}}
   end
 
@@ -157,18 +194,17 @@ defmodule Archethic.Reward.Scheduler do
         :info,
         {:DOWN, _ref, :process, pid, _},
         :scheduled,
-        data = %{watcher: {address, watcher_pid}}
+        data = %{watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    PubSub.unregister_to_new_transaction_by_address(address)
     {:keep_state, Map.delete(data, :watcher)}
   end
 
-  def handle_event(:internal, :make_rewards, :triggered, data) do
-    tx_address = Reward.next_address()
+  def handle_event(:internal, :make_rewards, :triggered, data = %{index: index}) do
+    tx_address = Reward.next_address(index)
 
     if Reward.initiator?(tx_address) do
-      mint_node_rewards()
+      mint_node_rewards(index)
       :keep_state_and_data
     else
       {:ok, pid} =
@@ -178,18 +214,31 @@ defmodule Archethic.Reward.Scheduler do
               transaction_address: Base.encode16(tx_address)
             )
 
-            mint_node_rewards()
+            mint_node_rewards(index)
           end
         end)
 
       Process.monitor(pid)
 
-      {:keep_state, Map.put(data, :watcher, {tx_address, pid})}
+      {:keep_state, Map.put(data, :watcher, pid)}
     end
   end
 
   def handle_event(:internal, :schedule, _state, data = %{interval: interval}) do
-    timer = schedule(interval)
+    timer =
+      case Map.get(data, :timer) do
+        nil ->
+          schedule(interval)
+
+        timer ->
+          Process.cancel_timer(timer)
+          schedule(interval)
+      end
+
+    Logger.info(
+      "Node rewards will be emitted in #{Utils.remaining_seconds_from_timer(timer)} seconds"
+    )
+
     new_data = Map.put(data, :timer, timer)
     {:next_state, :scheduled, new_data}
   end
@@ -208,29 +257,25 @@ defmodule Archethic.Reward.Scheduler do
     end
   end
 
-  defp mint_node_rewards do
+  defp mint_node_rewards(index) do
     case DB.get_latest_burned_fees() do
       0 ->
         Logger.info("No mint rewards transaction needed")
-        send_node_rewards()
+        send_node_rewards(index)
 
       amount ->
-        tx = Reward.new_rewards_mint(amount)
-
-        PubSub.register_to_new_transaction_by_address(tx.address)
-
-        Archethic.send_new_transaction(tx)
+        tx = Reward.new_rewards_mint(amount, index)
 
         Logger.info("New mint rewards transaction sent with #{amount} token",
           transaction_address: Base.encode16(tx.address)
         )
+
+        Archethic.send_new_transaction(tx)
     end
   end
 
-  defp send_node_rewards do
-    node_reward_tx = Reward.new_node_rewards()
-
-    PubSub.register_to_new_transaction_by_address(node_reward_tx.address)
+  defp send_node_rewards(index) do
+    node_reward_tx = Reward.new_node_rewards(index)
 
     Archethic.send_new_transaction(node_reward_tx)
   end
