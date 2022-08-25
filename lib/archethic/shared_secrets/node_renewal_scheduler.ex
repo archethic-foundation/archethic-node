@@ -2,17 +2,9 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   @moduledoc """
   Schedule the renewal of node shared secrets
 
-  At each `interval - trigger offset` , a new node shared secrets transaction is created with
+  At each `interval`, a new node shared secrets transaction is created with
   the new authorized nodes and is broadcasted to the validation nodes to include
   them as new authorized nodes and update the daily nonce seed.
-
-  A trigger offset is defined to determine the seconds before the interval
-  when the transaction will be created and sent.
-  (this offset can be tuned by the prediction module to ensure the correctness depending on the latencies)
-
-  For example, for a interval every day (00:00), with 10min offset.
-  At 23:58 UTC, an elected node will build and send the transaction for the node renewal shared secrets
-  At 00.00 UTC, nodes receives will applied the node shared secrets for the transaction mining
   """
 
   alias Crontab.CronExpression.Parser, as: CronParser
@@ -34,7 +26,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   require Logger
 
-  use GenServer
+  use GenStateMachine, callback_mode: :handle_event_function
 
   @doc """
   Start the node renewal scheduler process without starting the scheduler
@@ -48,7 +40,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         ) ::
           {:ok, pid()}
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
-    GenServer.start_link(__MODULE__, args, opts)
+    GenStateMachine.start_link(__MODULE__, args, opts)
   end
 
   @doc false
@@ -60,108 +52,216 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
     case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
       %Node{authorized?: true, available?: true} ->
+        PubSub.register_to_new_transaction_by_type(:node_shared_secrets)
         Logger.info("Node Renewal Scheduler: Scheduled during init")
 
-        {:ok, %{interval: interval, timer: schedule_renewal_message(interval)}}
+        key_index = Crypto.number_of_node_shared_secrets_keys()
+
+        {:ok, :idle, %{interval: interval, index: key_index},
+         [{:next_event, :internal, :schedule}]}
 
       _ ->
         Logger.info("Node Renewal Scheduler: Scheduler waiting for Node Update Message")
 
-        {:ok, %{interval: interval}, :hibernate}
+        {:ok, :idle, %{interval: interval}}
     end
   end
 
-  def handle_info(
-        {:node_update, %Node{authorized?: true, available?: true}},
-        state = %{timer: _timer}
-      ) do
-    {:noreply, state, :hibernate}
-  end
+  def handle_event(:internal, :schedule, _state, data = %{interval: interval}) do
+    timer =
+      case Map.get(data, :timer) do
+        nil ->
+          schedule_renewal_message(interval)
 
-  def handle_info(
-        {:node_update,
-         %Node{first_public_key: first_public_key, authorized?: true, available?: true}},
-        state = %{interval: interval}
-      ) do
-    if first_public_key == Crypto.first_node_public_key() do
-      Logger.info("Start node shared secrets scheduling")
-      timer = schedule_renewal_message(interval)
-
-      Logger.info(
-        "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)}"
-      )
-
-      {:noreply, Map.put(state, :timer, timer)}
-    else
-      {:noreply, state, :hibernate}
-    end
-  end
-
-  def handle_info(
-        {:node_update,
-         %Node{first_public_key: first_public_key, authorized?: true, available?: false}},
-        state
-      ) do
-    with timer when timer != nil <- Map.get(state, :timer),
-         ^first_public_key <- Crypto.first_node_public_key() do
-      Process.cancel_timer(timer)
-      {:noreply, Map.delete(state, :timer), :hibernate}
-    else
-      _ ->
-        {:noreply, state, :hibernate}
-    end
-  end
-
-  def handle_info(
-        {:node_update, %Node{first_public_key: first_public_key, authorized?: false}},
-        state
-      ) do
-    with ^first_public_key <- Crypto.first_node_public_key(),
-         timer when timer != nil <- Map.get(state, :timer) do
-      Process.cancel_timer(timer)
-      {:noreply, Map.delete(state, :timer), :hibernate}
-    else
-      _ ->
-        {:noreply, state, :hibernate}
-    end
-  end
-
-  def handle_info(:make_renewal, state = %{interval: interval}) do
-    timer = schedule_renewal_message(interval)
+        timer ->
+          Process.cancel_timer(timer)
+          schedule_renewal_message(interval)
+      end
 
     Logger.info(
-      "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)}"
+      "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)} seconds"
     )
+
+    new_data =
+      data
+      |> Map.put(:timer, timer)
+      |> Map.put(:next_address, NodeRenewal.next_address())
+
+    {:next_state, :scheduled, new_data}
+  end
+
+  def handle_event(
+        :info,
+        {:node_update,
+         %Node{first_public_key: first_public_key, authorized?: true, available?: true}},
+        :idle,
+        data
+      ) do
+    if first_public_key == Crypto.first_node_public_key() do
+      key_index = Crypto.number_of_node_shared_secrets_keys()
+      PubSub.register_to_new_transaction_by_type(:node_shared_secrets)
+      Logger.info("Start node shared secrets scheduling - (index: #{key_index})")
+
+      new_data =
+        data
+        |> Map.put(:index, key_index)
+
+      {:keep_state, new_data, {:next_event, :internal, :schedule}}
+    else
+      :keep_state_and_data
+    end
+  end
+
+  def handle_event(
+        :info,
+        {:node_update,
+         %Node{first_public_key: first_public_key, authorized?: true, available?: false}},
+        state,
+        data
+      )
+      when state != nil do
+    if first_public_key == Crypto.first_node_public_key() do
+      PubSub.unregister_to_new_transaction_by_type(:node_shared_secrets)
+
+      case Map.pop(data, :timer) do
+        {nil, _} ->
+          {:next_state, :idle, data}
+
+        {timer, new_data} ->
+          Process.cancel_timer(timer)
+          {:next_state, :idle, new_data}
+      end
+    else
+      :keep_state_and_data
+    end
+  end
+
+  def handle_event(
+        :info,
+        {:node_update, %Node{first_public_key: first_public_key, authorized?: false}},
+        state,
+        data
+      )
+      when state != :idle do
+    if first_public_key == Crypto.first_node_public_key() do
+      PubSub.unregister_to_new_transaction_by_type(:node_shared_secrets)
+
+      case Map.pop(data, :timer) do
+        {nil, _} ->
+          {:next_state, :idle, data}
+
+        {timer, new_data} ->
+          Process.cancel_timer(timer)
+          {:next_state, :idle, new_data}
+      end
+    else
+      :keep_state_and_data
+    end
+  end
+
+  def handle_event(:info, {:node_update, _}, _, _), do: :keep_state_and_data
+
+  def handle_event(:info, :make_renewal, :scheduled, data) do
+    {:next_state, :triggered, data, {:next_event, :internal, :make_renewal}}
+  end
+
+  def handle_event(:internal, :make_renewal, :triggered, data = %{index: index}) do
+    Logger.debug("Node shared secrets renewal at - #{index}")
 
     tx =
       NodeRenewal.next_authorized_node_public_keys()
       |> NodeRenewal.new_node_shared_secrets_transaction(
         :crypto.strong_rand_bytes(32),
-        :crypto.strong_rand_bytes(32)
+        :crypto.strong_rand_bytes(32),
+        index
       )
 
     if NodeRenewal.initiator?() do
       Logger.info("Node shared secrets renewal creation...")
       make_renewal(tx)
+      {:keep_state, data}
     else
-      DetectNodeResponsiveness.start_link(tx.address, fn count ->
-        if NodeRenewal.initiator?(count) do
-          Logger.info("Node shared secret renewal creation...attempt #{count}")
-          make_renewal(tx)
-        end
-      end)
-    end
+      {:ok, pid} =
+        DetectNodeResponsiveness.start_link(tx.address, fn count ->
+          if NodeRenewal.initiator?(count) do
+            Logger.info("Node shared secret renewal creation...attempt #{count}")
+            make_renewal(tx)
+          end
+        end)
 
-    {:noreply, Map.put(state, :timer, timer), :hibernate}
+      Process.monitor(pid)
+
+      {:keep_state, Map.put(data, :node_detection, pid)}
+    end
   end
 
-  def handle_cast({:new_conf, conf}, state) do
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, pid, _reason},
+        :triggered,
+        data = %{node_detection: watcher_pid}
+      )
+      when pid == watcher_pid do
+    {:keep_state, Map.delete(data, :node_detection), {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, pid, _reason},
+        :scheduled,
+        data = %{node_detection: watcher_pid}
+      )
+      when pid == watcher_pid do
+    {:keep_state, Map.delete(data, :node_detection)}
+  end
+
+  def handle_event(
+        :info,
+        {:new_transaction, address, :node_shared_secrets, _timestamp},
+        :triggered,
+        data = %{next_address: next_address}
+      )
+      when next_address == address do
+    case Map.get(data, :watcher) do
+      nil ->
+        :ignore
+
+      pid ->
+        Process.exit(pid, :normal)
+    end
+
+    new_data = Map.update!(data, :index, &(&1 + 1))
+    {:next_state, :confirmed, new_data, {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:new_transaction, address, :node_shared_secrets, _timestamp},
+        :scheduled,
+        data = %{next_address: next_address}
+      ) do
+    # We prevent non scheduled transactions to change
+    new_data =
+      if next_address == address do
+        Map.update!(data, :index, &(&1 + 1))
+      else
+        data
+      end
+
+    Logger.debug(
+      "Reschedule renewal after reception of node shared secrets transaction in scheduled state instead of triggered state - (index: #{new_data.index})"
+    )
+
+    {:keep_state, new_data, {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(:cast, {:new_conf, conf}, _state, data) do
     case Keyword.get(conf, :interval) do
       nil ->
-        {:noreply, state}
+        :keep_state_and_data
 
       new_interval ->
-        {:noreply, Map.put(state, :interval, new_interval)}
+        {:keep_state, Map.put(data, :interval, new_interval)}
     end
   end
 
@@ -180,7 +280,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   def config_change(nil), do: :ok
 
   def config_change(changed_config) do
-    GenServer.cast(__MODULE__, {:new_conf, changed_config})
+    GenStateMachine.cast(__MODULE__, {:new_conf, changed_config})
   end
 
   @doc """

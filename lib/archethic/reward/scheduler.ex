@@ -1,7 +1,7 @@
 defmodule Archethic.Reward.Scheduler do
   @moduledoc false
 
-  use GenServer
+  use GenStateMachine, callback_mode: [:handle_event_function]
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -24,7 +24,7 @@ defmodule Archethic.Reward.Scheduler do
   require Logger
 
   def start_link(args \\ []) do
-    GenServer.start_link(__MODULE__, args, name: __MODULE__)
+    GenStateMachine.start_link(__MODULE__, args, name: __MODULE__)
   end
 
   @doc """
@@ -32,7 +32,7 @@ defmodule Archethic.Reward.Scheduler do
   """
   @spec last_date() :: DateTime.t()
   def last_date do
-    GenServer.call(__MODULE__, :last_date)
+    GenStateMachine.call(__MODULE__, :last_date)
   end
 
   def init(args) do
@@ -42,132 +42,279 @@ defmodule Archethic.Reward.Scheduler do
 
     case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
       %Node{authorized?: true, available?: true} ->
-        Logger.info("Reward Scheduler scheduled during init")
+        PubSub.register_to_new_transaction_by_type(:mint_rewards)
+        PubSub.register_to_new_transaction_by_type(:node_rewards)
 
-        {:ok, %{interval: interval, timer: schedule(interval)}, :hibernate}
+        index = Crypto.number_of_network_pool_keys()
+        Logger.info("Reward Scheduler scheduled during init - (index: #{index})")
+
+        {:ok, :idle,
+         %{interval: interval, index: index, next_address: Reward.next_address(index)},
+         {:next_event, :internal, :schedule}}
 
       _ ->
         Logger.info("Reward Scheduler waitng for Node Update Message")
 
-        {:ok, %{interval: interval}, :hibernate}
+        {:ok, :idle, %{interval: interval}}
     end
 
-    {:ok, %{interval: interval}, :hibernate}
+    {:ok, :idle, %{interval: interval}}
   end
 
-  def handle_info(
+  def handle_event(
+        :info,
         {:node_update,
          %Node{authorized?: true, available?: true, first_public_key: first_public_key}},
-        state = %{interval: interval}
+        :idle,
+        data
       ) do
     if Crypto.first_node_public_key() == first_public_key do
-      case Map.get(state, :timer) do
-        nil ->
-          timer = schedule(interval)
-          Logger.info("Start the network pool reward scheduler")
-          {:noreply, Map.put(state, :timer, timer), :hibernate}
+      index = Crypto.number_of_network_pool_keys()
 
-        _ ->
-          {:noreply, state}
+      PubSub.register_to_new_transaction_by_type(:mint_rewards)
+      PubSub.register_to_new_transaction_by_type(:node_rewards)
+
+      Logger.info("Start the network pool reward scheduler - (index: #{index})")
+
+      new_data =
+        data
+        |> Map.put(:index, index)
+        |> Map.put(:next_address, Reward.next_address(index))
+
+      {:keep_state, new_data, {:next_event, :internal, :schedule}}
+    else
+      :keep_state_and_data
+    end
+  end
+
+  def handle_event(
+        :info,
+        {:node_update, %Node{authorized?: false, first_public_key: first_public_key}},
+        state,
+        data
+      )
+      when state != :idle do
+    if Crypto.first_node_public_key() == first_public_key do
+      case Map.pop(data, :timer) do
+        {nil, _} ->
+          {:next_state, :idle, data}
+
+        {timer, new_data} ->
+          Process.cancel_timer(timer)
+          {:next_state, :idle, new_data}
       end
     else
-      {:noreply, state}
+      :keep_state_and_data
     end
   end
 
-  def handle_info(
-        {:node_update, %Node{authorized?: false, first_public_key: first_public_key}},
-        state = %{timer: timer}
-      ) do
-    if Crypto.first_node_public_key() == first_public_key do
-      Process.cancel_timer(timer)
-      {:noreply, Map.delete(state, :timer)}
-    else
-      {:noreply, state}
-    end
-  end
-
-  def handle_info(
+  def handle_event(
+        :info,
         {:node_update, %Node{available?: false, first_public_key: first_public_key}},
-        state = %{timer: timer}
+        _state,
+        data
       ) do
     if Crypto.first_node_public_key() == first_public_key do
-      Process.cancel_timer(timer)
-      {:noreply, Map.delete(state, :timer)}
+      case Map.pop(data, :timer) do
+        {nil, _} ->
+          {:next_state, :idle, data}
+
+        {timer, new_data} ->
+          Process.cancel_timer(timer)
+          {:next_state, :idle, new_data}
+      end
     else
-      {:noreply, state}
+      :keep_state_and_data
     end
   end
 
-  def handle_info({:node_update, _}, state), do: {:noreply, state}
+  def handle_event(:info, {:node_update, _}, _state, _data), do: :keep_state_and_data
 
-  def handle_info(:mint_rewards, state = %{interval: interval}) do
-    timer = schedule(interval)
+  def handle_event(:info, :mint_rewards, :scheduled, data) do
+    {:next_state, :triggered, data, {:next_event, :internal, :make_rewards}}
+  end
 
-    tx_address = Reward.next_address()
+  def handle_event(
+        :info,
+        {:new_transaction, _address, :mint_rewards, _timestamp},
+        :triggered,
+        data = %{index: index}
+      ) do
+    new_data =
+      data
+      |> Map.update!(:index, &(&1 + 1))
+      |> Map.put(:next_address, Reward.next_address(index + 1))
 
+    send_node_rewards(index + 1)
+    {:keep_state, new_data}
+  end
+
+  def handle_event(
+        :info,
+        {:new_transaction, address, :mint_rewards, _timestamp},
+        :scheduled,
+        data = %{next_address: next_address}
+      ) do
+    Logger.debug(
+      "Reschedule rewards after reception of mint rewards transaction in scheduled state instead of triggered state"
+    )
+
+    # We prevent non scheduled transactions to change
+    new_data =
+      if next_address == address do
+        Map.update!(data, :index, &(&1 + 1))
+      else
+        data
+      end
+
+    {:keep_state, new_data, {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:new_transaction, address, :node_rewards, _timestamp},
+        :triggered,
+        data = %{next_address: next_address}
+      )
+      when next_address == address do
+    case Map.get(data, :watcher) do
+      nil ->
+        :ignore
+
+      pid ->
+        Process.exit(pid, :normal)
+    end
+
+    {:keep_state, Map.update!(data, :index, &(&1 + 1)), {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:new_transaction, address, :node_rewards, _timestamp},
+        :scheduled,
+        data = %{next_address: next_address}
+      )
+      when address == next_address do
+    Logger.debug(
+      "Reschedule rewards after reception of node rewards transaction in scheduled state instead of triggered state"
+    )
+
+    # We prevent non scheduled transactions to change
+    new_data =
+      if next_address == address do
+        Map.update!(data, :index, &(&1 + 1))
+      else
+        data
+      end
+
+    {:keep_state, new_data, {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, pid, _},
+        :triggered,
+        data = %{watcher: watcher_pid}
+      )
+      when watcher_pid == pid do
+    {:keep_state, Map.delete(data, :watcher), {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, pid, _},
+        :scheduled,
+        data = %{watcher: watcher_pid}
+      )
+      when pid == watcher_pid do
+    {:keep_state, Map.delete(data, :watcher)}
+  end
+
+  def handle_event(
+        :internal,
+        :make_rewards,
+        :triggered,
+        data = %{index: index, next_address: tx_address}
+      ) do
     if Reward.initiator?(tx_address) do
-      mint_node_rewards()
+      mint_node_rewards(index)
+      :keep_state_and_data
     else
-      DetectNodeResponsiveness.start_link(tx_address, fn count ->
-        if Reward.initiator?(tx_address, count) do
-          Logger.debug("Mint reward creation...attempt #{count}",
-            transaction_address: Base.encode16(tx_address)
-          )
+      {:ok, pid} =
+        DetectNodeResponsiveness.start_link(tx_address, fn count ->
+          if Reward.initiator?(tx_address, count) do
+            Logger.debug("Mint reward creation...attempt #{count}",
+              transaction_address: Base.encode16(tx_address)
+            )
 
-          mint_node_rewards()
-        end
-      end)
+            mint_node_rewards(index)
+          end
+        end)
+
+      Process.monitor(pid)
+
+      {:keep_state, Map.put(data, :watcher, pid)}
     end
-
-    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
-  def handle_info({:new_transaction, _address, :mint_rewards, _timestamp}, state) do
-    send_node_rewards()
-    {:noreply, state, :hibernate}
+  def handle_event(:internal, :schedule, _state, data = %{interval: interval, index: index}) do
+    timer =
+      case Map.get(data, :timer) do
+        nil ->
+          schedule(interval)
+
+        timer ->
+          Process.cancel_timer(timer)
+          schedule(interval)
+      end
+
+    Logger.info(
+      "Node rewards will be emitted in #{Utils.remaining_seconds_from_timer(timer)} seconds"
+    )
+
+    new_data =
+      data
+      |> Map.put(:timer, timer)
+      |> Map.put(:next_address, Reward.next_address(index))
+
+    {:next_state, :scheduled, new_data}
   end
 
-  def handle_info({:new_transaction, _address, _type, _timestamp}, state) do
-    {:noreply, state, :hibernate}
+  def handle_event({:call, from}, :last_date, _state, _data = %{interval: interval}) do
+    {:keep_state_and_data, {:reply, from, get_last_date(interval)}}
   end
 
-  defp mint_node_rewards do
+  def handle_event(:cast, {:new_conf, conf}, _, data) do
+    case Keyword.get(conf, :interval) do
+      nil ->
+        :keep_state_and_data
+
+      new_interval ->
+        {:noreply, Map.put(data, :interval, new_interval)}
+    end
+  end
+
+  defp mint_node_rewards(index) do
     case DB.get_latest_burned_fees() do
       0 ->
         Logger.info("No mint rewards transaction needed")
-        send_node_rewards()
+        send_node_rewards(index)
 
       amount ->
-        tx = Reward.new_rewards_mint(amount)
-
-        PubSub.register_to_new_transaction_by_address(tx.address)
-
-        Archethic.send_new_transaction(tx)
+        tx = Reward.new_rewards_mint(amount, index)
 
         Logger.info("New mint rewards transaction sent with #{amount} token",
           transaction_address: Base.encode16(tx.address)
         )
+
+        Archethic.send_new_transaction(tx)
     end
   end
 
-  defp send_node_rewards do
-    Reward.new_node_rewards()
-    |> Archethic.send_new_transaction()
-  end
+  defp send_node_rewards(index) do
+    node_reward_tx = Reward.new_node_rewards(index)
 
-  def handle_call(:last_date, _, state = %{interval: interval}) do
-    {:reply, get_last_date(interval), state}
-  end
-
-  def handle_cast({:new_conf, conf}, state) do
-    case Keyword.get(conf, :interval) do
-      nil ->
-        {:noreply, state}
-
-      new_interval ->
-        {:noreply, Map.put(state, :interval, new_interval)}
-    end
+    Archethic.send_new_transaction(node_reward_tx)
   end
 
   defp get_last_date(interval) do
@@ -194,6 +341,6 @@ defmodule Archethic.Reward.Scheduler do
   def config_change(nil), do: :ok
 
   def config_change(conf) do
-    GenServer.cast(__MODULE__, {:new_conf, conf})
+    GenStateMachine.cast(__MODULE__, {:new_conf, conf})
   end
 end

@@ -110,7 +110,7 @@ defmodule Archethic.Utils.Regression.Playbook do
         data: transaction_data,
         previous_public_key: previous_public_key
       }
-      |> Transaction.previous_sign_transaction(previous_private_key)
+      |> Transaction.previous_sign_transaction_with_key(previous_private_key)
       |> Transaction.origin_sign_transaction(genesis_origin_private_key)
 
     true =
@@ -184,7 +184,7 @@ defmodule Archethic.Utils.Regression.Playbook do
         data: transaction_data,
         previous_public_key: previous_public_key
       }
-      |> Transaction.previous_sign_transaction(previous_private_key)
+      |> Transaction.previous_sign_transaction_with_key(previous_private_key)
       |> Transaction.origin_sign_transaction(genesis_origin_private_key)
 
     true =

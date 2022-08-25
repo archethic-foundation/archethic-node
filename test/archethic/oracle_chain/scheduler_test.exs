@@ -25,28 +25,6 @@ defmodule Archethic.OracleChain.SchedulerTest do
     :ok
   end
 
-  describe "start_link/1" do
-    test "should start the process with idle state and initialize the polling date" do
-      {:ok, pid} =
-        Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
-
-      polling_date =
-        "0 * * * *"
-        |> Crontab.CronExpression.Parser.parse!(true)
-        |> Crontab.Scheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
-        |> DateTime.from_naive!("Etc/UTC")
-
-      summary_date =
-        "0 0 0 * *"
-        |> Crontab.CronExpression.Parser.parse!(true)
-        |> Crontab.Scheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
-        |> DateTime.from_naive!("Etc/UTC")
-
-      assert {:idle, %{polling_date: ^polling_date, summary_date: ^summary_date}} =
-               :sys.get_state(pid)
-    end
-  end
-
   describe "when receives a poll message" do
     setup do
       me = self()
@@ -102,6 +80,8 @@ defmodule Archethic.OracleChain.SchedulerTest do
       {:ok, pid} =
         Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
+      assert {:idle, _} = :sys.get_state(pid)
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,
@@ -112,6 +92,8 @@ defmodule Archethic.OracleChain.SchedulerTest do
         geo_patch: "AAA",
         available?: true
       })
+
+      assert {:scheduled, _} = :sys.get_state(pid)
 
       MockUCOPriceProvider
       |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => 0.2}} end)
@@ -133,14 +115,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
       assert_receive {:transaction_sent,
                       %Transaction{address: tx_address, data: %TransactionData{content: content}}}
 
+      assert {:triggered, %{polling_timer: polling_timer}} = :sys.get_state(pid)
+
       assert tx_address ==
                Crypto.derive_oracle_keypair(summary_date, 1)
                |> elem(0)
                |> Crypto.derive_address()
 
       assert {:ok, %{"uco" => %{"usd" => 0.2}}} = Services.parse_data(Jason.decode!(content))
-
-      assert {:ready, %{polling_timer: polling_timer}} = :sys.get_state(pid)
 
       Process.cancel_timer(polling_timer)
     end
@@ -273,157 +255,37 @@ defmodule Archethic.OracleChain.SchedulerTest do
       #
       assert {:ok, %{"uco" => %{"usd" => 0.2}}} = Services.parse_data(Jason.decode!(content))
     end
-  end
 
-  property "dates and address stay in sync over pollings" do
-    {:ok, pid} =
-      Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
+    test "should reschedule after tx replication" do
+      {:ok, pid} =
+        Scheduler.start_link([polling_interval: "0 * * * * *", summary_interval: "0 0 0 * *"], [])
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3002,
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.first_node_public_key(),
-      authorized?: true,
-      authorization_date: DateTime.utc_now(),
-      geo_patch: "AAA",
-      available?: true
-    })
+      assert {:idle, _} = :sys.get_state(pid)
 
-    # polling_date =
-    #   "0 * * * *"
-    #   |> Crontab.CronExpression.Parser.parse!(true)
-    #   |> Crontab.Scheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
-    #   |> DateTime.from_naive!("Etc/UTC")
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA",
+        available?: true
+      })
 
-    # summary_date =
-    #   "0 0 0 * *"
-    #   |> Crontab.CronExpression.Parser.parse!(true)
-    #   |> Crontab.Scheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
-    #   |> DateTime.from_naive!("Etc/UTC")
+      assert {:scheduled, %{polling_timer: timer1}} = :sys.get_state(pid)
 
-    me = self()
-
-    MockClient
-    |> stub(:send_message, fn
-      _,
-      %StartMining{
-        transaction:
-          tx = %Transaction{
-            type: :oracle
-          }
-      },
-      _ ->
-        send(me, {:transaction_sent, tx})
-        {:ok, %Ok{}}
-    end)
-
-    check all(price <- StreamData.float(min: 0.001)) do
       MockUCOPriceProvider
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => price}} end)
-
-      #  MockDB
-      #  |> stub(:chain_size, fn _ -> index - 1 end)
+      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => 0.2}} end)
 
       send(pid, :poll)
 
-      assert_receive {:transaction_sent,
-                      %Transaction{address: tx_address, data: %TransactionData{content: content}}}
+      assert_receive {:transaction_sent, %Transaction{address: tx_address}}
 
-      assert {:ready,
-              %{polling_timer: polling_timer, summary_date: summary_date, indexes: indexes}} =
-               :sys.get_state(pid)
+      send(pid, {:new_transaction, tx_address, :oracle, DateTime.utc_now()})
+      assert {:scheduled, %{polling_timer: timer2}} = :sys.get_state(pid)
 
-      index = Map.get(indexes, summary_date)
-
-      assert tx_address ==
-               Crypto.derive_oracle_keypair(summary_date, index + 1)
-               |> elem(0)
-               |> Crypto.derive_address()
-
-      assert {:ok, %{"uco" => %{"usd" => ^price}}} = Services.parse_data(Jason.decode!(content))
-
-      Process.cancel_timer(polling_timer)
-    end
-  end
-
-  property "dates and address are in sync over the summaries" do
-    {:ok, pid} =
-      Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 * * *"], [])
-
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3002,
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.first_node_public_key(),
-      authorized?: true,
-      authorization_date: DateTime.utc_now(),
-      geo_patch: "AAA",
-      available?: true
-    })
-
-    # polling_date =
-    #  "0 * * * *"
-    #  |> Crontab.CronExpression.Parser.parse!(true)
-    #  |> Crontab.Scheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
-    #  |> DateTime.from_naive!("Etc/UTC")
-
-    me = self()
-
-    MockClient
-    |> stub(:send_message, fn
-      _,
-      %StartMining{
-        transaction:
-          tx = %Transaction{
-            type: :oracle
-          }
-      },
-      _ ->
-        send(me, {:transaction_sent, tx})
-        {:ok, %Ok{}}
-
-      _,
-      %StartMining{
-        transaction:
-          tx = %Transaction{
-            type: :oracle_summary
-          }
-      },
-      _ ->
-        send(me, {:transaction_summary_sent, tx})
-        {:ok, %Ok{}}
-    end)
-
-    check all(
-            price <- StreamData.float(min: 0.001)
-            # index <- StreamData.sized(fn size -> StreamData.constant(size) end)
-          ) do
-      MockUCOPriceProvider
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => price}} end)
-
-      send(pid, :poll)
-
-      assert_receive {:transaction_sent,
-                      %Transaction{address: tx_address, data: %TransactionData{content: content}}}
-
-      assert {:ready,
-              %{
-                summary_date: summary_date,
-                polling_timer: polling_timer,
-                indexes: indexes
-              }} = :sys.get_state(pid)
-
-      index = Map.get(indexes, summary_date)
-
-      assert tx_address ==
-               Crypto.derive_oracle_keypair(summary_date, index + 1)
-               |> elem(0)
-               |> Crypto.derive_address()
-
-      assert {:ok, %{"uco" => %{"usd" => ^price}}} = Services.parse_data(Jason.decode!(content))
-
-      Process.cancel_timer(polling_timer)
+      assert timer2 != timer1
     end
   end
 end

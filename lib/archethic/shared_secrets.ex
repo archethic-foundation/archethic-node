@@ -53,12 +53,14 @@ defmodule Archethic.SharedSecrets do
   @spec new_node_shared_secrets_transaction(
           authorized_node_public_keys :: list(Crypto.key()),
           daily_nonce_seed :: binary(),
-          aes_key :: binary()
+          aes_key :: binary(),
+          index :: non_neg_integer()
         ) :: Transaction.t()
   defdelegate new_node_shared_secrets_transaction(
                 authorized_node_public_keys,
                 daily_nonce_seed,
-                aes_key
+                aes_key,
+                index
               ),
               to: NodeRenewal
 

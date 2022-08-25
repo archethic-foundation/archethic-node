@@ -12,7 +12,6 @@ defmodule Archethic.OracleChain do
   alias __MODULE__.Summary
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -79,11 +78,8 @@ defmodule Archethic.OracleChain do
   Load the transaction in the memtable
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(
-        tx = %Transaction{type: :oracle, validation_stamp: %ValidationStamp{timestamp: timestamp}}
-      ) do
+  def load_transaction(tx = %Transaction{type: :oracle}) do
     MemTableLoader.load_transaction(tx)
-    Scheduler.ack_transaction(timestamp)
   end
 
   def load_transaction(tx = %Transaction{type: :oracle_summary}) do

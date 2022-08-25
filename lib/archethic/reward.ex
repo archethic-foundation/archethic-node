@@ -53,10 +53,11 @@ defmodule Archethic.Reward do
     ...>  data: %{
     ...>    content: "{\\n  \\"supply\\":2000000000,\\n  \\"type\\":\\"fungible\\",\\n  \\"name\\":\\"Mining UCO rewards\\",\\n  \\"symbol\\":\\"MUCO\\"\\n}\\n"
     ...>  }
-    ...> } = Reward.new_rewards_mint(2_000_000_000)
+    ...> } = Reward.new_rewards_mint(2_000_000_000, 1)
   """
-  @spec new_rewards_mint(amount :: non_neg_integer()) :: Transaction.t()
-  def new_rewards_mint(amount) do
+  @spec new_rewards_mint(amount :: non_neg_integer(), index :: non_neg_integer()) ::
+          Transaction.t()
+  def new_rewards_mint(amount, index) do
     data = %TransactionData{
       code: """
         condition inherit: [
@@ -76,11 +77,11 @@ defmodule Archethic.Reward do
       """
     }
 
-    Transaction.new(:mint_rewards, data)
+    Transaction.new(:mint_rewards, data, index)
   end
 
-  @spec new_node_rewards() :: Transaction.t()
-  def new_node_rewards() do
+  @spec new_node_rewards(non_neg_integer()) :: Transaction.t()
+  def new_node_rewards(index) do
     data = %TransactionData{
       code: """
         condition inherit: [
@@ -97,7 +98,7 @@ defmodule Archethic.Reward do
       }
     }
 
-    Transaction.new(:node_rewards, data)
+    Transaction.new(:node_rewards, data, index)
   end
 
   @doc """
@@ -113,11 +114,11 @@ defmodule Archethic.Reward do
     initiator_key == Crypto.first_node_public_key()
   end
 
-  @spec next_address() :: binary()
-  def next_address do
-    key_index = Crypto.number_of_network_pool_keys()
-    next_public_key = Crypto.network_pool_public_key(key_index + 1)
-    Crypto.derive_address(next_public_key)
+  @spec next_address(non_neg_integer()) :: binary()
+  def next_address(index) do
+    (index + 1)
+    |> Crypto.network_pool_public_key()
+    |> Crypto.derive_address()
   end
 
   @doc """

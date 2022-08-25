@@ -38,7 +38,8 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
     initiator_key == Crypto.first_node_public_key()
   end
 
-  defp next_address do
+  @spec next_address() :: binary()
+  def next_address do
     key_index = Crypto.number_of_node_shared_secrets_keys()
     next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
     Crypto.derive_address(next_public_key)
@@ -77,15 +78,18 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
   @spec new_node_shared_secrets_transaction(
           authorized_nodes_public_keys :: list(Crypto.key()),
           daily_nonce_seed :: binary(),
-          secret_key :: binary()
+          secret_key :: binary(),
+          index :: non_neg_integer()
         ) :: Transaction.t()
   def new_node_shared_secrets_transaction(
         authorized_node_public_keys,
         daily_nonce_seed,
-        secret_key
+        secret_key,
+        index
       )
       when is_binary(daily_nonce_seed) and is_binary(secret_key) and
-             is_list(authorized_node_public_keys) do
+             is_list(authorized_node_public_keys) and is_integer(index) and
+             index >= 0 do
     {daily_nonce_public_key, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
     {encrypted_transaction_seed, encrypted_network_pool_seed} = Crypto.wrap_secrets(secret_key)
@@ -119,7 +123,8 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
         ownerships: [
           Ownership.new(secret, secret_key, authorized_node_public_keys)
         ]
-      }
+      },
+      index
     )
   end
 
