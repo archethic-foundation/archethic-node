@@ -41,7 +41,6 @@ Current implemented features:
 
 ### Short term
 These are the features will be implemented very soon (already in the pipe of the core team)
-- Decentralized Wallet & Identity
 - Yubikey integration for node enrollment and key management
 - Provide exception on the smart contract inherit constraints
 - Network coordinates aggregation from the BeaconChain
