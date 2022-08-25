@@ -45,8 +45,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
       :proof_of_integrity,
       :transaction_fee,
       :transaction_movements,
-      :unspent_outputs,
-      :node_movements
+      :unspent_outputs
     ]
     |> StreamData.one_of()
     |> StreamData.uniq_list_of(max_length: 4, max_tries: 100)

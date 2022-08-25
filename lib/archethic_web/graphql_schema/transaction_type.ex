@@ -135,9 +135,8 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   [LedgerOperations] represents the ledger operations performed by the transaction
   It includes:
   - Transaction movements: assets transfers
-  - Node movements: node rewards
   - Unspent outputs: remaining unspent outputs
-  - Fee: transaction fee (distributed over the node rewards)
+  - Fee: transaction fee
   """
   object :ledger_operations do
     field(:transaction_movements, list_of(:transaction_movement))
