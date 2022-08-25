@@ -9,6 +9,8 @@ defmodule Archethic.Reward.SchedulerTest do
 
   alias Archethic.Reward.Scheduler
 
+  alias Archethic.TransactionChain.Transaction
+
   import Mox
 
   setup do
@@ -29,7 +31,7 @@ defmodule Archethic.Reward.SchedulerTest do
 
     assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
 
-    assert %{interval: "*/1 * * * * *"} = :sys.get_state(pid)
+    assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
 
     send(
       pid,
@@ -40,6 +42,8 @@ defmodule Archethic.Reward.SchedulerTest do
          first_public_key: Crypto.first_node_public_key()
        }}
     )
+
+    assert {:scheduled, %{timer: _}} = :sys.get_state(pid)
 
     :erlang.trace(pid, true, [:receive])
 
@@ -56,12 +60,12 @@ defmodule Archethic.Reward.SchedulerTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %StartMining{transaction: %{type: type}}, _ when type == :mint_rewards ->
-        send(pid, {:new_transaction, nil, :mint_rewards, nil})
-        send(me, type)
+      _, %StartMining{transaction: %Transaction{address: address, type: :mint_rewards}}, _ ->
+        send(pid, {:new_transaction, address, :mint_rewards, DateTime.utc_now()})
+        send(me, :mint_rewards)
 
-      _, %StartMining{transaction: %{type: type}}, _ when type == :node_rewards ->
-        send(me, type)
+      _, %StartMining{transaction: %{type: :node_rewards}}, _ ->
+        send(me, :node_rewards)
     end)
 
     send(

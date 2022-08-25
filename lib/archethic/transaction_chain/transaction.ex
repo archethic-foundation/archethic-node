@@ -123,6 +123,21 @@ defmodule Archethic.TransactionChain.Transaction do
     |> origin_sign_transaction()
   end
 
+  @spec new(type :: transaction_type(), data :: TransactionData.t(), non_neg_integer()) ::
+          t()
+  def new(type, data = %TransactionData{}, index) do
+    {previous_public_key, next_public_key} = get_transaction_public_keys(type, index)
+
+    %__MODULE__{
+      address: Crypto.derive_address(next_public_key),
+      type: type,
+      data: data,
+      previous_public_key: previous_public_key
+    }
+    |> previous_sign_transaction(index)
+    |> origin_sign_transaction()
+  end
+
   @doc """
   Create a new pending transaction
 
@@ -145,7 +160,7 @@ defmodule Archethic.TransactionChain.Transaction do
       data: data,
       previous_public_key: previous_public_key
     }
-    |> previous_sign_transaction(previous_private_key)
+    |> previous_sign_transaction_with_key(previous_private_key)
     |> origin_sign_transaction()
   end
 
@@ -172,51 +187,57 @@ defmodule Archethic.TransactionChain.Transaction do
       data: data,
       previous_public_key: previous_public_key
     }
-    |> previous_sign_transaction(previous_private_key)
+    |> previous_sign_transaction_with_key(previous_private_key)
     |> origin_sign_transaction()
   end
 
   defp get_transaction_public_keys(:node_shared_secrets) do
     key_index = Crypto.number_of_node_shared_secrets_keys()
-    previous_public_key = Crypto.node_shared_secrets_public_key(key_index)
-    next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
-    {previous_public_key, next_public_key}
+    do_get_transaction_public_keys(:node_shared_secrets, key_index)
   end
 
   defp get_transaction_public_keys(type) when type in [:node_rewards, :mint_rewards] do
     key_index = Crypto.number_of_network_pool_keys()
-    previous_public_key = Crypto.network_pool_public_key(key_index)
-    next_public_key = Crypto.network_pool_public_key(key_index + 1)
-    {previous_public_key, next_public_key}
+    do_get_transaction_public_keys(type, key_index)
   end
 
-  defp get_transaction_public_keys(_) do
+  defp get_transaction_public_keys(_type) do
     previous_public_key = Crypto.previous_node_public_key()
     next_public_key = Crypto.next_node_public_key()
     {previous_public_key, next_public_key}
   end
 
+  defp get_transaction_public_keys(:node_shared_secrets, key_index) do
+    do_get_transaction_public_keys(:node_shared_secrets, key_index)
+  end
+
+  defp get_transaction_public_keys(type, key_index) when type in [:node_rewards, :mint_rewards] do
+    do_get_transaction_public_keys(type, key_index)
+  end
+
+  defp do_get_transaction_public_keys(:node_shared_secrets, key_index) do
+    previous_public_key = Crypto.node_shared_secrets_public_key(key_index)
+    next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
+    {previous_public_key, next_public_key}
+  end
+
+  defp do_get_transaction_public_keys(type, key_index)
+       when type in [:node_rewards, :mint_rewards] do
+    previous_public_key = Crypto.network_pool_public_key(key_index)
+    next_public_key = Crypto.network_pool_public_key(key_index + 1)
+    {previous_public_key, next_public_key}
+  end
+
   defp previous_sign_transaction(tx = %__MODULE__{type: :node_shared_secrets}) do
     key_index = Crypto.number_of_node_shared_secrets_keys()
-
-    previous_signature =
-      tx
-      |> extract_for_previous_signature()
-      |> serialize()
-      |> Crypto.sign_with_node_shared_secrets_key(key_index)
-
+    previous_signature = do_previous_sign_transaction(tx, key_index)
     %{tx | previous_signature: previous_signature}
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{type: type})
        when type in [:node_rewards, :mint_rewards] do
     key_index = Crypto.number_of_network_pool_keys()
-
-    previous_signature =
-      tx
-      |> extract_for_previous_signature()
-      |> serialize()
-      |> Crypto.sign_with_network_pool_key(key_index)
+    previous_signature = do_previous_sign_transaction(tx, key_index)
 
     %{tx | previous_signature: previous_signature}
   end
@@ -231,11 +252,38 @@ defmodule Archethic.TransactionChain.Transaction do
     %{tx | previous_signature: previous_signature}
   end
 
+  defp previous_sign_transaction(tx = %__MODULE__{type: :node_shared_secrets}, key_index) do
+    previous_signature = do_previous_sign_transaction(tx, key_index)
+    %{tx | previous_signature: previous_signature}
+  end
+
+  defp previous_sign_transaction(tx = %__MODULE__{type: type}, key_index)
+       when type in [:node_rewards, :mint_rewards] do
+    previous_signature = do_previous_sign_transaction(tx, key_index)
+    %{tx | previous_signature: previous_signature}
+  end
+
+  defp do_previous_sign_transaction(tx = %__MODULE__{type: :node_shared_secrets}, key_index) do
+    tx
+    |> extract_for_previous_signature()
+    |> serialize()
+    |> Crypto.sign_with_node_shared_secrets_key(key_index)
+  end
+
+  defp do_previous_sign_transaction(tx = %__MODULE__{type: type}, key_index)
+       when type in [:node_rewards, :mint_rewards] do
+    tx
+    |> extract_for_previous_signature()
+    |> serialize()
+    |> Crypto.sign_with_network_pool_key(key_index)
+  end
+
   @doc """
   Sign a transaction with a previous private key
   """
-  @spec previous_sign_transaction(t(), Crypto.key()) :: t()
-  def previous_sign_transaction(tx = %__MODULE__{}, private_key) when is_binary(private_key) do
+  @spec previous_sign_transaction_with_key(t(), Crypto.key()) :: t()
+  def previous_sign_transaction_with_key(tx = %__MODULE__{}, private_key)
+      when is_binary(private_key) do
     previous_signature =
       tx
       |> extract_for_previous_signature()

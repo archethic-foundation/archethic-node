@@ -16,6 +16,8 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
 
   alias Archethic.SharedSecrets.NodeRenewalScheduler, as: Scheduler
 
+  alias Archethic.TransactionChain.Transaction
+
   import Mox
 
   setup do
@@ -25,44 +27,79 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
     :ok
   end
 
-  describe "start_link/1" do
-    test "should initiate the node renewal scheduler and trigger node renewal every each seconds" do
-      P2P.add_and_connect_node(%Node{
-        first_public_key: Crypto.last_node_public_key(),
-        last_public_key: Crypto.last_node_public_key(),
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now(),
-        average_availability: 1.0
-      })
+  test "should initiate the node renewal scheduler and trigger node renewal every each seconds" do
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.last_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      geo_patch: "AAA",
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now(),
+      average_availability: 1.0
+    })
 
-      me = self()
+    me = self()
 
-      MockClient
-      |> stub(:send_message, fn _, %StartMining{}, _ ->
-        send(me, :renewal_processed)
-        {:ok, %Ok{}}
-      end)
+    MockClient
+    |> stub(:send_message, fn _, %StartMining{}, _ ->
+      send(me, :renewal_processed)
+      {:ok, %Ok{}}
+    end)
 
-      MockDB
-      |> expect(:get_latest_tps, fn -> 10.0 end)
+    MockDB
+    |> expect(:get_latest_tps, fn -> 10.0 end)
 
-      assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])
+    assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])
 
-      assert %{interval: "*/2 * * * * *"} = :sys.get_state(pid)
+    assert {:scheduled, %{interval: "*/2 * * * * *"}} = :sys.get_state(pid)
 
-      send(
-        pid,
-        {:node_update,
-         %Node{
-           authorized?: true,
-           available?: true,
-           first_public_key: Crypto.first_node_public_key()
-         }}
-      )
+    send(
+      pid,
+      {:node_update,
+       %Node{
+         authorized?: true,
+         available?: true,
+         first_public_key: Crypto.first_node_public_key()
+       }}
+    )
 
-      assert_receive :renewal_processed, 3_000
-    end
+    assert_receive :renewal_processed, 3_000
+  end
+
+  test "should retrigger the scheduling after tx replication" do
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.last_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      geo_patch: "AAA",
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now(),
+      average_availability: 1.0
+    })
+
+    me = self()
+
+    MockClient
+    |> stub(:send_message, fn _,
+                              %StartMining{transaction: %Transaction{address: tx_address}},
+                              _ ->
+      send(me, {:renewal_processed, tx_address})
+      {:ok, %Ok{}}
+    end)
+
+    MockDB
+    |> expect(:get_latest_tps, fn -> 10.0 end)
+
+    assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])
+
+    assert {:scheduled, %{interval: "*/2 * * * * *", timer: timer1}} = :sys.get_state(pid)
+
+    assert_receive {:renewal_processed, tx_address}, 3_000
+    assert {:triggered, _} = :sys.get_state(pid)
+
+    send(pid, {:new_transaction, tx_address, :node_shared_secrets, DateTime.utc_now()})
+    assert {:scheduled, %{timer: timer2}} = :sys.get_state(pid)
+
+    assert timer2 != timer1
   end
 end
