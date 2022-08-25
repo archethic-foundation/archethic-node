@@ -141,9 +141,49 @@ defmodule Archethic.OracleChain do
   """
   @spec next_summary_date(DateTime.t()) :: DateTime.t()
   def next_summary_date(date_from = %DateTime{}) do
-    Scheduler.get_summary_interval()
+    interval =
+      Application.get_env(:archethic, Scheduler)
+      |> Keyword.fetch!(:summary_interval)
+
+    interval
     |> CronParser.parse!(true)
     |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
     |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  @doc """
+  Return the previous oracle summary date
+  """
+  @spec previous_summary_date(DateTime.t()) :: DateTime.t()
+  def previous_summary_date(date_from = %DateTime{}) do
+    interval =
+      Application.get_env(:archethic, Scheduler)
+      |> Keyword.fetch!(:summary_interval)
+
+    interval
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  @doc """
+  Get the previous polling date from the given date
+  """
+  @spec get_last_scheduling_date(DateTime.t()) :: DateTime.t()
+  def get_last_scheduling_date(from_date = %DateTime{}) do
+    polling_interval =
+      Application.get_env(:archethic, Scheduler)
+      |> Keyword.fetch!(:polling_interval)
+
+    cron_expression = Crontab.CronExpression.Parser.parse!(polling_interval, true)
+    naive_from_date = from_date |> DateTime.truncate(:second) |> DateTime.to_naive()
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_from_date) do
+      DateTime.truncate(from_date, :second)
+    else
+      cron_expression
+      |> Crontab.Scheduler.get_previous_run_date!(naive_from_date)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
   end
 end
