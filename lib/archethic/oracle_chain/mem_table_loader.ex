@@ -23,19 +23,24 @@ defmodule Archethic.OracleChain.MemTableLoader do
       data: [:content],
       validation_stamp: [:timestamp]
     ])
-    |> Stream.each(&load_transaction/1)
+    |> Stream.each(&load_transaction(&1, true))
     |> Stream.run()
 
     {:ok, []}
   end
 
   @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(%Transaction{
-        address: address,
-        type: :oracle,
-        data: %TransactionData{content: content},
-        validation_stamp: %ValidationStamp{timestamp: timestamp}
-      }) do
+  def load_transaction(tx, from_db? \\ false)
+
+  def load_transaction(
+        %Transaction{
+          address: address,
+          type: :oracle,
+          data: %TransactionData{content: content},
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        },
+        from_db?
+      ) do
     Logger.info("Load transaction into oracle chain mem table",
       transaction_address: Base.encode16(address),
       transaction_type: :oracle
@@ -44,25 +49,30 @@ defmodule Archethic.OracleChain.MemTableLoader do
     content
     |> Jason.decode!()
     |> tap(fn data ->
-      Absinthe.Subscription.publish(
-        ArchethicWeb.Endpoint,
-        %{
-          services: data,
-          timestamp: timestamp
-        },
-        oracle_update: "oracle-topic"
-      )
+      unless from_db? do
+        Absinthe.Subscription.publish(
+          ArchethicWeb.Endpoint,
+          %{
+            services: data,
+            timestamp: timestamp
+          },
+          oracle_update: "oracle-topic"
+        )
+      end
     end)
     |> Enum.each(fn {service, data} ->
       MemTable.add_oracle_data(service, data, timestamp)
     end)
   end
 
-  def load_transaction(%Transaction{
-        address: address,
-        type: :oracle_summary,
-        data: %TransactionData{content: content}
-      }) do
+  def load_transaction(
+        %Transaction{
+          address: address,
+          type: :oracle_summary,
+          data: %TransactionData{content: content}
+        },
+        _from_db
+      ) do
     Logger.info("Load transaction into oracle chain mem table",
       transaction_address: Base.encode16(address),
       transaction_type: :oracle_summary
