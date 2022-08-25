@@ -149,6 +149,21 @@ defmodule Archethic.OracleChain do
   end
 
   @doc """
+  Return the previous oracle summary date
+  """
+  @spec previous_summary_date(DateTime.t()) :: DateTime.t()
+  def previous_summary_date(date_from = %DateTime{}) do
+    interval =
+      Application.get_env(:archethic, Scheduler)
+      |> Keyword.fetch!(:summary_interval)
+
+    interval
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  @doc """
   Get the previous polling date from the given date
   """
   @spec get_last_scheduling_date(DateTime.t()) :: DateTime.t()

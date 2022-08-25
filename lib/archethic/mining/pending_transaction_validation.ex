@@ -459,17 +459,36 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            },
            previous_public_key: previous_public_key
          },
-         _
+         validation_time
        ) do
     previous_address = Crypto.derive_address(previous_public_key)
+
+    last_scheduling_date = OracleChain.get_last_scheduling_date(validation_time)
+
+    genesis_address =
+      validation_time
+      |> OracleChain.next_summary_date()
+      |> Crypto.derive_oracle_address(0)
+
+    {last_address, _} = DB.get_last_chain_address(genesis_address)
 
     transactions =
       TransactionChain.stream(previous_address, data: [:content], validation_stamp: [:timestamp])
 
-    if OracleChain.valid_summary?(content, transactions) do
+    with {^last_address, _} <- DB.get_last_chain_address(genesis_address, last_scheduling_date),
+         eq when eq in [:gt, :eq] <-
+           DateTime.compare(validation_time, OracleChain.previous_summary_date(validation_time)),
+         true <- OracleChain.valid_summary?(content, transactions) do
       :ok
     else
-      {:error, "Invalid oracle summary transaction"}
+      {_, _} ->
+        {:error, "Invalid oracle summary trigger time"}
+
+      :lt ->
+        {:error, "Invalid oracle summary trigger time"}
+
+      false ->
+        {:error, "Invalid oracle summary transaction"}
     end
   end
 
