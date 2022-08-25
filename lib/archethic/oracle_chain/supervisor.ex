@@ -14,7 +14,7 @@ defmodule Archethic.OracleChain.Supervisor do
   end
 
   def init(_args) do
-    scheduler_conf = Application.get_env(:archethic, Archethic.OracleChain.Scheduler)
+    scheduler_conf = Application.get_env(:archethic, Scheduler)
 
     children = [
       MemTable,

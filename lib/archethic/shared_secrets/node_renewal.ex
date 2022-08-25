@@ -38,7 +38,8 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
     initiator_key == Crypto.first_node_public_key()
   end
 
-  defp next_address do
+  @spec next_address() :: binary()
+  def next_address do
     key_index = Crypto.number_of_node_shared_secrets_keys()
     next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
     Crypto.derive_address(next_public_key)

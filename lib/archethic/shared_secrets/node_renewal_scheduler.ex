@@ -82,7 +82,12 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
       "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)} seconds"
     )
 
-    {:next_state, :scheduled, Map.put(data, :timer, timer)}
+    new_data =
+      data
+      |> Map.put(:timer, timer)
+      |> Map.put(:next_address, NodeRenewal.next_address())
+
+    {:next_state, :scheduled, new_data}
   end
 
   def handle_event(
@@ -95,8 +100,13 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     if first_public_key == Crypto.first_node_public_key() do
       key_index = Crypto.number_of_node_shared_secrets_keys()
       PubSub.register_to_new_transaction_by_type(:node_shared_secrets)
-      Logger.info("Start node shared secrets scheduling")
-      {:keep_state, Map.put(data, :index, key_index), {:next_event, :internal, :schedule}}
+      Logger.info("Start node shared secrets scheduling - (index: #{key_index})")
+
+      new_data =
+        data
+        |> Map.put(:index, key_index)
+
+      {:keep_state, new_data, {:next_event, :internal, :schedule}}
     else
       :keep_state_and_data
     end
@@ -156,6 +166,8 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   end
 
   def handle_event(:internal, :make_renewal, :triggered, data = %{index: index}) do
+    Logger.debug("Node shared secrets renewal at - #{index}")
+
     tx =
       NodeRenewal.next_authorized_node_public_keys()
       |> NodeRenewal.new_node_shared_secrets_transaction(
@@ -205,10 +217,11 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   def handle_event(
         :info,
-        {:new_transaction, _address, :node_shared_secrets, _timestamp},
+        {:new_transaction, address, :node_shared_secrets, _timestamp},
         :triggered,
-        data
-      ) do
+        data = %{next_address: next_address}
+      )
+      when next_address == address do
     case Map.get(data, :watcher) do
       nil ->
         :ignore
@@ -223,14 +236,20 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   def handle_event(
         :info,
-        {:new_transaction, _address, :node_shared_secrets, _timestamp},
+        {:new_transaction, address, :node_shared_secrets, _timestamp},
         :scheduled,
-        data
+        data = %{next_address: next_address}
       ) do
-    new_data = Map.update!(data, :index, &(&1 + 1))
+    # We prevent non scheduled transactions to change
+    new_data =
+      if next_address == address do
+        Map.update!(data, :index, &(&1 + 1))
+      else
+        data
+      end
 
     Logger.debug(
-      "Reschedule renewal after reception of node shared secrets transaction in scheduled state instead of triggered state"
+      "Reschedule renewal after reception of node shared secrets transaction in scheduled state instead of triggered state - (index: #{new_data.index})"
     )
 
     {:keep_state, new_data, {:next_event, :internal, :schedule}}
