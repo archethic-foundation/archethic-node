@@ -19,7 +19,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   import Mox
 
@@ -493,6 +492,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       MockDB
       |> expect(:get_last_chain_address, fn _, _ ->
         {"OtherAddress", DateTime.utc_now()}
+      end)
+      |> expect(:get_transaction, fn _, _ ->
+        {:ok, %Transaction{type: :node_rewards}}
       end)
 
       tx =

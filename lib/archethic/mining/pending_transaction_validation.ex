@@ -122,12 +122,27 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     network_pool_address = SharedSecrets.get_network_pool_address()
 
-    with {^network_pool_address, _} <-
-           DB.get_last_chain_address(network_pool_address, last_scheduling_date),
+    previous_address = Transaction.previous_address(tx)
+
+    time_validation =
+      with {:ok, %Transaction{type: :node_rewards}} <-
+             TransactionChain.get_transaction(previous_address, [:type]),
+           {^network_pool_address, _} <-
+             DB.get_last_chain_address(network_pool_address, last_scheduling_date) do
+        :ok
+      else
+        {:ok, %Transaction{type: :mint_rewards}} ->
+          :ok
+
+        _ ->
+          {:error, :time}
+      end
+
+    with :ok <- time_validation,
          ^token_transfers <- Reward.get_transfers() do
       :ok
     else
-      {_, _} ->
+      {:error, :time} ->
         Logger.warning("Invalid reward time scheduling",
           transaction_address: Base.encode16(tx.address)
         )
