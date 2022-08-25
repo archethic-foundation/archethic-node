@@ -449,5 +449,64 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert {:error, "There is already a mint rewards transaction since last schedule"} =
                PendingTransactionValidation.validate(tx)
     end
+
+    test "should return error when there is already a oracle transaction since the last schedule" do
+      MockDB
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
+      end)
+
+      tx = Transaction.new(:oracle, %TransactionData{}, "seed", 0)
+
+      assert {:error, "Invalid oracle trigger time"} =
+               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:10:03Z])
+    end
+
+    test "should return error when there is already a node shared secrets transaction since the last schedule" do
+      MockDB
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
+      end)
+
+      tx =
+        Transaction.new(
+          :node_shared_secrets,
+          %TransactionData{
+            content: :crypto.strong_rand_bytes(32),
+            ownerships: [
+              %Ownership{
+                secret: :crypto.strong_rand_bytes(32),
+                authorized_keys: %{"node_key" => :crypto.strong_rand_bytes(32)}
+              }
+            ]
+          },
+          "seed",
+          0
+        )
+
+      assert {:error, "Invalid node shared secrets trigger time"} =
+               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
+    end
+
+    test "should return error when there is already a node rewards transaction since the last schedule" do
+      MockDB
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
+      end)
+      |> expect(:get_transaction, fn _, _ ->
+        {:ok, %Transaction{type: :node_rewards}}
+      end)
+
+      tx =
+        Transaction.new(
+          :node_rewards,
+          %TransactionData{},
+          "seed",
+          0
+        )
+
+      assert {:error, "Invalid node rewards trigger time"} =
+               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
+    end
   end
 end
