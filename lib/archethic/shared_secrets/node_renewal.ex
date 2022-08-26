@@ -28,19 +28,18 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
   @doc """
   Determine if the local node is the initiator of the node renewal
   """
-  @spec initiator? :: boolean()
-  def initiator?(index \\ 0) do
+  @spec initiator?(binary) :: boolean()
+  def initiator?(address, index \\ 0) do
     %Node{first_public_key: initiator_key} =
-      next_address()
+      address
       |> Election.storage_nodes(P2P.authorized_and_available_nodes())
       |> Enum.at(index)
 
     initiator_key == Crypto.first_node_public_key()
   end
 
-  @spec next_address() :: binary()
-  def next_address do
-    key_index = Crypto.number_of_node_shared_secrets_keys()
+  @spec next_address(non_neg_integer()) :: binary()
+  def next_address(key_index) do
     next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
     Crypto.derive_address(next_public_key)
   end
