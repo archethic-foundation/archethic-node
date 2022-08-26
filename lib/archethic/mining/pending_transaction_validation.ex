@@ -224,15 +224,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
        ) do
     last_scheduling_date = Reward.get_last_scheduling_date(validation_time)
 
-    network_pool_address = SharedSecrets.get_network_pool_address()
+    genesis_address = DB.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
+    {last_network_pool_address, _} = DB.get_last_chain_address(genesis_address)
 
     previous_address = Transaction.previous_address(tx)
 
     time_validation =
       with {:ok, %Transaction{type: :node_rewards}} <-
              TransactionChain.get_transaction(previous_address, [:type]),
-           {^network_pool_address, _} <-
-             DB.get_last_chain_address(network_pool_address, last_scheduling_date) do
+           {^last_network_pool_address, _} <-
+             DB.get_last_chain_address(genesis_address, last_scheduling_date) do
         :ok
       else
         {:ok, %Transaction{type: :mint_rewards}} ->
@@ -505,12 +506,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          _
        ) do
     total_fee = DB.get_latest_burned_fees()
+    genesis_address = DB.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
+    {last_address, _} = DB.get_last_chain_address(genesis_address)
 
     with :ok <- verify_token_creation(content),
          {:ok, %{"supply" => ^total_fee}} <- Jason.decode(content),
-         network_pool_address <- SharedSecrets.get_network_pool_address(),
-         {^network_pool_address, _} <-
-           DB.get_last_chain_address(network_pool_address, Reward.last_scheduling_date()) do
+         {^last_address, _} <-
+           DB.get_last_chain_address(genesis_address, Reward.last_scheduling_date()) do
       :ok
     else
       {:ok, %{"supply" => _}} ->
