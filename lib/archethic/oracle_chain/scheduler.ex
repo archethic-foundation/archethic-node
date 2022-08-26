@@ -201,6 +201,7 @@ defmodule Archethic.OracleChain.Scheduler do
         }
       ) do
     if DateTime.diff(polling_date, summary_date, :second) == 0 do
+      Archethic.OracleChain.update_summ_gen_addr()
       {:next_state, :triggered, data, {:next_event, :internal, :aggregate}}
     else
       {:next_state, :triggered, data, {:next_event, :internal, :fetch_data}}

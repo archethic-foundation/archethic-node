@@ -5,16 +5,20 @@ defmodule Archethic.OracleChain do
   UCO Price is the first network Oracle and it's used for many algorithms such as: transaction fee, node rewards, smart contracts
   """
 
-  alias __MODULE__.MemTable
-  alias __MODULE__.MemTableLoader
-  alias __MODULE__.Scheduler
-  alias __MODULE__.Services
-  alias __MODULE__.Summary
+  alias __MODULE__.{
+    MemTable,
+    MemTableLoader,
+    Scheduler,
+    Services,
+    Summary
+  }
 
   alias Archethic.TransactionChain.Transaction
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
+
+  alias Archethic.Crypto
 
   require Logger
 
@@ -186,4 +190,27 @@ defmodule Archethic.OracleChain do
       |> DateTime.from_naive!("Etc/UTC")
     end
   end
+
+  @doc """
+  Updates ets table with current_summary_gen_addr and previous_summary_gena ddr
+  """
+  @spec update_summ_gen_addr :: :ok
+  def update_summ_gen_addr() do
+    curr_time = DateTime.utc_now()
+
+    prev_summary_date = previous_summary_date(curr_time)
+    MemTable.put_addr(Crypto.derive_oracle_address(prev_summary_date, 0), prev_summary_date)
+
+    next_summary_date = next_summary_date(curr_time)
+    MemTable.put_addr(Crypto.derive_oracle_address(next_summary_date, 0), next_summary_date)
+    :ok
+  end
+
+  @doc """
+  Returns current and previous summary_time genesis address of oracle chain
+  """
+  @spec get_gen_addr() :: map() | nil
+  defdelegate get_gen_addr(),
+    to: MemTable,
+    as: :get_addr
 end
