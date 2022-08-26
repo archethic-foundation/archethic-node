@@ -13,18 +13,6 @@ defmodule Archethic.Reward.SchedulerTest do
 
   import Mox
 
-  setup do
-    P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.last_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      geo_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now(),
-      average_availability: 1.0
-    })
-  end
-
   test "should initiate the reward scheduler and trigger mint reward" do
     MockDB
     |> stub(:get_latest_burned_fees, fn -> 0 end)
@@ -50,62 +38,56 @@ defmodule Archethic.Reward.SchedulerTest do
     assert_receive {:trace, ^pid, :receive, :mint_rewards}, 3_000
   end
 
-  test "should send mint transaction when burning fees > 0 and node reward transaction" do
-    MockDB
-    |> stub(:get_latest_burned_fees, fn -> 15_000 end)
+  describe "scheduler" do
+    setup do
+      P2P.add_and_connect_node(%Node{
+        first_public_key: Crypto.last_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        average_availability: 1.0
+      })
+    end
 
-    me = self()
+    test "should send mint transaction when burning fees > 0 and node reward transaction" do
+      MockDB
+      |> stub(:get_latest_burned_fees, fn -> 15_000 end)
 
-    assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
+      me = self()
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %StartMining{transaction: %Transaction{address: address, type: :mint_rewards}}, _ ->
-        send(pid, {:new_transaction, address, :mint_rewards, DateTime.utc_now()})
-        send(me, :mint_rewards)
+      assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
 
-      _, %StartMining{transaction: %{type: :node_rewards}}, _ ->
-        send(me, :node_rewards)
-    end)
+      MockClient
+      |> stub(:send_message, fn
+        _, %StartMining{transaction: %Transaction{address: address, type: :mint_rewards}}, _ ->
+          send(pid, {:new_transaction, address, :mint_rewards, DateTime.utc_now()})
+          send(me, :mint_rewards)
 
-    send(
-      pid,
-      {:node_update,
-       %Node{
-         authorized?: true,
-         available?: true,
-         first_public_key: Crypto.first_node_public_key()
-       }}
-    )
+        _, %StartMining{transaction: %{type: :node_rewards}}, _ ->
+          send(me, :node_rewards)
+      end)
 
-    assert_receive :mint_rewards, 1_500
-    assert_receive :node_rewards, 1_500
-  end
+      assert_receive :mint_rewards, 1_500
+      assert_receive :node_rewards, 1_500
+    end
 
-  test "should not send transaction when burning fees = 0 and should send node rewards" do
-    MockDB
-    |> stub(:get_latest_burned_fees, fn -> 0 end)
+    test "should not send transaction when burning fees = 0 and should send node rewards" do
+      MockDB
+      |> stub(:get_latest_burned_fees, fn -> 0 end)
 
-    me = self()
+      me = self()
 
-    MockClient
-    |> stub(:send_message, fn _, %StartMining{transaction: %{type: type}}, _ ->
-      send(me, type)
-    end)
+      MockClient
+      |> stub(:send_message, fn _, %StartMining{transaction: %{type: type}}, _ ->
+        send(me, type)
+      end)
 
-    assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
+      assert {:ok, _} = Scheduler.start_link(interval: "*/1 * * * * *")
 
-    send(
-      pid,
-      {:node_update,
-       %Node{
-         authorized?: true,
-         available?: true,
-         first_public_key: Crypto.first_node_public_key()
-       }}
-    )
-
-    refute_receive :mint_rewards, 1_200
-    assert_receive :node_rewards, 1_500
+      refute_receive :mint_rewards, 1_200
+      assert_receive :node_rewards, 1_500
+    end
   end
 end
