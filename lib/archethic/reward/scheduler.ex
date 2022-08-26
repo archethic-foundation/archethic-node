@@ -53,12 +53,10 @@ defmodule Archethic.Reward.Scheduler do
          {:next_event, :internal, :schedule}}
 
       _ ->
-        Logger.info("Reward Scheduler waitng for Node Update Message")
+        Logger.info("Reward Scheduler waiting for Node Update Message")
 
         {:ok, :idle, %{interval: interval}}
     end
-
-    {:ok, :idle, %{interval: interval}}
   end
 
   def handle_event(
@@ -140,13 +138,41 @@ defmodule Archethic.Reward.Scheduler do
         :triggered,
         data = %{index: index}
       ) do
+    next_index = index + 1
+    next_address = Reward.next_address(next_index)
+
     new_data =
       data
-      |> Map.update!(:index, &(&1 + 1))
-      |> Map.put(:next_address, Reward.next_address(index + 1))
+      |> Map.put(:index, next_index)
+      |> Map.put(:next_address, next_address)
 
-    send_node_rewards(index + 1)
-    {:keep_state, new_data}
+    case Map.get(data, :watcher) do
+      nil ->
+        :ignore
+
+      pid ->
+        Process.exit(pid, :normal)
+    end
+
+    if Reward.initiator?(next_address) do
+      send_node_rewards(next_index)
+      {:keep_state, new_data}
+    else
+      {:ok, pid} =
+        DetectNodeResponsiveness.start_link(next_address, fn count ->
+          if Reward.initiator?(next_address, count) do
+            Logger.debug("Node reward creation...attempt #{count}",
+              transaction_address: Base.encode16(next_address)
+            )
+
+            send_node_rewards(next_index)
+          end
+        end)
+
+      Process.monitor(pid)
+
+      {:keep_state, Map.put(data, :watcher, pid)}
+    end
   end
 
   def handle_event(
@@ -162,7 +188,8 @@ defmodule Archethic.Reward.Scheduler do
     # We prevent non scheduled transactions to change
     new_data =
       if next_address == address do
-        Map.update!(data, :index, &(&1 + 1))
+        data
+        |> Map.update!(:index, &(&1 + 1))
       else
         data
       end
@@ -185,7 +212,11 @@ defmodule Archethic.Reward.Scheduler do
         Process.exit(pid, :normal)
     end
 
-    {:keep_state, Map.update!(data, :index, &(&1 + 1)), {:next_event, :internal, :schedule}}
+    new_data =
+      data
+      |> Map.update!(:index, &(&1 + 1))
+
+    {:keep_state, new_data, {:next_event, :internal, :schedule}}
   end
 
   def handle_event(
@@ -201,11 +232,8 @@ defmodule Archethic.Reward.Scheduler do
 
     # We prevent non scheduled transactions to change
     new_data =
-      if next_address == address do
-        Map.update!(data, :index, &(&1 + 1))
-      else
-        data
-      end
+      data
+      |> Map.update!(:index, &(&1 + 1))
 
     {:keep_state, new_data, {:next_event, :internal, :schedule}}
   end
