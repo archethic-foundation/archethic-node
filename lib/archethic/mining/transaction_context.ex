@@ -92,11 +92,17 @@ defmodule Archethic.Mining.TransactionContext do
     node_list =
       P2P.unprioritize_node(P2P.authorized_and_available_nodes(), Crypto.first_node_public_key())
 
-    previous_address
-    |> Election.chain_storage_nodes(node_list)
-    |> P2P.nearest_nodes()
-    |> Enum.filter(&Node.locally_available?/1)
-    |> NodeDistribution.split_storage_nodes(nb_sub_lists, sample_size)
+    elected_nodes =
+      previous_address
+      |> Election.chain_storage_nodes(node_list)
+      |> P2P.nearest_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
+
+    if Enum.count(elected_nodes) < sample_size do
+      Enum.map(1..nb_sub_lists, fn _ -> elected_nodes end)
+    else
+      NodeDistribution.split_storage_nodes(elected_nodes, nb_sub_lists, sample_size)
+    end
   end
 
   defp request_previous_tx(previous_address, nodes) do
