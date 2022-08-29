@@ -252,23 +252,17 @@ defmodule Archethic.Reward do
   @key :reward_gen_addr
   @spec persist_gen_addr() :: :ok
   def persist_gen_addr() do
-    try do
-      case TransactionChain.list_addresses_by_type(:mint_rewards)
-           |> Stream.take(1)
-           |> Enum.at(0) do
-        nil ->
-          :error
-
-        addr ->
-          gen_addr = TransactionChain.get_genesis_address(addr)
-
-          :persistent_term.put(@key, gen_addr)
-          :ok
-      end
-    rescue
-      error ->
-        Logger.debug(error, reward_gen_addr: :error)
+    case TransactionChain.list_addresses_by_type(:mint_rewards)
+         |> Stream.take(1)
+         |> Enum.at(0) do
+      nil ->
         :error
+
+      addr ->
+        gen_addr = TransactionChain.get_genesis_address(addr)
+
+        :persistent_term.put(@key, gen_addr)
+        :ok
     end
   end
 
