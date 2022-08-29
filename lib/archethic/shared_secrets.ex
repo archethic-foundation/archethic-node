@@ -10,6 +10,9 @@ defmodule Archethic.SharedSecrets do
   alias __MODULE__.NodeRenewalScheduler
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain
+
+  require Logger
 
   @type origin_family :: :software | :usb | :biometric
 
@@ -142,5 +145,67 @@ defmodule Archethic.SharedSecrets do
       |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
       |> DateTime.from_naive!("Etc/UTC")
     end
+  end
+
+  @nss_gen_key :node_shared_secrets_gen_addr
+  @spec persist_gen_addr(:node_shared_secrets) :: :ok | :error
+  def persist_gen_addr(:node_shared_secrets) do
+    try do
+      case TransactionChain.list_addresses_by_type(:node_shared_secrets)
+           |> Stream.take(1)
+           |> Enum.at(0) do
+        nil ->
+          :error
+
+        addr ->
+          :persistent_term.put(@nss_gen_key, TransactionChain.get_genesis_address(addr))
+          :ok
+      end
+    rescue
+      error ->
+        Logger.debug(error, nss: :error)
+        :error
+    end
+  end
+
+  @origin_gen_key :origin_gen_addr
+  @spec persist_gen_addr(:origin) :: :ok
+  def persist_gen_addr(:origin) do
+    try do
+      software_gen_addr =
+        get_origin_family_seed(:software)
+        |> Crypto.derive_keypair(0)
+        |> elem(0)
+        |> Crypto.derive_address()
+
+      usb_gen_addr =
+        get_origin_family_seed(:usb)
+        |> Crypto.derive_keypair(0)
+        |> elem(0)
+        |> Crypto.derive_address()
+
+      biometric_gen_addr =
+        get_origin_family_seed(:biometric)
+        |> Crypto.derive_keypair(0)
+        |> elem(0)
+        |> Crypto.derive_address()
+
+      :persistent_term.put(@origin_gen_key, [software_gen_addr, usb_gen_addr, biometric_gen_addr])
+      :ok
+    rescue
+      error ->
+        Logger.debug(error, ss_o: :error)
+        :error
+    end
+  end
+
+  @spec get_gen_addr(:origin) :: binary() | nil
+  def get_gen_addr(:origin) do
+    :persistent_term.get(@origin_gen_key, nil)
+  end
+
+  @spec get_gen_addr(:node_shared_secrets) :: binary() | nil
+  def get_gen_addr(:node_shared_secrets) do
+    :persistent_term.get(@nss_gen_key, nil)
   end
 end

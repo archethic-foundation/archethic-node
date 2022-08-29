@@ -18,14 +18,20 @@ defmodule Archethic.Reward do
 
   alias __MODULE__.Scheduler
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.TokenLedger
-  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer
+  alias Archethic.TransactionChain
+
+  alias Archethic.TransactionChain.{
+    Transaction,
+    TransactionData,
+    TransactionData.Ledger,
+    TransactionData.TokenLedger,
+    TransactionData.TokenLedger.Transfer
+  }
 
   alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.Reward.MemTablesLoader
+
+  require Logger
 
   @unit_uco 100_000_000
 
@@ -241,5 +247,27 @@ defmodule Archethic.Reward do
       |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
       |> DateTime.from_naive!("Etc/UTC")
     end
+  end
+
+  @key :reward_gen_addr
+  @spec persist_gen_addr() :: :ok
+  def persist_gen_addr() do
+    case TransactionChain.list_addresses_by_type(:mint_rewards)
+         |> Stream.take(1)
+         |> Enum.at(0) do
+      nil ->
+        :error
+
+      addr ->
+        gen_addr = TransactionChain.get_genesis_address(addr)
+
+        :persistent_term.put(@key, gen_addr)
+        :ok
+    end
+  end
+
+  @spec get_gen_addr() :: binary() | nil
+  def get_gen_addr() do
+    :persistent_term.get(@key, nil)
   end
 end

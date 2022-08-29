@@ -1,40 +1,35 @@
 defmodule Archethic.Mining.PendingTransactionValidation do
   @moduledoc false
 
-  alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
+  alias Archethic.{
+    Contracts,
+    Contracts.Contract,
+    Crypto,
+    DB,
+    SharedSecrets,
+    Election,
+    Governance,
+    Networking,
+    OracleChain,
+    P2P,
+    P2P.Message.FirstPublicKey,
+    P2P.Message.GetFirstPublicKey,
+    P2P.Node,
+    Reward,
+    SharedSecrets.NodeRenewal,
+    Utils,
+    TransactionChain
+  }
 
-  alias Archethic.Crypto
+  alias Archethic.TransactionChain.{
+    Transaction,
+    TransactionData,
+    TransactionData.Ledger,
+    TransactionData.Ownership,
+    TransactionData.TokenLedger
+  }
 
-  alias Archethic.DB
-
-  alias Archethic.SharedSecrets
-
-  alias Archethic.Election
-
-  alias Archethic.Governance
   alias Archethic.Governance.Code.Proposal, as: CodeProposal
-  alias Archethic.Networking
-  alias Archethic.OracleChain
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.FirstPublicKey
-  alias Archethic.P2P.Message.GetFirstPublicKey
-  alias Archethic.P2P.Node
-
-  alias Archethic.Reward
-
-  alias Archethic.SharedSecrets.NodeRenewal
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.Ownership
-  alias Archethic.TransactionChain.TransactionData.TokenLedger
-
-  alias Archethic.Utils
-
   require Logger
 
   @doc """
@@ -50,7 +45,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     with true <- Transaction.verify_previous_signature?(tx),
          :ok <- validate_contract(tx),
          :ok <- validate_content_size(tx),
-         :ok <- do_accept_transaction(tx, validation_time) do
+         :ok <- do_accept_transaction(tx, validation_time),
+         :ok <- validate_previous_transaction_type?(tx) do
       :telemetry.execute(
         [:archethic, :mining, :pending_transaction_validation],
         %{duration: System.monotonic_time() - start},
@@ -59,6 +55,14 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       :ok
     else
+      {:error, :invalid_tx_type} ->
+        Logger.error("Invalid Transaction Type",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
+        {:error, "Invalid Transaction Type"}
+
       false ->
         Logger.error("Invalid previous signature",
           transaction_address: Base.encode16(address),
@@ -72,6 +76,106 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         e
     end
   end
+
+  def validate_previous_transaction_type?(tx) do
+    case Transaction.network_type?(tx.type) do
+      false ->
+        # not a network tx, no need to validate with last tx
+        :ok
+
+      true ->
+        # when network tx, check with previous transaction
+        if validate_network_chain?(tx.type, tx), do: :ok, else: {:error, :invalid_tx_type}
+    end
+  end
+
+  @spec validate_network_chain?(
+          :code_approval
+          | :code_proposal
+          | :mint_rewards
+          | :node
+          | :node_rewards
+          | :node_shared_secrets
+          | :oracle
+          | :oracle_summary
+          | :origin,
+          Archethic.TransactionChain.Transaction.t()
+        ) :: boolean
+  def validate_network_chain?(type, tx = %Transaction{})
+      when type in [:oracle, :oracle_summary] do
+    # mulitpe txn chain based on summary date
+
+    case OracleChain.get_gen_addr() do
+      nil ->
+        false
+
+      gen_addr ->
+        # first adddress found by looking up in the db
+        first_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        # 1: tx gen & validated in current summary cycle, gen_addr.current must match
+        # 2: tx gen in prev summary cycle &  validated in current summary cycle, gen_addr.prev must match
+        # situation: the shift b/w summary A to summary B
+        gen_addr.current |> elem(0) == first_addr ||
+          gen_addr.prev |> elem(0) == first_addr
+    end
+  end
+
+  def validate_network_chain?(type, tx = %Transaction{})
+      when type in [:mint_rewards, :node_rewards] do
+    # singleton tx chain in network lifespan
+    case Reward.get_gen_addr() do
+      nil ->
+        false
+
+      gen_addr ->
+        # first addr located in db by prev_address from tx
+        first_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        gen_addr == first_addr
+    end
+  end
+
+  def validate_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
+    # singleton tx chain in network lifespan
+    case SharedSecrets.get_gen_addr(:node_shared_secrets) do
+      nil ->
+        false
+
+      gen_addr ->
+        first_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        first_addr == gen_addr
+    end
+  end
+
+  def validate_network_chain?(:origin, tx = %Transaction{}) do
+    # singleton tx chain in network lifespan
+    # not parsing orgin pub key for origin family
+    case SharedSecrets.get_gen_addr(:origin) do
+      nil ->
+        false
+
+      origin_gen_addr_list ->
+        first_addr_from_prev_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        first_addr_from_prev_addr in origin_gen_addr_list
+    end
+  end
+
+  def validate_network_chain?(_type, _tx), do: true
 
   defp validate_content_size(%Transaction{data: %TransactionData{content: content}}) do
     content_max_size = Application.get_env(:archethic, :transaction_data_content_max_size)

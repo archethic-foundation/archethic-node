@@ -3,6 +3,11 @@ defmodule Archethic.OracleChain.MemTable do
 
   use GenServer
 
+  @oracle_data :archethic_oracle
+  @oracle_gen_addr :archethic_oracle_gen_addr
+
+  require Logger
+
   @doc """
   Start a Oracle mem table
 
@@ -18,7 +23,15 @@ defmodule Archethic.OracleChain.MemTable do
   end
 
   def init(_) do
-    :ets.new(:archethic_oracle, [:ordered_set, :named_table, :public, read_concurrency: true])
+    :ets.new(@oracle_data, [:ordered_set, :named_table, :public, read_concurrency: true])
+
+    :ets.new(@oracle_gen_addr, [
+      :ordered_set,
+      :named_table,
+      :public,
+      read_concurrency: true
+    ])
+
     {:ok, []}
   end
 
@@ -78,6 +91,74 @@ defmodule Archethic.OracleChain.MemTable do
 
       [{_, data}] ->
         {:ok, data, date}
+    end
+  end
+
+  @spec put_addr(binary(), DateTime.t()) :: :ok
+  def put_addr(address, datetime = %DateTime{}) when is_binary(address) do
+    case :ets.lookup(@oracle_gen_addr, :current_gen_addr) do
+      [] ->
+        true = :ets.insert(@oracle_gen_addr, {:current_gen_addr, address, datetime})
+
+        :ok
+
+      [{:current_gen_addr, prev_address, prev_datetime}] ->
+        true = :ets.insert(@oracle_gen_addr, {:prev_gen_addr, prev_address, prev_datetime})
+
+        true = :ets.insert(@oracle_gen_addr, {:current_gen_addr, address, datetime})
+
+        :ok
+    end
+  end
+
+  @doc """
+  Get the referenced data for an oracle type for a given date
+  ## Examples
+      iex> {:ok, _} = MemTable.start_link()
+      iex> MemTable.put_addr("@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z])
+      iex> MemTable.get_addr()
+      %{
+          current: {"@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z]},
+          prev: {nil, nil}
+       }
+      iex> MemTable.put_addr("@OracleSummaryGenAddr57", ~U[2021-06-04 11:00:00Z])
+      iex> MemTable.get_addr()
+      %{
+        current: {"@OracleSummaryGenAddr57", ~U[2021-06-04 11:00:00Z]},
+        prev: {"@OracleSummaryGenAddr56", ~U[2021-06-04 10:00:00Z]},
+      }
+      iex> MemTable.put_addr("@OracleSummaryGenAddr58", ~U[2021-06-04 12:00:00Z])
+      iex> MemTable.get_addr()
+      %{
+        current: {"@OracleSummaryGenAddr58", ~U[2021-06-04 12:00:00Z]},
+        prev: {"@OracleSummaryGenAddr57", ~U[2021-06-04 11:00:00Z]},
+      }
+  """
+  @spec get_addr() ::
+          %{
+            current: {binary(), DateTime.t()},
+            prev: {binary(), DateTime.t()}
+          }
+          | nil
+  def get_addr() do
+    curr_addr = :ets.lookup(@oracle_gen_addr, :current_gen_addr)
+    prev_addr = :ets.lookup(@oracle_gen_addr, :prev_gen_addr)
+
+    case {curr_addr, prev_addr} do
+      {[], _} ->
+        nil
+
+      {[curr], []} ->
+        %{
+          current: {curr |> elem(1), curr |> elem(2)},
+          prev: {nil, nil}
+        }
+
+      {[curr], [prev]} ->
+        %{
+          current: {curr |> elem(1), curr |> elem(2)},
+          prev: {prev |> elem(1), prev |> elem(2)}
+        }
     end
   end
 end
