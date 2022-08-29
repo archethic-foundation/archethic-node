@@ -144,7 +144,7 @@ defmodule ArchethicWeb.API.TransactionController do
         conn
         |> put_status(:ok)
         |> json(%{
-          "fee" => fee / 100_000_000,
+          "fee" => fee,
           "rates" => %{
             "usd" => uco_usd,
             "eur" => uco_eur

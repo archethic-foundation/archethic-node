@@ -54,7 +54,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
         })
 
       assert %{
-               "fee" => 0.05_001_344,
+               "fee" => 5_001_344,
                "rates" => %{
                  "eur" => 0.2,
                  "usd" => 0.2
