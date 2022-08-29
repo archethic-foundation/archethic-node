@@ -354,30 +354,17 @@ defmodule Archethic.BeaconChain do
 
     addresses
     |> Stream.chunk_every(10)
-    |> Task.async_stream(&batch_summaries_fetching(&1, node))
+    |> Task.async_stream(fn addresses ->
+      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+        {:ok, %BeaconSummaryList{summaries: summaries}} ->
+          summaries
+
+        _ ->
+          []
+      end
+    end)
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
-  end
-
-  defp batch_summaries_fetching(addresses, node) do
-    %{summaries: local_summaries, remaining: remaining} =
-      Enum.reduce(addresses, %{summaries: [], remaining: []}, fn addr, acc ->
-        case get_summary(addr) do
-          {:ok, summary} ->
-            Map.update!(acc, :summaries, &[summary | &1])
-
-          _ ->
-            Map.update!(acc, :remaining, &[addr | &1])
-        end
-      end)
-
-    case P2P.send_message(node, %GetBeaconSummaries{addresses: remaining}) do
-      {:ok, %BeaconSummaryList{summaries: fetched_summaries}} ->
-        local_summaries ++ fetched_summaries
-
-      _ ->
-        local_summaries
-    end
   end
 end
