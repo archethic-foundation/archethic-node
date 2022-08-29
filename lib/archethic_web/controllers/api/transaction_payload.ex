@@ -51,6 +51,8 @@ defmodule ArchethicWeb.API.TransactionPayload do
     Enum.reduce(changes, acc, fn {key, value}, acc ->
       key = Macro.underscore(Atom.to_string(key))
 
+      key = if(key == "token_address", do: "token", else: key)
+
       case value do
         %{changes: _} ->
           Map.put(acc, key, to_map(value))
