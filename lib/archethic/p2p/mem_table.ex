@@ -829,10 +829,13 @@ defmodule Archethic.P2P.MemTable do
     avg_availability_pos = Keyword.fetch!(@discovery_index_position, :average_availability)
     availability_history_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
 
+    <<last_history::1, _rest::bitstring>> =
+      :ets.lookup_element(@discovery_table, first_public_key, availability_history_pos)
+
     true =
       :ets.update_element(@discovery_table, first_public_key, [
         {avg_availability_pos, avg_availability},
-        {availability_history_pos, <<1::1>>}
+        {availability_history_pos, <<last_history::1>>}
       ])
 
     Logger.info("New average availability: #{avg_availability}}",
