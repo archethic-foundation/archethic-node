@@ -11,7 +11,13 @@ defmodule Archethic.Bootstrap.NetworkConstraints do
 
   @spec persist_genesis_address() :: :ok
   def persist_genesis_address() do
-    res = process_gen_addr()
+    persist(:oracle)
+
+    res = %{
+      reward: persist(:reward),
+      node_shared_secrets: persist(:node_shared_secrets),
+      origin: persist(:origin)
+    }
 
     Logger.debug(
       "Gen Addr: reward: #{res.reward}, origin: #{res.origin}, nss: #{res.node_shared_secrets}"
@@ -24,17 +30,6 @@ defmodule Archethic.Bootstrap.NetworkConstraints do
     end
 
     :ok
-  end
-
-  @spec process_gen_addr() :: map()
-  def process_gen_addr() do
-    persist(:oracle)
-
-    %{
-      reward: persist(:reward),
-      node_shared_secrets: persist(:node_shared_secrets),
-      origin: persist(:origin)
-    }
   end
 
   @spec persist(:oracle | :reward | :origin | :node_shared_secrets) :: :ok | :error
