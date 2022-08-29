@@ -113,6 +113,7 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.each(&process_summary_aggregate(&1, patch))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
+    Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
   end
 
   @doc """

@@ -3,19 +3,20 @@ defmodule Archethic.Bootstrap do
   Manage Archethic Node Bootstrapping
   """
 
-  alias __MODULE__.NetworkInit
-  alias __MODULE__.Sync
-  alias __MODULE__.TransactionHandler
+  alias Archethic.Bootstrap.{
+    NetworkInit,
+    Sync,
+    TransactionHandler
+  }
 
-  alias Archethic.Crypto
-
-  alias Archethic.Networking
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-  alias Archethic.P2P.Listener
-
-  alias Archethic.SelfRepair
+  alias Archethic.{
+    Crypto,
+    Networking,
+    P2P,
+    P2P.Node,
+    P2P.Listener,
+    SelfRepair
+  }
 
   require Logger
 
@@ -207,6 +208,7 @@ defmodule Archethic.Bootstrap do
       Logger.info("Synchronization finished")
     end
 
+    Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
     Sync.publish_end_of_sync()
     SelfRepair.start_scheduler()
 
