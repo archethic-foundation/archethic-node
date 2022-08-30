@@ -12,7 +12,6 @@ defmodule Archethic.DB.EmbeddedImpl do
   alias __MODULE__.ChainWriter
   alias __MODULE__.P2PView
   alias __MODULE__.StatsInfo
-  alias __MODULE__.Queue
 
   alias Archethic.TransactionChain.Transaction
 
@@ -62,7 +61,7 @@ defmodule Archethic.DB.EmbeddedImpl do
           previous_address
       end
 
-    Queue.push(genesis_address, fn -> do_write_transaction_chain(genesis_address, chain) end)
+    do_write_transaction_chain(genesis_address, chain)
   end
 
   defp do_write_transaction_chain(genesis_address, sorted_chain) do
@@ -85,7 +84,7 @@ defmodule Archethic.DB.EmbeddedImpl do
 
       case ChainIndex.get_tx_entry(previous_address, db_path()) do
         {:ok, %{genesis_address: genesis_address}} ->
-          Queue.push(genesis_address, fn -> do_write_transaction(genesis_address, tx) end)
+          do_write_transaction(genesis_address, tx)
 
         {:error, :not_exists} ->
           ChainWriter.append_transaction(previous_address, tx)
@@ -110,7 +109,7 @@ defmodule Archethic.DB.EmbeddedImpl do
     if ChainIndex.transaction_exists?(tx.address, db_path()) do
       {:error, :transaction_already_exists}
     else
-      Queue.push(genesis_address, fn -> do_write_transaction_at(genesis_address, tx) end)
+      do_write_transaction_at(genesis_address, tx)
     end
   end
 

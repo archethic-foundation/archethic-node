@@ -9,8 +9,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
-  def start_link(arg \\ []) do
-    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
+  def start_link(arg \\ [], opts \\ []) do
+    GenServer.start_link(__MODULE__, arg, opts)
   end
 
   @doc """
@@ -18,7 +18,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   """
   @spec append_transaction(binary(), Transaction.t()) :: :ok
   def append_transaction(genesis_address, tx = %Transaction{}) do
-    GenServer.call(__MODULE__, {:append_tx, genesis_address, tx})
+    partition = :erlang.phash2(genesis_address, 20)
+    [{_, pid}] = :ets.lookup(:archethic_db_chain_writers, partition)
+    GenServer.call(pid, {:append_tx, genesis_address, tx})
   end
 
   @doc """
@@ -32,9 +34,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
   def init(arg) do
     db_path = Keyword.get(arg, :path)
+    partition = Keyword.get(arg, :partition)
+
+    :ets.insert(:archethic_db_chain_writers, {partition, self()})
+
     setup_folders(db_path)
 
-    {:ok, %{db_path: db_path, clients: %{}}}
+    {:ok, %{db_path: db_path, partition: partition}}
   end
 
   defp setup_folders(path) do
@@ -45,26 +51,16 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
   def handle_call(
         {:append_tx, genesis_address, tx},
-        from,
+        _from,
         state = %{db_path: db_path}
       ) do
-    %Task{ref: ref} = Task.async(fn -> write_transaction(genesis_address, tx, db_path) end)
-    {:noreply, Map.update!(state, :clients, &Map.put(&1, ref, from))}
+    write_transaction(genesis_address, tx, db_path)
+    {:reply, :ok, state}
   end
 
-  def handle_info({ref, :ok}, state) do
-    case pop_in(state, [:clients, ref]) do
-      {nil, ^state} ->
-        {:noreply, state}
-
-      {from, new_state} ->
-        GenServer.reply(from, :ok)
-        {:noreply, new_state}
-    end
-  end
-
-  def handle_info(_, state) do
-    {:noreply, state}
+  def terminate(_reason, _state = %{partition: partition}) do
+    :ets.delete(:archethic_db_chain_writers, partition)
+    :ignore
   end
 
   defp write_transaction(genesis_address, tx, db_path) do
