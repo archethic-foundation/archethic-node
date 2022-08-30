@@ -36,7 +36,7 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
   end
 
   defp initialize_chain_writers(path) do
-    Enum.each(1..20, fn i ->
+    Enum.each(0..19, fn i ->
       DynamicSupervisor.start_child(
         Archethic.DB.EmbeddedImpl.ChainWriterSupervisor,
         {ChainWriter, path: path, partition: i}
