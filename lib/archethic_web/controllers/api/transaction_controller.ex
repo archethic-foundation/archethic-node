@@ -60,6 +60,7 @@ defmodule ArchethicWeb.API.TransactionController do
 
           {:error, e} ->
             Logger.error("Cannot get transaction summary - #{inspect(e)}")
+            conn |> put_status(504) |> json(%{status: "error - networking error"})
         end
 
       changeset ->
