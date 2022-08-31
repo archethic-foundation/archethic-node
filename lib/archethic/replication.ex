@@ -115,6 +115,14 @@ defmodule Archethic.Replication do
 
           TransactionChain.write_transaction(tx)
 
+          :telemetry.execute(
+            [:archethic, :replication, :full_write],
+            %{
+              duration: System.monotonic_time() - start_time
+            },
+            %{role: :chain}
+          )
+
           :ok
 
         {:error, reason} ->
