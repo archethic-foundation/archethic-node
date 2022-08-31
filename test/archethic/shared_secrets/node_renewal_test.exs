@@ -39,7 +39,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
     assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
   end
 
-  describe "initiator?/0" do
+  describe "initiator?/2" do
     test "should return false when the first elected node is not the current node" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -76,7 +76,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
       })
 
-      assert false == NodeRenewal.initiator?()
+      assert false == NodeRenewal.initiator?("address")
     end
 
     test "should return true when the first elected node is the current node" do
@@ -92,7 +92,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
       })
 
-      assert true == NodeRenewal.initiator?()
+      assert true == NodeRenewal.initiator?("address")
     end
   end
 

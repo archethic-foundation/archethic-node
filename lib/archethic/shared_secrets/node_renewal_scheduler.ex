@@ -67,7 +67,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     end
   end
 
-  def handle_event(:internal, :schedule, _state, data = %{interval: interval}) do
+  def handle_event(:internal, :schedule, _state, data = %{interval: interval, index: index}) do
     timer =
       case Map.get(data, :timer) do
         nil ->
@@ -85,7 +85,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     new_data =
       data
       |> Map.put(:timer, timer)
-      |> Map.put(:next_address, NodeRenewal.next_address())
+      |> Map.put(:next_address, NodeRenewal.next_address(index))
 
     {:next_state, :scheduled, new_data}
   end
@@ -176,14 +176,14 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         index
       )
 
-    if NodeRenewal.initiator?() do
+    if NodeRenewal.initiator?(tx.address) do
       Logger.info("Node shared secrets renewal creation...")
       make_renewal(tx)
       {:keep_state, data}
     else
       {:ok, pid} =
         DetectNodeResponsiveness.start_link(tx.address, fn count ->
-          if NodeRenewal.initiator?(count) do
+          if NodeRenewal.initiator?(tx.address, count) do
             Logger.info("Node shared secret renewal creation...attempt #{count}")
             make_renewal(tx)
           end
