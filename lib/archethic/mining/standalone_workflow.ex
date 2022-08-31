@@ -223,7 +223,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
         notify(new_state)
-        {:noreply, new_state}
+        {:stop, :normal, new_state}
       else
         {:noreply, new_state}
       end
