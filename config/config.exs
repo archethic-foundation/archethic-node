@@ -118,6 +118,8 @@ config :archethic, ArchethicWeb.Endpoint,
     layout: {ArchethicWeb.LayoutView, "live.html"}
   ]
 
+config :archethic, Archethic.Mining.StandaloneWorkflow, global_timeout: 10_000
+
 config :archethic, Archethic.Mining.DistributedWorkflow,
   global_timeout: 60_000,
   coordinator_timeout_supplement: 2_000,

@@ -32,6 +32,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   require Logger
 
+  @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
+
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg)
   end
@@ -129,7 +131,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
      %{
        context: validation_context,
        confirmations: []
-     }}
+     }, @mining_timeout}
   end
 
   defp validate(context = %ValidationContext{}) do
@@ -221,7 +223,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
         notify(new_state)
-        {:noreply, new_state}
+        {:stop, :normal, new_state}
       else
         {:noreply, new_state}
       end
@@ -235,6 +237,30 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
         {:noreply, state}
     end
+  end
+
+  def handle_info(
+        :timeout,
+        state = %{context: %ValidationContext{transaction: tx, welcome_node: welcome_node}}
+      ) do
+    Logger.warning("Timeout reached during mining",
+      transaction_type: tx.type,
+      transaction_address: Base.encode16(tx.address)
+    )
+
+    # Notify error to the welcome node
+    message = %ValidationError{context: :network_issue, reason: "timeout", address: tx.address}
+
+    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+      P2P.send_message(
+        welcome_node,
+        message
+      )
+
+      :ok
+    end)
+
+    {:stop, :normal, state}
   end
 
   defp notify(%{context: context}) do
