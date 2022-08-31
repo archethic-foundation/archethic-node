@@ -250,11 +250,10 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:DOWN, _ref, :process, _pid, _},
         :scheduled,
-        data = %{watcher: watcher_pid}
-      )
-      when pid == watcher_pid do
+        data
+      ) do
     {:keep_state, Map.delete(data, :watcher)}
   end
 

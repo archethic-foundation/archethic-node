@@ -399,30 +399,54 @@ defmodule Archethic.OracleChain.Scheduler do
         :info,
         {:DOWN, _ref, :process, pid, _},
         :triggered,
-        _data = %{oracle_watcher: watcher_pid}
+        data = %{oracle_watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    {:keep_state_and_data, {:next_event, :internal, :schedule}}
+    {:keep_state, Map.delete(data, :oracle_watcher), {:next_event, :internal, :schedule}}
+  end
+
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, pid, _},
+        :triggered,
+        data = %{summary_watcher: watcher_pid}
+      )
+      when pid == watcher_pid do
+    {:keep_state, Map.delete(data, :summary_watcher)}
   end
 
   def handle_event(
         :info,
         {:DOWN, _ref, :process, pid, _},
         :scheduled,
-        _data = %{oracle_watcher: watcher_pid}
+        data = %{oracle_watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    :keep_state_and_data
+    {:keep_state, Map.delete(data, :oracle_watcher)}
   end
 
   def handle_event(
         :info,
         {:DOWN, _ref, :process, pid, _},
         _state,
-        _data = %{summary_watcher: watcher_pid}
+        data = %{summary_watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    :keep_state_and_data
+    {:keep_state, Map.delete(data, :summary_watcher)}
+  end
+
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, _pid, _},
+        _state,
+        data
+      ) do
+    new_data =
+      data
+      |> Map.delete(:oracle_watcher)
+      |> Map.delete(:summary_watcher)
+
+    {:keep_state, new_data}
   end
 
   def handle_event(
