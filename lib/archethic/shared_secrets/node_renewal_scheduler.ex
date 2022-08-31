@@ -207,13 +207,14 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _reason},
+        {:DOWN, _ref, :process, _pid, _reason},
         :scheduled,
-        data = %{node_detection: watcher_pid}
-      )
-      when pid == watcher_pid do
+        data
+      ) do
     {:keep_state, Map.delete(data, :node_detection)}
   end
+
+  #
 
   def handle_event(
         :info,
