@@ -241,7 +241,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           }
         )
 
+      :persistent_term.put(:origin_gen_addr, [Transaction.previous_address(tx)])
       assert :ok = PendingTransactionValidation.validate(tx)
+      :persistent_term.put(:origin_gen_addr, nil)
     end
 
     test "should return :ok when a code approval transaction contains a proposal target and the sender is member of the technical council and not previously signed" do
@@ -402,25 +404,16 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 supply: 300_000_000,
                 name: "MyToken",
                 type: "fungible",
-                symbol: "MTK",
-                properties: [
-                  [
-                    %{name: "image", value: "link"}
-                  ],
-                  [
-                    %{name: "image", value: "link"}
-                  ],
-                  [
-                    %{name: "image", value: "link"}
-                  ]
-                ]
+                symbol: "MTK"
               })
           },
           tx_seed,
           0
         )
 
+      :persistent_term.put(:reward_gen_addr, Transaction.previous_address(tx))
       assert :ok = PendingTransactionValidation.validate(tx)
+      :persistent_term.put(:reward_gen_addr, nil)
     end
 
     test "should return :error when a mint reward transaction has != burned_fees" do
@@ -434,7 +427,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 200_000_000 end)
-      |> stub(:get_last_chain_address, fn _, _ -> address end)
+      |> stub(:get_last_chain_address, fn _, _ -> {address, DateTime.utc_now()} end)
+      |> stub(:get_last_chain_address, fn _ -> {address, DateTime.utc_now()} end)
 
       tx =
         Transaction.new(
@@ -738,6 +732,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     MockDB
     |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
     |> stub(:get_last_chain_address, fn _, _ -> {address, DateTime.utc_now()} end)
+    |> stub(:get_last_chain_address, fn _ -> {address, DateTime.utc_now()} end)
 
     tx =
       Transaction.new(
