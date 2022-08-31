@@ -90,8 +90,6 @@ defmodule Archethic.Replication do
              Enum.to_list(inputs)
            ) do
         :ok ->
-          # Store the previous and the new one, as being the reference for next transactions 
-          :ok = TransactionChain.write(Enum.filter([previous_tx, tx], & &1))
           :ok = ingest_transaction(tx)
           PubSub.notify_new_transaction(address, type, timestamp)
 
@@ -108,17 +106,22 @@ defmodule Archethic.Replication do
             %{role: :chain}
           )
 
-          if previous_tx do
-            # Load the rest of the chain asynchronously
-            Task.start(fn ->
-              # Stream the insertion of the chain
-              previous_tx
-              |> stream_previous_chain()
-              |> Stream.reject(&Enum.empty?/1)
-              |> Stream.each(&TransactionChain.write/1)
-              |> Stream.run()
-            end)
-          end
+          # Stream the insertion of the chain
+          tx
+          |> stream_previous_chain()
+          |> Stream.reject(&Enum.empty?/1)
+          |> Stream.each(&TransactionChain.write/1)
+          |> Stream.run()
+
+          TransactionChain.write_transaction(tx)
+
+          :telemetry.execute(
+            [:archethic, :replication, :full_write],
+            %{
+              duration: System.monotonic_time() - start_time
+            },
+            %{role: :chain}
+          )
 
           :ok
 

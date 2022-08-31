@@ -103,7 +103,12 @@ defmodule Archethic.Telemetry do
       ),
       distribution("archethic.replication.validation.duration",
         unit: {:native, :second},
-        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5]],
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 3]],
+        measurement: :duration
+      ),
+      distribution("archethic.replication.validation.full_write",
+        unit: {:native, :second},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 3, 5, 10]],
         measurement: :duration
       ),
       distribution("archethic.db.duration",
