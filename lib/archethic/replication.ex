@@ -11,8 +11,6 @@ defmodule Archethic.Replication do
 
   alias Archethic.Account
 
-  alias Archethic.BeaconChain
-
   alias Archethic.Contracts
 
   alias Archethic.Crypto
@@ -531,7 +529,6 @@ defmodule Archethic.Replication do
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx)
     Contracts.load_transaction(tx)
-    BeaconChain.load_transaction(tx)
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)
     :ok

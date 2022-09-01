@@ -22,7 +22,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.NewBeaconTransaction
+  alias Archethic.P2P.Message.NewBeaconSlot
   alias Archethic.P2P.Message.BeaconUpdate
 
   alias Archethic.PubSub
@@ -233,17 +233,12 @@ defmodule Archethic.BeaconChain.Subset do
     unless Slot.empty?(current_slot) do
       current_slot = %{current_slot | slot_time: SlotTimer.previous_slot(time)}
 
-      beacon_transaction = create_beacon_transaction(current_slot)
-
       if summary_time?(time) do
-        genesis_address =
-          Crypto.derive_beacon_chain_address(subset, SummaryTimer.previous_summary(time))
 
-        TransactionChain.write_transaction_at(beacon_transaction, genesis_address)
         SummaryCache.add_slot(subset, current_slot)
       else
         next_summary_time = SummaryTimer.next_summary(time)
-        broadcast_beacon_transaction(subset, next_summary_time, beacon_transaction)
+        broadcast_beacon_slot(subset, next_summary_time, current_slot)
       end
     end
   end
@@ -283,10 +278,10 @@ defmodule Archethic.BeaconChain.Subset do
     )
   end
 
-  defp broadcast_beacon_transaction(subset, next_time, transaction) do
+  defp broadcast_beacon_slot(subset, next_time, slot) do
     subset
     |> Election.beacon_storage_nodes(next_time, P2P.authorized_and_available_nodes())
-    |> P2P.broadcast_message(%NewBeaconTransaction{transaction: transaction})
+    |> P2P.broadcast_message(%NewBeaconSlot{slot: slot})
   end
 
   defp handle_summary(time, subset) do
@@ -341,36 +336,6 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp ensure_p2p_view(slot = %Slot{}), do: slot
-
-  defp create_beacon_transaction(slot = %Slot{subset: subset, slot_time: slot_time}) do
-    {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, slot_time)
-    {next_pub, _} = Crypto.derive_beacon_keypair(subset, slot_time)
-
-    slot_content =
-      slot
-      |> Slot.serialize()
-      |> Utils.wrap_binary()
-
-    tx =
-      Transaction.new_with_keys(
-        :beacon,
-        %TransactionData{content: slot_content},
-        prev_pv,
-        prev_pub,
-        next_pub
-      )
-
-    stamp =
-      %ValidationStamp{
-        timestamp: slot_time,
-        proof_of_election: <<0::size(512)>>,
-        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        proof_of_work: Crypto.first_node_public_key()
-      }
-      |> ValidationStamp.sign()
-
-    %{tx | validation_stamp: stamp}
-  end
 
   defp create_summary_transaction(beacon_slots, subset, summary_time) do
     {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, summary_time)

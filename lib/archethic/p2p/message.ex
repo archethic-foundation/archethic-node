@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.Slot
 
   alias Archethic.Contracts
 
@@ -46,7 +47,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.GetUnspentOutputs
   alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
-  alias __MODULE__.NewBeaconTransaction
+  alias __MODULE__.NewBeaconSlot
   alias __MODULE__.NewTransaction
   alias __MODULE__.NodeAvailability
   alias __MODULE__.NodeList
@@ -117,7 +118,7 @@ defmodule Archethic.P2P.Message do
           | NodeAvailability.t()
           | Ping.t()
           | GetBeaconSummary.t()
-          | NewBeaconTransaction.t()
+          | NewBeaconSlot.t()
           | GetBeaconSummaries.t()
           | RegisterBeaconUpdates.t()
           | BeaconUpdate.t()
@@ -388,8 +389,8 @@ defmodule Archethic.P2P.Message do
 
   def encode(%GetBeaconSummary{address: address}), do: <<26::8, address::binary>>
 
-  def encode(%NewBeaconTransaction{transaction: tx}),
-    do: <<27::8, Transaction.serialize(tx)::bitstring>>
+  def encode(%NewBeaconSlot{slot: slot}),
+    do: <<27::8, Slot.serialize(slot) |> Utils.wrap_binary()::bitstring>>
 
   def encode(%GetBeaconSummaries{addresses: addresses}) do
     encoded_addresses_length = length(addresses) |> VarInt.from_value()
@@ -864,10 +865,10 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<27::8, rest::bitstring>>) do
-    {tx = %Transaction{}, rest} = Transaction.deserialize(rest)
+    {slot = %Slot{}, rest} = Slot.deserialize(rest)
 
     {
-      %NewBeaconTransaction{transaction: tx},
+      %NewBeaconSlot{slot: slot},
       rest
     }
   end
@@ -1477,8 +1478,8 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%NewBeaconTransaction{transaction: tx}) do
-    case BeaconChain.load_transaction(tx) do
+  def process(%NewBeaconSlot{slot: slot}) do
+    case BeaconChain.load_slot(slot) do
       :ok ->
         %Ok{}
 
