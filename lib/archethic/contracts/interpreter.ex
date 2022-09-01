@@ -822,20 +822,13 @@ defmodule Archethic.Contracts.Interpreter do
         "interval" ->
           [{{:atom, "at"}, interval}] = opts
 
-          # Extended Mode Signifies whether use CRON Extended Mode or Not while running SC Intervals
-          extended_mode =
-            case length(String.split(interval, " ", trim: true)) do
-              5 -> false
-              _ -> true
-            end
-
           Map.update!(
             acc,
             :contract,
             &Contract.add_trigger(
               &1,
               :interval,
-              [at: interval, extended_mode: extended_mode],
+              [at: interval],
               actions
             )
           )

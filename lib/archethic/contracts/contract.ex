@@ -68,7 +68,7 @@ defmodule Archethic.Contracts.Contract do
   def add_trigger(
         contract = %__MODULE__{},
         :interval,
-        opts = [at: interval, extended_mode: _],
+        opts = [at: interval],
         actions
       )
       when is_binary(interval) do
