@@ -60,16 +60,20 @@ defmodule Archethic.Metrics.Poller do
     Process.send_after(self(), :poll_metrics, interval)
   end
 
-  defp dipatch_updates(%{data: data, pid_refs: pid_refs}) do
+  defp dispatch_updates(%{data: data, pid_refs: pid_refs}) do
     pid_refs
-    |> Task.async_stream(fn {pid_k, _pid_v} -> send(pid_k, {:update_data, data}) end)
+    |> Task.async_stream(fn {pid_k, _pid_v} -> do_dispatch_update(pid_k, data) end)
     |> Stream.run()
   end
 
-  defp register_process(pid, state) do
+  defp do_dispatch_update(pid, data) do
+    send(pid, {:update_data, data})
+  end
+
+  defp register_process(pid, state = %{data: data}) do
     mref = Process.monitor(pid)
     new_state = Map.update!(state, :pid_refs, &Map.put(&1, pid, %{monitor_ref: mref}))
-    dipatch_updates(new_state)
+    do_dispatch_update(pid, data)
     new_state
   end
 
