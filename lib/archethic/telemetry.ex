@@ -41,15 +41,15 @@ defmodule Archethic.Telemetry do
         tags: [:nb_nodes],
         measurement: :duration,
         reporter_options: [
-          buckets: [0.001, 0.002, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]
+          buckets: [10, 100, 500, 1000, 1500, 2000]
         ]
       ),
       distribution("archethic.election.storage_nodes.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         tags: [:nb_nodes],
         measurement: :duration,
         reporter_options: [
-          buckets: [0.001, 0.002, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]
+          buckets: [10, 100, 500, 1000, 1500, 2000]
         ]
       ),
       distribution("archethic.mining.proof_of_work.duration",
@@ -57,68 +57,86 @@ defmodule Archethic.Telemetry do
         tags: [:nb_keys],
         measurement: :duration,
         reporter_options: [
-          buckets: [0.001, 0.002, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]
+          buckets: [10, 100, 500, 1000, 1500, 2000]
         ]
       ),
       distribution(
         "archethic.mining.pending_transaction_validation.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration,
-        reporter_options: [buckets: [0.001, 0.002, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]]
+        reporter_options: [
+          buckets: [10, 50, 100, 200, 500, 1000, 2000, 5000]
+        ]
       ),
       distribution("archethic.mining.fetch_context.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration,
-        reporter_options: [buckets: [0.001, 0.002, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]]
+        reporter_options: [
+          buckets: [10, 50, 100, 200, 500, 1000, 2000, 5000]
+        ]
       ),
       distribution(
         "archethic.mining.full_transaction_validation.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration,
         reporter_options: [
-          buckets: [0.01, 0.025, 0.05, 0.1, 0.5, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 5, 10]
+          buckets: [100, 200, 500, 700, 1000, 1500, 2000, 3000, 5000]
         ]
       ),
       distribution("archethic.contract.parsing.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration,
-        reporter_options: [buckets: [0.001, 0.002, 0.005, 0.01, 0.05, 0.1, 0.2, 0.5, 1]]
+        reporter_options: [
+          buckets: [10, 100, 500, 1000, 1500, 2000]
+        ]
       ),
       distribution(
         "archethic.transaction_end_to_end_validation.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration,
-        reporter_options: [buckets: [0.1, 0.25, 0.5, 0.8, 1, 1.5, 2, 2.5, 3.5, 5, 10]]
+        reporter_options: [
+          buckets: [100, 200, 500, 700, 1000, 1500, 2000, 3000, 5000]
+        ]
       ),
       distribution("archethic.p2p.send_message.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration,
-        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 1.0, 1.25, 1.5, 2.0]],
+        reporter_options: [
+          buckets: [10, 50, 100, 200, 300, 500, 700, 900, 1000, 1500, 2000, 3000]
+        ],
         tags: [:message]
       ),
       distribution("archethic.crypto.tpm_sign.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration,
-        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1]]
+        reporter_options: [
+          buckets: [10, 50, 100, 200, 300, 500, 700, 900, 1000, 1500, 2000, 3000]
+        ]
       ),
       distribution("archethic.replication.validation.duration",
-        unit: {:native, :second},
-        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 3]],
+        unit: {:native, :millisecond},
+        reporter_options: [
+          buckets: [100, 200, 500, 700, 1000, 1500, 2000, 3000, 5000]
+        ],
         measurement: :duration
       ),
       distribution("archethic.replication.validation.full_write",
-        unit: {:native, :second},
-        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 3, 5, 10]],
+        unit: {:native, :millisecond},
+        reporter_options: [
+          buckets: [100, 200, 500, 700, 1000, 1500, 2000, 3000, 5000]
+        ],
         measurement: :duration
       ),
       distribution("archethic.db.duration",
-        unit: {:native, :second},
-        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5]],
+        unit: {:native, :millisecond},
+        reporter_options: [
+          buckets: [50, 100, 200, 500, 700, 1000]
+        ],
         measurement: :duration,
         tags: [:query]
       ),
       last_value("archethic.self_repair.duration",
-        unit: {:native, :second},
+        unit: {:native, :millisecond},
         measurement: :duration
       )
     ]
