@@ -31,8 +31,8 @@ function get_visuals_dom() {
 
     nb_transactions: generateEchartObjects("Transaction processed", 'nb_transactions'),
 
-    archethic_p2p_send_message_duration: generate_echart_guage(
-      "P2P Message duration(ms) (Supervised Multicast)",
+    archethic_p2p_send_message_duration: generateEchartObjects(
+      "P2P Message duration(ms)",
       'archethic_p2p_send_message_duration'),
   };
 }
