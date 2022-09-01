@@ -192,7 +192,7 @@ defmodule Archethic.P2P.Client.Connection do
               from: from,
               ref: ref,
               message_name: Message.name(message),
-              start_time: System.monotonic_time(:millisecond)
+              start_time: System.monotonic_time()
             })
           )
           |> Map.update!(:request_id, &(&1 + 1))
@@ -252,7 +252,7 @@ defmodule Archethic.P2P.Client.Connection do
         {:next_state, :disconnected, data}
 
       {:ok, msg} ->
-        end_time = System.monotonic_time(:millisecond)
+        end_time = System.monotonic_time()
 
         MemTable.increase_node_availability(node_public_key)
 
