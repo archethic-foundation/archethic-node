@@ -240,9 +240,7 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  defp schedule_trigger(
-         trigger = %Trigger{type: :interval, opts: [at: interval]}
-       ) do
+  defp schedule_trigger(trigger = %Trigger{type: :interval, opts: [at: interval]}) do
     Process.send_after(
       self(),
       trigger,
