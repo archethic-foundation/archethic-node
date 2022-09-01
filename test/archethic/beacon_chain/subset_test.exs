@@ -14,7 +14,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.BeaconUpdate
-  alias Archethic.P2P.Message.NewBeaconTransaction
+  alias Archethic.P2P.Message.NewBeaconSlot
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
@@ -44,7 +44,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %NewBeaconTransaction{}, _ ->
+      _, %NewBeaconSlot{}, _ ->
         {:ok, %Ok{}}
     end)
 
@@ -63,7 +63,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
         _, _txn = %TransactionSummary{}, _ ->
           {:ok, %Ok{}}
 
-        _, %NewBeaconTransaction{}, _ ->
+        _, %NewBeaconSlot{}, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -110,7 +110,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
       pid = start_supervised!({Subset, subset: subset})
 
       MockClient
-      |> stub(:send_message, fn _, %NewBeaconTransaction{}, _ ->
+      |> stub(:send_message, fn _, %NewBeaconSlot{}, _ ->
         {:ok, %Ok{}}
       end)
 
@@ -218,8 +218,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %NewBeaconTransaction{transaction: tx}, _ ->
-          send(me, {:beacon_tx, tx})
+        _, %NewBeaconSlot{slot: slot}, _ ->
+          send(me, {:beacon_slot, slot})
           {:ok, %Ok{}}
 
         _, %Ping{}, _ ->
@@ -231,19 +231,18 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
       send(pid, {:create_slot, DateTime.utc_now()})
 
-      assert_receive {:beacon_tx,
-                      %Transaction{type: :beacon, data: %TransactionData{content: content}}}
+      assert_receive {:beacon_slot, slot}
 
-      assert {%Slot{
-                transaction_attestations: [
-                  %ReplicationAttestation{
-                    transaction_summary: %TransactionSummary{
-                      address: ^tx_address
-                    },
-                    confirmations: [{_, _}]
-                  }
-                ]
-              }, _} = Slot.deserialize(content)
+      assert %Slot{
+               transaction_attestations: [
+                 %ReplicationAttestation{
+                   transaction_summary: %TransactionSummary{
+                     address: ^tx_address
+                   },
+                   confirmations: [{_, _}]
+                 }
+               ]
+             } = slot
     end
 
     test "new summary is created when the slot time is the summary time", %{
@@ -304,7 +303,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
           Process.sleep(10)
           {:ok, %Ok{}}
 
-        _, %NewBeaconTransaction{}, _ ->
+        _, %NewBeaconSlot{}, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -317,26 +316,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
       MockDB
       |> stub(:write_transaction_at, fn
-        %Transaction{
-          type: :beacon,
-          data: %TransactionData{content: content}
-        },
-        _ ->
-          assert {%Slot{
-                    subset: ^subset,
-                    p2p_view: %{
-                      availabilities: <<1::1>>,
-                      network_stats: [%{latency: _}]
-                    },
-                    transaction_attestations: [
-                      %ReplicationAttestation{
-                        transaction_summary: ^tx_summary
-                      }
-                    ]
-                  }, _} = Slot.deserialize(content)
-
-          send(me, :beacon_transaction_stored)
-
         %Transaction{type: :beacon_summary, data: %TransactionData{content: content}}, _ ->
           {%Summary{
              transaction_attestations: [
@@ -357,7 +336,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
         |> DateTime.truncate(:millisecond)
 
       send(pid, {:create_slot, now})
-      assert_receive :beacon_transaction_stored
       assert_receive :beacon_transaction_summary_stored
     end
   end
@@ -438,7 +416,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
       _, %ReplicationAttestation{}, _ ->
         {:ok, %Ok{}}
 
-      _, %NewBeaconTransaction{}, _ ->
+      _, %NewBeaconSlot{}, _ ->
         {:ok, %Ok{}}
 
       _, %Ping{}, _ ->

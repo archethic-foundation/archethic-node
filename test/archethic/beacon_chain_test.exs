@@ -11,7 +11,6 @@ defmodule Archethic.BeaconChainTest do
   alias Archethic.BeaconChain.SubsetRegistry
   alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryAggregate
-  alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.Crypto
 
@@ -22,12 +21,7 @@ defmodule Archethic.BeaconChainTest do
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Node
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
-
-  alias Archethic.Utils
 
   doctest Archethic.BeaconChain
 
@@ -67,10 +61,8 @@ defmodule Archethic.BeaconChainTest do
     } = :sys.get_state(pid)
   end
 
-  describe "load_transaction/1 for beacon transaction" do
+  describe "load_slot/1" do
     test "should fetch the transaction chain from the beacon involved nodes" do
-      SummaryTimer.start_link([interval: "0 0 * * * *"], [])
-
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -83,30 +75,13 @@ defmodule Archethic.BeaconChainTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-10)
       })
 
-      me = self()
-
-      MockDB
-      |> expect(:write_transaction_at, fn _, _ ->
-        send(me, :tx_written)
-        :ok
-      end)
-
-      tx = %Transaction{
-        address: Crypto.derive_beacon_chain_address(<<0>>, DateTime.utc_now()),
-        type: :beacon,
-        data: %TransactionData{
-          content:
-            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_attestations: []}
-            |> Slot.serialize()
-            |> Utils.wrap_binary()
-        },
-        validation_stamp: %ValidationStamp{
-          timestamp: DateTime.utc_now()
-        }
+      slot = %Slot{
+        subset: <<0>>,
+        slot_time: SlotTimer.previous_slot(DateTime.utc_now()),
+        transaction_attestations: []
       }
 
-      assert :ok = BeaconChain.load_transaction(tx)
-      assert_receive :tx_written
+      assert :ok = BeaconChain.load_slot(slot)
 
       Process.sleep(500)
 
