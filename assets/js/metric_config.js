@@ -4,31 +4,10 @@ import * as echarts from 'echarts';
 function structure_metric_points(latest_points) {
 
   var points_default_value = {
-    "archethic_election_validation_nodes_duration": 0.0,
-    "archethic_election_storage_nodes_duration": 0.0,
-    "archethic_archethic_mining_pending_transaction_validation_duration": 0.0,
-    "archethic_mining_proof_of_work_duration": 0.0,
-    "archethic_mining_full_transaction_validation_duration": 0.0,
-    "archethic_contract_parsing_duration": 0.0,
-    "archethic_mining_fetch_context_duration": 0.0,
-    "archethic_p2p_send_message_duration": 0.0,
-    "archethic_db_duration": 0.0,
-    "archethic_self_repair_duration": 0.0,
-    "vm_total_run_queue_lengths_io": 0.0,
-    "vm_total_run_queue_lengths_cpu": 0.0,
-    "vm_total_run_queue_lengths_total": 0.0,
-    "vm_system_counts_process_count": 0.0,
-    "vm_system_counts_port_count": 0.0,
-    "vm_system_counts_atom_count": 0.0,
-    "vm_memory_total": 0.0,
-    "vm_memory_system": 0.0,
-    "vm_memory_processes_used": 0.0,
-    "vm_memory_processes": 0.0,
-    "vm_memory_ets": 0.0,
-    "vm_memory_code": 0.0,
-    "vm_memory_binary": 0.0,
-    "vm_memory_atom_used": 0.0,
-    "vm_memory_atom": 0.0
+    "archethic_mining_proof_of_work_duration": 0,
+    "archethic_mining_full_transaction_validation_duration": 0,
+    "archethic_p2p_send_message_duration": 0,
+    "nb_transactions": 0
   };
   for (var key in latest_points)
     points_default_value[key] = latest_points[key]
@@ -50,7 +29,7 @@ function get_visuals_dom() {
       'Transaction Validation Duration(ms)',
       'archethic_mining_full_transaction_validation_duration', x_axis_data),
 
-    tps: generate_echart_guage("Transactions Per Second(tps)", 'tps'),
+    nb_transactions: generateEchartObjects("Transaction processed", 'nb_transactions'),
 
     archethic_p2p_send_message_duration: generate_echart_guage(
       "P2P Message duration(ms) (Supervised Multicast)",

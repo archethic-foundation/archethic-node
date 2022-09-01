@@ -35,7 +35,7 @@ defmodule Archethic.Metrics.Collector do
     |> Stream.map(&filter_metrics/1)
     |> Stream.map(&Parser.reduce_metrics/1)
     |> Enum.flat_map(& &1)
-    |> Aggregator.inject_tps()
+    |> Aggregator.inject_transaction_counter()
     |> Aggregator.reduce_values()
     |> Aggregator.summarize()
     |> Utils.merge_list_of_maps()

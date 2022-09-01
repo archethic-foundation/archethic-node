@@ -25,7 +25,7 @@ defmodule Archethic.Metrics.Poller do
       "archethic_mining_full_transaction_validation_duration" => 0,
       "archethic_mining_proof_of_work_duration" => 0,
       "archethic_p2p_send_message_duration" => 0,
-      "tps" => 0
+      "nb_transactions" => 0
     }
   end
 

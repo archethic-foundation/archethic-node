@@ -15,7 +15,7 @@ defmodule Archethic.Metrics.PollerTest do
              data: %{
                "archethic_mining_proof_of_work_duration" => 0,
                "archethic_p2p_send_message_duration" => 0,
-               "tps" => 0,
+               "nb_transactions" => 0,
                "archethic_mining_full_transaction_validation_duration" => 0
              }
            } = :sys.get_state(pid)
@@ -86,7 +86,7 @@ defmodule Archethic.Metrics.PollerTest do
 
     assert_receive {:update_data,
                     %{
-                      "tps" => 5.555555555555555,
+                      "nb_transactions" => 50,
                       "archethic_mining_full_transaction_validation_duration" => 0.18
                     }},
                    2_000
