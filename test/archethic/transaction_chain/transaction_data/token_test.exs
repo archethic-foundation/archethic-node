@@ -20,7 +20,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedgerTest do
       transfers =
         Enum.map(transfers, fn {token, {to, amount, token_id}} ->
           %Transfer{
-            token: <<0::8, 0::8>> <> token,
+            token_address: <<0::8, 0::8>> <> token,
             to: <<0::8, 0::8>> <> to,
             amount: amount,
             token_id: token_id

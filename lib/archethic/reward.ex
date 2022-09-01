@@ -163,7 +163,7 @@ defmodule Archethic.Reward do
       transfer = %Transfer{
         amount: token_amount,
         to: reward_address,
-        token: token_address,
+        token_address: token_address,
         token_id: token_id
       }
 
@@ -174,7 +174,7 @@ defmodule Archethic.Reward do
       transfer = %Transfer{
         amount: amount,
         to: reward_address,
-        token: token_address,
+        token_address: token_address,
         token_id: token_id
       }
 

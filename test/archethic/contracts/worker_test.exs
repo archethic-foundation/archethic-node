@@ -506,7 +506,7 @@ defmodule Archethic.Contracts.WorkerTest do
                    %TokenTransfer{
                      amount: 100_000_000 * 10_000,
                      to: "@Bob3",
-                     token: "@SC1",
+                     token_address: "@SC1",
                      token_id: 0
                    }
                  ] == token_transfers

@@ -430,7 +430,7 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>      },
       ...>      token: %TokenLedger{
       ...>        transfers: [
-      ...>          %TokenLedger.Transfer{to: "@Alice1", amount: 3, token: "@BobToken", token_id: 0}
+      ...>          %TokenLedger.Transfer{to: "@Alice1", amount: 3, token_address: "@BobToken", token_id: 0}
       ...>        ]
       ...>      }
       ...>    }
@@ -457,7 +457,11 @@ defmodule Archethic.TransactionChain.Transaction do
     Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}) ++
       Enum.map(
         token_transfers,
-        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:token, &1.token, &1.token_id}}
+        &%TransactionMovement{
+          to: &1.to,
+          amount: &1.amount,
+          type: {:token, &1.token_address, &1.token_id}
+        }
       )
   end
 
