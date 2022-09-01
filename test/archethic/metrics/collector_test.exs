@@ -8,10 +8,10 @@ defmodule Archethic.Metrics.CollectorTest do
   setup :set_mox_global
   setup :verify_on_exit!
 
-  describe "retrive_network_metrics/1" do
+  describe "fetch_metrics/2" do
     test "should fetch and aggregate metrics" do
       MockMetricsCollector
-      |> stub(:fetch_metrics, fn _ ->
+      |> stub(:fetch_metrics, fn _, _ ->
         {:ok,
          """
          # HELP archethic_mining_full_transaction_validation_duration
@@ -21,11 +21,10 @@ defmodule Archethic.Metrics.CollectorTest do
          """}
       end)
 
-      assert %{
-               "tps" => 5.555555555555555,
-               "archethic_mining_full_transaction_validation_duration" => 0.18
-             } =
-               Collector.retrieve_network_metrics([{127, 0, 0, 1}, {127, 0, 0, 1}, {127, 0, 0, 1}])
+      assert {:ok,
+              %{
+                "archethic_mining_full_transaction_validation_duration" => %{count: 50, sum: 9.0}
+              }} = Collector.fetch_metrics({127, 0, 0, 1}, 4000)
     end
   end
 end

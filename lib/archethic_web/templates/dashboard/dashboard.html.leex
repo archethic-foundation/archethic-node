@@ -1,39 +1,62 @@
+<div class="box" x-data="{ tab_panel: 'network'}">
+  <div class="columns">
+    <div class="column">
+      <h2 class="is-size-3 subtitle">Live Archethic's dashboard</h2>
+      <p>Metrics are updated every 5 seconds to give an overview of the entire system</p>
+      <p class="mt-6 heading">Version: <%= @version %></p> 
+    </div>
+  </div>
+  <div class="tabs">
+    <ul>
+      <li :class="tab_panel == 'network' ? 'is-active' : '' " @click="tab_panel='network'"><a>Network</a></li>
+    </ul>
+  </div>
 
-<br>
-<h3 style="color:white; text-align-last: center;">Running Archethic Version: <span class="has-text-weight-bold"> v<%= @version %> </span> </h3>
-<h3 style="color:white; text-align-last: center;"> Dashboard depicts live!! telemetry of the network , the metrics are updated every 5 seconds!!</h3>
-<br>
-         <div class="columns" style="justify-content: center">
-            <div class ="column is-full-mobile is-full-tablet is-5-desktop">
-                    <div id='tps' phx-hook='network_charts'  style="height:240px;width: 95%"  class= "box">
-                        <canvas class="chart_class"  phx-update="ignore" >
-                        </canvas>
-                    </div>
-            </div>
+  <div :class=" tab_panel == 'network' ? '' : 'is-hidden'">
+    <div class="columns" phx-hook="network_charts" phx-update="ignore" id="network_charts">
+      <div class="column is-6">
+        <div id="nb_transactions" style="height: 200px">  </div>
+      </div>
+      <div class="column is-6">
+        <div id="validation_duration" style="height: 200px">  </div>
+      </div>
+    </div>
 
-             <div class="column is-full-mobile is-full-tablet is-5-desktop">
-                    <div id='archethic_mining_full_transaction_validation_duration' class="box" phx-hook='network_charts'
-                    style="height:240px;width: 95%" >
-                          <canvas class="chart_class" phx-update="ignore" >
-                        </canvas>
-                   </div>
-            </div>
-         </div>
+    <div class="columns">
+      <div class="column">
+        <div class="table-container">
+          <table class="table is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>Node</th>
+                <th>Nb transactions processed <span class="tag is-info is-light">last poll</span></th>
+                <th>Nb transactions processed <span class="tag is-warning is-light">total</span></th>
+                <th>TPS <span class="tag is-info is-light">last poll</span></th>
+                <th>Validation duration (ms) <span class="tag is-info is-light">last poll</span> </th>
 
-        <div class="columns " style ="display:flex;flex-direction:row;flex-wrap:wrap;
-        justify-content: center;">
+              </tr>
+            </thead>
+            <tbody phx-update="prepend" id="stats_table">
+            <%= for { node, data } <- @stats do %>
+              <tr id="<%= Base.encode16(node) %>">
+                <td><%= Base.encode16(node) %></td>
+                <td><%= data.nb_transactions %></td>
+                <td><%= data.cumul.transaction_validation |> elem(0) %></td>
+                <td><%= data.tps %></td>
+                <td><%= data.validation_duration %></td>
+              </tr>
+            <% end %>
+            </tbody>
+          </table>
+        </div>
 
-                <div class="column is-full-mobile is-full-tablet is-5-desktop">
-                    <div id='archethic_mining_proof_of_work_duration'  style="height:240px;width: 95%"  class="box" phx-hook='network_charts'  >
-                    <canvas class="chart_class" phx-update="ignore" >  </canvas>   </div >
-                  </div >
+      </div>
+    </div>
+  </div>
+</div>
 
-                <div class ="column  is-full-mobile is-full-tablet is-5-desktop" >
-                  <div id='archethic_p2p_send_message_duration'  style="height:240px;width: 95%"  phx-hook='network_charts'  class= "box">
-                      <canvas class="chart_class"  phx-update="ignore">
-                      </canvas>
-                  </div>
-               </div>
+
+
 <style>
 
 </style>
