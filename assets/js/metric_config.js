@@ -15,7 +15,7 @@ function structure_metric_points(latest_points) {
 }
 
 function get_visuals_dom() {
-  var metric_object, x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  var metric_object, x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0];
 
   return metric_object = {
     seconds_after_loading_of_this_graph: 0,
@@ -69,7 +69,7 @@ function line_graph_default_theme(heading, x_axis_data, y_axis_data) {
       }
     },
     yAxis: {
-      boundaryGap: [0, '50%'],
+      boundaryGap: [0, '10%'],
       type: 'value',
       axisLabel: {
         formatter: '{value}',
@@ -98,7 +98,7 @@ function line_graph_default_theme(heading, x_axis_data, y_axis_data) {
 }
 
 function generateEchartObjects(heading, echartContainer, x_axis_data) {
-  var y_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  var y_axis_data = [0, 0, 0, 0, 0, 0, 0, 0]
   var chart = echarts.init(document.getElementById(echartContainer));
 
   var option = line_graph_default_theme(heading, x_axis_data, y_axis_data);
@@ -283,15 +283,15 @@ function update_live_visuals(metric_obj, points) {
   update_chart_data(metric_obj.archethic_mining_proof_of_work_duration, metric_obj.x_axis_data, points, "archethic_mining_proof_of_work_duration");
   update_chart_data(metric_obj.archethic_mining_full_transaction_validation_duration, metric_obj.x_axis_data, points, "archethic_mining_full_transaction_validation_duration");
 
-  update_guage_data(metric_obj.archethic_p2p_send_message_duration, points, "archethic_p2p_send_message_duration");
-  update_guage_data(metric_obj.tps, points, "tps");
+  update_chart_data(metric_obj.archethic_p2p_send_message_duration, metric_obj.x_axis_data, points, "archethic_p2p_send_message_duration");
+  update_chart_data(metric_obj.nb_transactions, metric_obj.x_axis_data, points, "nb_transactions");
 
   return metric_obj;
 }
 
 function create_explorer_live_visuals() {
   var obj, x_axis_data;
-  x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0];
   obj = {
     seconds_after_loading_of_this_graph: 0,
     x_axis_data: x_axis_data,
