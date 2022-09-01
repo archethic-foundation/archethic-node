@@ -25,7 +25,10 @@ defmodule Archethic.Metrics.Collector do
   """
   @spec retrieve_network_metrics(list({:inet.ip_address(), port()})) :: map()
   def retrieve_network_metrics(node_endpoints) do
-    Task.Supervisor.async_stream(TaskSupervisor, node_endpoints, &service().fetch_metrics(&1))
+    Task.Supervisor.async_stream(TaskSupervisor, node_endpoints, &service().fetch_metrics(&1),
+      on_timeout: :kill_task,
+      ordered: false
+    )
     |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
     |> Stream.map(fn {:ok, {:ok, result}} -> result end)
     |> Stream.map(&Parser.extract_from_string/1)
