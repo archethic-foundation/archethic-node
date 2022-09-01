@@ -248,7 +248,7 @@ function update_chart_data(chart_obj, x_axis_data, points, point_name) {
     shifted_value = 0;
 
   new_point = points[point_name];
-  new_data = chart_obj.ydata[chart_obj.ydata.length - 1] + new_point;
+  new_data = new_point; //chart_obj.ydata[chart_obj.ydata.length - 1] + new_point;
 
   shifted_value = chart_obj.ydata.shift();
   chart_obj.ydata.push(new_data);
