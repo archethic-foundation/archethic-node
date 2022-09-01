@@ -73,8 +73,28 @@ defmodule Archethic.BeaconChain.Summary do
       ...>   ],
       ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1>>}
       ...>  },
+      ...>  %Slot{
+      ...>   slot_time: ~U[2020-06-25 15:12:00Z],
+      ...>   transaction_attestations: [
+      ...>     %ReplicationAttestation {
+      ...>       transaction_summary: %TransactionSummary{
+      ...>         address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...>              99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+      ...>         type: :transfer,
+      ...>         timestamp: ~U[2020-06-25 15:11:53Z],
+      ...>         fee: 10_000_000
+      ...>       }
+      ...>     }
+      ...>   ],
+      ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1>>}
+      ...>  },
+      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
       ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
       ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 0::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
       ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
       ...> ], [
       ...>   %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
@@ -94,7 +114,7 @@ defmodule Archethic.BeaconChain.Summary do
             }
           ],
         node_availabilities: <<1::1, 1::1, 1::1>>,
-        node_average_availabilities: [0.75, 0.75, 0.50]
+        node_average_availabilities: [0.7, 0.7, 0.50]
       }
 
     ### Aggregate the P2P view and the transaction attestations with new node joining during the beacon chain epoch
@@ -115,8 +135,26 @@ defmodule Archethic.BeaconChain.Summary do
       ...>   ],
       ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1, 1::1>>}
       ...>  },
+      ...>  %Slot{
+      ...>   slot_time: ~U[2020-06-25 15:12:00Z],
+      ...>   transaction_attestations: [
+      ...>     %ReplicationAttestation {
+      ...>        transaction_summary: %TransactionSummary{
+      ...>          address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...>               99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+      ...>          type: :transfer,
+      ...>          timestamp: ~U[2020-06-25 15:11:53Z],
+      ...>          fee: 10_000_000
+      ...>        }
+      ...>     }
+      ...>   ],
+      ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1, 1::1>>}
+      ...>  },
       ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
       ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 0::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
       ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
       ...> ], [
       ...>   %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
@@ -136,8 +174,8 @@ defmodule Archethic.BeaconChain.Summary do
             }
           }
         ],
-        node_availabilities: <<1::1, 1::1, 1::1, 1::1>>,
-        node_average_availabilities: [0.75, 0.75, 0.50, 1.0]
+        node_availabilities: <<1::1, 0::1, 1::1, 1::1>>,
+        node_average_availabilities: [0.625, 0.375, 0.625, 1.0]
       }
   """
   @spec aggregate_slots(
@@ -155,7 +193,12 @@ defmodule Archethic.BeaconChain.Summary do
   defp aggregate_transaction_attestations(summary = %__MODULE__{}, slots) do
     transaction_attestations =
       slots
-      |> Enum.flat_map(& &1.transaction_attestations)
+      |> Stream.flat_map(& &1.transaction_attestations)
+      |> Stream.uniq_by(fn %ReplicationAttestation{
+                             transaction_summary: %TransactionSummary{address: address}
+                           } ->
+        address
+      end)
       |> Enum.sort_by(
         fn %ReplicationAttestation{
              transaction_summary: %TransactionSummary{timestamp: timestamp}
@@ -175,7 +218,7 @@ defmodule Archethic.BeaconChain.Summary do
       slots
       |> Enum.reduce(
         %{},
-        &reduce_slot_availabities(&1, &2, node_list)
+        &reduce_slot_availabilities(&1, &2, node_list)
       )
       |> Enum.reduce(
         %{
@@ -204,6 +247,7 @@ defmodule Archethic.BeaconChain.Summary do
         nodes_end_of_sync
         |> Enum.map(fn %EndOfNodeSync{public_key: public_key} -> public_key end)
       end)
+      |> Enum.uniq()
 
     %{
       summary
@@ -211,7 +255,7 @@ defmodule Archethic.BeaconChain.Summary do
     }
   end
 
-  defp reduce_slot_availabities(
+  defp reduce_slot_availabilities(
          %Slot{slot_time: slot_time, p2p_view: %{availabilities: availabilities}},
          acc,
          node_list
