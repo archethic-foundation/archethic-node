@@ -41,10 +41,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   def init(arg) do
     tx = Keyword.get(arg, :transaction)
     Registry.register(WorkflowRegistry, tx.address, [])
-    {:ok, %{}, {:continue, {:start_mining, tx}}}
+    {:ok, %{start_time: System.monotonic_time()}, {:continue, {:start_mining, tx}}}
   end
 
-  def handle_continue({:start_mining, tx}, _state) do
+  def handle_continue({:start_mining, tx}, state) do
     Logger.info("Start mining",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -81,6 +81,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
+    start = System.monotonic_time()
+
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
      beacon_storage_nodes_view,
      io_storage_nodes_view} =
@@ -90,6 +92,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         Enum.map(beacon_storage_nodes, & &1.first_public_key),
         Enum.map(io_storage_nodes, & &1.first_public_key)
       )
+
+    :telemetry.execute([:archethic, :mining, :fetch_context], %{
+      duration: System.monotonic_time() - start
+    })
 
     validation_context =
       ValidationContext.new(
@@ -127,11 +133,12 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
     start_replication(validation_context)
 
-    {:noreply,
-     %{
-       context: validation_context,
-       confirmations: []
-     }, @mining_timeout}
+    new_state =
+      state
+      |> Map.put(:context, validation_context)
+      |> Map.put(:confirmations, [])
+
+    {:noreply, new_state, @mining_timeout}
   end
 
   defp validate(context = %ValidationContext{}) do
@@ -209,7 +216,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   def handle_info(
         {:ack_replication, signature, node_public_key},
-        state = %{context: context = %ValidationContext{transaction: tx}}
+        state = %{start_time: start_time, context: context = %ValidationContext{transaction: tx}}
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
@@ -222,6 +229,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       new_state = %{state | context: new_context}
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
+        :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
+          duration: System.monotonic_time() - start_time
+        })
+
         notify(new_state)
         {:stop, :normal, new_state}
       else
