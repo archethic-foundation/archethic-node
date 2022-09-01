@@ -196,7 +196,7 @@ defmodule Archethic.Contracts do
   end
 
   defp valid_from_trigger?(
-         %Trigger{type: :interval, opts: [at: interval]},
+         %Trigger{type: :interval, opts: [at: interval, extended_mode: _]},
          %Transaction{},
          validation_date = %DateTime{}
        ) do

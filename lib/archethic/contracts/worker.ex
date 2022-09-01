@@ -240,8 +240,14 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  defp schedule_trigger(trigger = %Trigger{type: :interval, opts: [at: interval]}) do
-    Process.send_after(self(), trigger, Utils.time_offset(interval) * 1000)
+  defp schedule_trigger(
+         trigger = %Trigger{type: :interval, opts: [at: interval, extended_mode: extended_mode]}
+       ) do
+    Process.send_after(
+      self(),
+      trigger,
+      Utils.time_offset(interval, DateTime.utc_now(), extended_mode) * 1000
+    )
   end
 
   defp schedule_trigger(trigger = %Trigger{type: :datetime, opts: [at: datetime = %DateTime{}]}) do
