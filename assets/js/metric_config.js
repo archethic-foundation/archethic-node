@@ -238,7 +238,8 @@ function update_chart_data(chart_obj, x_axis_data, points, point_name) {
     },
     series: [{
       name: 'data',
-      data: chart_obj.ydata
+      data: chart_obj.ydata,
+      smooth: 0.2
     }]
   });
 }
