@@ -384,9 +384,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       tokens_received
       |> Enum.reject(&Map.has_key?(tokens_to_spend, elem(&1, 0)))
       |> Enum.map(fn {{token_address, token_id}, amount} ->
-        Enum.find(inputs, fn input ->
-          input.type == {:token, token_address, token_id} and input.amount == amount
-        end)
+        input =
+          Enum.find(inputs, fn input ->
+            input.type == {:token, token_address, token_id}
+          end)
+
+        if input.amount == amount,
+          do: input,
+          else: %{input | amount: amount, from: change_address}
       end)
 
     Enum.reduce(tokens_to_spend, tokens_not_used, fn {{token_address, token_id}, amount_to_spend},
