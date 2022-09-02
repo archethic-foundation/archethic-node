@@ -85,7 +85,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         send(me, :done)
       end)
 
-      Process.sleep(10)
+      Process.sleep(100)
 
       msg_envelop =
         %MessageEnvelop{
@@ -97,7 +97,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       send(pid, {__MODULE__.MockTransport, make_ref(), msg_envelop})
 
-      assert_receive :done, 1_000
+      assert_receive :done, 3_000
 
       assert {{:connected, _socket},
               %{
@@ -149,11 +149,11 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       send(pid, {__MODULE__.MockTransportDisconnected, make_ref(), msg_envelop})
 
-      {:error, :closed} =
-        Connection.send_message(
-          Crypto.first_node_public_key(),
-          %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
-        )
+      assert {:error, :closed} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+               )
     end
 
     test "notify when the node is disconnected" do
@@ -210,17 +210,17 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       send(pid, {__MODULE__.MockTransportDisconnected2, make_ref(), msg_envelop})
 
-      {:error, :closed} =
-        Connection.send_message(
-          Crypto.first_node_public_key(),
-          %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
-        )
+      assert {:error, :closed} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+               )
 
-      {:error, :closed} =
-        Connection.send_message(
-          Crypto.first_node_public_key(),
-          %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
-        )
+      assert {:error, :closed} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+               )
     end
   end
 
