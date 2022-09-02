@@ -25,8 +25,7 @@ defmodule Archethic.P2P.Client.Connection do
   @doc """
   Send an asynchronous message to a remote connection.
 
-  It awaiting an `{:ok, reference()}` message indicating the request have been sent to the remote socket.
-  Then it awaiting an `{:ok,  Message.t()}` message indicating the success of the processing.
+  The process will try to send the message to the remote node.
 
   It may returns `{:error, :timeout}` if either the send or the receiving take more than the timeout value provided.
   It may also returns `{:error, :closed}` is the socket closed or any error in the transport layer
@@ -37,6 +36,7 @@ defmodule Archethic.P2P.Client.Connection do
           | {:error, :closed}
   def send_message(public_key, message, timeout \\ 3_000) do
     ref = make_ref()
+
     GenStateMachine.cast(via_tuple(public_key), {:send_message, ref, self(), message, timeout})
 
     receive do
@@ -63,7 +63,8 @@ defmodule Archethic.P2P.Client.Connection do
       node_public_key: node_public_key,
       transport: transport,
       request_id: 0,
-      messages: %{}
+      messages: %{},
+      send_tasks: %{}
     }
 
     actions = [{:next_event, :internal, :connect}]
@@ -155,7 +156,12 @@ defmodule Archethic.P2P.Client.Connection do
     next_state
   end
 
-  def handle_event(:cast, {:send_message, ref, from, _msg, _timeout}, :disconnected, _data) do
+  def handle_event(
+        :cast,
+        {:send_message, ref, from, _msg, _timeout},
+        :disconnected,
+        _data
+      ) do
     send(from, {ref, {:error, :closed}})
     :keep_state_and_data
   end
@@ -170,46 +176,60 @@ defmodule Archethic.P2P.Client.Connection do
           transport: transport
         }
       ) do
-    message_envelop =
-      MessageEnvelop.encode(
-        %MessageEnvelop{
-          message: message,
-          message_id: request_id,
-          sender_public_key: Crypto.first_node_public_key()
-        },
-        node_public_key
-      )
+    %Task{ref: task_ref} =
+      Task.async(fn ->
+        start_encoding_time = System.monotonic_time()
 
-    case transport.handle_send(socket, message_envelop) do
-      :ok ->
-        MemTable.increase_node_availability(node_public_key)
-
-        new_data =
-          data
-          |> Map.update!(
-            :messages,
-            &Map.put(&1, request_id, %{
-              from: from,
-              ref: ref,
-              message_name: Message.name(message),
-              start_time: System.monotonic_time(:millisecond)
-            })
+        message_envelop =
+          MessageEnvelop.encode(
+            %MessageEnvelop{
+              message: message,
+              message_id: request_id,
+              sender_public_key: Crypto.first_node_public_key()
+            },
+            node_public_key
           )
-          |> Map.update!(:request_id, &(&1 + 1))
 
-        actions = [{{:timeout, {:request, request_id}}, timeout, nil}]
-
-        {:keep_state, new_data, actions}
-
-      {:error, reason} ->
-        Logger.warning("Connection failed - #{inspect(reason)}",
-          node: Base.encode16(node_public_key)
+        :telemetry.execute(
+          [:archethic, :p2p, :encode_message],
+          %{
+            duration: System.monotonic_time() - start_encoding_time
+          },
+          %{message: Message.name(message)}
         )
 
-        send(from, {ref, {:error, :closed}})
+        start_transport_sending_time = System.monotonic_time()
+        res = transport.handle_send(socket, message_envelop)
 
-        {:next_state, :disconnected, data}
-    end
+        :telemetry.execute(
+          [:archethic, :p2p, :transport_sending],
+          %{
+            duration: System.monotonic_time() - start_transport_sending_time
+          },
+          %{message: Message.name(message)}
+        )
+
+        res
+      end)
+
+    new_data =
+      data
+      |> Map.update!(
+        :messages,
+        &Map.put(&1, request_id, %{
+          from: from,
+          ref: ref,
+          message_name: Message.name(message),
+          start_time: System.monotonic_time(),
+          sending_task_ref: task_ref,
+          timeout: timeout
+        })
+      )
+      |> Map.update!(:send_tasks, &Map.put(&1, task_ref, request_id))
+      |> Map.update!(:request_id, &(&1 + 1))
+
+    actions = [{{:timeout, {:request, request_id}}, timeout, nil}]
+    {:keep_state, new_data, actions}
   end
 
   def handle_event({:timeout, _}, _, :disconnected, _data), do: :keep_state_and_data
@@ -232,6 +252,44 @@ defmodule Archethic.P2P.Client.Connection do
       {nil, _} ->
         :keep_state_and_data
     end
+  end
+
+  def handle_event(:info, {_ref, :ok}, {:connected, _socket}, _data), do: :keep_state_and_data
+
+  def handle_event(
+        :info,
+        {ref, {:error, reason}},
+        {:connected, _socket},
+        data = %{messages: messages, send_tasks: send_tasks, node_public_key: node_public_key}
+      ) do
+    Logger.warning("Message sending failed - #{inspect(reason)}",
+      node: Base.encode16(node_public_key)
+    )
+
+    case Map.pop(send_tasks, ref) do
+      {nil, _} ->
+        {:next_state, :disconnected, data}
+
+      {request_id, new_send_tasks} ->
+        new_data =
+          case Map.pop(messages, request_id) do
+            {%{from: from, ref: ref}, new_messages} ->
+              send(from, {ref, {:error, :closed}})
+
+              data
+              |> Map.put(:messages, new_messages)
+              |> Map.put(:send_tasks, new_send_tasks)
+
+            {nil, _} ->
+              Map.put(data, :send_tasks, new_send_tasks)
+          end
+
+        {:next_state, :disconnected, new_data}
+    end
+  end
+
+  def handle_event(:info, {:DOWN, _ref, :process, _pid, :normal}, _, _data) do
+    :keep_state_and_data
   end
 
   def handle_event(
