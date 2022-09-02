@@ -33,7 +33,13 @@ defmodule Archethic.Crypto.Ed25519 do
   """
   @spec convert_to_x25519_public_key(binary()) :: binary()
   def convert_to_x25519_public_key(ed25519_public_key) do
+    start_time = System.monotonic_time()
     {:ok, x25519_pub} = LibSodiumPort.convert_public_key_to_x25519(ed25519_public_key)
+
+    :telemetry.execute([:archethic, :crypto, :libsodium], %{
+      duration: System.monotonic_time() - start_time
+    })
+
     x25519_pub
   end
 
@@ -44,7 +50,14 @@ defmodule Archethic.Crypto.Ed25519 do
   def convert_to_x25519_private_key(ed25519_private_key) do
     {pub, pv} = generate_keypair(ed25519_private_key)
     extended_secret_key = <<pv::binary, pub::binary>>
+
+    start_time = System.monotonic_time()
     {:ok, x25519_pv} = LibSodiumPort.convert_secret_key_to_x25519(extended_secret_key)
+
+    :telemetry.execute([:archethic, :crypto, :libsodium], %{
+      duration: System.monotonic_time() - start_time
+    })
+
     x25519_pv
   end
 

@@ -137,10 +137,20 @@ defmodule Archethic.SelfRepair.Sync do
         },
         node_patch
       ) do
-    transaction_summaries
-    |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
-    |> Enum.filter(&TransactionHandler.download_transaction?/1)
-    |> synchronize_transactions(node_patch)
+    start_time = System.monotonic_time()
+
+    transactions_to_sync =
+      transaction_summaries
+      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
+      |> Enum.filter(&TransactionHandler.download_transaction?/1)
+
+    synchronize_transactions(transactions_to_sync, node_patch)
+
+    :telemetry.execute(
+      [:archethic, :self_repair, :process_aggregate],
+      %{duration: System.monotonic_time() - start_time},
+      %{nb_transactions: length(transactions_to_sync)}
+    )
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,

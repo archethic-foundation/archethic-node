@@ -310,14 +310,24 @@ defmodule Archethic.P2P.Client.Connection do
         {:next_state, :disconnected, data}
 
       {:ok, msg} ->
-        end_time = System.monotonic_time(:millisecond)
-
         MemTable.increase_node_availability(node_public_key)
+
+        start_decoding_time = System.monotonic_time()
 
         %MessageEnvelop{
           message_id: message_id,
           message: message
         } = MessageEnvelop.decode(msg)
+
+        :telemetry.execute(
+          [:archethic, :p2p, :decode_message],
+          %{
+            duration: System.monotonic_time() - start_decoding_time
+          },
+          %{message: Message.name(message)}
+        )
+
+        end_time = System.monotonic_time()
 
         case pop_in(data, [:messages, message_id]) do
           {%{
