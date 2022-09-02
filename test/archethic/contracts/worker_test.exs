@@ -194,11 +194,11 @@ defmodule Archethic.Contracts.WorkerTest do
               assert tx.address == expected_tx.address
               assert tx.data.code == code
           after
-            3_000 ->
+            100_000 ->
               raise "Timeout"
           end
       after
-        3_000 ->
+        100_000 ->
           raise "Timeout"
       end
     end

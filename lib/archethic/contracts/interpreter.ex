@@ -825,7 +825,12 @@ defmodule Archethic.Contracts.Interpreter do
           Map.update!(
             acc,
             :contract,
-            &Contract.add_trigger(&1, :interval, [at: interval], actions)
+            &Contract.add_trigger(
+              &1,
+              :interval,
+              [at: interval],
+              actions
+            )
           )
 
         "transaction" ->

@@ -38,10 +38,10 @@ defmodule Archethic.Utils do
       # 1 second + offset = 86400 (1 day)
   """
   @spec time_offset(cron_interval :: binary()) :: seconds :: non_neg_integer()
-  def time_offset(interval, ref_time \\ DateTime.utc_now()) do
+  def time_offset(interval, ref_time \\ DateTime.utc_now(), extended_mode \\ true) do
     next_slot =
       interval
-      |> CronParser.parse!(true)
+      |> CronParser.parse!(extended_mode)
       |> CronScheduler.get_next_run_date!(DateTime.to_naive(ref_time))
       |> DateTime.from_naive!("Etc/UTC")
 
