@@ -562,6 +562,8 @@ defmodule Archethic.Crypto do
   @spec ec_encrypt(message :: binary(), public_key :: key()) :: binary()
   def ec_encrypt(message, <<curve_id::8, _::8, public_key::binary>> = _public_key)
       when is_binary(message) do
+    start_time = System.monotonic_time()
+
     curve = ID.to_curve(curve_id)
 
     {ephemeral_public_key, ephemeral_private_key} = generate_ephemeral_encryption_keys(curve)
@@ -581,6 +583,10 @@ defmodule Archethic.Crypto do
     {iv, aes_key} = derivate_secrets(shared_key)
 
     {cipher, tag} = aes_auth_encrypt(iv, aes_key, message)
+
+    :telemetry.execute([:archethic, :crypto, :encrypt], %{
+      duration: System.monotonic_time() - start_time
+    })
 
     # Encode the cipher within the ephemeral public key, the authentication tag
     <<ephemeral_public_key::binary, tag::binary, cipher::binary>>
@@ -676,6 +682,7 @@ defmodule Archethic.Crypto do
         _private_key = <<curve_id::8, _::8, private_key::binary>>
       )
       when is_binary(encoded_cipher) do
+    start_time = System.monotonic_time()
     key_size = key_size(curve_id)
 
     <<ephemeral_public_key::binary-size(key_size), tag::binary-16, cipher::binary>> =
@@ -700,6 +707,10 @@ defmodule Archethic.Crypto do
         {:error, :decryption_failed}
 
       data ->
+        :telemetry.execute([:archethic, :crypto, :decrypt], %{
+          duration: System.monotonic_time() - start_time
+        })
+
         {:ok, data}
     end
   end
@@ -738,6 +749,7 @@ defmodule Archethic.Crypto do
   @spec ec_decrypt_with_first_node_key(cipher :: binary()) ::
           {:ok, term()} | {:error, :decryption_failed}
   def ec_decrypt_with_first_node_key(encoded_cipher) when is_binary(encoded_cipher) do
+    start_time = System.monotonic_time()
     <<curve_id::8, _::8, _::binary>> = NodeKeystore.first_public_key()
     key_size = key_size(curve_id)
 
@@ -755,6 +767,10 @@ defmodule Archethic.Crypto do
         {:error, :decryption_failed}
 
       data ->
+        :telemetry.execute([:archethic, :crypto, :decrypt], %{
+          duration: System.monotonic_time() - start_time
+        })
+
         {:ok, data}
     end
   end
@@ -765,6 +781,7 @@ defmodule Archethic.Crypto do
   @spec ec_decrypt_with_last_node_key(cipher :: binary()) ::
           {:ok, term()} | {:error, :decryption_failed}
   def ec_decrypt_with_last_node_key(encoded_cipher) do
+    start_time = System.monotonic_time()
     <<curve_id::8, _::8, _::binary>> = NodeKeystore.last_public_key()
     key_size = key_size(curve_id)
 
@@ -782,6 +799,10 @@ defmodule Archethic.Crypto do
         {:error, :decryption_failed}
 
       data ->
+        :telemetry.execute([:archethic, :crypto, :decrypt], %{
+          duration: System.monotonic_time() - start_time
+        })
+
         {:ok, data}
     end
   end

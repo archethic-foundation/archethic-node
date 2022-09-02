@@ -37,7 +37,7 @@ defmodule Archethic.Telemetry do
       last_value("vm.total_run_queue_lengths.io"),
       # Archethic
       distribution("archethic.election.validation_nodes.duration",
-        unit: {:native, :millisecond},
+        unit: {:native, :second},
         tags: [:nb_nodes],
         measurement: :duration,
         reporter_options: [
@@ -53,7 +53,7 @@ defmodule Archethic.Telemetry do
         ]
       ),
       distribution("archethic.mining.proof_of_work.duration",
-        unit: {:native, :millisecond},
+        unit: {:native, :second},
         tags: [:nb_keys],
         measurement: :duration,
         reporter_options: [
@@ -96,10 +96,49 @@ defmodule Archethic.Telemetry do
         reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 1.0, 1.25, 1.5, 2.0]],
         tags: [:message]
       ),
+      distribution("archethic.p2p.handle_message.duration",
+        unit: {:native, :second},
+        measurement: :duration,
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 1.0, 1.25, 1.5, 2.0]],
+        tags: [:message]
+      ),
+      distribution("archethic.p2p.encode_message.duration",
+        unit: {:native, :second},
+        measurement: :duration,
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 1.0, 1.25, 1.5, 2.0]],
+        tags: [:message]
+      ),
+      distribution("archethic.p2p.decode_message.duration",
+        unit: {:native, :second},
+        measurement: :duration,
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 1.0, 1.25, 1.5, 2.0]],
+        tags: [:message]
+      ),
+      distribution("archethic.p2p.transport_sending.duration",
+        unit: {:native, :second},
+        measurement: :duration,
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 1.0, 1.25, 1.5, 2.0]],
+        tags: [:message]
+      ),
       distribution("archethic.crypto.tpm_sign.duration",
         unit: {:native, :second},
         measurement: :duration,
         reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1]]
+      ),
+      distribution("archethic.crypto.libsodium.duration",
+        unit: {:native, :second},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10]],
+        measurement: :duration
+      ),
+      distribution("archethic.crypto.encrypt.duration",
+        unit: {:native, :second},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10]],
+        measurement: :duration
+      ),
+      distribution("archethic.crypto.decrypt.duration",
+        unit: {:native, :second},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10]],
+        measurement: :duration
       ),
       distribution("archethic.replication.validation.duration",
         unit: {:native, :second},
@@ -120,6 +159,18 @@ defmodule Archethic.Telemetry do
       last_value("archethic.self_repair.duration",
         unit: {:native, :second},
         measurement: :duration
+      ),
+      distribution("archethic.self_repair.process_aggregate.duration",
+        unit: {:native, :second},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10]],
+        measurement: :duration,
+        tags: [:nb_transactions]
+      ),
+      distribution("archethic.self_repair.summaries_fetch.duration",
+        unit: {:native, :second},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10]],
+        measurement: :duration,
+        tags: [:nb_summaries]
       )
     ]
   end

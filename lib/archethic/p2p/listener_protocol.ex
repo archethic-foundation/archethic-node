@@ -37,15 +37,34 @@ defmodule Archethic.P2P.ListenerProtocol do
     :inet.setopts(socket, active: :once)
 
     Task.Supervisor.start_child(TaskSupervisor, fn ->
+      start_decode_time = System.monotonic_time()
+
       %Archethic.P2P.MessageEnvelop{
         message_id: message_id,
         message: message,
         sender_public_key: sender_public_key
       } = Archethic.P2P.MessageEnvelop.decode(msg)
 
+      :telemetry.execute(
+        [:archethic, :p2p, :decode_message],
+        %{duration: System.monotonic_time() - start_decode_time},
+        %{message: Archethic.P2P.Message.name(message)}
+      )
+
       Archethic.P2P.MemTable.increase_node_availability(sender_public_key)
 
+      start_processing_time = System.monotonic_time()
       response = Archethic.P2P.Message.process(message)
+
+      :telemetry.execute(
+        [:archethic, :p2p, :handle_message],
+        %{
+          duration: System.monotonic_time() - start_processing_time
+        },
+        %{message: Archethic.P2P.Message.name(message)}
+      )
+
+      start_encode_time = System.monotonic_time()
 
       encoded_response =
         %Archethic.P2P.MessageEnvelop{
@@ -55,7 +74,20 @@ defmodule Archethic.P2P.ListenerProtocol do
         }
         |> Archethic.P2P.MessageEnvelop.encode(sender_public_key)
 
+      :telemetry.execute(
+        [:archethic, :p2p, :encode_message],
+        %{duration: System.monotonic_time() - start_encode_time},
+        %{message: Archethic.P2P.Message.name(message)}
+      )
+
+      start_sending_time = System.monotonic_time()
       transport.send(socket, encoded_response)
+
+      :telemetry.execute(
+        [:archethic, :p2p, :transport_sending_message],
+        %{duration: System.monotonic_time() - start_sending_time},
+        %{message: Archethic.P2P.Message.name(message)}
+      )
     end)
 
     {:noreply, state}

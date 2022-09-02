@@ -347,6 +347,8 @@ defmodule Archethic.BeaconChain do
       "Self repair start download #{Enum.count(addresses)} summaries on node #{Base.encode16(node.first_public_key)}"
     )
 
+    start_time = System.monotonic_time()
+
     addresses
     |> Stream.chunk_every(10)
     |> Task.async_stream(fn addresses ->
@@ -361,5 +363,14 @@ defmodule Archethic.BeaconChain do
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
+    |> tap(fn _ ->
+      :telemetry.execute(
+        [:archethic, :self_repair, :summaries_fetch],
+        %{
+          duration: System.monotonic_time() - start_time
+        },
+        %{nb_summaries: length(addresses)}
+      )
+    end)
   end
 end
