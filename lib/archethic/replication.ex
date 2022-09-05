@@ -90,9 +90,6 @@ defmodule Archethic.Replication do
              Enum.to_list(inputs)
            ) do
         :ok ->
-          :ok = ingest_transaction(tx)
-          PubSub.notify_new_transaction(address, type, timestamp)
-
           Logger.info("Replication finished",
             transaction_address: Base.encode16(address),
             transaction_type: type
@@ -114,6 +111,9 @@ defmodule Archethic.Replication do
           |> Stream.run()
 
           TransactionChain.write_transaction(tx)
+
+          :ok = ingest_transaction(tx)
+          PubSub.notify_new_transaction(address, type, timestamp)
 
           :telemetry.execute(
             [:archethic, :replication, :full_write],
