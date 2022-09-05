@@ -135,8 +135,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
   defp get_mining_timeout(type) when type == :hosting, do: @mining_timeout * 3
   defp get_mining_timeout(_type), do: @mining_timeout
 
-  def init(opts) do
-    {tx, welcome_node, validation_nodes, node_public_key, timeout} = parse_opts(opts)
+  def init(opts \\ []) do
+    tx = Keyword.get(opts, :transaction)
+    welcome_node = Keyword.get(opts, :welcome_node)
+    validation_nodes = Keyword.get(opts, :validation_nodes)
+    node_public_key = Keyword.get(opts, :node_public_key)
+    timeout = Keyword.get(opts, :timeout, get_mining_timeout(tx.type))
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
@@ -145,7 +149,21 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+    next_events = [
+      {:next_event, :internal, {:start_mining, tx, welcome_node, validation_nodes}},
+      {:next_event, :internal, :prior_validation}
+    ]
+
+    {:ok, :idle,
+     %{
+       node_public_key: node_public_key,
+       start_time: System.monotonic_time(),
+       timeout: timeout
+     }, next_events}
+  end
+
+  def handle_event(:internal, {:start_mining, tx, welcome_node, validation_nodes}, :idle, data) do
+    validation_time = DateTime.utc_now()
 
     authorized_nodes =
       validation_time
@@ -192,35 +210,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
         resolved_addresses: resolved_addresses
       )
 
-    next_events = [
-      {:next_event, :internal, :prior_validation}
-    ]
-
-    {:ok, :idle,
-     %{
-       node_public_key: node_public_key,
-       context: context,
-       start_time: System.monotonic_time(),
-       timeout: timeout
-     }, next_events}
+    {:keep_state, Map.put(data, :context, context)}
   end
 
-  defp parse_opts(opts) do
-    tx = Keyword.get(opts, :transaction)
-    welcome_node = Keyword.get(opts, :welcome_node)
-    validation_nodes = Keyword.get(opts, :validation_nodes)
-    node_public_key = Keyword.get(opts, :node_public_key)
-    timeout = Keyword.get(opts, :timeout, get_mining_timeout(tx.type))
-
-    {tx, welcome_node, validation_nodes, node_public_key, timeout}
-  end
-
-  def handle_event(:enter, :idle, :idle, _data = %{context: %ValidationContext{transaction: tx}}) do
-    Logger.info("Validation started",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
+  def handle_event(:enter, :idle, :idle, _data = %{}) do
     :keep_state_and_data
   end
 

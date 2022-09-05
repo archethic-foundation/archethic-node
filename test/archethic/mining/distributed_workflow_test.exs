@@ -583,22 +583,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       P2P.add_and_connect_node(welcome_node)
 
-      {:ok, coordinator_pid} =
-        Workflow.start_link(
-          transaction: tx,
-          welcome_node: welcome_node,
-          validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key
-        )
-
-      {:ok, cross_validator_pid} =
-        Workflow.start_link(
-          transaction: tx,
-          welcome_node: welcome_node,
-          validation_nodes: validation_nodes,
-          node_public_key: List.last(validation_nodes).last_public_key
-        )
-
       previous_storage_nodes = [
         %Node{
           ip: {80, 10, 20, 102},
@@ -628,6 +612,22 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
 
+      {:ok, coordinator_pid} =
+        Workflow.start_link(
+          transaction: tx,
+          welcome_node: welcome_node,
+          validation_nodes: validation_nodes,
+          node_public_key: List.first(validation_nodes).last_public_key
+        )
+
+      {:ok, cross_validator_pid} =
+        Workflow.start_link(
+          transaction: tx,
+          welcome_node: welcome_node,
+          validation_nodes: validation_nodes,
+          node_public_key: List.last(validation_nodes).last_public_key
+        )
+
       Workflow.add_mining_context(
         coordinator_pid,
         Enum.at(validation_nodes, 1).last_public_key,
@@ -651,11 +651,12 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       receive do
         {stamp = %ValidationStamp{},
          tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}} ->
-          assert Enum.all?(chain_tree, &(bit_size(&1) == 3))
+          nb_authorized_nodes = P2P.authorized_nodes() |> length()
+          assert Enum.all?(chain_tree, &(bit_size(&1) == nb_authorized_nodes))
+          nb_nodes = P2P.list_nodes() |> length()
+          assert Enum.all?(io_tree, &(bit_size(&1) == nb_nodes))
 
-          assert Enum.all?(io_tree, &(bit_size(&1) == 4))
-
-          assert Enum.all?(beacon_tree, &(bit_size(&1) == 3))
+          assert Enum.all?(beacon_tree, &(bit_size(&1) == nb_authorized_nodes))
 
           Workflow.cross_validate(cross_validator_pid, stamp, tree, <<1::1, 1::1, 1::1>>)
 
