@@ -10,6 +10,7 @@ defmodule Archethic.BeaconChainTest do
   alias Archethic.BeaconChain.Subset.SummaryCache
   alias Archethic.BeaconChain.SubsetRegistry
   alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.BeaconChain.SummaryAggregate
 
   alias Archethic.Crypto
@@ -22,6 +23,8 @@ defmodule Archethic.BeaconChainTest do
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
+
+  alias Archethic.Utils
 
   doctest Archethic.BeaconChain
 
@@ -63,6 +66,10 @@ defmodule Archethic.BeaconChainTest do
 
   describe "load_slot/1" do
     test "should fetch the transaction chain from the beacon involved nodes" do
+      SummaryTimer.start_link([interval: "0 0 * * * * *"], [])
+      SummaryCache.start_link()
+      File.mkdir_p!(Utils.mut_dir())
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,

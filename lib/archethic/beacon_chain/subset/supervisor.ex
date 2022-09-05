@@ -18,8 +18,8 @@ defmodule Archethic.BeaconChain.SubsetSupervisor do
 
     children = [
       {Registry,
-       keys: :unique, name: BeaconChain.SubsetRegistry, partitions: System.schedulers_online()},
-      SummaryCache | Utils.configurable_children(subset_children)
+       keys: :unique, name: BeaconChain.SubsetRegistry, partitions: System.schedulers_online()}
+      | Utils.configurable_children([SummaryCache | subset_children])
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

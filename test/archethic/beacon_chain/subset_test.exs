@@ -7,10 +7,13 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.Subset.SummaryCache
 
   alias Archethic.BeaconChain.Subset
 
   alias Archethic.Crypto
+
+  alias Archethic.Utils
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.BeaconUpdate
@@ -56,7 +59,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
          %{subset: subset} do
       MockClient
       |> stub(:send_message, fn
-        _, _txn = %TransactionSummary{}, _ ->
+        _, %TransactionSummary{}, _ ->
           {:ok, %Ok{}}
 
         _, %NewBeaconSlot{}, _ ->
@@ -247,6 +250,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
       summary_interval = "*/5 * * * *"
       start_supervised!({SummaryTimer, interval: summary_interval})
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      start_supervised!(SummaryCache)
+      File.mkdir_p!(Utils.mut_dir())
       pid = start_supervised!({Subset, subset: subset})
 
       tx_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
