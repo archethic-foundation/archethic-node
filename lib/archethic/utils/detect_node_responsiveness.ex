@@ -16,6 +16,9 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
 
   def init([address, replaying_fn, timeout]) do
     schedule_timeout(timeout)
+
+    Logger.debug("Start node responsivessness worker", transaction_address: Base.encode16(address))
+
     {:ok, :waiting, %{address: address, replaying_fn: replaying_fn, count: 1, timeout: timeout}}
   end
 
@@ -30,9 +33,11 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
           timeout: timeout
         }
       ) do
-    with false <- DB.transaction_exists?(address),
-         false <- Mining.processing?(address),
-         true <- count < length(P2P.authorized_and_available_nodes()) do
+    remaning? = count < length(P2P.authorized_and_available_nodes())
+
+    with {:exists, false} <- {:exists, DB.transaction_exists?(address)},
+         {:mining, false} <- {:mining, Mining.processing?(address)},
+         {:remaining, true} <- {:remaining, remaning?} do
       Logger.info("calling replay fn with count=#{count}",
         transaction_address: Base.encode16(address)
       )
@@ -42,8 +47,12 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
       new_count = count + 1
       {:keep_state, %{state | count: new_count}}
     else
-      # hard_timeout
-      _ -> :stop
+      {reason, _} ->
+        Logger.debug("Stop responsiveness because of #{reason}",
+          transaction_address: Base.encode16(address)
+        )
+
+        :stop
     end
   end
 

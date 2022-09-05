@@ -175,8 +175,36 @@ defmodule Archethic.Reward.Scheduler do
       |> Map.update!(:index, &(&1 + 1))
       |> Map.put(:next_address, Reward.next_address(index + 1))
 
-    send_node_rewards(index + 1)
-    {:keep_state, new_data}
+    case Map.get(data, :watcher) do
+      nil ->
+        :ignore
+
+      pid ->
+        Process.exit(pid, :normal)
+    end
+
+    if Reward.initiator?(next_address) do
+      Logger.debug("Initialize node rewards tx after mint rewards")
+      send_node_rewards(next_index)
+      {:keep_state, new_data}
+    else
+      Logger.debug("Start node responsivness for node rewards tx after mint rewards replication")
+
+      {:ok, pid} =
+        DetectNodeResponsiveness.start_link(next_address, fn count ->
+          if Reward.initiator?(next_address, count) do
+            Logger.debug("Node reward creation...attempt #{count}",
+              transaction_address: Base.encode16(next_address)
+            )
+
+            send_node_rewards(next_index)
+          end
+        end)
+
+      Process.monitor(pid)
+
+      {:keep_state, Map.put(data, :watcher, pid)}
+    end
   end
 
   def handle_event(
@@ -220,6 +248,8 @@ defmodule Archethic.Reward.Scheduler do
       data
       |> Map.update!(:index, &(&1 + 1))
 
+    Logger.debug("Reschedule after node reward replication")
+
     {:keep_state, new_data, {:next_event, :internal, :schedule}}
   end
 
@@ -228,16 +258,18 @@ defmodule Archethic.Reward.Scheduler do
         {:new_transaction, address, :node_rewards, _timestamp},
         :scheduled,
         data = %{next_address: next_address}
-      )
-      when address == next_address do
+      ) do
     Logger.debug(
       "Reschedule rewards after reception of node rewards transaction in scheduled state instead of triggered state"
     )
 
     # We prevent non scheduled transactions to change
     new_data =
-      data
-      |> Map.update!(:index, &(&1 + 1))
+      if next_address == address do
+        Map.update!(data, :index, &(&1 + 1))
+      else
+        data
+      end
 
     {:keep_state, new_data, {:next_event, :internal, :schedule}}
   end
