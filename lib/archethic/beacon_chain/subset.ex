@@ -28,9 +28,6 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.PubSub
 
   alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -234,7 +231,6 @@ defmodule Archethic.BeaconChain.Subset do
       current_slot = %{current_slot | slot_time: SlotTimer.previous_slot(time)}
 
       if summary_time?(time) do
-
         SummaryCache.add_slot(subset, current_slot)
       else
         next_summary_time = SummaryTimer.next_summary(time)
@@ -294,12 +290,14 @@ defmodule Archethic.BeaconChain.Subset do
         beacon_subset: Base.encode16(subset)
       )
 
-      genesis_address =
-        Crypto.derive_beacon_chain_address(subset, SummaryTimer.previous_summary(time))
+      summary =
+        %Summary{
+          subset: subset,
+          summary_time: Utils.truncate_datetime(time, second?: true, microsecond?: true)
+        }
+        |> Summary.aggregate_slots(beacon_slots, P2PSampling.list_nodes_to_sample(subset))
 
-      beacon_slots
-      |> create_summary_transaction(subset, time)
-      |> TransactionChain.write_transaction_at(genesis_address)
+      TransactionChain.write_beacon_summary(summary)
     end
   end
 
@@ -336,36 +334,6 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp ensure_p2p_view(slot = %Slot{}), do: slot
-
-  defp create_summary_transaction(beacon_slots, subset, summary_time) do
-    {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, summary_time)
-    {pub, _} = Crypto.derive_beacon_keypair(subset, summary_time, true)
-
-    tx_content =
-      %Summary{subset: subset, summary_time: summary_time}
-      |> Summary.aggregate_slots(beacon_slots, P2PSampling.list_nodes_to_sample(subset))
-      |> Summary.serialize()
-
-    tx =
-      Transaction.new_with_keys(
-        :beacon_summary,
-        %TransactionData{content: tx_content |> Utils.wrap_binary()},
-        prev_pv,
-        prev_pub,
-        pub
-      )
-
-    stamp =
-      %ValidationStamp{
-        timestamp: summary_time,
-        proof_of_election: <<0::size(512)>>,
-        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        proof_of_work: Crypto.first_node_public_key()
-      }
-      |> ValidationStamp.sign()
-
-    %{tx | validation_stamp: stamp}
-  end
 
   @doc """
   Add node public key to the corresponding subset for beacon updates

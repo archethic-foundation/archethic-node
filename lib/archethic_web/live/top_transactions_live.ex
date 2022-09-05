@@ -45,7 +45,6 @@ defmodule ArchethicWeb.TopTransactionLive do
 
   defp get_last_n(transactions, n) do
     transactions
-    |> Stream.reject(&(&1.type == :beacon or &1.type == :beacon_summary))
     # |> Enum.sort_by(& &1.validation_stamp.timestamp, {:desc, DateTime})
     |> Enum.take(n)
   end

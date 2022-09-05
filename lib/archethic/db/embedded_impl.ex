@@ -15,6 +15,8 @@ defmodule Archethic.DB.EmbeddedImpl do
 
   alias Archethic.TransactionChain.Transaction
 
+  alias Archethic.BeaconChain.Summary
+
   alias Archethic.Utils
 
   defdelegate child_spec(opts), to: __MODULE__.Supervisor
@@ -101,24 +103,11 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Write a transaction if a specific genesis address
+  Write a beacon summary in DB
   """
-  @spec write_transaction_at(Transaction.t(), binary()) :: :ok
-  def write_transaction_at(tx = %Transaction{}, genesis_address)
-      when is_binary(genesis_address) do
-    if ChainIndex.transaction_exists?(tx.address, db_path()) do
-      {:error, :transaction_already_exists}
-    else
-      do_write_transaction_at(genesis_address, tx)
-    end
-  end
-
-  defp do_write_transaction_at(genesis_address, tx) do
-    if ChainIndex.transaction_exists?(tx.address, db_path()) do
-      {:error, :transaction_already_exists}
-    else
-      ChainWriter.append_transaction(genesis_address, tx)
-    end
+  @spec write_beacon_summary(Summary.t()) :: :ok
+  def write_beacon_summary(summary = %Summary{}) do
+    ChainWriter.write_beacon_summary(summary, db_path())
   end
 
   @doc """

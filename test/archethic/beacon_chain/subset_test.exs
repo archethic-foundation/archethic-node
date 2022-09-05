@@ -18,11 +18,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
-  # alias Archethic.P2P.Message.GetFirstAddress
-  # alias Archethic.P2P.Message.NotFound
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
@@ -315,16 +311,14 @@ defmodule Archethic.BeaconChain.SubsetTest do
       me = self()
 
       MockDB
-      |> stub(:write_transaction_at, fn
-        %Transaction{type: :beacon_summary, data: %TransactionData{content: content}}, _ ->
-          {%Summary{
-             transaction_attestations: [
-               %ReplicationAttestation{
-                 transaction_summary: ^tx_summary
-               }
-             ]
-           }, _} = Summary.deserialize(content)
-
+      |> stub(:write_beacon_summary, fn
+        %Summary{
+          transaction_attestations: [
+            %ReplicationAttestation{
+              transaction_summary: ^tx_summary
+            }
+          ]
+        } ->
           send(me, :beacon_transaction_summary_stored)
       end)
 

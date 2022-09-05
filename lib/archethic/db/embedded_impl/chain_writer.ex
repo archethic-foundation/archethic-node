@@ -9,6 +9,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
+  alias Archethic.BeaconChain.Summary
+
+  alias Archethic.Utils
+
+  alias Archethic.Crypto
+
   def start_link(arg \\ [], opts \\ []) do
     GenServer.start_link(__MODULE__, arg, opts)
   end
@@ -24,12 +30,31 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   end
 
   @doc """
-  Return the database path
+  Write a beacon summary in a new file
   """
-  @spec get_db_path() :: String.t()
-  def get_db_path do
-    [{_, path}] = :ets.lookup(:archethic_db_info, :path)
-    path
+  @spec write_beacon_summary(Summary.t(), binary()) :: :ok
+  def write_beacon_summary(
+        summary = %Summary{subset: subset, summary_time: summary_time},
+        db_path
+      ) do
+    start = System.monotonic_time()
+
+    summary_address =
+      Crypto.derive_beacon_chain_address(subset, summary_time, true)
+
+    filename = summary_path(db_path, summary_address)
+
+    data = Summary.serialize(summary) |> Utils.wrap_binary()
+
+    File.write!(
+      filename,
+      data,
+      [:exclusive, :binary]
+    )
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "write_beacon_summary"
+    })
   end
 
   def init(arg) do
@@ -45,7 +70,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
   defp setup_folders(path) do
     path
-    |> base_path()
+    |> base_chain_path()
+    |> File.mkdir_p!()
+
+    path
+    |> base_summary_path()
     |> File.mkdir_p!()
   end
 
@@ -112,14 +141,31 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @spec chain_path(String.t(), binary()) :: String.t()
   def chain_path(db_path, genesis_address)
       when is_binary(genesis_address) and is_binary(db_path) do
-    Path.join([base_path(db_path), Base.encode16(genesis_address)])
+    Path.join([base_chain_path(db_path), Base.encode16(genesis_address)])
   end
 
   @doc """
   Return the chain base path
   """
-  @spec base_path(String.t()) :: String.t()
-  def base_path(db_path) do
+  @spec base_chain_path(String.t()) :: String.t()
+  def base_chain_path(db_path) do
     Path.join([db_path, "chains"])
+  end
+
+  @doc """
+  Return the path of the sbeacon ummary storage location
+  """
+  @spec summary_path(String.t(), binary()) :: String.t()
+  def summary_path(db_path, summary_address)
+      when is_binary(summary_address) and is_binary(db_path) do
+    Path.join([base_summary_path(db_path), Base.encode16(summary_address)])
+  end
+
+  @doc """
+  Return the beacon summary base path
+  """
+  @spec base_summary_path(String.t()) :: String.t()
+  def base_summary_path(db_path) do
+    Path.join([db_path, "beacon_summary"])
   end
 end

@@ -10,25 +10,28 @@ defmodule Archethic.TransactionChain do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.Error
-
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.TransactionChainLength
-  alias Archethic.P2P.Message.LastTransactionAddress
-  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message
 
-  alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetFirstAddress
-  alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.GetLastTransactionAddress
-  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.{
+    Error,
+    NotFound,
+    TransactionList,
+    UnspentOutputList,
+    TransactionInputList,
+    TransactionChainLength,
+    LastTransactionAddress,
+    FirstAddress,
+    GetTransaction,
+    GetFirstAddress,
+    GetUnspentOutputs,
+    GetTransactionChain,
+    GetTransactionInputs,
+    GetLastTransactionAddress,
+    GetTransactionChainLength
+  }
+
+  alias Archethic.BeaconChain.Summary
 
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
@@ -149,17 +152,13 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Write the transaction in a specific genesis address
+  Write a beacon summary in DB
   """
-  @spec write_transaction_at(Transaction.t(), binary()) :: :ok
-  def write_transaction_at(tx = %Transaction{address: address, type: type}, genesis_address) do
-    DB.write_transaction_at(tx, genesis_address)
-    KOLedger.remove_transaction(address)
+  @spec write_beacon_summary(Summary.t()) :: :ok
+  def write_beacon_summary(summary = %Summary{subset: subset, summary_time: time}) do
+    DB.write_beacon_summary(summary)
 
-    Logger.info("Transaction stored",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+    Logger.info("Beacon summary stored, subset: #{Base.encode16(subset)}, time: #{time}")
   end
 
   @doc """

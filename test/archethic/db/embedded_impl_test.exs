@@ -16,10 +16,6 @@ defmodule Archethic.DB.EmbeddedTest do
 
     db_path = EmbeddedImpl.db_path()
 
-    on_exit(fn ->
-      File.rm_rf!(Application.app_dir(:archethic, "data_test"))
-    end)
-
     %{db_path: db_path}
   end
 
