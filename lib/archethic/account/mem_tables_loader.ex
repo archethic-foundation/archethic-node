@@ -128,7 +128,13 @@ defmodule Archethic.Account.MemTablesLoader do
       {{to, :uco}, utxo} ->
         UCOLedger.add_unspent_output(to, utxo, timestamp)
 
-      {{to, _token_address}, utxo} ->
+      {{to, _token_address}, utxo = %UnspentOutput{from: _, amount: _, type: {:token, _, 0}}} ->
+        # allowed for only 0 fungible tokens
+        TokenLedger.add_unspent_output(to, utxo, timestamp)
+
+      {{to, _token_address, _token_id},
+       utxo = %UnspentOutput{from: _, amount: _, type: {:token, _, _}}} ->
+        # allowed for only type with id see aggregate_movements
         TokenLedger.add_unspent_output(to, utxo, timestamp)
     end)
   end

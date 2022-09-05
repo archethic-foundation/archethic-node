@@ -139,14 +139,18 @@ defmodule Archethic.RewardTest do
              } == Account.get_balance("@Ada1")
 
       # to tom7 34 uco and 2 rewardtoken1
-      assert %{uco: 3_600_000_000, token: %{}} == Account.get_balance("@Tom7")
+      assert %{uco: 3_600_000_000, token: %{{"@ColorNFT", 2} => 300_000_000}} ==
+               Account.get_balance("@Tom7")
 
       # to bob5 10 aeusd, from tom9 1aeusd token,2rewardtoken2
       assert %{uco: 200_000_000, token: %{{"@AEUSDTOKEN", 0} => 1_100_000_000}} ==
                Account.get_balance("@Bob5")
 
       # 2 rewardtoken2, 2rewardtoken2 from tom9, 2aeusd token from tom9
-      assert %{uco: 400_000_000, token: %{{"@AEUSDTOKEN", 0} => 200_000_000}} ==
+      assert %{
+               uco: 400_000_000,
+               token: %{{"@AEUSDTOKEN", 0} => 200_000_000, {"@DeveloperNFT", 1} => 100_000_000}
+             } ==
                Account.get_balance("@Bob11")
 
       # @Tom9
@@ -198,6 +202,16 @@ defmodule Archethic.RewardTest do
                   to: "@Bob11",
                   amount: 200_000_000,
                   type: {:token, "@RewardToken2", 0}
+                },
+                %TransactionMovement{
+                  to: "@Bob11",
+                  amount: 100_000_000,
+                  type: {:token, "@DeveloperNFT", 1}
+                },
+                %TransactionMovement{
+                  to: "@Tom7",
+                  amount: 300_000_000,
+                  type: {:token, "@ColorNFT", 2}
                 }
               ],
               unspent_outputs: [
