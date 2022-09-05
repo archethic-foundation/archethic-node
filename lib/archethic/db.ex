@@ -11,6 +11,8 @@ defmodule Archethic.DB do
 
   @callback get_transaction(address :: binary(), fields :: list()) ::
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+  @callback get_beacon_summary(summary_address :: binary()) ::
+              {:ok, Summary.t()} | {:error, :summary_not_exists}
   @callback get_transaction_chain(
               binary(),
               fields :: list(),

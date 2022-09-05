@@ -28,8 +28,6 @@ defmodule Archethic.BeaconChain do
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Utils
 
@@ -166,10 +164,9 @@ defmodule Archethic.BeaconChain do
   Get a beacon chain summary representation by loading from the database the transaction
   """
   @spec get_summary(binary()) :: {:ok, Summary.t()} | {:error, :not_found}
-  def get_summary(address) when is_binary(address) do
-    case TransactionChain.get_transaction(address, data: [:content]) do
-      {:ok, %Transaction{data: %TransactionData{content: content}}} ->
-        {summary, _} = Summary.deserialize(content)
+  def get_summary(summary_address) when is_binary(summary_address) do
+    case TransactionChain.get_beacon_summary(summary_address) do
+      {:ok, summary} ->
         {:ok, summary}
 
       _ ->

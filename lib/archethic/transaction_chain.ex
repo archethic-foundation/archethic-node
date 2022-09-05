@@ -125,6 +125,12 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Get a beacon summary
+  """
+  @spec get_beacon_summary(binary()) :: {:ok, Summary.t()} | {:error, :summary_not_exists}
+  defdelegate get_beacon_summary(summary_address), to: DB
+
+  @doc """
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
   """

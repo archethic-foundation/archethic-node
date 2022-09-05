@@ -8,6 +8,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
 
+  alias Archethic.BeaconChain.Summary
+
   @page_size 10
 
   @spec get_transaction(address :: binary(), fields :: list(), db_path :: String.t()) ::
@@ -45,6 +47,26 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         })
 
         {:ok, tx}
+    end
+  end
+
+  @spec get_beacon_summary(summary_address :: binary(), db_path :: String.t()) ::
+          {:ok, Summary.t()} | {:error, :summary_not_exists}
+  def get_beacon_summary(summary_address, db_path) do
+    start = System.monotonic_time()
+
+    filepath = ChainWriter.summary_path(db_path, summary_address)
+
+    if File.exists?(filepath) do
+      {summary, _rest} = File.read!(filepath) |> Summary.deserialize()
+
+      :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+        query: "get_beacon_summary"
+      })
+
+      {:ok, summary}
+    else
+      {:error, :summary_not_exists}
     end
   end
 

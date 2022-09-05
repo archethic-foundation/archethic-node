@@ -127,6 +127,15 @@ defmodule Archethic.DB.EmbeddedImpl do
     ChainReader.get_transaction(address, fields, db_path())
   end
 
+   @doc """
+  Get a beacon summary at the given address
+  """
+  @spec get_beacon_summary(summary_address :: binary()) ::
+          {:ok, Summary.t()} | {:error, :summary_not_exists}
+  def get_beacon_summary(summary_address) when is_binary(summary_address) do
+    ChainReader.get_beacon_summary(summary_address, db_path())
+  end
+
   @doc """
   Get a transaction chain
 

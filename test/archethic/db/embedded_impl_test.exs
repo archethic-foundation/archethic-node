@@ -11,6 +11,12 @@ defmodule Archethic.DB.EmbeddedTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionFactory
 
+  alias Archethic.BeaconChain.Summary
+
+  alias Archethic.Crypto
+
+  alias Archethic.Utils
+
   setup do
     EmbeddedImpl.Supervisor.start_link()
 
@@ -130,7 +136,7 @@ defmodule Archethic.DB.EmbeddedTest do
   end
 
   describe "get_transaction/2" do
-    test "should an error when the transaction does not exists" do
+    test "should return an error when the transaction does not exists" do
       assert {:error, :transaction_not_exists} =
                EmbeddedImpl.get_transaction(:crypto.strong_rand_bytes(32))
     end
@@ -166,6 +172,33 @@ defmodule Archethic.DB.EmbeddedTest do
                )
 
       assert fee != 0.0
+    end
+  end
+
+  describe "get_beacon_summary/1" do
+    test "should return an error when the summary does not exists" do
+      assert {:error, :summary_not_exists} =
+               EmbeddedImpl.get_beacon_summary(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should retrieve a beacon summary" do
+      summary_time = DateTime.utc_now() |> Utils.truncate_datetime(second?: true, microsecond?: true)
+
+      summary_address = Crypto.derive_beacon_chain_address(<<0>>, summary_time, true)
+
+      summary = %Summary{
+        summary_time: summary_time,
+        subset: <<0>>,
+        end_of_node_synchronizations: [],
+        node_average_availabilities: [1.0],
+        node_availabilities: <<1::1>>,
+        transaction_attestations: [],
+        version: 1
+      }
+
+      :ok = EmbeddedImpl.write_beacon_summary(summary)
+
+      assert {:ok, ^summary} = EmbeddedImpl.get_beacon_summary(summary_address)
     end
   end
 
