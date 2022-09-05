@@ -3,10 +3,10 @@ defmodule ArchethicWeb.RootController do
 
   use ArchethicWeb, :controller
 
-  alias ArchethicWeb.API.TransactionController
+  alias ArchethicWeb.API.WebHostingController
 
-  def index(conn, params) do
-    case get_dnslink_address(conn) do
+  def index(conn = %Plug.Conn{host: host}, params) do
+    case get_extract_dnslink_address(host) do
       nil ->
         redirect(conn, to: "/explorer")
 
@@ -15,22 +15,17 @@ defmodule ArchethicWeb.RootController do
     end
   end
 
-  defp get_dnslink_address(conn) do
-    conn
-    |> get_req_header("host")
-    |> get_extract_dnslink_address_from_host_header()
-  end
-
-  defp get_extract_dnslink_address_from_host_header([]), do: nil
-
-  defp get_extract_dnslink_address_from_host_header([host]) do
+  defp get_extract_dnslink_address(host) do
     dns_name =
       host
       |> to_string()
       |> String.split(":")
       |> List.first()
 
-    case :inet_res.lookup('_dnslink.#{dns_name}', :in, :txt) do
+    case :inet_res.lookup('_dnslink.#{dns_name}', :in, :txt,
+           # Allow local dns to test dnslink redirection
+           alt_nameservers: [{{127, 0, 0, 1}, 53}]
+         ) do
       [] ->
         nil
 
@@ -51,6 +46,12 @@ defmodule ArchethicWeb.RootController do
       |> Map.put("address", address)
       |> Map.put("mime", "text/html")
 
-    TransactionController.last_transaction_content(conn, params)
+    case WebHostingController.web_hosting(conn, %{"address" => address, "url_path" => params}) do
+      conn = %Plug.Conn{status: 200} ->
+        conn
+
+      conn ->
+        redirect(conn, to: "/explorer")
+    end
   end
 end
