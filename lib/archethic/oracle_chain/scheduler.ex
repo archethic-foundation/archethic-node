@@ -757,7 +757,12 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   defp get_validation_nodes(summary_date, index) do
-    authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
+    authorized_nodes =
+      Enum.filter(
+        P2P.list_nodes(),
+        &(&1.authorized? && DateTime.diff(&1.authorization_date, summary_date) <= 0 &&
+            &1.available?)
+      )
 
     summary_date
     |> Crypto.derive_oracle_address(index)
