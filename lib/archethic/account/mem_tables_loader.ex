@@ -131,7 +131,7 @@ defmodule Archethic.Account.MemTablesLoader do
       {{to, _token_address}, utxo} ->
         TokenLedger.add_unspent_output(to, utxo, timestamp)
 
-      {{to, _token_address, _token_id}, utxo} ->
+      {{to, _token_address, 0}, utxo} ->
         TokenLedger.add_unspent_output(to, utxo, timestamp)
     end)
   end
