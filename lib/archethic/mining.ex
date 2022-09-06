@@ -25,8 +25,6 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @mining_timeout Application.compile_env!(:archethic, [DistributedWorkflow, :global_timeout])
-
   @doc """
   Start mining process for a given transaction.
   """
@@ -194,7 +192,7 @@ defmodule Archethic.Mining do
     :ok
   end
 
-  defp get_mining_process!(tx_address, timeout \\ @mining_timeout) do
+  defp get_mining_process!(tx_address, timeout \\ 3_000) do
     retry_while with: exponential_backoff(100, 2) |> expiry(timeout) do
       case Registry.lookup(WorkflowRegistry, tx_address) do
         [{pid, _}] ->
@@ -211,12 +209,12 @@ defmodule Archethic.Mining do
   """
   @spec processing?(binary()) :: boolean()
   def processing?(tx_address) do
-    case get_mining_process!(tx_address, 100) do
-      nil ->
-        false
-
-      _pid ->
+    case Registry.lookup(WorkflowRegistry, tx_address) do
+      [{_pid, _}] ->
         true
+
+      _ ->
+        false
     end
   end
 
