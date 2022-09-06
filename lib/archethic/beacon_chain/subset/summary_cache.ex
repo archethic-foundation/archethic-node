@@ -32,6 +32,19 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   @doc """
+  Return all the entries for a subset
+  """
+  @spec get_current_slots(subset :: binary()) :: list(Slot.t())
+  def get_current_slots(subset) do
+    try do
+      :ets.lookup_element(@table_name, subset, 2)
+    rescue
+      _ ->
+        []
+    end
+  end
+
+  @doc """
   Extract all the entries in the cache
   """
   @spec pop_slots(subset :: binary()) :: list(Slot.t())

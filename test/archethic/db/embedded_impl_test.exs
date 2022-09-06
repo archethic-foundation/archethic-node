@@ -182,7 +182,8 @@ defmodule Archethic.DB.EmbeddedTest do
     end
 
     test "should retrieve a beacon summary" do
-      summary_time = DateTime.utc_now() |> Utils.truncate_datetime(second?: true, microsecond?: true)
+      summary_time =
+        DateTime.utc_now() |> Utils.truncate_datetime(second?: true, microsecond?: true)
 
       summary_address = Crypto.derive_beacon_chain_address(<<0>>, summary_time, true)
 

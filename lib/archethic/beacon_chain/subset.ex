@@ -83,6 +83,10 @@ defmodule Archethic.BeaconChain.Subset do
      }}
   end
 
+  def handle_call(:get_current_slot, _from, state = %{current_slot: current_slot}) do
+    {:reply, current_slot, state}
+  end
+
   def handle_cast(
         {:add_end_of_node_sync, end_of_sync = %EndOfNodeSync{public_key: node_public_key}},
         state = %{current_slot: current_slot, subset: subset}

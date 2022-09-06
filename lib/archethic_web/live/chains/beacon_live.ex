@@ -3,19 +3,16 @@ defmodule ArchethicWeb.BeaconChainLive do
   use ArchethicWeb, :live_view
 
   alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.Slot
-
-  alias Archethic.Crypto
 
   alias Archethic.Election
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetCurrentSummary
+  alias Archethic.P2P.Message.TransactionSummaryList
 
   alias Archethic.PubSub
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
   alias ArchethicWeb.ExplorerView
   alias ArchethicWeb.TransactionCache
@@ -51,7 +48,6 @@ defmodule ArchethicWeb.BeaconChainLive do
       |> assign(:current_date_page, 1)
       |> assign(:update_time, DateTime.utc_now())
       |> assign(:transactions, [])
-      |> assign(:live_cache, [])
       |> assign(:fetching, true)
 
     {:ok, new_assign}
@@ -104,17 +100,11 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   def handle_info(
         :initial_load,
-        socket = %{assigns: %{live_cache: live_cache}}
+        socket
       ) do
-    # Fetch from the latest transaction on the chain
-    transactions = list_transaction_from_chain()
-
-    # Integrate the transactions updates from the live feed
-    all_txs = Enum.sort_by(live_cache ++ transactions, & &1.timestamp, {:desc, DateTime})
-
     new_socket =
       socket
-      |> assign(:transactions, all_txs)
+      |> assign(:transactions, list_transaction_from_chain())
       |> assign(:update_time, DateTime.utc_now())
       |> assign(:fetching, false)
 
@@ -152,16 +142,14 @@ defmodule ArchethicWeb.BeaconChainLive do
         case Map.get(assigns, :summary_passed?) do
           true ->
             socket
-            |> assign(:transactions, Enum.uniq([tx_summary | transactions]))
-            |> update(:live_cache, &[tx_summary | &1])
+            |> assign(:transactions, [tx_summary | transactions])
             |> assign(:summary_passed?, false)
             |> assign(:update_time, DateTime.utc_now())
             |> assign(:fetching, false)
 
           _ ->
             socket
-            |> update(:transactions, &Enum.uniq([tx_summary | &1]))
-            |> update(:live_cache, &[tx_summary | &1])
+            |> update(:transactions, &[tx_summary | &1])
             |> assign(:update_time, DateTime.utc_now())
             |> assign(:fetching, false)
         end
@@ -176,29 +164,26 @@ defmodule ArchethicWeb.BeaconChainLive do
         {:next_summary_time, next_summary_date},
         socket = %{
           assigns: %{
+            current_date_page: page,
             dates: dates
           }
         }
       ) do
     new_dates = [next_summary_date | dates]
 
-    [last_date | _] = dates
+    if page == 1 do
+      new_assign =
+        socket
+        |> assign(:transactions, [])
+        |> assign(:dates, new_dates)
+        |> assign(:next_summary_time, next_summary_date)
+        |> assign(:update_time, DateTime.utc_now())
 
-    # Flush into cache the transactions from the chain for the last beacon cycle
-    TransactionCache.put(
-      last_date,
-      list_transaction_from_chain(last_date)
-    )
-
-    new_assign =
-      socket
-      |> assign(:transactions, [])
-      |> assign(:live_cache, [])
-      |> assign(:dates, new_dates)
-      |> assign(:next_summary_time, next_summary_date)
-      |> assign(:update_time, DateTime.utc_now())
-
-    {:noreply, new_assign}
+      {:noreply, new_assign}
+    else
+      {:noreply,
+       push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page + 1}))}
+    end
   end
 
   def handle_info(
@@ -206,7 +191,7 @@ defmodule ArchethicWeb.BeaconChainLive do
         socket
       ) do
     # We refresh the live feed subscription at each slot time
-    BeaconChain.register_to_beacon_pool_updates(date)
+    BeaconChain.register_to_beacon_pool_updates(date, true)
 
     {:noreply, socket}
   end
@@ -238,54 +223,40 @@ defmodule ArchethicWeb.BeaconChainLive do
 
     ref_time = DateTime.truncate(date, :millisecond)
 
-    genesis_date = BeaconChain.previous_summary_time(ref_time)
     next_summary_date = BeaconChain.next_summary_date(ref_time)
 
     BeaconChain.list_subsets()
     |> Flow.from_enumerable()
     |> Flow.map(fn subset ->
-      address = Crypto.derive_beacon_chain_address(subset, genesis_date)
-
       nodes =
         subset
         |> Election.beacon_storage_nodes(next_summary_date, node_list)
         |> Enum.filter(&Node.locally_available?/1)
         |> P2P.nearest_nodes(patch)
 
-      {address, nodes, subset}
+      {nodes, subset}
     end)
-    |> Flow.partition(key: {:elem, 2}, max_demand: 50, stages: 50)
-    |> Flow.reduce(fn -> [] end, fn {address, _nodes, _subset}, acc ->
-      {:ok, tx_chains} =
-        try do
-          Archethic.get_transaction_chain(address)
-        rescue
-          _ -> []
-        end
+    |> Flow.partition(key: {:elem, 1}, max_demand: 50, stages: 50)
+    |> Flow.reduce(fn -> [] end, fn {nodes, subset}, acc ->
+      conflict_resolver = fn results ->
+        results
+        |> Enum.sort_by(&length(&1.transaction_summaries), :desc)
+        |> List.first()
+      end
 
-      transactions =
-        tx_chains
-        |> Enum.to_list()
-        |> List.flatten()
-        |> Enum.filter(&(&1.type == :beacon))
-        |> Enum.map(&deserialize_beacon_transaction/1)
-        |> Enum.to_list()
+      message = %GetCurrentSummary{subset: subset}
 
-      transactions ++ acc
+      case P2P.quorum_read(nodes, message, conflict_resolver) do
+        {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
+          transaction_summaries ++ acc
+
+        _ ->
+          acc
+      end
     end)
     |> Enum.to_list()
     |> List.flatten()
     |> Enum.uniq_by(& &1.address)
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-  end
-
-  # defp deserialize_beacon_transaction()
-  defp deserialize_beacon_transaction(%Transaction{
-         type: :beacon,
-         data: %TransactionData{content: content}
-       }) do
-    {slot, _} = Slot.deserialize(content)
-    %Slot{transaction_attestations: transaction_attestations} = slot
-    Enum.map(transaction_attestations, & &1.transaction_summary)
   end
 end

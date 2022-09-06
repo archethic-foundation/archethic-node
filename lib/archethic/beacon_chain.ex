@@ -28,6 +28,7 @@ defmodule Archethic.BeaconChain do
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
 
@@ -175,6 +176,23 @@ defmodule Archethic.BeaconChain do
   end
 
   @doc """
+  Get all slots of a subset from summary cache and return unique transaction summaries
+  """
+  @spec get_summary_slots(binary()) :: list(TransactionSummary.t())
+  def get_summary_slots(subset) when is_binary(subset) do
+    SummaryCache.get_current_slots(subset)
+    |> Stream.flat_map(fn %Slot{transaction_attestations: transaction_attestations} ->
+      transaction_summaries =
+        transaction_attestations
+        |> Enum.map(& &1.transaction_summary)
+
+      transaction_summaries
+    end)
+    |> Stream.uniq_by(fn %TransactionSummary{address: address} -> address end)
+    |> Enum.to_list()
+  end
+
+  @doc """
   Return the previous summary datetimes from a given date
   """
   @spec previous_summary_dates(DateTime.t()) :: Enumerable.t()
@@ -213,7 +231,12 @@ defmodule Archethic.BeaconChain do
    Register for beacon updates i.e send a P2P message for beacon updates
   """
   @spec register_to_beacon_pool_updates(DateTime.t()) :: list
-  def register_to_beacon_pool_updates(date = %DateTime{} \\ next_slot(DateTime.utc_now())) do
+  def register_to_beacon_pool_updates(
+        date = %DateTime{} \\ next_slot(DateTime.utc_now()),
+        unsubscribe? \\ false
+      ) do
+    if unsubscribe?, do: Update.unsubscribe()
+
     Enum.map(list_subsets(), fn subset ->
       nodes = Election.beacon_storage_nodes(subset, date, P2P.authorized_and_available_nodes())
 

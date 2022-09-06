@@ -26,8 +26,8 @@ defmodule Archethic.BeaconChain.Update do
   @doc """
   Unsubscribe for Beacon update to a node
   """
-  @spec unsubscribe(binary()) :: :ok
-  def unsubscribe(node_public_key) do
+  @spec unsubscribe(binary() | nil) :: :ok
+  def unsubscribe(node_public_key \\ nil) do
     GenServer.cast(__MODULE__, {:unsubscribe, node_public_key})
   end
 
@@ -70,7 +70,7 @@ defmodule Archethic.BeaconChain.Update do
   end
 
   def handle_cast({:unsubscribe, node_public_key}, state) do
-    new_state = Map.delete(state, node_public_key)
+    new_state = if node_public_key, do: Map.delete(state, node_public_key), else: Map.new()
 
     {:noreply, new_state}
   end

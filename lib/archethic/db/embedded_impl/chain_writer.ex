@@ -39,8 +39,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
       ) do
     start = System.monotonic_time()
 
-    summary_address =
-      Crypto.derive_beacon_chain_address(subset, summary_time, true)
+    summary_address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
 
     filename = summary_path(db_path, summary_address)
 
