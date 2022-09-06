@@ -36,7 +36,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.GetBeaconSummaries
   alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
-  alias __MODULE__.GetCurrentSummary
+  alias __MODULE__.GetCurrentSummaries
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
   alias __MODULE__.GetLastTransactionAddress
@@ -130,7 +130,7 @@ defmodule Archethic.P2P.Message do
           | ReplicationAttestation.t()
           | GetFirstAddress.t()
           | ValidationError.t()
-          | GetCurrentSummary.t()
+          | GetCurrentSummaries.t()
 
   @type response ::
           Ok.t()
@@ -415,8 +415,9 @@ defmodule Archethic.P2P.Message do
     <<31::8, address::binary>>
   end
 
-  def encode(%GetCurrentSummary{subset: subset}) do
-    <<32::8, subset::binary>>
+  def encode(%GetCurrentSummaries{subsets: subsets}) do
+    subsets_bin = :erlang.list_to_binary(subsets)
+    <<32::8, length(subsets)::8, subsets_bin::binary>>
   end
 
   def encode(%TransactionSummaryList{transaction_summaries: transaction_summaries}) do
@@ -925,8 +926,10 @@ defmodule Archethic.P2P.Message do
     {%GetFirstAddress{address: address}, rest}
   end
 
-  def decode(<<32::8, subset::binary-size(1), rest::bitstring>>) do
-    {%GetCurrentSummary{subset: subset}, rest}
+  def decode(<<32::8, nb_subsets::8, rest::binary>>) do
+    subsets_bin = :binary.part(rest, 0, nb_subsets)
+    subsets = for <<subset::8 <- subsets_bin>>, do: <<subset>>
+    {%GetCurrentSummaries{subsets: subsets}, <<>>}
   end
 
   def decode(<<232::8, rest::bitstring>>) do
@@ -1500,13 +1503,20 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%GetCurrentSummary{subset: subset}) do
-    transaction_summaries = BeaconChain.get_summary_slots(subset)
-
-    %Slot{transaction_attestations: transaction_attestations} = Subset.get_current_slot(subset)
-
+  def process(%GetCurrentSummaries{subsets: subsets}) do
     transaction_summaries =
-      Enum.reduce(transaction_attestations, transaction_summaries, &[&1.transaction_summary | &2])
+      Enum.flat_map(subsets, fn subset ->
+        transaction_summaries = BeaconChain.get_summary_slots(subset)
+
+        %Slot{transaction_attestations: transaction_attestations} =
+          Subset.get_current_slot(subset)
+
+        Enum.reduce(
+          transaction_attestations,
+          transaction_summaries,
+          &[&1.transaction_summary | &2]
+        )
+      end)
 
     %TransactionSummaryList{
       transaction_summaries: transaction_summaries
