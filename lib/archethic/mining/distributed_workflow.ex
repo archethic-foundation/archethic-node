@@ -138,6 +138,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
   def init(opts) do
     {tx, welcome_node, validation_nodes, node_public_key, timeout} = parse_opts(opts)
 
+    start_time = System.monotonic_time()
+
     Registry.register(WorkflowRegistry, tx.address, [])
 
     Logger.info("Start mining",
@@ -200,7 +202,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
      %{
        node_public_key: node_public_key,
        context: context,
-       start_time: System.monotonic_time(),
+       start_time: start_time,
        timeout: timeout
      }, next_events}
   end
