@@ -71,7 +71,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
                     to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
                       103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
                     amount: 1_000_000_000,
-                    token: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243,
+                    token_address: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243,
                       189, 156, 107, 125, 219, 63, 26, 204, 98, 132, 101, 229, 40>>,
                     token_id: 0
                 }
@@ -83,7 +83,8 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   """
   @spec add_token_transfer(Transaction.t(), list()) :: Transaction.t()
   def add_token_transfer(tx = %Transaction{}, args) when is_list(args) do
-    map_args = %{"to" => to, "amount" => amount, "token_address" => token} = Enum.into(args, %{})
+    map_args =
+      %{"to" => to, "amount" => amount, "token_address" => token_address} = Enum.into(args, %{})
 
     update_in(
       tx,
@@ -93,7 +94,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
           token_id: Map.get(map_args, "token_id", 0),
           to: decode_binary(to),
           amount: amount,
-          token: decode_binary(token)
+          token_address: decode_binary(token_address)
         }
         | &1
       ]

@@ -196,8 +196,8 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">Token</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.token)) do%>
-                                                    <span class="text_wrap"><%= Base.encode16(transfer.token) %></span>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.token_address)) do%>
+                                                    <span class="text_wrap"><%= Base.encode16(transfer.token_address) %></span>
                                                 <% end %>
                                                 </div>
                                             </div>
@@ -382,7 +382,7 @@
                                                         <% end %>
                                                     <% {:token, token_address, token_id} -> %>
                                                         <%= to_float(unspent_output.amount) %>
-                                                        <span class="tag is-success is-light ml-2">Token 
+                                                        <span class="tag is-success is-light ml-2">Token
   <%= if token_id >= 1 do %>
     (#<%= token_id %>)
   <% end %>
@@ -404,7 +404,7 @@
                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                             <%= if @transaction.validation_stamp.ledger_operations.fee > 0 do %>
                                               (<%= format_full_usd_amount(@transaction.validation_stamp.ledger_operations.fee, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
-                                              <p class="is-size-7 mt-2">The fees have been transfered to the 
+                                              <p class="is-size-7 mt-2">The fees have been transfered to the
                                               <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.burning_address())) do %><span>burning address</span><% end %></p>
                                             <% end %>
                                         </p>

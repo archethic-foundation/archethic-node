@@ -256,7 +256,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                     "amount" => 10.0,
                     "token" =>
                       Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-                    "token_id" => 0
+                    "tokenId" => 0
                   }
                 ]
               }
@@ -291,7 +291,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                     "amount" => "abc",
                     "token" =>
                       Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-                    "token_id" => 0
+                    "tokenId" => 0
                   }
                 ]
               }
@@ -329,8 +329,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                   %{
                     "to" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                     "amount" => 10.0,
-                    "token" => "abc",
-                    "token_id" => 0
+                    "tokenAddress" => "abc",
+                    "tokenId" => 0
                   }
                 ]
               }
@@ -338,7 +338,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           }
         })
 
-      assert [%{token: ["must be hexadecimal"]}] =
+      assert [%{tokenAddress: ["must be hexadecimal"]}] =
                changeset |> get_errors |> get_in([:data, :ledger, :token, :transfers])
     end
 
@@ -366,9 +366,9 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                       "to" =>
                         Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                       "amount" => Enum.random(1..100),
-                      "token" =>
+                      "tokenAddress" =>
                         Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-                      "token_id" => Enum.random(0..255)
+                      "tokenId" => Enum.random(0..255)
                     }
                   end)
               }
