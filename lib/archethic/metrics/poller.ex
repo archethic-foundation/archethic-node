@@ -17,7 +17,7 @@ defmodule Archethic.Metrics.Poller do
   end
 
   defp default_state do
-    %{pid_refs: %{}, data: default_metrics(), previous_data: default_metrics()}
+    %{pid_refs: %{}, data: default_metrics(), previous_fetched_data: default_metrics()}
   end
 
   defp default_metrics do
@@ -93,30 +93,27 @@ defmodule Archethic.Metrics.Poller do
   defp process_new_state(current_state = %{pid_refs: pid_refs}) when map_size(pid_refs) == 0,
     do: current_state
 
-  defp process_new_state(current_state = %{previous_data: previous_data}) do
+  defp process_new_state(current_state = %{previous_fetched_data: previous_fetched_data}) do
     fetched_data =
       Collector.get_node_endpoints()
       |> Collector.retrieve_network_metrics()
 
     new_data =
-      Enum.reduce(previous_data, default_metrics(), fn {key, previous_value}, acc ->
-        case Map.get(fetched_data, key) do
-          nil ->
-            Map.put(acc, key, 0)
-
+      Enum.reduce(fetched_data, default_metrics(), fn {key, fetched_value}, acc ->
+        case Map.get(previous_fetched_data, key) do
           # If the fetched value is the same as the previous fetched data
           # We reset the counter to 0, as no more events have been accumulated
-          ^previous_value ->
+          ^fetched_value ->
             Map.put(acc, key, 0)
 
-          new_value when new_value != previous_value ->
-            Map.put(acc, key, abs(new_value - previous_value))
+          previous_value ->
+            Map.put(acc, key, fetched_value - previous_value)
         end
       end)
 
     new_state =
       current_state
-      |> Map.put(:previous_data, fetched_data)
+      |> Map.update!(:previous_fetched_data, &Map.merge(&1, fetched_data))
       |> Map.put(:data, new_data)
 
     dispatch_updates(new_state)
