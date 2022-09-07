@@ -87,7 +87,7 @@ defmodule Archethic.Metrics.PollerTest do
     assert_receive {:update_data,
                     %{
                       "nb_transactions" => 50,
-                      "archethic_mining_full_transaction_validation_duration" => 0.18
+                      "archethic_mining_full_transaction_validation_duration" => 9.0
                     }},
                    2_000
   end

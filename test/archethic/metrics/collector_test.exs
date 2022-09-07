@@ -23,7 +23,7 @@ defmodule Archethic.Metrics.CollectorTest do
 
       assert %{
                "nb_transactions" => 50,
-               "archethic_mining_full_transaction_validation_duration" => 0.18
+               "archethic_mining_full_transaction_validation_duration" => 9.0
              } =
                Collector.retrieve_network_metrics([{127, 0, 0, 1}, {127, 0, 0, 1}, {127, 0, 0, 1}])
     end
