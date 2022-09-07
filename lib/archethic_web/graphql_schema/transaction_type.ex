@@ -76,7 +76,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   object :token_transfer do
     field(:to, :address)
     field(:amount, :integer)
-    field(:token, :address)
+    field(:token_address, :address)
     field(:token_id, :integer)
   end
 
