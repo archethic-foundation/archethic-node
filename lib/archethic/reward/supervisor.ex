@@ -8,6 +8,7 @@ defmodule Archethic.Reward.Supervisor do
   alias Archethic.Reward.MemTablesLoader
   alias Archethic.Reward.MemTables.RewardTokens
 
+  @spec start_link(any) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(args \\ []) do
     Supervisor.start_link(__MODULE__, args, name: Archethic.RewardSupervisor)
   end
