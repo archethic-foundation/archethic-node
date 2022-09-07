@@ -64,7 +64,7 @@ defmodule Archethic.Contracts.Contract.Constants do
         Enum.reduce(token_transfers, %{}, fn %TokenTransfer{
                                                to: to,
                                                amount: amount,
-                                               token: token_address,
+                                               token_address: token_address,
                                                token_id: token_id
                                              },
                                              acc ->
@@ -129,7 +129,7 @@ defmodule Archethic.Contracts.Contract.Constants do
                     %TokenTransfer{
                       to: to,
                       amount: amount,
-                      token: token_address,
+                      token_address: token_address,
                       token_id: token_id
                     }
                   end)

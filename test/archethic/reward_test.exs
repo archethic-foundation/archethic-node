@@ -89,17 +89,17 @@ defmodule Archethic.RewardTest do
              %Transfer{
                amount: 10,
                to: "ADR1",
-               token: ^token_address1
+               token_address: ^token_address1
              },
              %Transfer{
                amount: ^reward_amount2,
                to: "ADR1",
-               token: ^token_address2
+               token_address: ^token_address2
              },
              %Transfer{
                amount: ^reward_amount,
                to: "ADR2",
-               token: ^token_address1
+               token_address: ^token_address1
              }
            ] = Reward.get_transfers()
   end

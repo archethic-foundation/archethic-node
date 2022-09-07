@@ -10,8 +10,8 @@ defmodule ArchethicWeb.API.Schema.TokenLedger do
     embeds_many :transfers, Transfer do
       field(:to, Address)
       field(:amount, :integer)
-      field(:token, Address)
-      field(:token_id, :integer)
+      field(:tokenAddress, Address)
+      field(:tokenId, :integer)
     end
   end
 
@@ -27,9 +27,9 @@ defmodule ArchethicWeb.API.Schema.TokenLedger do
 
   defp changeset_transfers(changeset, params) do
     changeset
-    |> cast(params, [:to, :amount, :token, :token_id])
-    |> validate_required([:to, :amount, :token, :token_id])
+    |> cast(params, [:to, :amount, :tokenAddress, :tokenId])
+    |> validate_required([:to, :amount, :tokenAddress, :tokenId])
     |> validate_number(:amount, greater_than: 0)
-    |> validate_inclusion(:token_id, 0..255)
+    |> validate_inclusion(:tokenId, 0..255)
   end
 end

@@ -287,7 +287,7 @@ defmodule Archethic.Utils.Regression.Playbook do
               Enum.map(token_transfers, fn %TokenTransfer{
                                              to: to,
                                              amount: amount,
-                                             token: token_address,
+                                             token_address: token_address,
                                              token_id: token_id
                                            } ->
                 %{
