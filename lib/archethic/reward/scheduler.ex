@@ -178,13 +178,15 @@ defmodule Archethic.Reward.Scheduler do
       |> Map.put(:index, next_index)
       |> Map.put(:next_address, next_address)
 
-    case Map.get(data, :watcher) do
-      nil ->
-        :ignore
+    new_data =
+      case Map.pop(new_data, :watcher) do
+        {nil, data} ->
+          data
 
-      pid ->
-        Process.exit(pid, :normal)
-    end
+        {pid, data} ->
+          Process.exit(pid, :normal)
+          data
+      end
 
     if Reward.initiator?(next_address) do
       Logger.debug("Initialize node rewards tx after mint rewards")
@@ -206,7 +208,7 @@ defmodule Archethic.Reward.Scheduler do
 
       Process.monitor(pid)
 
-      {:keep_state, Map.put(data, :watcher, pid)}
+      {:keep_state, Map.put(new_data, :watcher, pid)}
     end
   end
 
@@ -239,17 +241,17 @@ defmodule Archethic.Reward.Scheduler do
         data = %{next_address: next_address}
       )
       when next_address == address do
-    case Map.get(data, :watcher) do
-      nil ->
-        :ignore
-
-      pid ->
-        Process.exit(pid, :normal)
-    end
-
     new_data =
-      data
-      |> Map.update!(:index, &(&1 + 1))
+      case Map.pop(data, :watcher) do
+        {nil, data} ->
+          data
+
+        {pid, data} ->
+          Process.exit(pid, :normal)
+          data
+      end
+
+    new_data = Map.update!(new_data, :index, &(&1 + 1))
 
     Logger.debug("Reschedule after node reward replication")
 
@@ -279,7 +281,7 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:DOWN, _ref, :process, pid, {:shutdown, :hard_timeout}},
         :triggered,
         data = %{watcher: watcher_pid}
       )
@@ -289,11 +291,21 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(
         :info,
+        {:DOWN, _ref, :process, pid, _},
+        :triggered,
+        _data = %{watcher: watcher_pid}
+      )
+      when watcher_pid == pid do
+    {:keep_state_and_data}
+  end
+
+  def handle_event(
+        :info,
         {:DOWN, _ref, :process, _pid, _},
         :scheduled,
-        data
+        _data
       ) do
-    {:keep_state, Map.delete(data, :watcher)}
+    :keep_state_and_data
   end
 
   def handle_event(

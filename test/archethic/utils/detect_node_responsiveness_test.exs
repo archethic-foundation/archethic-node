@@ -31,9 +31,12 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       count
     end
 
+    Process.flag(:trap_exit, true)
+
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
 
     Process.sleep(@sleep_timeout)
+    assert_receive {:EXIT, ^pid, {:shutdown, :hard_timeout}}
     assert false == Process.alive?(pid)
   end
 
@@ -102,7 +105,9 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
+    Process.flag(:trap_exit, true)
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    Process.monitor(pid)
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->
@@ -120,6 +125,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     assert true == Process.alive?(pid)
     # last timeout leading to stop as hard_timeout
     Process.sleep(@sleep_timeout)
+    assert_receive {:EXIT, ^pid, {:shutdown, :hard_timeout}}
     assert false == Process.alive?(pid)
   end
 
@@ -266,6 +272,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
+    Process.flag(:trap_exit, true)
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
 
     MockDB
@@ -275,6 +282,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     assert_receive :replay, @sleep_timeout
     Process.sleep(@sleep_timeout)
+    assert_receive {:EXIT, ^pid, {:shutdown, :hard_timeout}}
     assert !Process.alive?(pid)
   end
 
@@ -316,6 +324,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
+    Process.flag(:trap_exit, true)
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
 
     MockDB
@@ -327,6 +336,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     #  first soft_timeout
     Process.sleep(@sleep_timeout)
+    assert_receive {:EXIT, ^pid, :normal}
     assert !Process.alive?(pid)
   end
 end

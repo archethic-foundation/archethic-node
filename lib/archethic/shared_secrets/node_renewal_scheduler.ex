@@ -221,7 +221,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _reason},
+        {:DOWN, _ref, :process, pid, {:shutdown, :hard_timeout}},
         :triggered,
         data = %{node_detection: watcher_pid}
       )
@@ -231,14 +231,22 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, _pid, _reason},
-        :scheduled,
-        data
-      ) do
-    {:keep_state, Map.delete(data, :node_detection)}
+        {:DOWN, _ref, :process, pid, _},
+        :triggered,
+        _data = %{node_detection: watcher_pid}
+      )
+      when pid == watcher_pid do
+    :keep_state_and_data
   end
 
-  #
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, _pid, _reason},
+        :scheduled,
+        _data
+      ) do
+    :keep_state_and_data
+  end
 
   def handle_event(
         :info,
@@ -247,15 +255,17 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         data = %{next_address: next_address}
       )
       when next_address == address do
-    case Map.get(data, :watcher) do
-      nil ->
-        :ignore
+    new_data =
+      case Map.pop(data, :watcher) do
+        {nil, data} ->
+          data
 
-      pid ->
-        Process.exit(pid, :normal)
-    end
+        {pid, data} ->
+          Process.exit(pid, :normal)
+          data
+      end
 
-    new_data = Map.update!(data, :index, &(&1 + 1))
+    new_data = Map.update!(new_data, :index, &(&1 + 1))
     {:next_state, :confirmed, new_data, {:next_event, :internal, :schedule}}
   end
 

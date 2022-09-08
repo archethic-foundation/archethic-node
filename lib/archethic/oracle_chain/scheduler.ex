@@ -173,22 +173,24 @@ defmodule Archethic.OracleChain.Scheduler do
       when address == next_address do
     PubSub.unregister_to_new_transaction_by_address(address)
 
-    case Map.get(data, :oracle_watcher) do
-      nil ->
-        :ignore
+    new_data =
+      case Map.pop(data, :oracle_watcher) do
+        {nil, data} ->
+          data
 
-      pid ->
-        Process.exit(pid, :normal)
-    end
+        {pid, data} ->
+          Process.exit(pid, :normal)
+          data
+      end
 
     new_data =
       case Map.get(indexes, summary_date) do
         nil ->
-          data
+          new_data
 
         index ->
           # We increment the index since the tx is replicated
-          Map.update!(data, :indexes, &Map.put(&1, summary_date, index + 1))
+          Map.update!(new_data, :indexes, &Map.put(&1, summary_date, index + 1))
       end
 
     {:next_state, :confirmed, new_data, {:next_event, :internal, :schedule}}
@@ -428,7 +430,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:DOWN, _ref, :process, pid, {:shutdown, :hard_timeout}},
         :triggered,
         data = %{oracle_watcher: watcher_pid}
       )
@@ -440,20 +442,30 @@ defmodule Archethic.OracleChain.Scheduler do
         :info,
         {:DOWN, _ref, :process, pid, _},
         :triggered,
-        data = %{summary_watcher: watcher_pid}
+        _data = %{oracle_watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    {:keep_state, Map.delete(data, :summary_watcher)}
+    :keep_state_and_data
+  end
+
+  def handle_event(
+        :info,
+        {:DOWN, _ref, :process, pid, _},
+        :triggered,
+        _data = %{summary_watcher: watcher_pid}
+      )
+      when pid == watcher_pid do
+    :keep_state_and_data
   end
 
   def handle_event(
         :info,
         {:DOWN, _ref, :process, pid, _},
         :scheduled,
-        data = %{oracle_watcher: watcher_pid}
+        _data = %{oracle_watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    {:keep_state, Map.delete(data, :oracle_watcher)}
+    :keep_state_and_data
   end
 
   def handle_event(
