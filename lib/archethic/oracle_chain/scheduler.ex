@@ -49,38 +49,63 @@ defmodule Archethic.OracleChain.Scheduler do
     polling_interval = Keyword.fetch!(args, :polling_interval)
     summary_interval = Keyword.fetch!(args, :summary_interval)
 
+    state_data =
+      %{}
+      |> Map.put(:polling_interval, polling_interval)
+      |> Map.put(:summary_interval, summary_interval)
+
+    case :persistent_term.get(:archethic_up, nil) do
+      nil ->
+        # node still bootstrapping , wait for it to finish Bootstrap
+        Logger.info(" Oracle Scheduler: Waiting for Node to complete Bootstrap. ")
+
+        PubSub.register_to_node_up()
+
+        {:ok, :idle, state_data}
+
+      # wait for node UP
+      :up ->
+        # when node is already bootstrapped, - handles scheduler crash
+        {state, new_state_data, events} = start_scheduler(state_data)
+        {:ok, state, new_state_data, events}
+    end
+  end
+
+  def start_scheduler(state_data) do
+    Logger.info("Oracle Scheduler: Starting... ")
+
     PubSub.register_to_node_update()
-    Logger.info("Starting Oracle Scheduler")
 
     case P2P.get_node_info(Crypto.first_node_public_key()) do
       # Schedule polling for authorized node
       # This case may happen in case of process restart after crash
       {:ok, %Node{authorized?: true, available?: true}} ->
         summary_date =
-          next_date(summary_interval, DateTime.utc_now() |> DateTime.truncate(:second))
+          next_date(
+            Map.get(state_data, :summary_interval),
+            DateTime.utc_now() |> DateTime.truncate(:second)
+          )
 
         PubSub.register_to_new_transaction_by_type(:oracle)
 
         index = chain_size(summary_date)
         Logger.info("Oracle Scheduler: Scheduled during init - (index: #{index})")
 
-        {:ok, :idle,
-         %{
-           polling_interval: polling_interval,
-           summary_interval: summary_interval,
-           summary_date: summary_date,
-           indexes: %{summary_date => index}
-         }, {:next_event, :internal, :schedule}}
+        new_state_data =
+          state_data
+          |> Map.put(:summary_date, summary_date)
+          |> Map.put(:indexes, %{summary_date => index})
+
+        {:idle, new_state_data, {:next_event, :internal, :schedule}}
 
       _ ->
         Logger.info("Oracle Scheduler: waiting for Node Update Message")
 
-        {:ok, :idle,
-         %{
-           polling_interval: polling_interval,
-           summary_interval: summary_interval,
-           indexes: %{}
-         }}
+        new_state_data =
+          state_data
+          |> Map.put(:indexes, %{})
+
+        {:idle, new_state_data, []}
     end
   end
 
@@ -131,6 +156,12 @@ defmodule Archethic.OracleChain.Scheduler do
       |> Map.put(:next_address, Crypto.derive_oracle_address(summary_date, index + 1))
 
     {:next_state, :scheduled, new_data}
+  end
+
+  def handle_event(:info, :node_up, :idle, state_data) do
+    PubSub.unregister_to_node_up()
+    {:idle, new_state_data, events} = start_scheduler(state_data)
+    {:keep_state, new_state_data, events}
   end
 
   def handle_event(

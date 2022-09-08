@@ -22,6 +22,8 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
   require Logger
 
+  @slot_timer_ets :archethic_slot_timer
+
   @doc """
   Create a new slot timer
   """
@@ -85,19 +87,36 @@ defmodule Archethic.BeaconChain.SlotTimer do
   end
 
   defp get_interval do
-    [{_, interval}] = :ets.lookup(:archethic_slot_timer, :interval)
+    [{_, interval}] = :ets.lookup(@slot_timer_ets, :interval)
     interval
   end
 
   @doc false
   def init(opts) do
+    :ets.new(@slot_timer_ets, [:named_table, :public, read_concurrency: true])
     interval = Keyword.get(opts, :interval)
-    :ets.new(:archethic_slot_timer, [:named_table, :public, read_concurrency: true])
-    :ets.insert(:archethic_slot_timer, {:interval, interval})
+    :ets.insert(@slot_timer_ets, {:interval, interval})
 
-    Logger.info("Starting SlotTimer")
+    case :persistent_term.get(:archethic_up, nil) do
+      nil ->
+        Logger.info("Slot Timer:  Waiting for Node to complete Bootstrap.")
 
-    {:ok, %{interval: interval, timer: schedule_new_slot(interval)}, :hibernate}
+        Archethic.PubSub.register_to_node_up()
+        {:ok, %{interval: interval}}
+
+      :up ->
+        Logger.info("Slot Timer: Starting...")
+
+        {:ok, %{interval: interval, timer: schedule_new_slot(interval)}}
+    end
+  end
+
+  def handle_info(:node_up, server_data = %{interval: interval}) do
+    Logger.info("Slot Timer: Starting...")
+
+    new_server_data = Map.put(server_data, :timer, schedule_new_slot(interval))
+
+    {:noreply, new_server_data, :hibernate}
   end
 
   def handle_info(
@@ -130,7 +149,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
         {:noreply, state}
 
       new_interval ->
-        :ets.insert(:archethic_slot_timer, {:interval, new_interval})
+        :ets.insert(@slot_timer_ets, {:interval, new_interval})
         {:noreply, Map.put(state, :interval, new_interval)}
     end
   end

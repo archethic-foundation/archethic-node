@@ -23,6 +23,7 @@ defmodule Archethic.Reward.Scheduler do
 
   require Logger
 
+  @spec start_link(any) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(args \\ []) do
     GenStateMachine.start_link(__MODULE__, args, name: __MODULE__)
   end
@@ -37,8 +38,30 @@ defmodule Archethic.Reward.Scheduler do
 
   def init(args) do
     interval = Keyword.fetch!(args, :interval)
+    state_data = Map.put(%{}, :interval, interval)
+
+    case :persistent_term.get(:archethic_up, nil) do
+      nil ->
+        Logger.info(" Reward Scheduler: Waiting for Node to complete Bootstrap. ")
+
+        PubSub.register_to_node_up()
+        {:ok, :idle, state_data}
+
+      # wait for node up
+
+      :up ->
+        {state, new_state_data, events} = start_scheduler(state_data)
+        {:ok, state, new_state_data, events}
+    end
+  end
+
+  @doc """
+    Computers start parameters for the scheduler
+  """
+  def start_scheduler(state_data) do
+    Logger.info("Reward Scheduler: Starting... ")
+
     PubSub.register_to_node_update()
-    Logger.info("Starting Reward Scheduler")
 
     case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
       %Node{authorized?: true, available?: true} ->
@@ -48,15 +71,24 @@ defmodule Archethic.Reward.Scheduler do
         index = Crypto.number_of_network_pool_keys()
         Logger.info("Reward Scheduler scheduled during init - (index: #{index})")
 
-        {:ok, :idle,
-         %{interval: interval, index: index, next_address: Reward.next_address(index)},
+        {:idle,
+         state_data
+         |> Map.put(:index, index)
+         |> Map.put(:next_address, Reward.next_address(index)),
          {:next_event, :internal, :schedule}}
 
       _ ->
         Logger.info("Reward Scheduler waiting for Node Update Message")
 
-        {:ok, :idle, %{interval: interval}}
+        {:idle, state_data, []}
     end
+  end
+
+  def handle_event(:info, :node_up, :idle, state_data) do
+    # Node is up start Scheduler
+    PubSub.unregister_to_node_up()
+    {:idle, new_state_data, events} = start_scheduler(state_data)
+    {:keep_state, new_state_data, events}
   end
 
   def handle_event(
@@ -138,41 +170,13 @@ defmodule Archethic.Reward.Scheduler do
         :triggered,
         data = %{index: index}
       ) do
-    next_index = index + 1
-    next_address = Reward.next_address(next_index)
-
     new_data =
       data
-      |> Map.put(:index, next_index)
-      |> Map.put(:next_address, next_address)
+      |> Map.update!(:index, &(&1 + 1))
+      |> Map.put(:next_address, Reward.next_address(index + 1))
 
-    case Map.get(data, :watcher) do
-      nil ->
-        :ignore
-
-      pid ->
-        Process.exit(pid, :normal)
-    end
-
-    if Reward.initiator?(next_address) do
-      send_node_rewards(next_index)
-      {:keep_state, new_data}
-    else
-      {:ok, pid} =
-        DetectNodeResponsiveness.start_link(next_address, fn count ->
-          if Reward.initiator?(next_address, count) do
-            Logger.debug("Node reward creation...attempt #{count}",
-              transaction_address: Base.encode16(next_address)
-            )
-
-            send_node_rewards(next_index)
-          end
-        end)
-
-      Process.monitor(pid)
-
-      {:keep_state, Map.put(data, :watcher, pid)}
-    end
+    send_node_rewards(index + 1)
+    {:keep_state, new_data}
   end
 
   def handle_event(

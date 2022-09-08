@@ -388,7 +388,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       NetworkLookup.set_network_pool_address(address)
 
-      Scheduler.start_link(interval: "0 * * * * *")
+      {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
+
+      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
@@ -423,7 +429,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       NetworkLookup.set_network_pool_address(address)
 
-      Scheduler.start_link(interval: "0 * * * * *")
+      {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
+
+      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 200_000_000 end)
@@ -457,7 +469,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       NetworkLookup.set_network_pool_address(:crypto.strong_rand_bytes(32))
 
-      Scheduler.start_link(interval: "0 * * * * *")
+      {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
+
+      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
@@ -721,6 +739,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   end
 
   test "should return :ok when a mint reward transaction passes all tests" do
+    :persistent_term.put(:archethic_up, :up)
     tx_seed = :crypto.strong_rand_bytes(32)
     {pub, _} = Crypto.derive_keypair(tx_seed, 1)
     address = Crypto.derive_address(pub)
@@ -753,6 +772,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     :persistent_term.put(:reward_gen_addr, Transaction.previous_address(tx))
     assert :ok = PendingTransactionValidation.validate(tx)
     :persistent_term.put(:reward_gen_addr, nil)
+
+    :persistent_term.put(:archethic_up, nil)
   end
 
   test "should return :error when a mint reward transaction has != burned_fees" do
@@ -793,9 +814,18 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     {pub, _} = Crypto.derive_keypair(tx_seed, 1)
     address = Crypto.derive_address(pub)
 
+    MockCrypto
+    |> stub(:first_public_key, fn ->
+      {pub, _} =
+        Crypto.derive_keypair("seed_for_mining_transaction_valdiation_test", 0, :secp256r1)
+
+      pub
+    end)
+
     NetworkLookup.set_network_pool_address(:crypto.strong_rand_bytes(32))
 
-    Scheduler.start_link(interval: "0 * * * * *")
+    {:ok, pid} = Scheduler.start_link(interval: "0 * * * * *")
+    send(pid, :node_up)
 
     MockDB
     |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)

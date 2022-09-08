@@ -25,7 +25,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
     :ok
   end
 
-  describe "when receives a poll message" do
+  describe "Oracle Scheduler: when receives a poll message" do
     setup do
       me = self()
 
@@ -80,7 +80,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
       {:ok, pid} =
         Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
-      assert {:idle, _} = :sys.get_state(pid)
+      assert {:idle, %{polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle,
+              %{indexes: %{}, polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -131,6 +138,15 @@ defmodule Archethic.OracleChain.SchedulerTest do
       {:ok, pid} =
         Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
+      assert {:idle, %{polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle,
+              %{indexes: %{}, polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,
@@ -169,6 +185,15 @@ defmodule Archethic.OracleChain.SchedulerTest do
     test "if the date is the summary date, it should generate summary transaction, followed by an polling oracle transaction" do
       {:ok, pid} =
         Scheduler.start_link([polling_interval: "0 0 0 * *", summary_interval: "0 0 0 * *"], [])
+
+      assert {:idle, %{polling_interval: "0 0 0 * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle,
+              %{indexes: %{}, polling_interval: "0 0 0 * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -260,7 +285,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
       {:ok, pid} =
         Scheduler.start_link([polling_interval: "0 * * * * *", summary_interval: "0 0 0 * *"], [])
 
-      assert {:idle, _} = :sys.get_state(pid)
+      assert {:idle, %{polling_interval: "0 * * * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle,
+              %{indexes: %{}, polling_interval: "0 * * * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -286,6 +318,110 @@ defmodule Archethic.OracleChain.SchedulerTest do
       assert {:scheduled, %{polling_timer: timer2}} = :sys.get_state(pid)
 
       assert timer2 != timer1
+    end
+  end
+
+  describe "Scheduler Behavior During start" do
+    test "should be idle when node has not done Bootstrapping" do
+      :persistent_term.put(:archethic_up, nil)
+
+      {:ok, pid} =
+        Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
+
+      assert {:idle, %{polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+    end
+
+    test "should wait for node up message to start the scheduler, node: not authorized and available" do
+      :persistent_term.put(:archethic_up, nil)
+
+      {:ok, pid} =
+        Scheduler.start_link([polling_interval: "0 */2 * * *", summary_interval: "0 0 0 * *"], [])
+
+      assert {:idle, %{polling_interval: "0 */2 * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:idle,
+              %{
+                indexes: %{},
+                polling_interval: "0 */2 * * *",
+                summary_interval: "0 0 0 * *"
+              }} = :sys.get_state(pid)
+    end
+
+    test "should wait for node up message to start the scheduler, node: authorized and available" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA",
+        available?: true
+      })
+
+      {:ok, pid} =
+        Scheduler.start_link([polling_interval: "0 */3 * * *", summary_interval: "0 0 0 * *"], [])
+
+      assert {:idle, %{polling_interval: "0 */3 * * *", summary_interval: "0 0 0 * *"}} =
+               :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:scheduled,
+              %{
+                indexes: _,
+                polling_interval: "0 */3 * * *",
+                summary_interval: "0 0 0 * *",
+                summary_date: _date_time = %DateTime{}
+              }} = :sys.get_state(pid)
+    end
+
+    test "Should use persistent_term :archethic_up when a Scheduler crashes,current node: Not authorized and available" do
+      :persistent_term.put(:archethic_up, :up)
+
+      {:ok, pid} =
+        Scheduler.start_link([polling_interval: "0 */4 * * *", summary_interval: "0 0 0 * *"], [])
+
+      assert {:idle,
+              %{
+                polling_interval: "0 */4 * * *",
+                summary_interval: "0 0 0 * *",
+                indexes: %{}
+              }} = :sys.get_state(pid)
+
+      :persistent_term.put(:archethic_up, nil)
+    end
+
+    test "Should use persistent_term :archethic_up when a Scheduler crashes,current node: authorized and available" do
+      :persistent_term.put(:archethic_up, :up)
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA",
+        available?: true
+      })
+
+      {:ok, pid} =
+        Scheduler.start_link([polling_interval: "0 */6 * * *", summary_interval: "0 0 0 * *"], [])
+
+      assert {:scheduled,
+              %{
+                polling_interval: "0 */6 * * *",
+                summary_interval: "0 0 0 * *",
+                summary_date: _date_time = %DateTime{},
+                indexes: _
+              }} = :sys.get_state(pid)
+
+      :persistent_term.put(:archethic_up, nil)
     end
   end
 end
