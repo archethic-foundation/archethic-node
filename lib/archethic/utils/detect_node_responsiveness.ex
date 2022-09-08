@@ -8,11 +8,11 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
   alias Archethic.DB
   alias Archethic.Mining
 
-  use GenStateMachine
+  use GenServer
   require Logger
 
   def start_link(address, replaying_fn, timeout \\ @default_timeout) do
-    GenStateMachine.start_link(__MODULE__, [address, replaying_fn, timeout], [])
+    GenServer.start_link(__MODULE__, [address, replaying_fn, timeout], [])
   end
 
   def init([address, replaying_fn, timeout]) do
@@ -20,13 +20,11 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
 
     Logger.debug("Start node responsivessness worker", transaction_address: Base.encode16(address))
 
-    {:ok, :waiting, %{address: address, replaying_fn: replaying_fn, count: 1, timeout: timeout}}
+    {:ok, %{address: address, replaying_fn: replaying_fn, count: 1, timeout: timeout}}
   end
 
-  def handle_event(
-        :info,
+  def handle_info(
         :soft_timeout,
-        :waiting,
         state = %{
           address: address,
           replaying_fn: replaying_fn,
@@ -46,16 +44,21 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
       replaying_fn.(count)
       schedule_timeout(timeout)
       new_count = count + 1
-      {:keep_state, %{state | count: new_count}}
+      {:noreply, %{state | count: new_count}}
     else
+      {:remaining, false} ->
+        {:stop, {:shutdown, :hard_timeout}, state}
+
       {reason, _} ->
         Logger.debug("Stop responsiveness because of #{reason}",
           transaction_address: Base.encode16(address)
         )
 
-        :stop
+        {:stop, :normal, state}
     end
   end
+
+  def terminate(_, _state), do: :ok
 
   defp schedule_timeout(interval, pid \\ self()) do
     Process.send_after(pid, :soft_timeout, interval)
