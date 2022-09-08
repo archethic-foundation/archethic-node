@@ -2,7 +2,8 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
   @moduledoc """
   Detects the nodes responsiveness based on timeouts
   """
-  @default_timeout Application.compile_env(:archethic, __MODULE__) |> Keyword.get(:timeout, 5_000)
+  @default_timeout Application.compile_env(:archethic, __MODULE__, [])
+                   |> Keyword.get(:timeout, 5_000)
   alias Archethic.P2P
   alias Archethic.DB
   alias Archethic.Mining
