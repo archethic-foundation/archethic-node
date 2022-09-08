@@ -27,8 +27,9 @@ defmodule Archethic.BeaconChain do
 
   alias Archethic.TaskSupervisor
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.TransactionSummary
+
+  alias Archethic.DB
 
   alias Archethic.Utils
 
@@ -166,7 +167,7 @@ defmodule Archethic.BeaconChain do
   """
   @spec get_summary(binary()) :: {:ok, Summary.t()} | {:error, :not_found}
   def get_summary(summary_address) when is_binary(summary_address) do
-    case TransactionChain.get_beacon_summary(summary_address) do
+    case DB.get_beacon_summary(summary_address) do
       {:ok, summary} ->
         {:ok, summary}
 
@@ -176,11 +177,21 @@ defmodule Archethic.BeaconChain do
   end
 
   @doc """
+  Write a beacon summary in DB
+  """
+  @spec write_beacon_summary(Summary.t()) :: :ok
+  def write_beacon_summary(summary = %Summary{subset: subset, summary_time: time}) do
+    DB.write_beacon_summary(summary)
+
+    Logger.info("Beacon summary stored, subset: #{Base.encode16(subset)}, time: #{time}")
+  end
+
+  @doc """
   Get all slots of a subset from summary cache and return unique transaction summaries
   """
   @spec get_summary_slots(binary()) :: list(TransactionSummary.t())
   def get_summary_slots(subset) when is_binary(subset) do
-    SummaryCache.get_current_slots(subset)
+    SummaryCache.stream_current_slots(subset)
     |> Stream.flat_map(fn %Slot{transaction_attestations: transaction_attestations} ->
       transaction_summaries =
         transaction_attestations

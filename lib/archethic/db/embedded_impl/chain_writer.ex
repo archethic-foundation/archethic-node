@@ -41,7 +41,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
     summary_address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
 
-    filename = summary_path(db_path, summary_address)
+    filename = beacon_path(db_path, summary_address)
 
     data = Summary.serialize(summary) |> Utils.wrap_binary()
 
@@ -73,7 +73,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     |> File.mkdir_p!()
 
     path
-    |> base_summary_path()
+    |> base_beacon_path()
     |> File.mkdir_p!()
   end
 
@@ -154,17 +154,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @doc """
   Return the path of the sbeacon ummary storage location
   """
-  @spec summary_path(String.t(), binary()) :: String.t()
-  def summary_path(db_path, summary_address)
+  @spec beacon_path(String.t(), binary()) :: String.t()
+  def beacon_path(db_path, summary_address)
       when is_binary(summary_address) and is_binary(db_path) do
-    Path.join([base_summary_path(db_path), Base.encode16(summary_address)])
+    Path.join([base_beacon_path(db_path), Base.encode16(summary_address)])
   end
 
   @doc """
   Return the beacon summary base path
   """
-  @spec base_summary_path(String.t()) :: String.t()
-  def base_summary_path(db_path) do
+  @spec base_beacon_path(String.t()) :: String.t()
+  def base_beacon_path(db_path) do
     Path.join([db_path, "beacon_summary"])
   end
 end

@@ -32,16 +32,27 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   @doc """
-  Return all the entries for a subset
+  Stream all the entries for a subset
   """
-  @spec get_current_slots(subset :: binary()) :: list(Slot.t())
-  def get_current_slots(subset) do
-    try do
-      :ets.lookup_element(@table_name, subset, 2)
-    rescue
-      _ ->
-        []
-    end
+  @spec stream_current_slots(subset :: binary()) :: Enumerable.t() | list(Slot.t())
+  def stream_current_slots(subset) do
+    # generate match pattern
+    # :ets.fun2ms(fn {cle, value} when cle == subset -> value end)
+    match_pattern = [{{:"$1", :"$2"}, [{:==, :"$1", subset}], [:"$2"]}]
+
+    Stream.resource(
+      fn -> :ets.select(@table_name, match_pattern, 1) end,
+      &do_stream_current_slots/1,
+      fn _ -> :ok end
+    )
+  end
+
+  defp do_stream_current_slots(:"$end_of_table") do
+    {:halt, :"$end_of_table"}
+  end
+
+  defp do_stream_current_slots({slot, continuation}) do
+    {slot, :ets.select(continuation)}
   end
 
   @doc """
@@ -63,13 +74,13 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   @spec add_slot(subset :: binary(), Slot.t()) :: :ok
   def add_slot(subset, slot = %Slot{}) do
     true = :ets.insert(@table_name, {subset, slot})
-    backup_slot(subset, slot)
+    backup_slot(slot)
   end
 
   defp recover_path(), do: Utils.mut_dir("slot_backup")
 
-  defp backup_slot(subset, slot) do
-    content = serialize(subset, slot)
+  defp backup_slot(slot) do
+    content = serialize(slot)
 
     recover_path()
     |> File.write!(content, [:append, :binary])
@@ -82,7 +93,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
       content = File.read!(recover_path())
 
       deserialize(content, [])
-      |> Enum.each(fn {summary_time, subset, slot} ->
+      |> Enum.each(fn {summary_time, slot = %Slot{subset: subset}} ->
         if summary_time == next_summary_time, do: true = :ets.insert(@table_name, {subset, slot})
       end)
     else
@@ -90,22 +101,22 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     end
   end
 
-  defp serialize(subset, slot = %Slot{slot_time: slot_time}) do
+  defp serialize(slot = %Slot{slot_time: slot_time}) do
     summary_time = SummaryTimer.next_summary(slot_time) |> DateTime.to_unix()
     slot_bin = Slot.serialize(slot) |> Utils.wrap_binary()
     slot_size = byte_size(slot_bin) |> VarInt.from_value()
 
-    <<summary_time::32, subset::binary, slot_size::binary, slot_bin::binary>>
+    <<summary_time::32, slot_size::binary, slot_bin::binary>>
   end
 
   defp deserialize(<<>>, acc), do: acc
 
   defp deserialize(rest, acc) do
-    <<summary_time::32, subset::8, rest::binary>> = rest
+    <<summary_time::32, rest::binary>> = rest
     {slot_size, rest} = VarInt.get_value(rest)
     <<slot_bin::binary-size(slot_size), rest::binary>> = rest
     {slot, _} = Slot.deserialize(slot_bin)
 
-    deserialize(rest, [{summary_time, <<subset>>, slot} | acc])
+    deserialize(rest, [{summary_time, slot} | acc])
   end
 end

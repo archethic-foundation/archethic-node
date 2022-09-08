@@ -31,8 +31,6 @@ defmodule Archethic.TransactionChain do
     GetTransactionChainLength
   }
 
-  alias Archethic.BeaconChain.Summary
-
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
   alias __MODULE__.MemTablesLoader
@@ -125,12 +123,6 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Get a beacon summary
-  """
-  @spec get_beacon_summary(binary()) :: {:ok, Summary.t()} | {:error, :summary_not_exists}
-  defdelegate get_beacon_summary(summary_address), to: DB
-
-  @doc """
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
   """
@@ -155,16 +147,6 @@ defmodule Archethic.TransactionChain do
       transaction_address: Base.encode16(address),
       transaction_type: type
     )
-  end
-
-  @doc """
-  Write a beacon summary in DB
-  """
-  @spec write_beacon_summary(Summary.t()) :: :ok
-  def write_beacon_summary(summary = %Summary{subset: subset, summary_time: time}) do
-    DB.write_beacon_summary(summary)
-
-    Logger.info("Beacon summary stored, subset: #{Base.encode16(subset)}, time: #{time}")
   end
 
   @doc """

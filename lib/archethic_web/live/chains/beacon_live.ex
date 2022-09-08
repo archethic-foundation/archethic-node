@@ -104,7 +104,7 @@ defmodule ArchethicWeb.BeaconChainLive do
       ) do
     new_socket =
       socket
-      |> assign(:transactions, list_transaction_from_chain())
+      |> assign(:transactions, list_transactions_from_current_slots())
       |> assign(:update_time, DateTime.utc_now())
       |> assign(:fetching, false)
 
@@ -216,7 +216,7 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   defp list_transactions_from_summary(nil), do: []
 
-  def list_transaction_from_chain(date = %DateTime{} \\ DateTime.utc_now()) do
+  def list_transactions_from_current_slots(date = %DateTime{} \\ DateTime.utc_now()) do
     %Node{network_patch: patch} = P2P.get_node_info()
 
     authorized_nodes = P2P.authorized_and_available_nodes()

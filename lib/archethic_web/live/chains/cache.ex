@@ -28,10 +28,10 @@ defmodule ArchethicWeb.TransactionCache do
 
     result =
       case :ets.lookup(@table, date) do
-        [{^date, value, delete_task}] ->
-          Process.cancel_timer(delete_task)
-          ref = schedule_delete(date)
-          :ets.update_element(@table, date, {3, ref})
+        [{^date, value, deletion_timer}] ->
+          Process.cancel_timer(deletion_timer)
+          new_deletion_timer = schedule_delete(date)
+          :ets.update_element(@table, date, {3, new_deletion_timer})
           value
 
         _ ->
@@ -49,8 +49,8 @@ defmodule ArchethicWeb.TransactionCache do
   end
 
   def handle_cast({:put, date, value}, state) do
-    ref = schedule_delete(date)
-    true = :ets.insert(@table, {date, value, ref})
+    deletion_timer = schedule_delete(date)
+    true = :ets.insert(@table, {date, value, deletion_timer})
     {:noreply, state}
   end
 

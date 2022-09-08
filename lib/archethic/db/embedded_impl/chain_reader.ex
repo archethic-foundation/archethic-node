@@ -55,7 +55,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   def get_beacon_summary(summary_address, db_path) do
     start = System.monotonic_time()
 
-    filepath = ChainWriter.summary_path(db_path, summary_address)
+    filepath = ChainWriter.beacon_path(db_path, summary_address)
 
     if File.exists?(filepath) do
       {summary, _rest} = File.read!(filepath) |> Summary.deserialize()

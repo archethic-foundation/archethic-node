@@ -27,7 +27,6 @@ defmodule Archethic.BeaconChain.Subset do
 
   alias Archethic.PubSub
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -301,7 +300,7 @@ defmodule Archethic.BeaconChain.Subset do
         }
         |> Summary.aggregate_slots(beacon_slots, P2PSampling.list_nodes_to_sample(subset))
 
-      TransactionChain.write_beacon_summary(summary)
+      BeaconChain.write_beacon_summary(summary)
     end
   end
 
