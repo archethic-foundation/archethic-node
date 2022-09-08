@@ -116,6 +116,8 @@ defmodule Archethic.Bootstrap do
     else
       post_bootstrap(sync?: false)
     end
+
+    Logger.info("Bootstrapping finished!")
   end
 
   defp should_bootstrap?(_ip, _port, _http_port, _, nil), do: true
@@ -195,8 +197,6 @@ defmodule Archethic.Bootstrap do
         end
       end
     end
-
-    Logger.info("Bootstrapping finished!")
   end
 
   defp post_bootstrap(opts) do
@@ -213,6 +213,7 @@ defmodule Archethic.Bootstrap do
     SelfRepair.start_scheduler()
 
     :persistent_term.put(:archethic_up, :up)
+    Archethic.PubSub.notify_node_up()
     Listener.listen()
   end
 

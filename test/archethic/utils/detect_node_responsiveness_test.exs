@@ -1,5 +1,5 @@
 defmodule Archethic.Utils.DetectNodeResponsivenessTest do
-  use ArchethicCase
+  use ArchethicCase, async: false
   @timeout 200
   @sleep_timeout 350
 

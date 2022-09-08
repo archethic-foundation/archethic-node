@@ -42,6 +42,12 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
     :ok = Subset.add_end_of_node_sync(subset, %EndOfNodeSync{public_key: public_key})
 
+    MockClient
+    |> stub(:send_message, fn
+      _, %NewBeaconTransaction{}, _ ->
+        {:ok, %Ok{}}
+    end)
+
     assert %{
              current_slot: %Slot{
                end_of_node_synchronizations: [%EndOfNodeSync{public_key: ^public_key}]
@@ -53,8 +59,12 @@ defmodule Archethic.BeaconChain.SubsetTest do
     test "new transaction summary is added to the slot and include the storage node confirmation",
          %{subset: subset} do
       MockClient
-      |> stub(:send_message, fn _, _txn = %TransactionSummary{}, _ ->
-        :ok
+      |> stub(:send_message, fn
+        _, _txn = %TransactionSummary{}, _ ->
+          {:ok, %Ok{}}
+
+        _, %NewBeaconTransaction{}, _ ->
+          {:ok, %Ok{}}
       end)
 
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
@@ -100,8 +110,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
       pid = start_supervised!({Subset, subset: subset})
 
       MockClient
-      |> stub(:send_message, fn _, _txn = %NewBeaconTransaction{}, _ ->
-        :ok
+      |> stub(:send_message, fn _, %NewBeaconTransaction{}, _ ->
+        {:ok, %Ok{}}
       end)
 
       tx_time = DateTime.utc_now()

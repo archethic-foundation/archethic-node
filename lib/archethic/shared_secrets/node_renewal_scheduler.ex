@@ -44,11 +44,28 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   end
 
   @doc false
-  def init(opts) do
-    interval = Keyword.get(opts, :interval)
-    PubSub.register_to_node_update()
+  def init(args) do
+    interval = Keyword.get(args, :interval)
+    state_data = Map.put(%{}, :interval, interval)
 
-    Logger.info("Starting Node Renewal Scheduler")
+    case :persistent_term.get(:archethic_up, nil) do
+      nil ->
+        Logger.info("Node Renewal Scheduler: Waiting for node to complete Bootstrap. ")
+
+        PubSub.register_to_node_up()
+        {:ok, :idle, state_data}
+
+      # wait for node ups
+      :up ->
+        {state, new_state_data, events} = start_scheduler(state_data)
+        {:ok, state, new_state_data, events}
+    end
+  end
+
+  def start_scheduler(state_data) do
+    Logger.info("Node Renewal Scheduler: Starting... ")
+
+    PubSub.register_to_node_update()
 
     case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
       %Node{authorized?: true, available?: true} ->
@@ -56,14 +73,14 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         Logger.info("Node Renewal Scheduler: Scheduled during init")
 
         key_index = Crypto.number_of_node_shared_secrets_keys()
+        new_state_data = state_data |> Map.put(:index, key_index)
 
-        {:ok, :idle, %{interval: interval, index: key_index},
-         [{:next_event, :internal, :schedule}]}
+        {:idle, new_state_data, [{:next_event, :internal, :schedule}]}
 
       _ ->
         Logger.info("Node Renewal Scheduler: Scheduler waiting for Node Update Message")
 
-        {:ok, :idle, %{interval: interval}}
+        {:idle, state_data, []}
     end
   end
 
@@ -88,6 +105,13 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
       |> Map.put(:next_address, NodeRenewal.next_address(index))
 
     {:next_state, :scheduled, new_data}
+  end
+
+  def handle_event(:info, :node_up, :idle, state_data) do
+    PubSub.unregister_to_node_up()
+    # Node is Up start Scheduler
+    {:idle, new_state_data, events} = start_scheduler(state_data)
+    {:keep_state, new_state_data, events}
   end
 
   def handle_event(
