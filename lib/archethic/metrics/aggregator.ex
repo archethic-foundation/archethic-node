@@ -131,7 +131,7 @@ defmodule Archethic.Metrics.Aggregator do
       |> Enum.at(0, {0, 0})
       |> elem(0)
 
-    if Enum.all?(frequencies, fn {_, frequency} -> frequency == mode end) do
+    if Enum.map(frequencies, fn {_, f} -> f end) |> Enum.uniq() |> length() == 1 do
       # When we have the same frequencies we take the highest value
       frequencies
       |> Enum.max(fn -> {0, 0} end)
