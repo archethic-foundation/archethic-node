@@ -163,7 +163,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   end
 
   def handle_event(:internal, {:start_mining, tx, welcome_node, validation_nodes}, :idle, data) do
-    validation_time = DateTime.utc_now()
+    validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     authorized_nodes =
       validation_time

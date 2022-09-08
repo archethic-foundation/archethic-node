@@ -170,10 +170,13 @@ defmodule Archethic.Reward.Scheduler do
         :triggered,
         data = %{index: index}
       ) do
+    next_index = index + 1
+    next_address = Reward.next_address(next_index)
+
     new_data =
       data
-      |> Map.update!(:index, &(&1 + 1))
-      |> Map.put(:next_address, Reward.next_address(index + 1))
+      |> Map.put(:index, next_index)
+      |> Map.put(:next_address, next_address)
 
     case Map.get(data, :watcher) do
       nil ->
