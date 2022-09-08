@@ -254,7 +254,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
         {:error, "Invalid node rewards trigger time"}
 
-      _ ->
+      rewards ->
+        Logger.debug("Expected rewards - #{inspect(rewards)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: :node_rewards
+        )
+
         {:error, "Invalid network pool transfers"}
     end
   end
