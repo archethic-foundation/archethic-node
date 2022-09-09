@@ -27,10 +27,9 @@ defmodule Archethic.BeaconChain do
 
   alias Archethic.TaskSupervisor
 
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionSummary
+
+  alias Archethic.DB
 
   alias Archethic.Utils
 
@@ -106,31 +105,15 @@ defmodule Archethic.BeaconChain do
   defdelegate previous_summary_time(date_from), to: SummaryTimer, as: :previous_summary
 
   @doc """
-  Load the transaction in the beacon chain context
+  Load a slot in summary cache
   """
-  @spec load_transaction(Transaction.t()) :: :ok | :error
-  def load_transaction(
-        tx = %Transaction{
-          address: tx_address,
-          type: :beacon,
-          data: %TransactionData{content: content},
-          validation_stamp: %ValidationStamp{
-            timestamp: timestamp
-          }
-        }
-      ) do
-    with {%Slot{subset: subset, slot_time: slot_time} = slot, _} <- Slot.deserialize(content),
-         :ok <- validate_beacon_address(subset, slot_time, tx_address),
-         slot_time <- SlotTimer.previous_slot(timestamp) do
+  @spec load_slot(Slot.t()) :: :ok | :error
+  def load_slot(slot = %Slot{subset: subset, slot_time: slot_time}) do
+    if slot_time == SlotTimer.previous_slot(DateTime.utc_now()) do
       Task.Supervisor.start_child(TaskSupervisor, fn ->
         case validate_slot(slot) do
           :ok ->
-            genesis_address =
-              Crypto.derive_beacon_chain_address(subset, previous_summary_time(slot_time))
-
-            :ok = TransactionChain.write_transaction_at(tx, genesis_address)
-
-            Logger.debug("New beacon transaction loaded - #{inspect(slot)}",
+            Logger.debug("New beacon slot loaded - #{inspect(slot)}",
               beacon_subset: Base.encode16(subset)
             )
 
@@ -143,31 +126,12 @@ defmodule Archethic.BeaconChain do
 
       :ok
     else
-      {:error, :invalid_address} ->
-        Logger.error("Invalid beacon slot - Invalid tx address")
-        :error
-
-      %DateTime{} ->
-        Logger.error("Invalid beacon slot - Invalid slot time")
-        :error
-
-      _ ->
-        Logger.error("Invalid beacon slot - Unexpected serialized data")
-        :error
+      Logger.error("Invalid beacon slot - Invalid slot time")
+      :error
     end
   end
 
   def load_transaction(_), do: :ok
-
-  defp validate_beacon_address(subset, slot_time, address) do
-    case Crypto.derive_beacon_chain_address(subset, slot_time) do
-      ^address ->
-        :ok
-
-      _ ->
-        {:error, :invalid_address}
-    end
-  end
 
   defp validate_slot(slot = %Slot{}) do
     cond do
@@ -202,15 +166,41 @@ defmodule Archethic.BeaconChain do
   Get a beacon chain summary representation by loading from the database the transaction
   """
   @spec get_summary(binary()) :: {:ok, Summary.t()} | {:error, :not_found}
-  def get_summary(address) when is_binary(address) do
-    case TransactionChain.get_transaction(address, data: [:content]) do
-      {:ok, %Transaction{data: %TransactionData{content: content}}} ->
-        {summary, _} = Summary.deserialize(content)
+  def get_summary(summary_address) when is_binary(summary_address) do
+    case DB.get_beacon_summary(summary_address) do
+      {:ok, summary} ->
         {:ok, summary}
 
       _ ->
         {:error, :not_found}
     end
+  end
+
+  @doc """
+  Write a beacon summary in DB
+  """
+  @spec write_beacon_summary(Summary.t()) :: :ok
+  def write_beacon_summary(summary = %Summary{subset: subset, summary_time: time}) do
+    DB.write_beacon_summary(summary)
+
+    Logger.info("Beacon summary stored, subset: #{Base.encode16(subset)}, time: #{time}")
+  end
+
+  @doc """
+  Get all slots of a subset from summary cache and return unique transaction summaries
+  """
+  @spec get_summary_slots(binary()) :: list(TransactionSummary.t())
+  def get_summary_slots(subset) when is_binary(subset) do
+    SummaryCache.stream_current_slots(subset)
+    |> Stream.flat_map(fn %Slot{transaction_attestations: transaction_attestations} ->
+      transaction_summaries =
+        transaction_attestations
+        |> Enum.map(& &1.transaction_summary)
+
+      transaction_summaries
+    end)
+    |> Stream.uniq_by(fn %TransactionSummary{address: address} -> address end)
+    |> Enum.to_list()
   end
 
   @doc """
@@ -252,7 +242,12 @@ defmodule Archethic.BeaconChain do
    Register for beacon updates i.e send a P2P message for beacon updates
   """
   @spec register_to_beacon_pool_updates(DateTime.t()) :: list
-  def register_to_beacon_pool_updates(date = %DateTime{} \\ next_slot(DateTime.utc_now())) do
+  def register_to_beacon_pool_updates(
+        date = %DateTime{} \\ next_slot(DateTime.utc_now()),
+        unsubscribe? \\ false
+      ) do
+    if unsubscribe?, do: Update.unsubscribe()
+
     Enum.map(list_subsets(), fn subset ->
       nodes = Election.beacon_storage_nodes(subset, date, P2P.authorized_and_available_nodes())
 

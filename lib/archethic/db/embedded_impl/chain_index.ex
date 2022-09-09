@@ -560,18 +560,21 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp index_summary_path(db_path, subset) do
-    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(<<subset>>)}-summary"])
+    Path.join([ChainWriter.base_chain_path(db_path), "#{Base.encode16(<<subset>>)}-summary"])
   end
 
   defp chain_addresses_path(db_path, genesis_address) do
-    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(genesis_address)}-addresses"])
+    Path.join([
+      ChainWriter.base_chain_path(db_path),
+      "#{Base.encode16(genesis_address)}-addresses"
+    ])
   end
 
   defp type_path(db_path, type) do
-    Path.join([ChainWriter.base_path(db_path), Atom.to_string(type)])
+    Path.join([ChainWriter.base_chain_path(db_path), Atom.to_string(type)])
   end
 
   defp chain_keys_path(db_path, genesis_address) do
-    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(genesis_address)}-keys"])
+    Path.join([ChainWriter.base_chain_path(db_path), "#{Base.encode16(genesis_address)}-keys"])
   end
 end

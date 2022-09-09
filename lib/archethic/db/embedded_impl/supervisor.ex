@@ -21,10 +21,14 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
     File.mkdir_p!(path)
     :ets.new(:archethic_db_chain_writers, [:named_table, :public])
 
+    DynamicSupervisor.start_link(
+      strategy: :one_for_one,
+      name: Archethic.DB.EmbeddedImpl.ChainWriterSupervisor
+    )
+
+    initialize_chain_writers(path)
+
     children = [
-      {DynamicSupervisor,
-       strategy: :one_for_one, name: Archethic.DB.EmbeddedImpl.ChainWriterSupervisor},
-      {Task, fn -> initialize_chain_writers(path) end},
       {ChainIndex, path: path},
       # {ChainWriter, path: path},
       {BootstrapInfo, path: path},

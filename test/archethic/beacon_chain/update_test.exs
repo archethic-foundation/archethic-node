@@ -11,10 +11,7 @@ defmodule Archethic.BeaconChain.UpdateTest do
 
   describe "Beacon Update test" do
     setup do
-      case Process.whereis(BeaconUpdate) do
-        nil -> start_supervised({BeaconUpdate, [[], []]})
-        _pid -> nil
-      end
+      BeaconUpdate.unsubscribe()
 
       :ok
     end
@@ -36,9 +33,7 @@ defmodule Archethic.BeaconChain.UpdateTest do
 
       BeaconUpdate.subscribe(nodes, <<202>>)
 
-      assert 1 = Enum.count(Map.get(:sys.get_state(BeaconUpdate), "123"), &(&1 == <<202>>))
-
-      assert 1 = Enum.count(Map.get(:sys.get_state(BeaconUpdate), "456"), &(&1 == <<202>>))
+      assert %{"123" => [<<202>>], "456" => [<<202>>]} = :sys.get_state(BeaconUpdate)
     end
 
     test "should not duplicate node key" do
@@ -56,7 +51,7 @@ defmodule Archethic.BeaconChain.UpdateTest do
       BeaconUpdate.subscribe(nodes, <<203>>)
       BeaconUpdate.subscribe(nodes, <<203>>)
 
-      assert 1 == Enum.count(Map.get(:sys.get_state(BeaconUpdate), "123"), &(&1 == <<203>>))
+      assert %{"123" => [<<203>>]} = :sys.get_state(BeaconUpdate)
     end
 
     test "should add subset to node" do
@@ -74,13 +69,7 @@ defmodule Archethic.BeaconChain.UpdateTest do
       BeaconUpdate.subscribe(nodes, <<205>>)
       BeaconUpdate.subscribe(nodes, <<100>>)
 
-      assert 1 ==
-               Enum.count(
-                 Map.get(:sys.get_state(BeaconUpdate), "123"),
-                 &(&1 == <<205>>)
-               )
-
-      assert 1 == Enum.count(Map.get(:sys.get_state(BeaconUpdate), "123"), &(&1 == <<100>>))
+      assert %{"123" => [<<100>>, <<205>>]} = :sys.get_state(BeaconUpdate)
     end
 
     test "should delete node from state" do
@@ -89,27 +78,33 @@ defmodule Archethic.BeaconChain.UpdateTest do
         %Node{first_public_key: node_public_key},
         %RegisterBeaconUpdates{node_public_key: _, subset: subset},
         _timeout ->
-          assert {node_public_key, subset} in [{"123", <<150>>}, {"456", <<150>>}]
+          assert {node_public_key, subset} in [
+                   {"123", <<150>>},
+                   {"456", <<150>>},
+                   {"789", <<150>>}
+                 ]
+
           {:ok, nil}
       end)
 
       nodes = [
         %Node{first_public_key: "123"},
-        %Node{first_public_key: "456"}
+        %Node{first_public_key: "456"},
+        %Node{first_public_key: "789"}
       ]
 
       BeaconUpdate.subscribe(nodes, <<150>>)
 
-      assert 1 ==
-               Enum.count(Map.get(:sys.get_state(BeaconUpdate), "123"), &(&1 == <<150>>))
-
-      assert 1 ==
-               Enum.count(Map.get(:sys.get_state(BeaconUpdate), "456"), &(&1 == <<150>>))
+      assert %{"123" => [<<150>>], "456" => [<<150>>], "789" => [<<150>>]} =
+               :sys.get_state(BeaconUpdate)
 
       BeaconUpdate.unsubscribe("123")
 
-      assert 1 ==
-               Enum.count(Map.get(:sys.get_state(BeaconUpdate), "456"), &(&1 == <<150>>))
+      assert %{"456" => [<<150>>], "789" => [<<150>>]} = :sys.get_state(BeaconUpdate)
+
+      BeaconUpdate.unsubscribe()
+
+      assert %{} = :sys.get_state(BeaconUpdate)
     end
   end
 end
