@@ -266,6 +266,8 @@ defmodule Archethic.OracleChain.SchedulerTest do
                }
              } = Jason.decode!(content)
 
+      send(pid, {:new_transaction, summary_address, :oracle_summary, DateTime.utc_now()})
+
       assert_receive {:transaction_sent,
                       %Transaction{
                         address: _polling_address,
