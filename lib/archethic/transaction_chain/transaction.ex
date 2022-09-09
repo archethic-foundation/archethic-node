@@ -64,8 +64,6 @@ defmodule Archethic.TransactionChain.Transaction do
           | :node_shared_secrets
           | :node_rewards
           | :mint_rewards
-          | :beacon
-          | :beacon_summary
           | :oracle
           | :oracle_summary
           | :code_proposal
@@ -80,8 +78,6 @@ defmodule Archethic.TransactionChain.Transaction do
   @transaction_types [
     :node,
     :node_shared_secrets,
-    :beacon,
-    :beacon_summary,
     :oracle,
     :oracle_summary,
     :node_rewards,
@@ -352,14 +348,12 @@ defmodule Archethic.TransactionChain.Transaction do
   def serialize_type(:node), do: 0
   def serialize_type(:node_shared_secrets), do: 1
   def serialize_type(:origin), do: 2
-  def serialize_type(:beacon), do: 3
-  def serialize_type(:beacon_summary), do: 4
-  def serialize_type(:oracle), do: 5
-  def serialize_type(:oracle_summary), do: 6
-  def serialize_type(:code_proposal), do: 7
-  def serialize_type(:code_approval), do: 8
-  def serialize_type(:node_rewards), do: 9
-  def serialize_type(:mint_rewards), do: 10
+  def serialize_type(:oracle), do: 3
+  def serialize_type(:oracle_summary), do: 4
+  def serialize_type(:code_proposal), do: 5
+  def serialize_type(:code_approval), do: 6
+  def serialize_type(:node_rewards), do: 7
+  def serialize_type(:mint_rewards), do: 8
 
   # User transaction's type
   def serialize_type(:keychain), do: 255
@@ -376,14 +370,12 @@ defmodule Archethic.TransactionChain.Transaction do
   def parse_type(0), do: :node
   def parse_type(1), do: :node_shared_secrets
   def parse_type(2), do: :origin
-  def parse_type(3), do: :beacon
-  def parse_type(4), do: :beacon_summary
-  def parse_type(5), do: :oracle
-  def parse_type(6), do: :oracle_summary
-  def parse_type(7), do: :code_proposal
-  def parse_type(8), do: :code_approval
-  def parse_type(9), do: :node_rewards
-  def parse_type(10), do: :mint_rewards
+  def parse_type(3), do: :oracle
+  def parse_type(4), do: :oracle_summary
+  def parse_type(5), do: :code_proposal
+  def parse_type(6), do: :code_approval
+  def parse_type(7), do: :node_rewards
+  def parse_type(8), do: :mint_rewards
 
   # User transaction's type
   def parse_type(255), do: :keychain
@@ -576,7 +568,7 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>     158, 5, 198, 202, 48, 233, 171, 107, 127, 70, 206, 98, 145, 93, 119, 98, 58,
       ...>     79, 206, 161, 21, 251, 218, 6, 44, 55, 133, 13, 122, 125, 219, 122, 131, 73,
       ...>     6>>,
-      ...>   type: :beacon,
+      ...>   type: :oracle,
       ...>   validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
       ...>     ledger_operations: %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
       ...>       fee: 0,
@@ -773,7 +765,7 @@ defmodule Archethic.TransactionChain.Transaction do
             158, 5, 198, 202, 48, 233, 171, 107, 127, 70, 206, 98, 145, 93, 119, 98, 58,
             79, 206, 161, 21, 251, 218, 6, 44, 55, 133, 13, 122, 125, 219, 122, 131, 73,
             6>>,
-          type: :beacon,
+          type: :oracle,
           validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
             ledger_operations: %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
               fee: 0,

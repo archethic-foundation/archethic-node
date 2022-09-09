@@ -6,6 +6,8 @@ defmodule Archethic.Utils do
 
   alias Archethic.BeaconChain.ReplicationAttestation
 
+  alias Archethic.TransactionChain.TransactionSummary
+
   alias Archethic.Crypto
 
   alias Archethic.P2P.Node
@@ -629,6 +631,17 @@ defmodule Archethic.Utils do
   def deserialize_transaction_attestations(rest, nb_attestations, acc) do
     {attestation, rest} = ReplicationAttestation.deserialize(rest)
     deserialize_transaction_attestations(rest, nb_attestations, [attestation | acc])
+  end
+
+  def deserialize_transaction_summaries(rest, 0, _acc), do: {[], rest}
+
+  def deserialize_transaction_summaries(rest, nb_transaction_summaries, acc)
+      when nb_transaction_summaries == length(acc),
+      do: {Enum.reverse(acc), rest}
+
+  def deserialize_transaction_summaries(rest, nb_transaction_summaries, acc) do
+    {transaction_summary, rest} = TransactionSummary.deserialize(rest)
+    deserialize_transaction_summaries(rest, nb_transaction_summaries, [transaction_summary | acc])
   end
 
   @doc """

@@ -19,6 +19,8 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
   enabled: false,
   interval: "0 * * * * *"
 
+config :archethic, Archethic.BeaconChain.Subset.SummaryCache, enabled: false
+
 config :archethic, Archethic.Bootstrap, enabled: false
 
 config :archethic, Archethic.Bootstrap.Sync, out_of_sync_date_threshold: 3

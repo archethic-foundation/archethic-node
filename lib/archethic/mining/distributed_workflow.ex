@@ -145,7 +145,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    validation_time = DateTime.utc_now()
+    validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     authorized_nodes =
       validation_time

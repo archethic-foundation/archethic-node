@@ -7,6 +7,9 @@ defmodule Archethic.P2P.Message do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Subset
+  alias Archethic.BeaconChain.Slot
 
   alias Archethic.Contracts
 
@@ -33,6 +36,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.GetBeaconSummaries
   alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
+  alias __MODULE__.GetCurrentSummaries
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
   alias __MODULE__.GetLastTransactionAddress
@@ -46,7 +50,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.GetUnspentOutputs
   alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
-  alias __MODULE__.NewBeaconTransaction
+  alias __MODULE__.NewBeaconSlot
   alias __MODULE__.NewTransaction
   alias __MODULE__.NodeAvailability
   alias __MODULE__.NodeList
@@ -63,6 +67,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.StartMining
   alias __MODULE__.TransactionChainLength
   alias __MODULE__.TransactionInputList
+  alias __MODULE__.TransactionSummaryList
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
   alias __MODULE__.ValidationError
@@ -117,7 +122,7 @@ defmodule Archethic.P2P.Message do
           | NodeAvailability.t()
           | Ping.t()
           | GetBeaconSummary.t()
-          | NewBeaconTransaction.t()
+          | NewBeaconSlot.t()
           | GetBeaconSummaries.t()
           | RegisterBeaconUpdates.t()
           | BeaconUpdate.t()
@@ -125,6 +130,7 @@ defmodule Archethic.P2P.Message do
           | ReplicationAttestation.t()
           | GetFirstAddress.t()
           | ValidationError.t()
+          | GetCurrentSummaries.t()
 
   @type response ::
           Ok.t()
@@ -142,6 +148,7 @@ defmodule Archethic.P2P.Message do
           | FirstPublicKey.t()
           | TransactionChainLength.t()
           | TransactionInputList.t()
+          | TransactionSummaryList.t()
           | Error.t()
           | Summary.t()
           | BeaconSummaryList.t()
@@ -388,8 +395,8 @@ defmodule Archethic.P2P.Message do
 
   def encode(%GetBeaconSummary{address: address}), do: <<26::8, address::binary>>
 
-  def encode(%NewBeaconTransaction{transaction: tx}),
-    do: <<27::8, Transaction.serialize(tx)::bitstring>>
+  def encode(%NewBeaconSlot{slot: slot}),
+    do: <<27::8, Slot.serialize(slot) |> Utils.wrap_binary()::bitstring>>
 
   def encode(%GetBeaconSummaries{addresses: addresses}) do
     encoded_addresses_length = length(addresses) |> VarInt.from_value()
@@ -406,6 +413,22 @@ defmodule Archethic.P2P.Message do
 
   def encode(%GetFirstAddress{address: address}) do
     <<31::8, address::binary>>
+  end
+
+  def encode(%GetCurrentSummaries{subsets: subsets}) do
+    subsets_bin = :erlang.list_to_binary(subsets)
+    <<32::8, length(subsets)::8, subsets_bin::binary>>
+  end
+
+  def encode(%TransactionSummaryList{transaction_summaries: transaction_summaries}) do
+    transaction_summaries_bin =
+      transaction_summaries
+      |> Enum.map(&TransactionSummary.serialize/1)
+      |> :erlang.list_to_bitstring()
+
+    encoded_transaction_summaries_len = length(transaction_summaries) |> VarInt.from_value()
+
+    <<232::8, encoded_transaction_summaries_len::binary, transaction_summaries_bin::bitstring>>
   end
 
   def encode(%ReplicationError{address: address, reason: reason}) do
@@ -864,10 +887,10 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<27::8, rest::bitstring>>) do
-    {tx = %Transaction{}, rest} = Transaction.deserialize(rest)
+    {slot = %Slot{}, rest} = Slot.deserialize(rest)
 
     {
-      %NewBeaconTransaction{transaction: tx},
+      %NewBeaconSlot{slot: slot},
       rest
     }
   end
@@ -901,6 +924,26 @@ defmodule Archethic.P2P.Message do
   def decode(<<31::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
     {%GetFirstAddress{address: address}, rest}
+  end
+
+  def decode(<<32::8, nb_subsets::8, rest::binary>>) do
+    subsets_bin = :binary.part(rest, 0, nb_subsets)
+    subsets = for <<subset::8 <- subsets_bin>>, do: <<subset>>
+    {%GetCurrentSummaries{subsets: subsets}, <<>>}
+  end
+
+  def decode(<<232::8, rest::bitstring>>) do
+    {nb_transaction_summaries, rest} = rest |> VarInt.get_value()
+
+    {transaction_summaries, rest} =
+      Utils.deserialize_transaction_summaries(rest, nb_transaction_summaries, [])
+
+    {
+      %TransactionSummaryList{
+        transaction_summaries: transaction_summaries
+      },
+      rest
+    }
   end
 
   def decode(<<233::8, rest::bitstring>>) do
@@ -1460,6 +1503,26 @@ defmodule Archethic.P2P.Message do
     end
   end
 
+  def process(%GetCurrentSummaries{subsets: subsets}) do
+    transaction_summaries =
+      Enum.flat_map(subsets, fn subset ->
+        transaction_summaries = BeaconChain.get_summary_slots(subset)
+
+        %Slot{transaction_attestations: transaction_attestations} =
+          Subset.get_current_slot(subset)
+
+        Enum.reduce(
+          transaction_attestations,
+          transaction_summaries,
+          &[&1.transaction_summary | &2]
+        )
+      end)
+
+    %TransactionSummaryList{
+      transaction_summaries: transaction_summaries
+    }
+  end
+
   def process(%NodeAvailability{public_key: public_key}) do
     P2P.set_node_globally_available(public_key)
     %Ok{}
@@ -1477,8 +1540,8 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%NewBeaconTransaction{transaction: tx}) do
-    case BeaconChain.load_transaction(tx) do
+  def process(%NewBeaconSlot{slot: slot}) do
+    case BeaconChain.load_slot(slot) do
       :ok ->
         %Ok{}
 

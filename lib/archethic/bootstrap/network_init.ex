@@ -182,7 +182,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),

@@ -5,18 +5,21 @@ defmodule Archethic.DB do
 
   alias __MODULE__.EmbeddedImpl
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.BeaconChain.Summary
 
   use Knigge, otp_app: :archethic, default: EmbeddedImpl
 
   @callback get_transaction(address :: binary(), fields :: list()) ::
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+  @callback get_beacon_summary(summary_address :: binary()) ::
+              {:ok, Summary.t()} | {:error, :summary_not_exists}
   @callback get_transaction_chain(
               binary(),
               fields :: list(),
               opts :: [paging_state: nil | binary(), after: DateTime.t()]
             ) :: Enumerable.t()
   @callback write_transaction(Transaction.t()) :: :ok
-  @callback write_transaction_at(Transaction.t(), binary()) :: :ok
+  @callback write_beacon_summary(Summary.t()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
   @callback write_transaction(Transaction.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()

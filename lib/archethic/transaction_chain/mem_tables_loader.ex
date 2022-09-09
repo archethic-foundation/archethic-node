@@ -26,8 +26,6 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
     :node_shared_secrets,
     :oracle,
     :oracle_summary,
-    :beacon,
-    :beacon_summary,
     :node_rewards,
     :mint_rewards,
     :origin
