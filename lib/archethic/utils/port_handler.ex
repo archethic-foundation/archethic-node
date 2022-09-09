@@ -49,11 +49,11 @@ defmodule Archethic.Utils.PortHandler do
         {_port, {:data, <<request_id::32, response::binary>>}},
         state = %{awaiting: awaiting}
       ) do
-    case Map.get(awaiting, request_id) do
-      nil ->
-        {:noreply, state}
+    case Map.pop(awaiting, request_id) do
+      {nil, awaiting} ->
+        {:noreply, %{state | awaiting: awaiting}}
 
-      client ->
+      {client, awaiting} ->
         case response do
           <<0::8, error_message::binary>> ->
             GenServer.reply(client, {:error, error_message})
@@ -65,7 +65,7 @@ defmodule Archethic.Utils.PortHandler do
             GenServer.reply(client, {:ok, data})
         end
 
-        {:noreply, state}
+        {:noreply, %{state | awaiting: awaiting}}
     end
   end
 
