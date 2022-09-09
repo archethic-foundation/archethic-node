@@ -33,6 +33,7 @@ defmodule Archethic.Contracts.Worker do
 
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
+
   require Logger
 
   use GenServer
@@ -52,9 +53,13 @@ defmodule Archethic.Contracts.Worker do
     GenServer.call(via_tuple(address), {:execute, tx})
   end
 
-  def init(contract = %Contract{triggers: triggers}) do
-    state =
-      Enum.reduce(triggers, %{contract: contract}, fn trigger = %Trigger{type: type}, acc ->
+  def init(contract = %Contract{}) do
+    {:ok, %{contract: contract}, {:continue, :start_schedulers}}
+  end
+
+  def handle_continue(:start_schedulers, state = %{contract: %Contract{triggers: triggers}}) do
+    new_state =
+      Enum.reduce(triggers, state, fn trigger = %Trigger{type: type}, acc ->
         case schedule_trigger(trigger) do
           timer when is_reference(timer) ->
             Map.update(acc, :timers, %{type => timer}, &Map.put(&1, type, timer))
@@ -64,7 +69,7 @@ defmodule Archethic.Contracts.Worker do
         end
       end)
 
-    {:ok, state}
+    {:noreply, new_state}
   end
 
   def handle_call(
@@ -240,11 +245,19 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  defp schedule_trigger(trigger = %Trigger{type: :interval, opts: [at: interval]}) do
+  defp schedule_trigger(
+         trigger = %Trigger{
+           type: :interval,
+           opts: opts
+         }
+       ) do
+    interval = Keyword.fetch!(opts, :at)
+    enable_seconds? = Keyword.get(opts, :enable_seconds, false)
+
     Process.send_after(
       self(),
       trigger,
-      Utils.time_offset(interval, DateTime.utc_now(), false) * 1000
+      Utils.time_offset(interval, DateTime.utc_now(), enable_seconds?) * 1000
     )
   end
 

@@ -177,10 +177,16 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, contract} = Interpreter.parse(code)
 
-      contract = %{
-        contract
-        | constants: %Constants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        %{
+          contract
+          | constants: %Constants{contract: Map.put(constants, "code", code)}
+        }
+        |> Map.update!(:triggers, fn triggers ->
+          Enum.map(triggers, fn trigger ->
+            %{trigger | opts: Keyword.put(trigger.opts, :enable_seconds, true)}
+          end)
+        end)
 
       {:ok, _pid} = Worker.start_link(contract)
 
