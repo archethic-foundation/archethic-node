@@ -254,7 +254,15 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
-  def handle_event(:info, {_ref, :ok}, {:connected, _socket}, _data), do: :keep_state_and_data
+  def handle_event(:info, {ref, :ok}, {:connected, _socket}, data = %{send_tasks: send_tasks}) do
+    case Map.pop(send_tasks, ref) do
+      {nil, _} ->
+        :keep_state_and_data
+
+      {_, new_send_tasks} ->
+        {:keep_state, Map.put(data, :send_tasks, new_send_tasks)}
+    end
+  end
 
   def handle_event(
         :info,
