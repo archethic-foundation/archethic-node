@@ -18,11 +18,11 @@ defmodule Archethic.P2P.Client.Transport.TCPImpl do
     {:ok, data}
   end
 
-  def handle_message({:tcp_closed, _reason}) do
+  def handle_message({:tcp_closed, _socket}) do
     {:error, :closed}
   end
 
-  def handle_message({:tcp_error, reason}) do
+  def handle_message({:tcp_error, _socket, reason}) do
     {:error, reason}
   end
 
