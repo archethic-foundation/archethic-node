@@ -227,6 +227,7 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   def handle_event(:info, {:new_transaction, _, :oracle_summary, _timestamp}, :triggered, _data) do
+    OracleChain.update_summ_gen_addr()
     {:keep_state_and_data, {:next_event, :internal, :fetch_data}}
   end
 
