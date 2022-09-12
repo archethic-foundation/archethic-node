@@ -311,6 +311,10 @@ defmodule Archethic.Bootstrap do
       _ ->
         {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
+        closest_nodes =
+          closest_nodes
+          |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+
         tx =
           TransactionHandler.create_node_transaction(
             ip,
