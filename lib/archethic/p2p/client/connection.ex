@@ -247,6 +247,8 @@ defmodule Archethic.P2P.Client.Connection do
           message_id: msg_id
         )
 
+        MemTable.decrease_node_availability(node_public_key)
+
         {:keep_state, new_data}
 
       {nil, _} ->
