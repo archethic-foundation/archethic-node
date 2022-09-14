@@ -204,6 +204,19 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     )
   end
 
+  def nearest_endpoints(ip) do
+    geo_patch = P2P.get_geo_patch(ip)
+    nearest_nodes = P2P.nearest_nodes(P2P.list_nodes(), geo_patch)
+
+    Enum.map(
+      nearest_nodes,
+      &%{
+        ip: :inet.ntoa(&1.ip),
+        port: &1.http_port
+      }
+    )
+  end
+
   def network_transactions(type, page) do
     TransactionChain.list_transactions_by_type(type, [])
     |> paginate_transactions(page)
