@@ -723,17 +723,42 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Stream the trnasaction inputs for a transaction address at a given time
+  """
+  @spec stream_inputs_remotely(binary(), list(Node.t()), DateTime.t()) ::
+          Enumerable.t() | list(TransactionInput.t())
+  def stream_inputs_remotely(_, [], _, _), do: []
+
+  def stream_inputs_remotely(address, nodes, timestamp) do
+    Stream.resource(
+      fn -> fetch_inputs_remotely(address, nodes, timestamp) end,
+      fn
+        {inputs, true, offset} ->
+          {inputs, fetch_inputs_remotely(address, nodes, timestamp, offset)}
+
+        {inputs, false, _} ->
+          {inputs, :eof}
+
+        :eof ->
+          {:halt, nil}
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  @doc """
   Fetch the transaction inputs for a transaction address at a given time
 
   If the inputs exist, then they are returned in the shape of `{:ok, inputs}`.
   If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
   """
   @spec fetch_inputs_remotely(address :: Crypto.versioned_hash(), list(Node.t()), DateTime.t()) ::
-          {:ok, list(TransactionInput.t())} | {:error, :network_issue}
-  def fetch_inputs_remotely(_, [], _), do: {:ok, []}
+          {inputs :: list(TransactionInput.t()), more? :: boolean(), offset :: non_neg_integer()}
+  def fetch_inputs_remotely(address, nodes, timestamp, offset \\ 0)
+  def fetch_inputs_remotely(_, [], _, _), do: {[], false, 0}
 
-  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{})
-      when is_binary(address) and is_list(nodes) do
+  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{}, offset)
+      when is_binary(address) and is_list(nodes) and is_integer(offset) and offset >= 0 do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.inputs), :desc)
@@ -742,15 +767,15 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetTransactionInputs{address: address},
+           %GetTransactionInputs{address: address, offset: offset},
            conflict_resolver
          ) do
-      {:ok, %TransactionInputList{inputs: inputs}} ->
+      {:ok, %TransactionInputList{inputs: inputs, more?: more?, offset: offset}} ->
         filtered_inputs = Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
-        {:ok, filtered_inputs}
+        {filtered_inputs, more?, offset}
 
       {:error, :network_issue} ->
-        {:error, :network_issue}
+        {[], false, 0}
     end
   end
 

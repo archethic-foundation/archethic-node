@@ -332,7 +332,7 @@ defmodule Archethic.TransactionChainTest do
          }}
       end)
 
-      assert {:ok, [%TransactionInput{from: "Alice2", amount: 10, type: :UCO}]} =
+      assert {[%TransactionInput{from: "Alice2", amount: 10, type: :UCO}], _more?, _offset} =
                TransactionChain.fetch_inputs_remotely("Alice1", nodes, DateTime.utc_now())
     end
 
@@ -398,7 +398,8 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert {:ok, [%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}]} =
+      assert {[%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}], _more?,
+              _offset} =
                TransactionChain.fetch_inputs_remotely("Alice1", nodes, DateTime.utc_now())
     end
   end

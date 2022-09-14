@@ -59,8 +59,9 @@ defmodule Archethic.Replication.TransactionContext do
   def fetch_transaction_inputs(address, timestamp = %DateTime{}) when is_binary(address) do
     nodes = replication_nodes(address)
 
-    {:ok, inputs} = TransactionChain.fetch_inputs_remotely(address, nodes, timestamp)
-    inputs
+    address
+    |> TransactionChain.stream_inputs_remotely(nodes, timestamp)
+    |> Enum.to_list()
   end
 
   defp replication_nodes(address) do
