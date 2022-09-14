@@ -755,20 +755,40 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Fetch the transaction unspent outputs for a transaction address at a given time
-
-  If the utxo exist, then they are returned in the shape of `{:ok, inputs}`.
-  If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
+  Stream the transaction unspent outputs for a transaction address
   """
-  @spec fetch_unspent_outputs_remotely(
+  @spec stream_unspent_outputs_remotely(
           address :: Crypto.versioned_hash(),
           list(Node.t())
-        ) ::
-          {:ok, list(UnspentOutput.t())} | {:error, :network_issue}
-  def fetch_unspent_outputs_remotely(_, []), do: {:ok, []}
+        ) :: Enumerable.t() | list(UnspentOutput.t())
+  def stream_unspent_outputs_remotely(_, []), do: []
 
-  def fetch_unspent_outputs_remotely(address, nodes)
+  def stream_unspent_outputs_remotely(address, nodes)
       when is_binary(address) and is_list(nodes) do
+    Stream.resource(
+      fn -> fetch_unspent_outputs_remotely(address, nodes) end,
+      fn
+        {utxos, true, offset} ->
+          {utxos, fetch_unspent_outputs_remotely(address, nodes, offset)}
+
+        {utxos, false, _} ->
+          {utxos, :eof}
+
+        :eof ->
+          {:halt, nil}
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  @doc """
+  Fetch the unspent outputs
+  """
+  @spec fetch_unspent_outputs_remotely(binary(), list(Node.t()), non_neg_integer()) ::
+          {list(UnspentOutput.t()), boolean(), non_neg_integer() | nil}
+  def fetch_unspent_outputs_remotely(address, nodes, offset \\ 0)
+
+  def fetch_unspent_outputs_remotely(address, nodes, offset) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.unspent_outputs), :desc)
@@ -777,14 +797,14 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetUnspentOutputs{address: address},
+           %GetUnspentOutputs{address: address, offset: offset},
            conflict_resolver
          ) do
-      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
-        {:ok, unspent_outputs}
+      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs, more?: more?, offset: offset}} ->
+        {unspent_outputs, more?, offset}
 
       {:error, :network_issue} ->
-        {:error, :network_issue}
+        {[], false, nil}
     end
   end
 

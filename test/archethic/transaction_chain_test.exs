@@ -436,7 +436,7 @@ defmodule Archethic.TransactionChainTest do
          }}
       end)
 
-      assert {:ok, [%UnspentOutput{from: "Alice2", amount: 10, type: :UCO}]} =
+      assert {[%UnspentOutput{from: "Alice2", amount: 10, type: :UCO}], _more?, _offset} =
                TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
     end
 
@@ -485,7 +485,7 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert {:ok, [%UnspentOutput{from: "Alice2"}, %UnspentOutput{from: "Bob3"}]} =
+      assert {[%UnspentOutput{from: "Alice2"}, %UnspentOutput{from: "Bob3"}], _more?, _offset} =
                TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
     end
   end
