@@ -67,4 +67,7 @@ defmodule Archethic.P2P.Client.DefaultImpl do
       end
     end
   end
+
+  @impl Client
+  defdelegate get_availability_timer(public_key, reset?), to: Connection
 end
