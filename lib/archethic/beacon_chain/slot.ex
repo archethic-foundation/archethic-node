@@ -316,12 +316,12 @@ defmodule Archethic.BeaconChain.Slot do
   ## Examples
 
       iex> %Slot{
-      ...>    p2p_view: %{ availabilities: <<0::1, 0::1, 0::1>>, network_stats: [] }
+      ...>    p2p_view: %{ availabilities: <<0::16, 0::16, 0::16>>, network_stats: [] }
       ...>  }
-      ...> |> Slot.add_p2p_view([{true, 10 }, {false, 0 }, {true, 50 }])
+      ...> |> Slot.add_p2p_view([{600, 10 }, {0, 0 }, {356, 50 }])
       %Slot{
         p2p_view: %{
-          availabilities: <<1::1, 0::1, 1::1>>,
+          availabilities: <<600::16, 0::16, 356::16>>,
           network_stats: [
             %{ latency: 10 },
             %{ latency: 0},
@@ -334,16 +334,10 @@ defmodule Archethic.BeaconChain.Slot do
   def add_p2p_view(slot = %__MODULE__{}, p2p_views) do
     %{availabilities: availabilities, network_stats: network_stats} =
       p2p_views
-      |> Enum.reduce(%{availabilities: [], network_stats: []}, fn
-        {true, latency}, acc ->
-          acc
-          |> Map.update!(:availabilities, &(&1 ++ [<<1::1>>]))
-          |> Map.update!(:network_stats, &(&1 ++ [%{latency: latency}]))
-
-        {false, _}, acc ->
-          acc
-          |> Map.update!(:availabilities, &(&1 ++ [<<0::1>>]))
-          |> Map.update!(:network_stats, &(&1 ++ [%{latency: 0}]))
+      |> Enum.reduce(%{availabilities: [], network_stats: []}, fn {availability, latency}, acc ->
+        acc
+        |> Map.update!(:availabilities, &(&1 ++ [<<availability::16>>]))
+        |> Map.update!(:network_stats, &(&1 ++ [%{latency: latency}]))
       end)
 
     %{
@@ -385,7 +379,7 @@ defmodule Archethic.BeaconChain.Slot do
         ...>      timestamp: ~U[2020-06-25 15:11:53Z]
         ...>    }],
         ...>    p2p_view: %{
-        ...>      availabilities: <<1::1, 0::1>>,
+        ...>      availabilities: <<600::16, 356::16>>,
         ...>      network_stats: [
         ...>         %{ latency: 10},
         ...>         %{ latency: 0}
@@ -432,10 +426,10 @@ defmodule Archethic.BeaconChain.Slot do
         100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
         # Node readyness timestamp
         94, 244, 190, 185,
-        # P2P view bitstring size
+        # P2P view network stats length
         0, 2,
         # P2P view availabilies
-        1::1, 0::1,
+        600::16, 356::16,
         # P2P view network stats (1st node)
         10,
         # P2P view network stats (2nd node)
@@ -477,7 +471,7 @@ defmodule Archethic.BeaconChain.Slot do
     <<1::8, subset::binary, DateTime.to_unix(slot_time)::32,
       encoded_transaction_attestations_len::binary, transaction_attestations_bin::binary,
       encoded_end_of_node_synchronizations_len::binary, end_of_node_synchronizations_bin::binary,
-      bit_size(availabilities)::16, availabilities::bitstring, net_stats_bin::binary>>
+      length(network_stats)::16, availabilities::bitstring, net_stats_bin::binary>>
   end
 
   @doc """
@@ -494,7 +488,7 @@ defmodule Archethic.BeaconChain.Slot do
       ...> 43, 216, 176, 11, 159, 188, 119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123,
       ...> 140, 195, 1, 1, 0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200,
       ...> 255, 174, 190, 91, 100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87,
-      ...> 143, 241, 94, 244, 190, 185, 0, 2, 1::1, 0::1, 10, 0 >>
+      ...> 143, 241, 94, 244, 190, 185, 0, 2, 600::16, 356::16, 10, 0 >>
       ...> |> Slot.deserialize()
       {
         %Slot{
@@ -523,7 +517,7 @@ defmodule Archethic.BeaconChain.Slot do
             timestamp: ~U[2020-06-25 15:11:53Z]
           }],
           p2p_view: %{
-            availabilities: <<1::1, 0::1>>,
+            availabilities: <<600::16, 356::16>>,
             network_stats: [
               %{ latency: 10},
               %{ latency: 0}
@@ -545,7 +539,11 @@ defmodule Archethic.BeaconChain.Slot do
     {end_of_node_synchronizations, rest} =
       deserialize_end_of_node_synchronizations(rest, nb_end_of_sync, [])
 
-    <<p2p_view_size::16, availabilities::bitstring-size(p2p_view_size), rest::bitstring>> = rest
+    <<p2p_view_size::16, rest::bitstring>> = rest
+
+    availabilities_size = p2p_view_size * 2
+
+    <<availabilities::binary-size(availabilities_size), rest::bitstring>> = rest
 
     {network_stats, rest} = deserialize_network_stats(rest, p2p_view_size, [])
 

@@ -254,6 +254,8 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                  1000
                )
 
+      Process.sleep(10)
+
       assert {_, %{availability_timer: {nil, 1}}} = :sys.get_state(pid)
 
       :ok = Connection.start_availability_timer(Crypto.first_node_public_key())
@@ -267,6 +269,8 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                  %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
                  1000
                )
+
+      Process.sleep(10)
 
       assert {_, %{availability_timer: {nil, 2}}} = :sys.get_state(pid)
     end
@@ -307,6 +311,8 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       send(pid, {__MODULE__.MockTransportDisconnected, make_ref(), msg_envelop})
 
+      Process.sleep(10)
+
       assert {_, %{availability_timer: {nil, 0}}} = :sys.get_state(pid)
     end
   end
@@ -328,13 +334,15 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                  1000
                )
 
+      Process.sleep(10)
+
       assert {_, %{availability_timer: {nil, 1}}} = :sys.get_state(pid)
 
       assert 1 == Connection.get_availability_timer(Crypto.first_node_public_key(), true)
 
       assert {_, %{availability_timer: {nil, 0}}} = :sys.get_state(pid)
 
-      :ok = Connection.start_availability_timer(Crypto.first_node_public_key)
+      :ok = Connection.start_availability_timer(Crypto.first_node_public_key())
 
       assert {_, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
 

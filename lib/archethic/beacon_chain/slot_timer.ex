@@ -86,6 +86,11 @@ defmodule Archethic.BeaconChain.SlotTimer do
     |> Enum.to_list()
   end
 
+  def get_time_interval(unit \\ :second) do
+    now = DateTime.utc_now()
+    DateTime.diff(next_slot(now), previous_slot(now), unit)
+  end
+
   defp get_interval do
     [{_, interval}] = :ets.lookup(@slot_timer_ets, :interval)
     interval
