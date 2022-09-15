@@ -1303,6 +1303,7 @@ defmodule Archethic.P2P.Message do
 
     %{utxos: utxos, offset: offset, more?: more?} =
       utxos
+      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
       |> Enum.with_index()
       |> Enum.drop(offset)
       |> Enum.reduce_while(%{utxos: [], offset: 0, more?: false}, fn {utxo, index}, acc ->
@@ -1512,6 +1513,7 @@ defmodule Archethic.P2P.Message do
 
     %{inputs: inputs, offset: offset, more?: more?} =
       inputs
+      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
       |> Enum.with_index()
       |> Enum.drop(offset)
       |> Enum.reduce_while(%{inputs: [], offset: 0, more?: false}, fn {input, index}, acc ->

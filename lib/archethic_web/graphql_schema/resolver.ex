@@ -127,7 +127,6 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       address
       |> Archethic.get_transaction_inputs(paging_offset)
       |> Enum.map(&TransactionInput.to_map/1)
-      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
 
     case limit do
       0 ->
