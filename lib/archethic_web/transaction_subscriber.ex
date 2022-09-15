@@ -27,7 +27,7 @@ defmodule ArchethicWeb.TransactionSubscriber do
   @spec register(binary(), non_neg_integer()) :: :ok
   def register(tx_address, start_time)
       when is_binary(tx_address) and is_integer(start_time) do
-    GenServer.cast(__MODULE__, {:register, tx_address, start_time})
+    GenServer.cast(__MODULE__, {:register, tx_address, start_time, self()})
   end
 
   @doc """
@@ -58,13 +58,14 @@ defmodule ArchethicWeb.TransactionSubscriber do
     {:noreply, state}
   end
 
-  def handle_cast({:register, tx_address, start_time}, state) do
+  def handle_cast({:register, tx_address, start_time, from}, state) do
     {:noreply,
      Map.put(state, tx_address, %{
        status: :pending,
        start_time: start_time,
        nb_confirmations: 0,
-       max_confirmations: get_max_confirmations(tx_address)
+       max_confirmations: get_max_confirmations(tx_address),
+       from: from
      })}
   end
 
@@ -78,10 +79,11 @@ defmodule ArchethicWeb.TransactionSubscriber do
          }},
         state
       ) do
-    %{nb_confirmations: nb_confirmations, max_confirmations: max_confirmations} =
+    %{nb_confirmations: nb_confirmations, max_confirmations: max_confirmations, from: from} =
       Map.get(state, tx_address, %{
         nb_confirmations: 0,
-        max_confirmations: get_max_confirmations(tx_address)
+        max_confirmations: get_max_confirmations(tx_address),
+        from: make_ref()
       })
 
     total_confirmations = nb_confirmations + length(confirmations)
@@ -95,6 +97,8 @@ defmodule ArchethicWeb.TransactionSubscriber do
       },
       transaction_confirmed: tx_address
     )
+
+    send(from, {:new_transaction, tx_address})
 
     case Map.get(state, tx_address) do
       nil ->

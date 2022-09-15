@@ -1,5 +1,5 @@
 defmodule ArchethicWeb.FaucetControllerTest do
-  use ArchethicCase
+  use ArchethicCase, async: false
   use ArchethicWeb.ConnCase
 
   alias Archethic.{
@@ -8,6 +8,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
     P2P.Node,
     PubSub
   }
+
+  alias Archethic.BeaconChain.ReplicationAttestation
 
   alias Archethic.P2P.Message.{
     GetLastTransactionAddress,
@@ -23,7 +25,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
     Transaction,
     TransactionData,
     TransactionData.Ledger,
-    TransactionData.UCOLedger
+    TransactionData.UCOLedger,
+    TransactionSummary
   }
 
   alias ArchethicWeb.FaucetRateLimiter
@@ -50,7 +53,12 @@ defmodule ArchethicWeb.FaucetControllerTest do
 
   describe "create_transfer/2" do
     test "should show success flash with tx URL on valid transaction", %{conn: conn} do
-      recipient_address = "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
+      recipient_address =
+        Crypto.generate_deterministic_keypair("seed")
+        |> elem(0)
+        |> Crypto.derive_address()
+        |> Base.encode16()
+
       FaucetRateLimiter.clean_address(recipient_address)
 
       tx =
@@ -83,6 +91,14 @@ defmodule ArchethicWeb.FaucetControllerTest do
 
         _, %StartMining{}, _ ->
           PubSub.notify_new_transaction(tx.address)
+
+          PubSub.notify_replication_attestation(%ReplicationAttestation{
+            transaction_summary: %TransactionSummary{
+              address: tx.address
+            }
+          })
+
+          {:ok, %Ok{}}
 
         _, %GetFirstAddress{}, _ ->
           {:ok, %GetFirstAddress{address: tx.address}}
@@ -139,6 +155,12 @@ defmodule ArchethicWeb.FaucetControllerTest do
         _, %StartMining{}, _ ->
           PubSub.notify_new_transaction(tx.address)
 
+          PubSub.notify_replication_attestation(%ReplicationAttestation{
+            transaction_summary: %TransactionSummary{
+              address: tx.address
+            }
+          })
+
         _, %GetFirstAddress{}, _ ->
           {:ok, %GetFirstAddress{address: tx.address}}
 
@@ -150,11 +172,9 @@ defmodule ArchethicWeb.FaucetControllerTest do
           post(conn, Routes.faucet_path(conn, :create_transfer), address: recipient_address)
         end
 
-      # conn
-      List.last(faucet_requests)
+      conn = List.last(faucet_requests)
 
-      # Cannot determine response like this, as Faucet Register is triggered after transaction is replicated.
-      # assert html_response(conn, 200) =~ "Blocked address"
+      assert html_response(conn, 200) =~ "Blocked address"
     end
   end
 end
