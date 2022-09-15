@@ -182,9 +182,14 @@ defmodule Archethic do
   @doc """
   Request to fetch the inputs for a transaction address from the closest nodes at a given page
   """
-  @spec get_transaction_inputs(binary(), non_neg_integer()) :: list(TransactionInput.t())
-  def get_transaction_inputs(address, page)
-      when is_binary(address) and is_integer(page) and page >= 0 do
+  @spec get_transaction_inputs(
+          binary(),
+          paging_offset :: non_neg_integer(),
+          limit :: non_neg_integer()
+        ) :: list(TransactionInput.t())
+  def get_transaction_inputs(address, page, limit)
+      when is_binary(address) and is_integer(page) and page >= 0 and is_integer(limit) and
+             limit >= 0 do
     nodes =
       address
       |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
@@ -192,7 +197,7 @@ defmodule Archethic do
       |> Enum.filter(&Node.locally_available?/1)
 
     {inputs, _more?, _offset} =
-      TransactionChain.fetch_inputs_remotely(address, nodes, DateTime.utc_now(), page)
+      TransactionChain.fetch_inputs_remotely(address, nodes, DateTime.utc_now(), page, limit)
 
     inputs
   end

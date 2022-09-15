@@ -752,13 +752,19 @@ defmodule Archethic.TransactionChain do
   If the inputs exist, then they are returned in the shape of `{:ok, inputs}`.
   If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
   """
-  @spec fetch_inputs_remotely(address :: Crypto.versioned_hash(), list(Node.t()), DateTime.t()) ::
+  @spec fetch_inputs_remotely(
+          address :: Crypto.versioned_hash(),
+          list(Node.t()),
+          DateTime.t(),
+          limit :: non_neg_integer()
+        ) ::
           {inputs :: list(TransactionInput.t()), more? :: boolean(), offset :: non_neg_integer()}
-  def fetch_inputs_remotely(address, nodes, timestamp, offset \\ 0)
-  def fetch_inputs_remotely(_, [], _, _), do: {[], false, 0}
+  def fetch_inputs_remotely(address, nodes, timestamp, offset \\ 0, limit \\ 0)
+  def fetch_inputs_remotely(_, [], _, _, _), do: {[], false, 0}
 
-  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{}, offset)
-      when is_binary(address) and is_list(nodes) and is_integer(offset) and offset >= 0 do
+  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{}, offset, limit)
+      when is_binary(address) and is_list(nodes) and is_integer(offset) and offset >= 0 and
+             is_integer(limit) and limit >= 0 do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.inputs), :desc)
@@ -767,7 +773,7 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetTransactionInputs{address: address, offset: offset},
+           %GetTransactionInputs{address: address, offset: offset, limit: limit},
            conflict_resolver
          ) do
       {:ok, %TransactionInputList{inputs: inputs, more?: more?, offset: offset}} ->

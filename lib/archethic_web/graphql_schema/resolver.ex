@@ -125,7 +125,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   def get_inputs(address, paging_offset \\ 0, limit \\ 0) do
     inputs =
       address
-      |> Archethic.get_transaction_inputs(paging_offset)
+      |> Archethic.get_transaction_inputs(paging_offset, limit)
       |> Enum.map(&TransactionInput.to_map/1)
 
     case limit do
