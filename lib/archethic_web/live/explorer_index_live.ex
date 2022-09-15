@@ -5,9 +5,8 @@ defmodule ArchethicWeb.ExplorerIndexLive do
 
   alias Phoenix.View
 
-  alias Archethic.DB
-  alias Archethic.PubSub
-
+  alias Archethic.{DB, PubSub, BeaconChain}
+  alias Archethic.TransactionChain.TransactionSummary
   alias ArchethicWeb.ExplorerView
 
   def mount(_params, _session, socket) do
@@ -17,18 +16,60 @@ defmodule ArchethicWeb.ExplorerIndexLive do
     if connected?(socket) do
       Archethic.Metrics.Poller.monitor()
       PubSub.register_to_new_tps()
+      PubSub.register_to_new_transaction_attestations()
+      PubSub.register_to_current_epoch_of_slot_time()
+
+      # Register to beacon pool
+      Task.start(fn -> BeaconChain.register_to_beacon_pool_updates() end)
     end
 
     new_socket =
       socket
       |> assign(:tps, tps)
       |> assign(:nb_transactions, nb_transactions)
+      |> assign(:update_time, DateTime.utc_now())
+      |> assign(:transactions, [])
+      |> assign(:fetching, true)
 
     {:ok, new_socket}
   end
 
   def render(assigns) do
     View.render(ExplorerView, "index.html", assigns)
+  end
+
+  def handle_info(
+        {:current_epoch_of_slot_timer, date},
+        socket
+      ) do
+    # We refresh the live feed subscription at each slot time
+    BeaconChain.register_to_beacon_pool_updates(date, true)
+
+    {:noreply, socket}
+  end
+
+  def handle_info(
+        {:new_transaction_attestation, tx_summary = %TransactionSummary{}},
+        socket = %{
+          assigns:
+            _assigns = %{
+              transactions: transactions
+            }
+        }
+      ) do
+    # Only update the transactions when new transaction recieved and passed 10 transactions limit
+    new_socket =
+      socket
+      |> assign(:transactions, Enum.take([tx_summary | transactions], 10))
+      |> assign(:update_time, DateTime.utc_now())
+      |> assign(:fetching, false)
+
+    send_update(ArchethicWeb.LastTenTransactionsComponent,
+      id: "last_ten_transactions",
+      transaction: tx_summary
+    )
+
+    {:noreply, new_socket}
   end
 
   def handle_info({:update_data, data}, socket) do
