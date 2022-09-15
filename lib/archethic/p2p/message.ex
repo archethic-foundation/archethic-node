@@ -174,6 +174,10 @@ defmodule Archethic.P2P.Message do
   @spec get_timeout(__MODULE__.t()) :: non_neg_integer()
   def get_timeout(%GetTransaction{}), do: get_max_timeout()
   def get_timeout(%GetLastTransaction{}), do: get_max_timeout()
+  def get_timeout(%NewTransaction{}), do: get_max_timeout()
+  def get_timeout(%StartMining{}), do: get_max_timeout()
+  def get_timeout(%ReplicateTransaction{}), do: get_max_timeout()
+  def get_timeout(%ReplicateTransactionChain{}), do: get_max_timeout()
 
   def get_timeout(%GetTransactionChain{}) do
     # As we use 10 transaction in the pagination we can estimate the max time
