@@ -57,7 +57,7 @@ defmodule ArchethicWeb.ExplorerLive.LastTenTransactionCache do
         with result <- resolver.() do
           Logger.debug("Caching results for last 10 Transactions")
 
-          Enum.map(result, fn %TransactionSummary{address: address} = txn ->
+          Enum.each(result, fn %TransactionSummary{address: address} = txn ->
             :ets.insert(@table, {address, txn})
             txn
           end)
@@ -86,7 +86,7 @@ defmodule ArchethicWeb.ExplorerLive.LastTenTransactionCache do
         with result <- resolver.() do
           Logger.debug("Caching results for last 10 Transactions")
 
-          Enum.map(result, fn %TransactionSummary{address: address} = txn ->
+          Enum.each(result, fn %TransactionSummary{address: address} = txn ->
             :ets.insert(@table, {address, txn})
             txn
           end)

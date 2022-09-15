@@ -1,4 +1,8 @@
 defmodule ArchethicWeb.LastTenTransactionsComponent do
+  @moduledoc """
+    Live component for Dashboard Explorer to display last 10 transactions
+  """
+
   use ArchethicWeb, :live_component
 
   alias Archethic.BeaconChain
