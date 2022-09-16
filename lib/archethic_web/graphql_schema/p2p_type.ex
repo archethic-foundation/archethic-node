@@ -3,6 +3,9 @@ defmodule ArchethicWeb.GraphQLSchema.P2PType do
 
   use Absinthe.Schema.Notation
 
+  @desc """
+  [Node] represents a node in the network
+  """
   object :node do
     field(:first_public_key, :public_key)
     field(:last_public_key, :public_key)
@@ -17,5 +20,13 @@ defmodule ArchethicWeb.GraphQLSchema.P2PType do
     field(:enrollment_date, :timestamp)
     field(:authorization_date, :timestamp)
     field(:origin_public_key, :public_key)
+  end
+
+  @desc """
+  [Endpoint] represents a network node's endpoint
+  """
+  object :endpoint do
+    field(:ip, :string)
+    field(:port, :integer)
   end
 end

@@ -111,9 +111,21 @@ defmodule ArchethicWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    List all the nodes registered in the network
+    """
     field :nodes, list_of(:node) do
       resolve(fn _, _ ->
         {:ok, Resolver.nodes()}
+      end)
+    end
+
+    @desc """
+    List the nearest endpoints nodes from the client's IP
+    """
+    field :nearest_endpoints, list_of(:endpoint) do
+      resolve(fn _, %{context: %{ip: ip}} ->
+        {:ok, Resolver.nearest_endpoints(ip)}
       end)
     end
 
