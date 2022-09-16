@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.LastTenTransactionsComponent do
+defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   @moduledoc """
     Live component for Dashboard Explorer to display last 10 transactions
   """
@@ -14,7 +14,7 @@ defmodule ArchethicWeb.LastTenTransactionsComponent do
   alias Archethic.P2P.Message.GetCurrentSummaries
   alias Archethic.P2P.Message.TransactionSummaryList
 
-  alias ArchethicWeb.ExplorerLive.LastTenTransactionCache
+  alias ArchethicWeb.ExplorerLive.TopTransactionsCache
 
   def mount(socket) do
     socket =
@@ -30,8 +30,8 @@ defmodule ArchethicWeb.LastTenTransactionsComponent do
       )
       when not is_nil(transaction) do
     {:ok, transactions} =
-      LastTenTransactionCache.resolve_put(transaction, fn ->
-        fetch_last_ten_transactions()
+      TopTransactionsCache.resolve_put(transaction, fn ->
+        fetch_last_transactions()
       end)
 
     socket =
@@ -43,8 +43,8 @@ defmodule ArchethicWeb.LastTenTransactionsComponent do
 
   def update(assigns, socket) do
     {:ok, transactions} =
-      LastTenTransactionCache.resolve(fn ->
-        fetch_last_ten_transactions()
+      TopTransactionsCache.resolve(fn ->
+        fetch_last_transactions()
       end)
 
     socket = socket |> assign(assigns) |> assign(transactions: transactions)
@@ -86,15 +86,14 @@ defmodule ArchethicWeb.LastTenTransactionsComponent do
     txns
   end
 
-  defp fetch_last_ten_transactions() do
+  defp fetch_last_transactions(n \\ 10) do
     txns = list_transactions_from_current_slots()
 
-    if length(txns) < 10 do
+    if length(txns) < n do
       fetch_previous_dates(DateTime.utc_now(), txns)
     else
       txns
-      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-      |> Enum.take(10)
+      |> Enum.take(n)
     end
   end
 

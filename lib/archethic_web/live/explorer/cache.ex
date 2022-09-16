@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.ExplorerLive.LastTenTransactionCache do
+defmodule ArchethicWeb.ExplorerLive.TopTransactionsCache do
   alias Archethic.TransactionChain.TransactionSummary
 
   @table :last_ten_transactions

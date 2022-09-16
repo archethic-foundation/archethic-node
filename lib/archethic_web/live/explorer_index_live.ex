@@ -8,6 +8,7 @@ defmodule ArchethicWeb.ExplorerIndexLive do
   alias Archethic.{DB, PubSub, BeaconChain}
   alias Archethic.TransactionChain.TransactionSummary
   alias ArchethicWeb.ExplorerView
+  alias ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent
 
   def mount(_params, _session, socket) do
     tps = DB.get_latest_tps()
@@ -64,7 +65,7 @@ defmodule ArchethicWeb.ExplorerIndexLive do
       |> assign(:update_time, DateTime.utc_now())
       |> assign(:fetching, false)
 
-    send_update(ArchethicWeb.LastTenTransactionsComponent,
+    send_update(TopTransactionsComponent,
       id: "last_ten_transactions",
       transaction: tx_summary
     )
