@@ -206,7 +206,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   def nearest_endpoints(ip) do
     geo_patch = P2P.get_geo_patch(ip)
-    nearest_nodes = P2P.nearest_nodes(P2P.list_nodes(), geo_patch)
+    nearest_nodes = P2P.nearest_nodes(P2P.authorized_and_available_nodes(), geo_patch)
 
     Enum.map(
       nearest_nodes,
