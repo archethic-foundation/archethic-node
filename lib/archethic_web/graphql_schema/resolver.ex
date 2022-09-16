@@ -122,13 +122,18 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     end)
   end
 
-  def get_inputs(address) do
-    case Archethic.get_transaction_inputs(address) do
-      {:ok, inputs} ->
-        {:ok, Enum.map(inputs, &TransactionInput.to_map/1)}
+  def get_inputs(address, paging_offset \\ 0, limit \\ 0) do
+    inputs =
+      address
+      |> Archethic.get_transaction_inputs(paging_offset, limit)
+      |> Enum.map(&TransactionInput.to_map/1)
 
-      {:error, _} = e ->
-        e
+    case limit do
+      0 ->
+        {:ok, inputs}
+
+      limit ->
+        {:ok, Enum.take(inputs, limit)}
     end
   end
 
