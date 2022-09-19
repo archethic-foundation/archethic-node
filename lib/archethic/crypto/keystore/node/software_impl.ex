@@ -119,31 +119,43 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
 
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
 
-    # Derive keypairs from the node seed and from the index retrieved
-    first_keypair = Crypto.derive_keypair(node_seed, 0)
-
-    last_keypair =
-      if nb_keys == 0 do
-        first_keypair
-      else
-        Crypto.derive_keypair(node_seed, nb_keys - 1)
-      end
-
-    previous_keypair = Crypto.derive_keypair(node_seed, nb_keys)
-    next_keypair = Crypto.derive_keypair(node_seed, nb_keys + 1)
-
     # Store the keypair in the ETS for fast access
     :ets.new(@keystore_table, [:set, :named_table, :protected, read_concurrency: true])
 
+    :ets.insert(@keystore_table, {:seed, node_seed})
+
+    # Derive keypairs from the node seed and from the index retrieved
+    first_keypair = Crypto.derive_keypair(node_seed, 0)
+
     set_keypair(:first_keypair, first_keypair)
+
+    do_set_node_key_index(node_seed, nb_keys)
+
+    {:ok, %{}}
+  end
+
+  @impl NodeKeystore
+  @spec set_node_key_index(index :: non_neg_integer()) :: :ok
+  def set_node_key_index(index) do
+    GenServer.call(__MODULE__, {:update, index})
+  end
+
+  defp do_set_node_key_index(node_seed, index) do
+    last_keypair =
+      if index == 0 do
+        Crypto.derive_keypair(node_seed, 0)
+      else
+        Crypto.derive_keypair(node_seed, index - 1)
+      end
+
+    previous_keypair = Crypto.derive_keypair(node_seed, index)
+    next_keypair = Crypto.derive_keypair(node_seed, index + 1)
+
     set_keypair(:last_keypair, last_keypair)
     set_keypair(:previous_keypair, previous_keypair)
     set_keypair(:next_keypair, next_keypair)
 
-    :ets.insert(@keystore_table, {:seed, node_seed})
-    :ets.insert(@keystore_table, {:index, nb_keys})
-
-    {:ok, %{}}
+    :ets.insert(@keystore_table, {:index, index})
   end
 
   defp read_seed do
@@ -224,6 +236,13 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     Logger.info("Publication/Last public key will be #{Base.encode16(elem(last_keypair, 0))}")
 
     write_index(index + 1)
+    {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call({:update, index}, _from, state) do
+    [{_, node_seed}] = :ets.lookup(@keystore_table, :seed)
+    do_set_node_key_index(node_seed, index)
     {:reply, :ok, state}
   end
 end

@@ -2,6 +2,9 @@ defmodule Archethic.Metrics.MetricSupervisor do
   @moduledoc false
   use Supervisor
 
+  alias Archethic.Metrics.ETSFlush
+  alias Archethic.Metrics.Poller
+
   alias Archethic.Utils
 
   def start_link(_initial_state) do
@@ -11,7 +14,8 @@ defmodule Archethic.Metrics.MetricSupervisor do
   def init(_initial_state) do
     children =
       Utils.configurable_children([
-        Archethic.Metrics.Poller
+        Poller,
+        ETSFlush
       ])
 
     Supervisor.init(children, strategy: :one_for_one)

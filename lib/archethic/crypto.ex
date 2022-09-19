@@ -289,6 +289,12 @@ defmodule Archethic.Crypto do
   defdelegate next_node_public_key, to: NodeKeystore, as: :next_public_key
 
   @doc """
+  Update node keystore keys with index
+  """
+  @spec set_node_key_index(index :: non_neg_integer()) :: :ok
+  defdelegate set_node_key_index(index), to: NodeKeystore
+
+  @doc """
   Return the the node shared secrets public key using the node shared secret transaction seed
   """
   @spec node_shared_secrets_public_key(index :: number()) :: key()

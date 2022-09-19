@@ -292,6 +292,9 @@ defmodule Archethic.BootstrapTest do
 
         _, %GetTransactionSummary{address: address}, _ ->
           {:ok, %TransactionSummary{address: address}}
+
+        _, %GetTransactionChainLength{}, _ ->
+          {:ok, %TransactionChainLength{length: 0}}
       end)
 
       :ok

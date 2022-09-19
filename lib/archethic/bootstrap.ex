@@ -291,6 +291,21 @@ defmodule Archethic.Bootstrap do
 
     {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
+    closest_nodes =
+      closest_nodes
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+
+    # In case node had lose it's DB, we ask the network if the node chain already exists
+    case Crypto.next_node_public_key()
+         |> Crypto.derive_address()
+         |> TransactionChain.fetch_size_remotely(closest_nodes) do
+      {:ok, length} when length > 0 ->
+        Crypto.set_node_key_index(length)
+
+      _ ->
+        :skip
+    end
+
     tx =
       TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
 
@@ -310,6 +325,10 @@ defmodule Archethic.Bootstrap do
 
       _ ->
         {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
+
+        closest_nodes =
+          closest_nodes
+          |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
         tx =
           TransactionHandler.create_node_transaction(

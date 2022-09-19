@@ -45,10 +45,9 @@ defmodule Archethic.Bootstrap.TransactionHandler do
             tx.type,
             P2P.authorized_and_available_nodes()
           )
+          |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
         await_confirmation(tx.address, storage_nodes)
-
-        :ok
 
       {:error, _} = e ->
         Logger.error("Cannot send node transaction - #{inspect(e)}",
