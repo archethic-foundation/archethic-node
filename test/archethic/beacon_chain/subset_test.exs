@@ -247,6 +247,19 @@ defmodule Archethic.BeaconChain.SubsetTest do
     test "new summary is created when the slot time is the summary time", %{
       subset: subset
     } do
+      MockClient
+      |> stub(:send_message, fn
+        _, %Ping{}, _ ->
+          Process.sleep(10)
+          {:ok, %Ok{}}
+
+        _, %NewBeaconSlot{}, _ ->
+          {:ok, %Ok{}}
+      end)
+
+      MockClient
+      |> stub(:get_availability_timer, fn _, _ -> 0 end)
+
       summary_interval = "*/5 * * * *"
       start_supervised!({SummaryTimer, interval: summary_interval})
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
@@ -297,16 +310,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
         ],
         fee: 0
       }
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %Ping{}, _ ->
-          Process.sleep(10)
-          {:ok, %Ok{}}
-
-        _, %NewBeaconSlot{}, _ ->
-          {:ok, %Ok{}}
-      end)
 
       send(
         pid,
