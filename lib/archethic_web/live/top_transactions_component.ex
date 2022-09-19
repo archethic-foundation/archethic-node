@@ -29,10 +29,8 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
         socket
       )
       when not is_nil(transaction) do
-    {:ok, transactions} =
-      TopTransactionsCache.resolve_put(transaction, fn ->
-        fetch_last_transactions()
-      end)
+    TopTransactionsCache.push(transaction)
+    transactions = TopTransactionsCache.get()
 
     socket =
       socket
@@ -42,10 +40,21 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   end
 
   def update(assigns, socket) do
-    {:ok, transactions} =
-      TopTransactionsCache.resolve(fn ->
-        fetch_last_transactions()
-      end)
+    transactions =
+      case length(TopTransactionsCache.get()) do
+        l when l < 10 ->
+          txns = fetch_last_transactions()
+          # Below code won't const much performace as atmost 10 transaction will be pushed.
+          txns
+          |> Enum.each(fn txn ->
+            TopTransactionsCache.push(txn)
+          end)
+
+          txns
+
+        _ ->
+          TopTransactionsCache.get()
+      end
 
     socket = socket |> assign(assigns) |> assign(transactions: transactions)
     {:ok, socket}
