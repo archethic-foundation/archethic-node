@@ -129,7 +129,16 @@
                                         <%= if byte_size(@transaction.data.code) == 0 do %>
                                             N/A
                                         <% else %>
-                                            <pre><%= @transaction.data.code %></pre>
+                                            <div class="is-relative">
+                                                <pre id="copy-code"><%= @transaction.data.code %></pre>
+                                                <button
+                                                    id="copy-code"
+                                                    phx-hook="CopyToClipboard"
+                                                    class="button is-small is-primary is-outlined is-absolute on-top-right"
+                                                >
+                                                    Copy
+                                                </button>
+                                            </div>
                                         <% end %>
                                     </div>
                                     <div x-show="data_section=='content' ">
@@ -142,10 +151,18 @@
                                         </p>
                                         <%= if byte_size(@transaction.data.content) == 0 do %>
                                             N/A
-                                        <% end %>
-                                        <div x-show="show_content">
-                                            <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                                        <% else %>
+                                        <div x-show="show_content" class="is-relative">
+                                            <pre id="copy-content"><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                                            <button
+                                                id="copy-content"
+                                                phx-hook="CopyToClipboard"
+                                                class="button is-small is-primary is-outlined is-absolute on-top-right"
+                                            >
+                                                Copy
+                                            </button>
                                         </div>
+                                        <% end %>
                                     </div>
                                     <div x-show=" data_section=='uco_ledger' ">
                                         <p class="heading mb-4">UCO Ledger</p>

@@ -67,6 +67,7 @@ defmodule Archethic.MixProject do
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:dialyxir, "~> 1.0", runtime: false},
       {:logger_file_backend, "~> 0.0.13", only: :dev},
+      {:exsync, "~> 0.2", only: :dev},
 
       # Test
       {:mox, "~> 0.5.2", only: [:test]},
