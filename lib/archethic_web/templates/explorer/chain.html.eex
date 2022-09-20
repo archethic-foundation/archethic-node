@@ -93,7 +93,7 @@
     <%= if Enum.count(@transaction_chain) == 0 do %>
     <p class="heading">No transaction yet existing for this chain<p>
     <% else %>
-      <%= for tx <- @transaction_chain do %>
+      <%= for tx <- Enum.reverse(@transaction_chain) do %>
           <div class="columns">
               <div class="column is-half-desktop">
                   <%= link to: Routes.live_path(@conn, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
