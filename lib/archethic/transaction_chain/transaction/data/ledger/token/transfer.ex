@@ -5,6 +5,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
   defstruct [:to, :amount, :token_address, conditions: [], token_id: 0]
 
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
   # impl token_id
 
   @typedoc """
@@ -47,11 +48,11 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
         # Transfer amount
         0, 0, 0, 0, 62, 149, 186, 128,
         # Token ID
-        0
+        1, 0
       >>
   """
   def serialize(%__MODULE__{token_address: token, to: to, amount: amount, token_id: token_id}) do
-    <<token::binary, to::binary, amount::64, token_id::8>>
+    <<token::binary, to::binary, amount::64, VarInt.from_value(token_id)::binary>>
   end
 
   @doc """
@@ -64,7 +65,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
       ...> 0, 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
       ...> 85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0>>
+      ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0>>
       ...> |> Transfer.deserialize()
       {
         %Transfer{
@@ -82,7 +83,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
   def deserialize(data) do
     {token_address, rest} = Utils.deserialize_address(data)
     {recipient_address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(rest)
-    <<token_id::8, rest::bitstring>> = rest
+    {token_id, rest} = VarInt.get_value(rest)
 
     {
       %__MODULE__{
