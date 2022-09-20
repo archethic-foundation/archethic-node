@@ -723,17 +723,48 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Stream the trnasaction inputs for a transaction address at a given time
+  """
+  @spec stream_inputs_remotely(binary(), list(Node.t()), DateTime.t()) ::
+          Enumerable.t() | list(TransactionInput.t())
+  def stream_inputs_remotely(_, [], _, _), do: []
+
+  def stream_inputs_remotely(address, nodes, timestamp) do
+    Stream.resource(
+      fn -> fetch_inputs_remotely(address, nodes, timestamp) end,
+      fn
+        {inputs, true, offset} ->
+          {inputs, fetch_inputs_remotely(address, nodes, timestamp, offset)}
+
+        {inputs, false, _} ->
+          {inputs, :eof}
+
+        :eof ->
+          {:halt, nil}
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  @doc """
   Fetch the transaction inputs for a transaction address at a given time
 
   If the inputs exist, then they are returned in the shape of `{:ok, inputs}`.
   If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
   """
-  @spec fetch_inputs_remotely(address :: Crypto.versioned_hash(), list(Node.t()), DateTime.t()) ::
-          {:ok, list(TransactionInput.t())} | {:error, :network_issue}
-  def fetch_inputs_remotely(_, [], _), do: {:ok, []}
+  @spec fetch_inputs_remotely(
+          address :: Crypto.versioned_hash(),
+          list(Node.t()),
+          DateTime.t(),
+          limit :: non_neg_integer()
+        ) ::
+          {inputs :: list(TransactionInput.t()), more? :: boolean(), offset :: non_neg_integer()}
+  def fetch_inputs_remotely(address, nodes, timestamp, offset \\ 0, limit \\ 0)
+  def fetch_inputs_remotely(_, [], _, _, _), do: {[], false, 0}
 
-  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{})
-      when is_binary(address) and is_list(nodes) do
+  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{}, offset, limit)
+      when is_binary(address) and is_list(nodes) and is_integer(offset) and offset >= 0 and
+             is_integer(limit) and limit >= 0 do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.inputs), :desc)
@@ -742,33 +773,53 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetTransactionInputs{address: address},
+           %GetTransactionInputs{address: address, offset: offset, limit: limit},
            conflict_resolver
          ) do
-      {:ok, %TransactionInputList{inputs: inputs}} ->
+      {:ok, %TransactionInputList{inputs: inputs, more?: more?, offset: offset}} ->
         filtered_inputs = Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
-        {:ok, filtered_inputs}
+        {filtered_inputs, more?, offset}
 
       {:error, :network_issue} ->
-        {:error, :network_issue}
+        {[], false, 0}
     end
   end
 
   @doc """
-  Fetch the transaction unspent outputs for a transaction address at a given time
-
-  If the utxo exist, then they are returned in the shape of `{:ok, inputs}`.
-  If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
+  Stream the transaction unspent outputs for a transaction address
   """
-  @spec fetch_unspent_outputs_remotely(
+  @spec stream_unspent_outputs_remotely(
           address :: Crypto.versioned_hash(),
           list(Node.t())
-        ) ::
-          {:ok, list(UnspentOutput.t())} | {:error, :network_issue}
-  def fetch_unspent_outputs_remotely(_, []), do: {:ok, []}
+        ) :: Enumerable.t() | list(UnspentOutput.t())
+  def stream_unspent_outputs_remotely(_, []), do: []
 
-  def fetch_unspent_outputs_remotely(address, nodes)
+  def stream_unspent_outputs_remotely(address, nodes)
       when is_binary(address) and is_list(nodes) do
+    Stream.resource(
+      fn -> fetch_unspent_outputs_remotely(address, nodes) end,
+      fn
+        {utxos, true, offset} ->
+          {utxos, fetch_unspent_outputs_remotely(address, nodes, offset)}
+
+        {utxos, false, _} ->
+          {utxos, :eof}
+
+        :eof ->
+          {:halt, nil}
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  @doc """
+  Fetch the unspent outputs
+  """
+  @spec fetch_unspent_outputs_remotely(binary(), list(Node.t()), non_neg_integer()) ::
+          {list(UnspentOutput.t()), boolean(), non_neg_integer() | nil}
+  def fetch_unspent_outputs_remotely(address, nodes, offset \\ 0)
+
+  def fetch_unspent_outputs_remotely(address, nodes, offset) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.unspent_outputs), :desc)
@@ -777,14 +828,14 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetUnspentOutputs{address: address},
+           %GetUnspentOutputs{address: address, offset: offset},
            conflict_resolver
          ) do
-      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
-        {:ok, unspent_outputs}
+      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs, more?: more?, offset: offset}} ->
+        {unspent_outputs, more?, offset}
 
       {:error, :network_issue} ->
-        {:error, :network_issue}
+        {[], false, nil}
     end
   end
 

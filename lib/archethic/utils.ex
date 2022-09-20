@@ -693,4 +693,39 @@ defmodule Archethic.Utils do
       end)
     end)
   end
+
+  @doc """
+  Get the median value from a list.
+  ## Examples
+      iex> Utils.median([])
+      nil
+      iex> Utils.median([1,2,3])
+      2
+      iex> Utils.median([1,2,3,4])
+      2.5
+  """
+  @spec median([number]) :: number | nil
+  def median([]), do: nil
+
+  def median(list) when is_list(list) do
+    midpoint =
+      (length(list) / 2)
+      |> Float.floor()
+      |> round
+
+    {l1, l2} =
+      Enum.sort(list)
+      |> Enum.split(midpoint)
+
+    case length(l2) > length(l1) do
+      true ->
+        [med | _] = l2
+        med
+
+      false ->
+        [m1 | _] = l2
+        [m2 | _] = Enum.reverse(l1)
+        (m1 + m2) / 2
+    end
+  end
 end

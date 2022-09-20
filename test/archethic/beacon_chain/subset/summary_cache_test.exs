@@ -53,7 +53,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
         }
       ],
       p2p_view: %{
-        availabilities: <<1::1, 0::1>>,
+        availabilities: <<600::16, 0::16>>,
         network_stats: [
           %{latency: 10},
           %{latency: 0}

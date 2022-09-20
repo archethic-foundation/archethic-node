@@ -59,17 +59,10 @@ defmodule Archethic.Mining.TransactionContext do
       |> Enum.uniq()
 
     prev_tx_task = request_previous_tx(previous_address, prev_tx_nodes_split)
-    utxo_task = request_utxo(previous_address, unspent_outputs_nodes_split)
     nodes_view_task = request_nodes_view(node_public_keys)
 
     prev_tx = Task.await(prev_tx_task, Message.get_max_timeout())
-    utxos = Task.await(utxo_task)
     nodes_view = Task.await(nodes_view_task)
-
-    # involved_nodes =
-    #   [prev_tx_node_involved, utxo_node_involved]
-    #   |> Enum.filter(& &1)
-    #   |> P2P.distinct_nodes()
 
     %{
       chain_nodes_view: chain_storage_nodes_view,
@@ -83,7 +76,13 @@ defmodule Archethic.Mining.TransactionContext do
         io_storage_node_public_keys
       )
 
-    # TODO: remove the invovled nodes as not used anymore
+    utxos =
+      TransactionChain.stream_unspent_outputs_remotely(
+        previous_address,
+        unspent_outputs_nodes_split
+      )
+      |> Enum.to_list()
+
     {prev_tx, utxos, [], chain_storage_nodes_view, beacon_storage_nodes_view,
      io_storage_nodes_view}
   end
@@ -114,18 +113,6 @@ defmodule Archethic.Mining.TransactionContext do
         {:error, :transaction_not_exists} ->
           nil
       end
-    end)
-  end
-
-  defp request_utxo(previous_address, nodes) do
-    Task.Supervisor.async(TaskSupervisor, fn ->
-      {:ok, utxos} =
-        TransactionChain.fetch_unspent_outputs_remotely(
-          previous_address,
-          nodes
-        )
-
-      utxos
     end)
   end
 

@@ -15,6 +15,7 @@ defmodule ArchethicWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(ArchethicWeb.GraphQLContext)
   end
 
   # Add the on chain implementation of the archethic.io at the root of the webserver

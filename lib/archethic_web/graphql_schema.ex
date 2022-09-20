@@ -9,7 +9,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
-  alias __MODULE__.PageType
+  alias __MODULE__.IntegerType
   alias __MODULE__.TransactionAttestation
   alias __MODULE__.TransactionError
   alias __MODULE__.OracleData
@@ -21,7 +21,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   import_types(P2PType)
   import_types(TransactionAttestation)
   import_types(TransactionError)
-  import_types(PageType)
+  import_types(IntegerType)
   import_types(OracleData)
 
   query do
@@ -51,7 +51,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     Query the network to find all the transactions locally stored
     """
     field :transactions, list_of(:transaction) do
-      arg(:page, :page)
+      arg(:page, :pos_integer)
 
       resolve(fn args, _ ->
         page = Map.get(args, :page, 1)
@@ -99,9 +99,13 @@ defmodule ArchethicWeb.GraphQLSchema do
     """
     field :transaction_inputs, list_of(:transaction_input) do
       arg(:address, non_null(:address))
+      arg(:paging_offset, :non_neg_integer)
+      arg(:limit, :pos_integer)
 
-      resolve(fn %{address: address}, _ ->
-        Resolver.get_inputs(address)
+      resolve(fn args = %{address: address}, _ ->
+        paging_offset = Map.get(args, :paging_offset, 0)
+        limit = Map.get(args, :limit, 0)
+        Resolver.get_inputs(address, paging_offset, limit)
       end)
     end
 
@@ -111,9 +115,21 @@ defmodule ArchethicWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    List all the nodes registered in the network
+    """
     field :nodes, list_of(:node) do
       resolve(fn _, _ ->
         {:ok, Resolver.nodes()}
+      end)
+    end
+
+    @desc """
+    List the nearest endpoints nodes from the client's IP
+    """
+    field :nearest_endpoints, list_of(:endpoint) do
+      resolve(fn _, %{context: %{ip: ip}} ->
+        {:ok, Resolver.nearest_endpoints(ip)}
       end)
     end
 
@@ -122,7 +138,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     """
     field :network_transactions, list_of(:transaction) do
       arg(:type, non_null(:transaction_type))
-      arg(:page, :page)
+      arg(:page, :pos_integer)
 
       resolve(fn args, _ ->
         type = Map.get(args, :type)

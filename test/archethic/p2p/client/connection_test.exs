@@ -224,6 +224,134 @@ defmodule Archethic.P2P.Client.ConnectionTest do
     end
   end
 
+  describe "availability_timer" do
+    test "should start when node connect" do
+      {:ok, pid} =
+        Connection.start_link(
+          transport: __MODULE__.MockTransport,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: "key1"
+        )
+
+      assert {{:connected, _socket}, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
+      assert start != nil
+    end
+
+    test "should stop and calculate time when the timeout is reached" do
+      {:ok, pid} =
+        Connection.start_link(
+          transport: __MODULE__.MockTransport,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      assert {:error, :timeout} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 1000
+               )
+
+      Process.sleep(10)
+
+      assert {_, %{availability_timer: {nil, 1}}} = :sys.get_state(pid)
+
+      :ok = Connection.start_availability_timer(Crypto.first_node_public_key())
+
+      assert {_, %{availability_timer: {start, 1}}} = :sys.get_state(pid)
+      assert start != nil
+
+      assert {:error, :timeout} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 1000
+               )
+
+      Process.sleep(10)
+
+      assert {_, %{availability_timer: {nil, 2}}} = :sys.get_state(pid)
+    end
+
+    test "should stop when node disconnect" do
+      defmodule MockTransportDisconnected3 do
+        alias Archethic.P2P.Client.Transport
+
+        @behaviour Transport
+
+        def handle_connect(_ip, _port) do
+          {:ok, make_ref()}
+        end
+
+        def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+
+        def handle_message({_, _, _}), do: {:error, :closed}
+      end
+
+      {:ok, pid} =
+        Connection.start_link(
+          transport: __MODULE__.MockTransportDisconnected3,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      assert {{:connected, _socket}, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
+      assert start != nil
+
+      msg_envelop =
+        %MessageEnvelop{
+          message: %Balance{},
+          message_id: 0,
+          sender_public_key: Crypto.first_node_public_key()
+        }
+        |> MessageEnvelop.encode(Crypto.first_node_public_key())
+
+      send(pid, {__MODULE__.MockTransportDisconnected, make_ref(), msg_envelop})
+
+      Process.sleep(10)
+
+      assert {_, %{availability_timer: {nil, 0}}} = :sys.get_state(pid)
+    end
+  end
+
+  describe "get_availability_timer" do
+    test "should return time value and reset timer" do
+      {:ok, pid} =
+        Connection.start_link(
+          transport: __MODULE__.MockTransport,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      assert {:error, :timeout} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 1000
+               )
+
+      Process.sleep(10)
+
+      assert {_, %{availability_timer: {nil, 1}}} = :sys.get_state(pid)
+
+      assert 1 == Connection.get_availability_timer(Crypto.first_node_public_key(), true)
+
+      assert {_, %{availability_timer: {nil, 0}}} = :sys.get_state(pid)
+
+      :ok = Connection.start_availability_timer(Crypto.first_node_public_key())
+
+      assert {_, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
+
+      assert 0 == Connection.get_availability_timer(Crypto.first_node_public_key(), false)
+
+      assert {_, %{availability_timer: {^start, 0}}} = :sys.get_state(pid)
+    end
+  end
+
   defmodule MockTransport do
     alias Archethic.P2P.Client.Transport
 

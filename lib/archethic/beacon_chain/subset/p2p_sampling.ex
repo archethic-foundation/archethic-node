@@ -25,19 +25,20 @@ defmodule Archethic.BeaconChain.Subset.P2PSampling do
   @doc """
   Get the p2p view for the given nodes while computing the bandwidth from the latency
   """
-  @spec get_p2p_views(list(Node.t())) :: list(p2p_view())
-  def get_p2p_views(nodes) when is_list(nodes) do
+  @spec get_p2p_views(list(Node.t()), list(non_neg_integer())) :: list(p2p_view())
+  def get_p2p_views(nodes, nodes_availability_times) when is_list(nodes) do
     timeout = 1_000
 
     Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &do_sample_p2p_view(&1, timeout),
       on_timeout: :kill_task
     )
+    |> Enum.with_index()
     |> Enum.map(fn
-      {:ok, res} ->
-        res
+      {{:ok, latency}, index} ->
+        {Enum.at(nodes_availability_times, index), latency}
 
-      {:exit, :timeout} ->
-        {false, timeout}
+      {{:exit, :timeout}, index} ->
+        {Enum.at(nodes_availability_times, index), 0}
     end)
   end
 
@@ -47,10 +48,10 @@ defmodule Archethic.BeaconChain.Subset.P2PSampling do
     case P2P.send_message(node, %Ping{}, timeout) do
       {:ok, %Ok{}} ->
         end_time = System.monotonic_time(:millisecond)
-        {true, end_time - start_time}
+        end_time - start_time
 
       {:error, _} ->
-        {false, timeout}
+        0
     end
   end
 end

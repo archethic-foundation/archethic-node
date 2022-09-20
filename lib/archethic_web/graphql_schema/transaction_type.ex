@@ -25,8 +25,13 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
 
     field :inputs, list_of(:transaction_input) do
-      resolve(fn _, %{source: %{address: address}} ->
-        Resolver.get_inputs(address)
+      arg(:paging_offset, :non_neg_integer)
+      arg(:limit, :pos_integer)
+
+      resolve(fn args, %{source: %{address: address}} ->
+        paging_offset = Map.get(args, :paging_offset, 0)
+        limit = Map.get(args, :limit, 0)
+        Resolver.get_inputs(address, paging_offset, limit)
       end)
     end
 
