@@ -36,7 +36,14 @@
       "type": "array",
       "items": {
         "description": "List of the properties for a given token item",
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Id that will be used for the token",
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       }
     }
   },
