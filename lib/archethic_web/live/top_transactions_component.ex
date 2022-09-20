@@ -85,13 +85,26 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
     """
   end
 
-  defp fetch_previous_dates(time = %DateTime{}, txns) when length(txns) < 10 do
+  defp fetch_previous_dates(time = %DateTime{}, txns, retries)
+       when length(txns) < 10 and retries < 10 do
     previous_time = BeaconChain.previous_summary_time(time)
-    txns = txns ++ list_transactions_from_summary(previous_time)
-    fetch_previous_dates(previous_time, txns)
+    prev_txns = list_transactions_from_summary(previous_time)
+
+    retries =
+      case prev_txns do
+        [] -> retries + 1
+        _txns -> 0
+      end
+
+    txns = txns ++ prev_txns
+    fetch_previous_dates(previous_time, txns, retries)
   end
 
-  defp fetch_previous_dates(_time = %DateTime{}, txns) when length(txns) >= 10 do
+  defp fetch_previous_dates(_time = %DateTime{}, txns, _retries) when length(txns) >= 10 do
+    txns
+  end
+
+  defp fetch_previous_dates(_time = %DateTime{}, txns, _retries) do
     txns
   end
 
@@ -99,7 +112,7 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
     txns = list_transactions_from_current_slots()
 
     if length(txns) < n do
-      fetch_previous_dates(DateTime.utc_now(), txns)
+      fetch_previous_dates(DateTime.utc_now(), txns, 0)
     else
       txns
       |> Enum.take(n)
