@@ -37,13 +37,15 @@ defmodule Archethic.BeaconChain.Subset.P2PSamplingTest do
     assert [%Node{port: 3004}] = P2PSampling.list_nodes_to_sample(<<1>>)
   end
 
-  test "get_p2p_views/1 fetch p2p node availability and latency for the given list of nodes" do
+  test "get_p2p_views/2 fetch p2p node availability and latency for the given list of nodes" do
     nodes = [
       %Node{ip: {127, 0, 0, 1}, port: 3001, first_public_key: "key1"},
       %Node{ip: {127, 0, 0, 1}, port: 3002, first_public_key: "key2"},
       %Node{ip: {127, 0, 0, 1}, port: 3003, first_public_key: "key3"},
       %Node{ip: {127, 0, 0, 1}, port: 3004, first_public_key: "key4"}
     ]
+
+    node_availability_time = [600, 500, 365, 0]
 
     MockClient
     |> stub(:new_connection, fn _, _, _, _ ->
@@ -67,8 +69,8 @@ defmodule Archethic.BeaconChain.Subset.P2PSamplingTest do
 
     Enum.each(nodes, &P2P.add_and_connect_node/1)
 
-    assert [{true, node1_lat}, {true, node2_lat}, {true, node3_lat}, {false, 1000}] =
-             P2PSampling.get_p2p_views(nodes)
+    assert [{600, node1_lat}, {500, node2_lat}, {365, node3_lat}, {0, 0}] =
+             P2PSampling.get_p2p_views(nodes, node_availability_time)
 
     assert node1_lat < node2_lat
     assert node2_lat < node3_lat

@@ -191,9 +191,6 @@ defmodule Archethic.P2P.Message do
   #    length(addresses) * trunc(beacon_summary_high_estimation_bytes / @floor_upload_speed * 1000)
   #  end
 
-  def get_timeout(%GetUnspentOutputs{}), do: get_max_timeout()
-  def get_timeout(%GetTransactionInputs{}), do: get_max_timeout()
-
   def get_timeout(_), do: 3_000
 
   @doc """
@@ -249,8 +246,8 @@ defmodule Archethic.P2P.Message do
     <<4::8, tx_address::binary, byte_size(paging_state)::8, paging_state::binary>>
   end
 
-  def encode(%GetUnspentOutputs{address: tx_address}) do
-    <<5::8, tx_address::binary>>
+  def encode(%GetUnspentOutputs{address: tx_address, offset: offset}) do
+    <<5::8, tx_address::binary, VarInt.from_value(offset)::binary>>
   end
 
   def encode(%NewTransaction{transaction: tx}) do
@@ -351,8 +348,9 @@ defmodule Archethic.P2P.Message do
     <<16::8, address::binary>>
   end
 
-  def encode(%GetTransactionInputs{address: address}) do
-    <<17::8, address::binary>>
+  def encode(%GetTransactionInputs{address: address, offset: offset, limit: limit}) do
+    <<17::8, address::binary, VarInt.from_value(offset)::binary,
+      VarInt.from_value(limit)::binary>>
   end
 
   def encode(%GetTransactionChainLength{address: address}) do
@@ -494,7 +492,7 @@ defmodule Archethic.P2P.Message do
     <<243::8, bit_size(view)::8, view::bitstring>>
   end
 
-  def encode(%TransactionInputList{inputs: inputs}) do
+  def encode(%TransactionInputList{inputs: inputs, more?: more?, offset: offset}) do
     inputs_bin =
       inputs
       |> Stream.map(&TransactionInput.serialize/1)
@@ -503,7 +501,10 @@ defmodule Archethic.P2P.Message do
 
     encoded_inputs_length = length(inputs) |> VarInt.from_value()
 
-    <<244::8, encoded_inputs_length::binary, inputs_bin::bitstring>>
+    more_bit = if more?, do: 1, else: 0
+
+    <<244::8, encoded_inputs_length::binary, inputs_bin::bitstring, more_bit::1,
+      VarInt.from_value(offset)::binary>>
   end
 
   def encode(%TransactionChainLength{length: length}) do
@@ -560,7 +561,7 @@ defmodule Archethic.P2P.Message do
     <<249::8, encoded_nodes_length::binary, nodes_bin::bitstring>>
   end
 
-  def encode(%UnspentOutputList{unspent_outputs: unspent_outputs}) do
+  def encode(%UnspentOutputList{unspent_outputs: unspent_outputs, more?: more?, offset: offset}) do
     unspent_outputs_bin =
       unspent_outputs
       |> Stream.map(&UnspentOutput.serialize/1)
@@ -569,7 +570,10 @@ defmodule Archethic.P2P.Message do
 
     encoded_unspent_outputs_length = Enum.count(unspent_outputs) |> VarInt.from_value()
 
-    <<250::8, encoded_unspent_outputs_length::binary, unspent_outputs_bin::binary>>
+    more_bit = if more?, do: 1, else: 0
+
+    <<250::8, encoded_unspent_outputs_length::binary, unspent_outputs_bin::binary, more_bit::1,
+      VarInt.from_value(offset)::binary>>
   end
 
   def encode(%TransactionList{transactions: transactions, more?: false}) do
@@ -667,7 +671,9 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<5::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {%GetUnspentOutputs{address: address}, rest}
+
+    {offset, rest} = VarInt.get_value(rest)
+    {%GetUnspentOutputs{address: address, offset: offset}, rest}
   end
 
   def decode(<<6::8, rest::bitstring>>) do
@@ -823,7 +829,9 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<17::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {%GetTransactionInputs{address: address}, rest}
+    {offset, rest} = VarInt.get_value(rest)
+    {limit, rest} = VarInt.get_value(rest)
+    {%GetTransactionInputs{address: address, offset: offset, limit: limit}, rest}
   end
 
   def decode(<<18::8, rest::bitstring>>) do
@@ -1034,10 +1042,18 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<244::8, rest::bitstring>>) do
     {nb_inputs, rest} = rest |> VarInt.get_value()
-    {inputs, rest} = deserialize_transaction_inputs(rest, nb_inputs, [])
+
+    {inputs, <<more_bit::1, rest::bitstring>>} =
+      deserialize_transaction_inputs(rest, nb_inputs, [])
+
+    more? = more_bit == 1
+
+    {offset, rest} = VarInt.get_value(rest)
 
     {%TransactionInputList{
-       inputs: inputs
+       inputs: inputs,
+       more?: more?,
+       offset: offset
      }, rest}
   end
 
@@ -1086,8 +1102,15 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<250::8, rest::bitstring>>) do
     {nb_unspent_outputs, rest} = rest |> VarInt.get_value()
-    {unspent_outputs, rest} = deserialize_unspent_output_list(rest, nb_unspent_outputs, [])
-    {%UnspentOutputList{unspent_outputs: unspent_outputs}, rest}
+
+    {unspent_outputs, <<more_bit::1, rest::bitstring>>} =
+      deserialize_unspent_output_list(rest, nb_unspent_outputs, [])
+
+    more? = more_bit == 1
+
+    {offset, rest} = VarInt.get_value(rest)
+
+    {%UnspentOutputList{unspent_outputs: unspent_outputs, more?: more?, offset: offset}, rest}
   end
 
   def decode(<<251::8, rest::bitstring>>) do
@@ -1276,9 +1299,41 @@ defmodule Archethic.P2P.Message do
     %TransactionList{transactions: chain, paging_state: paging_state, more?: more?}
   end
 
-  def process(%GetUnspentOutputs{address: tx_address}) do
+  def process(%GetUnspentOutputs{address: tx_address, offset: offset}) do
+    utxos = Account.get_unspent_outputs(tx_address)
+    utxos_length = length(utxos)
+
+    %{utxos: utxos, offset: offset, more?: more?} =
+      utxos
+      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+      |> Enum.with_index()
+      |> Enum.drop(offset)
+      |> Enum.reduce_while(%{utxos: [], offset: 0, more?: false}, fn {utxo, index}, acc ->
+        acc_size =
+          acc.utxos
+          |> Enum.map(&UnspentOutput.serialize/1)
+          |> :erlang.list_to_binary()
+          |> byte_size()
+
+        utxo_size = UnspentOutput.serialize(utxo) |> byte_size
+
+        if acc_size + utxo_size < 3_000_000 do
+          new_acc =
+            acc
+            |> Map.update!(:utxos, &[utxo | &1])
+            |> Map.put(:offset, index + 1)
+            |> Map.put(:more?, index + 1 < utxos_length)
+
+          {:cont, new_acc}
+        else
+          {:halt, acc}
+        end
+      end)
+
     %UnspentOutputList{
-      unspent_outputs: Account.get_unspent_outputs(tx_address)
+      unspent_outputs: utxos,
+      offset: offset,
+      more?: more?
     }
   end
 
@@ -1447,7 +1502,7 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def process(%GetTransactionInputs{address: address}) do
+  def process(%GetTransactionInputs{address: address, offset: offset, limit: limit}) do
     contract_inputs =
       address
       |> Contracts.list_contract_transactions()
@@ -1455,8 +1510,49 @@ defmodule Archethic.P2P.Message do
         %TransactionInput{from: address, type: :call, timestamp: timestamp}
       end)
 
+    inputs = Account.get_inputs(address) ++ contract_inputs
+    inputs_length = length(inputs)
+
+    %{inputs: inputs, offset: offset, more?: more?} =
+      inputs
+      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+      |> Enum.with_index()
+      |> Enum.drop(offset)
+      |> Enum.reduce_while(%{inputs: [], offset: 0, more?: false}, fn {input, index}, acc ->
+        acc_size =
+          acc.inputs
+          |> Enum.map(&TransactionInput.serialize/1)
+          |> :erlang.list_to_bitstring()
+          |> byte_size()
+
+        input_size = TransactionInput.serialize(input) |> byte_size
+
+        size_capacity? = acc_size + input_size < 3_000_000
+
+        should_take_more? =
+          if limit > 0 do
+            length(acc.inputs) < limit and size_capacity?
+          else
+            size_capacity?
+          end
+
+        if should_take_more? do
+          new_acc =
+            acc
+            |> Map.update!(:inputs, &[input | &1])
+            |> Map.put(:offset, index + 1)
+            |> Map.put(:more?, index + 1 < inputs_length)
+
+          {:cont, new_acc}
+        else
+          {:halt, acc}
+        end
+      end)
+
     %TransactionInputList{
-      inputs: Account.get_inputs(address) ++ contract_inputs
+      inputs: Enum.reverse(inputs),
+      more?: more?,
+      offset: offset
     }
   end
 

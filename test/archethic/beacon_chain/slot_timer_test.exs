@@ -117,6 +117,12 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
     assert :gt == DateTime.compare(now, previous_slot_time)
   end
 
+  test "get_time_interval should return interval in second" do
+    SlotTimer.start_link([interval: "0 */10 * * * * *"], [])
+
+    assert 600 == SlotTimer.get_time_interval()
+  end
+
   describe "SlotTimer Behavior During start" do
     test "should wait for node :up message" do
       :persistent_term.put(:archethic_up, nil)

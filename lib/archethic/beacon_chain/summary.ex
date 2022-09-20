@@ -6,6 +6,7 @@ defmodule Archethic.BeaconChain.Summary do
 
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
 
   alias Archethic.P2P.Node
@@ -57,7 +58,9 @@ defmodule Archethic.BeaconChain.Summary do
 
     ### Aggregate the P2P view and the transaction summaries for a static list of nodes during the beacon chain
 
-      iex> Summary.aggregate_slots(%Summary{}, [
+      iex> :ets.new(:archethic_slot_timer, [:named_table, :public, read_concurrency: true])
+      ...> :ets.insert(:archethic_slot_timer, {:interval, "0 */10 * * * * *"})
+      ...> Summary.aggregate_slots(%Summary{}, [
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
       ...>   transaction_attestations: [
@@ -71,7 +74,7 @@ defmodule Archethic.BeaconChain.Summary do
       ...>       }
       ...>     }
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1>>}
+      ...>   p2p_view: %{ availabilities: <<600::16, 0::16, 600::16>>}
       ...>  },
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
@@ -86,16 +89,16 @@ defmodule Archethic.BeaconChain.Summary do
       ...>       }
       ...>     }
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1>>}
+      ...>   p2p_view: %{ availabilities: <<600::16, 0::16, 600::16>>}
       ...>  },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 0::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 100::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 100::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 200::16, 470::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 500::16, 0::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<0::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<0::16, 600::16, 300::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
       ...> ], [
       ...>   %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
       ...>   %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
@@ -113,13 +116,15 @@ defmodule Archethic.BeaconChain.Summary do
               }
             }
           ],
-        node_availabilities: <<1::1, 1::1, 1::1>>,
-        node_average_availabilities: [0.7, 0.7, 0.50]
+        node_availabilities: <<1::1, 0::1, 1::1>>,
+        node_average_availabilities: [1.0, 0.4601449275362319, 0.7717391304347827]
       }
 
     ### Aggregate the P2P view and the transaction attestations with new node joining during the beacon chain epoch
 
-      iex> Summary.aggregate_slots(%Summary{}, [
+      iex> :ets.new(:archethic_slot_timer, [:named_table, :public, read_concurrency: true])
+      ...> :ets.insert(:archethic_slot_timer, {:interval, "0 */10 * * * * *"})
+      ...> Summary.aggregate_slots(%Summary{}, [
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
       ...>   transaction_attestations: [
@@ -133,7 +138,7 @@ defmodule Archethic.BeaconChain.Summary do
       ...>        }
       ...>     }
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1, 1::1>>}
+      ...>   p2p_view: %{ availabilities: <<0::16, 0::16, 600::16, 600::16>>}
       ...>  },
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
@@ -148,14 +153,14 @@ defmodule Archethic.BeaconChain.Summary do
       ...>        }
       ...>     }
       ...>   ],
-      ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1, 1::1>>}
+      ...>   p2p_view: %{ availabilities: <<0::16, 0::16, 600::16, 600::16>>}
       ...>  },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 0::1, 1::1, 1::1>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 0::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
-      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
+      ...>  %Slot{ p2p_view: %{availabilities: <<200::16, 300::16, 600::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<200::16, 200::16, 600::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 200::16, 600::16, 600::16>>}, slot_time: ~U[2020-06-25 15:11:50Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 450::16, 200::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 450::16, 200::16>>}, slot_time: ~U[2020-06-25 15:11:40Z] },
+      ...>  %Slot{ p2p_view: %{availabilities: <<600::16, 600::16, 0::16>>}, slot_time: ~U[2020-06-25 15:11:30Z] }
       ...> ], [
       ...>   %Node{first_public_key: "key1", enrollment_date: ~U[2020-06-25 15:11:00Z]},
       ...>   %Node{first_public_key: "key2", enrollment_date: ~U[2020-06-25 15:11:00Z]},
@@ -175,7 +180,7 @@ defmodule Archethic.BeaconChain.Summary do
           }
         ],
         node_availabilities: <<1::1, 0::1, 1::1, 1::1>>,
-        node_average_availabilities: [0.625, 0.375, 0.625, 1.0]
+        node_average_availabilities: [0.5434782608695653, 0.48369565217391314, 0.6231884057971014, 1.0]
       }
   """
   @spec aggregate_slots(
@@ -256,20 +261,25 @@ defmodule Archethic.BeaconChain.Summary do
   end
 
   defp reduce_slot_availabilities(
-         %Slot{slot_time: slot_time, p2p_view: %{availabilities: availabilities}},
+         %Slot{slot_time: slot_time, p2p_view: %{availabilities: availabilities_bin}},
          acc,
          node_list
        ) do
     node_list_subset_time = node_list_at_slot_time(node_list, slot_time)
 
+    availabilities = for <<availability_time::16 <- availabilities_bin>>, do: availability_time
+
     availabilities
-    |> Utils.bitstring_to_integer_list()
     |> Enum.with_index()
-    |> Enum.reduce(acc, fn {availability, i}, acc ->
+    |> Enum.reduce(acc, fn {availability_time, i}, acc ->
       node = Enum.at(node_list_subset_time, i)
       node_pos = Enum.find_index(node_list, &(&1.first_public_key == node.first_public_key))
 
-      Map.update(acc, node_pos, [availability], &[availability | &1])
+      availability_by_slot =
+        Map.get(acc, node_pos, %{})
+        |> Map.update(slot_time, [availability_time], &[availability_time | &1])
+
+      Map.put(acc, node_pos, availability_by_slot)
     end)
   end
 
@@ -287,12 +297,33 @@ defmodule Archethic.BeaconChain.Summary do
          {node_index, availabilities},
          acc
        ) do
-    frequencies = Enum.frequencies(availabilities)
-    online_frequencies = Map.get(frequencies, 1, 0)
-    offline_frequencies = Map.get(frequencies, 0, 0)
+    # First, do a median for each slot
+    # Then do a wheighted mean of the result
+    map =
+      availabilities
+      |> Map.values()
+      |> Enum.map(&Utils.median(&1))
+      |> Enum.with_index()
+      |> Enum.reduce(%{}, fn {slot_availability_time, slot_index}, acc ->
+        # 1,0 -> 1,1 -> 1,2 ...
+        # Weight for 144th slot = 15.4
+        weight = 1 + slot_index / 10
+        weighted_availability_time = slot_availability_time * weight
 
-    available? = online_frequencies >= offline_frequencies
-    avg_availability = online_frequencies / length(availabilities)
+        acc
+        |> Map.update(
+          :total_availability_time,
+          weighted_availability_time,
+          &(&1 + weighted_availability_time)
+        )
+        |> Map.update(:total_weight, weight, &(&1 + weight))
+      end)
+
+    availability_time = Map.get(map, :total_availability_time) / Map.get(map, :total_weight)
+    avg_availability = availability_time / SlotTimer.get_time_interval()
+    # TODO We may change the value where the node is considered as available
+    # to get only stable nodes like avg_availability > 0.85
+    available? = avg_availability > 0.5
 
     acc
     |> Map.update!(:availabilities, fn bitstring ->

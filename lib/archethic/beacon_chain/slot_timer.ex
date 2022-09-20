@@ -86,6 +86,11 @@ defmodule Archethic.BeaconChain.SlotTimer do
     |> Enum.to_list()
   end
 
+  def get_time_interval(unit \\ :second) do
+    now = DateTime.utc_now()
+    DateTime.diff(next_slot(now), previous_slot(now), unit)
+  end
+
   defp get_interval do
     [{_, interval}] = :ets.lookup(@slot_timer_ets, :interval)
     interval
@@ -129,11 +134,11 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
     slot_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-    Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
     PubSub.notify_current_epoch_of_slot_timer(slot_time)
 
     case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
       %Node{authorized?: true, available?: true} ->
+        Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
         Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
 
       _ ->

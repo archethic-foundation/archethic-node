@@ -13,6 +13,8 @@ defmodule Archethic.Crypto.NodeKeystore do
   @callback previous_public_key() :: Crypto.key()
   @callback next_public_key() :: Crypto.key()
 
+  @callback set_node_key_index(index :: non_neg_integer()) :: :ok
+
   @callback persist_next_keypair() :: :ok
 
   @callback sign_with_first_key(data :: iodata()) :: binary()

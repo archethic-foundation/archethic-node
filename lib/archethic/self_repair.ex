@@ -7,10 +7,12 @@ defmodule Archethic.SelfRepair do
   alias __MODULE__.Scheduler
   alias __MODULE__.Sync
 
+  alias Archethic.BeaconChain
+
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias Archethic.BeaconChain
+  require Logger
 
   @doc """
   Start the self repair synchronization scheduler
@@ -26,20 +28,30 @@ defmodule Archethic.SelfRepair do
     # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
     # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
     # at the end of loading (in case there is a crash during self repair).
-    start_date = DateTime.utc_now()
-    :ok = Sync.load_missed_transactions(date, patch)
-    put_last_sync_date(start_date)
 
-    # At the end of self repair, if a new beacon summary as been created
-    # we run bootstrap_sync again until the last beacon summary is loaded
-    case DateTime.utc_now()
-         |> BeaconChain.previous_summary_time()
-         |> DateTime.compare(start_date) do
-      :gt ->
-        bootstrap_sync(start_date, patch)
+    # Summary time after the the last synchronization date
+    summary_time = BeaconChain.next_summary_date(date)
 
-      _ ->
-        :ok
+    # Before the first summary date, synchronization is useless
+    # as no data have been aggregated
+    if DateTime.diff(DateTime.utc_now(), summary_time) >= 0 do
+      start_date = DateTime.utc_now()
+      :ok = Sync.load_missed_transactions(date, patch)
+      put_last_sync_date(start_date)
+
+      # At the end of self repair, if a new beacon summary as been created
+      # we run bootstrap_sync again until the last beacon summary is loaded
+      case DateTime.utc_now()
+           |> BeaconChain.previous_summary_time()
+           |> DateTime.compare(start_date) do
+        :gt ->
+          bootstrap_sync(start_date, patch)
+
+        _ ->
+          :ok
+      end
+    else
+      Logger.info("Synchronization skipped (before first summary date)")
     end
   end
 

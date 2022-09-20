@@ -48,6 +48,22 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
+  @doc """
+  Get the availability timer and reset it with a new start time if it was already started
+  """
+  @spec get_availability_timer(Crypto.key(), boolean()) :: non_neg_integer()
+  def get_availability_timer(public_key, reset?) do
+    GenStateMachine.call(via_tuple(public_key), {:get_timer, reset?})
+  end
+
+  @doc """
+  Start the availability timer if it wasn't
+  """
+  @spec start_availability_timer(Crypto.key()) :: :ok
+  def start_availability_timer(public_key) do
+    GenStateMachine.cast(via_tuple(public_key), :start_timer)
+  end
+
   # fetch cnnoection details from registery for a node from its public key
   defp via_tuple(public_key), do: {:via, Registry, {ConnectionRegistry, public_key}}
 
@@ -64,11 +80,51 @@ defmodule Archethic.P2P.Client.Connection do
       transport: transport,
       request_id: 0,
       messages: %{},
-      send_tasks: %{}
+      send_tasks: %{},
+      availability_timer: {nil, 0}
     }
 
     actions = [{:next_event, :internal, :connect}]
     {:ok, :disconnected, data, actions}
+  end
+
+  def handle_event(
+        {:call, from},
+        {:get_timer, reset?},
+        _state,
+        data = %{availability_timer: availability_timer}
+      ) do
+    time =
+      case availability_timer do
+        {nil, time} ->
+          time
+
+        {start, time} ->
+          time + (System.monotonic_time(:second) - start)
+      end
+
+    if reset? do
+      new_data =
+        Map.update!(data, :availability_timer, fn
+          {nil, _} ->
+            {nil, 0}
+
+          _ ->
+            {System.monotonic_time(:second), 0}
+        end)
+
+      {:keep_state, new_data, {:reply, from, time}}
+    else
+      {:keep_state_and_data, {:reply, from, time}}
+    end
+  end
+
+  def handle_event(:cast, :start_timer, _state, data) do
+    {:keep_state,
+     Map.update!(data, :availability_timer, fn
+       {nil, time} -> {System.monotonic_time(:second), time}
+       timer -> timer
+     end)}
   end
 
   def handle_event(:enter, :disconnected, :disconnected, _data), do: :keep_state_and_data
@@ -83,6 +139,19 @@ defmodule Archethic.P2P.Client.Connection do
 
     MemTable.decrease_node_availability(node_public_key)
 
+    # Stop availability timer
+    new_data =
+      data
+      |> Map.put(:messages, %{})
+      |> Map.update!(:availability_timer, fn
+        {nil, time} ->
+          {nil, time}
+
+        {start, previous_time} ->
+          added_time = System.monotonic_time(:second) - start
+          {nil, previous_time + added_time}
+      end)
+
     # Notify clients the connection is lost
     # and cancel the existing timeouts
     actions =
@@ -93,7 +162,21 @@ defmodule Archethic.P2P.Client.Connection do
 
     # Reconnect with backoff
     actions = [{{:timeout, :reconnect}, 500, nil} | actions]
-    {:keep_state, %{data | messages: %{}}, actions}
+    {:keep_state, new_data, actions}
+  end
+
+  def handle_event(:enter, :disconnected, {:connected, _socket}, data) do
+    # Start availability timer
+    new_data =
+      Map.update!(data, :availability_timer, fn
+        {nil, time} ->
+          {System.monotonic_time(:second), time}
+
+        timer ->
+          timer
+      end)
+
+    {:keep_state, new_data}
   end
 
   def handle_event(:enter, _old_state, {:connected, _socket}, _data), do: :keep_state_and_data
@@ -125,35 +208,6 @@ defmodule Archethic.P2P.Client.Connection do
 
   def handle_event({:timeout, :reconnect}, _event_data, {:connected, _socket}, _data) do
     :keep_state_and_data
-  end
-
-  def handle_event(
-        :cast,
-        {:connect, from},
-        state,
-        data = %{
-          ip: ip,
-          port: port,
-          transport: transport
-        }
-      ) do
-    next_state =
-      case state do
-        :disconnected ->
-          case transport.handle_connect(ip, port) do
-            {:ok, socket} ->
-              {:next_state, {:connected, socket}, data}
-
-            {:error, _reason} ->
-              :keep_state_and_data
-          end
-
-        _ ->
-          :keep_state_and_data
-      end
-
-    send(from, :ok)
-    next_state
   end
 
   def handle_event(
@@ -247,6 +301,19 @@ defmodule Archethic.P2P.Client.Connection do
           message_id: msg_id
         )
 
+        MemTable.decrease_node_availability(node_public_key)
+
+        # Stop availability timer
+        new_data =
+          Map.update!(new_data, :availability_timer, fn
+            {nil, time} ->
+              {nil, time}
+
+            {start, previous_time} ->
+              added_time = System.monotonic_time(:second) - start
+              {nil, previous_time + added_time}
+          end)
+
         {:keep_state, new_data}
 
       {nil, _} ->
@@ -254,7 +321,15 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
-  def handle_event(:info, {_ref, :ok}, {:connected, _socket}, _data), do: :keep_state_and_data
+  def handle_event(:info, {ref, :ok}, {:connected, _socket}, data = %{send_tasks: send_tasks}) do
+    case Map.pop(send_tasks, ref) do
+      {nil, _} ->
+        :keep_state_and_data
+
+      {_, new_send_tasks} ->
+        {:keep_state, Map.put(data, :send_tasks, new_send_tasks)}
+    end
+  end
 
   def handle_event(
         :info,
@@ -312,6 +387,16 @@ defmodule Archethic.P2P.Client.Connection do
       {:ok, msg} ->
         MemTable.increase_node_availability(node_public_key)
 
+        # Start availability timer
+        new_data =
+          Map.update!(data, :availability_timer, fn
+            {nil, time} ->
+              {System.monotonic_time(:second), time}
+
+            {start, time} ->
+              {start, time}
+          end)
+
         start_decoding_time = System.monotonic_time()
 
         %MessageEnvelop{
@@ -329,7 +414,7 @@ defmodule Archethic.P2P.Client.Connection do
 
         end_time = System.monotonic_time()
 
-        case pop_in(data, [:messages, message_id]) do
+        case pop_in(new_data, [:messages, message_id]) do
           {%{
              from: from,
              ref: ref,

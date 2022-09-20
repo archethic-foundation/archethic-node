@@ -5,6 +5,8 @@ defmodule Archethic.SelfRepair.Sync do
   alias Archethic.BeaconChain.Subset.P2PSampling
   alias Archethic.BeaconChain.SummaryAggregate
 
+  alias Archethic.Crypto
+
   alias Archethic.DB
 
   alias Archethic.PubSub
@@ -30,8 +32,8 @@ defmodule Archethic.SelfRepair.Sync do
   Return the last synchronization date from the previous cycle of self repair
 
   If there are not previous stored date:
-   - Try to the first enrollment date of the listed nodes
-   - Otherwise take the current date
+  - Try to the first enrollment date of the listed nodes
+  - Otherwise take the current date
   """
   @spec last_sync_date() :: DateTime.t() | nil
   def last_sync_date do
@@ -99,7 +101,7 @@ defmodule Archethic.SelfRepair.Sync do
   @spec load_missed_transactions(
           last_sync_date :: DateTime.t(),
           patch :: binary()
-        ) :: :ok
+        ) :: :ok | {:error, :unreachable_nodes}
   def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
     Logger.info(
       "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
@@ -110,10 +112,36 @@ defmodule Archethic.SelfRepair.Sync do
     last_sync_date
     |> BeaconChain.next_summary_dates()
     |> BeaconChain.fetch_summary_aggregates()
+    |> tap(&ensure_summaries_download/1)
     |> Enum.each(&process_summary_aggregate(&1, patch))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
+  end
+
+  defp ensure_summaries_download(aggregates) do
+    # Make sure the beacon summaries have been synchronized
+    # from remote nodes to avoid self-repair to be acknowledged if those
+    # cannot be reached
+    node_public_key = Crypto.first_node_public_key()
+
+    case P2P.authorized_and_available_nodes() do
+      [%Node{first_public_key: ^node_public_key}] ->
+        :ok
+
+      authorized_nodes ->
+        remaining_nodes =
+          authorized_nodes
+          |> Enum.reject(&(&1.first_public_key == node_public_key))
+          |> Enum.count()
+
+        if remaining_nodes > 0 and aggregates == [] do
+          Logger.error("Cannot make the self-repair - Not reachable nodes")
+          {:error, :unreachable_nodes}
+        else
+          :ok
+        end
+    end
   end
 
   @doc """

@@ -83,7 +83,7 @@ defmodule ArchethicWeb.TransactionDetailsLive do
     previous_address = Transaction.previous_address(tx)
 
     with {:ok, balance} <- Archethic.get_balance(address),
-         {:ok, inputs} <- Archethic.get_transaction_inputs(address) do
+         inputs <- Archethic.get_transaction_inputs(address) do
       ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
       contract_inputs = Enum.filter(inputs, &(&1.type == :call))
       uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
@@ -107,22 +107,15 @@ defmodule ArchethicWeb.TransactionDetailsLive do
   end
 
   defp handle_not_existing_transaction(socket, address) do
-    case Archethic.get_transaction_inputs(address) do
-      {:ok, inputs} ->
-        ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-        contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+    inputs = Archethic.get_transaction_inputs(address)
+    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
-        socket
-        |> assign(:address, address)
-        |> assign(:inputs, ledger_inputs)
-        |> assign(:calls, contract_inputs)
-        |> assign(:error, :not_exists)
-
-      {:error, :network_issue} ->
-        socket
-        |> assign(:address, address)
-        |> assign(:error, :network_issue)
-    end
+    socket
+    |> assign(:address, address)
+    |> assign(:inputs, ledger_inputs)
+    |> assign(:calls, contract_inputs)
+    |> assign(:error, :not_exists)
   end
 
   defp handle_invalid_address(socket, address) do

@@ -122,13 +122,18 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     end)
   end
 
-  def get_inputs(address) do
-    case Archethic.get_transaction_inputs(address) do
-      {:ok, inputs} ->
-        {:ok, Enum.map(inputs, &TransactionInput.to_map/1)}
+  def get_inputs(address, paging_offset \\ 0, limit \\ 0) do
+    inputs =
+      address
+      |> Archethic.get_transaction_inputs(paging_offset, limit)
+      |> Enum.map(&TransactionInput.to_map/1)
 
-      {:error, _} = e ->
-        e
+    case limit do
+      0 ->
+        {:ok, inputs}
+
+      limit ->
+        {:ok, Enum.take(inputs, limit)}
     end
   end
 
@@ -200,6 +205,19 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
         authorization_date: &1.authorization_date,
         average_availability: &1.average_availability,
         origin_public_key: &1.origin_public_key
+      }
+    )
+  end
+
+  def nearest_endpoints(ip) do
+    geo_patch = P2P.get_geo_patch(ip)
+    nearest_nodes = P2P.nearest_nodes(P2P.authorized_and_available_nodes(), geo_patch)
+
+    Enum.map(
+      nearest_nodes,
+      &%{
+        ip: :inet.ntoa(&1.ip),
+        port: &1.http_port
       }
     )
   end

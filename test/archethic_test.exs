@@ -269,8 +269,7 @@ defmodule ArchethicTest do
          }}
       end)
 
-      assert {:ok,
-              [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}]} =
+      assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}] =
                Archethic.get_transaction_inputs("@Alice2")
     end
   end
