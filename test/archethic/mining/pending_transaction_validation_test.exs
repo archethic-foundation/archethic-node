@@ -361,16 +361,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 name: "MyToken",
                 type: "non-fungible",
                 symbol: "MTK",
-                properties: [
-                  [
-                    %{name: "image", value: "link"}
-                  ],
-                  [
-                    %{name: "image", value: "link"}
-                  ],
-                  [
-                    %{name: "image", value: "link"}
-                  ]
+                properties: %{
+                  global: "property"
+                },
+                collection: [
+                  %{image: "link", value: "link"},
+                  %{image: "link", value: "link"},
+                  %{image: "link", value: "link"}
                 ]
               })
           },
