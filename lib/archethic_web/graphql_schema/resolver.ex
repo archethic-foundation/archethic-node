@@ -51,23 +51,12 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
            }}} <- Task.yield(t2) do
       properties = Map.get(definition, "properties", [])
 
-      data_to_digest =
-        case type do
-          "fungible" ->
-            %{
-              genesis_address: Base.encode16(genesis_address),
-              name: name,
-              symbol: symbol,
-              properties: properties
-            }
-
-          "non-fungible" ->
-            %{
-              genesis_address: Base.encode16(genesis_address),
-              name: name,
-              symbol: symbol
-            }
-        end
+      data_to_digest = %{
+        genesis_address: Base.encode16(genesis_address),
+        name: name,
+        symbol: symbol,
+        properties: properties
+      }
 
       token_id = :crypto.hash(:sha256, Jason.encode!(data_to_digest)) |> Base.encode16()
 
