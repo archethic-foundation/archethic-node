@@ -43,17 +43,24 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
     transactions =
       case length(TopTransactionsCache.get()) do
         l when l < 10 ->
-          txns = fetch_last_transactions()
           # Below code won't const much performace as atmost 10 transaction will be pushed.
-          txns
-          |> Enum.each(fn txn ->
-            TopTransactionsCache.push(txn)
-          end)
+          txns = fetch_last_transactions()
+
+          txns |> push_txns_to_cache()
 
           txns
 
         _ ->
-          TopTransactionsCache.get()
+          [head | _] = TopTransactionsCache.get()
+
+          # should refersh txns only if atleast 10 seconds have passed
+          if DateTime.diff(head.timestamp, DateTime.utc_now()) < 10 do
+            txns = fetch_last_transactions()
+            txns |> push_txns_to_cache()
+            txns
+          else
+            TopTransactionsCache.get()
+          end
       end
 
     socket = socket |> assign(assigns) |> assign(transactions: transactions)
@@ -83,6 +90,13 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
         <% end %>
       </div>
     """
+  end
+
+  defp push_txns_to_cache(txns) when is_list(txns) do
+    txns
+    |> Enum.each(fn txn ->
+      TopTransactionsCache.push(txn)
+    end)
   end
 
   defp fetch_previous_dates(time = %DateTime{}, txns, retries)
