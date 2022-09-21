@@ -45,12 +45,15 @@ defmodule ArchethicWeb.RootController do
       params
       |> Map.put("address", address)
       |> Map.put("mime", "text/html")
+      |> Map.put("url_path", Map.get(params, "path", []))
 
-    case WebHostingController.web_hosting(conn, %{"address" => address, "url_path" => params}) do
-      conn = %Plug.Conn{status: 200} ->
-        conn
+    cache_headers = WebHostingController.get_cache_headers(conn)
 
-      conn ->
+    case WebHostingController.get_website(params, cache_headers) do
+      {:ok, file_content, encodage, mime_type, cached?, etag} ->
+        WebHostingController.send_response(conn, file_content, encodage, mime_type, cached?, etag)
+
+      _ ->
         redirect(conn, to: "/explorer")
     end
   end
