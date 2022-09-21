@@ -7,6 +7,7 @@ defmodule ArchethicWeb.Supervisor do
 
   alias ArchethicWeb.Endpoint
   alias ArchethicWeb.{FaucetRateLimiter, TransactionSubscriber, TransactionCache}
+  alias ArchethicWeb.ExplorerLive.TopTransactionsCache
 
   require Logger
 
@@ -23,6 +24,7 @@ defmodule ArchethicWeb.Supervisor do
     children =
       [
         TransactionCache,
+        TopTransactionsCache,
         {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
         # Start the endpoint when the application starts
         Endpoint,
