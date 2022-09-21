@@ -216,6 +216,8 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   defp list_transactions_from_summary(nil), do: []
 
+  # Slots which are already has been added
+  # Real time transaction can be get from pubsub
   def list_transactions_from_current_slots(date = %DateTime{} \\ DateTime.utc_now()) do
     %Node{network_patch: patch} = P2P.get_node_info()
 

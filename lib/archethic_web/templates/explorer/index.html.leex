@@ -19,6 +19,9 @@
                 </div>
               </form>
               <div class="mt-6">
+                <%= live_component @socket, ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent, id: "last_ten_transactions" %>
+              </div>
+              <div class="mt-6">
                 <div class="columns">
                   <div class="column">
                     <p class="heading is-size-7">Last beacon chain summary statistics</p>
