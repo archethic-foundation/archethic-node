@@ -92,7 +92,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   defp get_transaction_content(address) do
     case Archethic.search_transaction(address) do
-      {:ok, %Transaction{data: %TransactionData{content: content}, type: :token}} ->
+      {:ok, %Transaction{data: %TransactionData{content: content}, type: type}}
+      when type in [:token, :mint_rewards] ->
         case Jason.decode(content) do
           {:ok, map} -> {:ok, map}
           _ -> {:error, :decode_error}

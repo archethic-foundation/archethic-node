@@ -162,7 +162,8 @@ defmodule ArchethicWeb.TransactionDetailsLive do
   defp get_token_properties(token_addresses) do
     Task.async_stream(token_addresses, fn token_address ->
       case Archethic.search_transaction(token_address) do
-        {:ok, %Transaction{data: %TransactionData{content: content}, type: :token}} ->
+        {:ok, %Transaction{data: %TransactionData{content: content}, type: type}}
+        when type in [:token, :mint_rewards] ->
           {token_address, content}
 
         _ ->
