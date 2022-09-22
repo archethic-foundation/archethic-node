@@ -44,18 +44,21 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
          {:ok,
           {:ok,
            definition = %{
-             "name" => name,
              "supply" => supply,
-             "symbol" => symbol,
              "type" => type
            }}} <- Task.yield(t2) do
-      properties = Map.get(definition, "properties", [])
+      properties = Map.get(definition, "properties", %{})
+      collection = Map.get(definition, "collection", [])
+      decimals = Map.get(definition, "decimals", 8)
+      name = Map.get(definition, "name", "")
+      symbol = Map.get(definition, "symbol", "")
 
       data_to_digest = %{
         genesis_address: Base.encode16(genesis_address),
         name: name,
         symbol: symbol,
-        properties: properties
+        properties: properties,
+        decimals: decimals
       }
 
       token_id = :crypto.hash(:sha256, Jason.encode!(data_to_digest)) |> Base.encode16()
@@ -67,7 +70,9 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
          supply: supply,
          symbol: symbol,
          type: type,
-         properties: do_reduce_properties(properties),
+         decimals: decimals,
+         properties: properties,
+         collection: collection,
          id: token_id
        }}
     else
@@ -102,14 +107,6 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       _ ->
         {:error, :transaction_not_found}
     end
-  end
-
-  defp do_reduce_properties(property_list) do
-    Enum.map(property_list, fn properties ->
-      Enum.map(properties, fn %{"name" => n, "value" => v} ->
-        %{name: n, value: v}
-      end)
-    end)
   end
 
   def get_inputs(address, paging_offset \\ 0, limit \\ 0) do
