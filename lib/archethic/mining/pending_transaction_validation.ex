@@ -624,7 +624,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          } <- json_token,
          {:decimals, 8} <- {:decimals, Map.get(json_token, "decimals", 8)},
          {:length, ^supply} <- {:length, length(collection) * @unit_uco},
-         {:id, :ok} <- {:id, control_collection_id(collection)} do
+         {:id, true} <- {:id, valid_collection_id?(collection)} do
       :ok
     else
       {:error, reason} ->
@@ -650,37 +650,28 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         {:error,
          "Invalid token transaction - Supply should match collection for non-fungible tokens"}
 
-      {:id, :error} ->
+      {:id, false} ->
         {:error,
          "Invalid token transaction - Specified id must be different for all item in the collection"}
     end
   end
 
-  defp control_collection_id(collection) do
+  defp valid_collection_id?(collection) do
     # If an id is specified in an item of the collection,
     # all items must have a different specified id
-    require_id? = Enum.at(collection, 0) |> Map.has_key?("id")
-
-    res =
-      Enum.reduce_while(collection, [], fn properties, id_list ->
+    if Enum.at(collection, 0) |> Map.has_key?("id") do
+      Enum.reduce_while(collection, MapSet.new(), fn properties, acc ->
         id = Map.get(properties, "id")
 
-        with ^require_id? <- id != nil,
-             {:require_id?, true} <- {:require_id?, require_id?},
-             false <- Enum.member?(id_list, id) do
-          {:cont, [id | id_list]}
+        if id != nil && !MapSet.member?(acc, id) do
+          {:cont, MapSet.put(acc, id)}
         else
-          {:require_id?, false} ->
-            {:cont, []}
-
-          _ ->
-            {:halt, :error}
+          {:halt, MapSet.new()}
         end
       end)
-
-    case res do
-      :error -> :error
-      _ -> :ok
+      |> MapSet.size() > 0
+    else
+      Enum.all?(collection, &(!Map.has_key?(&1, "id")))
     end
   end
 
