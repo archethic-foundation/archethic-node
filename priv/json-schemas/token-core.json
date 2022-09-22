@@ -2,50 +2,53 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-     "supply": {
-        "type": "integer",
-        "description": "Number of tokens to create",
-        "exclusiveMinimum": 0
-     },
-     "type": {
-        "type": "string",
-        "pattern": "fungible|non-fungible",
-        "description": "Type of token to create"
-     },
-     "name": {
-        "type": "string",
-        "description": "Name of the token"
-     },
-     "symbol": {
-       "type": "string",
-       "description": "Symbol of the token"
-     },
-     "properties": {
-        "description": "List of all the token properties (each one being for a token item)",
-        "type": "array",
-        "items": { "$ref": "#/$defs/property-list" }
-      }
-   },
-   "required": [ "supply", "type" ],
-   "$defs": {
-     "property-list": {
-        "type": "array",
+    "supply": {
+      "type": "integer",
+      "description": "Number of tokens to create",
+      "exclusiveMinimum": 0,
+      "maximum": 1.84467440737095e19
+    },
+    "type": {
+      "type": "string",
+      "pattern": "fungible|non-fungible",
+      "description": "Type of token to create"
+    },
+    "decimals": {
+      "type": "integer",
+      "description": "Number of decimals of the token",
+      "exclusiveMinimum": 0,
+      "maximum": 8
+    },
+    "name": {
+      "type": "string",
+      "description": "Name of the token"
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Symbol of the token"
+    },
+    "properties": {
+      "description": "List of the global token properties",
+      "type": "object"
+    },
+    "collection": {
+      "description": "List of the specific properties (each one being for a token item)",
+      "type": "array",
+      "items": {
         "description": "List of the properties for a given token item",
-        "items": { "$ref": "#/$defs/property" }
-      },
-      "property": {
-         "type": "object",
-         "properties": {
-           "name": {
-             "type": "string",
-             "description": "Name of the property"
-           },
-           "value": {
-             "type": ["number", "string"],
-             "description": "Value of the property"
-           }
-         },
-         "required": ["name", "value"]
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Id that will be used for the token",
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       }
-   }
+    }
+  },
+  "required": [
+    "supply",
+    "type"
+  ]
 }

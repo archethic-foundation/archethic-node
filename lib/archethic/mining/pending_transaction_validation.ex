@@ -32,6 +32,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.Governance.Code.Proposal, as: CodeProposal
   require Logger
 
+  @unit_uco 100_000_000
+
   @doc """
   Determines if the transaction is accepted into the network
   """
@@ -615,22 +617,61 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     with {:ok, json_token} <- Jason.decode(content),
          :ok <- ExJsonSchema.Validator.validate(schema, json_token),
-         %{"type" => "non-fungible", "supply" => supply, "properties" => properties}
-         when length(properties) == supply / 100_000_000 <- json_token do
+         %{
+           "type" => "non-fungible",
+           "supply" => supply,
+           "collection" => collection
+         } <- json_token,
+         {:decimals, 8} <- {:decimals, Map.get(json_token, "decimals", 8)},
+         {:length, ^supply} <- {:length, length(collection) * @unit_uco},
+         {:id, true} <- {:id, valid_collection_id?(collection)} do
       :ok
     else
       {:error, reason} ->
         {:error, "Invalid token transaction - Invalid specification #{inspect(reason)}"}
 
-      %{"type" => "fungible", "properties" => properties} when length(properties) > 1 ->
-        {:error, "Invalid token transaction - Fungible should have only 1 set of properties"}
+      %{"type" => "fungible", "collection" => _collection} ->
+        {:error, "Invalid token transaction - Fungible should not have collection attribute"}
 
       %{"type" => "fungible"} ->
         :ok
 
-      %{"type" => "non-fungible"} ->
+      %{"type" => "non-fungible", "supply" => supply} when supply != @unit_uco ->
         {:error,
-         "Invalid token transaction - Supply should match properties for non-fungible tokens"}
+         "Invalid token transaction - Non fungible should have collection attribute or supply should be #{@unit_uco}"}
+
+      %{"type" => "non-fungible"} ->
+        :ok
+
+      {:decimals, _} ->
+        {:error, "Invalid token transaction - Non fungible should have 8 decimals"}
+
+      {:length, _} ->
+        {:error,
+         "Invalid token transaction - Supply should match collection for non-fungible tokens"}
+
+      {:id, false} ->
+        {:error,
+         "Invalid token transaction - Specified id must be different for all item in the collection"}
+    end
+  end
+
+  defp valid_collection_id?(collection) do
+    # If an id is specified in an item of the collection,
+    # all items must have a different specified id
+    if Enum.at(collection, 0) |> Map.has_key?("id") do
+      Enum.reduce_while(collection, MapSet.new(), fn properties, acc ->
+        id = Map.get(properties, "id")
+
+        if id != nil && !MapSet.member?(acc, id) do
+          {:cont, MapSet.put(acc, id)}
+        else
+          {:halt, MapSet.new()}
+        end
+      end)
+      |> MapSet.size() > 0
+    else
+      Enum.all?(collection, &(!Map.has_key?(&1, "id")))
     end
   end
 
