@@ -123,6 +123,24 @@ defmodule ArchethicWeb.TransactionDetailsLive do
     |> assign(:token_properties, token_properties)
   end
 
+  defp handle_not_existing_transaction(socket, address) do
+    inputs = Archethic.get_transaction_inputs(address)
+    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+
+    token_properties =
+      get_token_addresses([], ledger_inputs)
+      |> Enum.uniq()
+      |> get_token_properties()
+
+    socket
+    |> assign(:address, address)
+    |> assign(:inputs, ledger_inputs)
+    |> assign(:calls, contract_inputs)
+    |> assign(:error, :not_exists)
+    |> assign(:token_properties, token_properties)
+  end
+
   defp get_token_addresses(acc, [%TransactionMovement{type: {:token, token_address, _}} | rest]) do
     get_token_addresses([token_address | acc], rest)
   end
@@ -169,18 +187,6 @@ defmodule ArchethicWeb.TransactionDetailsLive do
       _, acc ->
         acc
     end)
-  end
-
-  defp handle_not_existing_transaction(socket, address) do
-    inputs = Archethic.get_transaction_inputs(address)
-    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
-
-    socket
-    |> assign(:address, address)
-    |> assign(:inputs, ledger_inputs)
-    |> assign(:calls, contract_inputs)
-    |> assign(:error, :not_exists)
   end
 
   defp handle_invalid_address(socket, address) do
