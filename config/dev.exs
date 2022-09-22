@@ -149,7 +149,7 @@ config :archethic, ArchethicWeb.Endpoint,
     port: System.get_env("ARCHETHIC_HTTPS_PORT", "5000") |> String.to_integer(),
     cipher_suite: :strong,
     otp_app: :archethic,
-    sni_fun: &ArchethicWeb.Certs.sni/1,
+    sni_fun: &ArchethicWeb.Domain.sni/1,
     keyfile: "priv/cert/selfsigned_key.pem",
     certfile: "priv/cert/selfsigned.pem"
   ]

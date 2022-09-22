@@ -239,7 +239,7 @@ config :archethic, ArchethicWeb.Endpoint,
     cipher_suite: :strong,
     otp_app: :archethic,
     port: 443,
-    sni_fun: &ArchethicWeb.Certs.sni/1,
+    sni_fun: &ArchethicWeb.prod().sni/1,
     keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEYFILE", ""),
     certfile: System.get_env("ARCHETHIC_WEB_SSL_CERTFILE", "")
   ]

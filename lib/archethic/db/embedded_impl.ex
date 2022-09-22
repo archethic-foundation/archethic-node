@@ -14,8 +14,6 @@ defmodule Archethic.DB.EmbeddedImpl do
   alias __MODULE__.StatsInfo
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ownership
 
   alias Archethic.BeaconChain.Summary
 
@@ -93,8 +91,6 @@ defmodule Archethic.DB.EmbeddedImpl do
         {:error, :not_exists} ->
           ChainWriter.append_transaction(previous_address, tx)
       end
-
-      additional_insert(tx)
     end
   end
 
@@ -105,51 +101,6 @@ defmodule Archethic.DB.EmbeddedImpl do
       ChainWriter.append_transaction(genesis_address, tx)
     end
   end
-
-  defp additional_insert(%Transaction{
-         type: :hosting,
-         data: %TransactionData{content: content, ownerships: ownerships}
-       }) do
-    json = Jason.decode!(content)
-
-    case Map.get(json, "sslCertificate") do
-      nil ->
-        :ok
-
-      certificate ->
-        %{extensions: extensions} = EasySSL.parse_pem(certificate)
-
-        case Map.get(extensions, :subjectAltName) do
-          nil ->
-            :ignore
-
-          san ->
-            [ownership = %Ownership{secret: secret} | _] = ownerships
-
-            encrypted_secret_key =
-              Ownership.get_encrypted_key(ownership, Crypto.storage_nonce_public_key())
-
-            {:ok, secret_key} = Crypto.ec_decrypt_with_storage_nonce(encrypted_secret_key)
-            {:ok, ssl_key} = Crypto.aes_decrypt(secret, secret_key)
-
-            domain = String.split(san, ":") |> List.last()
-            File.mkdir_p(Path.join([db_path(), "hosting/certs"]))
-
-            File.write!(
-              Path.join([db_path(), "hosting/certs", domain]),
-              Jason.encode!(%{
-                certificate: certificate,
-                encryptedKey:
-                  Crypto.ec_encrypt(ssl_key, Crypto.first_node_public_key()) |> Base.encode16()
-              })
-            )
-        end
-
-        :ok
-    end
-  end
-
-  defp additional_insert(_), do: :ok
 
   @doc """
   Write a beacon summary in DB
