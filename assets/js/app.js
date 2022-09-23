@@ -131,12 +131,21 @@ Hooks.CopyToClipboard = {
       navigator.clipboard
         .writeText(textToCopy)
         .then(() => {
-          alert("Text copied to clipboard");
+          e.target.innerText = "Copied !";
+          e.target.disabled = true;
         })
-        .catch((err) => {
+        .catch(() => {
+          e.target.innerText = "Failed !";
+          e.target.disabled = true;
           alert(
             "Copy to clipboard failed. Please select the area to copy and use ctrl + c shortcut keys."
           );
+        })
+        .finally(() => {
+          setTimeout(() => {
+            e.target.innerText = "Copy";
+            e.target.disabled = false;
+          }, 5000);
         });
     });
   },
