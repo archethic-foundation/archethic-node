@@ -137,15 +137,12 @@ Hooks.CopyToClipboard = {
         .catch(() => {
           e.target.innerText = "Failed !";
           e.target.disabled = true;
-          alert(
-            "Copy to clipboard failed. Please select the area to copy and use ctrl + c shortcut keys."
-          );
         })
         .finally(() => {
           setTimeout(() => {
             e.target.innerText = "Copy";
             e.target.disabled = false;
-          }, 5000);
+          }, 3000);
         });
     });
   },
