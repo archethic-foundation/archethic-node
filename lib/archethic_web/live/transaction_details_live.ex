@@ -9,6 +9,15 @@ defmodule ArchethicWeb.TransactionDetailsLive do
   alias Archethic.PubSub
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias ArchethicWeb.ExplorerView
 
@@ -78,32 +87,40 @@ defmodule ArchethicWeb.TransactionDetailsLive do
 
   defp handle_transaction(
          socket,
-         tx = %Transaction{address: address}
+         tx = %Transaction{
+           address: address,
+           data: %TransactionData{
+             ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
+           },
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+           }
+         }
        ) do
     previous_address = Transaction.previous_address(tx)
 
-    with {:ok, balance} <- Archethic.get_balance(address),
-         inputs <- Archethic.get_transaction_inputs(address) do
-      ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-      contract_inputs = Enum.filter(inputs, &(&1.type == :call))
-      uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
-      uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
+    inputs = Archethic.get_transaction_inputs(address)
+    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+    uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
+    uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
 
-      socket
-      |> assign(:transaction, tx)
-      |> assign(:previous_address, previous_address)
-      |> assign(:balance, balance)
-      |> assign(:inputs, ledger_inputs)
-      |> assign(:calls, contract_inputs)
-      |> assign(:address, address)
-      |> assign(:uco_price_at_time, uco_price_at_time)
-      |> assign(:uco_price_now, uco_price_now)
-    else
-      {:error, :network_issue} ->
-        socket
-        |> assign(:error, :network_issue)
-        |> assign(:address, address)
-    end
+    token_properties =
+      get_token_addresses([], ledger_inputs)
+      |> get_token_addresses(transaction_movements)
+      |> get_token_addresses(token_transfers)
+      |> Enum.uniq()
+      |> get_token_properties()
+
+    socket
+    |> assign(:transaction, tx)
+    |> assign(:previous_address, previous_address)
+    |> assign(:inputs, ledger_inputs)
+    |> assign(:calls, contract_inputs)
+    |> assign(:address, address)
+    |> assign(:uco_price_at_time, uco_price_at_time)
+    |> assign(:uco_price_now, uco_price_now)
+    |> assign(:token_properties, token_properties)
   end
 
   defp handle_not_existing_transaction(socket, address) do
@@ -111,11 +128,66 @@ defmodule ArchethicWeb.TransactionDetailsLive do
     ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
     contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
+    token_properties =
+      get_token_addresses([], ledger_inputs)
+      |> Enum.uniq()
+      |> get_token_properties()
+
     socket
     |> assign(:address, address)
     |> assign(:inputs, ledger_inputs)
     |> assign(:calls, contract_inputs)
     |> assign(:error, :not_exists)
+    |> assign(:token_properties, token_properties)
+  end
+
+  defp get_token_addresses(acc, [%TransactionMovement{type: {:token, token_address, _}} | rest]) do
+    get_token_addresses([token_address | acc], rest)
+  end
+
+  defp get_token_addresses(acc, [%TransactionInput{type: {:token, token_address, _}} | rest]) do
+    get_token_addresses([token_address | acc], rest)
+  end
+
+  defp get_token_addresses(acc, [%TokenTransfer{token_address: token_address} | rest]) do
+    get_token_addresses([token_address | acc], rest)
+  end
+
+  defp get_token_addresses(acc, [_ | rest]) do
+    get_token_addresses(acc, rest)
+  end
+
+  defp get_token_addresses(acc, []), do: acc
+
+  defp get_token_properties(token_addresses) do
+    Task.async_stream(token_addresses, fn token_address ->
+      case Archethic.search_transaction(token_address) do
+        {:ok, %Transaction{data: %TransactionData{content: content}, type: type}}
+        when type in [:token, :mint_rewards] ->
+          {token_address, content}
+
+        _ ->
+          :error
+      end
+    end)
+    |> Enum.reduce(%{}, fn
+      {:ok, {token_address, content}}, acc ->
+        case Jason.decode(content) do
+          {:ok, map} ->
+            properties = %{
+              decimals: Map.get(map, "decimals", 8),
+              symbol: Map.get(map, "symbol")
+            }
+
+            Map.put(acc, token_address, properties)
+
+          _ ->
+            acc
+        end
+
+      _, acc ->
+        acc
+    end)
   end
 
   defp handle_invalid_address(socket, address) do

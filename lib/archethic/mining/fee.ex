@@ -72,7 +72,7 @@ defmodule Archethic.Mining.Fee do
        ) do
     with {:ok, json} <- Jason.decode(content),
          "non-fungible" <- Map.get(json, "type", "fungible"),
-         utxos = [_ | _] <- Map.get(json, "properties", []) do
+         utxos when is_list(utxos) <- Map.get(json, "collection") do
       nb_utxos = length(utxos)
       base_fee = minimum_fee(uco_price_in_usd)
       (:math.log10(nb_utxos) + 1) * nb_utxos * base_fee
@@ -80,12 +80,8 @@ defmodule Archethic.Mining.Fee do
       {:error, _} ->
         0
 
-      "fungible" ->
+      _ ->
         1 * minimum_fee(uco_price_in_usd)
-
-      [] ->
-        # Invalid non-fungible definition
-        0
     end
   end
 

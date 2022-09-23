@@ -5,6 +5,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   alias Archethic.Crypto
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
 
   @typedoc """
   Transaction movement can be:
@@ -16,14 +17,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   def serialize(:UCO), do: <<0>>
 
   def serialize({:token, address, token_id}) do
-    <<1::8, address::binary, token_id::8>>
+    <<1::8, address::binary, VarInt.from_value(token_id)::binary>>
   end
 
   def deserialize(<<0::8, rest::bitstring>>), do: {:UCO, rest}
 
   def deserialize(<<1::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    <<token_id::8, rest::bitstring>> = rest
+    {token_id, rest} = VarInt.get_value(rest)
     {{:token, address, token_id}, rest}
   end
 end
