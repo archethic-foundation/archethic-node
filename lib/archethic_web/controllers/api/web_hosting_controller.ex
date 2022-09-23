@@ -19,10 +19,40 @@ defmodule ArchethicWeb.API.WebHostingController do
     if Enum.empty?(url_path) and String.last(conn.request_path) != "/" do
       redirect(conn, to: conn.request_path <> "/")
     else
-      do_web_hosting(conn, params)
+      case get_website(params, get_cache_headers(conn)) do
+        {:ok, file_content, encodage, mime_type, cached?, etag} ->
+          send_response(conn, file_content, encodage, mime_type, cached?, etag)
+
+        {:error, :invalid_address} ->
+          send_resp(conn, 400, "Invalid address")
+
+        {:error, :invalid_content} ->
+          send_resp(conn, 400, "Invalid transaction content")
+
+        {:error, :not_found} ->
+          send_resp(conn, 404, "Cannot find file content")
+
+        {:error, :invalid_encodage} ->
+          send_resp(conn, 400, "Invalid file encodage")
+
+        {:error, _} ->
+          send_resp(conn, 404, "Not Found")
+      end
     end
   end
 
+  @doc """
+  Fetch the website file content 
+  """
+  @spec get_website(request_params :: map(), cached_headers :: list()) ::
+          {:ok, file_content :: binary() | nil, encodage :: binary() | nil, mime_type :: binary(),
+           cached? :: boolean(), etag :: binary()}
+          | {:error, :invalid_address}
+          | {:error, :invalid_content}
+          | {:error, :not_found}
+          | {:error, :invalid_encodage}
+          | {:error, :not_found}
+          | {:error, any()}
   def get_website(params = %{"address" => address}, cache_headers) do
     url_path = Map.get(params, "url_path", [])
 
@@ -55,13 +85,29 @@ defmodule ArchethicWeb.API.WebHostingController do
       :file_error ->
         {:error, :not_found}
 
-      reason ->
-        {:error, reason}
+      error ->
+        error
     end
   end
 
+  @doc """
+  Return the list of headers for caching
+  """
+  @spec get_cache_headers(Plug.Conn.t()) :: list()
   def get_cache_headers(conn), do: get_req_header(conn, "if-none-match")
 
+  @doc """
+  Send the website file content with the cache and encoding policy
+  """
+  @spec send_response(
+          Plug.Conn.t(),
+          file_content :: binary() | nil,
+          encodage :: binary() | nil,
+          mime_type :: binary(),
+          cached? :: boolean(),
+          etag :: binary()
+        ) ::
+          Plug.Conn.t()
   def send_response(conn, file_content, encodage, mime_type, cached?, etag) do
     conn =
       conn
@@ -75,28 +121,6 @@ defmodule ArchethicWeb.API.WebHostingController do
       {conn, response_content} = encode_res(conn, file_content, encodage)
 
       send_resp(conn, 200, response_content)
-    end
-  end
-
-  defp do_web_hosting(conn, params) do
-    case get_website(params, get_cache_headers(conn)) do
-      {:ok, file_content, encodage, mime_type, cached?, etag} ->
-        send_response(conn, file_content, encodage, mime_type, cached?, etag)
-
-      {:error, :invalid_address} ->
-        send_resp(conn, 400, "Invalid address")
-
-      {:error, :invalid_content} ->
-        send_resp(conn, 400, "Invalid transaction content")
-
-      {:error, :not_found} ->
-        send_resp(conn, 404, "File does not exist")
-
-      {:error, :invalid_encodage} ->
-        send_resp(conn, 400, "Invalid file encodage")
-
-      {:error, _} ->
-        send_resp(conn, 404, "Not Found")
     end
   end
 
