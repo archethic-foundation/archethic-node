@@ -43,7 +43,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
         # Token amount
         0, 0, 0, 0, 62, 149, 186, 128,
         # Token_ID
-        0
+        1, 0
       >>
   """
   @spec serialize(t()) :: binary()
@@ -61,7 +61,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
       iex> <<1, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0>>
+      ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0>>
       ...> |> TokenLedger.deserialize()
       {
         %TokenLedger{

@@ -24,8 +24,8 @@ defmodule ArchethicWeb.LayoutHelpers do
     Sizeable.filesize(nb_bytes)
   end
 
-  def to_float(number) when is_number(number) do
-    :erlang.float_to_binary(number / 100_000_000, [:compact, decimals: 8])
+  def to_float(number, decimals \\ 8) when is_number(number) do
+    :erlang.float_to_binary(number / :math.pow(10, decimals), [:compact, decimals: decimals])
   end
 
   def format_usd_amount(uco_amount, uco_price) do

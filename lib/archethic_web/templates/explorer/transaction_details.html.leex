@@ -35,7 +35,6 @@
                                 data_section: 'code',
                                 operation_section: 'transaction_movements'
                                 }" >
-                <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
                 <div class="tabs is-fullwidth"  >
                     <ul>
                         <li @click="tab_panel='tx' "
@@ -191,13 +190,26 @@
                                             </div>
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
-                                                <div class="column"><%= to_float(transfer.amount) %></div>
+                                                <div class="column">
+                                                    <%= decimals = Map.get(@token_properties, transfer.token_address, %{}) |> Map.get(:decimals, 8)
+                                                    to_float(transfer.amount, decimals) %>
+                                                </div>
                                             </div>
                                             <div class="columns">
                                                 <div class="column is-1 heading">Token</div>
                                                 <div class="column">
                                                     <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.token_address)) do%>
-                                                    <span class="text_wrap"><%= Base.encode16(transfer.token_address) %></span>
+                                                    <span class="text_wrap">
+                                                        <%= case Map.get(@token_properties, transfer.token_address, %{}) |> Map.get(:symbol) do
+                                                            nil -> Base.encode16(transfer.token_address)
+                                                            symbol -> symbol
+                                                        end %>
+                                                        <%= if transfer.token_id >= 1 do %>
+                                                            <span class="tag is-success is-light ml-2">
+                                                                (#<%= transfer.token_id %>)
+                                                            </span>
+                                                        <% end %>
+                                                    </span>
                                                 <% end %>
                                                 </div>
                                             </div>
@@ -339,17 +351,21 @@
                                                                 (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                             <% end %>
                                                         <% {:token, token_address, token_id} -> %>
-                                                            <%= to_float(movement.amount) %>
+                                                            <%= decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
+                                                            to_float(movement.amount, decimals) %>
                                                             <span class="tag is-success is-light ml-2">Token
-  <%= if token_id >= 1 do %>
-    (#<%= token_id %>)
-  <% end %>
-
+                                                                <%= if token_id >= 1 do %>
+                                                                    (#<%= token_id %>)
+                                                                <% end %>
                                                             </span>
                                                             <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
-                                                                <span><%= Base.encode16(:binary.part(token_address, 0, 13)) %>...</span>
+                                                                <span>
+                                                                    <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do
+                                                                        nil -> "#{Base.encode16(:binary.part(token_address, 0, 13))}..."
+                                                                        symbol -> symbol
+                                                                    end %>
+                                                                </span>
                                                             <% end %>
-                                                        </div>
                                                     <% end %>
                                                 </div>
                                             </div>
@@ -381,14 +397,20 @@
                                                             (<%= format_full_usd_amount(unspent_output.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                         <% end %>
                                                     <% {:token, token_address, token_id} -> %>
-                                                        <%= to_float(unspent_output.amount) %>
+                                                        <%= decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
+                                                        to_float(unspent_output.amount, decimals) %>
                                                         <span class="tag is-success is-light ml-2">Token
-  <%= if token_id >= 1 do %>
-    (#<%= token_id %>)
-  <% end %>
+                                                            <%= if token_id >= 1 do %>
+                                                                (#<%= token_id %>)
+                                                            <% end %>
                                                         </span>
                                                         <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
-                                                            <span><%= Base.encode16(:binary.part(token_address, 0, 13)) %>...</span>
+                                                            <span>
+                                                                <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do
+                                                                    nil -> "#{Base.encode16(:binary.part(token_address, 0, 13))}..."
+                                                                    symbol -> symbol
+                                                                end %>
+                                                            </span>
                                                         <% end %>
                                                     <% end %>
                                                 </div>
@@ -510,7 +532,16 @@
                                         <div class="column heading">Amount</div>
                                       </div>
                                       <div class="columns">
-                                          <div class="column"><%= to_float(input.amount) %></div>
+                                          <div class="column">
+                                            <%= case input.type do
+                                                {:token, token_address, _} ->
+                                                    decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
+                                                    to_float(input.amount, decimals)
+
+                                                _ ->
+                                                     to_float(input.amount)
+                                            end %>
+                                        </div>
                                       </div>
                                     </div>
                                     <div class="column">
@@ -533,10 +564,15 @@
                                                       <% end %>
                                                     </span></div>
                                                   <div class="column is-4-desktop">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
-                                                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(token_address, 0, 6)) %>...</span>
-                                                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(token_address, 0, 12)) %>...</span>
-                                                    <% end %>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do
+                                                        case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
+                                                            <% nil -> %>
+                                                                <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(token_address, 0, 6)) %>...</span>
+                                                                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(token_address, 0, 12)) %>...</span>
+                                                            <% symbol -> %>
+                                                                <span><%= symbol %></span>
+                                                        <% end
+                                                    end %>
                                                   </div>
                                                 </div>
                                             <% end %>

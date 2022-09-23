@@ -109,6 +109,9 @@ defmodule ArchethicWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    Query the network to get the storage nonce public key
+    """
     field :shared_secrets, :shared_secrets do
       resolve(fn _, _ ->
         {:ok, Resolver.shared_secrets()}
@@ -147,6 +150,9 @@ defmodule ArchethicWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    Query the network to get the value of an oracle at a specific time or the last value
+    """
     field :oracle_data, :oracle_data do
       arg(:timestamp, :timestamp)
 
