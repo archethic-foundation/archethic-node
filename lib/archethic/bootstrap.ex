@@ -271,11 +271,11 @@ defmodule Archethic.Bootstrap do
 
   @spec get_genesis_addr(:node_shared_secrets | :oracle) :: binary() | nil
   defp get_genesis_addr(:oracle) do
-    Archethic.OracleChain.get_gen_addr().current |> elem(0)
+    Archethic.OracleChain.genesis_address().current |> elem(0)
   end
 
   defp get_genesis_addr(:node_shared_secrets) do
-    Archethic.SharedSecrets.get_gen_addr(:node_shared_secrets)
+    Archethic.SharedSecrets.genesis_address(:node_shared_secrets)
   end
 
   defp first_initialization(

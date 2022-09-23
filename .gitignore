@@ -50,3 +50,5 @@ log_*
 archethic-node.iml
 projectFilesBackup
 tags
+.vscode/settings.json
+src/c/nat/miniupnp

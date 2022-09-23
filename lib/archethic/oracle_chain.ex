@@ -209,8 +209,8 @@ defmodule Archethic.OracleChain do
   @doc """
   Returns current and previous summary_time genesis address of oracle chain
   """
-  @spec get_gen_addr() :: map() | nil
-  defdelegate get_gen_addr(),
+  @spec genesis_address() :: map() | nil
+  defdelegate genesis_address(),
     to: MemTable,
     as: :get_addr
 end

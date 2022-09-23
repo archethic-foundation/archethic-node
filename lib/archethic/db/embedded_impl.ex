@@ -40,7 +40,7 @@ defmodule Archethic.DB.EmbeddedImpl do
 
   @doc """
   Write the transaction chain through the a chain writer which will
-  happens the transactions to the chain's file
+  append the transactions to the chain's file
 
   If a transaction already exists it will be discarded
 
@@ -177,6 +177,15 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec list_addresses_by_type(Transaction.transaction_type()) :: Enumerable.t() | list(binary())
   def list_addresses_by_type(type) when is_atom(type) do
     ChainIndex.get_addresses_by_type(type, db_path())
+  end
+
+  @doc """
+  Stream all the addresses from the Genesis address(following it).
+  """
+  @spec list_chain_addresses(binary()) ::
+          Enumerable.t() | list({binary(), non_neg_integer()})
+  def list_chain_addresses(address) when is_binary(address) do
+    ChainIndex.list_chain_addresses(address, db_path())
   end
 
   @doc """

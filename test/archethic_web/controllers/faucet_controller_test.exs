@@ -168,12 +168,15 @@ defmodule ArchethicWeb.FaucetControllerTest do
       end)
 
       faucet_requests =
-        for _request_index <- 1..(faucet_rate_limit + 10) do
+        for _request_index <- 1..(faucet_rate_limit + 1) do
+          # temporary fix
+          # for _request_index <- 1..(faucet_rate_limit + 10) do
           post(conn, Routes.faucet_path(conn, :create_transfer), address: recipient_address)
         end
 
       conn = List.last(faucet_requests)
-
+      # temporary fix
+      Process.sleep(400)
       assert html_response(conn, 200) =~ "Blocked address"
     end
   end

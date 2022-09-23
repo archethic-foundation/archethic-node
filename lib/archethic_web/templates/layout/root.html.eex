@@ -47,6 +47,9 @@
                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.BeaconChainLive) %>">
                   Beacon
                 </a>
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.RewardChainLive) %>">
+                  Reward
+                </a>
               </div>
             </div>
             <div class="navbar-item has-dropdown is-hoverable" >

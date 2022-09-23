@@ -2,8 +2,8 @@
 
 
 <p class="heading is-size-7 has-text-white">Last changes from <span><%= format_date(@update_time) %></span></p>
-  
-  
+
+
   <div class="columns">
     <div class="column is-3">
       <div class="box has-text-centered">
@@ -28,7 +28,7 @@
         <%= if @current_date_page + 1 <= Enum.count(@dates) do %>
         <a class="pagination-next  is-outlined has-text-white" phx-value-page="<%= @current_date_page + 1 %>" phx-click="goto">Next page</a>
         <% end %>
-       
+
         <p class="pagination-list has-text-white">
           Page <%= @current_date_page %> on <%= Enum.count(@dates) %>
         </p>

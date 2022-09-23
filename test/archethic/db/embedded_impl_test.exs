@@ -678,6 +678,68 @@ defmodule Archethic.DB.EmbeddedTest do
     end
   end
 
+  describe "list_chain_addresses/1" do
+    test "should return a steam of addresses from genesis address" do
+      seed = "list_chain_addresses test seed"
+
+      tx0 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 0,
+          type: :transfer,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 1,
+          type: :transfer,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 2,
+          type: :transfer,
+          timestamp: ~U[2020-04-30 10:12:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 3,
+          type: :transfer,
+          timestamp: ~U[2020-04-30 10:11:00Z]
+        )
+
+      tx4 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 4,
+          type: :transfer,
+          timestamp: ~U[2020-04-30 10:11:00Z]
+        )
+
+      txn_list = [tx0, tx1, tx2, tx3, tx4]
+      assert :ok == EmbeddedImpl.write_transaction_chain(txn_list)
+
+      address_stream =
+        seed
+        |> Crypto.derive_keypair(0)
+        |> elem(0)
+        |> Crypto.derive_address()
+        |> EmbeddedImpl.list_chain_addresses()
+
+      address_list = Stream.take(address_stream, -3)
+      assert 3 == Enum.count(address_list)
+
+      assert [tx2.address, tx3.address, tx4.address] ==
+               Enum.map(address_list, fn {addr, _t} -> addr end)
+    end
+  end
+
   describe "Stats info" do
     test "should get the latest tps from the stats file" do
       date = DateTime.utc_now()
