@@ -76,6 +76,12 @@ defmodule Archethic.TransactionChain do
   defdelegate list_addresses_by_type(type), to: DB
 
   @doc """
+  Stream all the addresses in chronological belonging to a genesis address
+  """
+  @spec list_chain_addresses(binary()) :: Enumerable.t() | list({binary(), non_neg_integer()})
+  defdelegate list_chain_addresses(genesis_address), to: DB
+
+  @doc """
   Get the last transaction address from a transaction chain with the latest time
   """
   @spec get_last_address(binary()) :: {binary(), DateTime.t()}
@@ -125,6 +131,27 @@ defmodule Archethic.TransactionChain do
   @doc """
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
+
+  ## Example
+    tx0->tx1->tx2->tx3->tx4->tx5->tx6->tx7->tx8->tx9->tx10->tx11->tx12->tx13->tx14->tx15->tx16
+
+    Query: TransactionChain.get(tx5.address)
+    tx0->tx1->tx2->tx3->tx4->tx5
+
+    Query: TransactionChain.get(tx15.address)
+    tx0->tx1->tx2->tx3->tx4->tx5->tx6->tx7->tx8->tx9->tx10
+    more?: true
+    paging_address: tx10.address
+
+    Query: TransactionChain.get(tx15.address, paging_address: tx10.address)
+    tx11->tx12->tx13->tx14->tx15->tx16
+    more?: false
+    paging_address: nil
+
+    Query: TransactionChain.get(tx4.address, paging_address: tx4.address)
+    tx5->tx6->tx7->tx8->tx9->tx10->tx11->tx12->tx13->tx14
+    more?: true
+    paging_address: tx15.address
   """
   @spec get(binary(), list()) ::
           Enumerable.t() | {list(Transaction.t()), boolean(), binary()}

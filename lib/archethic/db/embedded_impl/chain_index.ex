@@ -295,6 +295,41 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   @doc """
+  Stream all the transaction addresses from genesis_address-address.
+  """
+  @spec list_chain_addresses(binary(), String.t()) ::
+          Enumerable.t() | list({binary(), non_neg_integer()})
+  def list_chain_addresses(address, db_path) when is_binary(address) do
+    filepath = chain_addresses_path(db_path, address)
+
+    Stream.resource(
+      fn -> File.open(filepath, [:binary, :read]) end,
+      fn
+        {:error, _} ->
+          {:halt, nil}
+
+        {:ok, fd} ->
+          with {:ok, <<timestamp::64>>} <- :file.read(fd, 8),
+               {:ok, <<curve_id::8, hash_id::8>>} <- :file.read(fd, 2),
+               hash_size <- Crypto.hash_size(hash_id),
+               {:ok, hash} <- :file.read(fd, hash_size) do
+            address = <<curve_id::8, hash_id::8, hash::binary>>
+            # return tuple of address and timestamp
+            {[{address, timestamp}], {:ok, fd}}
+          else
+            :eof ->
+              :file.close(fd)
+              {:halt, {:ok, fd}}
+          end
+      end,
+      fn
+        nil -> address
+        {:ok, fd} -> :file.close(fd)
+      end
+    )
+  end
+
+  @doc """
   Return the number of transactions for a given type
   """
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()

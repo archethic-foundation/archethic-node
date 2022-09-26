@@ -297,13 +297,13 @@ defmodule Archethic.Crypto do
   @doc """
   Return the the node shared secrets public key using the node shared secret transaction seed
   """
-  @spec node_shared_secrets_public_key(index :: number()) :: key()
+  @spec node_shared_secrets_public_key(index :: non_neg_integer()) :: key()
   defdelegate node_shared_secrets_public_key(index), to: SharedSecretsKeystore
 
   @doc """
   Return the the network pool public key using the network pool transaction seed
   """
-  @spec network_pool_public_key(index :: number()) :: key()
+  @spec network_pool_public_key(index :: non_neg_integer()) :: key()
   defdelegate network_pool_public_key(index), to: SharedSecretsKeystore
 
   @doc """
