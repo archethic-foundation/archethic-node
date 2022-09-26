@@ -1,43 +1,42 @@
 
-<br>
-<h3 style="color:white; text-align-last: center;">Running Archethic Version: <span class="has-text-weight-bold"> v<%= @version %> </span> </h3>
-<h3 style="color:white; text-align-last: center;"> Dashboard depicts live!! telemetry of the network , the metrics are updated every 5 seconds!!</h3>
-<br>
-         <div class="columns" style="justify-content: center">
-            <div class ="column is-full-mobile is-full-tablet is-5-desktop">
-                    <div id='tps' phx-hook='network_charts'  style="height:240px;width: 95%"  class= "box">
-                        <canvas class="chart_class"  phx-update="ignore" >
-                        </canvas>
-                    </div>
-            </div>
+<h2 class="title is-uppercase has-text-centered has-text-white has-text-weight-bold">
+  Dashboard depicts live
+</h2>
 
-             <div class="column is-full-mobile is-full-tablet is-5-desktop">
-                    <div id='archethic_mining_full_transaction_validation_duration' class="box" phx-hook='network_charts'
-                    style="height:240px;width: 95%" >
-                          <canvas class="chart_class" phx-update="ignore" >
-                        </canvas>
-                   </div>
-            </div>
-         </div>
+<h3 class="has-text-centered has-text-white">
+  Telemetry of the network - Metrics are updated every 5s
+</h3>
 
-        <div class="columns " style ="display:flex;flex-direction:row;flex-wrap:wrap;
-        justify-content: center;">
+<h3 class="is-size-7 has-text-centered has-text-white-ter mb-5">
+  Running Archethic Version:
+  <span class="has-text-weight-bold">
+    v<%= @version %>
+  </span>
+</h3>
 
-                <div class="column is-full-mobile is-full-tablet is-5-desktop">
-                    <div id='archethic_mining_proof_of_work_duration'  style="height:240px;width: 95%"  class="box" phx-hook='network_charts'  >
-                    <canvas class="chart_class" phx-update="ignore" >  </canvas>   </div >
-                  </div >
+<div class="columns is-flex-direction-row is-flex-wrap-wrap is-justify-content-center">
+  <div class ="column is-full-mobile is-full-tablet is-5-desktop">
+    <div id='tps' class= "box box-height" phx-hook='network_charts'>
+      <canvas phx-update="ignore" ></canvas>
+    </div>
+  </div>
+  <div class="column is-full-mobile is-full-tablet is-5-desktop">
+    <div id='archethic_mining_full_transaction_validation_duration' class="box box-height" phx-hook='network_charts'>
+      <canvas phx-update="ignore" >
+      </canvas>
+    </div>
+  </div>
+</div>
 
-                <div class ="column  is-full-mobile is-full-tablet is-5-desktop" >
-                  <div id='archethic_p2p_send_message_duration'  style="height:240px;width: 95%"  phx-hook='network_charts'  class= "box">
-                      <canvas class="chart_class"  phx-update="ignore">
-                      </canvas>
-                  </div>
-               </div>
-<style>
-
-</style>
-<script>
-
-
-</script>
+<div class="columns is-flex-direction-row is-flex-wrap-wrap is-justify-content-center">
+  <div class="column is-full-mobile is-full-tablet is-5-desktop">
+    <div id='archethic_mining_proof_of_work_duration' class="box box-height" phx-hook='network_charts'>
+      <canvas phx-update="ignore" ></canvas>
+    </div >
+  </div >
+  <div class ="column  is-full-mobile is-full-tablet is-5-desktop" >
+    <div id='archethic_p2p_send_message_duration' class= "box box-height" phx-hook='network_charts'>
+        <canvas phx-update="ignore"></canvas>
+    </div>
+  </div>
+</div>
