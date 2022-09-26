@@ -11,7 +11,7 @@ defmodule Archethic.Metrics.Collector.MetricsEndpoint do
   @node_metric_request_type "GET"
 
   @impl Collector
-  def fetch_metrics({ip_address, http_port}) do
+  def fetch_metrics(ip_address, http_port) do
     with {:ok, conn_ref} <- establish_connection(ip_address, http_port),
          {:ok, conn, _req_ref} <- request(conn_ref) do
       stream_responses(conn)

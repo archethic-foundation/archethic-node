@@ -88,6 +88,8 @@ defmodule Archethic.Mining.ProofOfWork do
       |> Transaction.serialize()
       |> do_find_transaction_origin_public_key(origin_signature, origin_public_keys)
 
+    IO.inspect("!!!! PROOF OF WORK")
+
     :telemetry.execute(
       [:archethic, :mining, :proof_of_work],
       %{

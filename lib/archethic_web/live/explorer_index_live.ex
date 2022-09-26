@@ -15,7 +15,6 @@ defmodule ArchethicWeb.ExplorerIndexLive do
     nb_transactions = DB.get_nb_transactions()
 
     if connected?(socket) do
-      Archethic.Metrics.Poller.monitor()
       PubSub.register_to_new_tps()
     end
 
@@ -29,10 +28,6 @@ defmodule ArchethicWeb.ExplorerIndexLive do
 
   def render(assigns) do
     View.render(ExplorerView, "index.html", assigns)
-  end
-
-  def handle_info({:update_data, data}, socket) do
-    {:noreply, socket |> push_event("explorer_stats_points", %{points: data})}
   end
 
   def handle_info({:new_tps, tps, nb_transactions}, socket) do
