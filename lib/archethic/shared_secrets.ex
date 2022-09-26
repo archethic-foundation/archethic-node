@@ -199,13 +199,13 @@ defmodule Archethic.SharedSecrets do
     end
   end
 
-  @spec get_gen_addr(:origin) :: binary() | nil
-  def get_gen_addr(:origin) do
+  @spec genesis_address(:origin) :: binary() | nil
+  def genesis_address(:origin) do
     :persistent_term.get(@origin_gen_key, nil)
   end
 
-  @spec get_gen_addr(:node_shared_secrets) :: binary() | nil
-  def get_gen_addr(:node_shared_secrets) do
+  @spec genesis_address(:node_shared_secrets) :: binary() | nil
+  def genesis_address(:node_shared_secrets) do
     :persistent_term.get(@nss_gen_key, nil)
   end
 end

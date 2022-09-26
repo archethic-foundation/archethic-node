@@ -49,8 +49,10 @@ defmodule ArchethicWeb.Router do
     live("/transaction/:address", TransactionDetailsLive)
 
     get("/chain", ExplorerController, :chain)
+
     live("/chain/oracle", OracleChainLive)
     live("/chain/beacon", BeaconChainLive)
+    live("/chain/rewards", RewardChainLive)
 
     live("/nodes", NodeListLive)
     live("/nodes/worldmap", WorldMapLive)
