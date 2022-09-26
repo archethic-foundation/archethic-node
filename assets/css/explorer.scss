@@ -1,32 +1,41 @@
 body {
-    background: $explorer_bg;
-    min-height: 100vh;
+  background: $explorer_bg;
+  min-height: 100vh;
 }
 
-.main_title, .main_subtitle {
-    color: #fff;
+.main_title,
+.main_subtitle {
+  color: #fff;
 }
 
 .main_input {
-    box-shadow: none!important;
-    background: none!important;
-    border-color: #fbfbfb75!important;
-    color: #fff!important;
+  box-shadow: none !important;
+  background: none !important;
+  border-color: #fbfbfb75 !important;
+  color: #fff !important;
 }
 
 .main_input::placeholder {
-    color: #fff!important;
+  color: #fff !important;
 }
 
 pre {
-    border: thin solid #eae8e8;
+  border: thin solid #eae8e8;
 }
 
 .text_wrap {
-    word-break: break-word;
+  word-break: break-word;
 }
 
 .modal-content {
-    background: transparent!important;
-    border: none!important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.is-absolute {
+  position: absolute;
+  &.on-top-right {
+    top: 5px;
+    right: 5px;
+  }
 }
