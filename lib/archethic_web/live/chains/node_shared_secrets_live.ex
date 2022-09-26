@@ -129,10 +129,7 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
           |> assign(:current_page, 1)
           |> assign(:nb_authorized_nodes, nb_authorized_nodes)
           |> assign(:nb_pages, total_pages(tx_count + 1))
-          |> assign(
-            :transactions,
-            [display_data(address, nb_authorized_nodes, timestamp)]
-          )
+          |> assign(:transactions, [display_data(address, nb_authorized_nodes, timestamp)])
 
         _ ->
           socket
@@ -184,7 +181,7 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
   @spec display_data(
           address :: binary(),
           nb_authorized_nodes :: non_neg_integer(),
-          timestamp :: non_neg_integer()
+          timestamp :: DateTime.t()
         ) ::
           map()
   defp display_data(address, nb_authorized_nodes, timestamp) do
