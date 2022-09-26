@@ -266,8 +266,8 @@ defmodule Archethic.Reward do
     end
   end
 
-  @spec get_gen_addr() :: binary() | nil
-  def get_gen_addr() do
+  @spec genesis_address() :: binary() | nil
+  def genesis_address() do
     :persistent_term.get(@key, nil)
   end
 end

@@ -34,7 +34,7 @@ defmodule Archethic.Bootstrap.NetworkConstraints do
 
   @spec persist(:oracle | :reward | :origin | :node_shared_secrets) :: :ok | :error
   def persist(:reward) do
-    case Reward.get_gen_addr() do
+    case Reward.genesis_address() do
       nil ->
         Reward.persist_gen_addr()
 
@@ -44,7 +44,7 @@ defmodule Archethic.Bootstrap.NetworkConstraints do
   end
 
   def persist(:origin) do
-    case SharedSecrets.get_gen_addr(:origin) do
+    case SharedSecrets.genesis_address(:origin) do
       nil ->
         SharedSecrets.persist_gen_addr(:origin)
 
@@ -54,7 +54,7 @@ defmodule Archethic.Bootstrap.NetworkConstraints do
   end
 
   def persist(:node_shared_secrets) do
-    case SharedSecrets.get_gen_addr(:node_shared_secrets) do
+    case SharedSecrets.genesis_address(:node_shared_secrets) do
       nil ->
         SharedSecrets.persist_gen_addr(:node_shared_secrets)
 
@@ -68,7 +68,7 @@ defmodule Archethic.Bootstrap.NetworkConstraints do
       OracleChain.update_summ_gen_addr()
       Logger.info("Oracle Gen Addr Table: Loaded")
 
-      if gen_addr = OracleChain.get_gen_addr() do
+      if gen_addr = OracleChain.genesis_address() do
         Logger.debug("New Oracle Gen Addr")
         Logger.debug(gen_addr)
       end

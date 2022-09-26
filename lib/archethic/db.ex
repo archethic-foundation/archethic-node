@@ -21,7 +21,7 @@ defmodule Archethic.DB do
   @callback write_transaction(Transaction.t()) :: :ok
   @callback write_beacon_summary(Summary.t()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
-  @callback write_transaction(Transaction.t()) :: :ok
+  # @callback write_transaction(Transaction.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   @callback list_last_transaction_addresses() :: Enumerable.t()
@@ -34,6 +34,9 @@ defmodule Archethic.DB do
 
   @callback list_addresses_by_type(Transaction.transaction_type()) ::
               Enumerable.t() | list(binary())
+  @callback list_chain_addresses(binary()) ::
+              Enumerable.t() | list({binary(), non_neg_integer()})
+
   @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
   @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
   @callback get_first_chain_address(binary()) :: binary()

@@ -107,7 +107,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       when type in [:oracle, :oracle_summary] do
     # mulitpe txn chain based on summary date
 
-    case OracleChain.get_gen_addr() do
+    case OracleChain.genesis_address() do
       nil ->
         false
 
@@ -129,7 +129,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   def validate_network_chain?(type, tx = %Transaction{})
       when type in [:mint_rewards, :node_rewards] do
     # singleton tx chain in network lifespan
-    case Reward.get_gen_addr() do
+    case Reward.genesis_address() do
       nil ->
         false
 
@@ -146,7 +146,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   def validate_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
     # singleton tx chain in network lifespan
-    case SharedSecrets.get_gen_addr(:node_shared_secrets) do
+    case SharedSecrets.genesis_address(:node_shared_secrets) do
       nil ->
         false
 
@@ -163,7 +163,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   def validate_network_chain?(:origin, tx = %Transaction{}) do
     # singleton tx chain in network lifespan
     # not parsing orgin pub key for origin family
-    case SharedSecrets.get_gen_addr(:origin) do
+    case SharedSecrets.genesis_address(:origin) do
       nil ->
         false
 

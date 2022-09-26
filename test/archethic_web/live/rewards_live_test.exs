@@ -1,0 +1,93 @@
+defmodule ArchethicWeb.RewardsLiveTest do
+  @moduledoc false
+  use ArchethicCase
+  use ArchethicWeb.ConnCase
+
+  import Phoenix.{
+    ConnTest,
+    LiveViewTest
+  }
+
+  import Mox
+
+  # alias ArchethicWeb.{RewardChainLive}
+
+  alias Archethic.{
+    Crypto,
+    # TransactionChain,
+    TransactionChain.Transaction
+  }
+
+  setup do
+    reward_chain_genesis_address =
+      0
+      |> Crypto.network_pool_public_key()
+      |> Crypto.derive_address()
+
+    :persistent_term.put(:reward_gen_addr, reward_chain_genesis_address)
+
+    MockDB
+    |> stub(:list_chain_addresses, fn ^reward_chain_genesis_address ->
+      Stream.map(1..35, fn index ->
+        address =
+          index
+          |> Crypto.network_pool_public_key()
+          |> Crypto.derive_address()
+
+        time =
+          DateTime.utc_now()
+          |> DateTime.add(3600 * index, :second)
+          |> DateTime.to_unix()
+
+        {address, time}
+      end)
+    end)
+    |> stub(:get_transaction, fn _address, [:type] ->
+      {:ok,
+       %Transaction{
+         type: :node_rewards
+       }}
+    end)
+    |> stub(:count_transactions_by_type, fn
+      :node_rewards ->
+        35
+
+      :mint_rewards ->
+        0
+    end)
+
+    on_exit(fn -> :persistent_term.put(:reward_gen_addr, nil) end)
+
+    :ok
+  end
+
+  describe "mount/3" do
+    test "should render", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/explorer/chain/rewards")
+
+      assert html =~ "Reward Chain"
+    end
+  end
+
+  describe "handle_event/3 event, params, socket" do
+    test "Should go to next Page", %{conn: conn} do
+      {:ok, view, html} = live(conn, "/explorer/chain/rewards")
+      assert html =~ "Reward Chain"
+
+      render_click(view, "next_page", %{"page" => 2})
+      assert_redirect(view, "/explorer/chain/rewards?page=2")
+    end
+
+    test "Should return to Page 1 for out of range values ", %{conn: conn} do
+      {:ok, view, html} = live(conn, "/explorer/chain/rewards")
+      assert html =~ "Reward Chain"
+
+      {:live_redirect, %{to: to}} =
+        render_click(view, "next_page", %{"page" => 100})
+        |> follow_redirect(conn)
+        |> elem(1)
+
+      assert to == "/explorer/chain/rewards?page=1"
+    end
+  end
+end
