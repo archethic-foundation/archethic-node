@@ -208,4 +208,8 @@ defmodule Archethic.SharedSecrets do
   def genesis_address(:node_shared_secrets) do
     :persistent_term.get(@nss_gen_key, nil)
   end
+
+  def origin_family_from_public_key(<<_curve_id::8, origin_id::8, _public_key::binary>>) do
+    Enum.at(list_origin_families(), origin_id)
+  end
 end
