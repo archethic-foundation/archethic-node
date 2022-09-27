@@ -11,20 +11,13 @@ defmodule ArchethicWeb.DashboardLive do
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      send(self(), :monitor)
+      Poller.monitor()
       Process.send_after(self(), :aggregate, 5_000)
     end
 
     version = Application.spec(:archethic, :vsn)
 
-    default_node_metric = %{
-      nb_transactions: 0,
-      tps: 0.0,
-      validation_duration: 0,
-      cumul: %{transaction_validation: {0, 0}}
-    }
-
-    stats =
+    Task.async(fn ->
       Poller.fetch_metrics()
       |> Stream.filter(&match?({:ok, {_, {:ok, _}}}, &1))
       |> Enum.reduce(%{}, fn {:ok, {node, {:ok, metrics}}}, acc ->
@@ -33,24 +26,26 @@ defmodule ArchethicWeb.DashboardLive do
           node,
           Enum.reduce(
             metrics,
-            default_node_metric,
+            default_node_metric(),
             &cumul(&2, &1)
           )
         )
       end)
-
+    end)
+    
     new_socket =
       socket
       |> assign(:version, version)
-      |> assign(:stats, stats)
+      |> assign(:stats, %{})
 
     {:ok, new_socket}
   end
-
-  def handle_info(:monitor, socket) do
-    Poller.monitor()
-    {:noreply, socket}
+  
+  def handle_info({_ref, stats}, socket) do
+    {:noreply, assign(socket, :stats, stats)}
   end
+  
+  def handle_info({:DOWN, _ref, :process, _, _}, socket), do: {:noreply, socket}
 
   def handle_info(:aggregate, socket = %{assigns: %{stats: stats}}) do
     Process.send_after(self(), :aggregate, 5_000)
@@ -86,7 +81,7 @@ defmodule ArchethicWeb.DashboardLive do
     new_data =
       case Map.get(stats, public_key) do
         nil ->
-          Enum.reduce(data, %{}, fn metric, acc ->
+          Enum.reduce(data, default_node_metric(), fn metric, acc ->
             acc
             |> aggregate(metric)
             |> cumul(metric)
@@ -146,4 +141,13 @@ defmodule ArchethicWeb.DashboardLive do
   end
 
   defp cumul(acc, _), do: acc
+  
+  defp default_node_metric do
+    %{
+      nb_transactions: 0,
+      tps: 0.0,
+      validation_duration: 0,
+      cumul: %{transaction_validation: {0, 0}}
+    }
+  end
 end

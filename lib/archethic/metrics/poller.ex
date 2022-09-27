@@ -31,6 +31,10 @@ defmodule Archethic.Metrics.Poller do
     {:ok, state}
   end
 
+  @doc """
+  Register a process to monitor and get network metrics
+  """
+  @spec monitor() :: :ok
   def monitor(name \\ __MODULE__) do
     GenServer.call(name, :monitor)
   end
@@ -58,7 +62,7 @@ defmodule Archethic.Metrics.Poller do
   @spec fetch_metrics() :: Enumerable.t()
   def fetch_metrics do
     Task.async_stream(
-      P2P.list_nodes(),
+      P2P.authorized_and_available_nodes(),
       fn %Node{
            ip: ip,
            http_port: port,
@@ -86,9 +90,7 @@ defmodule Archethic.Metrics.Poller do
 
   defp register_process(pid, state) do
     mref = Process.monitor(pid)
-    new_state = Map.update!(state, :pid_refs, &Map.put(&1, pid, %{monitor_ref: mref}))
-    # do_dispatch_update(pid, data)
-    new_state
+    Map.update!(state, :pid_refs, &Map.put(&1, pid, %{monitor_ref: mref}))
   end
 
   defp deregister_process(from_pid, state = %{pid_refs: pid_refs}) do
@@ -101,34 +103,4 @@ defmodule Archethic.Metrics.Poller do
         Map.put(state, :pid_refs, pid_refs)
     end
   end
-
-  # defp process_new_state(current_state = %{pid_refs: pid_refs}) when map_size(pid_refs) == 0,
-  #   do: current_state
-
-  # defp process_new_state(current_state = %{previous_fetched_data: previous_fetched_data}) do
-  #   fetched_data =
-  #     Collector.get_node_endpoints()
-  #     |> Collector.retrieve_network_metrics()
-
-  #   new_data =
-  #     Enum.reduce(fetched_data, default_metrics(), fn {key, fetched_value}, acc ->
-  #       case Map.get(previous_fetched_data, key) do
-  #         # If the fetched value is the same as the previous fetched data
-  #         # We reset the counter to 0, as no more events have been accumulated
-  #         ^fetched_value ->
-  #           Map.put(acc, key, 0)
-
-  #         previous_value ->
-  #           Map.put(acc, key, fetched_value - previous_value)
-  #       end
-  #     end)
-
-  #   new_state =
-  #     current_state
-  #     |> Map.update!(:previous_fetched_data, &Map.merge(&1, fetched_data))
-  #     |> Map.put(:data, new_data)
-
-  #   dispatch_updates(new_state)
-  #   new_state
-  # end
 end
