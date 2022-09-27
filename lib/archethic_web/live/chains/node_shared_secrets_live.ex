@@ -38,7 +38,11 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
           |> assign(:transactions, [])
 
         address when is_binary(address) ->
-          nb_authorized_nodes = nb_of_authorized_keys(address)
+          nb_authorized_nodes =
+            address
+            |> TransactionChain.get_last_address()
+            |> elem(0)
+            |> nb_of_authorized_keys()
 
           socket
           |> assign(:tx_count, tx_count)
