@@ -50,7 +50,10 @@
                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.RewardChainLive) %>">
                   Reward
                 </a>
-                  <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.OriginChainLive) %>">
+
+
+
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.OriginChainLive) %>">
                    Origin
                 </a>
               </div>
