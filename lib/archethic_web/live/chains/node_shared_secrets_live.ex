@@ -5,11 +5,14 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
 
   alias Archethic.{
     TransactionChain,
+    TransactionChain.Transaction,
+    TransactionChain.TransactionData,
+    TransactionChain.TransactionData.Ownership,
     PubSub,
     SharedSecrets
   }
 
-  alias ArchethicWeb.{ExplorerView}
+  alias ArchethicWeb.{ExplorerView, WebUtils}
   alias Phoenix.{LiveView, View}
 
   @display_limit 10
@@ -25,8 +28,7 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
     tx_count = TransactionChain.count_transactions_by_type(@txn_type)
 
     socket =
-      case @txn_type
-           |> SharedSecrets.genesis_address() do
+      case SharedSecrets.genesis_address(@txn_type) do
         nil ->
           socket
           |> assign(:tx_count, 0)
@@ -36,18 +38,11 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
           |> assign(:transactions, [])
 
         address when is_binary(address) ->
-          nb_authorized_nodes =
-            address
-            |> TransactionChain.get_last_transaction()
-            |> elem(1)
-            |> get_in([Access.key(:data), Access.key(:ownerships)])
-            |> Enum.at(0)
-            |> get_in([Access.key(:authorized_keys)])
-            |> Enum.count()
+          nb_authorized_nodes = nb_of_authorized_keys(address)
 
           socket
           |> assign(:tx_count, tx_count)
-          |> assign(:nb_pages, total_pages(tx_count))
+          |> assign(:nb_pages, WebUtils.total_pages(tx_count))
           |> assign(:nb_authorized_nodes, nb_authorized_nodes)
           |> assign(:current_page, 1)
           |> assign(:transactions, transactions_from_page(1, tx_count))
@@ -72,7 +67,7 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
       {number, ""} when number < 1 and number > nb_pages ->
         {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => 1}))}
 
-      {number, ""} when number > 0 and number <= nb_pages ->
+      {number, ""} when number >= 1 and number <= nb_pages ->
         socket =
           socket
           |> assign(:current_page, number)
@@ -107,29 +102,25 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
           {:noreply, LiveView.Socket.t()}
   def handle_info(
         _msg = {:new_transaction, address, :node_shared_secrets, timestamp},
-        socket = %{assigns: %{current_page: current_page, transactions: txs, tx_count: tx_count}}
+        socket = %{assigns: %{current_page: current_page, tx_count: tx_count}}
       ) do
-    display_txs = Enum.count(txs)
-
     updated_socket =
       case current_page do
-        1 when display_txs < @display_limit ->
-          nb_authorized_nodes = nb_of_authorized_keys(address)
+        1 ->
+          nb_auth_nodes = nb_of_authorized_keys(address)
 
           socket
-          |> update(:transactions, &[display_data(address, nb_authorized_nodes, timestamp) | &1])
+          |> update(
+            :transactions,
+            fn tx_list ->
+              [display_data(address, nb_auth_nodes, timestamp) | tx_list]
+              |> Enum.take(@display_limit)
+            end
+          )
           |> assign(:tx_count, tx_count + 1)
-          |> assign(:nb_authorized_nodes, nb_authorized_nodes)
-
-        1 when display_txs >= @display_limit ->
-          nb_authorized_nodes = nb_of_authorized_keys(address)
-
-          socket
-          |> assign(:tx_count, tx_count + 1)
+          |> assign(:nb_authorized_nodes, nb_auth_nodes)
           |> assign(:current_page, 1)
-          |> assign(:nb_authorized_nodes, nb_authorized_nodes)
-          |> assign(:nb_pages, total_pages(tx_count + 1))
-          |> assign(:transactions, [display_data(address, nb_authorized_nodes, timestamp)])
+          |> assign(:nb_pages, WebUtils.total_pages(tx_count + 1))
 
         _ ->
           socket
@@ -170,12 +161,13 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
 
   @spec nb_of_authorized_keys(address :: binary()) :: non_neg_integer()
   defp nb_of_authorized_keys(address) do
-    TransactionChain.get_transaction(address, data: [:ownerships])
-    |> elem(1)
-    |> get_in([Access.key(:data), Access.key(:ownerships)])
-    |> Enum.at(0)
-    |> get_in([Access.key(:authorized_keys)])
-    |> Enum.count()
+    with {:ok, %Transaction{data: %TransactionData{ownerships: ownerships}}} <-
+           TransactionChain.get_transaction(address, data: [:ownerships]),
+         %Ownership{authorized_keys: authorized_keys} <- Enum.at(ownerships, 0) do
+      Enum.count(authorized_keys)
+    else
+      _ -> 1
+    end
   end
 
   @spec display_data(
@@ -192,30 +184,4 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
       nb_authorized_nodes: nb_authorized_nodes
     }
   end
-
-  @doc """
-   Nb of pages required to display all the transactions.
-
-   ## Examples
-      iex> total_pages(45)
-      5
-      iex> total_pages(40)
-      4
-      iex> total_pages(1)
-      1
-      iex> total_pages(10)
-      1
-      iex> total_pages(11)
-      2
-      iex> total_pages(0)
-      0
-  """
-  @spec total_pages(tx_count :: non_neg_integer()) ::
-          non_neg_integer()
-  def total_pages(tx_count) when rem(tx_count, @display_limit) == 0,
-    do: count_pages(tx_count)
-
-  def total_pages(tx_count), do: count_pages(tx_count) + 1
-
-  def count_pages(tx_count), do: div(tx_count, @display_limit)
 end

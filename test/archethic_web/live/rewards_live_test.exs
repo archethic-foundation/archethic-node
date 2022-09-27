@@ -75,19 +75,7 @@ defmodule ArchethicWeb.RewardsLiveTest do
       assert html =~ "Reward Chain"
 
       render_click(view, "next_page", %{"page" => 2})
-      assert_redirect(view, "/explorer/chain/rewards?page=2")
-    end
-
-    test "Should return to Page 1 for out of range values ", %{conn: conn} do
-      {:ok, view, html} = live(conn, "/explorer/chain/rewards")
-      assert html =~ "Reward Chain"
-
-      {:live_redirect, %{to: to}} =
-        render_click(view, "next_page", %{"page" => 100})
-        |> follow_redirect(conn)
-        |> elem(1)
-
-      assert to == "/explorer/chain/rewards?page=1"
+      assert_patch(view, "/explorer/chain/rewards?page=2")
     end
   end
 end
