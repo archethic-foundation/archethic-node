@@ -4,12 +4,15 @@ defmodule ArchethicWeb.OriginChainLive do
 
   alias Archethic.{
     TransactionChain,
+    TransactionChain.Transaction,
+    TransactionChain.TransactionData,
+    TransactionChain.Transaction.ValidationStamp,
     PubSub,
     SharedSecrets,
     Utils
   }
 
-  alias ArchethicWeb.{ExplorerView}
+  alias ArchethicWeb.{ExplorerView, WebUtils}
   alias Phoenix.{LiveView, View}
 
   @display_limit 10
@@ -27,7 +30,7 @@ defmodule ArchethicWeb.OriginChainLive do
     socket =
       socket
       |> assign(:tx_count, tx_count)
-      |> assign(:nb_pages, total_pages(tx_count))
+      |> assign(:nb_pages, WebUtils.total_pages(tx_count))
       |> assign(:current_page, 1)
       |> assign(:transactions, transactions_from_page(1, tx_count))
 
@@ -50,7 +53,7 @@ defmodule ArchethicWeb.OriginChainLive do
       {number, ""} when number < 1 and number > nb_pages ->
         {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => 1}))}
 
-      {number, ""} when number > 0 and number <= nb_pages ->
+      {number, ""} when number >= 1 and number <= nb_pages ->
         socket =
           socket
           |> assign(:current_page, number)
@@ -77,55 +80,26 @@ defmodule ArchethicWeb.OriginChainLive do
     {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
-  @spec handle_info(_msg :: any(), socket :: LiveView.Socket.t()) ::
+  @spec handle_info(
+          _msg ::
+            {:new_transaction, address :: binary(), _type :: :origin, _timestamp :: DateTime.t()},
+          socket :: LiveView.Socket.t()
+        ) ::
           {:noreply, LiveView.Socket.t()}
   def handle_info(
         _msg = {:new_transaction, address, :origin, _timestamp},
-        socket = %{
-          assigns: %{
-            current_page: current_page,
-            transactions: tranasction_list,
-            tx_count: total_tx_count
-          }
-        }
+        socket = %{assigns: %{current_page: current_page, tx_count: total_tx_count}}
       ) do
-    display_txs = Enum.count(tranasction_list)
-
     updated_socket =
       case current_page do
-        1 when display_txs < @display_limit ->
-          {family_of_origin, timestamp} = tx_details(address)
-
-          socket
-          |> update(
-            :transactions,
-            &[
-              %{
-                address: address,
-                type: @txn_type,
-                timestamp: timestamp,
-                family_of_origin: family_of_origin
-              }
-              | &1
-            ]
-          )
-          |> assign(:tx_count, total_tx_count + 1)
-
-        1 when display_txs >= @display_limit ->
-          {family_of_origin, timestamp} = tx_details(address)
-
+        1 ->
           socket
           |> assign(:tx_count, total_tx_count + 1)
+          |> assign(:nb_pages, WebUtils.total_pages(total_tx_count + 1))
           |> assign(:current_page, 1)
-          |> assign(:nb_pages, total_pages(total_tx_count + 1))
-          |> assign(:transactions, [
-            %{
-              address: address,
-              type: @txn_type,
-              timestamp: timestamp,
-              family_of_origin: family_of_origin
-            }
-          ])
+          |> update(:transactions, fn tx_list ->
+            [display_data(address) | tx_list] |> Enum.take(@display_limit)
+          end)
 
         _ ->
           socket
@@ -147,63 +121,34 @@ defmodule ArchethicWeb.OriginChainLive do
     |> Stream.take(display_limit)
     |> Stream.map(fn
       nil ->
-        nil
+        []
 
       address ->
-        {family_of_origin, timestamp} = tx_details(address)
-
-        %{
-          address: address,
-          type: @txn_type,
-          timestamp: timestamp,
-          family_of_origin: family_of_origin
-        }
+        display_data(address)
     end)
     |> Enum.reverse()
   end
 
-  defp tx_details(address) do
-    tx =
-      TransactionChain.get_transaction(address, data: [:content], validation_stamp: [:timestamp])
-      |> elem(1)
-
-    family_of_origin =
-      tx
-      |> get_in([Access.key(:data), Access.key(:content)])
-      |> Utils.deserialize_public_key()
-      |> elem(0)
-      |> SharedSecrets.origin_family_from_public_key()
-
-    timestamp =
-      tx
-      |> get_in([Access.key(:validation_stamp), Access.key(:timestamp)])
-
-    {family_of_origin, timestamp}
+  defp display_data(address) do
+    with {:ok,
+          %Transaction{
+            data: %TransactionData{content: content},
+            validation_stamp: %ValidationStamp{timestamp: timestamp}
+          }} <-
+           TransactionChain.get_transaction(address,
+             data: [:content],
+             validation_stamp: [:timestamp]
+           ),
+         {pb_key, _} <- Utils.deserialize_public_key(content),
+         family_id <- SharedSecrets.origin_family_from_public_key(pb_key) do
+      %{
+        address: address,
+        type: @txn_type,
+        timestamp: timestamp,
+        family_of_origin: family_id
+      }
+    else
+      _ -> []
+    end
   end
-
-  @doc """
-   Nb of pages required to display all the transactions.
-
-   ## Examples
-      iex> total_pages(45)
-      5
-      iex> total_pages(40)
-      4
-      iex> total_pages(1)
-      1
-      iex> total_pages(10)
-      1
-      iex> total_pages(11)
-      2
-      iex> total_pages(0)
-      0
-  """
-  @spec total_pages(tx_count :: non_neg_integer()) ::
-          non_neg_integer()
-  def total_pages(tx_count) when rem(tx_count, @display_limit) == 0,
-    do: count_pages(tx_count)
-
-  def total_pages(tx_count), do: count_pages(tx_count) + 1
-
-  def count_pages(tx_count), do: div(tx_count, @display_limit)
 end

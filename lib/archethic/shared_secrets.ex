@@ -14,10 +14,10 @@ defmodule Archethic.SharedSecrets do
 
   require Logger
 
-  @type origin_family :: :software | :usb | :biometric
+  @type origin_family :: :software | :hardware | :biometric
 
   @spec list_origin_families() :: list(origin_family())
-  def list_origin_families, do: [:software, :usb, :biometric]
+  def list_origin_families, do: [:software, :hardware, :biometric]
 
   @doc """
   List the origin public keys
@@ -111,11 +111,11 @@ defmodule Archethic.SharedSecrets do
   @spec get_origin_family_from_origin_id(non_neg_integer()) :: origin_family()
   def get_origin_family_from_origin_id(origin_id) do
     case Crypto.key_origin(origin_id) do
-      :software ->
+      id when id in [:software, :on_chain_wallet] ->
         :software
 
-      :on_chain_wallet ->
-        :software
+      id when id in [:tpm] ->
+        :hardware
 
       _ ->
         :biometric
@@ -212,7 +212,7 @@ defmodule Archethic.SharedSecrets do
   @doc """
   Returs Origin id from Origin Public Key
   """
-  @spec origin_family_from_public_key(<<_::16, _::_*8>>) :: :on_chain_wallet | :software | :tpm
+  @spec origin_family_from_public_key(<<_::16, _::_*8>>) :: origin_family()
   def origin_family_from_public_key(<<_curve_id::8, origin_id::8, _public_key::binary>>) do
     get_origin_family_from_origin_id(origin_id)
   end
