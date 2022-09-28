@@ -55,6 +55,8 @@ defmodule Archethic.Metrics.Poller do
     end)
     |> Stream.run()
 
+    dispatch_aggregate(pid_refs)
+
     timer = schedule_polling(interval)
     {:noreply, Map.put(state, :timer, timer)}
   end
@@ -79,13 +81,15 @@ defmodule Archethic.Metrics.Poller do
   end
 
   defp dispatch_metrics(metrics, node_public_key, pid_refs) do
-    Enum.each(pid_refs, fn {pid_k, _pid_v} ->
-      do_dispatch_update(pid_k, metrics, node_public_key)
+    Enum.each(pid_refs, fn {pid, _} ->
+      send(pid, {:update_data, metrics, node_public_key})
     end)
   end
 
-  defp do_dispatch_update(pid, data, node_key) do
-    send(pid, {:update_data, data, node_key})
+  defp dispatch_aggregate(pid_refs) do
+    Enum.each(pid_refs, fn {pid, _} ->
+      send(pid, :aggregate)
+    end)
   end
 
   defp register_process(pid, state) do

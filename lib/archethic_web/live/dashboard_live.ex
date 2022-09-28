@@ -12,7 +12,6 @@ defmodule ArchethicWeb.DashboardLive do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Poller.monitor()
-      Process.send_after(self(), :aggregate, 5_000)
     end
 
     version = Application.spec(:archethic, :vsn)
@@ -40,16 +39,14 @@ defmodule ArchethicWeb.DashboardLive do
 
     {:ok, new_socket}
   end
-  
+
   def handle_info({_ref, stats}, socket) do
     {:noreply, assign(socket, :stats, stats)}
   end
-  
+
   def handle_info({:DOWN, _ref, :process, _, _}, socket), do: {:noreply, socket}
 
   def handle_info(:aggregate, socket = %{assigns: %{stats: stats}}) do
-    Process.send_after(self(), :aggregate, 5_000)
-
     %{tx_processed: tx_processed, validation_duration: validation_duration} =
       Enum.reduce(stats, %{tx_processed: 0, validation_duration: 0}, fn {_node,
                                                                          %{
