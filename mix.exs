@@ -101,7 +101,8 @@ defmodule Archethic.MixProject do
       {:flow, "~> 1.0"},
       {:knigge, "~> 1.4"},
       {:ex_json_schema, "~> 0.9.1", override: true},
-      {:pathex, "~> 2.0"}
+      {:pathex, "~> 2.0"},
+      {:easy_ssl, "~> 1.3.0"}
     ]
   end
 

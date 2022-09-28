@@ -46,15 +46,8 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       conn1 = get(conn, "/api/web_hosting/AZERTY/")
       conn2 = get(conn, "/api/web_hosting/0123456789/")
 
-      conn3 =
-        get(
-          conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
-        )
-
       assert "Invalid address" = response(conn1, 400)
       assert "Invalid address" = response(conn2, 400)
-      assert "Invalid address" = response(conn3, 400)
     end
 
     test "should return Invalid transaction content", %{conn: conn} do
@@ -155,7 +148,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/file.html"
         )
 
-      assert "File file.html does not exist" = response(conn, 404)
+      assert "Cannot find file content" = response(conn, 404)
     end
 
     test "should return default index.html file", %{conn: conn} do
@@ -291,7 +284,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/no_content.html"
         )
 
-      assert "Cannot find file content" = response(conn, 400)
+      assert "Cannot find file content" = response(conn, 404)
     end
 
     test "should return decoded file content", %{conn: conn} do

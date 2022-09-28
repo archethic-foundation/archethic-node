@@ -234,4 +234,12 @@ config :archethic, ArchethicWeb.Endpoint,
   server: true,
   root: ".",
   version: Application.spec(:archethic, :vsn),
-  check_origin: false
+  check_origin: false,
+  https: [
+    cipher_suite: :strong,
+    otp_app: :archethic,
+    port: 443,
+    sni_fun: &ArchethicWeb.prod().sni/1,
+    keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEYFILE", ""),
+    certfile: System.get_env("ARCHETHIC_WEB_SSL_CERTFILE", "")
+  ]
