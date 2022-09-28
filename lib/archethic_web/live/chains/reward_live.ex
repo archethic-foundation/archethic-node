@@ -9,7 +9,7 @@ defmodule ArchethicWeb.RewardChainLive do
 
   use ArchethicWeb, :live_view
 
-  alias ArchethicWeb.{ExplorerView}
+  alias ArchethicWeb.{ExplorerView, WebUtils}
   alias Phoenix.{View}
 
   @display_limit 10
@@ -29,7 +29,7 @@ defmodule ArchethicWeb.RewardChainLive do
     socket =
       socket
       |> assign(:tx_count, tx_count)
-      |> assign(:nb_pages, total_pages(tx_count))
+      |> assign(:nb_pages, WebUtils.total_pages(tx_count))
       |> assign(:current_page, 1)
       |> assign(:transactions, transactions_from_page(1, tx_count))
 
@@ -49,11 +49,10 @@ defmodule ArchethicWeb.RewardChainLive do
         socket = %{assigns: %{nb_pages: nb_pages, tx_count: tx_count}}
       ) do
     case Integer.parse(page) do
-      {number, ""} when number > 0 and number > nb_pages ->
-        {:noreply,
-         push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => 1}))}
+      {number, ""} when number < 1 and number > nb_pages ->
+        {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => 1}))}
 
-      {number, ""} when number > 0 and number <= nb_pages ->
+      {number, ""} when number >= 1 and number <= nb_pages ->
         socket =
           socket
           |> assign(:current_page, number)
@@ -73,11 +72,11 @@ defmodule ArchethicWeb.RewardChainLive do
   @spec handle_event(binary(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event(_event = "prev_page", %{"page" => page}, socket) do
-    {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
+    {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
   def handle_event(_event = "next_page", %{"page" => page}, socket) do
-    {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
+    {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
   @spec handle_info(
@@ -92,25 +91,24 @@ defmodule ArchethicWeb.RewardChainLive do
     {:noreply, handle_new_transaction({address, type, timestamp}, socket)}
   end
 
+  @spec handle_new_transaction(
+          {address :: binary(), type :: :mint_rewards | :node_rewards, timestamp :: DateTime.t()},
+          socket :: Phoenix.LiveView.Socket.t()
+        ) :: Phoenix.LiveView.Socket.t()
   def handle_new_transaction(
         {address, type, timestamp},
-        socket = %{assigns: %{current_page: current_page, transactions: txs, tx_count: tx_count}}
+        socket = %{assigns: %{current_page: current_page, tx_count: tx_count}}
       ) do
-    display_txs = Enum.count(txs)
-
     case current_page do
-      1 when display_txs < @display_limit ->
+      1 ->
         socket
+        |> update(:transactions, fn tx_list ->
+          [display_data(address, type, timestamp) | tx_list]
+          |> Enum.take(@display_limit)
+        end)
         |> assign(:tx_count, tx_count + 1)
         |> assign(:current_page, 1)
-        |> update(:transactions, &[%{address: address, type: type, timestamp: timestamp} | &1])
-
-      1 when display_txs >= @display_limit ->
-        socket
-        |> assign(:tx_count, tx_count + 1)
-        |> assign(:nb_pages, total_pages(tx_count + 1))
-        |> assign(:current_page, 1)
-        |> assign(:transactions, [%{address: address, type: type, timestamp: timestamp}])
+        |> assign(:nb_pages, WebUtils.total_pages(tx_count + 1))
 
       _ ->
         socket
@@ -131,11 +129,11 @@ defmodule ArchethicWeb.RewardChainLive do
         |> Stream.drop(nb_drops)
         |> Stream.take(display_limit)
         |> Stream.map(fn {addr, timestamp} ->
-          %{
-            address: addr,
-            type: (TransactionChain.get_transaction(addr, [:type]) |> elem(1)).type,
-            timestamp: DateTime.from_unix(timestamp, :millisecond) |> elem(1)
-          }
+          display_data(
+            addr,
+            (TransactionChain.get_transaction(addr, [:type]) |> elem(1)).type,
+            DateTime.from_unix(timestamp, :millisecond) |> elem(1)
+          )
         end)
         |> Enum.reverse()
 
@@ -144,29 +142,13 @@ defmodule ArchethicWeb.RewardChainLive do
     end
   end
 
-  @doc """
-   Nb of pages required to display all the transactions.
-
-   ## Examples
-      iex> total_pages(45)
-      5
-      iex> total_pages(40)
-      4
-      iex> total_pages(1)
-      1
-      iex> total_pages(10)
-      1
-      iex> total_pages(11)
-      2
-      iex> total_pages(0)
-      0
-  """
-  @spec total_pages(tx_count :: non_neg_integer()) ::
-          non_neg_integer()
-  def total_pages(tx_count) when rem(tx_count, @display_limit) == 0,
-    do: count_pages(tx_count)
-
-  def total_pages(tx_count), do: count_pages(tx_count) + 1
-
-  def count_pages(tx_count), do: div(tx_count, @display_limit)
+  @spec display_data(
+          address :: binary(),
+          type :: :node_rewards | :mint_rewards,
+          timestamp :: DateTime.t()
+        ) ::
+          map()
+  defp display_data(address, type, timestamp) do
+    %{address: address, type: type, timestamp: timestamp}
+  end
 end

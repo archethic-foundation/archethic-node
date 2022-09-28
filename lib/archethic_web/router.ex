@@ -53,6 +53,7 @@ defmodule ArchethicWeb.Router do
     live("/chain/oracle", OracleChainLive)
     live("/chain/beacon", BeaconChainLive)
     live("/chain/rewards", RewardChainLive)
+    live("/chain/node_shared_secrets", NodeSharedSecretsChainLive)
 
     live("/nodes", NodeListLive)
     live("/nodes/worldmap", WorldMapLive)
