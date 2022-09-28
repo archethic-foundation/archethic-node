@@ -370,9 +370,15 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
     filename = chain_addresses_path(db_path, genesis_address)
 
-    :ok = File.write!(filename, encoded_data, [:binary, :append])
-    true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time})
-    :ok
+    case :ets.lookup(:archethic_db_last_index, genesis_address) do
+      [{_, ^new_address, _}] ->
+        :ok
+
+      _ ->
+        :ok = File.write!(filename, encoded_data, [:binary, :append])
+        true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time})
+        :ok
+    end
   end
 
   @doc """
