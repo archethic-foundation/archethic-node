@@ -31,7 +31,7 @@ defmodule ArchethicWeb.DashboardLive do
         )
       end)
     end)
-    
+
     new_socket =
       socket
       |> assign(:version, version)
@@ -113,19 +113,19 @@ defmodule ArchethicWeb.DashboardLive do
       get_in(acc, [Access.key(:cumul, %{}), :transaction_validation]) || {0, 0}
 
     new_count = count - acc_count
-    new_sum = sum - acc_sum
+    new_tps = new_count / 5
 
-    new_tps =
-      if new_sum > 0 do
-        new_count / new_sum
+    new_duration =
+      if new_count > 0 do
+        (sum - acc_sum) / new_count
       else
-        0.0
+        0
       end
 
     acc
     |> Map.put(:nb_transactions, new_count)
     |> Map.put(:tps, Float.round(new_tps, 2))
-    |> Map.put(:validation_duration, new_sum)
+    |> Map.put(:validation_duration, new_duration)
   end
 
   defp aggregate(acc, _), do: acc
@@ -138,7 +138,7 @@ defmodule ArchethicWeb.DashboardLive do
   end
 
   defp cumul(acc, _), do: acc
-  
+
   defp default_node_metric do
     %{
       nb_transactions: 0,
