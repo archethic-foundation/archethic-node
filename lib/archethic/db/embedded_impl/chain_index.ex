@@ -461,17 +461,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
          {:ok, hash} <- :file.read(fd, hash_size) do
       address = <<curve_id::8, hash_id::8, hash::binary>>
 
-      cond do
-        timestamp < until ->
-          do_search_last_address_until(fd, until, {address, timestamp})
-
-        timestamp == until ->
-          :file.close(fd)
-          {address, timestamp}
-
-        true ->
-          :file.close(fd)
-          acc
+      if timestamp < until do
+        do_search_last_address_until(fd, until, {address, timestamp})
+      else
+        :file.close(fd)
+        acc
       end
     else
       :eof ->
