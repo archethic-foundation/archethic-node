@@ -11,10 +11,11 @@ defmodule Archethic.Metrics.Collector.MetricsEndpoint do
   @node_metric_request_type "GET"
 
   @impl Collector
-  def fetch_metrics({ip_address, http_port}) do
+  def fetch_metrics(ip_address, http_port) do
     with {:ok, conn_ref} <- establish_connection(ip_address, http_port),
-         {:ok, conn, _req_ref} <- request(conn_ref) do
-      stream_responses(conn)
+         {:ok, conn, _req_ref} <- request(conn_ref),
+         {:ok, data} <- stream_response(conn) do
+      {:ok, :erlang.list_to_binary(data)}
     end
   end
 
@@ -32,13 +33,24 @@ defmodule Archethic.Metrics.Collector.MetricsEndpoint do
     )
   end
 
-  defp stream_responses(conn) do
+  defp stream_response(conn, acc \\ []) do
     receive do
       message ->
-        with {:ok, conn, [{:status, _, 200}, {:headers, _, _}, {:data, _, data}, {:done, _}]} <-
-               Mint.HTTP.stream(conn, message),
-             {:ok, _} <- Mint.HTTP.close(conn) do
-          {:ok, data}
+        case Mint.HTTP.stream(conn, message) do
+          {:ok, _, [{:status, _, 200}, {:headers, _, _}, {:data, _, data}, {:done, _}]} ->
+            {:ok, [data]}
+
+          {:ok, conn, [{:status, _, 200}, {:headers, _, _}, {:data, _, data}]} ->
+            stream_response(conn, [data | acc])
+
+          {:ok, conn, [{:data, _, data}]} ->
+            stream_response(conn, [data | acc])
+
+          {:ok, _, [{:data, _, data}, {:done, _}]} ->
+            {:ok, [data | acc] |> Enum.reverse()}
+
+          _ ->
+            :error
         end
     after
       5_000 ->

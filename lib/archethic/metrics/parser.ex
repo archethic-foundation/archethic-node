@@ -269,23 +269,24 @@ defmodule Archethic.Metrics.Parser do
       ...>    },
       ...>    %{
       ...>       metrics: [%{value: 1589609}],
-      ...>       name: "vm_memory_atom", type: "gauge"
+      ...>       name: "vm_memory_atom",
+      ...>       type: "gauge"
       ...>     },
       ...> ] |> Parser.reduce_metrics()
-      [
-        %{"archethic_contract_parsing_duration" => %{count: 2, sum: 10.0}},
-        %{"vm_memory_atom" => 1589609}
-      ]
+      %{
+        "archethic_contract_parsing_duration" => %{count: 2, sum: 10.0},
+        "vm_memory_atom" => 1589609
+      }
   """
   @spec reduce_metrics(list(metric())) ::
-          list(%{String.t() => %{count: number(), sum: number()} | number()})
+          %{String.t() => %{count: number(), sum: number()} | number()}
   def reduce_metrics(metrics) do
-    Enum.map(metrics, fn
-      metric = %{type: "histogram"} ->
-        map_histogram(metric)
+    Enum.reduce(metrics, %{}, fn
+      metric = %{type: "histogram"}, acc ->
+        Map.merge(acc, map_histogram(metric))
 
-      metric = %{type: "gauge"} ->
-        map_gauge(metric)
+      metric = %{type: "gauge"}, acc ->
+        Map.merge(acc, map_gauge(metric))
     end)
   end
 

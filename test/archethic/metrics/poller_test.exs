@@ -7,17 +7,11 @@ defmodule Archethic.Metrics.PollerTest do
 
   import Mox
 
-  test "start_link/1 should start the process with default state and starts a timer" do
+  test "start_link/1 should start the process starts a timer" do
     {:ok, pid} = Poller.start_link(interval: 10_000)
 
     assert %{
-             timer: timer,
-             data: %{
-               "archethic_mining_proof_of_work_duration" => 0,
-               "archethic_p2p_send_message_duration" => 0,
-               "tps" => 0,
-               "archethic_mining_full_transaction_validation_duration" => 0
-             }
+             timer: timer
            } = :sys.get_state(pid)
 
     Process.cancel_timer(timer)
@@ -58,12 +52,14 @@ defmodule Archethic.Metrics.PollerTest do
   end
 
   test "when the timer is reached, `poll_metrics` is received to fetch the metrics" do
+    node_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3002,
       http_port: 4000,
-      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      first_public_key: node_public_key,
+      last_public_key: node_public_key,
       geo_patch: "AAA",
       available?: true,
       authorized?: true,
@@ -71,7 +67,7 @@ defmodule Archethic.Metrics.PollerTest do
     })
 
     MockMetricsCollector
-    |> stub(:fetch_metrics, fn _ ->
+    |> stub(:fetch_metrics, fn _, _ ->
       {:ok,
        """
        # HELP archethic_mining_full_transaction_validation_duration
@@ -86,9 +82,11 @@ defmodule Archethic.Metrics.PollerTest do
 
     assert_receive {:update_data,
                     %{
-                      "tps" => 5.555555555555555,
-                      "archethic_mining_full_transaction_validation_duration" => 0.18
-                    }},
+                      "archethic_mining_full_transaction_validation_duration" => %{
+                        sum: 9.0,
+                        count: 50
+                      }
+                    }, ^node_public_key},
                    2_000
   end
 end

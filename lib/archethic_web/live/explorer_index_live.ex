@@ -15,7 +15,6 @@ defmodule ArchethicWeb.ExplorerIndexLive do
     nb_transactions = DB.get_nb_transactions()
 
     if connected?(socket) do
-      Archethic.Metrics.Poller.monitor()
       PubSub.register_to_new_tps()
       PubSub.register_to_new_transaction_attestations()
       PubSub.register_to_current_epoch_of_slot_time()
