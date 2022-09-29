@@ -1,4 +1,3 @@
-
 <div class="box">
     <div class="columns">
         <div class="column">
@@ -94,7 +93,7 @@
     <%= if Enum.count(@transaction_chain) == 0 do %>
     <p class="heading">No transaction yet existing for this chain<p>
     <% else %>
-      <%= for tx <- @transaction_chain do %>
+      <%= for tx <- Enum.reverse(@transaction_chain) do %>
           <div class="columns">
               <div class="column is-half-desktop">
                   <%= link to: Routes.live_path(@conn, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
@@ -106,9 +105,12 @@
                   <%= format_transaction_type(tx.type) %>
               </div>
               <div class="column is-2-desktop">
-                  <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %> Unspent outputs
+                    <%= format_date(tx.validation_stamp.timestamp) %>
               </div>
               <div class="column is-2-desktop">
+                  <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %> Unspent outputs
+              </div>
+              <div class="column is-1-desktop">
                   <%= if length(tx.validation_stamp.ledger_operations.transaction_movements) > 1 do %>
                       <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %> transfers
                   <% else %>
