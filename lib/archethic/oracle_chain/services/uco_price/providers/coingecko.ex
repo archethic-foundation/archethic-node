@@ -17,8 +17,19 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko do
         "https://api.coingecko.com/api/v3/simple/price?ids=archethic&vs_currencies=#{pairs_str}"
       )
 
+    httpc_options = [
+      ssl: [
+        verify: :verify_peer,
+        cacertfile: CAStore.file_path(),
+        depth: 2,
+        customize_hostname_check: [
+          match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+        ]
+      ]
+    ]
+
     with {:ok, {{_, 200, 'OK'}, _headers, body}} <-
-           :httpc.request(:get, {query, []}, [], []),
+           :httpc.request(:get, {query, []}, httpc_options, []),
          {:ok, payload} <- Jason.decode(body),
          {:ok, prices} <- Map.fetch(payload, "archethic") do
       {:ok, prices}
