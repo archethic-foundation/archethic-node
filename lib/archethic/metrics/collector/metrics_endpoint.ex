@@ -38,10 +38,16 @@ defmodule Archethic.Metrics.Collector.MetricsEndpoint do
       message ->
         case Mint.HTTP.stream(conn, message) do
           {:ok, _, [{:status, _, 200}, {:headers, _, _}, {:data, _, data}, {:done, _}]} ->
-            {:ok, [data | acc]}
+            {:ok, [data]}
 
-          {:ok, conn, [{:status, _, 200}, {:headers, _, _}, {:data, _, data}, _]} ->
+          {:ok, conn, [{:status, _, 200}, {:headers, _, _}, {:data, _, data}]} ->
             stream_response(conn, [data | acc])
+
+          {:ok, conn, [{:data, _, data}]} ->
+            stream_response(conn, [data | acc])
+
+          {:ok, _, [{:data, _, data}, {:done, _}]} ->
+            {:ok, [data | acc] |> Enum.reverse()}
 
           _ ->
             :error
