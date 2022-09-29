@@ -441,43 +441,6 @@ defmodule Archethic.DB.EmbeddedTest do
              ) == :eq
     end
 
-    test "should get the last address of chain for the exact time of last address timestamp" do
-      tx1 =
-        TransactionFactory.create_valid_transaction([],
-          index: 0,
-          timestamp: ~U[2020-03-30 10:13:00Z]
-        )
-
-      tx2 =
-        TransactionFactory.create_valid_transaction([],
-          index: 1,
-          timestamp: ~U[2020-04-02 10:13:00Z]
-        )
-
-      tx3 =
-        TransactionFactory.create_valid_transaction([],
-          index: 2,
-          timestamp: ~U[2020-04-10 10:13:00Z]
-        )
-
-      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
-
-      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
-               EmbeddedImpl.get_last_chain_address(tx3.address, tx3.validation_stamp.timestamp)
-
-      assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
-               EmbeddedImpl.get_last_chain_address(tx2.address, tx2.validation_stamp.timestamp)
-
-      assert {tx1.address, ~U[2020-03-30 10:13:00.000Z]} ==
-               EmbeddedImpl.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
-
-      assert {tx1.address, ~U[2020-03-30 10:13:00.000Z]} ==
-               EmbeddedImpl.get_last_chain_address(
-                 Transaction.previous_address(tx1),
-                 tx1.validation_stamp.timestamp
-               )
-    end
-
     test "should get the last address of a chain before given date" do
       tx1 =
         TransactionFactory.create_valid_transaction([],
@@ -499,10 +462,10 @@ defmodule Archethic.DB.EmbeddedTest do
 
       EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
 
-      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
+      assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx2.address, tx3.validation_stamp.timestamp)
 
-      assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
+      assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx1.address, tx3.validation_stamp.timestamp)
 
       assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
@@ -510,9 +473,6 @@ defmodule Archethic.DB.EmbeddedTest do
                  tx1.address,
                  DateTime.add(tx2.validation_stamp.timestamp, 100)
                )
-
-      assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
-               EmbeddedImpl.get_last_chain_address(tx1.address, tx2.validation_stamp.timestamp)
 
       assert {tx1.address, ~U[2020-03-30 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(
@@ -828,7 +788,7 @@ defmodule Archethic.DB.EmbeddedTest do
       genesis_address = Transaction.previous_address(tx1)
 
       EmbeddedImpl.write_transaction(tx1)
-      now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      now = DateTime.utc_now() |> DateTime.add(-1) |> DateTime.truncate(:millisecond)
       EmbeddedImpl.add_last_transaction_address(genesis_address, tx2.address, now)
 
       assert {tx2.address, now} == EmbeddedImpl.get_last_chain_address(tx1.address)
