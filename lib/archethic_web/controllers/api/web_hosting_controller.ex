@@ -14,62 +14,113 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   require Logger
 
-  @spec web_hosting(Plug.Conn.t(), map) :: Plug.Conn.t()
   def web_hosting(conn, params = %{"url_path" => url_path}) do
     # Redirect to enforce "/" at the end of the root url
     if Enum.empty?(url_path) and String.last(conn.request_path) != "/" do
       redirect(conn, to: conn.request_path <> "/")
     else
-      do_web_hosting(conn, params)
+      case get_website(params, get_cache_headers(conn)) do
+        {:ok, file_content, encodage, mime_type, cached?, etag} ->
+          send_response(conn, file_content, encodage, mime_type, cached?, etag)
+
+        {:error, :invalid_address} ->
+          send_resp(conn, 400, "Invalid address")
+
+        {:error, :invalid_content} ->
+          send_resp(conn, 400, "Invalid transaction content")
+
+        {:error, :not_found} ->
+          send_resp(conn, 404, "Cannot find file content")
+
+        {:error, :invalid_encodage} ->
+          send_resp(conn, 400, "Invalid file encodage")
+
+        {:error, _} ->
+          send_resp(conn, 404, "Not Found")
+      end
     end
   end
 
-  defp do_web_hosting(conn, %{"address" => address, "url_path" => url_path}) do
+  @doc """
+  Fetch the website file content 
+  """
+  @spec get_website(request_params :: map(), cached_headers :: list()) ::
+          {:ok, file_content :: binary() | nil, encodage :: binary() | nil, mime_type :: binary(),
+           cached? :: boolean(), etag :: binary()}
+          | {:error, :invalid_address}
+          | {:error, :invalid_content}
+          | {:error, :not_found}
+          | {:error, :invalid_encodage}
+          | {:error, :not_found}
+          | {:error, any()}
+  def get_website(params = %{"address" => address}, cache_headers) do
+    url_path = Map.get(params, "url_path", [])
+
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
          {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
            Archethic.get_last_transaction(address),
          {:ok, json_content} <- Jason.decode(content),
          {:ok, file, mime_type} <- get_file(json_content, url_path),
-         {cached?, etag} <- get_cache(conn, last_address, url_path),
+         {cached?, etag} <-
+           get_cache(cache_headers, last_address, url_path),
          {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
-      conn =
-        conn
-        |> put_resp_content_type(mime_type, "utf-8")
-        |> put_resp_header("cache-control", "public")
-        |> put_resp_header("etag", etag)
-
-      if cached? do
-        send_resp(conn, 304, "")
-      else
-        {conn, response_content} = encode_res(conn, file_content, encodage)
-
-        send_resp(conn, 200, response_content)
-      end
+      {:ok, file_content, encodage, mime_type, cached?, etag}
     else
-      # Base.decode16 || Crypto.valid_address
       er when er in [:error, false] ->
-        send_resp(conn, 400, "Invalid address")
+        {:error, :invalid_address}
 
-      # Jason.decode
       {:error, %Jason.DecodeError{}} ->
-        send_resp(conn, 400, "Invalid transaction content")
+        {:error, :invalid_content}
 
-      # Archethic.get_last_transaction
-      {:error, _} ->
-        send_resp(conn, 400, "Invalid address")
+      {:error, :transaction_not_exists} ->
+        {:error, :not_found}
 
-      {:file_not_found, url} ->
-        send_resp(conn, 404, "File #{url} does not exist")
+      {:file_not_found, _url} ->
+        {:error, :not_found}
 
       :encodage_error ->
-        send_resp(conn, 400, "Invalid file encodage")
+        {:error, :invalid_encodage}
 
       :file_error ->
-        send_resp(conn, 400, "Cannot find file content")
+        {:error, :not_found}
 
-      _reason ->
-        send_resp(conn, 404, "Not Found")
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Return the list of headers for caching
+  """
+  @spec get_cache_headers(Plug.Conn.t()) :: list()
+  def get_cache_headers(conn), do: get_req_header(conn, "if-none-match")
+
+  @doc """
+  Send the website file content with the cache and encoding policy
+  """
+  @spec send_response(
+          Plug.Conn.t(),
+          file_content :: binary() | nil,
+          encodage :: binary() | nil,
+          mime_type :: binary(),
+          cached? :: boolean(),
+          etag :: binary()
+        ) ::
+          Plug.Conn.t()
+  def send_response(conn, file_content, encodage, mime_type, cached?, etag) do
+    conn =
+      conn
+      |> put_resp_content_type(mime_type, "utf-8")
+      |> put_resp_header("cache-control", "public")
+      |> put_resp_header("etag", etag)
+
+    if cached? do
+      send_resp(conn, 304, "")
+    else
+      {conn, response_content} = encode_res(conn, file_content, encodage)
+
+      send_resp(conn, 200, response_content)
     end
   end
 
@@ -89,8 +140,6 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   # API without path returns default index.html file
   # or the only file if there is only one
-  @spec get_file(json_content :: map(), url_path :: list()) ::
-          {:ok, map(), binary()} | {:file_not_found, binary()}
   defp get_file(json_content, url_path) do
     {json_path, url} =
       case Enum.count(url_path) do
@@ -149,9 +198,7 @@ defmodule ArchethicWeb.API.WebHostingController do
     end
   end
 
-  @spec get_cache(conn :: Plug.Conn.t(), last_address :: binary(), url_path :: list()) ::
-          {boolean(), binary()}
-  defp get_cache(conn, last_address, url_path) do
+  defp get_cache(cache_headers, last_address, url_path) do
     etag =
       case Enum.empty?(url_path) do
         true ->
@@ -162,7 +209,7 @@ defmodule ArchethicWeb.API.WebHostingController do
       end
 
     cached? =
-      case List.first(get_req_header(conn, "if-none-match")) do
+      case List.first(cache_headers) do
         got_etag when got_etag == etag ->
           true
 
@@ -174,8 +221,6 @@ defmodule ArchethicWeb.API.WebHostingController do
   end
 
   # All file are encoded in base64 in JSON content
-  @spec get_file_content(file :: map(), cached? :: boolean(), url_path :: list()) ::
-          {:ok, binary(), binary() | nil} | :encodage_error | :file_error
   defp get_file_content(_file, _cached? = true, _url_path), do: {:ok, nil, nil}
 
   defp get_file_content(file = %{"address" => address_list}, _cached? = false, url_path) do
