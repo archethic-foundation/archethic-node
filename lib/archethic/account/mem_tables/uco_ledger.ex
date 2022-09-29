@@ -68,7 +68,16 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         timestamp = %DateTime{}
       )
       when is_binary(to) and is_integer(amount) and amount > 0 do
-    true = :ets.insert(@ledger_table, {{to, from}, amount, false, timestamp, reward?})
+    spent? =
+      case :ets.lookup(@unspent_output_index_table, to) do
+        [] ->
+          false
+
+        [ledger_key | _] ->
+          :ets.lookup_element(@ledger_table, ledger_key, 3)
+      end
+
+    true = :ets.insert(@ledger_table, {{to, from}, amount, spent?, timestamp, reward?})
     true = :ets.insert(@unspent_output_index_table, {to, from})
 
     Logger.info("#{amount} unspent UCO added for #{Base.encode16(to)}",
