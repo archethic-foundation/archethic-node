@@ -72,10 +72,19 @@ defmodule Archethic.Account.MemTables.TokenLedger do
       )
       when is_binary(to_address) and is_binary(from_address) and is_integer(amount) and amount > 0 and
              is_binary(token_address) and is_integer(token_id) and token_id >= 0 do
+    spent? =
+      case :ets.lookup(@unspent_output_index_table, to_address) do
+        [] ->
+          false
+
+        [ledger_key | _] ->
+          :ets.lookup_element(@ledger_table, ledger_key, 3)
+      end
+
     true =
       :ets.insert(
         @ledger_table,
-        {{to_address, from_address, token_address, token_id}, amount, false, timestamp}
+        {{to_address, from_address, token_address, token_id}, amount, spent?, timestamp}
       )
 
     true =
