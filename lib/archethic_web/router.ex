@@ -55,6 +55,8 @@ defmodule ArchethicWeb.Router do
     live("/chain/rewards", RewardChainLive)
     live("/chain/node_shared_secrets", NodeSharedSecretsChainLive)
 
+    live("/chain/origin", OriginChainLive)
+
     live("/nodes", NodeListLive)
     live("/nodes/worldmap", WorldMapLive)
     live("/node/:public_key", NodeDetailsLive)
