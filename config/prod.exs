@@ -238,7 +238,7 @@ config :archethic, ArchethicWeb.Endpoint,
   https: [
     cipher_suite: :strong,
     otp_app: :archethic,
-    port: 443,
+    port: System.get_env("ARCHETHIC_HTTPS_PORT", "50000") |> String.to_integer(),
     sni_fun: &ArchethicWeb.Domain.sni/1,
     keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEYFILE", ""),
     certfile: System.get_env("ARCHETHIC_WEB_SSL_CERTFILE", "")

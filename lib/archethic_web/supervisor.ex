@@ -16,10 +16,11 @@ defmodule ArchethicWeb.Supervisor do
   end
 
   def init(_) do
-    # Try to open the HTTPport
+    # Try to open the HTTP port
     endpoint_conf = Application.get_env(:archethic, ArchethicWeb.Endpoint)
 
     try_open_port(Keyword.get(endpoint_conf, :http))
+    try_open_port(Keyword.get(endpoint_conf, :https))
 
     children =
       [
