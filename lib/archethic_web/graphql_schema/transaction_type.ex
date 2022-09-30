@@ -231,9 +231,10 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   It includes:
   - genesis: Genesis address to the token
   - name: Name of the token
-  - symbol: Symbol for the token
+  - symbol: Symbol of the token
   - supply: Supply of the token
   - type: Type of the token
+  - decimals: Number of decimals of the token
   - properties: Properties of the token (if any)
   - collection: List of properties for a collection (if any)
   - id: Unique identification of the token on the chain
