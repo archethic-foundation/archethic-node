@@ -70,7 +70,9 @@ defmodule Archethic.Metrics.Poller do
            http_port: port,
            first_public_key: first_public_key
          } ->
-        {first_public_key, Collector.fetch_metrics(ip, port)}
+        if first_public_key == Archethic.Crypto.first_node_public_key(),
+          do: {first_public_key, Collector.fetch_metrics({127, 0, 0, 1}, port)},
+          else: {first_public_key, Collector.fetch_metrics(ip, port)}
       end,
       on_timeout: :kill_task
     )
