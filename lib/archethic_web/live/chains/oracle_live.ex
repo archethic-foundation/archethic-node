@@ -180,7 +180,7 @@ defmodule ArchethicWeb.OracleChainLive do
                      } ->
       %{address: address, type: type, timestamp: timestamp}
     end)
-    |> Enum.to_list()
+    |> Enum.reverse()
   end
 
   defp list_transactions_by_date(nil), do: []
