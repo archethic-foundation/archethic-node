@@ -539,14 +539,14 @@ defmodule Archethic.P2P.Message do
     token_balances_binary =
       token_balances
       |> Enum.reduce([], fn {{token_address, token_id}, amount}, acc ->
-        [<<token_address::binary, amount::float, VarInt.from_value(token_id)::binary>> | acc]
+        [<<token_address::binary, amount::64, VarInt.from_value(token_id)::binary>> | acc]
       end)
       |> Enum.reverse()
       |> :erlang.list_to_binary()
 
     encoded_token_balances_length = map_size(token_balances) |> VarInt.from_value()
 
-    <<248::8, uco_balance::float, encoded_token_balances_length::binary,
+    <<248::8, uco_balance::64, encoded_token_balances_length::binary,
       token_balances_binary::binary>>
   end
 
@@ -1084,7 +1084,7 @@ defmodule Archethic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<248::8, uco_balance::float, rest::bitstring>>) do
+  def decode(<<248::8, uco_balance::64, rest::bitstring>>) do
     {nb_token_balances, rest} = rest |> VarInt.get_value()
     {token_balances, rest} = deserialize_token_balances(rest, nb_token_balances, %{})
 
@@ -1200,7 +1200,7 @@ defmodule Archethic.P2P.Message do
   end
 
   defp deserialize_token_balances(rest, nb_token_balances, acc) do
-    {token_address, <<amount::float, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {token_address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(rest)
     {token_id, rest} = VarInt.get_value(rest)
 
     deserialize_token_balances(
