@@ -24,14 +24,24 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
     GenServer.call(pid, :origin_public_key)
   end
 
+  @impl Origin
+  def retrieve_node_seed(pid \\ __MODULE__) do
+    GenServer.call(pid, :retrieve_node_seed)
+  end
+
   @impl GenServer
-  @spec init(any) :: {:ok, %{origin_keypair: {<<_::16, _::_*8>>, <<_::16, _::_*8>>}}}
   def init(_arg \\ []) do
-    origin_keypair = Crypto.generate_deterministic_keypair(read_seed())
+    unless File.exists?(Utils.mut_dir("crypto")) do
+      File.mkdir_p!(Utils.mut_dir("crypto"))
+    end
+
+    origin_keypair = Crypto.generate_deterministic_keypair(read_origin_seed())
+    node_seed = provision_node_seed()
 
     {:ok,
      %{
-       origin_keypair: origin_keypair
+       origin_keypair: origin_keypair,
+       node_seed: node_seed
      }}
   end
 
@@ -44,21 +54,63 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
     {:reply, pub, state}
   end
 
-  defp read_seed do
-    unless File.exists?(Utils.mut_dir("crypto")) do
-      File.mkdir_p!(Utils.mut_dir("crypto"))
-    end
+  def handle_call(:retrieve_node_seed, _from, state = %{node_seed: node_seed}) do
+    {:reply, node_seed, state}
+  end
 
-    case File.read(seed_filename()) do
+  defp provision_node_seed do
+    seed =
+      :archethic
+      |> Application.get_env(__MODULE__, [])
+      |> Keyword.get(:node_seed)
+
+    case seed do
+      nil ->
+        read_node_seed()
+
+      seed ->
+        case Base.decode16(seed, case: :mixed) do
+          :error ->
+            seed
+
+          {:ok, seed} ->
+            seed
+        end
+    end
+  end
+
+  defp read_origin_seed do
+    case File.read(origin_seed_filename()) do
       {:ok, seed} ->
         seed
 
       _ ->
         seed = :crypto.strong_rand_bytes(32)
-        File.write!(seed_filename(), seed)
+        File.write!(origin_seed_filename(), seed)
         seed
     end
   end
 
-  defp seed_filename, do: Utils.mut_dir("crypto/origin_seed")
+  defp origin_seed_filename, do: Utils.mut_dir("crypto/origin_seed")
+
+  defp read_node_seed do
+    case File.read(node_seed_filepath()) do
+      {:ok, seed} ->
+        seed
+
+      _ ->
+        # We generate a random seed if no one is given
+        seed = :crypto.strong_rand_bytes(32)
+
+        # We write the seed on disk for backup later
+        write_node_seed(seed)
+        seed
+    end
+  end
+
+  defp write_node_seed(seed) when is_binary(seed) do
+    File.write!(node_seed_filepath(), seed)
+  end
+
+  defp node_seed_filepath, do: Utils.mut_dir("crypto/node_seed")
 end

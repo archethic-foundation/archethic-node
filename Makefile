@@ -1,6 +1,7 @@
 CC = /usr/bin/gcc
 OS := $(shell uname)
 TPM_INSTALLED := $(shell ldconfig -p | grep libtss2-esys.so > /dev/null; echo $$?)
+TPMFLAGS = -ltss2-esys -ltss2-rc -ltss2-mu -lcrypto
 
 all: compile_c_programs
 
@@ -15,8 +16,8 @@ compile_c_programs:
 	
 
 ifeq ($(TPM_INSTALLED),0)
-	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/tpm/lib.c src/c/crypto/tpm/port.c -o priv/c_dist/tpm_port -I src/c/crypto/stdio_helpers.h -I src/c/crypto/tpm/lib.h -ltss2-esys
-	$(CC) src/c/crypto/tpm/keygen.c src/c/crypto/tpm/lib.c -o priv/c_dist/tpm_keygen -I src/c/crypto/tpm/lib.h -ltss2-esys -lcrypto
+	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/tpm/lib.c src/c/crypto/tpm/port.c -o priv/c_dist/tpm_port -I src/c/crypto/stdio_helpers.h -I src/c/crypto/tpm/lib.h $(TPMFLAGS)
+	$(CC) src/c/crypto/tpm/keygen.c src/c/crypto/tpm/lib.c -o priv/c_dist/tpm_keygen -I src/c/crypto/tpm/lib.h $(TPMFLAGS)
 endif
 
 

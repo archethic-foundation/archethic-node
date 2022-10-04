@@ -29,6 +29,12 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.TPMImpl do
     GenServer.call(__MODULE__, :origin_public_key)
   end
 
+  @impl Origin
+  @spec retrieve_node_seed() :: binary()
+  def retrieve_node_seed do
+    GenServer.call(__MODULE__, :retrieve_node_seed)
+  end
+
   @impl GenServer
   def init(_) do
     tpm_program = Application.app_dir(:archethic, "priv/c_dist/tpm_port")
@@ -50,6 +56,10 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.TPMImpl do
   def handle_call({:sign_with_origin_key, data}, from, state = %{port_handler: port_handler}) do
     %Task{ref: ref} = Task.async(fn -> sign(port_handler, 0, data) end)
     {:noreply, Map.update!(state, :async_tasks, &Map.put(&1, ref, from))}
+  end
+
+  def handle_call(:retrieve_node_seed, _from, state = %{port_handler: port_handler}) do
+    {:reply, retrieve_node_seed(port_handler), state}
   end
 
   @impl GenServer
@@ -99,6 +109,11 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.TPMImpl do
 
   defp initialize_tpm(port_handler) do
     # Set TPM root key and key index at 0th
+    # Generate the node seed
     PortHandler.request(port_handler, 1, <<0::16>>)
+  end
+
+  defp retrieve_node_seed(port_handler) do
+    PortHandler.request(port_handler, 4, <<>>)
   end
 end
