@@ -120,6 +120,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   end
 
   defp do_process_get_chain(fd, address, fields) do
+    # Always return transaction address
+    fields = if Enum.empty?(fields), do: fields, else: Enum.uniq([:address | fields])
+
     column_names = fields_to_column_names(fields)
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
@@ -174,6 +177,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           {list(Transaction.t()), boolean(), binary() | nil}
   def scan_chain(genesis_address, limit_address, fields, paging_address, db_path) do
     filepath = ChainWriter.chain_path(db_path, genesis_address)
+    # Always return transaction address
+    fields = if Enum.empty?(fields), do: fields, else: Enum.uniq([:address | fields])
+
     column_names = fields_to_column_names(fields)
 
     case File.open(filepath, [:binary, :read]) do
