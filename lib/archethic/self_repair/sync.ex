@@ -9,6 +9,8 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.DB
 
+  alias Archethic.Election
+
   alias Archethic.PubSub
 
   alias Archethic.P2P
@@ -155,10 +157,12 @@ defmodule Archethic.SelfRepair.Sync do
   the readiness or the availability of a node.
 
   Also, the  number of transaction received and the fees burned during the beacon summary interval will be stored.
+
+  At the end of the execution, the summaries aggregate will persisted locally if the node is member of the shard of the summary
   """
   @spec process_summary_aggregate(SummaryAggregate.t(), binary()) :: :ok
   def process_summary_aggregate(
-        %SummaryAggregate{
+        aggregate = %SummaryAggregate{
           summary_time: summary_time,
           transaction_summaries: transaction_summaries,
           p2p_availabilities: p2p_availabilities
@@ -201,6 +205,8 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.each(&update_availabilities/1)
 
     update_statistics(summary_time, transaction_summaries)
+
+    store_aggregate(aggregate)
   end
 
   defp synchronize_transactions([], _node_patch), do: :ok
@@ -302,5 +308,27 @@ defmodule Archethic.SelfRepair.Sync do
     Logger.info("Burned fees #{burned_fees} on #{Utils.time_to_string(date)}")
 
     PubSub.notify_new_tps(tps, nb_transactions)
+  end
+
+  defp store_aggregate(aggregate = %SummaryAggregate{summary_time: summary_time}) do
+    node_list =
+      [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
+
+    should_store? =
+      Crypto.storage_nonce()
+      |> Crypto.derive_keypair(
+        Crypto.hash(["beacon_aggregate", summary_time |> DateTime.to_unix() |> to_string()])
+      )
+      |> elem(0)
+      |> Crypto.derive_address()
+      |> Election.chain_storage_nodes(node_list)
+      |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+
+    if should_store? do
+      BeaconChain.write_summaries_aggregate(aggregate)
+      Logger.info("Summary written to disk for #{summary_time}")
+    else
+      :ok
+    end
   end
 end
