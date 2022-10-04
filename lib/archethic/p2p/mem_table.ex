@@ -716,8 +716,6 @@ defmodule Archethic.P2P.MemTable do
   def set_node_unavailable(first_public_key) when is_binary(first_public_key) do
     :ets.delete(@availability_lookup_table, first_public_key)
     Logger.info("Node globally unavailable", node: Base.encode16(first_public_key))
-    tuple_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
-    true = :ets.update_element(@discovery_table, first_public_key, {tuple_pos, <<0::1>>})
     notify_node_update(first_public_key)
     :ok
   end
