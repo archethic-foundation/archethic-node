@@ -1,19 +1,21 @@
 defmodule Archethic.DB.EmbeddedTest do
   use ArchethicCase, async: false
 
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryAggregate
+
+  alias Archethic.Crypto
+
   alias Archethic.DB.EmbeddedImpl
   alias Archethic.DB.EmbeddedImpl.Encoding
   alias Archethic.DB.EmbeddedImpl.ChainIndex
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionFactory
-
-  alias Archethic.BeaconChain.Summary
-
-  alias Archethic.Crypto
 
   alias Archethic.Utils
 
@@ -176,7 +178,7 @@ defmodule Archethic.DB.EmbeddedTest do
   end
 
   describe "get_beacon_summary/1" do
-    test "should return an error when the summary does not exists" do
+    test "should return an error when the summary does not exist" do
       assert {:error, :summary_not_exists} =
                EmbeddedImpl.get_beacon_summary(:crypto.strong_rand_bytes(32))
     end
@@ -200,6 +202,38 @@ defmodule Archethic.DB.EmbeddedTest do
       :ok = EmbeddedImpl.write_beacon_summary(summary)
 
       assert {:ok, ^summary} = EmbeddedImpl.get_beacon_summary(summary_address)
+    end
+  end
+
+  describe "get_beacon_summaries_aggregate/1" do
+    test "should return an error when the aggregate does not exist" do
+      {:error, :not_exists} = EmbeddedImpl.get_beacon_summaries_aggregate(DateTime.utc_now())
+    end
+
+    test "should retrieve a beacon summaries aggregate" do
+      aggregate = %SummaryAggregate{
+        summary_time: ~U[2020-09-01 00:00:00Z],
+        transaction_summaries: [
+          %TransactionSummary{
+            type: :transfer,
+            address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+            fee: 100_000_000,
+            timestamp: ~U[2020-08-31 20:00:00.232Z]
+          }
+        ],
+        p2p_availabilities: %{
+          <<0>> => %{
+            node_availabilities: <<1::1>>,
+            node_average_availabilities: [1.0],
+            end_of_node_synchronizations: []
+          }
+        }
+      }
+
+      :ok = EmbeddedImpl.write_beacon_summaries_aggregate(aggregate)
+
+      assert {:ok, ^aggregate} =
+               EmbeddedImpl.get_beacon_summaries_aggregate(~U[2020-09-01 00:00:00Z])
     end
   end
 

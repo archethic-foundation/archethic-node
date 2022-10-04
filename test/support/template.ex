@@ -67,6 +67,8 @@ defmodule ArchethicCase do
         "127.0.0.1:3002:0100044D91A0A1A7CF06A2902D3842F82D2791BCBF3EE6F6DC8DE0F90E53E9991C3CB33684B7B9E66F26E7C9F5302F73C69897BE5F301DE9A63521A08AC4EF34C18728:tcp"
     end)
     |> stub(:set_bootstrap_info, fn _, _ -> :ok end)
+    |> stub(:write_beacon_summaries_aggregate, fn _ -> :ok end)
+    |> stub(:get_beacon_summaries_aggregate, fn _ -> {:error, :not_exists} end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)

@@ -4,6 +4,9 @@ defmodule Archethic.DB.EmbeddedImpl do
   while using a key value in memory for fast lookup
   """
 
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryAggregate
+
   alias Archethic.Crypto
 
   alias __MODULE__.BootstrapInfo
@@ -14,8 +17,6 @@ defmodule Archethic.DB.EmbeddedImpl do
   alias __MODULE__.StatsInfo
 
   alias Archethic.TransactionChain.Transaction
-
-  alias Archethic.BeaconChain.Summary
 
   alias Archethic.Utils
 
@@ -111,6 +112,14 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Write a beacon summaries aggregate
+  """
+  @spec write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok
+  def write_beacon_summaries_aggregate(aggregate = %SummaryAggregate{}) do
+    ChainWriter.write_beacon_summaries_aggregate(aggregate, db_path())
+  end
+
+  @doc """
   Determine if the transaction exists or not
   """
   @spec transaction_exists?(address :: binary()) :: boolean()
@@ -134,6 +143,15 @@ defmodule Archethic.DB.EmbeddedImpl do
           {:ok, Summary.t()} | {:error, :summary_not_exists}
   def get_beacon_summary(summary_address) when is_binary(summary_address) do
     ChainReader.get_beacon_summary(summary_address, db_path())
+  end
+
+  @doc """
+  Get a beacon summaries aggregate at a given date
+  """
+  @spec get_beacon_summaries_aggregate(DateTime.t()) ::
+          {:ok, SummaryAggregate.t()} | {:error, :not_exists}
+  def get_beacon_summaries_aggregate(date = %DateTime{}) do
+    ChainReader.get_beacon_summaries_aggregate(date, db_path())
   end
 
   @doc """

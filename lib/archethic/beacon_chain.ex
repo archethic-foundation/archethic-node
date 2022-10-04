@@ -373,4 +373,17 @@ defmodule Archethic.BeaconChain do
       )
     end)
   end
+
+  @doc """
+  Get a beacon summaries aggregate for a given date
+  """
+  @spec get_summaries_aggregate(DateTime.t()) ::
+          {:ok, SummaryAggregate.t()} | {:error, :not_exists}
+  defdelegate get_summaries_aggregate(datetime), to: DB, as: :get_beacon_summaries_aggregate
+
+  @doc """
+  Persists a beacon summaries aggregate
+  """
+  @spec write_summaries_aggregate(SummaryAggregate.t()) :: :ok
+  defdelegate write_summaries_aggregate(aggregate), to: DB, as: :write_beacon_summaries_aggregate
 end
