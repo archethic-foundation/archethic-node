@@ -111,11 +111,30 @@ defmodule Archethic.SelfRepair.Sync do
 
     start = System.monotonic_time()
 
-    last_sync_date
-    |> BeaconChain.next_summary_dates()
-    |> BeaconChain.fetch_summary_aggregates()
+    last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    summaries_aggregates =
+      last_sync_date
+      |> BeaconChain.next_summary_dates()
+      # Take only the previous summaries before the last one
+      |> Stream.take_while(fn date ->
+        DateTime.compare(date, last_summary_time) == :lt
+      end)
+      # Fetch the beacon summaries aggregate
+      |> Task.async_stream(&BeaconChain.fetch_summaries_aggregate/1)
+      |> Stream.filter(&match?({:ok, {:ok, %SummaryAggregate{}}}, &1))
+      |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
+      |> Enum.to_list()
+
+    last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time)
+
+    [last_aggregate | summaries_aggregates]
+    |> Enum.reverse()
     |> tap(&ensure_summaries_download/1)
     |> Enum.each(&process_summary_aggregate(&1, patch))
+
+    # Remove the beacon summaries after the aggregates have been stored
+    DB.clear_beacon_summaries()
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()

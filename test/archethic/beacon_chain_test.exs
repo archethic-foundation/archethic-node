@@ -96,7 +96,7 @@ defmodule Archethic.BeaconChainTest do
     end
   end
 
-  describe "fetch_summary_aggregates/1" do
+  describe "fetch_and_aggregate_summaries/1" do
     setup do
       summary_time = ~U[2021-01-22 16:12:58Z]
 
@@ -215,8 +215,8 @@ defmodule Archethic.BeaconChainTest do
           {:ok, %BeaconSummaryList{summaries: [beacon_summary]}}
       end)
 
-      [%SummaryAggregate{transaction_summaries: transaction_summaries}] =
-        BeaconChain.fetch_summary_aggregates([summary_time])
+      %SummaryAggregate{transaction_summaries: transaction_summaries} =
+        BeaconChain.fetch_and_aggregate_summaries(summary_time)
 
       assert [addr1] == Enum.map(transaction_summaries, & &1.address)
     end
@@ -309,8 +309,8 @@ defmodule Archethic.BeaconChainTest do
           {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
       end)
 
-      [%SummaryAggregate{transaction_summaries: transaction_summaries}] =
-        BeaconChain.fetch_summary_aggregates([summary_time])
+      %SummaryAggregate{transaction_summaries: transaction_summaries} =
+        BeaconChain.fetch_and_aggregate_summaries(summary_time)
 
       transaction_addresses = Enum.map(transaction_summaries, & &1.address)
 
@@ -364,11 +364,9 @@ defmodule Archethic.BeaconChainTest do
           {:ok, %BeaconSummaryList{summaries: [summary_v4]}}
       end)
 
-      assert [
-               %SummaryAggregate{
-                 p2p_availabilities: %{"A" => %{node_availabilities: <<1::1, 1::1, 1::1>>}}
-               }
-             ] = BeaconChain.fetch_summary_aggregates([summary_time])
+      assert %SummaryAggregate{
+               p2p_availabilities: %{"A" => %{node_availabilities: <<1::1, 1::1, 1::1>>}}
+             } = BeaconChain.fetch_and_aggregate_summaries(summary_time)
     end
 
     test "should find other beacon summaries and aggregate node P2P avg availabilities", %{
@@ -415,13 +413,11 @@ defmodule Archethic.BeaconChainTest do
           {:ok, %BeaconSummaryList{summaries: [summary_v4]}}
       end)
 
-      assert [
-               %SummaryAggregate{
-                 p2p_availabilities: %{
-                   "A" => %{node_average_availabilities: [0.925, 0.8, 0.925, 0.85]}
-                 }
+      assert %SummaryAggregate{
+               p2p_availabilities: %{
+                 "A" => %{node_average_availabilities: [0.925, 0.8, 0.925, 0.85]}
                }
-             ] = BeaconChain.fetch_summary_aggregates([summary_time])
+             } = BeaconChain.fetch_and_aggregate_summaries(summary_time)
     end
   end
 end

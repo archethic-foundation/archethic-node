@@ -25,6 +25,7 @@ defmodule Archethic.DB do
             ) :: Enumerable.t()
   @callback write_transaction(Transaction.t()) :: :ok
   @callback write_beacon_summary(Summary.t()) :: :ok
+  @callback clear_beacon_summaries() :: :ok
   @callback write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()

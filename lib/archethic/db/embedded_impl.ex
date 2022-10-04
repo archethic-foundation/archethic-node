@@ -112,6 +112,18 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Remove the beacon summaries files
+  """
+  @spec clear_beacon_summaries() :: :ok
+  def clear_beacon_summaries do
+    db_path()
+    |> ChainWriter.base_beacon_path()
+    |> Path.join("*")
+    |> Path.wildcard()
+    |> Enum.each(&File.rm!/1)
+  end
+
+  @doc """
   Write a beacon summaries aggregate
   """
   @spec write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok

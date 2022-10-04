@@ -37,7 +37,6 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         agg = %__MODULE__{},
         %BeaconSummary{
           subset: subset,
-          summary_time: summary_time,
           transaction_attestations: transaction_attestations,
           node_availabilities: node_availabilities,
           node_average_availabilities: node_average_availabilities,
@@ -50,44 +49,48 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       end)
 
     if valid_attestations? do
-      agg
-      |> Map.update!(
-        :transaction_summaries,
-        fn prev ->
-          transaction_attestations
-          |> Enum.map(& &1.transaction_summary)
-          |> Enum.concat(prev)
-        end
-      )
-      |> update_in(
-        [
-          Access.key(:p2p_availabilities, %{}),
-          Access.key(subset, %{
-            node_availabilities: [],
-            node_average_availabilities: [],
-            end_of_node_synchronizations: []
-          })
-        ],
-        fn prev ->
-          prev
-          |> Map.update!(
-            :node_availabilities,
-            &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
-          )
-          |> Map.update!(
-            :node_average_availabilities,
-            &Enum.concat(&1, [node_average_availabilities])
-          )
-          |> Map.update!(
-            :end_of_node_synchronizations,
-            &Enum.concat(&1, end_of_node_synchronizations)
-          )
-        end
-      )
-      |> Map.update(:summary_time, summary_time, fn
-        nil -> summary_time
-        prev -> prev
-      end)
+      agg =
+        Map.update!(
+          agg,
+          :transaction_summaries,
+          fn prev ->
+            transaction_attestations
+            |> Enum.map(& &1.transaction_summary)
+            |> Enum.concat(prev)
+          end
+        )
+
+      if bit_size(node_availabilities) > 0 or length(node_average_availabilities) > 0 or
+           length(end_of_node_synchronizations) > 0 do
+        update_in(
+          agg,
+          [
+            Access.key(:p2p_availabilities, %{}),
+            Access.key(subset, %{
+              node_availabilities: [],
+              node_average_availabilities: [],
+              end_of_node_synchronizations: []
+            })
+          ],
+          fn prev ->
+            prev
+            |> Map.update!(
+              :node_availabilities,
+              &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
+            )
+            |> Map.update!(
+              :node_average_availabilities,
+              &Enum.concat(&1, [node_average_availabilities])
+            )
+            |> Map.update!(
+              :end_of_node_synchronizations,
+              &Enum.concat(&1, end_of_node_synchronizations)
+            )
+          end
+        )
+      else
+        agg
+      end
     else
       agg
     end
