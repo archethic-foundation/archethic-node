@@ -6,20 +6,17 @@ defmodule Archethic.Reward.Scheduler do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias Archethic.Crypto
-
-  alias Archethic.PubSub
-
-  alias Archethic.DB
-
-  alias Archethic.P2P.Node
-
-  alias Archethic.P2P
-
-  alias Archethic.Reward
-
-  alias Archethic.Utils
-  alias Archethic.Utils.DetectNodeResponsiveness
+  alias Archethic.{
+    Crypto,
+    PubSub,
+    DB,
+    P2P,
+    P2P.Node,
+    Reward,
+    Election,
+    Utils,
+    Utils.DetectNodeResponsiveness
+  }
 
   require Logger
 
@@ -188,7 +185,9 @@ defmodule Archethic.Reward.Scheduler do
           data
       end
 
-    if Reward.initiator?(next_address) do
+    validation_nodes = Election.storage_nodes(next_address, P2P.authorized_and_available_nodes())
+
+    if trigger_node?(validation_nodes) do
       Logger.debug("Initialize node rewards tx after mint rewards")
       send_node_rewards(next_index)
       {:keep_state, new_data}
@@ -196,8 +195,8 @@ defmodule Archethic.Reward.Scheduler do
       Logger.debug("Start node responsivness for node rewards tx after mint rewards replication")
 
       {:ok, pid} =
-        DetectNodeResponsiveness.start_link(next_address, fn count ->
-          if Reward.initiator?(next_address, count) do
+        DetectNodeResponsiveness.start_link(next_address, length(validation_nodes), fn count ->
+          if trigger_node?(validation_nodes, count) do
             Logger.debug("Node reward creation...attempt #{count}",
               transaction_address: Base.encode16(next_address)
             )
@@ -296,7 +295,7 @@ defmodule Archethic.Reward.Scheduler do
         _data = %{watcher: watcher_pid}
       )
       when watcher_pid == pid do
-    {:keep_state_and_data}
+    :keep_state_and_data
   end
 
   def handle_event(
@@ -314,13 +313,15 @@ defmodule Archethic.Reward.Scheduler do
         :triggered,
         data = %{index: index, next_address: tx_address}
       ) do
-    if Reward.initiator?(tx_address) do
+    validation_nodes = Election.storage_nodes(tx_address, P2P.authorized_and_available_nodes())
+
+    if trigger_node?(validation_nodes) do
       mint_node_rewards(index)
       :keep_state_and_data
     else
       {:ok, pid} =
-        DetectNodeResponsiveness.start_link(tx_address, fn count ->
-          if Reward.initiator?(tx_address, count) do
+        DetectNodeResponsiveness.start_link(tx_address, length(validation_nodes), fn count ->
+          if trigger_node?(validation_nodes, count) do
             Logger.debug("Mint reward creation...attempt #{count}",
               transaction_address: Base.encode16(tx_address)
             )
@@ -414,6 +415,11 @@ defmodule Archethic.Reward.Scheduler do
 
   defp schedule(interval) do
     Process.send_after(self(), :mint_rewards, Utils.time_offset(interval) * 1000)
+  end
+
+  defp trigger_node?(validation_nodes, count \\ 0) do
+    %Node{first_public_key: initiator_key} = validation_nodes |> Enum.at(count)
+    initiator_key == Crypto.first_node_public_key()
   end
 
   def config_change(nil), do: :ok

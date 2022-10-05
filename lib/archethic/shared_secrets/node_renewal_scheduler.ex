@@ -12,6 +12,8 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   alias Archethic
 
+  alias Archethic.Election
+
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -200,14 +202,16 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         index
       )
 
-    if NodeRenewal.initiator?(tx.address) do
+    validation_nodes = Election.storage_nodes(tx.address, P2P.authorized_and_available_nodes())
+
+    if trigger_node?(validation_nodes) do
       Logger.info("Node shared secrets renewal creation...")
       make_renewal(tx)
       {:keep_state, data}
     else
       {:ok, pid} =
-        DetectNodeResponsiveness.start_link(tx.address, fn count ->
-          if NodeRenewal.initiator?(tx.address, count) do
+        DetectNodeResponsiveness.start_link(tx.address, length(validation_nodes), fn count ->
+          if trigger_node?(validation_nodes, count) do
             Logger.info("Node shared secret renewal creation...attempt #{count}")
             make_renewal(tx)
           end
@@ -310,6 +314,11 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   defp schedule_renewal_message(interval) do
     Process.send_after(self(), :make_renewal, Utils.time_offset(interval) * 1000)
+  end
+
+  defp trigger_node?(validation_nodes, count \\ 0) do
+    %Node{first_public_key: initiator_key} = validation_nodes |> Enum.at(count)
+    initiator_key == Crypto.first_node_public_key()
   end
 
   def config_change(nil), do: :ok
