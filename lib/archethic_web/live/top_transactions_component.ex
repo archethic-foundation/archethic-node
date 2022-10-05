@@ -6,6 +6,7 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   use ArchethicWeb, :live_component
 
   alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.SummaryAggregate
 
   alias Archethic.Election
 
@@ -59,7 +60,7 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
             txns |> push_txns_to_cache()
             txns
           else
-            TopTransactionsCache.get()
+            TopTransactionsCache.get() |> Enum.take(10)
           end
       end
 
@@ -184,9 +185,12 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   end
 
   defp list_transactions_from_summary(date = %DateTime{}) do
-    [date]
-    |> BeaconChain.fetch_summary_aggregates()
-    |> Enum.flat_map(& &1.transaction_summaries)
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+    case BeaconChain.get_summaries_aggregate(date) do
+      {:ok, %SummaryAggregate{transaction_summaries: tx_summaries}} ->
+        Enum.sort_by(tx_summaries, & &1.timestamp, {:desc, DateTime})
+
+      _ ->
+        []
+    end
   end
 end
