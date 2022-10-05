@@ -49,6 +49,8 @@ defmodule Archethic.OracleChain.Scheduler do
   def init(args) do
     polling_interval = Keyword.fetch!(args, :polling_interval)
     summary_interval = Keyword.fetch!(args, :summary_interval)
+    # Set trap_exit globally for the process
+    Process.flag(:trap_exit, true)
 
     state_data =
       %{}
@@ -348,7 +350,6 @@ defmodule Archethic.OracleChain.Scheduler do
             end
           end)
 
-        Process.monitor(pid)
         {:keep_state, Map.put(data, :oracle_watcher, pid)}
 
       {:exists, true} ->
@@ -419,8 +420,6 @@ defmodule Archethic.OracleChain.Scheduler do
               end
             end)
 
-          Process.monitor(pid)
-
           pid
 
         {:exists, true} ->
@@ -485,7 +484,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, {:shutdown, :hard_timeout}},
+        {:EXIT, pid, {:shutdown, :hard_timeout}},
         :triggered,
         data = %{oracle_watcher: watcher_pid}
       )
@@ -495,7 +494,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:EXIT, pid, _},
         :triggered,
         _data = %{oracle_watcher: watcher_pid}
       )
@@ -505,7 +504,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:EXIT, pid, _},
         :triggered,
         _data = %{summary_watcher: watcher_pid}
       )
@@ -515,7 +514,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:EXIT, pid, _},
         :scheduled,
         _data = %{oracle_watcher: watcher_pid}
       )
@@ -525,7 +524,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:EXIT, pid, _},
         _state,
         data = %{summary_watcher: watcher_pid}
       )
@@ -535,7 +534,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, _pid, _},
+        {:EXIT, _pid, _},
         _state,
         data
       ) do
