@@ -283,17 +283,21 @@ defmodule Archethic.Contracts.Worker do
         welcome_node_public_key: Crypto.last_node_public_key()
       })
     else
-      DetectNodeResponsiveness.start_link(next_transaction.address, fn count ->
-        Logger.info("contract transaction ...attempt #{count}")
+      DetectNodeResponsiveness.start_link(
+        next_transaction.address,
+        length(validation_nodes),
+        fn count ->
+          Logger.info("contract transaction ...attempt #{count}")
 
-        if trigger_node?(validation_nodes, count) do
-          P2P.broadcast_message(validation_nodes, %StartMining{
-            transaction: next_transaction,
-            validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-            welcome_node_public_key: Crypto.last_node_public_key()
-          })
+          if trigger_node?(validation_nodes, count) do
+            P2P.broadcast_message(validation_nodes, %StartMining{
+              transaction: next_transaction,
+              validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
+              welcome_node_public_key: Crypto.last_node_public_key()
+            })
+          end
         end
-      end)
+      )
     end
   end
 

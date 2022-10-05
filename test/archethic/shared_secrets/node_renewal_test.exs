@@ -39,63 +39,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
     assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
   end
 
-  describe "initiator?/2" do
-    test "should return false when the first elected node is not the current node" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: Crypto.last_node_public_key(),
-        first_public_key: Crypto.last_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: false
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: "key2",
-        first_public_key: "key2",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: "key3",
-        first_public_key: "key3",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
-      })
-
-      assert false == NodeRenewal.initiator?("address")
-    end
-
-    test "should return true when the first elected node is the current node" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: Crypto.last_node_public_key(),
-        first_public_key: Crypto.last_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
-      })
-
-      assert true == NodeRenewal.initiator?("address")
-    end
-  end
-
   describe "next_authorized_node_public_keys/0" do
     test "should not add new nodes with a low tps" do
       P2P.add_and_connect_node(%Node{

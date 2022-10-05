@@ -19,7 +19,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       count
     end
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, 1, replaying_fn, @timeout)
     assert true == Process.alive?(pid)
   end
 
@@ -33,7 +33,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     Process.flag(:trap_exit, true)
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, 1, replaying_fn, @timeout)
 
     Process.sleep(@sleep_timeout)
     assert_receive {:EXIT, ^pid, {:shutdown, :hard_timeout}}
@@ -106,7 +106,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     })
 
     Process.flag(:trap_exit, true)
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, 4, replaying_fn, @timeout)
     Process.monitor(pid)
 
     MockDB
@@ -167,7 +167,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->
@@ -218,7 +218,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
     |> expect(:transaction_exists?, fn ^address ->
@@ -273,7 +273,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     })
 
     Process.flag(:trap_exit, true)
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->
@@ -325,7 +325,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     })
 
     Process.flag(:trap_exit, true)
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->

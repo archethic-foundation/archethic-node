@@ -7,8 +7,6 @@ defmodule Archethic.Reward do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
-
   alias Archethic.Account
 
   alias Archethic.SharedSecrets
@@ -106,19 +104,6 @@ defmodule Archethic.Reward do
     }
 
     Transaction.new(:node_rewards, data, index)
-  end
-
-  @doc """
-  Determine if the local node is the initiator of the new rewards mint
-  """
-  @spec initiator?(binary()) :: boolean()
-  def initiator?(address, index \\ 0) do
-    %Node{first_public_key: initiator_key} =
-      address
-      |> Election.storage_nodes(P2P.authorized_and_available_nodes())
-      |> Enum.at(index)
-
-    initiator_key == Crypto.first_node_public_key()
   end
 
   @spec next_address(non_neg_integer()) :: binary()

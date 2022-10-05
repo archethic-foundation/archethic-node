@@ -333,7 +333,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
       {:trigger, false} ->
         {:ok, pid} =
-          DetectNodeResponsiveness.start_link(tx.address, fn count ->
+          DetectNodeResponsiveness.start_link(tx.address, length(storage_nodes), fn count ->
             new_oracle_data = get_new_oracle_data(summary_date, index)
             new_data? = !Enum.empty?(new_oracle_data)
 
@@ -408,7 +408,7 @@ defmodule Archethic.OracleChain.Scheduler do
           )
 
           {:ok, pid} =
-            DetectNodeResponsiveness.start_link(tx_address, fn count ->
+            DetectNodeResponsiveness.start_link(tx_address, length(validation_nodes), fn count ->
               if trigger_node?(validation_nodes, count) do
                 Logger.info("Oracle summary transaction ...attempt #{count}",
                   transaction_address: Base.encode16(tx_address),
