@@ -55,14 +55,27 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
       {:noreply, %{state | count: new_count}}
     else
       {:remaining, false} ->
+        Logger.warning("Stop responsiveness because of hard timeout",
+          transaction_address: Base.encode16(address)
+        )
+
         {:stop, {:shutdown, :hard_timeout}, state}
 
-      {reason, _} ->
-        Logger.debug("Stop responsiveness because of #{reason}",
+      {:exists, true} ->
+        Logger.debug("Stop responsiveness because transaction exists",
           transaction_address: Base.encode16(address)
         )
 
         {:stop, :normal, state}
+
+      {:mining, true} ->
+        Logger.debug("Reschedule responsiveness for transaction in mining process",
+          transaction_address: Base.encode16(address)
+        )
+
+        # Reschedule timeout to wait for transaction to be validated
+        schedule_timeout(timeout)
+        {:noreply, state}
     end
   end
 

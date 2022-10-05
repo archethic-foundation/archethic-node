@@ -286,7 +286,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     assert !Process.alive?(pid)
   end
 
-  test "should not retry if the transaction is in mining process" do
+  test "should reschedule timeout if the transaction is in mining process" do
     address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     me = self()
@@ -324,7 +324,6 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    Process.flag(:trap_exit, true)
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
@@ -336,7 +335,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     #  first soft_timeout
     Process.sleep(@sleep_timeout)
-    assert_receive {:EXIT, ^pid, :normal}
-    assert !Process.alive?(pid)
+    assert Process.alive?(pid)
+    assert 1 == :sys.get_state(pid) |> Map.get(:count)
   end
 end
