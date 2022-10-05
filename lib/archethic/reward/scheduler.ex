@@ -36,6 +36,8 @@ defmodule Archethic.Reward.Scheduler do
   def init(args) do
     interval = Keyword.fetch!(args, :interval)
     state_data = Map.put(%{}, :interval, interval)
+    # Set trap_exit globally for the process
+    Process.flag(:trap_exit, true)
 
     case :persistent_term.get(:archethic_up, nil) do
       nil ->
@@ -205,8 +207,6 @@ defmodule Archethic.Reward.Scheduler do
           end
         end)
 
-      Process.monitor(pid)
-
       {:keep_state, Map.put(new_data, :watcher, pid)}
     end
   end
@@ -280,7 +280,7 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, {:shutdown, :hard_timeout}},
+        {:EXIT, pid, {:shutdown, :hard_timeout}},
         :triggered,
         data = %{watcher: watcher_pid}
       )
@@ -290,7 +290,7 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:EXIT, pid, _},
         :triggered,
         _data = %{watcher: watcher_pid}
       )
@@ -300,7 +300,7 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, _pid, _},
+        {:EXIT, _pid, _},
         :scheduled,
         _data
       ) do
@@ -329,8 +329,6 @@ defmodule Archethic.Reward.Scheduler do
             mint_node_rewards(index)
           end
         end)
-
-      Process.monitor(pid)
 
       {:keep_state, Map.put(data, :watcher, pid)}
     end

@@ -54,6 +54,8 @@ defmodule Archethic.Contracts.Worker do
   end
 
   def init(contract = %Contract{}) do
+    # Set trap_exit globally for the process
+    Process.flag(:trap_exit, true)
     {:ok, %{contract: contract}, {:continue, :start_schedulers}}
   end
 
@@ -239,6 +241,10 @@ defmodule Archethic.Contracts.Worker do
     end
 
     {:noreply, state}
+  end
+
+  def handle_info({:EXIT, _pid, _}, _state) do
+    :keep_state_and_data
   end
 
   defp via_tuple(address) do

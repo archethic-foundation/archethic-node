@@ -49,6 +49,8 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   def init(args) do
     interval = Keyword.get(args, :interval)
     state_data = Map.put(%{}, :interval, interval)
+    # Set trap_exit globally for the process
+    Process.flag(:trap_exit, true)
 
     case :persistent_term.get(:archethic_up, nil) do
       nil ->
@@ -217,15 +219,13 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
           end
         end)
 
-      Process.monitor(pid)
-
       {:keep_state, Map.put(data, :node_detection, pid)}
     end
   end
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, {:shutdown, :hard_timeout}},
+        {:EXIT, pid, {:shutdown, :hard_timeout}},
         :triggered,
         data = %{node_detection: watcher_pid}
       )
@@ -235,7 +235,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, pid, _},
+        {:EXIT, pid, _},
         :triggered,
         _data = %{node_detection: watcher_pid}
       )
@@ -245,7 +245,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   def handle_event(
         :info,
-        {:DOWN, _ref, :process, _pid, _reason},
+        {:EXIT, _pid, _reason},
         :scheduled,
         _data
       ) do
