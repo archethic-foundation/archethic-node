@@ -21,8 +21,8 @@ defmodule ArchethicWeb.FaucetController do
   plug(:enabled)
 
   defp enabled(conn, _) do
-    if Application.get_env(:archethic, __MODULE__)
-       |> Keyword.get(:enabled, false) do
+    if Application.get_env(:archethic, __MODULE__) |> Keyword.get(:enabled, false) or
+         Application.get_env(:archethic, __MODULE__) |> Keyword.get(:test_enabled, false) do
       conn
     else
       conn

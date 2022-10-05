@@ -19,6 +19,8 @@ defmodule ArchethicWeb.ConnCase do
 
   alias Phoenix.ConnTest
 
+  alias ArchethicWeb.FaucetRateLimiter
+
   using do
     quote do
       # Import conveniences for testing with connections
@@ -33,6 +35,7 @@ defmodule ArchethicWeb.ConnCase do
   end
 
   setup _tags do
+    start_supervised!(FaucetRateLimiter)
     {:ok, conn: ConnTest.build_conn()}
   end
 end

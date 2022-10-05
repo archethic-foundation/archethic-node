@@ -18,7 +18,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
     Ok,
     StartMining,
     TransactionChainLength,
-    GetFirstAddress
+    GetFirstAddress,
+    FirstAddress
   }
 
   alias Archethic.TransactionChain.{
@@ -39,7 +40,7 @@ defmodule ArchethicWeb.FaucetControllerTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: Crypto.last_node_public_key(),
+      first_public_key: Crypto.first_node_public_key(),
       last_public_key: Crypto.last_node_public_key(),
       network_patch: "AAA",
       geo_patch: "AAA",
@@ -162,22 +163,21 @@ defmodule ArchethicWeb.FaucetControllerTest do
           })
 
         _, %GetFirstAddress{}, _ ->
-          {:ok, %GetFirstAddress{address: tx.address}}
-
-          {:ok, %Ok{}}
+          {:ok, %FirstAddress{address: tx.address}}
       end)
 
       faucet_requests =
-        for _request_index <- 1..(faucet_rate_limit + 1) do
-          # temporary fix
-          # for _request_index <- 1..(faucet_rate_limit + 10) do
+        for request_index <- 1..(faucet_rate_limit + 1) do
           post(conn, Routes.faucet_path(conn, :create_transfer), address: recipient_address)
         end
 
-      conn = List.last(faucet_requests)
-      # temporary fix
-      Process.sleep(400)
-      assert html_response(conn, 200) =~ "Blocked address"
+      faucet_requests
+      |> Enum.with_index()
+      |> Enum.each(fn {conn, index} ->
+        if index == faucet_rate_limit,
+          do: assert(html_response(conn, 200) =~ "Blocked address"),
+          else: assert(html_response(conn, 200) =~ Base.encode16(tx.address))
+      end)
     end
   end
 end

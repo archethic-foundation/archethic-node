@@ -32,7 +32,7 @@ defmodule ArchethicWeb.Supervisor do
         {Absinthe.Subscription, Endpoint},
         TransactionSubscriber
       ]
-      |> add_facucet_rate_limit_child()
+      |> add_faucet_rate_limit_child()
 
     opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
@@ -45,7 +45,7 @@ defmodule ArchethicWeb.Supervisor do
     Networking.try_open_port(port, false)
   end
 
-  defp add_facucet_rate_limit_child(children) do
+  defp add_faucet_rate_limit_child(children) do
     faucet_config = Application.get_env(:archethic, ArchethicWeb.FaucetController, [])
 
     if faucet_config[:enabled] do
