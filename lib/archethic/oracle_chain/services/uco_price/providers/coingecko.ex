@@ -25,7 +25,9 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko do
         customize_hostname_check: [
           match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
         ]
-      ]
+      ],
+      connect_timeout: 1000,
+      timeout: 2000
     ]
 
     with {:ok, {{_, 200, 'OK'}, _headers, body}} <-
