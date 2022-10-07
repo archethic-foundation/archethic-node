@@ -219,6 +219,17 @@ defmodule Archethic.Crypto do
   end
 
   @doc """
+  Derive a beacon aggregate address based on the date
+  """
+  @spec derive_beacon_aggregate_address(DateTime.t()) :: versioned_hash()
+  def derive_beacon_aggregate_address(date = %DateTime{}) do
+    storage_nonce()
+    |> derive_keypair(hash(["beacon_aggregate", date |> DateTime.to_unix() |> to_string()]))
+    |> elem(0)
+    |> derive_address()
+  end
+
+  @doc """
   Store the encrypted secrets in the keystore by decrypting them with the given secret key
   """
   @spec unwrap_secrets(

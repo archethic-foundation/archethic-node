@@ -327,12 +327,8 @@ defmodule Archethic.SelfRepair.Sync do
       [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
 
     should_store? =
-      Crypto.storage_nonce()
-      |> Crypto.derive_keypair(
-        Crypto.hash(["beacon_aggregate", summary_time |> DateTime.to_unix() |> to_string()])
-      )
-      |> elem(0)
-      |> Crypto.derive_address()
+      summary_time
+      |> Crypto.derive_beacon_aggregate_address()
       |> Election.chain_storage_nodes(node_list)
       |> Utils.key_in_node_list?(Crypto.first_node_public_key())
 

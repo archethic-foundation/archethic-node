@@ -382,12 +382,8 @@ defmodule Archethic.BeaconChain do
           {:ok, SummaryAggregate.t()} | {:error, :not_exists} | {:error, :network_issue}
   def fetch_summaries_aggregate(summary_time = %DateTime{}) do
     storage_nodes =
-      Crypto.storage_nonce()
-      |> Crypto.derive_keypair(
-        Crypto.hash(["beacon_aggregate", summary_time |> DateTime.to_unix() |> to_string()])
-      )
-      |> elem(0)
-      |> Crypto.derive_address()
+      summary_time
+      |> Crypto.derive_beacon_aggregate_address()
       |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
 
     conflict_resolver = fn results ->
