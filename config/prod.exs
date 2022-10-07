@@ -102,8 +102,8 @@ config :archethic, Archethic.Crypto,
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
 config :archethic,
-       Archethic.Crypto.NodeKeystore.SoftwareImpl,
-       seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
+       Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl,
+       node_seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
 
 config :archethic,
        Archethic.Crypto.NodeKeystore.Origin,

@@ -5,6 +5,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   alias Archethic.Crypto.ID
   alias Archethic.Crypto.Ed25519
   alias Archethic.Crypto.NodeKeystore
+  alias Archethic.Crypto.NodeKeystore.Origin
 
   alias Archethic.Utils
 
@@ -94,26 +95,12 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   @impl GenServer
-  def init(opts) do
-    # Initialize the crypto backup folder
+  def init(_arg \\ []) do
     unless File.exists?(Utils.mut_dir("crypto")) do
       File.mkdir_p!(Utils.mut_dir("crypto"))
     end
 
-    node_seed =
-      case Keyword.get(opts, :seed) do
-        nil ->
-          read_seed()
-
-        seed ->
-          case Base.decode16(seed, case: :mixed) do
-            :error ->
-              seed
-
-            {:ok, seed} ->
-              seed
-          end
-      end
+    node_seed = Origin.retrieve_node_seed()
 
     nb_keys = read_index()
 
@@ -158,21 +145,6 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     :ets.insert(@keystore_table, {:index, index})
   end
 
-  defp read_seed do
-    case File.read(seed_filepath()) do
-      {:ok, seed} ->
-        seed
-
-      _ ->
-        # We generate a random seed if no one is given
-        seed = :crypto.strong_rand_bytes(32)
-
-        # We write the seed on disk for backup later
-        write_seed(seed)
-        seed
-    end
-  end
-
   defp read_index do
     case File.read(index_filepath()) do
       {:ok, ""} ->
@@ -187,15 +159,10 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     end
   end
 
-  defp write_seed(seed) when is_binary(seed) do
-    File.write!(seed_filepath(), seed)
-  end
-
   defp write_index(index) when is_integer(index) and index >= 0 do
     File.write!(index_filepath(), to_string(index))
   end
 
-  defp seed_filepath, do: Utils.mut_dir("crypto/seed")
   defp index_filepath, do: Utils.mut_dir("crypto/index")
 
   defp set_keypair(keypair_name, keypair) when is_tuple(keypair) do
@@ -243,6 +210,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   def handle_call({:update, index}, _from, state) do
     [{_, node_seed}] = :ets.lookup(@keystore_table, :seed)
     do_set_node_key_index(node_seed, index)
+
     {:reply, :ok, state}
   end
 end

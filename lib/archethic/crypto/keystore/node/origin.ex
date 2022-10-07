@@ -8,4 +8,5 @@ defmodule Archethic.Crypto.NodeKeystore.Origin do
   @callback child_spec(any) :: Supervisor.child_spec()
   @callback sign_with_origin_key(data :: iodata()) :: binary()
   @callback origin_public_key() :: Crypto.key()
+  @callback retrieve_node_seed() :: binary()
 end

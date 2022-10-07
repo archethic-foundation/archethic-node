@@ -141,6 +141,9 @@ defmodule ArchethicCase do
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)
+    |> stub(:retrieve_node_seed, fn ->
+      "seed"
+    end)
     |> stub(:node_shared_secrets_public_key, fn index ->
       {pub, _} = Crypto.derive_keypair("shared_secret_seed", index, :secp256r1)
       pub
