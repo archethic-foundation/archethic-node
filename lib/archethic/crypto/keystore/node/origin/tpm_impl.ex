@@ -114,6 +114,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.TPMImpl do
   end
 
   defp retrieve_node_seed(port_handler) do
-    PortHandler.request(port_handler, 4, <<>>)
+    {:ok, seed} = PortHandler.request(port_handler, 4, <<>>)
+    seed
   end
 end
