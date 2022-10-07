@@ -596,6 +596,11 @@ defmodule Archethic.Contracts.Interpreter do
     {node, acc}
   end
 
+  # Whitelist the timestamp/0 function
+  defp prewalk(node = {{:atom, "timestamp"}, _, []}, acc = {:ok, %{scope: scope}})
+       when scope != :root,
+       do: {node, acc}
+
   defp prewalk(
          node = {{:atom, "get_genesis_public_key"}, _, [_address]},
          acc = {:ok, %{scope: scope}}
@@ -663,6 +668,10 @@ defmodule Archethic.Contracts.Interpreter do
        ) do
     {node, acc}
   end
+
+  # Whitelist the timestamp/0 function in condition
+  defp prewalk(node = {{:atom, "timestamp"}, _, []}, acc = {:ok, %{scope: :condition}}),
+    do: {node, acc}
 
   # Whitelist the used of functions in the actions
   defp prewalk(node = {{:atom, fun_name}, _, _}, {:ok, acc = %{scope: :actions}})

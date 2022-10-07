@@ -196,4 +196,10 @@ defmodule Archethic.Contracts.Interpreter.Library do
   end
 
   defp download_first_address([], _address), do: {:error, :network_issue}
+
+  @doc """
+  Return the current UNIX timestamp
+  """
+  @spec timestamp() :: non_neg_integer()
+  def timestamp, do: DateTime.utc_now() |> DateTime.to_unix()
 end
