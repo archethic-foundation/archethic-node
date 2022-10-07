@@ -112,11 +112,26 @@ defmodule ArchethicWeb.BeaconChainLive do
     {:noreply, new_socket}
   end
 
-  def handle_info({:load_at, date}, socket) do
-    # Try to fetch from the cache, other fetch from the beacon summary
+  def handle_info({:load_at, date}, socket = %{assigns: %{current_date_page: 2}}) do
+    # Try to fetch from the cache, other fetch from the beacon summaries
     {:ok, transactions} =
       TransactionCache.resolve(date, fn ->
-        list_transactions_from_summary(date)
+        list_transactions_from_summaries(date)
+      end)
+
+    new_assign =
+      socket
+      |> assign(:fetching, false)
+      |> assign(:transactions, transactions)
+
+    {:noreply, new_assign}
+  end
+
+  def handle_info({:load_at, date}, socket) do
+    # Try to fetch from the cache, other fetch from the beacon aggregate
+    {:ok, transactions} =
+      TransactionCache.resolve(date, fn ->
+        list_transactions_from_aggregate(date)
       end)
 
     new_assign =
@@ -208,7 +223,16 @@ defmodule ArchethicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
-  defp list_transactions_from_summary(date = %DateTime{}) do
+  defp list_transactions_from_summaries(date = %DateTime{}) do
+    %SummaryAggregate{transaction_summaries: tx_summaries} =
+      BeaconChain.fetch_and_aggregate_summaries(date)
+
+    Enum.sort_by(tx_summaries, & &1.timestamp, {:desc, DateTime})
+  end
+
+  defp list_transactions_from_summaries(nil), do: []
+
+  defp list_transactions_from_aggregate(date = %DateTime{}) do
     case BeaconChain.get_summaries_aggregate(date) do
       {:ok, %SummaryAggregate{transaction_summaries: tx_summaries}} ->
         Enum.sort_by(tx_summaries, & &1.timestamp, {:desc, DateTime})
@@ -218,7 +242,7 @@ defmodule ArchethicWeb.BeaconChainLive do
     end
   end
 
-  defp list_transactions_from_summary(nil), do: []
+  defp list_transactions_from_aggregate(nil), do: []
 
   # Slots which are already has been added
   # Real time transaction can be get from pubsub
