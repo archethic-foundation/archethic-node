@@ -124,12 +124,11 @@ defmodule Archethic.SelfRepair.Sync do
       |> Task.async_stream(&BeaconChain.fetch_summaries_aggregate/1)
       |> Stream.filter(&match?({:ok, {:ok, %SummaryAggregate{}}}, &1))
       |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
-      |> Enum.to_list()
 
     last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time)
 
-    [last_aggregate | summaries_aggregates]
-    |> Enum.reverse()
+    summaries_aggregates
+    |> Stream.concat([last_aggregate])
     |> tap(&ensure_summaries_download/1)
     |> Enum.each(&process_summary_aggregate(&1, patch))
 
@@ -156,11 +155,8 @@ defmodule Archethic.SelfRepair.Sync do
           |> Enum.reject(&(&1.first_public_key == node_public_key))
           |> Enum.count()
 
-        if remaining_nodes > 0 and aggregates == [] do
-          Logger.error("Cannot make the self-repair - Not reachable nodes")
-          {:error, :unreachable_nodes}
-        else
-          :ok
+        if remaining_nodes > 0 and Enum.count(aggregates) do
+          raise "Cannot make the self-repair - Not reachable nodes"
         end
     end
   end
