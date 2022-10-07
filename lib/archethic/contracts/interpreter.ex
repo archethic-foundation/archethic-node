@@ -1157,12 +1157,18 @@ defmodule Archethic.Contracts.Interpreter do
       ...>              {:scope, [line: 3], nil},
       ...>              ["next_transaction"],
       ...>              {:&, [line: 3], [
-      ...>                {{:., [line: 3], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]},
-      ...>                [line: 3], [{:&, [line: 3], [1]},
-      ...>                [{"to", {{:., [line: 3], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]}, :hash]}, [line: 3], ["@Alice2"]}}, {"amount", 10.04}]]}
-      ...>              ]}
+      ...>                {
+      ...>                  {:., [line: 3], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]},
+      ...>                  [line: 3], [
+      ...>                    {:&, [line: 3], [1]},
+      ...>                    [
+      ...>                      {"to", "005220865F2237E3B62FFAA2AB72260A9FA711FBADF7F1DA391AB02B93D9E0D4A3"}, 
+      ...>                      {"amount", 10.04}
+      ...>                    ]
+      ...>                  ]
+      ...>               }
       ...>            ]}
-      ...>          ]
+      ...>          ]}]
       ...>        }
       ...>      ]},
       ...>  }]}, :transaction)
@@ -1173,8 +1179,7 @@ defmodule Archethic.Contracts.Interpreter do
             uco: %UCOLedger{
               transfers: [
                 %UCOTransfer{
-                  to: <<0, 252, 103, 8, 52, 151, 127, 195, 65, 104, 171, 247, 238, 227, 111, 140, 89,
-                    49, 204, 58, 141, 215, 66, 253, 40, 183, 165, 117, 120, 80, 100, 232, 95>>,
+                  to: <<0, 82, 32, 134, 95, 34, 55, 227, 182, 47, 250, 162, 171, 114, 38, 10, 159, 167, 17, 251, 173, 247, 241, 218, 57, 26, 176, 43, 147, 217, 224, 212, 163>>,
                   amount: 10.04
                 }
               ]
@@ -1225,7 +1230,7 @@ defmodule Archethic.Contracts.Interpreter do
         ...>    :hash
         ...>  ]}, [line: 2],
         ...> [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["content"]]}]}, %{ "content" => "abc" })
-        <<0, 186, 120, 22, 191, 143, 1, 207, 234, 65, 65, 64, 222, 93, 174, 34, 35, 176, 3, 97, 163, 150, 23, 122, 156, 180, 16, 255, 97, 242, 0, 21, 173>>
+        <<186, 120, 22, 191, 143, 1, 207, 234, 65, 65, 64, 222, 93, 174, 34, 35, 176, 3, 97, 163, 150, 23, 122, 156, 180, 16, 255, 97, 242, 0, 21, 173>>
   """
   def execute(quoted_code, constants = %{}) do
     {res, _} = Code.eval_quoted(quoted_code, scope: constants)
