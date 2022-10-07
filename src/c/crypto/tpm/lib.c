@@ -15,7 +15,7 @@
 #define PRIME_LEN 32
 #define ANS1_MAX_KEY_SIZE 4 + 9 + 10 + 4 + PRIME_LEN + PRIME_LEN
 
-#define NV_INDEX 0x1880001
+#define NV_INDEX 0x1880650
 
 static ESYS_CONTEXT *esysContext;
 int rc;
