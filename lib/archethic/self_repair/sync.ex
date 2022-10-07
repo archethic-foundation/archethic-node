@@ -132,9 +132,6 @@ defmodule Archethic.SelfRepair.Sync do
     |> tap(&ensure_summaries_download/1)
     |> Enum.each(&process_summary_aggregate(&1, patch))
 
-    # Remove the beacon summaries after the aggregates have been stored
-    DB.clear_beacon_summaries()
-
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
   end

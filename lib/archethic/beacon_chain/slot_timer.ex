@@ -5,20 +5,22 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
   use GenServer
 
-  alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
-
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain.SummaryTimer
 
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
+  alias Archethic.DB
 
   alias Archethic.Crypto
 
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
   alias Archethic.PubSub
 
   alias Archethic.Utils
+
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
 
   require Logger
 
@@ -135,6 +137,12 @@ defmodule Archethic.BeaconChain.SlotTimer do
     slot_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     PubSub.notify_current_epoch_of_slot_timer(slot_time)
+
+    if SummaryTimer.match_interval?(slot_time) do
+      # We clean the previously stored summaries - The retention time is for a self repair cycle
+      # as the aggregates will be handle for long term storage.
+      DB.clear_beacon_summaries()
+    end
 
     case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
       %Node{authorized?: true, available?: true} ->
