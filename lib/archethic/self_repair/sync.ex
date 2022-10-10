@@ -152,7 +152,7 @@ defmodule Archethic.SelfRepair.Sync do
           |> Enum.reject(&(&1.first_public_key == node_public_key))
           |> Enum.count()
 
-        if remaining_nodes > 0 and Enum.count(aggregates) do
+        if remaining_nodes > 0 and Enum.empty?(aggregates) do
           raise "Cannot make the self-repair - Not reachable nodes"
         end
     end
