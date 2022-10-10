@@ -177,7 +177,7 @@ defmodule Archethic.Contracts do
   end
 
   defp validate_triggers(triggers, next_tx, date) do
-    if Enum.all?(triggers, &valid_from_trigger?(&1, next_tx, date)) do
+    if Enum.any?(triggers, &valid_from_trigger?(&1, next_tx, date)) do
       :ok
     else
       Logger.error("Transaction not processed by a valid smart contract trigger")
