@@ -32,7 +32,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   @doc """
   Aggregate a new BeaconChain's summary
   """
-  @spec add_summary(t(), BeaconSummary.t()) :: t()
+  @spec add_summary(t(), BeaconSummary.t(), check_attestation :: boolean()) :: t()
   def add_summary(
         agg = %__MODULE__{},
         %BeaconSummary{
@@ -41,12 +41,17 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           node_availabilities: node_availabilities,
           node_average_availabilities: node_average_availabilities,
           end_of_node_synchronizations: end_of_node_synchronizations
-        }
+        },
+        check_attestation? \\ true
       ) do
     valid_attestations? =
-      Enum.all?(transaction_attestations, fn attestation ->
-        ReplicationAttestation.validate(attestation) == :ok
-      end)
+      if check_attestation? do
+        Enum.all?(transaction_attestations, fn attestation ->
+          ReplicationAttestation.validate(attestation) == :ok
+        end)
+      else
+        true
+      end
 
     if valid_attestations? do
       agg =

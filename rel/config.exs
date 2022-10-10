@@ -26,6 +26,7 @@ environment Mix.env() do
   set include_src: false
   set vm_args: "rel/vm.args"
   set pre_configure_hooks: "rel/pre_configure"
+  set post_start_hooks: "rel/post_start"
 
   set config_providers: [
     {Distillery.Releases.Config.Providers.Elixir, ["${REL_DIR}/runtime_config.exs"]}
