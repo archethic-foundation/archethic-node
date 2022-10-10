@@ -57,6 +57,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
             transaction_attestations
             |> Enum.map(& &1.transaction_summary)
             |> Enum.concat(prev)
+            |> Enum.uniq_by(& &1.address)
           end
         )
 

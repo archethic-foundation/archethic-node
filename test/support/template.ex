@@ -72,6 +72,7 @@ defmodule ArchethicCase do
     |> stub(:write_beacon_summaries_aggregate, fn _ -> :ok end)
     |> stub(:get_beacon_summaries_aggregate, fn _ -> {:error, :not_exists} end)
     |> stub(:clear_beacon_summaries, fn -> :ok end)
+    |> stub(:get_beacon_summary, fn _ -> {:error, :not_exists} end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)

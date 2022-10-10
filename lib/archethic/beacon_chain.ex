@@ -287,7 +287,9 @@ defmodule Archethic.BeaconChain do
   """
   @spec fetch_and_aggregate_summaries(DateTime.t()) :: SummaryAggregate.t()
   def fetch_and_aggregate_summaries(date = %DateTime{}) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
+    authorized_nodes =
+      P2P.authorized_and_available_nodes()
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     list_subsets()
     |> Flow.from_enumerable(stages: 256)
@@ -311,7 +313,7 @@ defmodule Archethic.BeaconChain do
       fn summaries, acc ->
         Enum.reduce(summaries, acc, &SummaryAggregate.add_summary(&2, &1))
       end,
-      fn aggregate -> SummaryAggregate.aggregate(aggregate) end
+      & &1
     )
     |> Enum.to_list()
     |> Enum.at(0)
@@ -403,7 +405,7 @@ defmodule Archethic.BeaconChain do
            conflict_resolver
          ) do
       {:ok, aggregate = %SummaryAggregate{}} ->
-        aggregate
+        {:ok, aggregate}
 
       {:ok, %NotFound{}} ->
         {:error, :not_exists}

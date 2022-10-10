@@ -3,6 +3,7 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Subset.P2PSampling
+  alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryAggregate
 
   alias Archethic.Crypto
@@ -105,39 +106,63 @@ defmodule Archethic.SelfRepair.Sync do
           patch :: binary()
         ) :: :ok | {:error, :unreachable_nodes}
   def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
-    Logger.info(
-      "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
-    )
-
-    start = System.monotonic_time()
-
     last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
-    summaries_aggregates =
-      last_sync_date
-      |> BeaconChain.next_summary_dates()
-      # Take only the previous summaries before the last one
-      |> Stream.take_while(fn date ->
-        DateTime.compare(date, last_summary_time) == :lt
-      end)
-      # Fetch the beacon summaries aggregate
-      |> Task.async_stream(&BeaconChain.fetch_summaries_aggregate/1)
-      |> Stream.filter(&match?({:ok, {:ok, %SummaryAggregate{}}}, &1))
-      |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
+    if last_summary_time > last_sync_date do
+      Logger.info(
+        "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
+      )
 
+      do_load_missed_transactions(last_sync_date, last_summary_time, patch)
+    else
+      Logger.info("Already synchronized for #{DateTime.to_string(last_sync_date)}")
+
+      # We skip the self-repair because the last synchronization time have been already synchronized
+      :ok
+    end
+  end
+
+  defp do_load_missed_transactions(last_sync_date, last_summary_time, patch) do
+    start = System.monotonic_time()
+
+    summaries_aggregates = fetch_summaries_aggregates(last_sync_date, last_summary_time)
     last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time)
+    ensure_download_last_aggregate(last_aggregate)
+
+    last_aggregate = aggregate_with_local_summaries(last_aggregate, last_summary_time)
 
     summaries_aggregates
     |> Stream.concat([last_aggregate])
-    |> tap(&ensure_summaries_download/1)
     |> Enum.each(&process_summary_aggregate(&1, patch))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
   end
 
-  defp ensure_summaries_download(aggregates) do
-    # Make sure the beacon summaries have been synchronized
+  defp fetch_summaries_aggregates(last_sync_date, last_summary_time) do
+    last_sync_date
+    |> BeaconChain.next_summary_dates()
+    # Take only the previous summaries before the last one
+    |> Stream.take_while(fn date ->
+      DateTime.compare(date, last_summary_time) == :lt
+    end)
+    # Fetch the beacon summaries aggregate
+    |> Task.async_stream(fn date ->
+      Logger.debug("Fetch summary aggregate for #{date}")
+      BeaconChain.fetch_summaries_aggregate(date)
+    end)
+    |> Stream.filter(fn
+      {:ok, {:ok, %SummaryAggregate{}}} ->
+        true
+
+      _ ->
+        raise "Cannot make the self-repair - Previous summary aggregate not fetched"
+    end)
+    |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
+  end
+
+  defp ensure_download_last_aggregate(last_aggregate = %SummaryAggregate{}) do
+    # Make sure the last beacon aggregate have been synchronized
     # from remote nodes to avoid self-repair to be acknowledged if those
     # cannot be reached
     node_public_key = Crypto.first_node_public_key()
@@ -152,10 +177,26 @@ defmodule Archethic.SelfRepair.Sync do
           |> Enum.reject(&(&1.first_public_key == node_public_key))
           |> Enum.count()
 
-        if remaining_nodes > 0 and Enum.empty?(aggregates) do
-          raise "Cannot make the self-repair - Not reachable nodes"
+        if remaining_nodes > 0 and SummaryAggregate.empty?(last_aggregate) do
+          raise "Cannot make the self repair - Last aggregate not fetched"
         end
     end
+  end
+
+  defp aggregate_with_local_summaries(summary_aggregate, last_summary_time) do
+    BeaconChain.list_subsets()
+    |> Task.async_stream(fn subset ->
+      summary_address = Crypto.derive_beacon_chain_address(subset, last_summary_time, true)
+      BeaconChain.get_summary(summary_address)
+    end)
+    |> Enum.reduce(summary_aggregate, fn
+      {:ok, {:ok, summary = %Summary{}}}, acc ->
+        SummaryAggregate.add_summary(acc, summary)
+
+      _, acc ->
+        acc
+    end)
+    |> SummaryAggregate.aggregate()
   end
 
   @doc """

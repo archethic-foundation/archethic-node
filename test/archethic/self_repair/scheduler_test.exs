@@ -45,7 +45,7 @@ defmodule Archethic.SelfRepair.SchedulerTest do
 
     :erlang.trace(pid, true, [:receive])
 
-    assert_receive {:trace, ^pid, :receive, :sync}, 3_000
+    assert_receive {:trace, ^pid, :receive, :sync}, 4_000
     Process.cancel_timer(timer)
   end
 

@@ -317,7 +317,7 @@ defmodule Archethic.BeaconChainTest do
       assert Enum.all?(transaction_addresses, &(&1 in [addr1, addr2]))
     end
 
-    test "should find other beacon summaries and aggregate node P2P views", %{
+    test "should find other beacon summaries and accumulate node P2P views", %{
       summary_time: summary_time,
       nodes: [node1, node2, node3, node4]
     } do
@@ -349,27 +349,68 @@ defmodule Archethic.BeaconChainTest do
         end_of_node_synchronizations: []
       }
 
+      subset_address = Crypto.derive_beacon_chain_address("A", summary_time, true)
+
       MockClient
       |> stub(:send_message, fn
-        ^node1, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v1]}}
+        ^node1, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v1]
+            else
+              []
+            end
 
-        ^node2, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+          {:ok, %BeaconSummaryList{summaries: summaries}}
 
-        ^node3, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v3]}}
+        ^node2, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v2]
+            else
+              []
+            end
 
-        ^node4, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v4]}}
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node3, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v3]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node4, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v4]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
       end)
 
       assert %SummaryAggregate{
-               p2p_availabilities: %{"A" => %{node_availabilities: <<1::1, 1::1, 1::1>>}}
+               p2p_availabilities: %{"A" => %{node_availabilities: node_availabilities}}
              } = BeaconChain.fetch_and_aggregate_summaries(summary_time)
+
+      expected_availabilities =
+        [summary_v1, summary_v2, summary_v3, summary_v4]
+        |> Enum.map(& &1.node_availabilities)
+        |> Enum.flat_map(&Utils.bitstring_to_integer_list/1)
+        |> Enum.sort()
+
+      assert node_availabilities
+             |> Enum.flat_map(& &1)
+             |> Enum.sort() ==
+               expected_availabilities
     end
 
-    test "should find other beacon summaries and aggregate node P2P avg availabilities", %{
+    test "should find other beacon summaries and accumulate node P2P avg availabilities", %{
       summary_time: summary_time,
       nodes: [node1, node2, node3, node4]
     } do
@@ -395,29 +436,70 @@ defmodule Archethic.BeaconChainTest do
         subset: "A",
         summary_time: summary_time,
         node_availabilities: <<1::1, 1::1, 0::1>>,
-        node_average_availabilities: [1, 0.5, 1, 0.4]
+        node_average_availabilities: [1.0, 0.5, 1.0, 0.4]
       }
+
+      subset_address = Crypto.derive_beacon_chain_address("A", summary_time, true)
 
       MockClient
       |> stub(:send_message, fn
-        ^node1, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v1]}}
+        ^node1, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v1]
+            else
+              []
+            end
 
-        ^node2, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+          {:ok, %BeaconSummaryList{summaries: summaries}}
 
-        ^node3, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v3]}}
+        ^node2, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v2]
+            else
+              []
+            end
 
-        ^node4, %GetBeaconSummaries{}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary_v4]}}
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node3, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v3]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node4, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v4]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
       end)
 
       assert %SummaryAggregate{
                p2p_availabilities: %{
-                 "A" => %{node_average_availabilities: [0.925, 0.8, 0.925, 0.85]}
+                 "A" => %{node_average_availabilities: node_average_availabilities}
                }
              } = BeaconChain.fetch_and_aggregate_summaries(summary_time)
+
+      expected_average_availabilities =
+        [summary_v1, summary_v2, summary_v3, summary_v4]
+        |> Enum.map(& &1.node_average_availabilities)
+        |> Enum.flat_map(& &1)
+        |> Enum.sort()
+
+      assert node_average_availabilities
+             |> Enum.flat_map(& &1)
+             |> Enum.sort() ==
+               expected_average_availabilities
     end
   end
 end
