@@ -99,7 +99,10 @@ defmodule Archethic.Bootstrap.TransactionHandler do
         condition inherit: [
           # We need to ensure the type stays consistent
           type: node,
-          content: true
+        
+          # Content and token transfers will be validated during tx's validation
+          content: true,
+          token_transfers: true
         ]
       """,
       content:
