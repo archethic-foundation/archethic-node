@@ -97,10 +97,10 @@ defmodule ArchethicWeb.Router do
     )
   end
 
-  scope "/conf" do
+  scope "/settings" do
     pipe_through(:browser)
-    get("/", ArchethicWeb.ConfController, :index)
-    post("/", ArchethicWeb.ConfController, :save)
+    get("/", ArchethicWeb.SettingsController, :index)
+    post("/", ArchethicWeb.SettingsController, :save)
   end
 
   scope "/", ArchethicWeb do

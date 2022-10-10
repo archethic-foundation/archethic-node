@@ -5,7 +5,7 @@
     </div>
   </div>
 
-  <form class="columns" action="<%= Routes.conf_path(@conn, :save) %>" method="post">
+  <form class="columns" action="<%= Routes.settings_path(@conn, :save) %>" method="post">
     <input type="hidden" name="_csrf_token" value="<%= Plug.CSRFProtection.get_csrf_token() %>">
     <div class="column is-5-desktop">
       <div class="field">
