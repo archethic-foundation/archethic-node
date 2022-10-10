@@ -97,6 +97,12 @@ defmodule ArchethicWeb.Router do
     )
   end
 
+  scope "/conf" do
+    pipe_through(:browser)
+    get("/", ArchethicWeb.ConfController, :index)
+    post("/", ArchethicWeb.ConfController, :save)
+  end
+
   scope "/", ArchethicWeb do
     get("/*path", RootController, :index)
   end
