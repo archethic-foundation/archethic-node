@@ -27,6 +27,7 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.PubSub
@@ -80,7 +81,8 @@ defmodule Archethic.Contracts.WorkerTest do
         previous_public_key:
           transaction_seed
           |> Crypto.derive_keypair(0)
-          |> elem(0)
+          |> elem(0),
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
       |> Constants.from_transaction()
 
@@ -255,7 +257,8 @@ defmodule Archethic.Contracts.WorkerTest do
       assert :ok =
                Worker.execute(contract_address, %Transaction{
                  address: "@Bob3",
-                 data: %TransactionData{}
+                 data: %TransactionData{},
+                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
                })
 
       receive do
@@ -301,7 +304,8 @@ defmodule Archethic.Contracts.WorkerTest do
       assert :ok =
                Worker.execute(contract_address, %Transaction{
                  address: "@Bob3",
-                 data: %TransactionData{content: "Mr.X"}
+                 data: %TransactionData{content: "Mr.X"},
+                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
                })
 
       receive do
@@ -317,7 +321,8 @@ defmodule Archethic.Contracts.WorkerTest do
       assert {:error, :invalid_condition} =
                Worker.execute(contract_address, %Transaction{
                  address: "@Bob3",
-                 data: %TransactionData{content: "Mr.Z"}
+                 data: %TransactionData{content: "Mr.Z"},
+                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
                })
 
       refute_receive {:transaction_sent, _}
@@ -367,7 +372,8 @@ defmodule Archethic.Contracts.WorkerTest do
       assert :ok =
                Worker.execute(contract_address, %Transaction{
                  address: "@Bob3",
-                 data: %TransactionData{content: "Mr.X"}
+                 data: %TransactionData{content: "Mr.X"},
+                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
                })
 
       receive do
@@ -428,7 +434,8 @@ defmodule Archethic.Contracts.WorkerTest do
         type: :oracle,
         data: %TransactionData{
           content: Jason.encode!(%{"uco" => %{"eur" => 0.21}})
-        }
+        },
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
 
       PubSub.notify_new_transaction("@Oracle1", :oracle, DateTime.utc_now())
@@ -500,7 +507,8 @@ defmodule Archethic.Contracts.WorkerTest do
                      }
                    },
                    recipients: [contract_address]
-                 }
+                 },
+                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
                })
 
       receive do
