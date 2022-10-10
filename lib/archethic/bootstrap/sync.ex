@@ -117,6 +117,7 @@ defmodule Archethic.Bootstrap.Sync do
       |> NetworkInit.self_replication()
 
     P2P.set_node_globally_available(Crypto.first_node_public_key())
+    P2P.set_node_globally_synced(Crypto.first_node_public_key())
     P2P.authorize_node(Crypto.last_node_public_key(), DateTime.utc_now())
 
     NetworkInit.init_software_origin_chain()
