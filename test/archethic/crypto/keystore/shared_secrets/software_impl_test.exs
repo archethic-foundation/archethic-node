@@ -55,8 +55,8 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
       assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
       assert [{_, 2}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
 
-      assert [{^unix_timestamp, ^daily_nonce_keypair}] =
-               :ets.tab2list(:archethic_shared_secrets_daily_keys)
+      assert [{^unix_timestamp, sign_fun}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
+      assert sign_fun.("hello") == Crypto.sign("hello", elem(daily_nonce_keypair, 1))
     end
   end
 
@@ -70,16 +70,20 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
 
     unix_timestamp = DateTime.to_unix(timestamp)
 
-    assert [{_, ^transaction_seed}] =
-             :ets.lookup(:archethic_shared_secrets_keystore, :transaction_seed)
+    assert [{^unix_timestamp, sign_fun}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
+    [{_, tx_sign_fun}] = :ets.lookup(:archethic_shared_secrets_keystore, :transaction_sign_fun)
 
-    assert [{_, ^network_pool_seed}] =
-             :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_seed)
+    [{_, network_pool_sign_fun}] =
+      :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_sign_fun)
 
-    assert [{^unix_timestamp, {pub, _}}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
+    {_, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
+    assert sign_fun.("hello") == Crypto.sign("hello", pv)
 
-    {expected_pub, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
-    assert pub == expected_pub
+    {_, pv} = Crypto.derive_keypair(transaction_seed, 0)
+    assert tx_sign_fun.("hello", 0) == Crypto.sign("hello", pv)
+
+    {_, pv} = Crypto.derive_keypair(network_pool_seed, 0)
+    assert network_pool_sign_fun.("hello", 0) == Crypto.sign("hello", pv)
   end
 
   test "sign_with_node_shared_secrets_key/1 should sign the data with the latest node shared secrets private key" do
