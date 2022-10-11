@@ -26,4 +26,8 @@ defmodule ArchethicWeb.WebUtils do
   def total_pages(tx_count), do: count_pages(tx_count) + 1
 
   def count_pages(tx_count), do: div(tx_count, @display_limit)
+
+  def keep_remote_ip(conn) do
+    %{"remote_ip" => conn.remote_ip}
+  end
 end

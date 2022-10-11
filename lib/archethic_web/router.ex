@@ -99,8 +99,7 @@ defmodule ArchethicWeb.Router do
 
   scope "/settings" do
     pipe_through(:browser)
-    get("/", ArchethicWeb.SettingsController, :index)
-    post("/", ArchethicWeb.SettingsController, :save)
+    live("/", ArchethicWeb.SettingsLive, session: {ArchethicWeb.WebUtils, :keep_remote_ip, []})
   end
 
   scope "/", ArchethicWeb do
