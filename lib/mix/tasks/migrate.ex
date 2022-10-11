@@ -17,7 +17,10 @@ defmodule Mix.Tasks.Archethic.Migrate do
   end
 
   def migrate("0.25.0") do
-    ChainWriter.base_beacon_path(EmbeddedImpl.db_path())
+    db_path = EmbeddedImpl.db_path()
+    File.mkdir_p!(ChainWriter.base_beacon_aggregate_path(db_path))
+
+    ChainWriter.base_beacon_path(db_path)
     |> Path.join("*")
     |> Path.wildcard()
     |> Enum.map(fn file ->
