@@ -24,25 +24,32 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @impl NodeKeystore
   @spec first_public_key() :: Crypto.key()
   def first_public_key do
-    get_public_key(:first_keypair)
+    public_key_fun = get_public_key_fun()
+    public_key_fun.(0)
   end
 
   @impl NodeKeystore
   @spec last_public_key() :: Crypto.key()
   def last_public_key do
-    get_public_key(:last_keypair)
+    index = get_last_key_index()
+    public_key_fun = get_public_key_fun()
+    public_key_fun.(index)
   end
 
   @impl NodeKeystore
   @spec next_public_key() :: Crypto.key()
   def next_public_key do
-    get_public_key(:next_keypair)
+    index = get_next_key_index()
+    public_key_fun = get_public_key_fun()
+    public_key_fun.(index)
   end
 
   @impl NodeKeystore
   @spec previous_public_key() :: Crypto.key()
   def previous_public_key do
-    get_public_key(:previous_keypair)
+    index = get_previous_key_index()
+    public_key_fun = get_public_key_fun()
+    public_key_fun.(index)
   end
 
   @impl NodeKeystore
@@ -54,33 +61,69 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @impl NodeKeystore
   @spec sign_with_first_key(iodata()) :: binary()
   def sign_with_first_key(data) do
-    Crypto.sign(data, get_private_key(:first_keypair))
+    sign_fun = get_sign_fun()
+    sign_fun.(data, 0)
   end
 
   @impl NodeKeystore
   @spec sign_with_last_key(iodata()) :: binary()
   def sign_with_last_key(data) do
-    Crypto.sign(data, get_private_key(:last_keypair))
+    index = get_last_key_index()
+    sign_fun = get_sign_fun()
+    sign_fun.(data, index)
   end
 
   @impl NodeKeystore
   @spec sign_with_previous_key(iodata()) :: binary()
   def sign_with_previous_key(data) do
-    Crypto.sign(data, get_private_key(:previous_keypair))
+    index = get_previous_key_index()
+    sign_fun = get_sign_fun()
+    sign_fun.(data, index)
   end
 
   @impl NodeKeystore
   @spec diffie_hellman_with_first_key(Crypto.key()) :: binary()
   def diffie_hellman_with_first_key(public_key) do
-    [{_, {_, pv}}] = :ets.lookup(@keystore_table, :first_keypair)
-    do_diffie_helmann(pv, public_key)
+    dh_fun = get_diffie_helmann_fun()
+    dh_fun.(public_key, 0)
   end
 
   @impl NodeKeystore
   @spec diffie_hellman_with_last_key(Crypto.key()) :: binary()
   def diffie_hellman_with_last_key(public_key) do
-    [{_, {_, pv}}] = :ets.lookup(@keystore_table, :last_keypair)
-    do_diffie_helmann(pv, public_key)
+    index = get_last_key_index()
+    dh_fun = get_diffie_helmann_fun()
+    dh_fun.(public_key, index)
+  end
+
+  defp get_last_key_index do
+    [{_, index}] = :ets.lookup(@keystore_table, :last_index)
+    index
+  end
+
+  defp get_previous_key_index do
+    [{_, index}] = :ets.lookup(@keystore_table, :previous_index)
+    index
+  end
+
+  defp get_next_key_index do
+    [{_, index}] = :ets.lookup(@keystore_table, :next_index)
+    index
+  end
+
+  defp get_sign_fun do
+    [{_, fun}] = :ets.lookup(@keystore_table, :sign_fun)
+    fun
+  end
+
+  defp get_public_key_fun do
+    [{_, fun}] = :ets.lookup(@keystore_table, :public_key_fun)
+    fun
+  end
+
+  defp get_diffie_helmann_fun do
+    [{_, fun}] = :ets.lookup(@keystore_table, :dh_fun)
+    fun
   end
 
   defp do_diffie_helmann(<<curve_id::8, _origin_id::8, raw_pv::binary>>, public_key) do
@@ -96,27 +139,39 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
 
   @impl GenServer
   def init(_arg \\ []) do
+    :ets.new(@keystore_table, [:set, :named_table, :protected, read_concurrency: true])
+    node_seed = Origin.retrieve_node_seed()
+
+    # Use anynomous functions to hide the node seed from the processes or tables
+    sign_fun = fn data, index ->
+      {_, pv} = Crypto.derive_keypair(node_seed, index)
+      Crypto.sign(data, pv)
+    end
+
+    public_key_fun = fn index ->
+      {pub, _} = Crypto.derive_keypair(node_seed, index)
+      pub
+    end
+
+    dh_fun = fn public_key, index ->
+      {_, pv} = Crypto.derive_keypair(node_seed, index)
+      do_diffie_helmann(pv, public_key)
+    end
+
+    :ets.insert(@keystore_table, {:sign_fun, sign_fun})
+    :ets.insert(@keystore_table, {:public_key_fun, public_key_fun})
+    :ets.insert(@keystore_table, {:dh_fun, dh_fun})
+
     unless File.exists?(Utils.mut_dir("crypto")) do
       File.mkdir_p!(Utils.mut_dir("crypto"))
     end
 
-    node_seed = Origin.retrieve_node_seed()
-
     nb_keys = read_index()
 
+    # Store the indexes in the ETS for fast access
+    store_node_key_indexes(nb_keys)
+
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
-
-    # Store the keypair in the ETS for fast access
-    :ets.new(@keystore_table, [:set, :named_table, :protected, read_concurrency: true])
-
-    :ets.insert(@keystore_table, {:seed, node_seed})
-
-    # Derive keypairs from the node seed and from the index retrieved
-    first_keypair = Crypto.derive_keypair(node_seed, 0)
-
-    set_keypair(:first_keypair, first_keypair)
-
-    do_set_node_key_index(node_seed, nb_keys)
 
     {:ok, %{}}
   end
@@ -124,25 +179,20 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @impl NodeKeystore
   @spec set_node_key_index(index :: non_neg_integer()) :: :ok
   def set_node_key_index(index) do
-    GenServer.call(__MODULE__, {:update, index})
+    GenServer.call(__MODULE__, {:set_index, index})
   end
 
-  defp do_set_node_key_index(node_seed, index) do
-    last_keypair =
+  defp store_node_key_indexes(index) do
+    last_index =
       if index == 0 do
-        Crypto.derive_keypair(node_seed, 0)
+        0
       else
-        Crypto.derive_keypair(node_seed, index - 1)
+        index - 1
       end
 
-    previous_keypair = Crypto.derive_keypair(node_seed, index)
-    next_keypair = Crypto.derive_keypair(node_seed, index + 1)
-
-    set_keypair(:last_keypair, last_keypair)
-    set_keypair(:previous_keypair, previous_keypair)
-    set_keypair(:next_keypair, next_keypair)
-
-    :ets.insert(@keystore_table, {:index, index})
+    :ets.insert(@keystore_table, {:last_index, last_index})
+    :ets.insert(@keystore_table, {:previous_index, index})
+    :ets.insert(@keystore_table, {:next_index, index + 1})
   end
 
   defp read_index do
@@ -165,52 +215,29 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
 
   defp index_filepath, do: Utils.mut_dir("crypto/index")
 
-  defp set_keypair(keypair_name, keypair) when is_tuple(keypair) do
-    true = :ets.insert(@keystore_table, {keypair_name, keypair})
-    :ok
-  end
-
-  defp get_public_key(keypair_name) do
-    [{_, {pub, _}}] = :ets.lookup(@keystore_table, keypair_name)
-    pub
-  end
-
-  defp get_private_key(keypair_name) do
-    [{_, {_, pv}}] = :ets.lookup(@keystore_table, keypair_name)
-    pv
-  end
-
   @impl GenServer
   def handle_call(:persist_keypair, _from, state) do
-    # Retreive the seed and index
-    [{_, index}] = :ets.lookup(@keystore_table, :index)
-    [{_, node_seed}] = :ets.lookup(@keystore_table, :seed)
+    # Retreive the chain index
+    index = get_previous_key_index()
 
-    # Derive the new keypairs
-    next_keypair = Crypto.derive_keypair(node_seed, index + 2)
-    previous_keypair = Crypto.derive_keypair(node_seed, index + 1)
-    last_keypair = Crypto.derive_keypair(node_seed, index)
+    # Update the new indexes as the chain advances
+    :ets.insert(@keystore_table, {:last_index, index})
+    :ets.insert(@keystore_table, {:previous_index, index + 1})
+    :ets.insert(@keystore_table, {:next_index, index + 2})
 
-    # Update the new keypair as the chain advances
-    set_keypair(:next_keypair, next_keypair)
-    set_keypair(:previous_keypair, previous_keypair)
-    set_keypair(:last_keypair, last_keypair)
+    public_key_fun = get_public_key_fun()
 
-    :ets.insert(@keystore_table, {:index, index + 1})
-
-    Logger.info("Next public key will be #{Base.encode16(elem(next_keypair, 0))}")
-    Logger.info("Previous public key will be #{Base.encode16(elem(previous_keypair, 0))}")
-    Logger.info("Publication/Last public key will be #{Base.encode16(elem(last_keypair, 0))}")
+    Logger.info("Next public key will be #{Base.encode16(public_key_fun.(index + 2))}")
+    Logger.info("Previous public key will be #{Base.encode16(public_key_fun.(index + 1))}")
+    Logger.info("Publication/Last public key will be #{Base.encode16(public_key_fun.(index))}")
 
     write_index(index + 1)
     {:reply, :ok, state}
   end
 
   @impl GenServer
-  def handle_call({:update, index}, _from, state) do
-    [{_, node_seed}] = :ets.lookup(@keystore_table, :seed)
-    do_set_node_key_index(node_seed, index)
-
+  def handle_call({:set_index, index}, _from, state) do
+    store_node_key_indexes(index)
     {:reply, :ok, state}
   end
 end
