@@ -70,20 +70,24 @@ defmodule Archethic.RewardTest do
 
     reward_amount2 = reward_amount - 10
 
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
     unspent_outputs1 = %UnspentOutput{
       from: :crypto.strong_rand_bytes(32),
       amount: reward_amount * 2,
-      type: {:token, token_address1, 0}
+      type: {:token, token_address1, 0},
+      timestamp: timestamp
     }
 
     unspent_outputs2 = %UnspentOutput{
       from: :crypto.strong_rand_bytes(32),
       amount: reward_amount2,
-      type: {:token, token_address2, 0}
+      type: {:token, token_address2, 0},
+      timestamp: timestamp
     }
 
-    TokenLedger.add_unspent_output(address, unspent_outputs1, DateTime.utc_now())
-    TokenLedger.add_unspent_output(address, unspent_outputs2, DateTime.utc_now())
+    TokenLedger.add_unspent_output(address, unspent_outputs1)
+    TokenLedger.add_unspent_output(address, unspent_outputs2)
 
     assert [
              %Transfer{
@@ -106,7 +110,6 @@ defmodule Archethic.RewardTest do
 
   describe "Reward Ops:" do
     setup do
-      #  start supervised  ...
       MockDB
       |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
         [
@@ -204,20 +207,28 @@ defmodule Archethic.RewardTest do
                 %UnspentOutput{
                   from: "@Alen2",
                   amount: 200_000_000,
-                  type: :UCO
+                  type: :UCO,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
-                %UnspentOutput{from: "@Dan2", amount: 1_900_000_000, type: :UCO},
+                %UnspentOutput{
+                  from: "@Dan2",
+                  amount: 1_900_000_000,
+                  type: :UCO,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+                },
                 %UnspentOutput{
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
             }
@@ -256,20 +267,28 @@ defmodule Archethic.RewardTest do
                 %UnspentOutput{
                   from: "@Alen2",
                   amount: 200_000_000,
-                  type: :UCO
+                  type: :UCO,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
-                %UnspentOutput{from: "@Bob8", amount: 1_900_000_000, type: :UCO},
+                %UnspentOutput{
+                  from: "@Bob8",
+                  amount: 1_900_000_000,
+                  type: :UCO,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+                },
                 %UnspentOutput{
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
             }
@@ -298,31 +317,36 @@ defmodule Archethic.RewardTest do
                 %UnspentOutput{
                   from: "@Ray1",
                   amount: 200_000_000,
-                  type: :UCO
+                  type: :UCO,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken3",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken3", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken4",
                   amount: 200_000_000,
                   type: {:token, "@RewardToken4", 0},
-                  reward?: true
+                  reward?: true,
+                  timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
             }
@@ -390,13 +414,15 @@ defmodule Archethic.RewardTest do
                 from: "@RewardToken1",
                 amount: 1_000_000_000,
                 type: {:token, "@RewardToken1", 0},
-                reward?: true
+                reward?: true,
+                timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
               },
               %UnspentOutput{
                 from: "@RewardToken2",
                 amount: 2_000_000_000,
                 type: {:token, "@RewardToken2", 0},
-                reward?: true
+                reward?: true,
+                timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
               }
             ]
           }

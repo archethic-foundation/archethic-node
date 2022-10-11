@@ -46,10 +46,13 @@ defmodule Archethic.Account.MemTablesLoader do
     :on_chain_wallet
   ]
 
+  @spec start_link(args :: list()) ::
+          {:ok, pid()} | {:error, reason :: any()} | {:stop, reason :: any()} | :ignore
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
+  @spec init(args :: list()) :: {:ok, []}
   def init(_args) do
     TransactionChain.list_all(@query_fields)
     |> Stream.reject(&(&1.type in @excluded_types))
@@ -100,7 +103,7 @@ defmodule Archethic.Account.MemTablesLoader do
       end
 
     :ok = set_transaction_movements(address, transaction_movements, timestamp, tx_type)
-    :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
+    :ok = set_unspent_outputs(address, unspent_outputs)
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
@@ -108,28 +111,30 @@ defmodule Archethic.Account.MemTablesLoader do
     )
   end
 
-  defp set_unspent_outputs(address, unspent_outputs, timestamp) do
+  defp set_unspent_outputs(address, unspent_outputs) do
     unspent_outputs
     |> Enum.filter(&(&1.amount > 0))
     |> Enum.each(fn
       unspent_output = %UnspentOutput{type: :UCO} ->
-        UCOLedger.add_unspent_output(address, unspent_output, timestamp)
+        UCOLedger.add_unspent_output(address, unspent_output)
 
-      unspent_output = %UnspentOutput{type: {:token, _token_address, _token_id}} ->
-        TokenLedger.add_unspent_output(address, unspent_output, timestamp)
+      unspent_output = %UnspentOutput{
+        type: {:token, _token_address, _token_id}
+      } ->
+        TokenLedger.add_unspent_output(address, unspent_output)
     end)
   end
 
   defp set_transaction_movements(address, transaction_movements, timestamp, tx_type) do
     transaction_movements
     |> Enum.filter(&(&1.amount > 0))
-    |> Enum.reduce(%{}, &aggregate_movements(&1, &2, address, tx_type))
+    |> Enum.reduce(%{}, &aggregate_movements(&1, &2, address, tx_type, timestamp))
     |> Enum.each(fn
       {{to, :uco}, utxo} ->
-        UCOLedger.add_unspent_output(to, utxo, timestamp)
+        UCOLedger.add_unspent_output(to, utxo)
 
       {{to, _token_address, _token_id}, utxo} ->
-        TokenLedger.add_unspent_output(to, utxo, timestamp)
+        TokenLedger.add_unspent_output(to, utxo)
     end)
   end
 
@@ -159,20 +164,20 @@ defmodule Archethic.Account.MemTablesLoader do
     ...>   %TransactionMovement{to: "@Tom5", amount: 100_000_000, type: {:token, "@ColorNFT", 4}},
     ...>   %TransactionMovement{to: "@Alice7", amount: 100_000_000, type: {:token, "@ColorNFT", 5}},
     ...>   %TransactionMovement{to: "@Alice7", amount: 100_000_000, type: {:token, "@ColorNFT", 6}}
-    ...>  ] |> Enum.reduce(%{}, fn mov,acc -> MemTablesLoader.aggregate_movements(mov, acc, "@Bob1","") end)
+    ...>  ] |> Enum.reduce(%{}, fn mov,acc -> MemTablesLoader.aggregate_movements(mov, acc, "@Bob1","",~U[2022-10-11 09:24:01.879Z]) end)
     %{
-      {"@Hugo1", :uco} =>      %UnspentOutput{from: "@Bob1", amount: 900_000_000, type: :UCO},
-      {"@Tom1", :uco} =>       %UnspentOutput{from: "@Bob1", amount: 1_500_000_000, type: :UCO},
-      {"@Alice1", :uco} =>     %UnspentOutput{from: "@Bob1", amount: 500_000_000, type: :UCO},
-      {"@Hugo1", "@AEUSD", 0} =>  %UnspentOutput{from: "@Bob1", amount: 600_000_000,  type: {:token, "@AEUSD", 0}},
-      {"@Tom1", "@AEUSD", 0} =>   %UnspentOutput{from: "@Bob1", amount: 400_000_000,  type: {:token, "@AEUSD", 0}},
-      {"@Alice3", "@AEUSD", 0} => %UnspentOutput{from: "@Bob1", amount: 200_000_000,  type: {:token, "@AEUSD", 0}},
-      {"@Hugo1", "@ColorNFT", 1} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 1}},
-      {"@Hugo1", "@ColorNFT",2} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 2}},
-      {"@Tom5", "@ColorNFT",3} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 3}},
-      {"@Tom5", "@ColorNFT",4} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 4}},
-      {"@Alice7", "@ColorNFT",5} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 5}},
-      {"@Alice7", "@ColorNFT",6} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 6}},
+      {"@Hugo1", :uco} =>      %UnspentOutput{from: "@Bob1", amount: 900_000_000, type: :UCO,timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Tom1", :uco} =>       %UnspentOutput{from: "@Bob1", amount: 1_500_000_000, type: :UCO,timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Hugo1", "@ColorNFT", 1} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 1},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Alice1", :uco} =>     %UnspentOutput{from: "@Bob1", amount: 500_000_000, type: :UCO,timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Hugo1", "@AEUSD", 0} =>  %UnspentOutput{from: "@Bob1", amount: 600_000_000,  type: {:token, "@AEUSD", 0},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Tom1", "@AEUSD", 0} =>   %UnspentOutput{from: "@Bob1", amount: 400_000_000,  type: {:token, "@AEUSD", 0},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Alice3", "@AEUSD", 0} => %UnspentOutput{from: "@Bob1", amount: 200_000_000,  type: {:token, "@AEUSD", 0},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Hugo1", "@ColorNFT",2} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 2},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Tom5", "@ColorNFT",3} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 3},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Tom5", "@ColorNFT",4} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 4},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Alice7", "@ColorNFT",5} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 5},timestamp: ~U[2022-10-11 09:24:01.879Z]},
+      {"@Alice7", "@ColorNFT",6} => %UnspentOutput{from: "@Bob1", amount: 100_000_000,  type: {:token, "@ColorNFT", 6},timestamp: ~U[2022-10-11 09:24:01.879Z]},
     }
 
     iex> [
@@ -181,38 +186,54 @@ defmodule Archethic.Account.MemTablesLoader do
     ...>   %TransactionMovement{to: "@Hugo1", amount: 200_000_000, type: {:token, "@RewardToken1", 0}},
     ...>   %TransactionMovement{to: "@Hugo1", amount: 200_000_000, type: {:token, "@RewardToken2", 0}},
     ...>   %TransactionMovement{to: "@Hugo1", amount: 300_000_000, type: {:token, "@RewardToken2", 0}},
-    ...>  ] |> Enum.reduce(%{}, fn mov,acc -> MemTablesLoader.aggregate_movements(mov, acc, "@Bob1","") end)
+    ...>  ] |> Enum.reduce(%{}, fn mov,acc -> MemTablesLoader.aggregate_movements(mov, acc, "@Bob1","",~U[2022-10-11 09:24:01.879Z]) end)
     %{
-      {"@Hugo1", :uco} =>      %UnspentOutput{from: "@Bob1", amount: 1_100_000_000, type: :UCO},
+      {"@Hugo1", :uco} =>      %UnspentOutput{from: "@Bob1", amount: 1_100_000_000, type: :UCO,timestamp: ~U[2022-10-11 09:24:01.879Z]},
     }
   """
-  def aggregate_movements(movement, acc, address, tx_type) do
+  def aggregate_movements(movement, acc, address, tx_type, timestamp) do
     case movement do
       %TransactionMovement{to: to, amount: amount, type: :UCO} ->
-        new_utxo = %UnspentOutput{amount: amount, from: address, type: :UCO}
+        new_utxo = %UnspentOutput{amount: amount, from: address, type: :UCO, timestamp: timestamp}
 
         Map.update(
           acc,
           {to, :uco},
           new_utxo,
-          &%UnspentOutput{amount: &1.amount + amount, from: address, type: :UCO}
+          &%UnspentOutput{
+            amount: &1.amount + amount,
+            from: address,
+            type: :UCO,
+            timestamp: timestamp
+          }
         )
 
       %TransactionMovement{to: to, amount: amount, type: {:token, token_address, 0}} ->
         if Reward.is_reward_token?(token_address) && tx_type != :node_rewards do
-          new_utxo = %UnspentOutput{amount: amount, from: address, type: :UCO}
+          new_utxo = %UnspentOutput{
+            amount: amount,
+            from: address,
+            type: :UCO,
+            timestamp: timestamp
+          }
 
           Map.update(
             acc,
             {to, :uco},
             new_utxo,
-            &%UnspentOutput{amount: &1.amount + amount, from: address, type: :UCO}
+            &%UnspentOutput{
+              amount: &1.amount + amount,
+              from: address,
+              type: :UCO,
+              timestamp: timestamp
+            }
           )
         else
           new_utxo = %UnspentOutput{
             amount: amount,
             from: address,
-            type: {:token, token_address, 0}
+            type: {:token, token_address, 0},
+            timestamp: timestamp
           }
 
           Map.update(
@@ -222,7 +243,8 @@ defmodule Archethic.Account.MemTablesLoader do
             &%UnspentOutput{
               amount: &1.amount + amount,
               from: address,
-              type: {:token, token_address, 0}
+              type: {:token, token_address, 0},
+              timestamp: timestamp
             }
           )
         end
@@ -231,7 +253,8 @@ defmodule Archethic.Account.MemTablesLoader do
         new_utxo = %UnspentOutput{
           amount: amount,
           from: address,
-          type: {:token, token_address, token_id}
+          type: {:token, token_address, token_id},
+          timestamp: timestamp
         }
 
         Map.put(acc, {to, token_address, token_id}, new_utxo)

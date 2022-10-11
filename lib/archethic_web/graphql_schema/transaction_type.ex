@@ -157,6 +157,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - Type: UCO/token
   - token address: address of the token if the type is token
   - token id: It is the id for a token which is allocated when the token is minted.
+  - Timestamp: Date time when the UTXO created/manipulated.
   """
   object :unspent_output do
     field(:from, :address)
@@ -164,6 +165,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:type, :string)
     field(:token_address, :address)
     field(:token_id, :integer)
+    field(:timestamp, :timestamp)
   end
 
   @desc """

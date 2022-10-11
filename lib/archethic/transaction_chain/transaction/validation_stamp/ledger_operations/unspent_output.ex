@@ -14,7 +14,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @type t :: %__MODULE__{
           amount: non_neg_integer(),
           from: Crypto.versioned_hash(),
-          type: TransactionMovementType.t()
+          type: TransactionMovementType.t(),
+          timestamp: DateTime.t()
         }
 
   @doc """
@@ -28,7 +29,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    from: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 1_050_000_000,
-      ...>    type: :UCO
+      ...>    type: :UCO, timestamp:     ~U[2022-10-11 07:27:22.815Z]
       ...>  }
       ...>  |> UnspentOutput.serialize()
       <<
@@ -37,6 +38,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
       0, 0, 0, 0, 62, 149, 186, 128,
+      # Timestamp
+      0, 0, 1, 131, 197, 240, 230, 191,
       # UCO Unspent Output
       0
       >>
@@ -48,7 +51,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 1_050_000_000,
       ...>    type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
+      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, timestamp:     ~U[2022-10-11 07:27:22.815Z]
       ...>  }
       ...>  |> UnspentOutput.serialize()
       <<
@@ -57,6 +60,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
       0, 0, 0, 0, 62, 149, 186, 128,
+      # Timestamp
+      0, 0, 1, 131, 197, 240, 230, 191,
       # Token Unspent Output
       1,
       # Token address
@@ -67,8 +72,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       >>
   """
   @spec serialize(__MODULE__.t()) :: <<_::64, _::_*8>>
-  def serialize(%__MODULE__{from: from, amount: amount, type: type}) do
-    <<from::binary, amount::64, TransactionMovementType.serialize(type)::binary>>
+  def serialize(%__MODULE__{from: from, amount: amount, type: type, timestamp: timestamp})
+      when not is_nil(timestamp) do
+    <<from::binary, amount::64, DateTime.to_unix(timestamp, :millisecond)::64,
+      TransactionMovementType.serialize(type)::binary>>
   end
 
   @doc """
@@ -78,22 +85,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0>>
+      ...> 0, 0, 0, 0, 62, 149, 186, 128,    0, 0, 1, 131, 197, 240, 230, 191,    0>>
       ...> |> UnspentOutput.deserialize()
       {
         %UnspentOutput{
           from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 1_050_000_000,
-          type: :UCO
+          type: :UCO, timestamp:     ~U[2022-10-11 07:27:22.815Z]
         },
         ""
       }
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0>>
+      ...> 0, 0, 0, 0, 62, 149, 186, 128,    0, 0, 1, 131, 197, 240, 230, 191,     1,    0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
+      ...> 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0>>
       ...> |> UnspentOutput.deserialize()
       {
         %UnspentOutput{
@@ -101,21 +108,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 1_050_000_000,
           type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0},
+            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, timestamp:     ~U[2022-10-11 07:27:22.815Z]
         },
         ""
       }
   """
   @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
   def deserialize(data) when is_bitstring(data) do
-    {address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(data)
+    {address, <<amount::64, timestamp::64, rest::bitstring>>} = Utils.deserialize_address(data)
     {type, rest} = TransactionMovementType.deserialize(rest)
 
     {
       %__MODULE__{
         from: address,
         amount: amount,
-        type: type
+        type: type,
+        timestamp: DateTime.from_unix!(timestamp, :millisecond)
       },
       rest
     }
@@ -130,14 +138,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>  159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
-      ...>  type: :UCO
+      ...>  type: :UCO, timestamp:     ~U[2022-10-11 07:27:22.815Z]
       ...>  } |> UnspentOutput.cast()
       %UnspentOutput{
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
         type: :UCO,
         reward?: false,
-        timestamp: nil
+        timestamp:    ~U[2022-10-11 07:27:22.815Z]
       }
 
 
@@ -161,7 +169,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     %__MODULE__{
       from: Map.get(unspent_output, :from),
       amount: Map.get(unspent_output, :amount),
-      type: Map.get(unspent_output, :type)
+      type: Map.get(unspent_output, :type),
+      timestamp: Map.get(unspent_output, :timestamp)
     }
   end
 
@@ -175,14 +184,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> amount: 1_050_000_000,
       ...> type: :UCO,
       ...> reward?: false,
-      ...> timestamp: nil
+      ...> timestamp:    ~U[2022-10-11 07:27:22.815Z]
       ...> }|> UnspentOutput.to_map()
       %{
         from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
         type: "UCO",
         reward?: false,
-        timestamp: nil
+        timestamp:    ~U[2022-10-11 07:27:22.815Z]
       }
 
 

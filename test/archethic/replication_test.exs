@@ -65,7 +65,15 @@ defmodule Archethic.ReplicationTest do
 
     me = self()
 
-    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+    unspent_outputs = [
+      %UnspentOutput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+    ]
+
     p2p_context()
     tx = create_valid_transaction(unspent_outputs)
 
@@ -120,7 +128,15 @@ defmodule Archethic.ReplicationTest do
   test "validate_and_store_transaction/1" do
     me = self()
 
-    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+    unspent_outputs = [
+      %UnspentOutput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+    ]
+
     p2p_context()
     tx = create_valid_transaction(unspent_outputs)
 
@@ -190,16 +206,17 @@ defmodule Archethic.ReplicationTest do
 
   defp create_valid_transaction(unspent_outputs) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     ledger_operations =
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
-      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),

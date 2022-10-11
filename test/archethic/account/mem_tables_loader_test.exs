@@ -89,24 +89,31 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         geo_patch: "AAA"
       })
 
-      assert :ok = MemTablesLoader.load_transaction(create_transaction())
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      assert :ok = MemTablesLoader.load_transaction(create_transaction(timestamp))
 
       [
-        %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
-        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
+        %UnspentOutput{
+          from: "@Charlie3",
+          amount: 1_900_000_000,
+          type: :UCO,
+          timestamp: ^timestamp
+        },
+        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO, timestamp: ^timestamp}
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000}] =
+      [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000, timestamp: ^timestamp}] =
         UCOLedger.get_unspent_outputs("@Tom4")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 100_000_000}] =
+      [%UnspentOutput{from: "@Charlie3", amount: 100_000_000, timestamp: ^timestamp}] =
         UCOLedger.get_unspent_outputs(LedgerOperations.burning_address())
 
       assert [
                %UnspentOutput{
                  from: "@Charlie3",
                  amount: 1_000_000_000,
-                 type: {:token, "@CharlieToken", 0}
+                 type: {:token, "@CharlieToken", 0},
+                 timestamp: ^timestamp
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
@@ -114,39 +121,55 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   describe "start_link/1" do
     setup do
-      MockDB
-      |> stub(:list_transactions, fn _fields -> [create_transaction()] end)
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-      :ok
+      MockDB
+      |> stub(:list_transactions, fn _fields ->
+        [create_transaction(timestamp)]
+      end)
+
+      %{timestamp: timestamp}
     end
 
-    test "should query DB to load all the transactions" do
+    test "should query DB to load all the transactions", %{timestamp: timestamp} do
       assert {:ok, _} = MemTablesLoader.start_link()
 
       [
-        %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
-        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
+        %UnspentOutput{
+          from: "@Charlie3",
+          amount: 1_900_000_000,
+          type: :UCO,
+          timestamp: ^timestamp
+        },
+        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO, timestamp: ^timestamp}
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000, type: :UCO}] =
-        UCOLedger.get_unspent_outputs("@Tom4")
+      [
+        %UnspentOutput{
+          from: "@Charlie3",
+          amount: 3_400_000_000,
+          type: :UCO,
+          timestamp: ^timestamp
+        }
+      ] = UCOLedger.get_unspent_outputs("@Tom4")
 
       assert [
                %UnspentOutput{
                  from: "@Charlie3",
                  amount: 1_000_000_000,
-                 type: {:token, "@CharlieToken", 0}
+                 type: {:token, "@CharlieToken", 0},
+                 timestamp: ^timestamp
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
   end
 
-  defp create_transaction do
+  defp create_transaction(timestamp) do
     %Transaction{
       address: "@Charlie3",
       previous_public_key: "Charlie2",
       validation_stamp: %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: timestamp,
         ledger_operations: %LedgerOperations{
           fee: 100_000_000,
           transaction_movements: [
@@ -161,9 +184,15 @@ defmodule Archethic.Account.MemTablesLoaderTest do
             %UnspentOutput{
               from: "@Alice2",
               amount: 200_000_000,
-              type: :UCO
+              type: :UCO,
+              timestamp: timestamp
             },
-            %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO}
+            %UnspentOutput{
+              from: "@Charlie3",
+              amount: 1_900_000_000,
+              type: :UCO,
+              timestamp: timestamp
+            }
           ]
         }
       }
@@ -172,33 +201,65 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   describe "Reward Minting test" do
     test "Should display Reward Token as UCO in UnspentOutput of Recipient" do
-      assert :ok = MemTablesLoader.load_transaction(create_reward_transaction())
+      timestamp = DateTime.utc_now() |> DateTime.add(-186_400) |> DateTime.truncate(:millisecond)
+
+      validation_time =
+        DateTime.utc_now() |> DateTime.add(-86_400) |> DateTime.truncate(:millisecond)
+
+      assert :ok =
+               MemTablesLoader.load_transaction(
+                 create_reward_transaction(timestamp, validation_time)
+               )
 
       # uco ledger
       assert [
-               %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
+               %UnspentOutput{
+                 from: "@Charlie3",
+                 amount: 1_900_000_000,
+                 type: :UCO,
+                 timestamp: ^validation_time
+               },
                %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
              ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
       assert [
-               %UnspentOutput{from: "@Charlie3", amount: 3_600_000_000, type: :UCO}
+               %UnspentOutput{
+                 from: "@Charlie3",
+                 amount: 3_600_000_000,
+                 type: :UCO,
+                 timestamp: ^validation_time
+               }
              ] = UCOLedger.get_unspent_outputs("@Tom4")
 
       assert [
-               %UnspentOutput{from: "@Charlie3", amount: 200_000_000, type: :UCO}
+               %UnspentOutput{
+                 from: "@Charlie3",
+                 amount: 200_000_000,
+                 type: :UCO,
+                 timestamp: ^validation_time
+               }
              ] = UCOLedger.get_unspent_outputs("@Bob3")
 
       #  token ledger
       assert [
                %UnspentOutput{
+                 amount: 100_000_000,
+                 from: "@Rob1",
+                 reward?: false,
+                 timestamp: ^timestamp,
+                 type: {:token, "@WeatherNFT", 1}
+               },
+               %UnspentOutput{
                  from: "@RewardToken2",
                  amount: 5_000_000_000,
-                 type: {:token, "@RewardToken2", 0}
+                 type: {:token, "@RewardToken2", 0},
+                 timestamp: ^validation_time
                },
                %UnspentOutput{
                  from: "@RewardToken1",
                  amount: 5_000_000_000,
-                 type: {:token, "@RewardToken1", 0}
+                 type: {:token, "@RewardToken1", 0},
+                 timestamp: ^validation_time
                }
              ] = TokenLedger.get_unspent_outputs("@Charlie3")
 
@@ -208,18 +269,19 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                %UnspentOutput{
                  from: "@Charlie3",
                  amount: 1_000_000_000,
-                 type: {:token, "@CharlieToken", 0}
+                 type: {:token, "@CharlieToken", 0},
+                 timestamp: ^validation_time
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
   end
 
-  defp create_reward_transaction() do
+  defp create_reward_transaction(timestamp, validation_time) do
     %Transaction{
       address: "@Charlie3",
       previous_public_key: "Charlie2",
       validation_stamp: %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: validation_time,
         ledger_operations: %LedgerOperations{
           fee: 0,
           transaction_movements: [
@@ -244,20 +306,35 @@ defmodule Archethic.Account.MemTablesLoaderTest do
             %UnspentOutput{
               from: "@Alice2",
               amount: 200_000_000,
-              type: :UCO
+              type: :UCO,
+              timestamp: validation_time
             },
-            %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
+            %UnspentOutput{
+              from: "@Charlie3",
+              amount: 1_900_000_000,
+              type: :UCO,
+              timestamp: validation_time
+            },
             %UnspentOutput{
               from: "@RewardToken1",
               amount: 5_000_000_000,
               type: {:token, "@RewardToken1", 0},
-              reward?: true
+              reward?: true,
+              timestamp: validation_time
             },
             %UnspentOutput{
               from: "@RewardToken2",
               amount: 5_000_000_000,
               type: {:token, "@RewardToken2", 0},
-              reward?: true
+              reward?: true,
+              timestamp: validation_time
+            },
+            %UnspentOutput{
+              from: "@Rob1",
+              amount: 100_000_000,
+              type: {:token, "@WeatherNFT", 1},
+              reward?: true,
+              timestamp: timestamp
             }
           ]
         }

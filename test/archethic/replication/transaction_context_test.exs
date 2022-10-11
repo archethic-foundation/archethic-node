@@ -82,9 +82,9 @@ defmodule Archethic.Replication.TransactionContextTest do
       %UnspentOutput{
         from: "@Bob3",
         amount: 19_300_000,
-        type: :UCO
-      },
-      ~U[2021-03-05 13:41:34Z]
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
     )
 
     MockClient

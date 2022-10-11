@@ -2,21 +2,41 @@ defmodule Archethic.Reward.MemTablesLoaderTest do
   @moduledoc false
   use ArchethicCase
 
-  alias Archethic.Reward
-  alias Archethic.Reward.MemTables.RewardTokens
-  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
   import Mox
 
   @tx_type :mint_rewards
   @fields [:address, :type]
 
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.{
+    Crypto,
+    Reward,
+    Reward.MemTables.RewardTokens,
+    TransactionChain,
+    P2P,
+    P2P.Node
+  }
+
+  alias Archethic.TransactionChain.{
+    Transaction,
+    Transaction.ValidationStamp,
+    Transaction.ValidationStamp.LedgerOperations
+  }
+
+  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
 
   describe "RewardTokens MEMTable: " do
     setup do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA",
+        available?: true
+      })
+
       MockDB
       |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
         [

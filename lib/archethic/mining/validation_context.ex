@@ -781,10 +781,11 @@ defmodule Archethic.Mining.ValidationContext do
             fee: fee,
             transaction_movements: resolved_movements
           }
-          |> LedgerOperations.from_transaction(tx)
+          |> LedgerOperations.from_transaction(tx, validation_time)
           |> LedgerOperations.consume_inputs(
             tx.address,
-            unspent_outputs
+            unspent_outputs,
+            validation_time |> DateTime.truncate(:millisecond)
           ),
         recipients: resolved_recipients,
         error: error
@@ -1122,7 +1123,8 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp valid_stamp_unspent_outputs?(
          %ValidationStamp{
-           ledger_operations: %LedgerOperations{fee: fee, unspent_outputs: next_unspent_outputs}
+           ledger_operations: %LedgerOperations{fee: fee, unspent_outputs: next_unspent_outputs},
+           timestamp: timestamp
          },
          %__MODULE__{
            transaction: tx,
@@ -1134,10 +1136,11 @@ defmodule Archethic.Mining.ValidationContext do
         fee: fee,
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.from_transaction(tx)
+      |> LedgerOperations.from_transaction(tx, timestamp |> DateTime.truncate(:millisecond))
       |> LedgerOperations.consume_inputs(
         tx.address,
-        previous_unspent_outputs
+        previous_unspent_outputs,
+        timestamp |> DateTime.truncate(:millisecond)
       )
 
     expected_unspent_outputs == next_unspent_outputs

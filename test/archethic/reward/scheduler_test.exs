@@ -3,43 +3,47 @@ defmodule Archethic.Reward.SchedulerTest do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.StartMining
-
-  alias Archethic.Reward.Scheduler
-
-  alias Archethic.TransactionChain.Transaction
+  alias Archethic.{
+    Crypto,
+    P2P,
+    P2P.Node,
+    P2P.Message.StartMining,
+    P2P.Message.Ok,
+    Reward.Scheduler,
+    TransactionChain.Transaction
+  }
 
   import Mox
 
-  test "should initiate the reward scheduler and trigger mint reward" do
-    MockDB
-    |> stub(:get_latest_burned_fees, fn -> 0 end)
+  describe "Trigger mint Reward" do
+    test "should initiate the reward scheduler and trigger mint reward" do
+      MockDB
+      |> stub(:get_latest_burned_fees, fn -> 0 end)
 
-    {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
+      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
 
-    assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
+      assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
 
-    send(pid, :node_up)
+      send(pid, :node_up)
 
-    assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
+      assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
 
-    send(
-      pid,
-      {:node_update,
-       %Node{
-         authorized?: true,
-         available?: true,
-         first_public_key: Crypto.first_node_public_key()
-       }}
-    )
+      send(
+        pid,
+        {:node_update,
+         %Node{
+           authorized?: true,
+           available?: true,
+           first_public_key: Crypto.first_node_public_key()
+         }}
+      )
 
-    assert {:scheduled, %{timer: _}} = :sys.get_state(pid)
+      assert {:scheduled, %{timer: _}} = :sys.get_state(pid)
 
-    :erlang.trace(pid, true, [:receive])
+      :erlang.trace(pid, true, [:receive])
 
-    assert_receive {:trace, ^pid, :receive, :mint_rewards}, 3_000
+      assert_receive {:trace, ^pid, :receive, :mint_rewards}, 3_000
+    end
   end
 
   describe "scheduler" do
@@ -53,6 +57,19 @@ defmodule Archethic.Reward.SchedulerTest do
         authorization_date: DateTime.utc_now(),
         average_availability: 1.0
       })
+
+      create_p2p_context()
+
+      MockClient
+      |> expect(:send_message, fn
+        _, %StartMining{}, _ ->
+          {:ok, %Ok{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
+      end)
+
+      :ok
     end
 
     test "should send mint transaction when burning fees > 0 and node reward transaction" do
@@ -61,7 +78,7 @@ defmodule Archethic.Reward.SchedulerTest do
 
       me = self()
 
-      assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
+      assert {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
       send(pid, :node_up)
 
       MockClient
@@ -89,7 +106,7 @@ defmodule Archethic.Reward.SchedulerTest do
         send(me, type)
       end)
 
-      assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
+      assert {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
       send(pid, :node_up)
 
       refute_receive :mint_rewards, 1_200
@@ -101,7 +118,7 @@ defmodule Archethic.Reward.SchedulerTest do
     test "should be idle(state with args) when node has not done Bootstrapping" do
       :persistent_term.put(:archethic_up, nil)
 
-      {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
+      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
 
       assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
     end
@@ -109,7 +126,7 @@ defmodule Archethic.Reward.SchedulerTest do
     test "should wait for node :up message to start the scheduler, when node is not authorized and available" do
       :persistent_term.put(:archethic_up, nil)
 
-      {:ok, pid} = Scheduler.start_link(interval: "*/2 * * * * *")
+      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/2 * * * * *")
 
       assert {:idle, %{interval: "*/2 * * * * *"}} = :sys.get_state(pid)
 
@@ -130,7 +147,7 @@ defmodule Archethic.Reward.SchedulerTest do
         available?: true
       })
 
-      {:ok, pid} = Scheduler.start_link(interval: "*/3 * * * * *")
+      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/3 * * * * *")
 
       assert {:idle, %{interval: "*/3 * * * * *"}} = :sys.get_state(pid)
       send(pid, :node_up)
@@ -146,7 +163,7 @@ defmodule Archethic.Reward.SchedulerTest do
     test "Should use persistent_term :archethic_up when a Scheduler crashes, when a node is not authorized and available" do
       :persistent_term.put(:archethic_up, :up)
 
-      {:ok, pid} = Scheduler.start_link(interval: "*/4 * * * * *")
+      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/4 * * * * *")
 
       assert {:idle,
               %{
@@ -170,7 +187,7 @@ defmodule Archethic.Reward.SchedulerTest do
         available?: true
       })
 
-      {:ok, pid} = Scheduler.start_link(interval: "*/5 * * * * *")
+      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/5 * * * * *")
 
       assert {:scheduled,
               %{
@@ -180,6 +197,57 @@ defmodule Archethic.Reward.SchedulerTest do
               }} = :sys.get_state(pid)
 
       :persistent_term.put(:archethic_up, nil)
+    end
+
+    defp create_p2p_context do
+      pb_key1 = Crypto.derive_keypair("key11", 0) |> elem(0)
+      pb_key3 = Crypto.derive_keypair("key33", 0) |> elem(0)
+
+      welcome_node = %Node{
+        first_public_key: pb_key1,
+        last_public_key: pb_key1,
+        available?: true,
+        geo_patch: "BBB",
+        network_patch: "BBB",
+        authorized?: true,
+        reward_address: Crypto.derive_address(pb_key1),
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        enrollment_date: DateTime.utc_now()
+      }
+
+      coordinator_node = %Node{
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        enrollment_date: DateTime.utc_now()
+      }
+
+      storage_nodes = [
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          http_port: 4000,
+          first_public_key: pb_key3,
+          last_public_key: pb_key3,
+          geo_patch: "BBB",
+          network_patch: "BBB",
+          reward_address: Crypto.derive_address(pb_key3),
+          available?: true,
+          authorized?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+          enrollment_date: DateTime.utc_now()
+        }
+      ]
+
+      Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
+
+      P2P.add_and_connect_node(welcome_node)
+      P2P.add_and_connect_node(coordinator_node)
     end
   end
 end

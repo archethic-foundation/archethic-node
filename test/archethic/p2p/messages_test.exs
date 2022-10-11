@@ -553,7 +553,8 @@ defmodule Archethic.P2P.MessageTest do
               <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
                 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
             amount: 1_050_000_000,
-            type: :UCO
+            type: :UCO,
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
           }
         ]
       }

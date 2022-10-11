@@ -37,7 +37,7 @@ defmodule Archethic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
     validation_stamp =
       %ValidationStamp{
@@ -69,15 +69,17 @@ defmodule Archethic.TransactionFactory do
   def create_valid_transaction_with_inconsistencies(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
     ledger_operations =
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         proof_of_election:
@@ -98,14 +100,18 @@ defmodule Archethic.TransactionFactory do
   def create_transaction_with_invalid_proof_of_work(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
+    timestamp =
+      DateTime.utc_now()
+      |> DateTime.truncate(:millisecond)
+
     ledger_operations =
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
     validation_stamp = %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: <<0, 0, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -124,15 +130,16 @@ defmodule Archethic.TransactionFactory do
 
   def create_transaction_with_invalid_validation_stamp_signature(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     ledger_operations =
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
     validation_stamp = %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -151,16 +158,17 @@ defmodule Archethic.TransactionFactory do
 
   def create_transaction_with_invalid_fee(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     ledger_operations =
       %LedgerOperations{
         fee: 1_000_000_000
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -180,6 +188,7 @@ defmodule Archethic.TransactionFactory do
 
   def create_transaction_with_invalid_transaction_movements(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     ledger_operations =
       %LedgerOperations{
@@ -188,11 +197,11 @@ defmodule Archethic.TransactionFactory do
           %TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}
         ]
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         proof_of_election:
@@ -236,7 +245,7 @@ defmodule Archethic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
     validation_stamp =
       %ValidationStamp{

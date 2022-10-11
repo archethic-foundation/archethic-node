@@ -135,12 +135,15 @@ defmodule Archethic.Bootstrap.NetworkInit do
       |> Transaction.get_movements()
       |> Enum.reduce(0, &(&2 + &1.amount))
 
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
     tx
     |> self_validation([
       %UnspentOutput{
         from: Bootstrap.genesis_unspent_output_address(),
         amount: genesis_transfers_amount,
-        type: :UCO
+        type: :UCO,
+        timestamp: timestamp
       }
     ])
     |> self_replication()
@@ -172,17 +175,19 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
   @spec self_validation(Transaction.t(), list(UnspentOutput.t())) :: Transaction.t()
   def self_validation(tx = %Transaction{}, unspent_outputs \\ []) do
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
     operations =
       %LedgerOperations{
         fee: Mining.get_transaction_fee(tx, 0.07),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.from_transaction(tx)
-      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+      |> LedgerOperations.from_transaction(tx, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
+        timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
