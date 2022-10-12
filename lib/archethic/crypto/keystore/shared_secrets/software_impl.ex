@@ -101,38 +101,30 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @impl SharedSecretsKeystore
   def sign_with_node_shared_secrets_key(data) do
     [{_, index}] = :ets.lookup(@keystore_table, :shared_secrets_index)
-    [{_, seed}] = :ets.lookup(@keystore_table, :transaction_seed)
-    {_, pv} = previous_keypair(seed, index)
-
-    Crypto.sign(data, pv)
+    sign_with_node_shared_secrets_key(data, index)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_node_shared_secrets_key(data, index) do
-    [{_, seed}] = :ets.lookup(@keystore_table, :transaction_seed)
-    {_, pv} = Crypto.derive_keypair(seed, index)
-
-    Crypto.sign(data, pv)
+    [{_, sign_fun}] = :ets.lookup(@keystore_table, :transaction_sign_fun)
+    sign_fun.(data, index)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_network_pool_key(data) do
     [{_, index}] = :ets.lookup(@keystore_table, :network_pool_index)
-    [{_, seed}] = :ets.lookup(@keystore_table, :network_pool_seed)
-    {_, pv} = previous_keypair(seed, index)
-    Crypto.sign(data, pv)
+    sign_with_network_pool_key(data, index)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_network_pool_key(data, index) do
-    [{_, seed}] = :ets.lookup(@keystore_table, :network_pool_seed)
-    {_, pv} = Crypto.derive_keypair(seed, index)
-    Crypto.sign(data, pv)
+    [{_, sign_fun}] = :ets.lookup(@keystore_table, :network_pool_sign_fun)
+    sign_fun.(data, index)
   end
 
   @impl SharedSecretsKeystore
   def sign_with_daily_nonce_key(data, timestamp) do
-    [{_, {pub, pv}}] =
+    [{_, sign_fun}] =
       case :ets.prev(@daily_keys, DateTime.to_unix(timestamp)) do
         :"$end_of_table" ->
           :ets.lookup(@daily_keys, DateTime.to_unix(timestamp))
@@ -141,32 +133,28 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
           :ets.lookup(@daily_keys, key)
       end
 
-    Logger.debug("Sign with the daily nonce for the public key #{Base.encode16(pub)}")
-
-    Crypto.sign(data, pv)
+    sign_fun.(data)
   end
 
   @impl SharedSecretsKeystore
   def node_shared_secrets_public_key(index) do
-    [{_, seed}] = :ets.lookup(@keystore_table, :transaction_seed)
-    {pub, _} = Crypto.derive_keypair(seed, index)
-    pub
+    [{_, public_key_fun}] = :ets.lookup(@keystore_table, :transaction_public_key_fun)
+    public_key_fun.(index)
   end
 
   @impl SharedSecretsKeystore
   def network_pool_public_key(index) do
-    [{_, seed}] = :ets.lookup(@keystore_table, :network_pool_seed)
-    {pub, _} = Crypto.derive_keypair(seed, index)
-    pub
+    [{_, public_key_fun}] = :ets.lookup(@keystore_table, :network_pool_public_key_fun)
+    public_key_fun.(index)
   end
 
   @impl SharedSecretsKeystore
   def wrap_secrets(secret_key) do
-    [{_, transaction_seed}] = :ets.lookup(@keystore_table, :transaction_seed)
-    [{_, network_pool_seed}] = :ets.lookup(@keystore_table, :network_pool_seed)
+    [{_, transaction_seed_wrap_fun}] = :ets.lookup(@keystore_table, :transaction_seed_wrap_fun)
+    [{_, network_pool_seed_wrap_fun}] = :ets.lookup(@keystore_table, :network_pool_seed_wrap_fun)
 
-    encrypted_transaction_seed = Crypto.aes_encrypt(transaction_seed, secret_key)
-    encrypted_network_pool_seed = Crypto.aes_encrypt(network_pool_seed, secret_key)
+    encrypted_transaction_seed = transaction_seed_wrap_fun.(secret_key)
+    encrypted_network_pool_seed = network_pool_seed_wrap_fun.(secret_key)
 
     {encrypted_transaction_seed, encrypted_network_pool_seed}
   end
@@ -219,22 +207,52 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
          {:ok, daily_nonce_seed} <- Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key),
          {:ok, transaction_seed} <- Crypto.aes_decrypt(enc_transaction_seed, aes_key),
          {:ok, network_pool_seed} <- Crypto.aes_decrypt(enc_network_pool_seed, aes_key) do
-      daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
+      sign_daily_nonce_fun = fn data ->
+        {pub, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
+        Logger.debug("Sign with the daily nonce for the public key #{Base.encode16(pub)}")
 
-      :ets.insert(@daily_keys, {DateTime.to_unix(timestamp), daily_nonce_keypair})
-      :ets.insert(@keystore_table, {:transaction_seed, transaction_seed})
-      :ets.insert(@keystore_table, {:network_pool_seed, network_pool_seed})
+        Crypto.sign(data, pv)
+      end
+
+      transaction_sign_fun = fn data, index ->
+        {_, pv} = Crypto.derive_keypair(transaction_seed, index)
+        Crypto.sign(data, pv)
+      end
+
+      network_pool_sign_fun = fn data, index ->
+        {_, pv} = Crypto.derive_keypair(network_pool_seed, index)
+        Crypto.sign(data, pv)
+      end
+
+      transaction_public_key_fun = fn index ->
+        {pub, _} = Crypto.derive_keypair(transaction_seed, index)
+        pub
+      end
+
+      network_pool_public_key_fun = fn index ->
+        {pub, _} = Crypto.derive_keypair(network_pool_seed, index)
+        pub
+      end
+
+      transaction_seed_wrap_fun = fn secret_key ->
+        Crypto.aes_encrypt(transaction_seed, secret_key)
+      end
+
+      network_pool_seed_wrap_fun = fn secret_key ->
+        Crypto.aes_encrypt(network_pool_seed, secret_key)
+      end
+
+      :ets.insert(@daily_keys, {DateTime.to_unix(timestamp), sign_daily_nonce_fun})
+
+      :ets.insert(@keystore_table, {:transaction_sign_fun, transaction_sign_fun})
+      :ets.insert(@keystore_table, {:network_pool_sign_fun, network_pool_sign_fun})
+      :ets.insert(@keystore_table, {:transaction_public_key_fun, transaction_public_key_fun})
+      :ets.insert(@keystore_table, {:network_pool_public_key_fun, network_pool_public_key_fun})
+      :ets.insert(@keystore_table, {:transaction_seed_wrap_fun, transaction_seed_wrap_fun})
+      :ets.insert(@keystore_table, {:network_pool_seed_wrap_fun, network_pool_seed_wrap_fun})
 
       :ok
     end
-  end
-
-  defp previous_keypair(seed, 0) do
-    Crypto.derive_keypair(seed, 0)
-  end
-
-  defp previous_keypair(seed, index) do
-    Crypto.derive_keypair(seed, index - 1)
   end
 
   @doc """
