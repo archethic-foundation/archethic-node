@@ -1052,6 +1052,8 @@ defmodule Archethic.Crypto do
     end
   end
 
+  def valid_address?(_), do: false
+
   @doc """
   Load the transaction for the Keystore indexing
   """

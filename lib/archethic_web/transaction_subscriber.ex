@@ -49,6 +49,9 @@ defmodule ArchethicWeb.TransactionSubscriber do
         {:error, tx_address, context, error},
         state
       ) do
+    %{from: from} = Map.get(state, tx_address, %{from: make_ref()})
+    send(from, {:transaction_error, tx_address, context, error})
+
     Subscription.publish(
       Endpoint,
       %{address: tx_address, context: context, reason: error},

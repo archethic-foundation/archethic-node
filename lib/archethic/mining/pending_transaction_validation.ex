@@ -270,7 +270,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          %Transaction{
            type: :node,
            data: %TransactionData{
-             content: content
+             content: content,
+             ledger: %Ledger{
+               token: %TokenLedger{
+                 transfers: token_transfers
+               }
+             }
            },
            previous_public_key: previous_public_key
          },
@@ -290,7 +295,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
               root_ca_public_key
             )},
          {:conn, :ok} <-
-           {:conn, valid_connection(ip, port, previous_public_key)} do
+           {:conn, valid_connection(ip, port, previous_public_key)},
+         {:transfers, true} <-
+           {:transfers, Enum.all?(token_transfers, &Reward.is_reward_token?(&1.token_address))} do
       :ok
     else
       :error ->

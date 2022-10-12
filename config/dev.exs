@@ -37,12 +37,7 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
   interval: "0 * * * * *"
 
 config :archethic, Archethic.Bootstrap,
-  reward_address:
-    System.get_env(
-      "ARCHETHIC_REWARD_ADDRESS",
-      Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
-    )
-    |> Base.decode16!(case: :mixed)
+  reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
 
 config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_pools: [

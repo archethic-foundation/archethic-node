@@ -108,25 +108,38 @@ defmodule Archethic.P2P.MemTableLoader do
     {:ok, ip, port, http_port, transport, reward_address, origin_public_key, _certificate} =
       Node.decode_transaction_content(content)
 
-    node = %Node{
-      ip: ip,
-      port: port,
-      http_port: http_port,
-      first_public_key: first_public_key,
-      last_public_key: previous_public_key,
-      geo_patch: GeoPatch.from_ip(ip),
-      transport: transport,
-      last_address: address,
-      reward_address: reward_address,
-      origin_public_key: origin_public_key
-    }
-
     if first_node_change?(first_public_key, previous_public_key) do
+      node = %Node{
+        ip: ip,
+        port: port,
+        http_port: http_port,
+        first_public_key: first_public_key,
+        last_public_key: previous_public_key,
+        geo_patch: GeoPatch.from_ip(ip),
+        transport: transport,
+        last_address: address,
+        reward_address: reward_address,
+        origin_public_key: origin_public_key
+      }
+
       node
       |> Node.enroll(timestamp)
       |> MemTable.add_node()
     else
-      MemTable.add_node(node)
+      {:ok, node} = MemTable.get_node(first_public_key)
+
+      MemTable.add_node(%{
+        node
+        | ip: ip,
+          port: port,
+          http_port: http_port,
+          last_public_key: previous_public_key,
+          geo_patch: GeoPatch.from_ip(ip),
+          transport: transport,
+          last_address: address,
+          reward_address: reward_address,
+          origin_public_key: origin_public_key
+      })
     end
 
     Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
