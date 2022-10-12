@@ -39,14 +39,14 @@ defmodule Archethic.SelfRepair.SchedulerTest do
       {:ok, %NotFound{}}
     end)
 
-    {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
+    {:ok, pid} = Scheduler.start_link([interval: "*/3 * * * * * *"], [])
     assert :ok = Scheduler.start_scheduler(pid)
+    %{timer: timer} = :sys.get_state(pid)
 
     :erlang.trace(pid, true, [:receive])
 
-    assert_receive {:trace, ^pid, :receive, :sync}, 2_000
-
-    Process.sleep(100)
+    assert_receive {:trace, ^pid, :receive, :sync}, 4_000
+    Process.cancel_timer(timer)
   end
 
   test "handle_info/3 should initiate the loading of missing transactions, schedule the next repair and update the last sync date" do
@@ -77,7 +77,7 @@ defmodule Archethic.SelfRepair.SchedulerTest do
       :ok
     end)
 
-    {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
+    {:ok, pid} = Scheduler.start_link([interval: "0 0 * * * * *"], [])
 
     send(pid, :sync)
 

@@ -1,11 +1,14 @@
 defmodule Archethic.DB do
   @moduledoc false
 
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryAggregate
+
   alias Archethic.Crypto
 
   alias __MODULE__.EmbeddedImpl
+
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.BeaconChain.Summary
 
   use Knigge, otp_app: :archethic, default: EmbeddedImpl
 
@@ -13,6 +16,8 @@ defmodule Archethic.DB do
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   @callback get_beacon_summary(summary_address :: binary()) ::
               {:ok, Summary.t()} | {:error, :summary_not_exists}
+  @callback get_beacon_summaries_aggregate(DateTime.t()) ::
+              {:ok, SummaryAggregate.t()} | {:error, :not_exists}
   @callback get_transaction_chain(
               binary(),
               fields :: list(),
@@ -20,8 +25,9 @@ defmodule Archethic.DB do
             ) :: Enumerable.t()
   @callback write_transaction(Transaction.t()) :: :ok
   @callback write_beacon_summary(Summary.t()) :: :ok
+  @callback clear_beacon_summaries() :: :ok
+  @callback write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
-  # @callback write_transaction(Transaction.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   @callback list_last_transaction_addresses() :: Enumerable.t()

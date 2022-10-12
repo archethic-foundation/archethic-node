@@ -1,5 +1,5 @@
 defmodule ArchethicWeb.ExplorerLive.TopTransactionsCache do
-  @table :last_ten_transactions
+  @table :last_transactions
 
   @moduledoc false
   use GenServer
@@ -11,7 +11,7 @@ defmodule ArchethicWeb.ExplorerLive.TopTransactionsCache do
 
   def init(_args) do
     :ets.new(@table, [:set, :public, :named_table])
-    :ets.insert(@table, {:size, 10, 0})
+    :ets.insert(@table, {:size, 5, 0})
 
     {:ok, []}
   end

@@ -1,6 +1,6 @@
 defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   @moduledoc """
-    Live component for Dashboard Explorer to display last 10 transactions
+  Live component for Dashboard Explorer to display recent transactions
   """
 
   use ArchethicWeb, :live_component
@@ -41,26 +41,14 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
 
   def update(assigns, socket) do
     transactions =
-      case length(TopTransactionsCache.get()) do
-        l when l < 10 ->
-          # Below code won't const much performace as atmost 10 transaction will be pushed.
+      case TopTransactionsCache.get() do
+        [] ->
           txns = fetch_last_transactions()
-
-          txns |> push_txns_to_cache()
-
+          push_txns_to_cache(txns)
           txns
 
-        _ ->
-          [head | _] = TopTransactionsCache.get()
-
-          # should refersh txns only if atleast 10 seconds have passed
-          if DateTime.diff(head.timestamp, DateTime.utc_now()) < 10 do
-            txns = fetch_last_transactions()
-            txns |> push_txns_to_cache()
-            txns
-          else
-            TopTransactionsCache.get()
-          end
+        txs ->
+          txs
       end
 
     socket = socket |> assign(assigns) |> assign(transactions: transactions)
@@ -69,26 +57,31 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
 
   def render(assigns) do
     ~L"""
-      <div class="box mb-2">
-        <p>Latest Txns</p>
-      <div>
-      <div>
-        <%= for tx <- @transactions do %>
-          <div class="columns">
-            <div class="column is-7-desktop">
-              <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
-                <span class="text_wrap has-text-primary is-size-6"><%= Base.encode16(tx.address) %></span>
-                <% end %>
-            </div>
-            <div class="column is-2-desktop is-size-6">
-              <%= format_date(tx.timestamp) %>
-            </div>
-            <div class="column is-2-desktop is-size-6">
-              <span class="tag is-light is-info"><%= tx.type %></span>
-            </div>
-          </div>
-        <% end %>
+    <div class="box mb-2">
+      <div class="columns">
+        <div class="column"><span class="heading is-size-7">Latest transactions</span></div> 
       </div>
+      <div class="columns">
+        <div class="column">
+            <%= for tx <- @transactions do %>
+              <div class="columns">
+                <div class="column is-7-desktop">
+                  <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+                    <span class="text_wrap has-text-primary is-size-6"><%= Base.encode16(tx.address) %></span>
+                    <% end %>
+                </div>
+                <div class="column is-2-desktop is-size-6">
+                  <%= format_date(tx.timestamp) %>
+                </div>
+                <div class="column is-2-desktop is-size-6">
+                  <span class="tag is-light is-info"><%= tx.type %></span>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
     """
   end
 
@@ -99,38 +92,9 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
     end)
   end
 
-  defp fetch_previous_dates(time = %DateTime{}, txns, retries)
-       when length(txns) < 10 and retries < 10 do
-    previous_time = BeaconChain.previous_summary_time(time)
-    prev_txns = list_transactions_from_summary(previous_time)
-
-    retries =
-      case prev_txns do
-        [] -> retries + 1
-        _txns -> 0
-      end
-
-    txns = txns ++ prev_txns
-    fetch_previous_dates(previous_time, txns, retries)
-  end
-
-  defp fetch_previous_dates(_time = %DateTime{}, txns, _retries) when length(txns) >= 10 do
-    txns
-  end
-
-  defp fetch_previous_dates(_time = %DateTime{}, txns, _retries) do
-    txns
-  end
-
-  defp fetch_last_transactions(n \\ 10) do
-    txns = list_transactions_from_current_slots()
-
-    if length(txns) < n do
-      fetch_previous_dates(DateTime.utc_now(), txns, 0)
-    else
-      txns
-      |> Enum.take(n)
-    end
+  defp fetch_last_transactions(n \\ 5) do
+    list_transactions_from_current_slots()
+    |> Enum.take(n)
   end
 
   defp list_transactions_from_current_slots(date = %DateTime{} \\ DateTime.utc_now()) do
@@ -181,12 +145,5 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
-  end
-
-  defp list_transactions_from_summary(date = %DateTime{}) do
-    [date]
-    |> BeaconChain.fetch_summary_aggregates()
-    |> Enum.flat_map(& &1.transaction_summaries)
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 end

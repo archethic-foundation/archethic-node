@@ -1,14 +1,15 @@
 defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   @moduledoc false
 
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryAggregate
+
   alias Archethic.DB.EmbeddedImpl.ChainIndex
   alias Archethic.DB.EmbeddedImpl.ChainWriter
   alias Archethic.DB.EmbeddedImpl.Encoding
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
-
-  alias Archethic.BeaconChain.Summary
 
   @page_size 10
 
@@ -50,23 +51,49 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  @doc """
+  Get a beacon summary from a given summary address
+  """
   @spec get_beacon_summary(summary_address :: binary(), db_path :: String.t()) ::
           {:ok, Summary.t()} | {:error, :summary_not_exists}
   def get_beacon_summary(summary_address, db_path) do
     start = System.monotonic_time()
-
     filepath = ChainWriter.beacon_path(db_path, summary_address)
 
-    if File.exists?(filepath) do
-      {summary, _rest} = File.read!(filepath) |> Summary.deserialize()
-
+    with true <- File.exists?(filepath),
+         {:ok, data} <- File.read(filepath),
+         {summary, _} <- Summary.deserialize(data) do
       :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
         query: "get_beacon_summary"
       })
 
       {:ok, summary}
     else
-      {:error, :summary_not_exists}
+      _ ->
+        {:error, :summary_not_exists}
+    end
+  end
+
+  @doc """
+  Get a beacon summaries aggregate from a given date
+  """
+  @spec get_beacon_summaries_aggregate(summary_time :: DateTime.t(), db_path :: String.t()) ::
+          {:ok, SummaryAggregate.t()} | {:error, :not_exists}
+  def get_beacon_summaries_aggregate(date = %DateTime{}, db_path) when is_binary(db_path) do
+    start = System.monotonic_time()
+    filepath = ChainWriter.beacon_aggregate_path(db_path, date)
+
+    with true <- File.exists?(filepath),
+         {:ok, data} <- File.read(filepath),
+         {aggregate, _} <- SummaryAggregate.deserialize(data) do
+      :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+        query: "get_beacon_summaries_aggregate"
+      })
+
+      {:ok, aggregate}
+    else
+      _ ->
+        {:error, :not_exists}
     end
   end
 

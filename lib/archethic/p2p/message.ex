@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Subset
   alias Archethic.BeaconChain.Slot
@@ -35,6 +36,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.GetBalance
   alias __MODULE__.GetBeaconSummaries
   alias __MODULE__.GetBeaconSummary
+  alias __MODULE__.GetBeaconSummariesAggregate
   alias __MODULE__.GetBootstrappingNodes
   alias __MODULE__.GetCurrentSummaries
   alias __MODULE__.GetFirstPublicKey
@@ -131,6 +133,7 @@ defmodule Archethic.P2P.Message do
           | GetFirstAddress.t()
           | ValidationError.t()
           | GetCurrentSummaries.t()
+          | GetBeaconSummariesAggregate.t()
 
   @type response ::
           Ok.t()
@@ -154,6 +157,7 @@ defmodule Archethic.P2P.Message do
           | BeaconSummaryList.t()
           | FirstAddress.t()
           | ReplicationError.t()
+          | SummaryAggregate.t()
 
   @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
@@ -416,6 +420,14 @@ defmodule Archethic.P2P.Message do
   def encode(%GetCurrentSummaries{subsets: subsets}) do
     subsets_bin = :erlang.list_to_binary(subsets)
     <<32::8, length(subsets)::8, subsets_bin::binary>>
+  end
+
+  def encode(%GetBeaconSummariesAggregate{date: date}) do
+    <<33::8, DateTime.to_unix(date)::32>>
+  end
+
+  def encode(aggregate = %SummaryAggregate{}) do
+    <<231::8, SummaryAggregate.serialize(aggregate)::bitstring>>
   end
 
   def encode(%TransactionSummaryList{transaction_summaries: transaction_summaries}) do
@@ -938,6 +950,14 @@ defmodule Archethic.P2P.Message do
     subsets_bin = :binary.part(rest, 0, nb_subsets)
     subsets = for <<subset::8 <- subsets_bin>>, do: <<subset>>
     {%GetCurrentSummaries{subsets: subsets}, <<>>}
+  end
+
+  def decode(<<33::8, timestamp::32, rest::bitstring>>) do
+    {%GetBeaconSummariesAggregate{date: DateTime.from_unix!(timestamp)}, rest}
+  end
+
+  def decode(<<231::8, rest::bitstring>>) do
+    SummaryAggregate.deserialize(rest)
   end
 
   def decode(<<232::8, rest::bitstring>>) do
@@ -1690,6 +1710,16 @@ defmodule Archethic.P2P.Message do
         )
 
         %Error{reason: :invalid_attestation}
+    end
+  end
+
+  def process(%GetBeaconSummariesAggregate{date: date}) do
+    case BeaconChain.get_summaries_aggregate(date) do
+      {:ok, aggregate} ->
+        aggregate
+
+      {:error, :not_exists} ->
+        %NotFound{}
     end
   end
 end

@@ -3,17 +3,18 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
   use GenServer
 
+  alias Archethic.BeaconChain.SummaryAggregate
+  alias Archethic.BeaconChain.Summary
+
+  alias Archethic.Crypto
+
   alias Archethic.DB.EmbeddedImpl.Encoding
   alias Archethic.DB.EmbeddedImpl.ChainIndex
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
-  alias Archethic.BeaconChain.Summary
-
   alias Archethic.Utils
-
-  alias Archethic.Crypto
 
   def start_link(arg \\ [], opts \\ []) do
     GenServer.start_link(__MODULE__, arg, opts)
@@ -56,6 +57,31 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     })
   end
 
+  @doc """
+  Write a beacon summaries aggregate in a new file
+  """
+  @spec write_beacon_summaries_aggregate(SummaryAggregate.t(), String.t()) :: :ok
+  def write_beacon_summaries_aggregate(
+        aggregate = %SummaryAggregate{summary_time: summary_time},
+        db_path
+      )
+      when is_binary(db_path) do
+    start = System.monotonic_time()
+
+    filename = beacon_aggregate_path(db_path, summary_time)
+
+    data =
+      aggregate
+      |> SummaryAggregate.serialize()
+      |> Utils.wrap_binary()
+
+    File.write!(filename, data, [:exclusive, :binary])
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "write_beacon_summaries_aggregate"
+    })
+  end
+
   def init(arg) do
     db_path = Keyword.get(arg, :path)
     partition = Keyword.get(arg, :partition)
@@ -74,6 +100,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
     path
     |> base_beacon_path()
+    |> File.mkdir_p!()
+
+    path
+    |> base_beacon_aggregate_path()
     |> File.mkdir_p!()
   end
 
@@ -152,7 +182,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   end
 
   @doc """
-  Return the path of the sbeacon ummary storage location
+  Return the path of the beacon summary storage location
   """
   @spec beacon_path(String.t(), binary()) :: String.t()
   def beacon_path(db_path, summary_address)
@@ -161,10 +191,26 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   end
 
   @doc """
+  Return the path of the beacon summary aggregate storage location
+  """
+  @spec beacon_aggregate_path(String.t(), DateTime.t()) :: String.t()
+  def beacon_aggregate_path(db_path, date = %DateTime{}) when is_binary(db_path) do
+    Path.join([base_beacon_aggregate_path(db_path), date |> DateTime.to_unix() |> to_string()])
+  end
+
+  @doc """
   Return the beacon summary base path
   """
   @spec base_beacon_path(String.t()) :: String.t()
   def base_beacon_path(db_path) do
     Path.join([db_path, "beacon_summary"])
+  end
+
+  @doc """
+  Return the beacon summaries aggregate base path
+  """
+  @spec base_beacon_aggregate_path(String.t()) :: String.t()
+  def base_beacon_aggregate_path(db_path) do
+    Path.join([db_path, "beacon_aggregate"])
   end
 end

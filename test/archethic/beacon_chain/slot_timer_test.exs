@@ -3,6 +3,7 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.BeaconChain.SubsetRegistry
 
   alias Archethic.P2P
@@ -14,6 +15,8 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
     Enum.each(BeaconChain.list_subsets(), fn subset ->
       Registry.register(SubsetRegistry, subset, [])
     end)
+
+    start_supervised!({SummaryTimer, interval: "0 * * * * *"})
 
     :ok
   end

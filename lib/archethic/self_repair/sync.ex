@@ -3,11 +3,14 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Subset.P2PSampling
+  alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryAggregate
 
   alias Archethic.Crypto
 
   alias Archethic.DB
+
+  alias Archethic.Election
 
   alias Archethic.PubSub
 
@@ -103,24 +106,63 @@ defmodule Archethic.SelfRepair.Sync do
           patch :: binary()
         ) :: :ok | {:error, :unreachable_nodes}
   def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
-    Logger.info(
-      "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
-    )
+    last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
+    if last_summary_time > last_sync_date do
+      Logger.info(
+        "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
+      )
+
+      do_load_missed_transactions(last_sync_date, last_summary_time, patch)
+    else
+      Logger.info("Already synchronized for #{DateTime.to_string(last_sync_date)}")
+
+      # We skip the self-repair because the last synchronization time have been already synchronized
+      :ok
+    end
+  end
+
+  defp do_load_missed_transactions(last_sync_date, last_summary_time, patch) do
     start = System.monotonic_time()
 
-    last_sync_date
-    |> BeaconChain.next_summary_dates()
-    |> BeaconChain.fetch_summary_aggregates()
-    |> tap(&ensure_summaries_download/1)
+    summaries_aggregates = fetch_summaries_aggregates(last_sync_date, last_summary_time)
+    last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time)
+    ensure_download_last_aggregate(last_aggregate)
+
+    last_aggregate = aggregate_with_local_summaries(last_aggregate, last_summary_time)
+
+    summaries_aggregates
+    |> Stream.concat([last_aggregate])
     |> Enum.each(&process_summary_aggregate(&1, patch))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
   end
 
-  defp ensure_summaries_download(aggregates) do
-    # Make sure the beacon summaries have been synchronized
+  defp fetch_summaries_aggregates(last_sync_date, last_summary_time) do
+    last_sync_date
+    |> BeaconChain.next_summary_dates()
+    # Take only the previous summaries before the last one
+    |> Stream.take_while(fn date ->
+      DateTime.compare(date, last_summary_time) == :lt
+    end)
+    # Fetch the beacon summaries aggregate
+    |> Task.async_stream(fn date ->
+      Logger.debug("Fetch summary aggregate for #{date}")
+      BeaconChain.fetch_summaries_aggregate(date)
+    end)
+    |> Stream.filter(fn
+      {:ok, {:ok, %SummaryAggregate{}}} ->
+        true
+
+      _ ->
+        raise "Cannot make the self-repair - Previous summary aggregate not fetched"
+    end)
+    |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
+  end
+
+  defp ensure_download_last_aggregate(last_aggregate = %SummaryAggregate{}) do
+    # Make sure the last beacon aggregate have been synchronized
     # from remote nodes to avoid self-repair to be acknowledged if those
     # cannot be reached
     node_public_key = Crypto.first_node_public_key()
@@ -135,13 +177,26 @@ defmodule Archethic.SelfRepair.Sync do
           |> Enum.reject(&(&1.first_public_key == node_public_key))
           |> Enum.count()
 
-        if remaining_nodes > 0 and aggregates == [] do
-          Logger.error("Cannot make the self-repair - Not reachable nodes")
-          {:error, :unreachable_nodes}
-        else
-          :ok
+        if remaining_nodes > 0 and SummaryAggregate.empty?(last_aggregate) do
+          raise "Cannot make the self repair - Last aggregate not fetched"
         end
     end
+  end
+
+  defp aggregate_with_local_summaries(summary_aggregate, last_summary_time) do
+    BeaconChain.list_subsets()
+    |> Task.async_stream(fn subset ->
+      summary_address = Crypto.derive_beacon_chain_address(subset, last_summary_time, true)
+      BeaconChain.get_summary(summary_address)
+    end)
+    |> Enum.reduce(summary_aggregate, fn
+      {:ok, {:ok, summary = %Summary{}}}, acc ->
+        SummaryAggregate.add_summary(acc, summary)
+
+      _, acc ->
+        acc
+    end)
+    |> SummaryAggregate.aggregate()
   end
 
   @doc """
@@ -155,10 +210,12 @@ defmodule Archethic.SelfRepair.Sync do
   the readiness or the availability of a node.
 
   Also, the  number of transaction received and the fees burned during the beacon summary interval will be stored.
+
+  At the end of the execution, the summaries aggregate will persisted locally if the node is member of the shard of the summary
   """
   @spec process_summary_aggregate(SummaryAggregate.t(), binary()) :: :ok
   def process_summary_aggregate(
-        %SummaryAggregate{
+        aggregate = %SummaryAggregate{
           summary_time: summary_time,
           transaction_summaries: transaction_summaries,
           p2p_availabilities: p2p_availabilities
@@ -201,6 +258,8 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.each(&update_availabilities/1)
 
     update_statistics(summary_time, transaction_summaries)
+
+    store_aggregate(aggregate)
   end
 
   defp synchronize_transactions([], _node_patch), do: :ok
@@ -302,5 +361,23 @@ defmodule Archethic.SelfRepair.Sync do
     Logger.info("Burned fees #{burned_fees} on #{Utils.time_to_string(date)}")
 
     PubSub.notify_new_tps(tps, nb_transactions)
+  end
+
+  defp store_aggregate(aggregate = %SummaryAggregate{summary_time: summary_time}) do
+    node_list =
+      [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
+
+    should_store? =
+      summary_time
+      |> Crypto.derive_beacon_aggregate_address()
+      |> Election.chain_storage_nodes(node_list)
+      |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+
+    if should_store? do
+      BeaconChain.write_summaries_aggregate(aggregate)
+      Logger.info("Summary written to disk for #{summary_time}")
+    else
+      :ok
+    end
   end
 end
