@@ -183,7 +183,7 @@ defmodule Archethic.Reward.Scheduler do
           data
 
         {pid, data} ->
-          Process.exit(pid, :normal)
+          Process.exit(pid, :kill)
           data
       end
 
@@ -246,7 +246,7 @@ defmodule Archethic.Reward.Scheduler do
           data
 
         {pid, data} ->
-          Process.exit(pid, :normal)
+          Process.exit(pid, :kill)
           data
       end
 
