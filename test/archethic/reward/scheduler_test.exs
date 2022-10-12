@@ -1,8 +1,6 @@
 defmodule Archethic.Reward.SchedulerTest do
   use ArchethicCase, async: false
 
-  alias Archethic.Crypto
-
   alias Archethic.{
     Crypto,
     P2P,
