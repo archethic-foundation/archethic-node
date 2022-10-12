@@ -38,6 +38,12 @@ defmodule Archethic.SharedSecrets do
   defdelegate add_origin_public_key(family, key), to: OriginKeyLookup, as: :add_public_key
 
   @doc """
+  Checks if the Origin public key already exists.
+  """
+  @spec has_origin_public_key?(origin_public_key :: Crypto.key()) :: boolean()
+  defdelegate has_origin_public_key?(origin_public_key), to: OriginKeyLookup, as: :has_public_key?
+
+  @doc """
   Get the last network pool address
   """
   @spec get_network_pool_address() :: Crypto.key()
@@ -210,7 +216,7 @@ defmodule Archethic.SharedSecrets do
   end
 
   @doc """
-  Returs Origin id from Origin Public Key
+  Returns Origin id from Origin Public Key
   """
   @spec origin_family_from_public_key(<<_::16, _::_*8>>) :: origin_family()
   def origin_family_from_public_key(<<_curve_id::8, origin_id::8, _public_key::binary>>) do
