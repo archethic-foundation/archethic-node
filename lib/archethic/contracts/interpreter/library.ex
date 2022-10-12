@@ -1,8 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.Library do
   @moduledoc false
 
-  alias Archethic.Crypto
-
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -111,12 +109,12 @@ defmodule Archethic.Contracts.Interpreter.Library do
   ## Examples
 
       iex> Library.hash("hello")
-      <<0, 44, 242, 77, 186, 95, 176, 163, 14, 38, 232, 59, 42, 197, 185, 226, 158,
+      <<44, 242, 77, 186, 95, 176, 163, 14, 38, 232, 59, 42, 197, 185, 226, 158,
           27, 22, 30, 92, 31, 167, 66, 94, 115, 4, 51, 98, 147, 139, 152, 36>>
   """
   @spec hash(binary()) :: binary()
   def hash(content) when is_binary(content) do
-    Crypto.hash(content)
+    :crypto.hash(:sha256, content)
   end
 
   @doc """

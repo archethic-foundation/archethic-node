@@ -9,7 +9,6 @@ defmodule Archethic.Contracts.InterpreterTest do
 
   alias Archethic.Contracts.Interpreter
 
-  alias Archethic.Crypto
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.FirstAddress
@@ -519,7 +518,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert true ==
                Interpreter.valid_conditions?(transaction_conditions, %{
-                 "transaction" => %{"content" => Crypto.hash(code)},
+                 "transaction" => %{"content" => :crypto.hash(:sha256, code)},
                  "contract" => %{"code" => code}
                })
     end
