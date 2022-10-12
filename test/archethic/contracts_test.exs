@@ -295,5 +295,30 @@ defmodule Archethic.ContractsTest do
 
       assert true == Contracts.accept_new_contract?(previous_tx, next_tx, time)
     end
+
+    test "should return true when the inherit constraint match and when no trigger is specified" do
+      code = """
+      condition inherit: [
+        content: "hello"
+      ]
+      """
+
+      previous_tx = %Transaction{
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:00.000999], "Etc/UTC")
+
+      next_tx = %Transaction{
+        data: %TransactionData{
+          code: code,
+          content: "hello"
+        }
+      }
+
+      assert true == Contracts.accept_new_contract?(previous_tx, next_tx, time)
+    end
   end
 end
