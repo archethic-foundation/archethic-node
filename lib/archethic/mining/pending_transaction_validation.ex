@@ -315,6 +315,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:conn, {:error, :existing_node}} ->
         {:error,
          "Invalid node connection (IP/Port) for for the given public key - already existing"}
+
+      {:transfers, false} ->
+        {:error, "Invalid transfers, only mining rewards tokens are allowed"}
     end
   end
 
