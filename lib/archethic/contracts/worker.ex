@@ -269,7 +269,10 @@ defmodule Archethic.Contracts.Worker do
 
   defp schedule_trigger(trigger = %Trigger{type: :datetime, opts: [at: datetime = %DateTime{}]}) do
     seconds = DateTime.diff(datetime, DateTime.utc_now())
-    Process.send_after(self(), trigger, seconds * 1000)
+
+    if seconds > 0 do
+      Process.send_after(self(), trigger, seconds * 1000)
+    end
   end
 
   defp schedule_trigger(%Trigger{type: :oracle}) do
