@@ -315,18 +315,13 @@ defmodule Archethic.Replication.TransactionValidator do
   end
 
   defp check_inputs(
-         tx = %Transaction{type: type, address: address},
+         tx = %Transaction{address: address},
          inputs
        ) do
-    cond do
-      address == Bootstrap.genesis_address() ->
-        :ok
-
-      Transaction.network_type?(type) ->
-        :ok
-
-      true ->
-        do_check_inputs(tx, inputs)
+    if address == Bootstrap.genesis_address() do
+      :ok
+    else
+      do_check_inputs(tx, inputs)
     end
   end
 

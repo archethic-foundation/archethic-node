@@ -5,18 +5,19 @@ defmodule ArchethicWeb.SettingsLive do
 
   alias Archethic.Crypto
 
-  alias Archethic.PubSub
-
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
   alias Archethic.Reward
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+
+  alias ArchethicWeb.TransactionSubscriber
 
   @ip_validate_regex ~r/(^127\.)|(^192\.168\.)/
 
@@ -35,6 +36,7 @@ defmodule ArchethicWeb.SettingsLive do
       |> assign(:error, nil)
       |> assign(:sending, false)
       |> assign(:notification, "")
+      |> assign(:notification_status, "")
 
     {:ok, new_socket}
   end
@@ -75,7 +77,7 @@ defmodule ArchethicWeb.SettingsLive do
     end
   end
 
-  def handle_info({:new_transaction, tx_address, :node, _}, socket) do
+  def handle_info({:new_transaction, _tx_address}, socket) do
     %Node{reward_address: reward_address} = P2P.get_node_info()
 
     new_socket =
@@ -83,8 +85,17 @@ defmodule ArchethicWeb.SettingsLive do
       |> assign(:sending, false)
       |> assign(:reward_address, Base.encode16(reward_address))
       |> assign(:notification, "Change applied!")
+      |> assign(:notification_status, "success")
 
-    PubSub.unregister_to_new_transaction_by_address(tx_address)
+    {:noreply, new_socket}
+  end
+
+  def handle_info({:transaction_error, _address, _context, reason}, socket) do
+    new_socket =
+      socket
+      |> assign(:sending, false)
+      |> assign(:notification, "Transaction is invalid - #{reason}")
+      |> assign(:notification_status, "error")
 
     {:noreply, new_socket}
   end
@@ -92,7 +103,13 @@ defmodule ArchethicWeb.SettingsLive do
   def render(assigns) do
     ~L"""
     <%= if @notification != "" do %>
-      <div class="notification is-success is-light" x-data="{ open: true }" x-init="() => { setTimeout(() => open = false, 3000)}" x-show="open">
+      <div class="notification 
+        <%= if @notification_status == "success" do %>
+          is-success
+        <% else %>
+          is-danger
+        <% end %> 
+      is-light" x-data="{ open: true }" x-init="() => { setTimeout(() => open = false, 3000)}" x-show="open">
       <button class="delete"></button>
       <%= @notification %>
     </div>
@@ -138,7 +155,19 @@ defmodule ArchethicWeb.SettingsLive do
       reward_address: previous_reward_address
     } = P2P.get_node_info()
 
-    token_transfers = get_token_transfers(previous_reward_address, next_reward_address)
+    genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
+
+    token_transfers =
+      case genesis_address do
+        ^previous_reward_address ->
+          get_token_transfers(previous_reward_address, next_reward_address)
+
+        _ ->
+          []
+      end
+
+    {:ok, %Transaction{data: %TransactionData{code: code}}} =
+      TransactionChain.get_last_transaction(genesis_address, data: [:code])
 
     tx =
       Transaction.new(:node, %TransactionData{
@@ -147,16 +176,7 @@ defmodule ArchethicWeb.SettingsLive do
             transfers: token_transfers
           }
         },
-        code: """
-          condition inherit: [
-            # We need to ensure the type stays consistent
-            type: node,
-          
-            # Content and token transfers will be validated during tx's validation
-            content: true,
-            token_transfers: true
-          ]
-        """,
+        code: code,
         content:
           Node.encode_transaction_content(
             ip,
@@ -169,7 +189,7 @@ defmodule ArchethicWeb.SettingsLive do
           )
       })
 
-    PubSub.register_to_new_transaction_by_address(tx.address)
+    TransactionSubscriber.register(tx.address, System.monotonic_time())
 
     Archethic.send_new_transaction(tx)
   end
