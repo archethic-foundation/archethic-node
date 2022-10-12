@@ -18,7 +18,7 @@ defmodule Archethic.Reward.SchedulerTest do
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 0 end)
 
-      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
+      {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * *"], [])
 
       assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
 
@@ -44,7 +44,7 @@ defmodule Archethic.Reward.SchedulerTest do
     end
   end
 
-  describe "scheduler" do
+  describe "Scheduler" do
     setup do
       P2P.add_and_connect_node(%Node{
         first_public_key: Crypto.last_node_public_key(),
@@ -76,7 +76,8 @@ defmodule Archethic.Reward.SchedulerTest do
 
       me = self()
 
-      assert {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
+      assert {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * *"], [])
+
       send(pid, :node_up)
 
       MockClient
@@ -104,7 +105,8 @@ defmodule Archethic.Reward.SchedulerTest do
         send(me, type)
       end)
 
-      assert {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
+      assert {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * *"], [])
+
       send(pid, :node_up)
 
       refute_receive :mint_rewards, 1_200
@@ -112,11 +114,11 @@ defmodule Archethic.Reward.SchedulerTest do
     end
   end
 
-  describe "Scheduler Behavior During Start" do
+  describe "Scheduler_Behavior During Start" do
     test "should be idle(state with args) when node has not done Bootstrapping" do
       :persistent_term.put(:archethic_up, nil)
 
-      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/1 * * * * *")
+      {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * *"], [])
 
       assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
     end
@@ -124,7 +126,7 @@ defmodule Archethic.Reward.SchedulerTest do
     test "should wait for node :up message to start the scheduler, when node is not authorized and available" do
       :persistent_term.put(:archethic_up, nil)
 
-      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/2 * * * * *")
+      {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])
 
       assert {:idle, %{interval: "*/2 * * * * *"}} = :sys.get_state(pid)
 
@@ -145,7 +147,7 @@ defmodule Archethic.Reward.SchedulerTest do
         available?: true
       })
 
-      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/3 * * * * *")
+      {:ok, pid} = Scheduler.start_link([interval: "*/3 * * * * *"], [])
 
       assert {:idle, %{interval: "*/3 * * * * *"}} = :sys.get_state(pid)
       send(pid, :node_up)
@@ -161,7 +163,7 @@ defmodule Archethic.Reward.SchedulerTest do
     test "Should use persistent_term :archethic_up when a Scheduler crashes, when a node is not authorized and available" do
       :persistent_term.put(:archethic_up, :up)
 
-      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/4 * * * * *")
+      {:ok, pid} = Scheduler.start_link([interval: "*/4 * * * * *"], [])
 
       assert {:idle,
               %{
@@ -185,7 +187,7 @@ defmodule Archethic.Reward.SchedulerTest do
         available?: true
       })
 
-      {:ok, pid} = GenStateMachine.start_link(Scheduler, interval: "*/5 * * * * *")
+      {:ok, pid} = Scheduler.start_link([interval: "*/5 * * * * *"], [])
 
       assert {:scheduled,
               %{
