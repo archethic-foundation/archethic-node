@@ -16,8 +16,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   - Main Token ledger as ETS set ({token, to, from, token_id}, amount, spent?, timestamp)
   - Token Unspent Output Index as ETS bag (to, {from, token, token_id})
   """
-  @spec start_link(args :: list()) ::
-          {:ok, pid()} | {:error, reason :: any()} | {:stop, reason :: any()} | :ignore
+  @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args)
   end
@@ -64,21 +63,14 @@ defmodule Archethic.Account.MemTables.TokenLedger do
 
   """
   @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
-  def add_unspent_output(to_address, utxo)
-      when is_binary(to_address) do
-    # CC code
-    insert(to_address, utxo)
-  end
-
-  defp insert(to_address, %UnspentOutput{
-         from: from_address,
-         amount: amount,
-         type: {:token, token_address, token_id},
-         timestamp: timestamp
-       })
-       when is_binary(from_address) and is_integer(amount) and amount > 0 and
-              is_binary(token_address) and is_integer(token_id) and token_id >= 0 and
-              not is_nil(timestamp) do
+  def add_unspent_output(to_address, %UnspentOutput{
+        from: from_address,
+        amount: amount,
+        type: {:token, token_address, token_id},
+        timestamp: %DateTime{} = timestamp
+      })
+      when is_binary(to_address) and is_binary(from_address) and is_integer(amount) and amount > 0 and
+             is_binary(token_address) and is_integer(token_id) and token_id >= 0 do
     spent? =
       case :ets.lookup(@unspent_output_index_table, to_address) do
         [] ->

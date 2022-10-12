@@ -16,8 +16,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   - Main UCO ledger as ETS set ({{to, from}, amount, spent?, timestamp, reward?})
   - UCO Unspent Output Index as ETS bag (to, from)
   """
-  @spec start_link(args :: list()) ::
-          {:ok, pid()} | {:error, reason :: any()} | {:stop, reason :: any()} | :ignore
+  @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args)
   end
@@ -66,9 +65,14 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
   def add_unspent_output(
         to,
-        %UnspentOutput{from: from, amount: amount, reward?: reward?, timestamp: timestamp}
+        %UnspentOutput{
+          from: from,
+          amount: amount,
+          reward?: reward?,
+          timestamp: %DateTime{} = timestamp
+        }
       )
-      when is_binary(to) and is_integer(amount) and amount > 0 and not is_nil(timestamp) do
+      when is_binary(to) and is_integer(amount) and amount > 0 do
     spent? =
       case :ets.lookup(@unspent_output_index_table, to) do
         [] ->

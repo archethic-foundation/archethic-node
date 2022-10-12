@@ -46,8 +46,7 @@ defmodule Archethic.Account.MemTablesLoader do
     :on_chain_wallet
   ]
 
-  @spec start_link(args :: list()) ::
-          {:ok, pid()} | {:error, reason :: any()} | {:stop, reason :: any()} | :ignore
+  @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end

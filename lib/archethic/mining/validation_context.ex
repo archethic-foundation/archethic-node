@@ -1136,12 +1136,8 @@ defmodule Archethic.Mining.ValidationContext do
         fee: fee,
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.from_transaction(tx, timestamp |> DateTime.truncate(:millisecond))
-      |> LedgerOperations.consume_inputs(
-        tx.address,
-        previous_unspent_outputs,
-        timestamp |> DateTime.truncate(:millisecond)
-      )
+      |> LedgerOperations.from_transaction(tx, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs, timestamp)
 
     expected_unspent_outputs == next_unspent_outputs
   end
