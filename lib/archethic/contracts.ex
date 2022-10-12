@@ -176,6 +176,8 @@ defmodule Archethic.Contracts do
     end
   end
 
+  defp validate_triggers([], _, _), do: :ok
+
   defp validate_triggers(triggers, next_tx, date) do
     if Enum.any?(triggers, &valid_from_trigger?(&1, next_tx, date)) do
       :ok
