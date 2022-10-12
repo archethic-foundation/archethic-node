@@ -219,7 +219,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
           end
         end)
 
-      {:keep_state, Map.put(data, :node_detection, pid)}
+      {:keep_state, Map.put(data, :watcher, pid)}
     end
   end
 
@@ -227,17 +227,17 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         :info,
         {:EXIT, pid, {:shutdown, :hard_timeout}},
         :triggered,
-        data = %{node_detection: watcher_pid}
+        data = %{watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    {:keep_state, Map.delete(data, :node_detection), {:next_event, :internal, :schedule}}
+    {:keep_state, Map.delete(data, :watcher), {:next_event, :internal, :schedule}}
   end
 
   def handle_event(
         :info,
         {:EXIT, pid, _},
         :triggered,
-        _data = %{node_detection: watcher_pid}
+        _data = %{watcher: watcher_pid}
       )
       when pid == watcher_pid do
     :keep_state_and_data
@@ -265,7 +265,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
           data
 
         {pid, data} ->
-          Process.exit(pid, :normal)
+          Process.exit(pid, :kill)
           data
       end
 

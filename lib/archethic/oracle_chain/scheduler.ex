@@ -183,7 +183,7 @@ defmodule Archethic.OracleChain.Scheduler do
           data
 
         {pid, data} ->
-          Process.exit(pid, :normal)
+          Process.exit(pid, :kill)
           data
       end
 
@@ -382,7 +382,7 @@ defmodule Archethic.OracleChain.Scheduler do
         :ignore
 
       pid ->
-        Process.exit(pid, :normal)
+        Process.exit(pid, :kill)
     end
 
     tx_address =
