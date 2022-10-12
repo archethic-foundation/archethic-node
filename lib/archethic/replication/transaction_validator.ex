@@ -355,8 +355,8 @@ defmodule Archethic.Replication.TransactionValidator do
         fee: fee,
         transaction_movements: transaction_movements
       }
-      |> LedgerOperations.from_transaction(tx)
-      |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.from_transaction(tx, tx.validation_stamp.timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, tx.validation_stamp.timestamp)
 
     same? =
       Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->

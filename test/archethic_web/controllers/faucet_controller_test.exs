@@ -167,7 +167,7 @@ defmodule ArchethicWeb.FaucetControllerTest do
       end)
 
       faucet_requests =
-        for request_index <- 1..(faucet_rate_limit + 1) do
+        for _request_index <- 1..(faucet_rate_limit + 1) do
           post(conn, Routes.faucet_path(conn, :create_transfer), address: recipient_address)
         end
 

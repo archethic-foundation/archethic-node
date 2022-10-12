@@ -39,7 +39,8 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
 
     test "should get inconsistency when the proof of work is invalid" do
-      validation_context = create_context()
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      validation_context = create_context(timestamp)
 
       %ValidationContext{
         cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
@@ -65,7 +66,8 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
 
     test "should get inconsistency when the transaction movements are invalid" do
-      validation_context = create_context()
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      validation_context = create_context(timestamp)
 
       %ValidationContext{
         cross_validation_stamps: [
@@ -106,7 +108,7 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
   end
 
-  defp create_context do
+  defp create_context(validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond)) do
     welcome_node = %Node{
       last_public_key: "key1",
       first_public_key: "key1",
@@ -181,21 +183,29 @@ defmodule Archethic.Mining.ValidationContextTest do
     %ValidationContext{
       transaction: Transaction.new(:transfer, %TransactionData{}, "seed", 0),
       previous_storage_nodes: previous_storage_nodes,
-      unspent_outputs: [%UnspentOutput{from: "@Alice2", amount: 204_000_000, type: :UCO}],
+      unspent_outputs: [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 204_000_000,
+          type: :UCO,
+          timestamp: validation_time
+        }
+      ],
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
       valid_pending_transaction?: true,
-      validation_time: DateTime.utc_now()
+      validation_time: validation_time
     }
   end
 
   defp create_validation_stamp_with_invalid_signature(%ValidationContext{
          transaction: tx,
-         unspent_outputs: unspent_outputs
+         unspent_outputs: unspent_outputs,
+         validation_time: timestamp
        }) do
     %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -204,18 +214,19 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
-        |> LedgerOperations.from_transaction(tx)
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
+        |> LedgerOperations.from_transaction(tx, timestamp)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
       signature: :crypto.strong_rand_bytes(32)
     }
   end
 
   defp create_validation_stamp_with_invalid_proof_of_work(%ValidationContext{
          transaction: tx,
-         unspent_outputs: unspent_outputs
+         unspent_outputs: unspent_outputs,
+         validation_time: timestamp
        }) do
     %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -224,18 +235,19 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
-        |> LedgerOperations.from_transaction(tx)
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+        |> LedgerOperations.from_transaction(tx, timestamp)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
     }
     |> ValidationStamp.sign()
   end
 
   defp create_validation_stamp_with_invalid_transaction_fee(%ValidationContext{
          transaction: tx,
-         unspent_outputs: unspent_outputs
+         unspent_outputs: unspent_outputs,
+         validation_time: timestamp
        }) do
     %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -244,19 +256,20 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: 2_020_000_000,
           transaction_movements: Transaction.get_movements(tx)
         }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
     }
     |> ValidationStamp.sign()
   end
 
   defp create_validation_stamp_with_invalid_transaction_movements(%ValidationContext{
          transaction: tx,
+         validation_time: timestamp,
          unspent_outputs: unspent_outputs
        }) do
     fee = Fee.calculate(tx, 0.07)
 
     %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -270,21 +283,23 @@ defmodule Archethic.Mining.ValidationContextTest do
             %UnspentOutput{
               amount: Enum.reduce(unspent_outputs, 0, &(&1.amount + &2)) - fee,
               from: tx.address,
-              type: :UCO
+              type: :UCO,
+              timestamp: timestamp
             }
           ]
         }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
     }
     |> ValidationStamp.sign()
   end
 
   defp create_validation_stamp_with_invalid_unspent_outputs(%ValidationContext{
          transaction: tx,
-         unspent_outputs: _unspent_outputs
+         unspent_outputs: _unspent_outputs,
+         validation_time: timestamp
        }) do
     %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -295,7 +310,8 @@ defmodule Archethic.Mining.ValidationContextTest do
           %UnspentOutput{
             amount: 100_000_000_000,
             from: tx.address,
-            type: :UCO
+            type: :UCO,
+            timestamp: timestamp
           }
         ]
       }
@@ -305,10 +321,11 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_errors(%ValidationContext{
          transaction: tx,
-         unspent_outputs: unspent_outputs
+         unspent_outputs: unspent_outputs,
+         validation_time: timestamp
        }) do
     %ValidationStamp{
-      timestamp: DateTime.utc_now(),
+      timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -317,7 +334,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
       error: :invalid_pending_transaction
     }
     |> ValidationStamp.sign()

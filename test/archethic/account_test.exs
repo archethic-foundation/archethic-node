@@ -59,14 +59,16 @@ defmodule Archethic.AccountTest do
     end
 
     test "should return the sum of unspent outputs amounts" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
       UCOLedger.add_unspent_output(
         "@Alice2",
         %UnspentOutput{
           from: "@Bob3",
           amount: 300_000_000,
-          type: :UCO
-        },
-        ~U[2021-03-05 13:41:34Z]
+          type: :UCO,
+          timestamp: timestamp
+        }
       )
 
       UCOLedger.add_unspent_output(
@@ -74,9 +76,9 @@ defmodule Archethic.AccountTest do
         %UnspentOutput{
           from: "@Tom10",
           amount: 100_000_000,
-          type: :UCO
-        },
-        ~U[2021-03-05 13:41:34Z]
+          type: :UCO,
+          timestamp: timestamp
+        }
       )
 
       TokenLedger.add_unspent_output(
@@ -84,9 +86,9 @@ defmodule Archethic.AccountTest do
         %UnspentOutput{
           from: "@Charlie2",
           amount: 10_000_000_000,
-          type: {:token, "@CharlieToken", 0}
-        },
-        ~U[2021-03-05 13:41:34Z]
+          type: {:token, "@CharlieToken", 0},
+          timestamp: timestamp
+        }
       )
 
       assert %{uco: 400_000_000, token: %{{"@CharlieToken", 0} => 10_000_000_000}} ==
@@ -98,16 +100,16 @@ defmodule Archethic.AccountTest do
     end
 
     test "should return 0 when all the unspent outputs have been spent" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{from: "@Bob3", amount: 300_000_000},
-        ~U[2021-03-05 13:41:34Z]
+        %UnspentOutput{from: "@Bob3", amount: 300_000_000, timestamp: timestamp}
       )
 
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{from: "@Tom10", amount: 100_000_000},
-        ~U[2021-03-05 13:41:34Z]
+        %UnspentOutput{from: "@Tom10", amount: 100_000_000, timestamp: timestamp}
       )
 
       TokenLedger.add_unspent_output(
@@ -115,9 +117,9 @@ defmodule Archethic.AccountTest do
         %UnspentOutput{
           from: "@Charlie2",
           amount: 10_000_000_000,
-          type: {:token, "@CharlieToken", 0}
-        },
-        ~U[2021-03-05 13:41:34Z]
+          type: {:token, "@CharlieToken", 0},
+          timestamp: timestamp
+        }
       )
 
       UCOLedger.spend_all_unspent_outputs("@Alice2")

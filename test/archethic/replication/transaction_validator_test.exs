@@ -67,7 +67,14 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
   describe "validate/2" do
     test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached" do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
 
       assert {:error, :invalid_atomic_commitment} =
                TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
@@ -99,7 +106,14 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     end
 
     test "should return {:error, :invalid_transaction_with_inconsistencies} when there is an atomic commitment but with inconsistencies" do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
 
       assert {:error, :invalid_transaction_with_inconsistencies} =
                TransactionFactory.create_valid_transaction_with_inconsistencies(unspent_outputs)
@@ -107,7 +121,14 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     end
 
     test "should return :ok when the transaction is valid" do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
 
       assert :ok =
                TransactionFactory.create_valid_transaction(unspent_outputs)
@@ -117,7 +138,14 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
   describe "validate/3" do
     test "should return :ok when the transaction is valid" do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
 
       assert :ok =
                TransactionFactory.create_valid_transaction(unspent_outputs)

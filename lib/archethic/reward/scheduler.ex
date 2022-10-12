@@ -20,9 +20,9 @@ defmodule Archethic.Reward.Scheduler do
 
   require Logger
 
-  @spec start_link(any) :: :ignore | {:error, any} | {:ok, pid}
-  def start_link(args \\ []) do
-    GenStateMachine.start_link(__MODULE__, args, name: __MODULE__)
+  @spec start_link(list(), any) :: GenStateMachine.on_start()
+  def start_link(args \\ [], opts \\ [name: __MODULE__]) do
+    GenStateMachine.start_link(__MODULE__, args, opts)
   end
 
   @doc """

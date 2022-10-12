@@ -429,16 +429,20 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
       MockClient
       |> stub(:send_message, fn _, %GetUnspentOutputs{address: _}, _ ->
         {:ok,
          %UnspentOutputList{
-           unspent_outputs: [%UnspentOutput{from: "Alice2", amount: 10, type: :UCO}]
+           unspent_outputs: [
+             %UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: timestamp}
+           ]
          }}
       end)
 
-      assert {[%UnspentOutput{from: "Alice2", amount: 10, type: :UCO}], _more?, _offset} =
-               TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
+      assert {[%UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: ^timestamp}],
+              _more?, _offset} = TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
     end
 
     test "should resolve the longest utxos when conflicts" do
@@ -464,6 +468,7 @@ defmodule Archethic.TransactionChainTest do
       ]
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
       MockClient
       |> stub(:send_message, fn
@@ -473,21 +478,26 @@ defmodule Archethic.TransactionChainTest do
         %Node{port: 3001}, %GetUnspentOutputs{address: _}, _ ->
           {:ok,
            %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "Alice2", amount: 10, type: :UCO}]
+             unspent_outputs: [
+               %UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: timestamp}
+             ]
            }}
 
         %Node{port: 3002}, %GetUnspentOutputs{address: _}, _ ->
           {:ok,
            %UnspentOutputList{
              unspent_outputs: [
-               %UnspentOutput{from: "Alice2", amount: 10, type: :UCO},
-               %UnspentOutput{from: "Bob3", amount: 2, type: :UCO}
+               %UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: timestamp},
+               %UnspentOutput{from: "Bob3", amount: 2, type: :UCO, timestamp: timestamp}
              ]
            }}
       end)
 
-      assert {[%UnspentOutput{from: "Alice2"}, %UnspentOutput{from: "Bob3"}], _more?, _offset} =
-               TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
+      assert {[
+                %UnspentOutput{from: "Alice2", timestamp: ^timestamp},
+                %UnspentOutput{from: "Bob3", timestamp: ^timestamp}
+              ], _more?,
+              _offset} = TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
     end
   end
 
