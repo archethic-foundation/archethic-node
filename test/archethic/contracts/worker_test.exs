@@ -84,14 +84,16 @@ defmodule Archethic.Contracts.WorkerTest do
       }
       |> Constants.from_transaction()
 
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
     Account.MemTables.UCOLedger.add_unspent_output(
       "@SC1",
       %UnspentOutput{
         from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         amount: 100_000_000_000,
-        type: :UCO
-      },
-      DateTime.utc_now()
+        type: :UCO,
+        timestamp: timestamp
+      }
     )
 
     expected_tx = %Transaction{

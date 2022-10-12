@@ -47,7 +47,8 @@ defmodule Archethic.Mining.TransactionContextTest do
                %UnspentOutput{
                  from: "@Bob3",
                  amount: 1_000_000_000,
-                 type: :UCO
+                 type: :UCO,
+                 timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                }
              ]
            }}

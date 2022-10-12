@@ -40,7 +40,14 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
       reward_address: :crypto.strong_rand_bytes(32)
     })
 
-    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+    unspent_outputs = [
+      %UnspentOutput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+    ]
 
     me = self()
 

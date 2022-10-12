@@ -69,6 +69,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
     gen all(
           from <- StreamData.binary(length: 33),
           amount <- StreamData.positive_integer(),
+          timestamp <- StreamData.constant(DateTime.utc_now() |> DateTime.truncate(:millisecond)),
           type <-
             StreamData.one_of([
               StreamData.constant(:UCO),
@@ -78,7 +79,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
               )
             ])
         ) do
-      %UnspentOutput{from: from, amount: amount, type: type}
+      %UnspentOutput{from: from, amount: amount, type: type, timestamp: timestamp}
     end
   end
 end

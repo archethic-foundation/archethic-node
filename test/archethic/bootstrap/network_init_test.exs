@@ -146,7 +146,15 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         0
       )
 
-    unspent_outputs = [%UnspentOutput{amount: 1_000_000_000_000, from: tx.address, type: :UCO}]
+    unspent_outputs = [
+      %UnspentOutput{
+        amount: 1_000_000_000_000,
+        from: tx.address,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+    ]
+
     tx = NetworkInit.self_validation(tx, unspent_outputs)
 
     tx_fee = tx.validation_stamp.ledger_operations.fee
@@ -163,7 +171,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
                    %UnspentOutput{
                      amount: ^unspent_output,
                      from: _,
-                     type: :UCO
+                     type: :UCO,
+                     timestamp: _
                    }
                  ]
                }
