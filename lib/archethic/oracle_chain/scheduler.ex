@@ -239,7 +239,7 @@ defmodule Archethic.OracleChain.Scheduler do
           data
       end
 
-    OracleChain.update_summ_gen_addr()
+    new_data = update_summary_date(new_data)
     {:keep_state, new_data, {:next_event, :internal, :fetch_data}}
   end
 
@@ -247,40 +247,13 @@ defmodule Archethic.OracleChain.Scheduler do
         :info,
         {:new_transaction, _address, :oracle_summary, _timestamp},
         :scheduled,
-        data = %{summary_interval: summary_interval}
+        data
       ) do
     Logger.debug(
       "Reschedule polling after reception of an oracle summary transaction in scheduled state instead of triggered state"
     )
 
-    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
-    next_summary_date = next_date(summary_interval, current_time)
-    Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
-
-    # We reset the summary date and indexes before rescheduling
-    new_data =
-      data
-      |> Map.put(:summary_date, next_summary_date)
-      |> Map.put(:next_address, Crypto.derive_oracle_address(next_summary_date, 1))
-      |> Map.delete(:watcher)
-      |> Map.update!(:indexes, fn indexes ->
-        # Clean previous indexes
-        indexes
-        |> Map.keys()
-        |> Enum.filter(&(DateTime.diff(&1, next_summary_date) < 0))
-        |> Enum.reduce(indexes, &Map.delete(&2, &1))
-      end)
-      |> Map.update!(:indexes, fn indexes ->
-        # Prevent overwrite, if the oracle transaction was faster than the summary processing
-        if Map.has_key?(indexes, next_summary_date) do
-          indexes
-        else
-          Map.put(indexes, next_summary_date, 0)
-        end
-      end)
-
-    OracleChain.update_summ_gen_addr()
-
+    new_data = update_summary_date(data)
     {:next_state, :triggered, new_data, {:next_event, :internal, :fetch_data}}
   end
 
@@ -374,7 +347,7 @@ defmodule Archethic.OracleChain.Scheduler do
         :internal,
         :aggregate,
         :triggered,
-        data = %{summary_date: summary_date, summary_interval: summary_interval, indexes: indexes}
+        data = %{summary_date: summary_date, indexes: indexes}
       )
       when is_map_key(indexes, summary_date) do
     Logger.debug("Oracle summary - state: #{inspect(data)}")
@@ -428,32 +401,7 @@ defmodule Archethic.OracleChain.Scheduler do
           nil
       end
 
-    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
-    next_summary_date = next_date(summary_interval, current_time)
-    Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
-
-    new_data =
-      data
-      |> Map.put(:summary_date, next_summary_date)
-      |> Map.put(:watcher, watcher_pid)
-      |> Map.put(:next_address, Crypto.derive_oracle_address(next_summary_date, 1))
-      |> Map.update!(:indexes, fn indexes ->
-        # Clean previous indexes
-        indexes
-        |> Map.keys()
-        |> Enum.filter(&(DateTime.diff(&1, next_summary_date) < 0))
-        |> Enum.reduce(indexes, &Map.delete(&2, &1))
-      end)
-      |> Map.update!(:indexes, fn indexes ->
-        # Prevent overwrite, if the oracle transaction was faster than the summary processing
-        if Map.has_key?(indexes, next_summary_date) do
-          indexes
-        else
-          Map.put(indexes, next_summary_date, 0)
-        end
-      end)
-
-    {:keep_state, new_data}
+    {:keep_state, Map.put(data, :watcher, watcher_pid)}
   end
 
   def handle_event(
@@ -635,6 +583,34 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   def handle_event(_event_type, _event, :idle, _data), do: :keep_state_and_data
+
+  defp update_summary_date(data = %{summary_interval: summary_interval}) do
+    OracleChain.update_summ_gen_addr()
+
+    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
+    next_summary_date = next_date(summary_interval, current_time)
+    Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
+
+    data
+    |> Map.put(:summary_date, next_summary_date)
+    |> Map.put(:next_address, Crypto.derive_oracle_address(next_summary_date, 1))
+    |> Map.delete(:watcher)
+    |> Map.update!(:indexes, fn indexes ->
+      # Clean previous indexes
+      indexes
+      |> Map.keys()
+      |> Enum.filter(&(DateTime.diff(&1, next_summary_date) < 0))
+      |> Enum.reduce(indexes, &Map.delete(&2, &1))
+    end)
+    |> Map.update!(:indexes, fn indexes ->
+      # Prevent overwrite, if the oracle transaction was faster than the summary processing
+      if Map.has_key?(indexes, next_summary_date) do
+        indexes
+      else
+        Map.put(indexes, next_summary_date, 0)
+      end
+    end)
+  end
 
   defp schedule_new_polling(next_polling_date, current_time = %DateTime{}) do
     Logger.info("Next oracle polling at #{DateTime.to_string(next_polling_date)}")
