@@ -268,7 +268,7 @@ defmodule Archethic.OracleChain.Scheduler do
       ) do
     Logger.debug("Oracle polling in process")
 
-    if DateTime.diff(polling_date, summary_date, :second) == 0 do
+    if DateTime.diff(polling_date, summary_date, :second) >= 0 do
       {:next_state, :triggered, data, {:next_event, :internal, :aggregate}}
     else
       {:next_state, :triggered, data, {:next_event, :internal, :fetch_data}}
