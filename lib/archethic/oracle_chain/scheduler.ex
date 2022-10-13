@@ -178,7 +178,7 @@ defmodule Archethic.OracleChain.Scheduler do
     PubSub.unregister_to_new_transaction_by_address(address)
 
     new_data =
-      case Map.pop(data, :oracle_watcher) do
+      case Map.pop(data, :watcher) do
         {nil, data} ->
           data
 
@@ -228,9 +228,19 @@ defmodule Archethic.OracleChain.Scheduler do
     {:keep_state, new_data, {:next_event, :internal, :schedule}}
   end
 
-  def handle_event(:info, {:new_transaction, _, :oracle_summary, _timestamp}, :triggered, _data) do
+  def handle_event(:info, {:new_transaction, _, :oracle_summary, _timestamp}, :triggered, data) do
+    new_data =
+      case Map.pop(data, :watcher) do
+        {nil, data} ->
+          data
+
+        {pid, data} ->
+          Process.exit(pid, :kill)
+          data
+      end
+
     OracleChain.update_summ_gen_addr()
-    {:keep_state_and_data, {:next_event, :internal, :fetch_data}}
+    {:keep_state, new_data, {:next_event, :internal, :fetch_data}}
   end
 
   def handle_event(
@@ -252,7 +262,7 @@ defmodule Archethic.OracleChain.Scheduler do
       data
       |> Map.put(:summary_date, next_summary_date)
       |> Map.put(:next_address, Crypto.derive_oracle_address(next_summary_date, 1))
-      |> Map.delete(:oracle_watcher)
+      |> Map.delete(:watcher)
       |> Map.update!(:indexes, fn indexes ->
         # Clean previous indexes
         indexes
@@ -271,11 +281,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
     OracleChain.update_summ_gen_addr()
 
-    {:next_state, :triggered, new_data,
-     [
-       {:next_event, :internal, :fetch_data},
-       {:next_event, :internal, :schedule}
-     ]}
+    {:next_state, :triggered, new_data, {:next_event, :internal, :fetch_data}}
   end
 
   def handle_event(
@@ -350,7 +356,7 @@ defmodule Archethic.OracleChain.Scheduler do
             end
           end)
 
-        {:keep_state, Map.put(data, :oracle_watcher, pid)}
+        {:keep_state, Map.put(data, :watcher, pid)}
 
       {:exists, true} ->
         Logger.warning("Transaction already exists - before sending",
@@ -376,22 +382,13 @@ defmodule Archethic.OracleChain.Scheduler do
     index = Map.fetch!(indexes, summary_date)
     validation_nodes = get_validation_nodes(summary_date, index + 1)
 
-    # Stop previous oracle retries when the summary is triggered
-    case Map.get(data, :oracle_watcher) do
-      nil ->
-        :ignore
-
-      pid ->
-        Process.exit(pid, :kill)
-    end
-
     tx_address =
       summary_date
       |> Crypto.derive_oracle_keypair(index + 1)
       |> elem(0)
       |> Crypto.derive_address()
 
-    summary_watcher_pid =
+    watcher_pid =
       with {:exists, false} <- {:exists, DB.transaction_exists?(tx_address)},
            {:trigger, true} <- {:trigger, trigger_node?(validation_nodes)} do
         Logger.debug("Oracle transaction summary sending",
@@ -438,9 +435,8 @@ defmodule Archethic.OracleChain.Scheduler do
     new_data =
       data
       |> Map.put(:summary_date, next_summary_date)
-      |> Map.put(:summary_watcher, summary_watcher_pid)
+      |> Map.put(:watcher, watcher_pid)
       |> Map.put(:next_address, Crypto.derive_oracle_address(next_summary_date, 1))
-      |> Map.delete(:oracle_watcher)
       |> Map.update!(:indexes, fn indexes ->
         # Clean previous indexes
         indexes
@@ -486,64 +482,29 @@ defmodule Archethic.OracleChain.Scheduler do
         :info,
         {:EXIT, pid, {:shutdown, :hard_timeout}},
         :triggered,
-        data = %{oracle_watcher: watcher_pid}
+        data = %{watcher: watcher_pid}
       )
       when pid == watcher_pid do
-    {:keep_state, Map.delete(data, :oracle_watcher), {:next_event, :internal, :schedule}}
-  end
-
-  def handle_event(
-        :info,
-        {:EXIT, pid, _},
-        :triggered,
-        _data = %{oracle_watcher: watcher_pid}
-      )
-      when pid == watcher_pid do
-    :keep_state_and_data
-  end
-
-  def handle_event(
-        :info,
-        {:EXIT, pid, _},
-        :triggered,
-        _data = %{summary_watcher: watcher_pid}
-      )
-      when pid == watcher_pid do
-    :keep_state_and_data
-  end
-
-  def handle_event(
-        :info,
-        {:EXIT, pid, _},
-        :scheduled,
-        _data = %{oracle_watcher: watcher_pid}
-      )
-      when pid == watcher_pid do
-    :keep_state_and_data
+    {:keep_state, Map.delete(data, :watcher), {:next_event, :internal, :schedule}}
   end
 
   def handle_event(
         :info,
         {:EXIT, pid, _},
         _state,
-        data = %{summary_watcher: watcher_pid}
+        data = %{watcher: watcher_pid}
       )
-      when pid == watcher_pid do
-    {:keep_state, Map.delete(data, :summary_watcher)}
+      when watcher_pid == pid do
+    {:keep_state, Map.delete(data, :watcher)}
   end
 
   def handle_event(
         :info,
         {:EXIT, _pid, _},
         _state,
-        data
+        _data
       ) do
-    new_data =
-      data
-      |> Map.delete(:oracle_watcher)
-      |> Map.delete(:summary_watcher)
-
-    {:keep_state, new_data}
+    :keep_state_and_data
   end
 
   def handle_event(
