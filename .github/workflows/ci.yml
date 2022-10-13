@@ -50,6 +50,8 @@ jobs:
       run: mix compile --warnings-as-errors
     - name: Set credo
       run: mix credo 
+    - name: Run Sobelow
+      run: mix sobelow 
     - name: Run tests
       run: mix test --trace
     - name: Retrieve PLT Cache
