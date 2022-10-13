@@ -215,22 +215,49 @@ defmodule Archethic.Reward.Scheduler do
         :info,
         {:new_transaction, address, :mint_rewards, _timestamp},
         :scheduled,
-        data = %{next_address: next_address}
+        data = %{next_address: next_address, index: index}
       ) do
     Logger.debug(
       "Reschedule rewards after reception of mint rewards transaction in scheduled state instead of triggered state"
     )
 
     # We prevent non scheduled transactions to change
-    new_data =
+    next_index =
       if next_address == address do
-        data
-        |> Map.update!(:index, &(&1 + 1))
+        index + 1
       else
-        data
+        index
       end
 
-    {:keep_state, new_data, {:next_event, :internal, :schedule}}
+    next_address = Reward.next_address(next_index)
+
+    new_data =
+      data
+      |> Map.put(:index, next_index)
+      |> Map.put(:next_address, next_address)
+
+    validation_nodes = Election.storage_nodes(next_address, P2P.authorized_and_available_nodes())
+
+    if trigger_node?(validation_nodes) do
+      Logger.debug("Initialize node rewards tx after mint rewards")
+      send_node_rewards(next_index)
+      {:next_state, :triggered, new_data}
+    else
+      Logger.debug("Start node responsivness for node rewards tx after mint rewards replication")
+
+      {:ok, pid} =
+        DetectNodeResponsiveness.start_link(next_address, length(validation_nodes), fn count ->
+          if trigger_node?(validation_nodes, count) do
+            Logger.debug("Node reward creation...attempt #{count}",
+              transaction_address: Base.encode16(next_address)
+            )
+
+            send_node_rewards(next_index)
+          end
+        end)
+
+      {:next_state, :triggered, Map.put(new_data, :watcher, pid)}
+    end
   end
 
   def handle_event(
