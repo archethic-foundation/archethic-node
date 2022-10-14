@@ -1445,6 +1445,11 @@ defmodule Archethic.Contracts.Interpreter do
     {:previous_public_key, true}
   end
 
+  defp validate_condition({:timestamp, nil}, _) do
+    # Skip the verification as timestamp change for each transaction
+    {:timestamp, true}
+  end
+
   # Validation rules for inherit constraints
   defp validate_condition({field, nil}, %{"previous" => prev, "next" => next}) do
     {field, Map.get(prev, Atom.to_string(field)) == Map.get(next, Atom.to_string(field))}
