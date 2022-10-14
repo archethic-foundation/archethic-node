@@ -68,6 +68,9 @@ defmodule Archethic.MixProject do
       {:dialyxir, "~> 1.0", runtime: false},
       {:logger_file_backend, "~> 0.0.13", only: :dev},
 
+      # Security
+      {:sobelow, ">= 0.11.1", only: [:test, :dev], runtime: false},
+
       # Test
       {:mox, "~> 0.5.2", only: [:test]},
       {:stream_data, "~> 0.5.0", only: [:test], runtime: false},
@@ -116,9 +119,17 @@ defmodule Archethic.MixProject do
       # run single node
       "dev.run": ["deps.get", "cmd mix dev.clean", "cmd iex -S mix"],
       # Must be run before git push --no-verify | any(dialyzer issue)
-      "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test --trace", "dialyzer"],
+      "dev.checks": [
+        "clean",
+        "format",
+        "compile",
+        "credo",
+        "sobelow",
+        "cmd mix test --trace",
+        "dialyzer"
+      ],
       # paralele checks
-      "dev.pchecks": ["  clean &   format &    compile &   credo &   test &   dialyzer"],
+      "dev.pchecks": ["  clean &   format &    compile &   credo &   sobelow & test &   dialyzer"],
       # docker test-net with 3 nodes
       "dev.docker": [
         "cmd docker-compose down",
