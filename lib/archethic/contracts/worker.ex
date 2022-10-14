@@ -335,7 +335,6 @@ defmodule Archethic.Contracts.Worker do
       %{next_transaction: next_tx, previous_transaction: prev_tx}
       |> chain_type()
       |> chain_code()
-      |> chain_content()
       |> chain_ownerships()
 
     case get_transaction_seed(prev_tx) do
@@ -379,10 +378,10 @@ defmodule Archethic.Contracts.Worker do
   defp chain_type(
          acc = %{
            next_transaction: %Transaction{type: nil},
-           previous_transaction: %Transaction{type: previous_type}
+           previous_transaction: _
          }
        ) do
-    put_in(acc, [:next_transaction, :type], previous_type)
+    put_in(acc, [:next_transaction, Access.key(:type)], :transfer)
   end
 
   defp chain_type(acc), do: acc
@@ -397,21 +396,6 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp chain_code(acc), do: acc
-
-  defp chain_content(
-         acc = %{
-           next_transaction: %Transaction{data: %TransactionData{content: ""}},
-           previous_transaction: %Transaction{data: %TransactionData{content: previous_content}}
-         }
-       ) do
-    put_in(
-      acc,
-      [:next_transaction, Access.key(:data, %{}), Access.key(:content)],
-      previous_content
-    )
-  end
-
-  defp chain_content(acc), do: acc
 
   defp chain_ownerships(
          acc = %{

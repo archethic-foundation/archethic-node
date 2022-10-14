@@ -1450,6 +1450,16 @@ defmodule Archethic.Contracts.Interpreter do
     {:timestamp, true}
   end
 
+  defp validate_condition({:type, nil}, %{"next" => %{"type" => "transfer"}}) do
+    # Skip the verification when it's the default type
+    {:type, true}
+  end
+
+  defp validate_condition({:content, nil}, %{"next" => %{"content" => ""}}) do
+    # Skip the verification when it's the default type
+    {:content, true}
+  end
+
   # Validation rules for inherit constraints
   defp validate_condition({field, nil}, %{"previous" => prev, "next" => next}) do
     {field, Map.get(prev, Atom.to_string(field)) == Map.get(next, Atom.to_string(field))}
