@@ -148,7 +148,7 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
   def get_max_confirmations(tx_address) do
     tx_address
-    |> Election.chain_storage_nodes(P2P.authorized_nodes())
+    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
     |> Enum.count()
   end
 end
