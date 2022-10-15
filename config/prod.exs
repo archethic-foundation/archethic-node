@@ -240,6 +240,6 @@ config :archethic, ArchethicWeb.Endpoint,
     otp_app: :archethic,
     port: System.get_env("ARCHETHIC_HTTPS_PORT", "50000") |> String.to_integer(),
     sni_fun: &ArchethicWeb.Domain.sni/1,
-    keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEYFILE", ""),
-    certfile: System.get_env("ARCHETHIC_WEB_SSL_CERTFILE", "")
+    keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEYFILE", "priv/cert/selfsigned_key.pem"),
+    certfile: System.get_env("ARCHETHIC_WEB_SSL_CERTFILE", "priv/cert/selfsigned.pem")
   ]
