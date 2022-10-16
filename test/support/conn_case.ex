@@ -27,7 +27,7 @@ defmodule ArchethicWeb.ConnCase do
       import Plug.Conn
       import ConnTest
 
-      alias ArchethicWeb.Router.Helpers, as: Routes
+      alias ArchethicWeb.ExplorerRouter.Helpers, as: Routes
 
       # The default endpoint for testing
       @endpoint ArchethicWeb.Endpoint

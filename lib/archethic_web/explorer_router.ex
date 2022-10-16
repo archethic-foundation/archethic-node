@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.Router do
+defmodule ArchethicWeb.ExplorerRouter do
   @moduledoc false
 
   use ArchethicWeb, :router
@@ -18,12 +18,10 @@ defmodule ArchethicWeb.Router do
     plug(ArchethicWeb.GraphQLContext)
   end
 
-  # Add the on chain implementation of the archethic.io at the root of the webserver
-  # TODO: review to put it on every node or as proxy somewhere forwarding to a specific transaction chain explorer
   scope "/", ArchethicWeb do
     pipe_through(:browser)
 
-    get("/", RootController, :index)
+    get("/", ExplorerRootController, :index)
     get("/up", UpController, :up)
     get("/metrics", MetricsController, :index)
     live("/metrics/dashboard", DashboardLive)
@@ -103,6 +101,7 @@ defmodule ArchethicWeb.Router do
   end
 
   scope "/", ArchethicWeb do
-    get("/*path", RootController, :index)
+    get("/*path", ExplorerRootController, :index)
+    post("/*path", ExplorerRootController, :return_404)
   end
 end
