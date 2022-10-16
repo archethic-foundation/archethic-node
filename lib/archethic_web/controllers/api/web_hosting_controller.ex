@@ -14,35 +14,40 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   require Logger
 
-  def web_hosting(conn, params = %{"url_path" => url_path}) do
-    # Redirect to enforce "/" at the end of the root url
-    if Enum.empty?(url_path) and String.last(conn.request_path) != "/" do
+  def web_hosting(conn, params = %{"url_path" => []}) do
+    if String.last(conn.request_path) != "/" do
       redirect(conn, to: conn.request_path <> "/")
     else
-      case get_website(params, get_cache_headers(conn)) do
-        {:ok, file_content, encodage, mime_type, cached?, etag} ->
-          send_response(conn, file_content, encodage, mime_type, cached?, etag)
+      do_web_hosting(conn, params)
+    end
+  end
 
-        {:error, :invalid_address} ->
-          send_resp(conn, 400, "Invalid address")
+  def web_hosting(conn, params), do: do_web_hosting(conn, params)
 
-        {:error, :invalid_content} ->
-          send_resp(conn, 400, "Invalid transaction content")
+  defp do_web_hosting(conn, params) do
+    case get_website(params, get_cache_headers(conn)) do
+      {:ok, file_content, encodage, mime_type, cached?, etag} ->
+        send_response(conn, file_content, encodage, mime_type, cached?, etag)
 
-        {:error, :not_found} ->
-          send_resp(conn, 404, "Cannot find file content")
+      {:error, :invalid_address} ->
+        send_resp(conn, 400, "Invalid address")
 
-        {:error, :invalid_encodage} ->
-          send_resp(conn, 400, "Invalid file encodage")
+      {:error, :invalid_content} ->
+        send_resp(conn, 400, "Invalid transaction content")
 
-        {:error, _} ->
-          send_resp(conn, 404, "Not Found")
-      end
+      {:error, :not_found} ->
+        send_resp(conn, 404, "Cannot find file content")
+
+      {:error, :invalid_encodage} ->
+        send_resp(conn, 400, "Invalid file encodage")
+
+      {:error, _} ->
+        send_resp(conn, 404, "Not Found")
     end
   end
 
   @doc """
-  Fetch the website file content 
+  Fetch the website file content
   """
   @spec get_website(request_params :: map(), cached_headers :: list()) ::
           {:ok, file_content :: binary() | nil, encodage :: binary() | nil, mime_type :: binary(),
@@ -51,7 +56,6 @@ defmodule ArchethicWeb.API.WebHostingController do
           | {:error, :invalid_content}
           | {:error, :not_found}
           | {:error, :invalid_encodage}
-          | {:error, :not_found}
           | {:error, any()}
   def get_website(params = %{"address" => address}, cache_headers) do
     url_path = Map.get(params, "url_path", [])
