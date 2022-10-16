@@ -9,7 +9,7 @@ defmodule Archethic.P2P.Client.Transport.TCPImpl do
 
   @impl Transport
   def handle_connect(ip, port) do
-    :gen_tcp.connect(ip, port, @options)
+    :gen_tcp.connect(ip, port, @options, 4000)
   end
 
   @impl Transport
