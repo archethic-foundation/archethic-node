@@ -59,13 +59,8 @@ defmodule Archethic.P2P do
     if first_public_key == Crypto.first_node_public_key() do
       :ok
     else
-      case Client.new_connection(ip, port, transport, first_public_key) do
-        {:ok, _pid} ->
-          :ok
-
-        {:error, {:already_started, _pid}} ->
-          :ok
-      end
+      {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key)
+      :ok
     end
   end
 

@@ -28,12 +28,29 @@ defmodule Archethic.P2P.Client.DefaultImpl do
           Crypto.key()
         ) :: Supervisor.on_start()
   def new_connection(ip, port, transport, node_public_key) do
-    ConnectionSupervisor.add_connection(
-      transport: transport_mod(transport),
-      ip: ip,
-      port: port,
-      node_public_key: node_public_key
-    )
+    case ConnectionSupervisor.add_connection(
+           transport: transport_mod(transport),
+           ip: ip,
+           port: port,
+           node_public_key: node_public_key
+         ) do
+      {:ok, pid} ->
+        {:ok, pid}
+
+      {:error, {:already_started, pid}} ->
+        # restart the connection if informations are updated
+        {_state, %{ip: conn_ip, port: conn_port, transport: conn_transport}} = :sys.get_state(pid)
+
+        with true <- conn_ip == ip,
+             true <- conn_port == port,
+             true <- conn_transport == transport_mod(transport) do
+          {:ok, pid}
+        else
+          _ ->
+            ConnectionSupervisor.cancel_connection(pid)
+            new_connection(ip, port, transport, node_public_key)
+        end
+    end
   end
 
   defp transport_mod(:tcp), do: TCPImpl
