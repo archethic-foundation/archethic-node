@@ -56,7 +56,7 @@ defmodule ArchethicWeb do
       import ArchethicWeb.ErrorHelpers
       import ArchethicWeb.LayoutHelpers
 
-      alias ArchethicWeb.Router.Helpers, as: Routes
+      alias ArchethicWeb.ExplorerRouter.Helpers, as: Routes
     end
   end
 
