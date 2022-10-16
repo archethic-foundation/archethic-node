@@ -145,13 +145,8 @@ defmodule Archethic.P2P.MemTableLoader do
     Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
 
     if first_public_key != Crypto.first_node_public_key() do
-      case Client.new_connection(ip, port, transport, first_public_key) do
-        {:ok, _} ->
-          :ok
-
-        {:error, {:already_started, _}} ->
-          :ok
-      end
+      {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key)
+      :ok
     else
       :ok
     end
