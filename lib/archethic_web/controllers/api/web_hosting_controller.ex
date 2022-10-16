@@ -35,6 +35,9 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :invalid_content} ->
         send_resp(conn, 400, "Invalid transaction content")
 
+      {:error, :website_not_found} ->
+        send_resp(conn, 404, "Cannot find website content")
+
       {:error, :not_found} ->
         send_resp(conn, 404, "Cannot find file content")
 
@@ -77,8 +80,8 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, %Jason.DecodeError{}} ->
         {:error, :invalid_content}
 
-      {:error, :transaction_not_exists} ->
-        {:error, :not_found}
+      {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
+        {:error, :website_not_found}
 
       {:file_not_found, _url} ->
         {:error, :not_found}
