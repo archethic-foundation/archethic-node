@@ -14,6 +14,7 @@ defmodule Archethic.Networking.Scheduler do
 
   alias Archethic.TaskSupervisor
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
@@ -64,19 +65,28 @@ defmodule Archethic.Networking.Scheduler do
         origin_public_key = Crypto.origin_node_public_key()
         key_certificate = Crypto.get_key_certificate(origin_public_key)
 
-        Transaction.new(:node, %TransactionData{
-          content:
-            Node.encode_transaction_content(
-              ip,
-              p2p_port,
-              web_port,
-              transport,
-              reward_address,
-              origin_public_key,
-              key_certificate
-            )
-        })
-        |> Archethic.send_new_transaction()
+        genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
+
+        case TransactionChain.get_last_transaction(genesis_address, data: [:code]) do
+          {:ok, %Transaction{data: %TransactionData{code: code}}} ->
+            Transaction.new(:node, %TransactionData{
+              code: code,
+              content:
+                Node.encode_transaction_content(
+                  ip,
+                  p2p_port,
+                  web_port,
+                  transport,
+                  reward_address,
+                  origin_public_key,
+                  key_certificate
+                )
+            })
+            |> Archethic.send_new_transaction()
+
+          {:error, _} ->
+            Logger.debug("Skip node update: Last node transaction not retrieved")
+        end
 
       {:ok, %Node{}} ->
         Logger.debug("Skip node update: Same IP - no need to send a new node transaction")
