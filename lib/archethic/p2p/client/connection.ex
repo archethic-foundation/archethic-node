@@ -56,14 +56,6 @@ defmodule Archethic.P2P.Client.Connection do
     GenStateMachine.call(via_tuple(public_key), {:get_timer, reset?})
   end
 
-  @doc """
-  Start the availability timer if it wasn't
-  """
-  @spec start_availability_timer(Crypto.key()) :: :ok
-  def start_availability_timer(public_key) do
-    GenStateMachine.cast(via_tuple(public_key), :start_timer)
-  end
-
   # fetch cnnoection details from registery for a node from its public key
   defp via_tuple(public_key), do: {:via, Registry, {ConnectionRegistry, public_key}}
 
@@ -119,7 +111,8 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
-  def handle_event(:cast, :start_timer, _state, data) do
+  # Handle only used for testing
+  def handle_event(:info, :start_timer, _state, data) do
     {:keep_state,
      Map.update!(data, :availability_timer, fn
        {nil, time} -> {System.monotonic_time(:second), time}
@@ -165,7 +158,14 @@ defmodule Archethic.P2P.Client.Connection do
     {:keep_state, new_data, actions}
   end
 
-  def handle_event(:enter, :disconnected, {:connected, _socket}, data) do
+  def handle_event(
+        :enter,
+        :disconnected,
+        {:connected, _socket},
+        data = %{node_public_key: node_public_key}
+      ) do
+    MemTable.increase_node_availability(node_public_key)
+
     # Start availability timer
     new_data =
       Map.update!(data, :availability_timer, fn

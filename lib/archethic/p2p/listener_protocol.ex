@@ -51,9 +51,6 @@ defmodule Archethic.P2P.ListenerProtocol do
         %{message: Archethic.P2P.Message.name(message)}
       )
 
-      Archethic.P2P.MemTable.increase_node_availability(sender_public_key)
-      Archethic.P2P.Client.Connection.start_availability_timer(sender_public_key)
-
       start_processing_time = System.monotonic_time()
       response = Archethic.P2P.Message.process(message)
 
