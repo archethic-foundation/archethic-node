@@ -83,8 +83,20 @@ defmodule ArchethicWeb.Domain do
         keyfile = Keyword.fetch!(https_conf, :keyfile)
         certfile = Keyword.fetch!(https_conf, :certfile)
 
-        key = File.read!(keyfile) |> read_pem() |> hd()
-        cert = File.read!(certfile) |> read_pem() |> hd() |> elem(1)
+        key_content =
+          case File.read(keyfile) do
+            {:ok, content} -> content
+            {:error, _} -> File.read!(Application.app_dir(:archethic, keyfile))
+          end
+
+        cert_content =
+          case File.read(certfile) do
+            {:ok, content} -> content
+            {:error, _} -> File.read!(Application.app_dir(:archethic, certfile))
+          end
+
+        key = key_content |> read_pem() |> hd()
+        cert = cert_content |> read_pem() |> hd() |> elem(1)
 
         [key: key, cert: cert]
     end
