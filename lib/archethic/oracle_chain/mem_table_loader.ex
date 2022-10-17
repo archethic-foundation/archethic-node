@@ -1,6 +1,9 @@
 defmodule Archethic.OracleChain.MemTableLoader do
   @moduledoc false
 
+  alias Archethic.Crypto
+
+  alias Archethic.OracleChain
   alias Archethic.OracleChain.MemTable
 
   alias Archethic.TransactionChain
@@ -17,14 +20,25 @@ defmodule Archethic.OracleChain.MemTableLoader do
   end
 
   def init(_) do
-    TransactionChain.list_transactions_by_type(:oracle_summary, [
-      :address,
-      :type,
-      data: [:content],
-      validation_stamp: [:timestamp]
-    ])
-    |> Stream.each(&load_transaction(&1, true))
-    |> Stream.run()
+    last_summary_timestamp =
+      TransactionChain.list_transactions_by_type(:oracle_summary, [
+        :address,
+        :type,
+        data: [:content],
+        validation_stamp: [:timestamp]
+      ])
+      |> Enum.reduce(
+        nil,
+        fn tx = %Transaction{
+             validation_stamp: %ValidationStamp{timestamp: last_summary_timestamp}
+           },
+           _acc ->
+          load_transaction(tx, true)
+          last_summary_timestamp
+        end
+      )
+
+    load_last_oracle_chain(last_summary_timestamp)
 
     {:ok, []}
   end
@@ -86,5 +100,22 @@ defmodule Archethic.OracleChain.MemTableLoader do
         MemTable.add_oracle_data(service, data, DateTime.from_unix!(timestamp))
       end)
     end)
+  end
+
+  defp load_last_oracle_chain(nil), do: :ok
+
+  defp load_last_oracle_chain(last_summary_timestamp) do
+    OracleChain.next_summary_date(last_summary_timestamp)
+    |> Crypto.derive_oracle_address(0)
+    |> TransactionChain.get_last_address()
+    |> elem(0)
+    |> TransactionChain.stream([
+      :address,
+      :type,
+      data: [:content],
+      validation_stamp: [:timestamp]
+    ])
+    |> Stream.each(&load_transaction(&1, true))
+    |> Stream.run()
   end
 end
