@@ -258,7 +258,8 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       assert {_, %{availability_timer: {nil, 1}}} = :sys.get_state(pid)
 
-      :ok = Connection.start_availability_timer(Crypto.first_node_public_key())
+      # restart timer simulating a reconnection
+      send(pid, :start_timer)
 
       assert {_, %{availability_timer: {start, 1}}} = :sys.get_state(pid)
       assert start != nil
@@ -342,7 +343,8 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       assert {_, %{availability_timer: {nil, 0}}} = :sys.get_state(pid)
 
-      :ok = Connection.start_availability_timer(Crypto.first_node_public_key())
+      # restart timer simulating a reconnection
+      send(pid, :start_timer)
 
       assert {_, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
 
