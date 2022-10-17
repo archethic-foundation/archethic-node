@@ -334,6 +334,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            Utils.deserialize_public_key(content),
          <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
            _::binary>> <- rest,
+         {:exists?, false} <-
+           {:exists?, SharedSecrets.has_origin_public_key?(origin_public_key)},
          root_ca_public_key <-
            Crypto.get_root_ca_public_key(origin_public_key),
          true <-
@@ -342,6 +344,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     else
       false ->
         {:error, "Invalid Origin transaction with invalid certificate"}
+
+      {:exists?, true} ->
+        {:error, "Invalid Origin transaction Public Key Already Exists"}
 
       _ ->
         {:error, "Invalid Origin transaction's content"}

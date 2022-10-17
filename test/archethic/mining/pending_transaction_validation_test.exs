@@ -20,6 +20,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
 
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+
   import Mox
 
   setup do
@@ -243,6 +246,104 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       :persistent_term.put(:origin_gen_addr, [Transaction.previous_address(tx)])
       assert :ok = PendingTransactionValidation.validate(tx)
+      :persistent_term.put(:origin_gen_addr, nil)
+    end
+
+    test "should return :error when a origin transaction contains existing Origin Public key" do
+      OriginKeyLookup.start_link([])
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node_key1",
+        last_public_key: "node_key1",
+        available?: true
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node_key2",
+        last_public_key: "node_key2",
+        available?: true
+      })
+
+      {public_key, _} = Crypto.derive_keypair("has_origin_public_key", 0)
+      OriginKeyLookup.add_public_key(:software, public_key)
+      certificate = Crypto.get_key_certificate(public_key)
+      certificate_size = byte_size(certificate)
+
+      assert true == SharedSecrets.has_origin_public_key?(public_key)
+
+      tx =
+        Transaction.new(
+          :origin,
+          %TransactionData{
+            code: """
+            condition inherit: [
+              type: origin,
+              content: true
+            ]
+            """,
+            content: <<public_key::binary, certificate_size::16, certificate::binary>>
+          }
+        )
+
+      :persistent_term.put(:origin_gen_addr, [Transaction.previous_address(tx)])
+
+      assert {:error, "Invalid Origin transaction Public Key Already Exists"} =
+               PendingTransactionValidation.validate(tx)
+
+      :persistent_term.put(:origin_gen_addr, nil)
+    end
+
+    test "should return :ok when a origin transaction contains new Origin Public key" do
+      OriginKeyLookup.start_link([])
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node_key1",
+        last_public_key: "node_key1",
+        available?: true
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node_key2",
+        last_public_key: "node_key2",
+        available?: true
+      })
+
+      {public_key, _} = Crypto.derive_keypair("does_not_have_origin_public_key2", 0)
+      certificate = Crypto.get_key_certificate(public_key)
+      certificate_size = byte_size(certificate)
+
+      assert false == SharedSecrets.has_origin_public_key?(public_key)
+
+      tx =
+        Transaction.new(
+          :origin,
+          %TransactionData{
+            code: """
+            condition inherit: [
+              type: origin,
+              content: true
+            ]
+            """,
+            content: <<public_key::binary, certificate_size::16, certificate::binary>>
+          }
+        )
+
+      :persistent_term.put(:origin_gen_addr, [Transaction.previous_address(tx)])
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+
       :persistent_term.put(:origin_gen_addr, nil)
     end
 

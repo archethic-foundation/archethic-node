@@ -14,6 +14,8 @@ defmodule ArchethicWeb.API.OriginKeyController do
            {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
            {:ok, certificate} <- Base.decode16(certificate, case: :mixed),
            true <- Crypto.valid_public_key?(origin_public_key),
+           {:exists?, false} <-
+             {:exists?, SharedSecrets.has_origin_public_key?(origin_public_key)},
            <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key do
         origin_id
         |> prepare_transaction(origin_public_key, certificate)
@@ -80,6 +82,9 @@ defmodule ArchethicWeb.API.OriginKeyController do
     case error do
       er when er in [:error, false] ->
         {400, %{status: "error - invalid public key"}}
+
+      {:exists?, true} ->
+        {400, %{status: "error - public key exists"}}
 
       _ ->
         {400, %{status: "error - invalid parameters"}}
