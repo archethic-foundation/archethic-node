@@ -30,11 +30,11 @@ config :phoenix, :plug_init_mode, :runtime
 
 config :archethic, Archethic.BeaconChain.SlotTimer,
   # Every 10 seconds
-  interval: "*/10 * * * * *"
+  interval: "*/10 * * * * * *"
 
 config :archethic, Archethic.BeaconChain.SummaryTimer,
   # Every minute
-  interval: "0 * * * * *"
+  interval: "0 * * * * * *"
 
 config :archethic, Archethic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
@@ -85,9 +85,9 @@ config :archethic, Archethic.Governance.Pools,
 
 config :archethic, Archethic.OracleChain.Scheduler,
   # Poll new changes every 10 seconds
-  polling_interval: "*/10 * * * * *",
-  # Aggregate chain at the 50th second
-  summary_interval: "0 * * * * *"
+  polling_interval: "*/10 * * * * * *",
+  # Aggregate every minute
+  summary_interval: "0 * * * * * *"
 
 # -----Start-of-Networking-dev-configs-----
 config :archethic, Archethic.Networking,
@@ -104,7 +104,7 @@ config :archethic, Archethic.Networking.Scheduler, interval: "0 * * * * * *"
 
 config :archethic, Archethic.Reward.Scheduler,
   # At the 30th second
-  interval: "30 * * * * *"
+  interval: "30 * * * * * *"
 
 config :archethic, Archethic.SelfRepair.Scheduler,
   # Every minute at the 5th second

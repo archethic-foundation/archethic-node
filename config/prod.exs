@@ -176,11 +176,12 @@ config :archethic, Archethic.Networking.IPLookup.Static,
 # -----end-of-Networking-prod-configs-----
 
 config :archethic, Archethic.Networking.Scheduler,
-  interval: System.get_env("ARCHETHIC_NETWORKING_UPDATE_SCHEDULER", "0 0 * * * * *")
+  # Every 5 minutes
+  interval: System.get_env("ARCHETHIC_NETWORKING_UPDATE_SCHEDULER", "0 */5 * * * * *")
 
 config :archethic, Archethic.OracleChain.Scheduler,
   # Poll new changes every minute
-  polling_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL", "0 * * * * *"),
+  polling_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL", "0 * * * * * *"),
   # Aggregate chain every day at midnight
   summary_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL", "0 0 0 * * * *")
 
@@ -195,7 +196,7 @@ config :archethic,
 config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,
   # Every day at 23:50:00
   interval:
-    System.get_env("ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL", "0 50 0 * * * *"),
+    System.get_env("ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL", "0 50 23 * * * *"),
   # Every day at midnight
   application_interval:
     System.get_env("ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL", "0 0 0 * * * *")
