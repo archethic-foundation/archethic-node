@@ -596,6 +596,11 @@ defmodule Archethic.Contracts.Interpreter do
     {node, acc}
   end
 
+  # Whitelist the timestamp/0 function
+  defp prewalk(node = {{:atom, "timestamp"}, _, []}, acc = {:ok, %{scope: scope}})
+       when scope != :root,
+       do: {node, acc}
+
   defp prewalk(
          node = {{:atom, "get_genesis_public_key"}, _, [_address]},
          acc = {:ok, %{scope: scope}}
@@ -663,6 +668,10 @@ defmodule Archethic.Contracts.Interpreter do
        ) do
     {node, acc}
   end
+
+  # Whitelist the timestamp/0 function in condition
+  defp prewalk(node = {{:atom, "timestamp"}, _, []}, acc = {:ok, %{scope: :condition}}),
+    do: {node, acc}
 
   # Whitelist the used of functions in the actions
   defp prewalk(node = {{:atom, fun_name}, _, _}, {:ok, acc = %{scope: :actions}})
@@ -1434,6 +1443,21 @@ defmodule Archethic.Contracts.Interpreter do
   defp validate_condition({:previous_public_key, nil}, _) do
     # Skip the verification as previous public key change for each transaction
     {:previous_public_key, true}
+  end
+
+  defp validate_condition({:timestamp, nil}, _) do
+    # Skip the verification as timestamp change for each transaction
+    {:timestamp, true}
+  end
+
+  defp validate_condition({:type, nil}, %{"next" => %{"type" => "transfer"}}) do
+    # Skip the verification when it's the default type
+    {:type, true}
+  end
+
+  defp validate_condition({:content, nil}, %{"next" => %{"content" => ""}}) do
+    # Skip the verification when it's the default type
+    {:content, true}
   end
 
   # Validation rules for inherit constraints

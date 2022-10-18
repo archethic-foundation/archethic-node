@@ -18,6 +18,7 @@ defmodule Archethic.Contracts.Contract.Constants do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   @doc """
   Extract constants from a transaction into a map
@@ -40,7 +41,8 @@ defmodule Archethic.Contracts.Contract.Constants do
             }
           },
           recipients: recipients
-        }
+        },
+        validation_stamp: validation_stamp
       }) do
     %{
       "address" => address,
@@ -75,7 +77,16 @@ defmodule Archethic.Contracts.Contract.Constants do
           }
 
           Map.update(acc, to, [token_transfer], &[token_transfer | &1])
-        end)
+        end),
+      "timestamp" =>
+        case validation_stamp do
+          # Happens during the transaction validation
+          nil ->
+            nil
+
+          %ValidationStamp{timestamp: timestamp} ->
+            DateTime.to_unix(timestamp)
+        end
     }
   end
 

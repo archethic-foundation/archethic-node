@@ -12,6 +12,7 @@ defmodule Archethic.Contracts.Contract.Conditions do
     :uco_transfers,
     :token_transfers,
     :previous_public_key,
+    :timestamp,
     origin_family: :all
   ]
 
@@ -27,7 +28,8 @@ defmodule Archethic.Contracts.Contract.Conditions do
           uco_transfers: map() | Macro.t() | nil,
           token_transfers: map() | Macro.t() | nil,
           previous_public_key: binary() | Macro.t() | nil,
-          origin_family: SharedSecrets.origin_family() | :all
+          origin_family: SharedSecrets.origin_family() | :all,
+          timestamp: DateTime.t() | nil
         }
 
   def empty?(%__MODULE__{
@@ -38,7 +40,8 @@ defmodule Archethic.Contracts.Contract.Conditions do
         secrets: nil,
         uco_transfers: nil,
         token_transfers: nil,
-        previous_public_key: nil
+        previous_public_key: nil,
+        timestamp: nil
       }),
       do: true
 
