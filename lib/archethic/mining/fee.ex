@@ -72,8 +72,8 @@ defmodule Archethic.Mining.Fee do
        ) do
     with {:ok, json} <- Jason.decode(content),
          "non-fungible" <- Map.get(json, "type", "fungible"),
-         utxos when is_list(utxos) <- Map.get(json, "collection") do
-      nb_utxos = length(utxos)
+         utxos when is_list(utxos) <- Map.get(json, "collection"),
+         nb_utxos when nb_utxos > 0 <- length(utxos) do
       base_fee = minimum_fee(uco_price_in_usd)
       (:math.log10(nb_utxos) + 1) * nb_utxos * base_fee
     else
