@@ -7,8 +7,18 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   @library_functions_names Library.__info__(:functions)
                            |> Enum.map(&Atom.to_string(elem(&1, 0)))
 
+  @library_functions_names_atoms Library.__info__(:functions)
+                                 |> Enum.map(&{Atom.to_string(elem(&1, 0)), elem(&1, 0)})
+                                 |> Enum.into(%{})
+
   @transaction_statements_functions_names TransactionStatements.__info__(:functions)
                                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
+
+  @transaction_statements_functions_names_atoms TransactionStatements.__info__(:functions)
+                                                |> Enum.map(
+                                                  &{Atom.to_string(elem(&1, 0)), elem(&1, 0)}
+                                                )
+                                                |> Enum.into(%{})
 
   @transaction_fields [
     "address",
@@ -196,11 +206,84 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
+  # Whitelist the size/1 function
+  def prewalk(
+        node = {{:atom, "size"}, _, [_data]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the hash/1 function
+  def prewalk(node = {{:atom, "hash"}, _, [_data]}, acc = {:ok, %{scope: scope}})
+      when scope != :root,
+      do: {node, acc}
+
+  # Whitelist the regex_match?/2 function
+  def prewalk(
+        node = {{:atom, "regex_match?"}, _, [_input, _search]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root,
+      do: {node, acc}
+
+  # Whitelist the regex_extract/2 function
+  def prewalk(
+        node = {{:atom, "regex_extract"}, _, [_input, _search]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root,
+      do: {node, acc}
+
+  # Whitelist the json_path_extract/2 function
+  def prewalk(
+        node = {{:atom, "json_path_extract"}, _, [_input, _search]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root,
+      do: {node, acc}
+
+  # Whitelist the json_path_match?/2 function
+  def prewalk(
+        node = {{:atom, "json_path_match?"}, _, [_input, _search]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root,
+      do: {node, acc}
+
+  # Whitelist the get_genesis_address/1 function
+  def prewalk(
+        node = {{:atom, "get_genesis_address"}, _, [_address]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the get_genesis_public_key/1 function
+  def prewalk(
+        node = {{:atom, "get_genesis_public_key"}, _, [_address]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the timestamp/0 function in condition
+  def prewalk(node = {{:atom, "timestamp"}, _, _}, acc = {:ok, %{scope: scope}})
+      when scope != :root do
+    {node, acc}
+  end
+
   # Blacklist everything else
-  def prewalk(node, _), do: throw({:error, node |> IO.inspect()})
+  def prewalk(node, _acc) do
+    throw({:error, node})
+  end
 
   @spec postwalk(Macro.t(), any()) :: {Macro.t(), any()}
-  def postwalk(node = {{:atom, _}, _, _}, {:ok, context = %{scope: {:function, _, scope}}}) do
+  def postwalk(node = {{:atom, fun}, _, _}, {:ok, context = %{scope: {:function, _, scope}}})
+      when fun in @library_functions_names or fun in @transaction_statements_functions_names do
     {node, {:ok, %{context | scope: scope}}}
   end
 
@@ -241,6 +324,9 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   def postwalk(node, acc), do: {node, acc}
 
+  @doc """
+  Inject context variables and functions by transforming the ast
+  """
   @spec inject_bindings_and_functions(Macro.t(), list()) :: Macro.t()
   def inject_bindings_and_functions(quoted_code, opts) when is_list(opts) do
     bindings = Keyword.get(opts, :bindings, %{})
@@ -274,8 +360,9 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   defp do_postwalk_execution(_node = {{:atom, atom}, metadata, args}, acc)
        when atom in @library_functions_names do
-    {{{:., metadata, [{:__aliases__, [alias: Library], [:Library]}, String.to_atom(atom)]},
-      metadata, args}, acc}
+    fun = Map.get(@library_functions_names_atoms, atom)
+
+    {{{:., metadata, [{:__aliases__, [alias: Library], [:Library]}, fun]}, metadata, args}, acc}
   end
 
   defp do_postwalk_execution(_node = {{:atom, atom}, metadata, args}, acc)
@@ -286,11 +373,13 @@ defmodule Archethic.Contracts.Interpreter.Utils do
         ast
       end)
 
+    fun = Map.get(@transaction_statements_functions_names_atoms, atom)
+
     ast = {
       {:., metadata,
        [
          {:__aliases__, [alias: TransactionStatements], [:TransactionStatements]},
-         String.to_atom(atom)
+         fun
        ]},
       metadata,
       [{:&, metadata, [1]} | args]
@@ -404,7 +493,37 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   defp parse_value(val), do: val
 
-  def format_error_reason({metadata, message, cause}) do
+  @doc """
+  Format an error message from the failing ast node
+
+  It returns message with metadata if possible to indicate the line of the error
+  """
+  @spec format_error_reason(Macro.t(), String.t()) :: String.t()
+  def format_error_reason({:atom, _key}, reason) do
+    do_format_error_reason(reason, "", [])
+  end
+
+  def format_error_reason({{:atom, key}, metadata, _}, reason) do
+    do_format_error_reason(reason, key, metadata)
+  end
+
+  def format_error_reason({_, metadata, [{:__aliases__, _, [atom: module]} | _]}, reason) do
+    do_format_error_reason(reason, module, metadata)
+  end
+
+  def format_error_reason(ast_node = {_, metadata, _}, reason) do
+    do_format_error_reason(reason, Macro.to_string(ast_node), metadata)
+  end
+
+  def format_error_reason({{:atom, _}, {_, metadata, _}}, reason) do
+    do_format_error_reason(reason, "", metadata)
+  end
+
+  def format_error_reason({{:atom, key}, _}, reason) do
+    do_format_error_reason(reason, key, [])
+  end
+
+  defp do_format_error_reason(message, cause, metadata) do
     message = prepare_message(message)
 
     [prepare_message(message), cause, metadata_to_string(metadata)]

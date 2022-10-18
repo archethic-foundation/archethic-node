@@ -3,9 +3,8 @@ defmodule Archethic.Contracts.Contract do
   Represents a smart contract
   """
 
-  alias Archethic.Contracts.Contract.Conditions
-  alias Archethic.Contracts.Contract.Constants
-  alias Archethic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.Contracts.Interpreter
 
@@ -14,7 +13,7 @@ defmodule Archethic.Contracts.Contract do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
-  defstruct triggers: [],
+  defstruct triggers: %{},
             conditions: %{
               transaction: %Conditions{},
               inherit: %Conditions{},
@@ -23,12 +22,15 @@ defmodule Archethic.Contracts.Contract do
             constants: %Constants{},
             next_transaction: %Transaction{data: %TransactionData{}}
 
-  @type trigger_type() :: :datetime | :interval | :transaction
+  @type trigger_type() ::
+          {:datetime, DateTime.t()} | {:interval, String.t()} | :transaction | :oracle
   @type condition() :: :transaction | :inherit | :oracle
   @type origin_family :: SharedSecrets.origin_family()
 
   @type t() :: %__MODULE__{
-          triggers: list(Trigger.t()),
+          triggers: %{
+            trigger_type() => Macro.t()
+          },
           conditions: %{
             transaction: Conditions.t(),
             inherit: Conditions.t(),
@@ -55,48 +57,24 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Add a trigger to the contract
   """
-  @spec add_trigger(t(), Trigger.type(), Keyword.t(), Macro.t()) :: t()
+  @spec add_trigger(t(), trigger_type(), Macro.t()) :: t()
   def add_trigger(
         contract = %__MODULE__{},
-        :datetime,
-        opts = [at: _datetime = %DateTime{}],
+        type,
         actions
       ) do
-    do_add_trigger(contract, %Trigger{type: :datetime, opts: opts, actions: actions})
-  end
-
-  def add_trigger(
-        contract = %__MODULE__{},
-        :interval,
-        opts = [at: interval],
-        actions
-      )
-      when is_binary(interval) do
-    do_add_trigger(contract, %Trigger{type: :interval, opts: opts, actions: actions})
-  end
-
-  def add_trigger(contract = %__MODULE__{}, :transaction, _, actions) do
-    do_add_trigger(contract, %Trigger{type: :transaction, actions: actions})
-  end
-
-  def add_trigger(contract = %__MODULE__{}, :oracle, _, actions) do
-    do_add_trigger(contract, %Trigger{type: :oracle, actions: actions})
-  end
-
-  defp do_add_trigger(contract, trigger = %Trigger{}) do
-    Map.update!(contract, :triggers, &(&1 ++ [trigger]))
+    Map.update!(contract, :triggers, &Map.put(&1, type, actions))
   end
 
   @doc """
   Add a condition to the contract
   """
-  @spec add_condition(t(), condition(), any()) :: t()
+  @spec add_condition(t(), condition(), Conditions.t()) :: t()
   def add_condition(
-        contract = %__MODULE__{conditions: conditions},
+        contract = %__MODULE__{},
         condition_name,
-        condition
-      )
-      when condition_name in [:transaction, :inherit, :oracle] do
-    %{contract | conditions: Map.put(conditions, condition_name, condition)}
+        conditions = %Conditions{}
+      ) do
+    Map.update!(contract, :conditions, &Map.put(&1, condition_name, conditions))
   end
 end

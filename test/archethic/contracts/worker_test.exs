@@ -4,7 +4,7 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.Account
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.Constants
+  alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.Contracts.Interpreter
 
@@ -192,9 +192,10 @@ defmodule Archethic.Contracts.WorkerTest do
           | constants: %Constants{contract: Map.put(constants, "code", code)}
         }
         |> Map.update!(:triggers, fn triggers ->
-          Enum.map(triggers, fn trigger ->
-            %{trigger | opts: Keyword.put(trigger.opts, :enable_seconds, true)}
+          Enum.map(triggers, fn {{:interval, interval}, code} ->
+            {{:interval, {interval, :second}}, code}
           end)
+          |> Enum.into(%{})
         end)
 
       {:ok, _pid} = Worker.start_link(contract)

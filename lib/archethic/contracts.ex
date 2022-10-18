@@ -5,9 +5,9 @@ defmodule Archethic.Contracts do
   """
 
   alias __MODULE__.Contract
-  alias __MODULE__.Contract.Conditions
-  alias __MODULE__.Contract.Constants
-  alias __MODULE__.Contract.Trigger
+  alias __MODULE__.ContractConditions, as: Conditions
+  alias __MODULE__.ContractConstants, as: Constants
+  alias __MODULE__.ConditionInterpreter
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
@@ -59,9 +59,8 @@ defmodule Archethic.Contracts do
             contract: nil,
             transaction: nil
           },
-          triggers: [
-            %Trigger{
-              actions: {:__block__, [], [
+          triggers: %{
+            {:datetime, ~U[2020-09-25 13:18:43Z]} => {:__block__, [], [
                 {
                   :=,
                   [line: 7],
@@ -79,11 +78,9 @@ defmodule Archethic.Contracts do
                   ]
                 }
               ]},
-              opts: [at: ~U[2020-09-25 13:18:43Z]],
-              type: :datetime
             }
-          ]
-        }}
+          }
+        }
   """
   @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
   def parse(contract_code) when is_binary(contract_code) do
@@ -100,11 +97,10 @@ defmodule Archethic.Contracts do
         })
 
         cond do
-          Enum.any?(triggers, &(&1.type == :transaction)) and
-              Conditions.empty?(transaction_conditions) ->
+          Map.has_key?(triggers, :transaction) and Conditions.empty?(transaction_conditions) ->
             {:error, "missing transaction conditions"}
 
-          Enum.any?(triggers, &(&1.type == :oracle)) and Conditions.empty?(oracle_conditions) ->
+          Map.has_key?(triggers, :oracle) and Conditions.empty?(oracle_conditions) ->
             {:error, "missing oracle conditions"}
 
           true ->
@@ -168,7 +164,7 @@ defmodule Archethic.Contracts do
   end
 
   defp validate_conditions(inherit_conditions, constants) do
-    if Interpreter.valid_conditions?(inherit_conditions, constants) do
+    if ConditionInterpreter.valid_conditions?(inherit_conditions, constants) do
       :ok
     else
       Logger.error("Inherit constraints not respected")
@@ -176,10 +172,12 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_triggers([], _, _), do: :ok
+  defp validate_triggers(triggers, _next_tx, _date) when map_size(triggers) == 0, do: :ok
 
   defp validate_triggers(triggers, next_tx, date) do
-    if Enum.any?(triggers, &valid_from_trigger?(&1, next_tx, date)) do
+    if Enum.any?(triggers, fn {trigger_type, _} ->
+         valid_from_trigger?(trigger_type, next_tx, date)
+       end) do
       :ok
     else
       Logger.error("Transaction not processed by a valid smart contract trigger")
@@ -188,7 +186,7 @@ defmodule Archethic.Contracts do
   end
 
   defp valid_from_trigger?(
-         %Trigger{type: :datetime, opts: [at: datetime]},
+         {:datetime, datetime},
          %Transaction{},
          validation_date = %DateTime{}
        ) do
@@ -198,16 +196,16 @@ defmodule Archethic.Contracts do
   end
 
   defp valid_from_trigger?(
-         %Trigger{type: :interval, opts: [at: interval]},
+         {:interval, interval},
          %Transaction{},
          validation_date = %DateTime{}
        ) do
     interval
-    |> CronParser.parse!(true)
+    |> CronParser.parse!()
     |> CronDateChecker.matches_date?(DateTime.to_naive(validation_date))
   end
 
-  defp valid_from_trigger?(%Trigger{type: :transaction}, _, _), do: true
+  defp valid_from_trigger?(_, _, _), do: true
 
   @doc """
   List the address of the transaction which has contacted a smart contract

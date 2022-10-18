@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Contract.Constants do
+defmodule Archethic.Contracts.ContractConstants do
   @moduledoc """
   Represents the smart contract constants and bindings
   """
@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.Contract.Constants do
   defstruct [:contract, :transaction]
 
   @type t :: %__MODULE__{
-          contract: map(),
+          contract: map() | nil,
           transaction: map() | nil
         }
 

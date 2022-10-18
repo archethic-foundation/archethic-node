@@ -1,22 +1,23 @@
 defmodule Archethic.Contracts.ActionInterpreter do
   @moduledoc false
 
-  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.TransactionStatements
   alias Archethic.Contracts.Interpreter.Utils, as: InterpreterUtils
 
-  @transaction_fields InterpreterUtils.transaction_fields()
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
-  @library_functions_names Library.__info__(:functions)
-                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
+  alias Crontab.CronExpression.Parser, as: CronParser
+
+  @transaction_fields InterpreterUtils.transaction_fields()
 
   @transaction_statements_functions_names TransactionStatements.__info__(:functions)
                                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
 
-  @type trigger :: :transaction | :interval | :datetime | :oracle
+  @type trigger :: :transaction | {:interval, String.t()} | {:datetime, DateTime.t()} | :oracle
 
   @doc ~S"""
-  Parse an action block
+  Parse an action block and return the trigger's type associated with the code to execute
 
   ## Examples
 
@@ -37,8 +38,8 @@ defmodule Archethic.Contracts.ActionInterpreter do
       ...> ]})
       {:ok, :transaction, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}]}}
 
-      # Usage with trigger accepting parameters
-      
+      Usage with trigger accepting parameters
+
       iex> ActionInterpreter.parse({{:atom, "actions"}, [line: 1],
       ...> [
       ...>   [
@@ -52,27 +53,43 @@ defmodule Archethic.Contracts.ActionInterpreter do
       ...>   ]
       ...> ]})
       {:ok, {:datetime, ~U[2014-02-02 02:43:50Z]}, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_recipient]}, [line: 2], [{:&, [line: 2], [1]}, "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}]}]}]}}
+
+
+      Prevent usage of not authorized functions
+
+      iex> ActionInterpreter.parse({{:atom, "actions"}, [line: 1],
+      ...>   [
+      ...>     [{{:atom, "triggered_by"}, {{:atom, "transaction"}, [line: 1], nil}}],
+      ...>     [
+      ...>       do: {{:., [line: 2],
+      ...>            [{:__aliases__, [line: 2], [atom: "System"]}, {:atom, "user_home"}]},
+      ...>      [line: 2], []}
+      ...>     ]
+      ...>   ]}
+      ...> )
+      {:error, "unexpected term - System - L2"}
+
   """
   @spec parse(Macro.t()) :: {:ok, trigger(), Macro.t()}
   def parse(ast) do
-    try do
-      {_node, {:ok, trigger, actions}} =
-        Macro.traverse(
-          ast,
-          {:ok, %{scope: :root}},
-          &prewalk(&1, &2),
-          &postwalk/2
-        )
+    case Macro.traverse(
+           ast,
+           {:ok, %{scope: :root}},
+           &prewalk(&1, &2),
+           &postwalk/2
+         ) do
+      {_node, {:ok, trigger, actions}} ->
+        {:ok, trigger, actions}
 
-      {:ok, trigger, actions}
-    catch
-      {:error, reason, {{:atom, key}, metadata, _}} ->
-        {:error, InterpreterUtils.format_error_reason({metadata, reason, key})}
-
-      {:error, node = {{:atom, key}, metadata, _}} ->
-        IO.inspect(node)
-        {:error, InterpreterUtils.format_error_reason({metadata, "unexpected term", key})}
+      {node, _} ->
+        {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
     end
+  catch
+    {:error, reason, node} ->
+      {:error, InterpreterUtils.format_error_reason(node, reason)}
+
+    {:error, node} ->
+      {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
   end
 
   # Whitelist the actions DSL
@@ -95,9 +112,22 @@ defmodule Archethic.Contracts.ActionInterpreter do
       {node, acc}
     else
       _ ->
-        {node, {:error, "invalid datetime"}}
+        {node, {:error, "invalid datetime's trigger"}}
     end
   end
+
+  defp prewalk(node = {{:atom, "at"}, interval}, acc = {:ok, %{scope: {:actions, :interval}}}) do
+    case CronParser.parse(interval) do
+      {:ok, _} ->
+        {node, acc}
+
+      {:error, _} ->
+        {node, {:error, "invalid interval"}}
+    end
+  end
+
+  # Whitelist variable assignation inside the actions
+  defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
 
   # Whitelist the transaction statements functions
   defp prewalk(
@@ -225,7 +255,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
   end
 
   defp prewalk(
-         node = {{:atom, "secret_key"}, {{:atom, _}, _, _}},
+         node = {{:atom, "secret_key"}, _secret_key},
          acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
        ) do
     {node, acc}
@@ -288,5 +318,21 @@ defmodule Archethic.Contracts.ActionInterpreter do
 
   defp postwalk(node, acc) do
     InterpreterUtils.postwalk(node, acc)
+  end
+
+  @doc """
+  Execute actions code and returns a transaction as result
+  """
+  @spec execute(Macro.t(), map()) :: Transaction.t()
+  def execute(code, constants \\ %{}) do
+    {%{"next_transaction" => next_transaction}, _} =
+      Code.eval_quoted(code,
+        scope:
+          Map.put(constants, "next_transaction", %Transaction{
+            data: %TransactionData{}
+          })
+      )
+
+    next_transaction
   end
 end

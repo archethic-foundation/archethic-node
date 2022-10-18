@@ -225,7 +225,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          data: %TransactionData{code: code, ownerships: ownerships}
        }) do
     case Contracts.parse(code) do
-      {:ok, %Contract{triggers: [_ | _]}} ->
+      {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
         if Enum.any?(
              ownerships,
              &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())

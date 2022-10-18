@@ -1,9 +1,10 @@
 defmodule Archethic.Contracts.ConditionInterpreter do
   @moduledoc false
 
-  alias Archethic.Contracts.Contract.Conditions
+  alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Utils, as: InterpreterUtils
+  alias Archethic.SharedSecrets
 
   @condition_fields Conditions.__struct__()
                     |> Map.keys()
@@ -12,23 +13,26 @@ defmodule Archethic.Contracts.ConditionInterpreter do
 
   @transaction_fields InterpreterUtils.transaction_fields()
 
-  @library_functions_names Library.__info__(:functions)
-                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
+  @exported_library_functions Library.__info__(:functions)
+
+  @type condition_type :: :transaction | :inherit | :oracle
+
+  require Logger
+
   @doc ~S"""
-  Parse a condition block
+  Parse a condition block and returns the right condition's type with a `Archethic.Contracts.Contract.Conditions` struct
 
   ## Examples
 
-    iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1], 
-    ...> [
-    ...>  [
-    ...>    {{:atom, "transaction"}, [
-    ...>      {{:atom, "content"}, "hello"}
-    ...>    ]}
-    ...>  ]
-    ...> ]})
-    {:ok, %{
-      transaction: %Conditions{
+      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1], 
+      ...> [
+      ...>  [
+      ...>    {{:atom, "transaction"}, [
+      ...>      {{:atom, "content"}, "hello"}
+      ...>    ]}
+      ...>  ]
+      ...> ]})
+      {:ok, :transaction, %Conditions{
         content: {:==, [], [
           {:get_in, [], [
             {:scope, [], nil}, 
@@ -38,31 +42,29 @@ defmodule Archethic.Contracts.ConditionInterpreter do
          ]}
         }
       }
-    }
 
-    # Usage of functions in the condition fields
+    Usage of functions in the condition fields
 
-    iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
-    ...> [
-    ...>  [
-    ...>    {{:atom, "transaction"},  [
-    ...>      {{:atom, "content"}, {{:atom, "hash"}, [line: 2],
-    ...>       [
-    ...>         {{:., [line: 2],
-    ...>           [
-    ...>             { {:atom, "contract"}, [line: 2],
-    ...>              nil},
-    ...>             {:atom, "code"}
-    ...>           ]},
-    ...>          [no_parens: true, line: 2],
-    ...>          []}
-    ...>       ]}
-    ...>    }]}
-    ...>  ]
-    ...> ]})
-    {
-      :ok, %{ 
-        transaction: %Conditions{
+      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
+      ...> [
+      ...>  [
+      ...>    {{:atom, "transaction"},  [
+      ...>      {{:atom, "content"}, {{:atom, "hash"}, [line: 2],
+      ...>       [
+      ...>         {{:., [line: 2],
+      ...>           [
+      ...>             { {:atom, "contract"}, [line: 2],
+      ...>              nil},
+      ...>             {:atom, "code"}
+      ...>           ]},
+      ...>          [no_parens: true, line: 2],
+      ...>          []}
+      ...>       ]}
+      ...>    }]}
+      ...>  ]
+      ...> ]})
+      {
+        :ok, :transaction, %Conditions{
           content:  {:==, [line: 2], [
              {:get_in, [line: 2], [
                {:scope, [line: 2], nil}, 
@@ -83,64 +85,69 @@ defmodule Archethic.Contracts.ConditionInterpreter do
           }
         }
       }
-    }
 
-    # Usage with multiple condition fields
+    Usage with multiple condition fields
 
-    iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
-    ...> [
-    ...>   {{:atom, "transaction"}, [
-    ...>     {{:atom, "content"}, "hello"},
-    ...>     {{:atom, "uco_transfers"}, {:%{}, [line: 3],
-    ...>      [
-    ...>        {"00006B368BE45DACD0CBC0EC5893BDC1079448181AA88A2CBB84AF939912E858843E",
-    ...>         1000000000}
-    ...>      ]}
-    ...>     }
-    ...>   ]}
-    ...> ]})
-    {:ok, %{
-      transaction: %Conditions{
-        content: {:==, [], [{:get_in, [], [{:scope, [], nil}, ["transaction", "content"]]}, "hello"]},
-        uco_transfers:  {:==, [], [
-          {:get_in, [], [{:scope, [], nil}, 
-            ["transaction", "uco_transfers"]
-          ]},
-          {:%{}, [line: 3], [{
-            <<0, 0, 107, 54, 139, 228, 93, 172, 208, 203, 192, 236, 88, 147, 189, 193, 7, 148, 72, 24, 26, 168, 138, 44, 187, 132, 175, 147, 153, 18, 232, 88, 132, 62>>, 1000000000
-          }]}
-        ]}
+      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
+      ...> [
+      ...>   {{:atom, "transaction"}, [
+      ...>     {{:atom, "content"}, "hello"},
+      ...>     {{:atom, "uco_transfers"}, {:%{}, [line: 3],
+      ...>      [
+      ...>        {"00006B368BE45DACD0CBC0EC5893BDC1079448181AA88A2CBB84AF939912E858843E",
+      ...>         1000000000}
+      ...>      ]}
+      ...>     }
+      ...>   ]}
+      ...> ]})
+      {:ok, :transaction, %Conditions{
+          content: {:==, [], [{:get_in, [], [{:scope, [], nil}, ["transaction", "content"]]}, "hello"]},
+          uco_transfers:  {:==, [], [
+            {:get_in, [], [{:scope, [], nil}, 
+              ["transaction", "uco_transfers"]
+            ]},
+            {:%{}, [line: 3], [{
+              <<0, 0, 107, 54, 139, 228, 93, 172, 208, 203, 192, 236, 88, 147, 189, 193, 7, 148, 72, 24, 26, 168, 138, 44, 187, 132, 175, 147, 153, 18, 232, 88, 132, 62>>, 1000000000
+            }]}
+          ]}
+        }
       }
-    }}
+
+    Usage with origin_family condition
+    
+      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
+      ...> [
+      ...>   [
+      ...>     {{:atom, "inherit"}, [
+      ...>       {{:atom, "origin_family"}, {{:atom, "abc"},
+      ...>        [line: 2], nil}}
+      ...>     ]}
+      ...>   ]
+      ...> ]})
+      {:error, "invalid origin family - L2"}
 
   """
+  @spec parse(Macro.t()) ::
+          {:ok, condition_type(), Conditions.t()} | {:error, reason :: String.t()}
   def parse(ast) do
-    try do
-      case Macro.traverse(
-             ast,
-             {:ok, %{scope: :root, conditions: %{}}},
-             &prewalk(&1, &2),
-             &postwalk/2
-           ) do
-        {{:atom, key}, :error} ->
-          {:error, InterpreterUtils.format_error_reason({[], "unexpected term", key})}
+    case Macro.traverse(
+           ast,
+           {:ok, %{scope: :root}},
+           &prewalk(&1, &2),
+           &postwalk/2
+         ) do
+      {_node, {:ok, condition_name, conditions}} ->
+        {:ok, condition_name, conditions}
 
-        {{{:atom, key}, _}, :error} ->
-          {:error, InterpreterUtils.format_error_reason({[], "unexpected term", key})}
-
-        {{{:atom, key}, metadata, _}, :error} ->
-          {:error, InterpreterUtils.format_error_reason({metadata, "unexpected term", key})}
-
-        {{_, metadata, _}, {:error, reason}} ->
-          {:error, InterpreterUtils.format_error_reason({metadata, "unexpected term", reason})}
-
-        {_node, {:ok, %{conditions: conditions}}} ->
-          {:ok, conditions}
-      end
-    catch
-      {:error, {{:atom, key}, metadata, _}} ->
-        {:error, InterpreterUtils.format_error_reason({metadata, "unexpected term", key})}
+      {node, _} ->
+        {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
     end
+  catch
+    {:error, node} ->
+      {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
+
+    {:error, reason, node} ->
+      {:error, InterpreterUtils.format_error_reason(node, reason)}
   end
 
   # Whitelist the DSL for conditions
@@ -166,18 +173,84 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     {node, {:ok, %{context | scope: {:condition, condition_name, field}}}}
   end
 
-  # Whitelist the library functions in the the field of a condition
+  # Whitelist the origin family
+  defp prewalk(node = [{{:atom, "origin_family"}, {{:atom, family}, _, _}}], acc = {:ok, _}) do
+    families = SharedSecrets.list_origin_families() |> Enum.map(&Atom.to_string/1)
+
+    if family in families do
+      {node, acc}
+    else
+      {node, {:error, "invalid origin family"}}
+    end
+  end
+
+  # Whitelist the regex_match?/1 function in the condition
   defp prewalk(
-         node = {{:atom, function}, _metadata, _},
-         {:ok, context = %{scope: parent_scope = {:condition, _, _}}}
-       )
-       when function in @library_functions_names do
-    {node, {:ok, %{context | scope: {:function, function, parent_scope}}}}
+         node = {{:atom, "regex_match?"}, _, [_search]},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
+  # Whitelist the json_path_extract/1 function in the condition
+  defp prewalk(
+         node = {{:atom, "json_path_extract"}, _, [_search]},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
+  # Whitelist the json_path_match?/1 function in the condition
+  defp prewalk(
+         node = {{:atom, "json_path_match?"}, _, [_search]},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
+  # Whitelist the hash/0 function in the condition
+  defp prewalk(
+         node = {{:atom, "hash"}, _, []},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
+  # Whitelist the in?/1 function in the condition
+  defp prewalk(
+         node = {{:atom, "in?"}, _, [_data]},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
+  # Whitelist the size/0 function in the condition
+  defp prewalk(node = {{:atom, "size"}, _, []}, acc = {:ok, %{scope: {:condition, _, _}}}),
+    do: {node, acc}
+
+  # Whitelist the get_genesis_address/0 function in condition
+  defp prewalk(
+         node = {{:atom, "get_genesis_address"}, _, []},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
+  # Whitelist the get_genesis_public_key/0 function in condition
+  defp prewalk(
+         node = {{:atom, "get_genesis_public_key"}, _, []},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
   end
 
   # Whitelist usage of maps in the field of a condition
   defp prewalk(node = {{:atom, _key}, _val}, acc = {:ok, %{scope: {:condition, _, _}}}) do
     {node, acc}
+  end
+
+  defp prewalk(node, {:error, reason}) do
+    throw({:error, reason, node})
   end
 
   defp prewalk(node, acc) do
@@ -188,18 +261,34 @@ defmodule Archethic.Contracts.ConditionInterpreter do
 
   defp postwalk(
          node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, conditions}]]},
-         {:ok, context = %{conditions: previous_conditions}}
+         {:ok, _}
        ) do
-    new_conditions = new_conditions(condition_name, conditions, previous_conditions)
-    {node, {:ok, %{context | conditions: new_conditions}}}
+    conditions = build_conditions(condition_name, conditions)
+
+    acc =
+      case condition_name do
+        "transaction" -> {:ok, :transaction, conditions}
+        "inherit" -> {:ok, :inherit, conditions}
+        "oracle" -> {:ok, :oracle, conditions}
+      end
+
+    {node, acc}
   end
 
   defp postwalk(
          node = {{:atom, "condition"}, _, [{{:atom, condition_name}, conditions}]},
-         {:ok, context = %{conditions: previous_conditions}}
+         {:ok, _}
        ) do
-    new_conditions = new_conditions(condition_name, conditions, previous_conditions)
-    {node, {:ok, %{context | conditions: new_conditions}}}
+    conditions = build_conditions(condition_name, conditions)
+
+    acc =
+      case condition_name do
+        "transaction" -> {:ok, :transaction, conditions}
+        "inherit" -> {:ok, :inherit, conditions}
+        "oracle" -> {:ok, :oracle, conditions}
+      end
+
+    {node, acc}
   end
 
   defp postwalk(
@@ -211,10 +300,18 @@ defmodule Archethic.Contracts.ConditionInterpreter do
                  conditions
                ]}
             ]},
-         {:ok, context = %{scope: %{conditions: previous_conditions}}}
+         {:ok, _}
        ) do
-    new_conditions = new_conditions(condition_name, conditions, previous_conditions)
-    {node, {:ok, %{context | conditions: new_conditions}}}
+    conditions = build_conditions(condition_name, conditions)
+
+    acc =
+      case condition_name do
+        "transaction" -> {:ok, :transaction, conditions}
+        "inherit" -> {:ok, :inherit, conditions}
+        "oracle" -> {:ok, :oracle, conditions}
+      end
+
+    {node, acc}
   end
 
   defp postwalk(
@@ -237,7 +334,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     InterpreterUtils.postwalk(node, acc)
   end
 
-  defp new_conditions(condition_name, conditions, previous_conditions) do
+  defp build_conditions(condition_name, conditions) do
     bindings = Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
 
     bindings =
@@ -257,17 +354,12 @@ defmodule Archethic.Contracts.ConditionInterpreter do
 
     subject_scope = if condition_name == "inherit", do: "next", else: "transaction"
 
-    conditions =
-      InterpreterUtils.inject_bindings_and_functions(conditions,
-        bindings: bindings,
-        subject: subject_scope
-      )
-
-    Map.put(
-      previous_conditions,
-      String.to_existing_atom(condition_name),
-      aggregate_conditions(conditions, subject_scope)
+    conditions
+    |> InterpreterUtils.inject_bindings_and_functions(
+      bindings: bindings,
+      subject: subject_scope
     )
+    |> aggregate_conditions(subject_scope)
   end
 
   defp aggregate_conditions(conditions, subject_scope) do
@@ -310,14 +402,18 @@ defmodule Archethic.Contracts.ConditionInterpreter do
          subject_scope,
          subject
        ) do
+    arg_length = length(args)
+
     arguments =
-      if :erlang.function_exported(Library, fun, length(args)) do
-        # If the number of arguments fullfill the function's arity  (without subject)
-        args
-      else
-        [
-          {:get_in, metadata, [{:scope, metadata, nil}, [subject_scope, subject]]} | args
-        ]
+      case Keyword.get(@exported_library_functions, fun) do
+        ^arg_length ->
+          # If the number of arguments fullfill the function's arity  (without subject)
+          args
+
+        _ ->
+          [
+            {:get_in, metadata, [{:scope, metadata, nil}, [subject_scope, subject]]} | args
+          ]
       end
 
     if fun |> Atom.to_string() |> String.ends_with?("?") do
@@ -352,4 +448,103 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   end
 
   defp to_boolean_expression(condition, _, _), do: condition
+
+  @doc """
+  Determines if the conditions of a contract are valid from the given constants
+  """
+  @spec valid_conditions?(Conditions.t(), map()) :: boolean()
+  def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
+    result =
+      conditions
+      |> Map.from_struct()
+      |> Enum.all?(fn {field, condition} ->
+        case validate_condition({field, condition}, constants) do
+          {_, true} ->
+            true
+
+          {_, false} ->
+            Logger.debug(
+              "Invalid condition for `#{field}` with the given value: `#{get_in(constants, ["next", field])}` - expected: #{inspect(condition)}"
+            )
+
+            false
+        end
+      end)
+
+    if result do
+      result
+    else
+      result
+    end
+  end
+
+  defp validate_condition({:origin_family, _}, _) do
+    # Skip the verification
+    # The Proof of Work algorithm will use this condition to verify the transaction
+    {:origin_family, true}
+  end
+
+  defp validate_condition({:address, nil}, _) do
+    # Skip the verification as the address changes for each transaction
+    {:address, true}
+  end
+
+  defp validate_condition({:previous_public_key, nil}, _) do
+    # Skip the verification as the previous public key changes for each transaction
+    {:previous_public_key, true}
+  end
+
+  defp validate_condition({:timestamp, nil}, _) do
+    # Skip the verification as timestamp changes for each transaction
+    {:timestamp, true}
+  end
+
+  defp validate_condition({:type, nil}, %{"next" => %{"type" => "transfer"}}) do
+    # Skip the verification when it's the default type
+    {:type, true}
+  end
+
+  defp validate_condition({:content, nil}, %{"next" => %{"content" => ""}}) do
+    # Skip the verification when it's the default type
+    {:content, true}
+  end
+
+  # Validation rules for inherit constraints
+  defp validate_condition({field, nil}, %{"previous" => prev, "next" => next}) do
+    {field, Map.get(prev, Atom.to_string(field)) == Map.get(next, Atom.to_string(field))}
+  end
+
+  defp validate_condition({field, condition}, constants = %{"next" => next}) do
+    result = execute_condition_code(condition, constants)
+
+    if is_boolean(result) do
+      {field, result}
+    else
+      {field, Map.get(next, Atom.to_string(field)) == result}
+    end
+  end
+
+  # Validation rules for incoming transaction
+  defp validate_condition({field, nil}, %{"transaction" => _}) do
+    # Skip the validation if no transaction conditions are provided
+    {field, true}
+  end
+
+  defp validate_condition(
+         {field, condition},
+         constants = %{"transaction" => transaction}
+       ) do
+    result = execute_condition_code(condition, constants)
+
+    if is_boolean(result) do
+      {field, result}
+    else
+      {field, Map.get(transaction, Atom.to_string(field)) == result}
+    end
+  end
+
+  defp execute_condition_code(quoted_code, constants) do
+    {res, _} = Code.eval_quoted(quoted_code, scope: constants)
+    res
+  end
 end

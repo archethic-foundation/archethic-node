@@ -63,27 +63,23 @@ defmodule Archethic.Contracts.Loader do
       when code != "" do
     stop_contract(Transaction.previous_address(tx))
 
-    case Contracts.parse!(code) do
-      # Only load smart contract which are expecting interactions
-      %Contract{triggers: triggers = [_ | _]} ->
-        triggers = Enum.reject(triggers, &(&1.actions == {:__block__, [], []}))
+    %Contract{triggers: triggers} = Contracts.parse!(code)
+    triggers = Enum.reject(triggers, fn {_, actions} -> actions == {:__block__, [], []} end)
 
-        # Avoid to load empty smart contract
-        if length(triggers) > 0 do
-          {:ok, _} =
-            DynamicSupervisor.start_child(
-              ContractSupervisor,
-              {Worker, Contract.from_transaction!(tx)}
-            )
+    # Create worker only load smart contract which are expecting interactions and where the actions are not empty
+    if length(triggers) > 0 do
+      {:ok, _} =
+        DynamicSupervisor.start_child(
+          ContractSupervisor,
+          {Worker, Contract.from_transaction!(tx)}
+        )
 
-          Logger.info("Smart contract loaded",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
-        end
-
-      _ ->
-        :ok
+      Logger.info("Smart contract loaded",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+    else
+      :ok
     end
   end
 
