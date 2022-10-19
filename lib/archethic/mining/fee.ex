@@ -87,10 +87,9 @@ defmodule Archethic.Mining.Fee do
 
   defp get_additional_fee(_tx, _uco_price_usd), do: 0
 
-  defp get_transaction_size(tx = %Transaction{}) do
-    tx
-    |> Transaction.to_pending()
-    |> Transaction.serialize()
+  defp get_transaction_size(%Transaction{data: tx_data}) do
+    tx_data
+    |> TransactionData.serialize()
     |> byte_size()
   end
 
