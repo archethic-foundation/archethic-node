@@ -161,25 +161,30 @@ defmodule Archethic.SelfRepair.Sync do
     |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
   end
 
-  defp ensure_download_last_aggregate(last_aggregate = %SummaryAggregate{}) do
+  defp ensure_download_last_aggregate(
+         last_aggregate = %SummaryAggregate{summary_time: summary_time}
+       ) do
     # Make sure the last beacon aggregate have been synchronized
     # from remote nodes to avoid self-repair to be acknowledged if those
     # cannot be reached
-    node_public_key = Crypto.first_node_public_key()
 
-    case P2P.authorized_and_available_nodes() do
-      [%Node{first_public_key: ^node_public_key}] ->
-        :ok
+    nodes =
+      P2P.authorized_nodes(summary_time)
+      |> Enum.filter(& &1.available?)
 
-      authorized_nodes ->
-        remaining_nodes =
-          authorized_nodes
-          |> Enum.reject(&(&1.first_public_key == node_public_key))
-          |> Enum.count()
-
-        if remaining_nodes > 0 and SummaryAggregate.empty?(last_aggregate) do
+    # If number of authorized node is <= 2 and current node is part of it
+    # we accept the self repair as the other node may be unavailable and so
+    # we need to do the self even if no other node respond
+    with true <- P2P.authorized_node?(),
+         true <- length(nodes) <= 2 do
+      :ok
+    else
+      _ ->
+        if SummaryAggregate.empty?(last_aggregate) do
           raise "Cannot make the self repair - Last aggregate not fetched"
         end
+
+        :ok
     end
   end
 
