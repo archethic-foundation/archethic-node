@@ -49,7 +49,8 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
             unspent_outputs: unspent_outputs
           },
           recipients: resolved_recipients,
-          signature: validation_stamp_sig
+          signature: validation_stamp_sig,
+          protocol_version: protocol_version
         },
         cross_validation_stamps: cross_validation_stamps
       }) do
@@ -109,6 +110,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
          <<encoded_resolved_recipients_len::binary,
            :erlang.list_to_binary(resolved_recipients)::binary>>},
         {"validation_stamp.signature", validation_stamp_sig},
+        {"validation_stamp.protocol_version", <<protocol_version::32>>},
         {"cross_validation_stamps",
          <<length(cross_validation_stamps)::8, cross_validation_stamps_encoding::binary>>}
       ]
@@ -228,6 +230,10 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   def decode(_version, "validation_stamp.signature", data, acc) do
     put_in(acc, [Access.key(:validation_stamp, %{}), :signature], data)
+  end
+
+  def decode(_version, "validation_stamp.protocol_version", <<version::32>>, acc) do
+    put_in(acc, [Access.key(:validation_stamp, %{}), :protocol_version], version)
   end
 
   def decode(_version, "cross_validation_stamps", <<nb::8, rest::bitstring>>, acc) do

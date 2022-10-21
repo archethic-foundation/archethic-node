@@ -187,6 +187,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
     validation_stamp =
       %ValidationStamp{
+        protocol_version: 1,
         timestamp: timestamp,
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election:

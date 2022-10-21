@@ -19,6 +19,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           | :transaction_movements
           | :unspent_outputs
           | :error
+          | :protocol_version
 
   @typedoc """
   A cross validation stamp is composed from:
@@ -38,10 +39,19 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   @spec sign(t(), ValidationStamp.t()) :: t()
   def sign(
         cross_stamp = %__MODULE__{inconsistencies: inconsistencies},
-        validation_stamp = %ValidationStamp{}
+        validation_stamp = %ValidationStamp{protocol_version: version}
       ) do
+    # TODO: remove version control before mainnet launch
+    raw_stamp =
+      if version == 1 do
+        <<_version::32, rest::binary>> = ValidationStamp.serialize(validation_stamp)
+        rest
+      else
+        ValidationStamp.serialize(validation_stamp)
+      end
+
     signature =
-      [ValidationStamp.serialize(validation_stamp), marshal_inconsistencies(inconsistencies)]
+      [raw_stamp, marshal_inconsistencies(inconsistencies)]
       |> Crypto.sign_with_last_node_key()
 
     %{cross_stamp | node_public_key: Crypto.last_node_public_key(), signature: signature}
@@ -60,9 +70,18 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           inconsistencies: inconsistencies,
           node_public_key: node_public_key
         },
-        stamp = %ValidationStamp{}
+        stamp = %ValidationStamp{protocol_version: version}
       ) do
-    data = [ValidationStamp.serialize(stamp), marshal_inconsistencies(inconsistencies)]
+    # TODO: remove version control before mainnet launch
+    raw_stamp =
+      if version == 1 do
+        <<_version::32, rest::binary>> = ValidationStamp.serialize(stamp)
+        rest
+      else
+        ValidationStamp.serialize(stamp)
+      end
+
+    data = [raw_stamp, marshal_inconsistencies(inconsistencies)]
     Crypto.verify?(signature, data, node_public_key)
   end
 
@@ -128,6 +147,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp serialize_inconsistency(:transaction_movements), do: 6
   defp serialize_inconsistency(:unspent_outputs), do: 7
   defp serialize_inconsistency(:error), do: 8
+  defp serialize_inconsistency(:protocol_version), do: 9
 
   @doc """
   Deserialize an encoded cross validation stamp
@@ -192,6 +212,7 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:transaction_movements, rest}
   defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:unspent_outputs, rest}
   defp do_reduce_inconsistencies(<<8::8, rest::bitstring>>), do: {:error, rest}
+  defp do_reduce_inconsistencies(<<9::8, rest::bitstring>>), do: {:protocol_version, rest}
 
   @spec cast(map()) :: t()
   def cast(stamp = %{}) do

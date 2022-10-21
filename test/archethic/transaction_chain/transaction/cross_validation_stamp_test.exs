@@ -25,7 +25,8 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
         proof_of_integrity: poi,
         proof_of_election: poe,
         ledger_operations: %LedgerOperations{},
-        signature: signature
+        signature: signature,
+        protocol_version: ArchethicCase.current_protocol_version()
       }
 
       cross_stamp =

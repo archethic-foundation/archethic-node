@@ -221,7 +221,8 @@ defmodule Archethic.ReplicationTest do
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        ledger_operations: ledger_operations
+        ledger_operations: ledger_operations,
+        protocol_version: ArchethicCase.current_protocol_version()
       }
       |> ValidationStamp.sign()
 
