@@ -216,7 +216,8 @@ defmodule Archethic.Mining.ValidationContextTest do
         }
         |> LedgerOperations.from_transaction(tx, timestamp)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
-      signature: :crypto.strong_rand_bytes(32)
+      signature: :crypto.strong_rand_bytes(32),
+      protocol_version: ArchethicCase.current_protocol_version()
     }
   end
 
@@ -236,7 +237,8 @@ defmodule Archethic.Mining.ValidationContextTest do
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.from_transaction(tx, timestamp)
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
+      protocol_version: ArchethicCase.current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -256,7 +258,8 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: 2_020_000_000,
           transaction_movements: Transaction.get_movements(tx)
         }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
+      protocol_version: ArchethicCase.current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -288,7 +291,8 @@ defmodule Archethic.Mining.ValidationContextTest do
             }
           ]
         }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
+      protocol_version: ArchethicCase.current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -314,7 +318,8 @@ defmodule Archethic.Mining.ValidationContextTest do
             timestamp: timestamp
           }
         ]
-      }
+      },
+      protocol_version: ArchethicCase.current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -335,7 +340,8 @@ defmodule Archethic.Mining.ValidationContextTest do
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
-      error: :invalid_pending_transaction
+      error: :invalid_pending_transaction,
+      protocol_version: ArchethicCase.current_protocol_version()
     }
     |> ValidationStamp.sign()
   end

@@ -46,7 +46,8 @@ defmodule Archethic.TransactionFactory do
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        ledger_operations: ledger_operations
+        ledger_operations: ledger_operations,
+        protocol_version: ArchethicCase.current_protocol_version()
       }
       |> ValidationStamp.sign()
 
@@ -84,7 +85,8 @@ defmodule Archethic.TransactionFactory do
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-        ledger_operations: ledger_operations
+        ledger_operations: ledger_operations,
+        protocol_version: ArchethicCase.current_protocol_version()
       }
       |> ValidationStamp.sign()
 
@@ -116,7 +118,8 @@ defmodule Archethic.TransactionFactory do
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32)
+      signature: :crypto.strong_rand_bytes(32),
+      protocol_version: ArchethicCase.current_protocol_version()
     }
 
     cross_validation_stamp =
@@ -144,7 +147,8 @@ defmodule Archethic.TransactionFactory do
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32)
+      signature: :crypto.strong_rand_bytes(32),
+      protocol_version: ArchethicCase.current_protocol_version()
     }
 
     cross_validation_stamp =
@@ -173,7 +177,8 @@ defmodule Archethic.TransactionFactory do
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        ledger_operations: ledger_operations
+        ledger_operations: ledger_operations,
+        protocol_version: ArchethicCase.current_protocol_version()
       }
       |> ValidationStamp.sign()
 
@@ -206,7 +211,8 @@ defmodule Archethic.TransactionFactory do
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-        ledger_operations: ledger_operations
+        ledger_operations: ledger_operations,
+        protocol_version: ArchethicCase.current_protocol_version()
       }
       |> ValidationStamp.sign()
 
@@ -253,7 +259,8 @@ defmodule Archethic.TransactionFactory do
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, timestamp),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx | prev_txn]),
-        ledger_operations: ledger_operations
+        ledger_operations: ledger_operations,
+        protocol_version: ArchethicCase.current_protocol_version()
       }
       |> ValidationStamp.sign()
 

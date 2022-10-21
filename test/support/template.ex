@@ -26,6 +26,8 @@ defmodule ArchethicCase do
 
   import Mox
 
+  def current_protocol_version(), do: 2
+
   setup :verify_on_exit!
   setup :set_mox_global
 

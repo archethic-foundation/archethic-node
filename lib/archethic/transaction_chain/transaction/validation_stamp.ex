@@ -9,6 +9,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   alias __MODULE__.LedgerOperations
 
   defstruct [
+    :protocol_version,
     :timestamp,
     :signature,
     :proof_of_work,
@@ -45,12 +46,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         }
 
   @spec sign(__MODULE__.t()) :: __MODULE__.t()
-  def sign(stamp = %__MODULE__{}) do
-    sig =
+  def sign(stamp = %__MODULE__{protocol_version: version}) do
+    # TODO: remove version control before mainnet launch
+    raw_stamp =
       stamp
       |> extract_for_signature()
       |> serialize()
-      |> Crypto.sign_with_last_node_key()
+
+    # TODO: remove control on version before mainnet launch
+    raw_stamp =
+      if version == 1 do
+        <<_version::32, rest::binary>> = raw_stamp
+        rest
+      else
+        raw_stamp
+      end
+
+    sig = Crypto.sign_with_last_node_key(raw_stamp)
 
     %{stamp | signature: sig}
   end
@@ -66,7 +78,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         proof_of_election: poe,
         ledger_operations: ops,
         recipients: recipients,
-        error: error
+        error: error,
+        protocol_version: version
       }) do
     %__MODULE__{
       timestamp: timestamp,
@@ -75,7 +88,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       proof_of_election: poe,
       ledger_operations: ops,
       recipients: recipients,
-      error: error
+      error: error,
+      protocol_version: version
     }
   end
 
@@ -102,10 +116,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       ...>   signature: <<67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
       ...>     126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
       ...>     238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
-      ...>     66, 182, 168, 35, 129, 240, 35, 183, 47, 69, 154, 37, 172>>
+      ...>     66, 182, 168, 35, 129, 240, 35, 183, 47, 69, 154, 37, 172>>,
+      ...>   protocol_version: 1
       ...> }
       ...> |> ValidationStamp.serialize()
       <<
+      # Version
+      0, 0, 0, 1,
       # Timestamp
       0, 0, 1, 121, 70, 244, 48, 216,
       # Proof of work
@@ -147,7 +164,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         ledger_operations: ledger_operations,
         recipients: recipients,
         error: error,
-        signature: nil
+        signature: nil,
+        protocol_version: version
       }) do
     pow =
       if pow == "" do
@@ -159,9 +177,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
-    <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
-      LedgerOperations.serialize(ledger_operations)::binary, encoded_recipients_len::binary,
-      :erlang.list_to_binary(recipients)::binary, serialize_error(error)::8>>
+    <<version::32, DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary,
+      poe::binary, LedgerOperations.serialize(ledger_operations)::binary,
+      encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
+      serialize_error(error)::8>>
   end
 
   def serialize(%__MODULE__{
@@ -172,7 +191,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         ledger_operations: ledger_operations,
         recipients: recipients,
         error: error,
-        signature: signature
+        signature: signature,
+        protocol_version: version
       }) do
     pow =
       if pow == "" do
@@ -184,10 +204,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
-    <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
-      LedgerOperations.serialize(ledger_operations)::binary, encoded_recipients_len::binary,
-      :erlang.list_to_binary(recipients)::binary, serialize_error(error)::8,
-      byte_size(signature)::8, signature::binary>>
+    <<version::32, DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary,
+      poe::binary, LedgerOperations.serialize(ledger_operations)::binary,
+      encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
+      serialize_error(error)::8, byte_size(signature)::8, signature::binary>>
   end
 
   @doc """
@@ -195,7 +215,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
   ## Examples
 
-      iex> <<0, 0, 1, 121, 70, 244, 48, 216, 0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84,
+      iex> <<0, 0, 0, 1, 0, 0, 1, 121, 70, 244, 48, 216, 0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84,
       ...> 7, 6, 84, 66, 27, 8, 78, 103, 37, 155, 114, 208, 205, 40, 44, 6, 159, 178, 5,
       ...> 186, 168, 237, 206, 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140,
       ...> 254, 103, 186, 138, 175, 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180,
@@ -230,12 +250,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
           signature: <<67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
             126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
             238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
-            66, 182, 168, 35, 129, 240, 35, 183, 47, 69, 154, 37, 172>>
+            66, 182, 168, 35, 129, 240, 35, 183, 47, 69, 154, 37, 172>>,
+          protocol_version: 1
         },
         ""
       }
   """
-  def deserialize(<<timestamp::64, rest::bitstring>>) do
+  def deserialize(<<version::32, timestamp::64, rest::bitstring>>) do
     <<pow_curve_id::8, pow_origin_id::8, rest::bitstring>> = rest
     pow_key_size = Crypto.key_size(pow_curve_id)
     <<pow_key::binary-size(pow_key_size), rest::bitstring>> = rest
@@ -265,7 +286,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         ledger_operations: ledger_ops,
         recipients: recipients,
         error: error,
-        signature: signature
+        signature: signature,
+        protocol_version: version
       },
       rest
     }
@@ -282,7 +304,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.cast(),
       recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature),
-      error: Map.get(stamp, :error)
+      error: Map.get(stamp, :error),
+      # TODO: remove default version before mainnet launch
+      protocol_version: Map.get(stamp, :protocol_version, 1)
     }
   end
 
@@ -319,12 +343,24 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   @spec valid_signature?(__MODULE__.t(), Crypto.key()) :: boolean()
   def valid_signature?(%__MODULE__{signature: nil}, _public_key), do: false
 
-  def valid_signature?(stamp = %__MODULE__{signature: signature}, public_key)
+  def valid_signature?(
+        stamp = %__MODULE__{signature: signature, protocol_version: version},
+        public_key
+      )
       when is_binary(signature) do
     raw_stamp =
       stamp
       |> extract_for_signature
       |> serialize
+
+    # TODO: remove control on version before mainnet launch
+    raw_stamp =
+      if version == 1 do
+        <<_version::32, rest::binary>> = raw_stamp
+        rest
+      else
+        raw_stamp
+      end
 
     Crypto.verify?(signature, raw_stamp, public_key)
   end
