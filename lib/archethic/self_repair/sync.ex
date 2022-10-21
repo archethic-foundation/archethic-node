@@ -66,7 +66,7 @@ defmodule Archethic.SelfRepair.Sync do
         %Node{enrollment_date: enrollment_date} =
           nodes
           |> Enum.reject(&(&1.enrollment_date == nil))
-          |> Enum.sort_by(& &1.enrollment_date)
+          |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime})
           |> Enum.at(0)
 
         Logger.info(
