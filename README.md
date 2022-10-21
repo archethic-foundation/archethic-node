@@ -23,44 +23,19 @@ The source code can change to respect the best quality of reading and regarding 
 Current implemented features:
 
 - Adaptive cryptography: different elliptic curves and software implementation
+- Hybrid root of trust: mix of hardware and software cryptographic key to maintain trust and security
 - TransactionChain: Transaction structure and transaction generation
 - Smart Contract: interpreter coded with Elixir DSL through Meta-programming and AST
 - Node election: heuristic validation and storage node selection
 - P2P: Inter-node communication, supervised connection to detect the P2P view of nodes in almost real-time
 - Transaction mining: ARCH consensus
-- Node bootstrapping
-- Beacon chain: Track new transactions and node readiness
+- Beacon chain: Maintains a global view of the network (transactions, P2P view) 
 - Self-Repair: Self-healing mechanism allowing to resynchronize missing transactions
-- Node shared secrets renewal: Integration of authorized validation nodes using heuristic constraints
-- P2P transfers
-- Transaction explorer
-- Custom Binary protocol leveraging Binary Pattern Matching and BitVectors
-- NFT creation and transfers
-- Integrated Oracle Chain (UCO Price Feed)
-- Efficient transaction fee
-
-## Development Roadmap
-
-### Short term
-
-These are the features will be implemented very soon (already in the pipe of the core team)
-
-- Programmable money: Provide code & condition inside an UTXO to be executed when it's consumed
-- Smart Contract fee model
-- Provide exception on the smart contract inherit constraints
-
-### Mid-Long term:
-
-These are the feature which will be implemented after the short term roadmap but which are important:
-
-- OnChain Governance & Decentralized Code Source and Hot Release Upgrades
-- SGX integration for enclaving the node shared secrets
-- Smart Contract Builder / Generator
-- Network coordinates aggregation from the BeaconChain
-- On-chain time management through BeaconChain to ensure clock synchronisation
-- Yubikey integration for node enrollment and key management
-
-## Installation
+- Embedded explorer leveraging sharding to retrieve information
+- Custom Binary protocol for data transmission
+- Token minting
+- Internal oracles (UCO Price Feed)
+- Tailored embedded database
 
 Requirements:
 
