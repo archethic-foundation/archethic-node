@@ -155,6 +155,9 @@ defmodule Archethic.SelfRepair.Sync do
       {:ok, {:ok, %SummaryAggregate{}}} ->
         true
 
+      {:ok, {:error, :not_exists}} ->
+        false
+
       _ ->
         raise "Cannot make the self-repair - Previous summary aggregate not fetched"
     end)
