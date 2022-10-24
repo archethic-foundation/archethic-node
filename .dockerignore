@@ -35,9 +35,6 @@ erl_crash.dump
 # this depending on your deployment strategy.
 /priv/static/*
 
-# Self signed cert are used for local and dev purposes
-/priv/cert
-
 /assets/node_modules
 
 log_*
