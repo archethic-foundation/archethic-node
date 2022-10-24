@@ -5,9 +5,12 @@ defmodule Archethic.Replication.TransactionValidator do
 
   alias Archethic.Contracts
 
+  alias Archethic.DB
+
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   alias Archethic.Mining
 
@@ -201,6 +204,11 @@ defmodule Archethic.Replication.TransactionValidator do
             storage_nodes,
             Election.get_validation_constraints()
           )
+          # Update node last public key with the one at transaction date
+          |> Enum.map(fn node = %Node{first_public_key: public_key} ->
+            last_public_key = DB.get_last_chain_public_key(public_key, tx_timestamp)
+            %{node | last_public_key: last_public_key}
+          end)
 
         valid_coordinator? =
           Enum.any?(
