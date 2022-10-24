@@ -45,6 +45,8 @@ defmodule Archethic.DB do
 
   @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
   @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
+  @callback get_last_chain_public_key(binary()) :: Crypto.key()
+  @callback get_last_chain_public_key(binary(), DateTime.t()) :: Crypto.key()
   @callback get_first_chain_address(binary()) :: binary()
   @callback get_first_public_key(Crypto.key()) :: binary()
   @callback scan_chain(
