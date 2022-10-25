@@ -80,6 +80,11 @@ defmodule Archethic.P2P.MemTableLoader do
       Enum.each(DB.get_last_p2p_summaries(), fn summary ->
         load_p2p_summary(summary, is_same_slot?)
       end)
+
+      # Ensure the only single node is globally available after a delayed bootstrap 
+      if !is_same_slot? and length(P2P.list_nodes()) == 1 and P2P.authorized_node?() do
+        P2P.set_node_globally_available(Crypto.first_node_public_key())
+      end
     end
 
     {:ok, %{}}
