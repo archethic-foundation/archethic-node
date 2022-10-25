@@ -22,8 +22,8 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedgerTest do
 
       {uco_ledger, _} =
         %UCOLedger{transfers: transfers}
-        |> UCOLedger.serialize()
-        |> UCOLedger.deserialize()
+        |> UCOLedger.serialize(1)
+        |> UCOLedger.deserialize(1)
 
       assert uco_ledger.transfers == transfers
     end

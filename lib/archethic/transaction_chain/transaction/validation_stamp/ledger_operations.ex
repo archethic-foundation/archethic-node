@@ -411,7 +411,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>      %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 1}, timestamp: ~U[2022-10-09 08:39:10.463Z]},
       ...>      %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 2}, timestamp: ~U[2022-10-09 08:39:10.463Z]},
       ...>      %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 3}, timestamp: ~U[2022-10-09 08:39:10.463Z]}
-      ...> ],~U[2022-10-10 10:44:38.983Z])
+      ...> ], ~U[2022-10-10 10:44:38.983Z])
       %LedgerOperations{
         fee: 40_000_000,
         transaction_movements: [
@@ -538,11 +538,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>       from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
       ...>       amount: 200_000_000,
-      ...>       type: :UCO,timestamp: ~U[2022-10-11 07:27:22.815Z]
+      ...>       type: :UCO,
+      ...>       timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...>     }
       ...>   ]
       ...> }
-      ...> |> LedgerOperations.serialize()
+      ...> |> LedgerOperations.serialize(2)
       <<
       # Fee (0.1 UCO)
       0, 0, 0, 0, 0, 152, 150, 128,
@@ -568,18 +569,24 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       0
       >>
   """
-  def serialize(%__MODULE__{
-        fee: fee,
-        transaction_movements: transaction_movements,
-        unspent_outputs: unspent_outputs
-      }) do
+  @spec serialize(ledger_operations :: t(), protocol_version :: non_neg_integer()) :: bitstring()
+  def serialize(
+        %__MODULE__{
+          fee: fee,
+          transaction_movements: transaction_movements,
+          unspent_outputs: unspent_outputs
+        },
+        protocol_version
+      ) do
     bin_transaction_movements =
       transaction_movements
-      |> Enum.map(&TransactionMovement.serialize/1)
+      |> Enum.map(&TransactionMovement.serialize(&1, protocol_version))
       |> :erlang.list_to_binary()
 
     bin_unspent_outputs =
-      unspent_outputs |> Enum.map(&UnspentOutput.serialize/1) |> :erlang.list_to_binary()
+      unspent_outputs
+      |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
+      |> :erlang.list_to_binary()
 
     encoded_transaction_movements_len = length(transaction_movements) |> VarInt.from_value()
 
@@ -594,13 +601,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> <<0, 0, 0, 0, 0, 152, 150, 128,     1, 1,
+      iex> <<0, 0, 0, 0, 0, 152, 150, 128, 1, 1,
       ...> 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96,
-      ...> 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,    0, 0, 0, 0, 60, 203, 247, 0,     0,
-      ...> 1, 1,     0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1,
+      ...> 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207, 0, 0, 0, 0, 60, 203, 247, 0, 0,
+      ...> 1, 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1,
       ...> 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      ...> 0, 0, 0, 0, 11, 235, 194, 0,     0, 0, 1, 131, 197, 240, 230, 191,     0>>
-      ...> |> LedgerOperations.deserialize()
+      ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0, 1, 131, 197, 240, 230, 191, 0>>
+      ...> |> LedgerOperations.deserialize(2)
       {
         %LedgerOperations{
           fee: 10_000_000,
@@ -617,19 +624,26 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
               from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 200_000_000,
-              type: :UCO,timestamp: ~U[2022-10-11 07:27:22.815Z]
+              type: :UCO,
+              timestamp: ~U[2022-10-11 07:27:22.815Z]
             }
           ]
         },
         ""
       }
   """
-  def deserialize(<<fee::64, rest::bitstring>>) do
-    {nb_transaction_movements, rest} = rest |> VarInt.get_value()
-    {tx_movements, rest} = reduce_transaction_movements(rest, nb_transaction_movements, [])
+  @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
+          {t(), bitstring()}
+  def deserialize(<<fee::64, rest::bitstring>>, protocol_version) do
+    {nb_transaction_movements, rest} = VarInt.get_value(rest)
+
+    {tx_movements, rest} =
+      reduce_transaction_movements(rest, nb_transaction_movements, [], protocol_version)
 
     {nb_unspent_outputs, rest} = rest |> VarInt.get_value()
-    {unspent_outputs, rest} = reduce_unspent_outputs(rest, nb_unspent_outputs, [])
+
+    {unspent_outputs, rest} =
+      reduce_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
 
     {
       %__MODULE__{
@@ -641,26 +655,26 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  defp reduce_transaction_movements(rest, 0, _), do: {[], rest}
+  defp reduce_transaction_movements(rest, 0, _, _), do: {[], rest}
 
-  defp reduce_transaction_movements(rest, nb, acc) when length(acc) == nb do
+  defp reduce_transaction_movements(rest, nb, acc, _) when length(acc) == nb do
     {Enum.reverse(acc), rest}
   end
 
-  defp reduce_transaction_movements(rest, nb, acc) do
-    {tx_movement, rest} = TransactionMovement.deserialize(rest)
-    reduce_transaction_movements(rest, nb, [tx_movement | acc])
+  defp reduce_transaction_movements(rest, nb, acc, protocol_version) do
+    {tx_movement, rest} = TransactionMovement.deserialize(rest, protocol_version)
+    reduce_transaction_movements(rest, nb, [tx_movement | acc], protocol_version)
   end
 
-  defp reduce_unspent_outputs(rest, 0, _), do: {[], rest}
+  defp reduce_unspent_outputs(rest, 0, _, _), do: {[], rest}
 
-  defp reduce_unspent_outputs(rest, nb, acc) when length(acc) == nb do
+  defp reduce_unspent_outputs(rest, nb, acc, _) when length(acc) == nb do
     {Enum.reverse(acc), rest}
   end
 
-  defp reduce_unspent_outputs(rest, nb, acc) do
-    {unspent_output, rest} = UnspentOutput.deserialize(rest)
-    reduce_unspent_outputs(rest, nb, [unspent_output | acc])
+  defp reduce_unspent_outputs(rest, nb, acc, protocol_version) do
+    {unspent_output, rest} = UnspentOutput.deserialize(rest, protocol_version)
+    reduce_unspent_outputs(rest, nb, [unspent_output | acc], protocol_version)
   end
 
   @spec cast(map()) :: t()

@@ -13,11 +13,9 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetFirstAddress
   # alias Archethic.P2P.Message.FirstAddress
@@ -28,6 +26,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   alias Archethic.TransactionFactory
 
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
   doctest TransactionHandler
@@ -150,10 +149,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
         {:ok, %NotFound{}}
 
       _, %GetTransactionInputs{}, _ ->
-        {:ok, %TransactionInputList{inputs: inputs}}
-
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+        {:ok,
+         %TransactionInputList{
+           inputs:
+             Enum.map(inputs, fn input ->
+               %VersionedTransactionInput{input: input, protocol_version: 1}
+             end)
+         }}
 
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}

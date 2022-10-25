@@ -8,8 +8,12 @@ defmodule Archethic.Account do
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias Archethic.TransactionChain.TransactionInput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   @type balance :: %{
           uco: amount :: pos_integer(),
@@ -26,10 +30,13 @@ defmodule Archethic.Account do
     address
     |> get_unspent_outputs()
     |> Enum.reduce(%{uco: 0, token: %{}}, fn
-      %UnspentOutput{type: :UCO, amount: amount}, acc ->
+      %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO, amount: amount}}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
-      %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}, acc ->
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}
+      },
+      acc ->
         update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
     end)
   end
@@ -37,15 +44,15 @@ defmodule Archethic.Account do
   @doc """
   List all the unspent outputs for a given address
   """
-  @spec get_unspent_outputs(binary()) :: list(UnspentOutput.t())
-  def get_unspent_outputs(address) do
+  @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
+  def get_unspent_outputs(address) when is_binary(address) do
     UCOLedger.get_unspent_outputs(address) ++ TokenLedger.get_unspent_outputs(address)
   end
 
   @doc """
   List all the inputs for a given transaction (including the spend/unspent inputs)
   """
-  @spec get_inputs(binary()) :: list(TransactionInput.t())
+  @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) do
     UCOLedger.get_inputs(address) ++ TokenLedger.get_inputs(address)
   end

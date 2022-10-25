@@ -5,7 +5,11 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   @unspent_output_index_table :archethic_token_unspent_output_index
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   use GenServer
 
@@ -13,7 +17,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
 
   @doc """
   Initialize the Token ledger tables:
-  - Main Token ledger as ETS set ({token, to, from, token_id}, amount, spent?, timestamp)
+  - Main Token ledger as ETS set ({token, to, from, token_id}, amount, spent?, timestamp, protocol_version)
   - Token Unspent Output Index as ETS bag (to, {from, token, token_id})
   """
   @spec start_link(args :: list()) :: GenServer.on_start()
@@ -43,32 +47,23 @@ defmodule Archethic.Account.MemTables.TokenLedger do
 
   @doc """
   Add an unspent output to the ledger for the recipient address
-
-  ## Examples
-
-      iex> {:ok, _pid} = TokenLedger.start_link()
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1", 0}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1", 1},timestamp:  ~U[2022-10-10 09:27:17.846Z]})
-      iex> { :ets.tab2list(:archethic_token_ledger), :ets.tab2list(:archethic_token_unspent_output_index) }
-      {
-        [
-          {{"@Alice2", "@Bob3", "@Token1", 0}, 300_000_000, false,~U[2022-10-10 09:27:17.846Z]},
-          {{"@Alice2", "@Charlie10", "@Token1", 1}, 100_000_000, false,~U[2022-10-10 09:27:17.846Z]}
-        ],
-        [
-          {"@Alice2", "@Bob3", "@Token1", 0},
-          {"@Alice2", "@Charlie10", "@Token1", 1}
-        ]
-      }
-
   """
-  @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
-  def add_unspent_output(to_address, %UnspentOutput{
-        from: from_address,
-        amount: amount,
-        type: {:token, token_address, token_id},
-        timestamp: %DateTime{} = timestamp
-      })
+  @spec add_unspent_output(
+          recipient_address :: binary(),
+          utxo :: VersionedUnspentOutput.t()
+        ) :: :ok
+  def add_unspent_output(
+        to_address,
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: from_address,
+            amount: amount,
+            type: {:token, token_address, token_id},
+            timestamp: %DateTime{} = timestamp
+          },
+          protocol_version: protocol_version
+        }
+      )
       when is_binary(to_address) and is_binary(from_address) and is_integer(amount) and amount > 0 and
              is_binary(token_address) and is_integer(token_id) and token_id >= 0 do
     spent? =
@@ -83,7 +78,8 @@ defmodule Archethic.Account.MemTables.TokenLedger do
     true =
       :ets.insert(
         @ledger_table,
-        {{to_address, from_address, token_address, token_id}, amount, spent?, timestamp}
+        {{to_address, from_address, token_address, token_id}, amount, spent?, timestamp,
+         protocol_version}
       )
 
     true =
@@ -102,35 +98,23 @@ defmodule Archethic.Account.MemTables.TokenLedger do
 
   @doc """
   Get the unspent outputs for a given transaction address
-
-  ## Examples
-
-      iex> {:ok, _pid} = TokenLedger.start_link()
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1", 0}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1", 1}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> TokenLedger.get_unspent_outputs("@Alice2")
-      [
-        %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1", 1},timestamp: ~U[2022-10-10 09:27:17.846Z]},
-        %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1", 0},timestamp: ~U[2022-10-10 09:27:17.846Z]}
-      ]
-
-      iex> {:ok, _pid} = TokenLedger.start_link()
-      iex> TokenLedger.get_unspent_outputs("@Alice2")
-      []
   """
-  @spec get_unspent_outputs(binary()) :: list(UnspentOutput.t())
+  @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
   def get_unspent_outputs(address) when is_binary(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
     |> Enum.reduce([], fn {_, from, token_address, token_id}, acc ->
       case :ets.lookup(@ledger_table, {address, from, token_address, token_id}) do
-        [{_, amount, false, timestamp}] ->
+        [{_, amount, false, timestamp, protocol_version}] ->
           [
-            %UnspentOutput{
-              from: from,
-              amount: amount,
-              type: {:token, token_address, token_id},
-              timestamp: timestamp
+            %VersionedUnspentOutput{
+              unspent_output: %UnspentOutput{
+                from: from,
+                amount: amount,
+                type: {:token, token_address, token_id},
+                timestamp: timestamp
+              },
+              protocol_version: protocol_version
             }
             | acc
           ]
@@ -143,16 +127,6 @@ defmodule Archethic.Account.MemTables.TokenLedger do
 
   @doc """
   Spend all the unspent outputs for the given address
-
-  ## Examples
-
-      iex> {:ok, _pid} = TokenLedger.start_link()
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1",0}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1",1}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> :ok = TokenLedger.spend_all_unspent_outputs("@Alice2")
-      iex> TokenLedger.get_unspent_outputs("@Alice2")
-      []
-
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
@@ -161,48 +135,28 @@ defmodule Archethic.Account.MemTables.TokenLedger do
     |> Enum.each(fn {_, from, token_address, token_id} ->
       :ets.update_element(@ledger_table, {address, from, token_address, token_id}, {3, true})
     end)
-
-    :ok
   end
 
   @doc """
   Retrieve the entire inputs for a given address (spent or unspent)
-
-  ## Examples
-
-      iex> {:ok, _pid} = TokenLedger.start_link()
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1", 0}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1", 1}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> TokenLedger.get_inputs("@Alice2")
-      [
-        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1", 0}, spent?: false, timestamp: ~U[2022-10-10 09:27:17.846Z]},
-        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1", 1}, spent?: false, timestamp: ~U[2022-10-10 09:27:17.846Z]}
-      ]
-
-      iex> {:ok, _pid} = TokenLedger.start_link()
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1", 0}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> :ok = TokenLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1", 1}, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> :ok = TokenLedger.spend_all_unspent_outputs("@Alice2")
-      iex> TokenLedger.get_inputs("@Alice2")
-      [
-        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:token, "@Token1", 0}, spent?: true, timestamp: ~U[2022-10-10 09:27:17.846Z]},
-        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:token, "@Token1", 1}, spent?: true, timestamp: ~U[2022-10-10 09:27:17.846Z]}
-      ]
   """
-  @spec get_inputs(binary()) :: list(TransactionInput.t())
+  @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
     |> Enum.map(fn {_, from, token_address, token_id} ->
-      [{_, amount, spent?, timestamp}] =
+      [{_, amount, spent?, timestamp, protocol_version}] =
         :ets.lookup(@ledger_table, {address, from, token_address, token_id})
 
-      %TransactionInput{
-        from: from,
-        amount: amount,
-        type: {:token, token_address, token_id},
-        spent?: spent?,
-        timestamp: timestamp
+      %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: from,
+          amount: amount,
+          type: {:token, token_address, token_id},
+          spent?: spent?,
+          timestamp: timestamp
+        },
+        protocol_version: protocol_version
       }
     end)
   end

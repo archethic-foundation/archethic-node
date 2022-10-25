@@ -16,6 +16,8 @@ defmodule Archethic.Mining.TransactionContextTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   doctest TransactionContext
 
   import Mox
@@ -44,11 +46,14 @@ defmodule Archethic.Mining.TransactionContextTest do
           {:ok,
            %UnspentOutputList{
              unspent_outputs: [
-               %UnspentOutput{
-                 from: "@Bob3",
-                 amount: 1_000_000_000,
-                 type: :UCO,
-                 timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Bob3",
+                   amount: 1_000_000_000,
+                   type: :UCO,
+                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+                 },
+                 protocol_version: 1
                }
              ]
            }}

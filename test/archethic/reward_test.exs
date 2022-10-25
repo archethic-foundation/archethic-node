@@ -12,6 +12,8 @@ defmodule Archethic.RewardTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.Transaction
@@ -86,8 +88,15 @@ defmodule Archethic.RewardTest do
       timestamp: timestamp
     }
 
-    TokenLedger.add_unspent_output(address, unspent_outputs1)
-    TokenLedger.add_unspent_output(address, unspent_outputs2)
+    TokenLedger.add_unspent_output(address, %VersionedUnspentOutput{
+      unspent_output: unspent_outputs1,
+      protocol_version: 1
+    })
+
+    TokenLedger.add_unspent_output(address, %VersionedUnspentOutput{
+      unspent_output: unspent_outputs2,
+      protocol_version: 1
+    })
 
     assert [
              %Transfer{

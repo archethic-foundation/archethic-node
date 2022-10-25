@@ -30,6 +30,7 @@ defmodule ArchethicTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   import Mox
 
@@ -258,12 +259,15 @@ defmodule ArchethicTest do
         {:ok,
          %TransactionInputList{
            inputs: [
-             %TransactionInput{
-               from: "@Bob3",
-               amount: 1_000_000_000,
-               spent?: false,
-               type: :UCO,
-               timestamp: DateTime.utc_now()
+             %VersionedTransactionInput{
+               input: %TransactionInput{
+                 from: "@Bob3",
+                 amount: 1_000_000_000,
+                 spent?: false,
+                 type: :UCO,
+                 timestamp: DateTime.utc_now()
+               },
+               protocol_version: 1
              }
            ]
          }}

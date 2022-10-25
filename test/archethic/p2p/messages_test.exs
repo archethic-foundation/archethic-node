@@ -53,8 +53,12 @@ defmodule Archethic.P2P.MessageTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   doctest Message
 
@@ -552,13 +556,16 @@ defmodule Archethic.P2P.MessageTest do
     test "UnspentOutputList message " do
       msg = %UnspentOutputList{
         unspent_outputs: [
-          %UnspentOutput{
-            from:
-              <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
-                159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-            amount: 1_050_000_000,
-            type: :UCO,
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          %VersionedUnspentOutput{
+            unspent_output: %UnspentOutput{
+              from:
+                <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
+                  194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+              amount: 1_050_000_000,
+              type: :UCO,
+              timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+            },
+            protocol_version: 1
           }
         ]
       }
@@ -742,21 +749,27 @@ defmodule Archethic.P2P.MessageTest do
     test "TransactionInputList message" do
       msg = %TransactionInputList{
         inputs: [
-          %TransactionInput{
-            from:
-              <<0, 0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57,
-                44, 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
-            amount: 1_050_000_000,
-            spent?: true,
-            type: :UCO,
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              from:
+                <<0, 0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108,
+                  57, 44, 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
+              amount: 1_050_000_000,
+              spent?: true,
+              type: :UCO,
+              timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
+            },
+            protocol_version: 1
           },
-          %TransactionInput{
-            from:
-              <<0, 0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57,
-                44, 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
-            type: :call,
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              from:
+                <<0, 0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108,
+                  57, 44, 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
+              type: :call,
+              timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
+            },
+            protocol_version: 1
           }
         ]
       }

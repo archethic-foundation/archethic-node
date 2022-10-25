@@ -127,6 +127,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - Proof of integrity: Hash of the previous proof of integrity and the transaction
   - Ledger operations: All the operations performed by the transaction
   - Signature: Coordinator signature of the stamp
+  - Protocol version: Version of the transaction validation protocol
   """
   object :validation_stamp do
     field(:timestamp, :timestamp)
@@ -134,6 +135,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:proof_of_integrity, :hash)
     field(:ledger_operations, :ledger_operations)
     field(:signature, :hex)
+    field(:protocol_version, :integer)
   end
 
   @desc """
@@ -157,7 +159,8 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - Type: UCO/token
   - token address: address of the token if the type is token
   - token id: It is the id for a token which is allocated when the token is minted.
-  - Timestamp: Date time when the UTXO created/manipulated.
+  - Timestamp: Date time when the UTXO created/manipulated
+  - Version: Version of the UTXO data structure
   """
   object :unspent_output do
     field(:from, :address)
@@ -166,6 +169,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:token_address, :address)
     field(:token_id, :integer)
     field(:timestamp, :timestamp)
+    field(:version, :integer)
   end
 
   @desc """

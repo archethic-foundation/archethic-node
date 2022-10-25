@@ -45,7 +45,7 @@ defmodule Archethic.TransactionChain.TransactionData do
   ...>        241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31>>
   ...>    ]
   ...> }
-  ...> |> TransactionData.serialize()
+  ...> |> TransactionData.serialize(1)
   <<
   # Code size
   0, 0, 0, 147,
@@ -74,21 +74,29 @@ defmodule Archethic.TransactionChain.TransactionData do
   241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31
   >>
   """
-  def serialize(%__MODULE__{
-        code: code,
-        content: content,
-        ownerships: ownerships,
-        ledger: ledger,
-        recipients: recipients
-      }) do
-    ownerships_bin = Enum.map(ownerships, &Ownership.serialize/1) |> :erlang.list_to_binary()
+  @spec serialize(tx_data :: t(), tx_version :: pos_integer()) :: bitstring()
+  def serialize(
+        %__MODULE__{
+          code: code,
+          content: content,
+          ownerships: ownerships,
+          ledger: ledger,
+          recipients: recipients
+        },
+        tx_version
+      ) do
+    ownerships_bin =
+      ownerships
+      |> Enum.map(&Ownership.serialize(&1, tx_version))
+      |> :erlang.list_to_binary()
 
     encoded_ownership_len = length(ownerships) |> VarInt.from_value()
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
     <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
-      encoded_ownership_len::binary, ownerships_bin::binary, Ledger.serialize(ledger)::binary,
-      encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary>>
+      encoded_ownership_len::binary, ownerships_bin::binary,
+      Ledger.serialize(ledger, tx_version)::binary, encoded_recipients_len::binary,
+      :erlang.list_to_binary(recipients)::binary>>
   end
 
   @doc """
@@ -117,12 +125,12 @@ defmodule Archethic.TransactionChain.TransactionData do
   ...> 0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
   ...> 241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31
   ...> >>
-  ...> |> TransactionData.deserialize()
+  ...> |> TransactionData.deserialize(1)
   {
     %TransactionData{
       code: "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
-    content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-    ownerships: [%Ownership{
+      content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
+      ownerships: [%Ownership{
       secret: <<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>,
       authorized_keys: %{
               <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
@@ -145,14 +153,16 @@ defmodule Archethic.TransactionChain.TransactionData do
         ""
       }
   """
+  @spec deserialize(data :: bitstring(), tx_version :: pos_integer()) :: {t(), bitstring()}
   def deserialize(
         <<code_size::32, code::binary-size(code_size), content_size::32,
-          content::binary-size(content_size), rest::bitstring>>
+          content::binary-size(content_size), rest::bitstring>>,
+        tx_version
       ) do
-    {nb_ownerships, rest} = rest |> VarInt.get_value()
+    {nb_ownerships, rest} = VarInt.get_value(rest)
 
-    {ownerships, rest} = reduce_ownerships(rest, nb_ownerships, [])
-    {ledger, rest} = Ledger.deserialize(rest)
+    {ownerships, rest} = reduce_ownerships(rest, nb_ownerships, [], tx_version)
+    {ledger, rest} = Ledger.deserialize(rest, tx_version)
 
     {nb_recipients, rest} = rest |> VarInt.get_value()
     {recipients, rest} = reduce_recipients(rest, nb_recipients, [])
@@ -169,14 +179,14 @@ defmodule Archethic.TransactionChain.TransactionData do
     }
   end
 
-  defp reduce_ownerships(rest, 0, _acc), do: {[], rest}
+  defp reduce_ownerships(rest, 0, _acc, _version), do: {[], rest}
 
-  defp reduce_ownerships(rest, nb_ownerships, acc) when nb_ownerships == length(acc),
+  defp reduce_ownerships(rest, nb_ownerships, acc, _version) when nb_ownerships == length(acc),
     do: {Enum.reverse(acc), rest}
 
-  defp reduce_ownerships(rest, nb_ownerships, acc) do
-    {key, rest} = Ownership.deserialize(rest)
-    reduce_ownerships(rest, nb_ownerships, [key | acc])
+  defp reduce_ownerships(rest, nb_ownerships, acc, version) do
+    {key, rest} = Ownership.deserialize(rest, version)
+    reduce_ownerships(rest, nb_ownerships, [key | acc], version)
   end
 
   defp reduce_recipients(rest, 0, _acc), do: {[], rest}
@@ -211,13 +221,19 @@ defmodule Archethic.TransactionChain.TransactionData do
     }
   end
 
-  def to_map(data = %__MODULE__{}) do
+  def to_map(%__MODULE__{
+        content: content,
+        code: code,
+        ledger: ledger,
+        ownerships: ownerships,
+        recipients: recipients
+      }) do
     %{
-      content: Map.get(data, :content, ""),
-      code: Map.get(data, :code, ""),
-      ledger: data |> Map.get(:ledger) |> Ledger.to_map(),
-      ownerships: data |> Map.get(:ownerships, []) |> Enum.map(&Ownership.to_map/1),
-      recipients: Map.get(data, :recipients, [])
+      content: content,
+      code: code,
+      ledger: Ledger.to_map(ledger),
+      ownerships: Enum.map(ownerships, &Ownership.to_map/1),
+      recipients: recipients
     }
   end
 end

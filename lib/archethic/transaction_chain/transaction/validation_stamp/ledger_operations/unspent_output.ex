@@ -29,9 +29,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    from: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 1_050_000_000,
-      ...>    type: :UCO, timestamp:     ~U[2022-10-11 07:27:22.815Z]
+      ...>    type: :UCO,
+      ...>    timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...>  }
-      ...>  |> UnspentOutput.serialize()
+      ...>  |> UnspentOutput.serialize(2)
       <<
       # From
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -51,9 +52,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 1_050_000_000,
       ...>    type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, timestamp:     ~U[2022-10-11 07:27:22.815Z]
+      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0},
+      ...>     timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...>  }
-      ...>  |> UnspentOutput.serialize()
+      ...>  |> UnspentOutput.serialize(2)
       <<
       # From
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -71,9 +73,28 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       1, 0
       >>
   """
-  @spec serialize(__MODULE__.t()) :: <<_::64, _::_*8>>
-  def serialize(%__MODULE__{from: from, amount: amount, type: type, timestamp: timestamp})
-      when not is_nil(timestamp) do
+  @spec serialize(utxo :: t(), protocol_version :: non_neg_integer()) :: bitstring()
+  # TODO: Remove before mainnet (reason: migration)
+  def serialize(
+        %__MODULE__{
+          from: from,
+          amount: amount,
+          type: type
+        },
+        1
+      ) do
+    <<from::binary, amount::64, TransactionMovementType.serialize(type)::binary>>
+  end
+
+  def serialize(
+        %__MODULE__{
+          from: from,
+          amount: amount,
+          type: type,
+          timestamp: timestamp
+        },
+        _protocol_version
+      ) do
     <<from::binary, amount::64, DateTime.to_unix(timestamp, :millisecond)::64,
       TransactionMovementType.serialize(type)::binary>>
   end
@@ -85,36 +106,73 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128,    0, 0, 1, 131, 197, 240, 230, 191,    0>>
-      ...> |> UnspentOutput.deserialize()
+      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 0>>
+      ...> |> UnspentOutput.deserialize(2)
       {
         %UnspentOutput{
           from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 1_050_000_000,
-          type: :UCO, timestamp:     ~U[2022-10-11 07:27:22.815Z]
+          type: :UCO,
+          timestamp: ~U[2022-10-11 07:27:22.815Z]
         },
         ""
       }
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128,    0, 0, 1, 131, 197, 240, 230, 191,     1,    0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
+      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
       ...> 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0>>
-      ...> |> UnspentOutput.deserialize()
+      ...> |> UnspentOutput.deserialize(2)
       {
         %UnspentOutput{
           from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 1_050_000_000,
           type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, timestamp:     ~U[2022-10-11 07:27:22.815Z]
+            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, 
+          timestamp: ~U[2022-10-11 07:27:22.815Z]
+        },
+        ""
+      }
+
+      # Support backward compatible deserialization (without version timestamp)
+
+      iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+      ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
+      ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
+      ...> 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0>>
+      ...> |> UnspentOutput.deserialize(1)
+      {
+        %UnspentOutput{
+          from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+            159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+          amount: 1_050_000_000,
+          type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, 
+          timestamp: nil
         },
         ""
       }
   """
-  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
-  def deserialize(data) when is_bitstring(data) do
+  @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
+          {t(), bitstring}
+  def deserialize(data, 1) do
+    {address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(data)
+    {type, rest} = TransactionMovementType.deserialize(rest)
+
+    {
+      %__MODULE__{
+        from: address,
+        amount: amount,
+        type: type,
+        timestamp: nil
+      },
+      rest
+    }
+  end
+
+  def deserialize(data, 2) do
     {address, <<amount::64, timestamp::64, rest::bitstring>>} = Utils.deserialize_address(data)
     {type, rest} = TransactionMovementType.deserialize(rest)
 
@@ -136,25 +194,25 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %{
       ...>  from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
-      ...>  159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>    159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
-      ...>  type: :UCO, timestamp:     ~U[2022-10-11 07:27:22.815Z]
+      ...>  type: :UCO, 
+      ...>  timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...>  } |> UnspentOutput.cast()
       %UnspentOutput{
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
         type: :UCO,
         reward?: false,
-        timestamp:    ~U[2022-10-11 07:27:22.815Z]
+        timestamp: ~U[2022-10-11 07:27:22.815Z],
       }
-
 
       iex> %{
       ...>  from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45,
       ...>    68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
       ...>  type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
+      ...>    197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...> } |> UnspentOutput.cast()
       %UnspentOutput{
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
@@ -184,23 +242,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> amount: 1_050_000_000,
       ...> type: :UCO,
       ...> reward?: false,
-      ...> timestamp:    ~U[2022-10-11 07:27:22.815Z]
+      ...> timestamp: ~U[2022-10-11 07:27:22.815Z],
       ...> }|> UnspentOutput.to_map()
       %{
         from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
         type: "UCO",
         reward?: false,
-        timestamp:    ~U[2022-10-11 07:27:22.815Z]
+        timestamp: ~U[2022-10-11 07:27:22.815Z]
       }
-
 
       iex> %UnspentOutput{
       ...>  from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45,
-      ...>   68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>    68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
       ...>  type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185,
-      ...>  71, 140, 74,  197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0 }
+      ...>    71, 140, 74,  197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0 },
       ...> } |> UnspentOutput.to_map()
       %{
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
@@ -213,8 +270,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         reward?: false,
         timestamp: nil
       }
-
-
   """
   @spec to_map(t()) :: map()
   def to_map(%__MODULE__{

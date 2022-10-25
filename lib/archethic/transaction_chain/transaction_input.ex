@@ -33,7 +33,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       ...>    spent?: true,
       ...>    timestamp: ~U[2021-03-05 11:17:20Z]
       ...> }
-      ...> |> TransactionInput.serialize()
+      ...> |> TransactionInput.serialize(1)
       <<
       # From
       0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
@@ -52,15 +52,18 @@ defmodule Archethic.TransactionChain.TransactionInput do
       96, 66, 19, 64
       >>
   """
-  @spec serialize(__MODULE__.t()) :: bitstring()
-  def serialize(%__MODULE__{
-        from: from,
-        amount: amount,
-        type: type,
-        spent?: spent?,
-        reward?: reward?,
-        timestamp: timestamp
-      }) do
+  @spec serialize(tx_input :: t(), protocol_version :: pos_integer()) :: bitstring()
+  def serialize(
+        %__MODULE__{
+          from: from,
+          amount: amount,
+          type: type,
+          spent?: spent?,
+          reward?: reward?,
+          timestamp: timestamp
+        },
+        _protocol_version
+      ) do
     case type do
       :call ->
         <<from::binary, 0::1, 0::1, DateTime.to_unix(timestamp)::32>>
@@ -85,7 +88,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       ...>  0, 0, 0, 0, 62, 149, 186, 128,
       ...>  0,
       ...>  96, 66, 19, 64>>
-      ...> |> TransactionInput.deserialize()
+      ...> |> TransactionInput.deserialize(1)
       {
         %TransactionInput{
           from:  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
@@ -99,8 +102,9 @@ defmodule Archethic.TransactionChain.TransactionInput do
         ""
       }
   """
-  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring()}
-  def deserialize(data) when is_bitstring(data) do
+  @spec deserialize(bitstring(), protocol_version :: pos_integer()) ::
+          {__MODULE__.t(), bitstring()}
+  def deserialize(data, _protocol_version) when is_bitstring(data) do
     {address, <<type_bit::1, spent_bit::1, rest::bitstring>>} = Utils.deserialize_address(data)
 
     spent? = if spent_bit == 1, do: true, else: false

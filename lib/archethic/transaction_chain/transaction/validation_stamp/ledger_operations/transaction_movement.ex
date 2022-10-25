@@ -32,7 +32,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    amount: 30_000_000,
       ...>    type: :UCO
       ...>  }
-      ...>  |> TransactionMovement.serialize()
+      ...>  |> TransactionMovement.serialize(1)
       <<
       # Node public key
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -48,8 +48,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    amount: 30_000_000,
       ...>    type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
-      ...>  }
-      ...>  |> TransactionMovement.serialize()
+      ...> }
+      ...> |> TransactionMovement.serialize(1)
       <<
       # Node public key
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -65,8 +65,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       1, 0
       >>
   """
-  @spec serialize(t()) :: <<_::64, _::_*8>>
-  def serialize(%__MODULE__{to: to, amount: amount, type: type}) do
+  @spec serialize(tx_movement :: t(), protocol_version :: non_neg_integer()) :: bitstring()
+  def serialize(%__MODULE__{to: to, amount: amount, type: type}, _protocol_version) do
     <<to::binary, amount::64, Type.serialize(type)::binary>>
   end
 
@@ -78,7 +78,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 1, 201, 195, 128, 0>>
-      ...> |> TransactionMovement.deserialize()
+      ...> |> TransactionMovement.deserialize(1)
       {
         %TransactionMovement{
           to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -94,7 +94,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> 0, 0, 0, 0, 1, 201, 195, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0
       ...> >>
-      ...> |> TransactionMovement.deserialize()
+      ...> |> TransactionMovement.deserialize(1)
       {
         %TransactionMovement{
           to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -106,8 +106,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ""
       }
   """
-  @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(data) do
+  @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
+          {t(), bitstring}
+  def deserialize(data, _protocol_version) when is_bitstring(data) do
     {address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(data)
     {type, rest} = Type.deserialize(rest)
 
@@ -127,9 +128,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> %{
-      ...> to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-      ...> amount: 30_000_000,
-      ...> type: :UCO
+      ...>   to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>   amount: 30_000_000,
+      ...>   type: :UCO
       ...> }
       ...> |> TransactionMovement.cast()
       %TransactionMovement{
@@ -139,11 +140,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       }
 
       iex> %{
-      ...>  to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
-      ...>  194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-      ...>  amount: 30_000_000,
-      ...>  type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71,
-      ...>   140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
+      ...>    to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
+      ...>      194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>    amount: 30_000_000,
+      ...>    type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71,
+      ...>      140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...>  }
       ...>  |> TransactionMovement.cast()
       %TransactionMovement{
@@ -170,9 +171,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> %TransactionMovement{
-      ...> to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-      ...> amount: 30_000_000,
-      ...> type: :UCO
+      ...>   to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>   amount: 30_000_000,
+      ...>   type: :UCO
       ...> }
       ...> |> TransactionMovement.to_map()
       %{
@@ -182,9 +183,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
        }
 
       iex> %TransactionMovement{
-      ...>  to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-      ...>  amount: 30_000_000,
-      ...>  type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
+      ...>   to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>   amount: 30_000_000,
+      ...>   type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...> }
       ...> |> TransactionMovement.to_map()
       %{

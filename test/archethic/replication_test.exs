@@ -35,6 +35,7 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   doctest Archethic.Replication
 
@@ -94,12 +95,15 @@ defmodule Archethic.ReplicationTest do
          %TransactionInputList{
            inputs:
              Enum.map(unspent_outputs, fn utxo ->
-               %TransactionInput{
-                 from: utxo.from,
-                 amount: utxo.amount,
-                 type: utxo.type,
-                 timestamp:
-                   DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: utxo.from,
+                   amount: utxo.amount,
+                   type: utxo.type,
+                   timestamp:
+                     DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
+                 },
+                 protocol_version: 1
                }
              end)
          }}

@@ -40,8 +40,8 @@ defmodule Archethic.TransactionChain.TransactionData.OwnershipTest do
 
       {key, _} =
         Ownership.new(secret, secret_key, public_keys)
-        |> Ownership.serialize()
-        |> Ownership.deserialize()
+        |> Ownership.serialize(1)
+        |> Ownership.deserialize(1)
 
       assert key.secret == secret
 

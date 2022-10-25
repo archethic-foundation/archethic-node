@@ -54,8 +54,8 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
           },
           recipients: recipients_addresses
         }
-        |> TransactionData.serialize()
-        |> TransactionData.deserialize()
+        |> TransactionData.serialize(1)
+        |> TransactionData.deserialize(1)
 
       assert tx_data.code == code
       assert tx_data.content == content

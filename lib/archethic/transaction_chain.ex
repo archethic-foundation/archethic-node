@@ -803,8 +803,12 @@ defmodule Archethic.TransactionChain do
            %GetTransactionInputs{address: address, offset: offset, limit: limit},
            conflict_resolver
          ) do
-      {:ok, %TransactionInputList{inputs: inputs, more?: more?, offset: offset}} ->
-        filtered_inputs = Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
+      {:ok, %TransactionInputList{inputs: versioned_inputs, more?: more?, offset: offset}} ->
+        filtered_inputs =
+          versioned_inputs
+          |> Enum.map(& &1.input)
+          |> Enum.filter(&(DateTime.diff(&1.timestamp, timestamp) <= 0))
+
         {filtered_inputs, more?, offset}
 
       {:error, :network_issue} ->
@@ -858,7 +862,14 @@ defmodule Archethic.TransactionChain do
            %GetUnspentOutputs{address: address, offset: offset},
            conflict_resolver
          ) do
-      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs, more?: more?, offset: offset}} ->
+      {:ok,
+       %UnspentOutputList{
+         unspent_outputs: versioned_unspent_outputs,
+         more?: more?,
+         offset: offset
+       }} ->
+        unspent_outputs = Enum.map(versioned_unspent_outputs, & &1.unspent_output)
+
         {unspent_outputs, more?, offset}
 
       {:error, :network_issue} ->

@@ -639,7 +639,7 @@ defmodule Archethic.TransactionChain.Transaction do
         validation_stamp: nil
       }) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary>>
+      TransactionData.serialize(data, version)::binary>>
   end
 
   def serialize(%__MODULE__{
@@ -653,7 +653,7 @@ defmodule Archethic.TransactionChain.Transaction do
         validation_stamp: nil
       }) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary>>
   end
 
@@ -668,7 +668,7 @@ defmodule Archethic.TransactionChain.Transaction do
         validation_stamp: nil
       }) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 0::8>>
   end
@@ -690,7 +690,7 @@ defmodule Archethic.TransactionChain.Transaction do
       |> :erlang.list_to_binary()
 
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 1::8,
       ValidationStamp.serialize(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
@@ -801,7 +801,7 @@ defmodule Archethic.TransactionChain.Transaction do
   def deserialize(_serialized_term = <<version::32, rest::bitstring>>) do
     {address, <<type::8, rest::bitstring>>} = Utils.deserialize_address(rest)
 
-    {data, rest} = TransactionData.deserialize(rest)
+    {data, rest} = TransactionData.deserialize(rest, version)
 
     {previous_public_key,
      <<previous_signature_size::8, previous_signature::binary-size(previous_signature_size),

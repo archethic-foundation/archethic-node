@@ -4,10 +4,10 @@ defmodule Archethic.P2P.Message.UnspentOutputList do
   """
   defstruct unspent_outputs: [], more?: false, offset: 0
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   @type t :: %__MODULE__{
-          unspent_outputs: list(UnspentOutput.t()),
+          unspent_outputs: list(VersionedUnspentOutput.t()),
           more?: boolean(),
           offset: non_neg_integer()
         }

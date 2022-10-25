@@ -30,6 +30,8 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.PubSub
 
   import Mox
@@ -90,11 +92,14 @@ defmodule Archethic.Contracts.WorkerTest do
 
     Account.MemTables.UCOLedger.add_unspent_output(
       "@SC1",
-      %UnspentOutput{
-        from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        amount: 100_000_000_000,
-        type: :UCO,
-        timestamp: timestamp
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          amount: 100_000_000_000,
+          type: :UCO,
+          timestamp: timestamp
+        },
+        protocol_version: 1
       }
     )
 

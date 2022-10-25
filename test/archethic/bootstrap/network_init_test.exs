@@ -45,6 +45,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
@@ -199,7 +200,13 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %TransactionList{transactions: []}}
 
       _, %GetTransactionInputs{}, _ ->
-        {:ok, %TransactionInputList{inputs: inputs}}
+        {:ok,
+         %TransactionInputList{
+           inputs:
+             Enum.map(inputs, fn input ->
+               %VersionedTransactionInput{input: input, protocol_version: 1}
+             end)
+         }}
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
