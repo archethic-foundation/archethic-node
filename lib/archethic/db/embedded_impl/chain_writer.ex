@@ -75,7 +75,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
       |> SummaryAggregate.serialize()
       |> Utils.wrap_binary()
 
-    File.write!(filename, data, [:exclusive, :binary])
+    File.write!(filename, data, [:binary])
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "write_beacon_summaries_aggregate"
