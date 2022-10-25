@@ -3,18 +3,19 @@ defmodule Archethic.Reward do
   Module which handles the rewards and transfer scheduling
   """
 
-  alias Archethic.OracleChain
-
   alias Archethic.Crypto
 
   alias Archethic.Account
 
-  alias Archethic.SharedSecrets
+  alias Archethic.OracleChain
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias __MODULE__.MemTables.RewardTokens
+  alias __MODULE__.MemTablesLoader
   alias __MODULE__.Scheduler
+  alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
 
@@ -26,8 +27,9 @@ defmodule Archethic.Reward do
     TransactionData.TokenLedger.Transfer
   }
 
-  alias Archethic.Reward.MemTables.RewardTokens
-  alias Archethic.Reward.MemTablesLoader
+  alias Archethic.Utils
+
+  alias Crontab.CronExpression.Parser, as: CronParser
 
   require Logger
 
@@ -179,12 +181,6 @@ defmodule Archethic.Reward do
 
   defp get_node_transfers(_, [], _, acc), do: {acc, []}
 
-  @doc """
-  Returns the last date of the rewards scheduling from the network pool
-  """
-  @spec last_scheduling_date() :: DateTime.t()
-  defdelegate last_scheduling_date, to: Scheduler, as: :last_date
-
   def config_change(changed_conf) do
     changed_conf
     |> Keyword.get(Scheduler)
@@ -213,25 +209,12 @@ defmodule Archethic.Reward do
   Return the last scheduling date
   """
   @spec get_last_scheduling_date(DateTime.t()) :: DateTime.t()
-  def get_last_scheduling_date(date_from = %DateTime{}) do
-    interval =
-      Application.get_env(:archethic, Scheduler)
-      |> Keyword.fetch!(:interval)
-
-    cron_expression = Crontab.CronExpression.Parser.parse!(interval, true)
-
-    naive_date_from =
-      date_from
-      |> DateTime.truncate(:second)
-      |> DateTime.to_naive()
-
-    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
-      DateTime.truncate(date_from, :second)
-    else
-      cron_expression
-      |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
-      |> DateTime.from_naive!("Etc/UTC")
-    end
+  def get_last_scheduling_date(date_from = %DateTime{} \\ DateTime.utc_now()) do
+    :archethic
+    |> Application.get_env(Scheduler)
+    |> Keyword.fetch!(:interval)
+    |> CronParser.parse!(true)
+    |> Utils.previous_date(date_from)
   end
 
   @key :reward_gen_addr

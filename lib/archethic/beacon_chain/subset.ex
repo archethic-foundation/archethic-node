@@ -87,7 +87,7 @@ defmodule Archethic.BeaconChain.Subset do
        subset: subset,
        current_slot: %Slot{
          subset: subset,
-         slot_time: SlotTimer.next_slot(DateTime.utc_now() |> DateTime.truncate(:second))
+         slot_time: SlotTimer.next_slot(DateTime.utc_now())
        },
        subscribed_nodes: [],
        postponed: %{end_of_sync: [], transaction_attestations: []}

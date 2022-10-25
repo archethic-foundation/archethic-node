@@ -106,8 +106,7 @@ defmodule Archethic.SelfRepair.Sync do
           patch :: binary()
         ) :: :ok | {:error, :unreachable_nodes}
   def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
-    last_summary_time =
-      BeaconChain.previous_summary_time(DateTime.utc_now() |> DateTime.truncate(:second))
+    last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     if last_summary_time > last_sync_date do
       Logger.info(

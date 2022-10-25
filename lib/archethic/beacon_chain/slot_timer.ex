@@ -38,27 +38,9 @@ defmodule Archethic.BeaconChain.SlotTimer do
   """
   @spec next_slot(DateTime.t()) :: DateTime.t()
   def next_slot(date_from = %DateTime{}) do
-    cron_expression = CronParser.parse!(get_interval(), true)
-    naive_date_from = DateTime.to_naive(date_from)
-
-    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
-      case date_from do
-        %DateTime{microsecond: {0, _}} ->
-          cron_expression
-          |> CronScheduler.get_next_run_dates(naive_date_from)
-          |> Enum.at(1)
-          |> DateTime.from_naive!("Etc/UTC")
-
-        _ ->
-          cron_expression
-          |> CronScheduler.get_next_run_date!(naive_date_from)
-          |> DateTime.from_naive!("Etc/UTC")
-      end
-    else
-      cron_expression
-      |> CronScheduler.get_next_run_date!(naive_date_from)
-      |> DateTime.from_naive!("Etc/UTC")
-    end
+    get_interval()
+    |> CronParser.parse!(true)
+    |> Utils.next_date(date_from)
   end
 
   @doc """
@@ -66,25 +48,9 @@ defmodule Archethic.BeaconChain.SlotTimer do
   """
   @spec previous_slot(DateTime.t()) :: DateTime.t()
   def previous_slot(date_from = %DateTime{}) do
-    cron_expression = CronParser.parse!(get_interval(), true)
-    naive_date_from = DateTime.to_naive(date_from)
-
-    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
-      case date_from do
-        %DateTime{microsecond: {microsecond, _}} when microsecond > 0 ->
-          DateTime.truncate(date_from, :second)
-
-        _ ->
-          cron_expression
-          |> CronScheduler.get_previous_run_dates(naive_date_from)
-          |> Enum.at(1)
-          |> DateTime.from_naive!("Etc/UTC")
-      end
-    else
-      cron_expression
-      |> CronScheduler.get_previous_run_date!(naive_date_from)
-      |> DateTime.from_naive!("Etc/UTC")
-    end
+    get_interval()
+    |> CronParser.parse!(true)
+    |> Utils.previous_date(date_from)
   end
 
   @doc """
@@ -129,7 +95,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
       :up ->
         Logger.info("Slot Timer: Starting...")
-        next_time = next_slot(DateTime.utc_now() |> DateTime.truncate(:second))
+        next_time = next_slot(DateTime.utc_now())
 
         {:ok, %{interval: interval, timer: schedule_new_slot(interval), next_time: next_time}}
     end
@@ -141,7 +107,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
     new_server_data =
       server_data
       |> Map.put(:timer, schedule_new_slot(interval))
-      |> Map.put(:next_time, next_slot(DateTime.utc_now() |> DateTime.truncate(:second)))
+      |> Map.put(:next_time, next_slot(DateTime.utc_now()))
 
     {:noreply, new_server_data, :hibernate}
   end

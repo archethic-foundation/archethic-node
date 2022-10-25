@@ -226,14 +226,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               transaction: tx,
-              coordinator_node: %Node{last_public_key: coordinator_key}
+              coordinator_node: %Node{last_public_key: coordinator_key},
+              validation_time: validation_time
             }
         }
       ) do
     role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
 
     new_context =
-      case PendingTransactionValidation.validate(tx) do
+      case PendingTransactionValidation.validate(tx, validation_time) do
         :ok ->
           Logger.debug("Pending transaction valid",
             transaction_address: Base.encode16(tx.address),

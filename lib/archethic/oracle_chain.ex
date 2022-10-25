@@ -5,6 +5,8 @@ defmodule Archethic.OracleChain do
   UCO Price is the first network Oracle and it's used for many algorithms such as: transaction fee, node rewards, smart contracts
   """
 
+  alias Archethic.Crypto
+
   alias __MODULE__.{
     MemTable,
     MemTableLoader,
@@ -14,11 +16,10 @@ defmodule Archethic.OracleChain do
   }
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.Utils
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
-
-  alias Archethic.Crypto
 
   require Logger
 
@@ -145,14 +146,10 @@ defmodule Archethic.OracleChain do
   """
   @spec next_summary_date(DateTime.t()) :: DateTime.t()
   def next_summary_date(date_from = %DateTime{}) do
-    interval =
-      Application.get_env(:archethic, Scheduler)
-      |> Keyword.fetch!(:summary_interval)
-
-    interval
+    Application.get_env(:archethic, Scheduler)
+    |> Keyword.fetch!(:summary_interval)
     |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    |> Utils.next_date(date_from)
   end
 
   @doc """
@@ -160,35 +157,21 @@ defmodule Archethic.OracleChain do
   """
   @spec previous_summary_date(DateTime.t()) :: DateTime.t()
   def previous_summary_date(date_from = %DateTime{}) do
-    interval =
-      Application.get_env(:archethic, Scheduler)
-      |> Keyword.fetch!(:summary_interval)
-
-    interval
+    Application.get_env(:archethic, Scheduler)
+    |> Keyword.fetch!(:summary_interval)
     |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    |> Utils.previous_date(date_from)
   end
 
   @doc """
   Get the previous polling date from the given date
   """
   @spec get_last_scheduling_date(DateTime.t()) :: DateTime.t()
-  def get_last_scheduling_date(from_date = %DateTime{}) do
-    polling_interval =
-      Application.get_env(:archethic, Scheduler)
-      |> Keyword.fetch!(:polling_interval)
-
-    cron_expression = Crontab.CronExpression.Parser.parse!(polling_interval, true)
-    naive_from_date = from_date |> DateTime.truncate(:second) |> DateTime.to_naive()
-
-    if Crontab.DateChecker.matches_date?(cron_expression, naive_from_date) do
-      DateTime.truncate(from_date, :second)
-    else
-      cron_expression
-      |> Crontab.Scheduler.get_previous_run_date!(naive_from_date)
-      |> DateTime.from_naive!("Etc/UTC")
-    end
+  def get_last_scheduling_date(date_from = %DateTime{}) do
+    Application.get_env(:archethic, Scheduler)
+    |> Keyword.fetch!(:polling_interval)
+    |> CronParser.parse!(true)
+    |> Utils.previous_date(date_from)
   end
 
   @doc """

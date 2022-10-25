@@ -241,7 +241,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         {:ok, %Transaction{type: :mint_rewards}} ->
           :ok
 
-        _ ->
+        {last_address, last_time} ->
+          Logger.debug(
+            "Invalid address #{Base.encode16(last_address)} - expected #{Base.encode16(last_network_pool_address)} - at last scheduling time: #{last_scheduling_date} - last time #{last_time}"
+          )
+
           {:error, :time}
       end
 
@@ -534,7 +538,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     with :ok <- verify_token_creation(content),
          {:ok, %{"supply" => ^total_fee}} <- Jason.decode(content),
          {^last_address, _} <-
-           DB.get_last_chain_address(genesis_address, Reward.last_scheduling_date()) do
+           DB.get_last_chain_address(genesis_address, Reward.get_last_scheduling_date()) do
       :ok
     else
       {:ok, %{"supply" => _}} ->

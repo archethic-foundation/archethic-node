@@ -12,6 +12,10 @@ defmodule Archethic.SharedSecrets do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain
 
+  alias Archethic.Utils
+
+  alias Crontab.CronExpression.Parser, as: CronParser
+
   require Logger
 
   @type origin_family :: :software | :hardware | :biometric
@@ -133,24 +137,10 @@ defmodule Archethic.SharedSecrets do
   """
   @spec get_last_scheduling_date(DateTime.t()) :: DateTime.t()
   def get_last_scheduling_date(date_from = %DateTime{}) do
-    interval =
-      Application.get_env(:archethic, NodeRenewalScheduler)
-      |> Keyword.fetch!(:interval)
-
-    cron_expression = Crontab.CronExpression.Parser.parse!(interval, true)
-
-    naive_date_from =
-      date_from
-      |> DateTime.truncate(:second)
-      |> DateTime.to_naive()
-
-    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
-      DateTime.truncate(date_from, :second)
-    else
-      cron_expression
-      |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
-      |> DateTime.from_naive!("Etc/UTC")
-    end
+    Application.get_env(:archethic, NodeRenewalScheduler)
+    |> Keyword.fetch!(:interval)
+    |> CronParser.parse!(true)
+    |> Utils.previous_date(date_from)
   end
 
   @nss_gen_key :node_shared_secrets_gen_addr

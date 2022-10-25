@@ -8,7 +8,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   """
 
   alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
 
   alias Archethic
 
@@ -334,8 +333,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   def next_application_date(date_from = %DateTime{}) do
     get_application_date_interval()
     |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    |> Utils.next_date(date_from)
   end
 
   defp get_application_date_interval do

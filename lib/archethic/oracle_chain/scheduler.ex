@@ -19,9 +19,11 @@ defmodule Archethic.OracleChain.Scheduler do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
+
   alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
 
   use GenStateMachine, callback_mode: [:handle_event_function]
 
@@ -746,19 +748,9 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   defp next_date(interval, from_date = %DateTime{}) do
-    cron_expression = CronParser.parse!(interval, true)
-    naive_from_date = from_date |> DateTime.truncate(:second) |> DateTime.to_naive()
-
-    if Crontab.DateChecker.matches_date?(cron_expression, naive_from_date) do
-      cron_expression
-      |> CronScheduler.get_next_run_dates(naive_from_date)
-      |> Enum.at(1)
-      |> DateTime.from_naive!("Etc/UTC")
-    else
-      cron_expression
-      |> CronScheduler.get_next_run_date!(naive_from_date)
-      |> DateTime.from_naive!("Etc/UTC")
-    end
+    interval
+    |> CronParser.parse!(true)
+    |> Utils.next_date(from_date)
   end
 
   defp get_validation_nodes(summary_date, index) do
