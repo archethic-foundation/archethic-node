@@ -56,10 +56,10 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   end
 
   def render(assigns) do
-    ~L"""
+    ~H"""
     <div class="box mb-2">
       <div class="columns">
-        <div class="column"><span class="heading is-size-7">Latest transactions</span></div> 
+        <div class="column"><span class="heading is-size-7">Latest transactions</span></div>
       </div>
       <div class="columns">
         <div class="column">
@@ -78,7 +78,6 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
                 </div>
               </div>
             <% end %>
-          </div>
         </div>
       </div>
     </div>

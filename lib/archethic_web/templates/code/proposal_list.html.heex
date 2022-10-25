@@ -17,11 +17,11 @@
         </div>
         <div class="column">
             <p class="heading">Transaction date</p>
-            <span><%= format_date(proposal.timestamp) %><span>
+            <span><%= format_date(proposal.timestamp) %></span>
         </div>
         <div class="column">
             <p class="heading">Sender</p>
-            <span><%= Base.encode16(:binary.part(proposal.sender, 0, 13)) %>...<span>
+            <span><%= Base.encode16(:binary.part(proposal.sender, 0, 13)) %>...</span>
         </div>
         <div class="column">
             <p class="heading">Changes criticality</p>
@@ -32,11 +32,11 @@
         </div>
         <div class="column">
             <p class="heading">Description</p>
-            <span><%= String.slice(proposal.description, 0..50) %><span>
+            <span><%= String.slice(proposal.description, 0..50) %></span>
         </div>
         <div class="column">
             <p class="heading">Approvals</p>
-            <span><%= proposal.nb_approvals %><span>
+            <span><%= proposal.nb_approvals %></span>
         </div>
     </div>
 </div>

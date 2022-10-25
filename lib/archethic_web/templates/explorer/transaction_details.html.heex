@@ -38,19 +38,19 @@
                 <div class="tabs is-fullwidth"  >
                     <ul>
                         <li @click="tab_panel='tx' "
-                        :class="tab_panel == 'tx' ? 'is-active' : '' "><a>Overview</a></li>
+                        x-bind:class="tab_panel == 'tx' ? 'is-active' : '' "><a>Overview</a></li>
 
                         <li @click="tab_panel='inputs' "
-                        :class="tab_panel == 'inputs' ? 'is-active' : '' ">
+                        x-bind:class="tab_panel == 'inputs' ? 'is-active' : '' ">
                         <a>Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
 
                         <li @click="tab_panel='calls' "
-                        :class="tab_panel == 'calls' ? 'is-active' : '' ">
+                        x-bind:class="tab_panel == 'calls' ? 'is-active' : '' ">
                         <a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
                     </ul>
                 </div>
 
-                <div :class=" tab_panel == 'tx' ? '' : 'is-hidden' ">
+                <div x-bind:class=" tab_panel == 'tx' ? '' : 'is-hidden' ">
                   <%= cond do %>
 
                     <% @address == burning_address() -> %>
@@ -80,12 +80,12 @@
                                         <p class="menu-label">Data</p>
                                         <ul class="menu-list">
                                             <li>
-                                                <a :class="data_section == 'code' ? 'is-active' : '' "
+                                                <a x-bind:class="data_section == 'code' ? 'is-active' : '' "
                                                 @click="data_section='code' ">
                                                 Code</a>
                                             </li>
                                             <li>
-                                                <a :class="data_section == 'content' ? 'is-active' : '' "
+                                                <a x-bind:class="data_section == 'content' ? 'is-active' : '' "
                                                 @click="data_section='content'">
                                                 Content
                                                 </a>
@@ -95,13 +95,13 @@
                                                 <ul class="menu-list">
                                                     <li>
                                                         <a @click="data_section='uco_ledger'"
-                                                        :class="data_section == 'uco_ledger' ? 'is-active' : '' ">
+                                                        x-bind:class="data_section == 'uco_ledger' ? 'is-active' : '' ">
                                                             UCO
                                                         </a>
                                                     </li>
                                                     <li>
                                                         <a @click="data_section='token_ledger'"
-                                                        :class="data_section == 'token_ledger' ? 'is-active' : '' ">
+                                                        x-bind:class="data_section == 'token_ledger' ? 'is-active' : '' ">
                                                             Token
                                                         </a>
                                                     </li>
@@ -109,13 +109,13 @@
                                             </li>
                                             <li>
                                                 <a @click="data_section='ownerships'"
-                                                :class="data_section == 'ownerships' ? 'is-active' : '' ">
+                                                x-bind:class="data_section == 'ownerships' ? 'is-active' : '' ">
                                                     Ownerships
                                                 </a>
                                             </li>
                                             <li>
                                                 <a @click="data_section='recipients'"
-                                                :class="data_section == 'recipients' ? 'is-active' : '' ">
+                                                x-bind:class="data_section == 'recipients' ? 'is-active' : '' ">
                                                     Contract recipients
                                                 </a>
                                             </li>
@@ -322,19 +322,19 @@
                                         <ul class="menu-list">
                                             <li>
                                                 <a @click="operation_section = 'transaction_movements' "
-                                                :class="operation_section == 'transaction_movements' ? 'is-active' : '' ">
+                                                x-bind:class="operation_section == 'transaction_movements' ? 'is-active' : '' ">
                                                     Transaction movements
                                                 </a>
                                             </li>
                                             <li>
                                                 <a @click="operation_section = 'unspent_outputs' "
-                                                :class="operation_section == 'unspent_outputs' ? 'is-active' : '' ">
+                                                x-bind:class="operation_section == 'unspent_outputs' ? 'is-active' : '' ">
                                                     Unspent outputs
                                                 </a>
                                             </li>
                                             <li>
                                                 <a @click="operation_section = 'transaction_fee' "
-                                                :class="operation_section == 'transaction_fee' ? 'is-active' : '' ">
+                                                x-bind:class="operation_section == 'transaction_fee' ? 'is-active' : '' ">
                                                     Transaction fee
                                                 </a>
                                             </li>
@@ -503,7 +503,7 @@
 
                 </div>
 
-                <div :class=" tab_panel == 'inputs' ? '' : 'is-hidden' ">
+                <div x-bind:class=" tab_panel == 'inputs' ? '' : 'is-hidden' ">
                     <%= if Enum.count(@inputs) > 0 do %>
 
                       <%= for input <- @inputs do %>
@@ -608,7 +608,7 @@
                     <% end %>
                 </div>
 
-                <div :class=" tab_panel == 'calls' ? '' : 'is-hidden' ">
+                <div x-bind:class=" tab_panel == 'calls' ? '' : 'is-hidden' ">
                     <%= if Enum.count(@calls) > 0 do %>
                         <%= for call <- @calls do %>
                           <div class="box">
