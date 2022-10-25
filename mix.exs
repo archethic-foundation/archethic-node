@@ -44,18 +44,18 @@ defmodule Archethic.MixProject do
   defp deps do
     [
       # Web
-      {:phoenix, ">= 1.5.4"},
-      {:phoenix_html, "~> 2.14"},
-      {:phoenix_live_view, "~> 0.15.0"},
-      {:phoenix_pubsub, "~> 2.0"},
+      {:phoenix, "~> 1.6.0"},
+      {:phoenix_html, "~> 3.0"},
+      {:phoenix_live_view, "~> 0.18.0"},
+      {:phoenix_pubsub, "~> 2.1"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.3"},
-      {:absinthe, "~> 1.5.0"},
+      {:absinthe, "~> 1.7.0"},
       {:absinthe_plug, "~> 1.5"},
       {:absinthe_phoenix, "~> 2.0"},
       {:cors_plug, "~> 1.5"},
       {:mint, "~> 1.0"},
-      {:ecto, "~> 3.5"},
+      {:ecto, "~> 3.9"},
       {:websockex, "~> 0.4.3"},
 
       # Dev
@@ -87,9 +87,9 @@ defmodule Archethic.MixProject do
       # Monitoring
       {:observer_cli, "~> 1.5"},
       {:telemetry_metrics, "~> 0.6"},
-      {:telemetry_metrics_prometheus_core, "~> 1.0.0"},
-      {:telemetry_poller, "~> 0.5.1"},
-      {:phoenix_live_dashboard, "~> 0.3"},
+      {:telemetry_metrics_prometheus_core, "~> 1.1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:phoenix_live_dashboard, "~> 0.7"},
 
       # Utils
       {:crontab, "~> 1.1"},

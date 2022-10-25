@@ -95,9 +95,9 @@ defmodule ArchethicWeb.ExplorerRouter do
     )
   end
 
-  scope "/settings" do
+  live_session :settings, session: {ArchethicWeb.WebUtils, :keep_remote_ip, []} do
     pipe_through(:browser)
-    live("/", ArchethicWeb.SettingsLive, session: {ArchethicWeb.WebUtils, :keep_remote_ip, []})
+    live("/settings", ArchethicWeb.SettingsLive)
   end
 
   scope "/", ArchethicWeb do

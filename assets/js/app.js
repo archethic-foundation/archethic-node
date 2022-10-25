@@ -15,7 +15,7 @@ import { createWorldmap, updateWorldmap } from "./worldmap";
 // entry points. Those entry points can be configured
 
 import { Socket } from "phoenix";
-import LiveSocket from "phoenix_live_view";
+import { LiveSocket } from "phoenix_live_view";
 import { html } from "diff2html";
 import hljs from "highlight.js";
 
