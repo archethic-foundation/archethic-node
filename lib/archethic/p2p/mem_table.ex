@@ -231,6 +231,11 @@ defmodule Archethic.P2P.MemTable do
          last_address: last_address,
          origin_public_key: origin_public_key
        }) do
+    availability_history =
+      if first_public_key == Crypto.first_node_public_key(),
+        do: <<1::1>>,
+        else: availability_history
+
     :ets.insert(
       @discovery_table,
       {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
@@ -292,7 +297,7 @@ defmodule Archethic.P2P.MemTable do
       end
 
     changes =
-      if availability_history != nil do
+      if availability_history != nil and first_public_key != Crypto.first_node_public_key() do
         [
           {Keyword.fetch!(@discovery_index_position, :availability_history), availability_history}
           | changes
