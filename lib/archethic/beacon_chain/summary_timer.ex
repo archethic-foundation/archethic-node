@@ -28,10 +28,18 @@ defmodule Archethic.BeaconChain.SummaryTimer do
     naive_date_from = DateTime.to_naive(date_from)
 
     if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
-      cron_expression
-      |> CronScheduler.get_next_run_dates(naive_date_from)
-      |> Enum.at(1)
-      |> DateTime.from_naive!("Etc/UTC")
+      case date_from do
+        %DateTime{microsecond: {0, _}} ->
+          cron_expression
+          |> CronScheduler.get_next_run_dates(naive_date_from)
+          |> Enum.at(1)
+          |> DateTime.from_naive!("Etc/UTC")
+
+        _ ->
+          cron_expression
+          |> CronScheduler.get_next_run_date!(naive_date_from)
+          |> DateTime.from_naive!("Etc/UTC")
+      end
     else
       cron_expression
       |> CronScheduler.get_next_run_date!(naive_date_from)
@@ -48,10 +56,16 @@ defmodule Archethic.BeaconChain.SummaryTimer do
     naive_date_from = DateTime.to_naive(date_from)
 
     if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
-      cron_expression
-      |> CronScheduler.get_previous_run_dates(naive_date_from)
-      |> Enum.at(1)
-      |> DateTime.from_naive!("Etc/UTC")
+      case date_from do
+        %DateTime{microsecond: {microsecond, _}} when microsecond > 0 ->
+          DateTime.truncate(date_from, :second)
+
+        _ ->
+          cron_expression
+          |> CronScheduler.get_previous_run_dates(naive_date_from)
+          |> Enum.at(1)
+          |> DateTime.from_naive!("Etc/UTC")
+      end
     else
       cron_expression
       |> CronScheduler.get_previous_run_date!(naive_date_from)

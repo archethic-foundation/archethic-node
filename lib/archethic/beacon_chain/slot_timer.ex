@@ -37,38 +37,54 @@ defmodule Archethic.BeaconChain.SlotTimer do
   Give the next beacon chain slot using the `SlotTimer` interval
   """
   @spec next_slot(DateTime.t()) :: DateTime.t()
-  def next_slot(date_from = %DateTime{microsecond: {0, 0}}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_dates(DateTime.to_naive(date_from))
-    |> Enum.at(1)
-    |> DateTime.from_naive!("Etc/UTC")
-  end
-
   def next_slot(date_from = %DateTime{}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    cron_expression = CronParser.parse!(get_interval(), true)
+    naive_date_from = DateTime.to_naive(date_from)
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      case date_from do
+        %DateTime{microsecond: {0, _}} ->
+          cron_expression
+          |> CronScheduler.get_next_run_dates(naive_date_from)
+          |> Enum.at(1)
+          |> DateTime.from_naive!("Etc/UTC")
+
+        _ ->
+          cron_expression
+          |> CronScheduler.get_next_run_date!(naive_date_from)
+          |> DateTime.from_naive!("Etc/UTC")
+      end
+    else
+      cron_expression
+      |> CronScheduler.get_next_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
   end
 
   @doc """
   Returns the previous slot from the given date
   """
   @spec previous_slot(DateTime.t()) :: DateTime.t()
-  def previous_slot(date_from = %DateTime{microsecond: {0, 0}}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_dates(DateTime.to_naive(date_from))
-    |> Enum.at(1)
-    |> DateTime.from_naive!("Etc/UTC")
-  end
-
   def previous_slot(date_from = %DateTime{}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    cron_expression = CronParser.parse!(get_interval(), true)
+    naive_date_from = DateTime.to_naive(date_from)
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      case date_from do
+        %DateTime{microsecond: {microsecond, _}} when microsecond > 0 ->
+          DateTime.truncate(date_from, :second)
+
+        _ ->
+          cron_expression
+          |> CronScheduler.get_previous_run_dates(naive_date_from)
+          |> Enum.at(1)
+          |> DateTime.from_naive!("Etc/UTC")
+      end
+    else
+      cron_expression
+      |> CronScheduler.get_previous_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
   end
 
   @doc """
@@ -113,15 +129,19 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
       :up ->
         Logger.info("Slot Timer: Starting...")
+        next_time = next_slot(DateTime.utc_now() |> DateTime.truncate(:second))
 
-        {:ok, %{interval: interval, timer: schedule_new_slot(interval)}}
+        {:ok, %{interval: interval, timer: schedule_new_slot(interval), next_time: next_time}}
     end
   end
 
   def handle_info(:node_up, server_data = %{interval: interval}) do
     Logger.info("Slot Timer: Starting...")
 
-    new_server_data = Map.put(server_data, :timer, schedule_new_slot(interval))
+    new_server_data =
+      server_data
+      |> Map.put(:timer, schedule_new_slot(interval))
+      |> Map.put(:next_time, next_slot(DateTime.utc_now() |> DateTime.truncate(:second)))
 
     {:noreply, new_server_data, :hibernate}
   end
@@ -129,12 +149,13 @@ defmodule Archethic.BeaconChain.SlotTimer do
   def handle_info(
         :new_slot,
         state = %{
-          interval: interval
+          interval: interval,
+          next_time: next_time
         }
       ) do
     timer = schedule_new_slot(interval)
 
-    slot_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+    slot_time = next_time
 
     PubSub.notify_current_epoch_of_slot_timer(slot_time)
 
@@ -153,7 +174,14 @@ defmodule Archethic.BeaconChain.SlotTimer do
         :skip
     end
 
-    {:noreply, Map.put(state, :timer, timer), :hibernate}
+    next_time = next_slot(next_time)
+
+    new_state =
+      state
+      |> Map.put(:timer, timer)
+      |> Map.put(:next_time, next_time)
+
+    {:noreply, new_state, :hibernate}
   end
 
   def handle_cast({:new_conf, conf}, state) do
