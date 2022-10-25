@@ -180,7 +180,10 @@ defmodule ArchethicCase do
     |> stub(:set_storage_nonce, fn _ -> :ok end)
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)
+    |> stub(:new_connection, fn _, _, _, public_key ->
+      P2PMemTable.increase_node_availability(public_key)
+      {:ok, make_ref()}
+    end)
 
     start_supervised!(TokenLedger)
     start_supervised!(UCOLedger)
