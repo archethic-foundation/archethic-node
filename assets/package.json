@@ -1,10 +1,6 @@
 {
   "repository": {},
   "license": "MIT",
-  "scripts": {
-    "deploy": "webpack --mode production",
-    "watch": "webpack --mode development --watch"
-  },
   "dependencies": {
     "alpinejs": "^3.10.4",
     "chokidar": "^3.5.3",
@@ -19,17 +15,7 @@
     "@babel/core": "^7.19.3",
     "@babel/preset-env": "^7.19.4",
     "babel-loader": "^8.2.5",
-    "bulma": "^0.9.4",
-    "copy-webpack-plugin": "^11.0.0",
-    "css-loader": "^6.7.1",
-    "css-minimizer-webpack-plugin": "^4.2.2",
-    "glob": "^8.0.3",
-    "mini-css-extract-plugin": "^2.6.1",
-    "sass": "^1.55.0",
-    "sass-loader": "^13.1.0",
-    "terser-webpack-plugin": "^5.3.6",
-    "webpack": "5.74.0",
-    "webpack-cli": "^4.10.0"
+    "bulma": "^0.9.4"
   },
   "name": "assets"
 }

@@ -51,9 +51,9 @@ mix deps.get
 # Builds WEB assets in production mode
 cd assets
 npm ci
-npm run deploy
 cd -
-mix phx.digest
+mix assets.saas
+mix assets.deploy
 
 VERSION=$(grep 'version:' mix.exs | cut -d '"' -f2)
 echo ""
