@@ -96,11 +96,11 @@ defmodule Archethic.Crypto do
   """
   @type aes_cipher :: <<_::384, _::_*8>>
 
-  @certification_public_keys Application.compile_env(
-                               :archethic,
-                               [__MODULE__, :root_ca_public_keys],
-                               []
-                             )
+  @ecdsa_certification_public_keys Application.compile_env(
+                                     :archethic,
+                                     [__MODULE__, :root_ca_public_keys],
+                                     []
+                                   )
 
   @doc """
   Derive a new keypair from a seed (retrieved from the local keystore
@@ -1160,10 +1160,10 @@ defmodule Archethic.Crypto do
   Return the Root CA public key for the given versioned public key
   """
   @spec get_root_ca_public_key(key()) :: binary()
-  def get_root_ca_public_key(<<_::8, origin_id::8, _::binary>>) do
-    origin = ID.to_origin(origin_id)
 
-    case Keyword.get(@certification_public_keys, origin) do
+  def get_root_ca_public_key(<<curve::8, origin_id::8, _::binary>>) when curve in [1, 2] do
+    # :secp256 r1 & k1
+    case Keyword.get(@ecdsa_certification_public_keys, ID.to_origin(origin_id)) do
       nil ->
         ""
 
@@ -1175,13 +1175,31 @@ defmodule Archethic.Crypto do
     end
   end
 
+  def get_root_ca_public_key(<<0::8, _::8, _::binary>>) do
+    # :ed25519
+    # case Keyword.get(@ed25519_certification_public_keys, ID.to_origin(origin_id)) do
+    #   nil ->
+    #     ""
+
+    #   "" ->
+    #     ""
+
+    #   <<_::binary-size(26), public_key::binary>> ->
+    #     public_key
+    # end
+    ""
+  end
+
   @doc """
   Determine if the public key if authorized from the given certificate
 
   ## Examples
 
+
+      # Should verify when, Origin: :all, Valid Origin Public Key, Valid Root_CA_Public_Key,Valid certificate
+
       iex> Crypto.verify_key_certificate?(
-      ...> <<0, 0, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
+      ...> <<1,2, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
       ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
       ...> <<48, 68, 2, 32, 90, 47, 10, 125, 165, 179, 88, 67, 83, 56, 55, 240, 78, 168,
       ...>  241, 104, 124, 212, 13, 10, 30, 80, 2, 170, 174, 8, 129, 205, 30, 40, 7, 196,
@@ -1192,23 +1210,85 @@ defmodule Archethic.Crypto do
       ...>  186, 81, 243, 58, 13, 198, 129, 169, 33, 179, 201, 50, 49, 67, 38, 156, 38, 199, 97, 59,
       ...>  70, 95, 28, 35, 233, 21, 230>>)
       true
+
+      # Should return true with origin :onchain_wallet/:software & empty certificate
+
+      iex> Crypto.verify_key_certificate?(
+      ...> <<0,0, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
+      ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
+      ...>  _cerificate = "" ,_root_ca_public_key= <<4>>)
+      true
+
+      iex> Crypto.verify_key_certificate?(
+      ...> <<0,1, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
+      ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
+      ...>  _cerificate = "" ,_root_ca_public_key= <<6>>)
+      true
+
+      # Should return false with origin :all & Any certificate & Empty Root_CA_Public_Key
+
+      iex> Crypto.verify_key_certificate?(
+      ...> <<0,0, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
+      ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
+      ...>  _cerificate = <<48, 68, 2, 32, 90, 47, 10, 125, 165, 179, 88, 67, 83, 56, 55, 240, 78, 168,
+      ...>  241, 104, 124, 212, 13, 10, 30, 80, 2, 170, 174, 8, 129, 205, 30, 40, 7, 196,
+      ...>  2, 32, 27, 21, 21, 174, 186, 126, 63, 184, 50, 195, 46, 118, 188, 2, 112, 214,
+      ...>  196, 121, 250, 48, 223, 110, 152, 189, 231, 137, 152, 25, 78, 29, 76, 191>> ,
+      ...>  _root_ca_public_key= "")
+      false
+
+      iex> Crypto.verify_key_certificate?(
+      ...> <<0,2, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
+      ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
+      ...>  _cerificate = <<48, 68, 2, 32, 90, 47, 10, 125, 165, 179, 88, 67, 83, 56, 55, 240, 78, 168,
+      ...>  241, 104, 124, 212, 13, 10, 30, 80, 2, 170, 174, 8, 129, 205, 30, 40, 7, 196,
+      ...>  2, 32, 27, 21, 21, 174, 186, 126, 63, 184, 50, 195, 46, 118, 188, 2, 112, 214,
+      ...>  196, 121, 250, 48, 223, 110, 152, 189, 231, 137, 152, 25, 78, 29, 76, 191>> ,
+      ...>  _root_ca_public_key= "")
+      false
   """
-  @spec verify_key_certificate?(key(), binary(), binary()) :: boolean()
-  def verify_key_certificate?(_, _, ""), do: true
+  @spec verify_key_certificate?(
+          public_key :: key(),
+          certificate :: binary(),
+          root_ca_key :: binary()
+        ) ::
+          boolean()
 
-  def verify_key_certificate?(<<_::8, origin_id::8, key::binary>>, certificate, root_ca_key)
+  def verify_key_certificate?(<<_::8, 0::8, _::binary>>, "", _), do: true
+  def verify_key_certificate?(<<_::8, 1::8, _::binary>>, "", _), do: true
+  def verify_key_certificate?(_, _, ""), do: false
+
+  def verify_key_certificate?(
+        <<curve_id::8, origin_id::8, client_key::binary>>,
+        certificate,
+        root_ca_key
+      )
       when is_binary(certificate) and is_binary(root_ca_key) do
-    case ID.to_origin(origin_id) do
-      :tpm ->
-        ECDSA.verify?(:secp256r1, root_ca_key, key, certificate)
+    try do
+      case ID.to_origin(origin_id) do
+        :tpm ->
+          valid_certificate?(curve_id, root_ca_key, client_key, certificate)
 
-      :software ->
-        true
-
-      :on_chain_wallet ->
-        true
+        _ ->
+          valid_certificate?(curve_id, root_ca_key, client_key, certificate)
+      end
+    rescue
+      _ ->
+        false
     end
   end
+
+  defp valid_certificate?(curve_id, ca_public_key, _data = client_public_key, _sig = certificate) do
+    curve_id
+    |> ID.to_curve()
+    |> do_valid_certificate?(ca_public_key, Utils.wrap_binary(client_public_key), certificate)
+  end
+
+  defp do_valid_certificate?(:ed25519, ca_public_key, client_public_key, certificate),
+    do: Ed25519.verify?(ca_public_key, client_public_key, certificate)
+
+  defp do_valid_certificate?(curve, ca_public_key, client_public_key, certificate),
+    do: ECDSA.verify?(curve, ca_public_key, client_public_key, certificate)
 
   @doc """
   Get the public key elliptic curve

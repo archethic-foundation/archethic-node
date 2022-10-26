@@ -1,32 +1,40 @@
 defmodule ArchethicWeb.API.OriginKeyController do
   use ArchethicWeb, :controller
 
-  alias Archethic.Crypto
-  alias Archethic.SharedSecrets
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.TransactionData
-  alias ArchethicWeb.TransactionSubscriber
+  alias ArchethicWeb.{TransactionSubscriber, API.Schema.OriginPublicKey}
 
-  def origin_key(conn, params) do
-    {status_code, response} =
-      with %{"origin_public_key" => origin_public_key, "certificate" => certificate} <- params,
-           {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
-           {:ok, certificate} <- Base.decode16(certificate, case: :mixed),
-           true <- Crypto.valid_public_key?(origin_public_key),
-           {:exists?, false} <-
-             {:exists?, SharedSecrets.has_origin_public_key?(origin_public_key)},
-           <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key do
-        origin_id
-        |> prepare_transaction(origin_public_key, certificate)
-        |> send_transaction()
-      else
-        error -> handle_error(error)
-      end
+  alias Archethic.{
+    Crypto,
+    SharedSecrets,
+    TransactionChain,
+    TransactionChain.TransactionData,
+    TransactionChain.Transaction
+  }
 
-    conn
-    |> put_status(status_code)
-    |> json(response)
+  @spec origin_key(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def origin_key(conn, params = %{}) do
+    case OriginPublicKey.changeset(params) do
+      %{
+        valid?: true,
+        changes: %{origin_public_key: origin_public_key, certificate: certificate}
+      } ->
+        <<_curve_id::8, origin_id::8, _rest::binary>> = origin_public_key
+
+        {status_code, response} =
+          origin_id
+          |> prepare_transaction(origin_public_key, certificate)
+          |> send_transaction()
+
+        conn
+        |> put_status(status_code)
+        |> json(response)
+
+      changeset ->
+        conn
+        |> put_status(400)
+        |> put_view(ArchethicWeb.ErrorView)
+        |> render("400.json", changeset: changeset)
+    end
   end
 
   defp prepare_transaction(origin_id, origin_public_key, certificate) do
@@ -75,19 +83,6 @@ defmodule ArchethicWeb.API.OriginKeyController do
 
       {:error, :network_issue} ->
         {422, %{status: "error - may be invalid transaction"}}
-    end
-  end
-
-  defp handle_error(error) do
-    case error do
-      er when er in [:error, false] ->
-        {400, %{status: "error - invalid public key"}}
-
-      {:exists?, true} ->
-        {400, %{status: "error - public key exists"}}
-
-      _ ->
-        {400, %{status: "error - invalid parameters"}}
     end
   end
 end

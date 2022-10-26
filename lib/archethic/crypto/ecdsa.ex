@@ -41,7 +41,8 @@ defmodule Archethic.Crypto.ECDSA do
   @doc """
   Verify a signature using the given public key and data
   """
-  @spec verify?(curve(), binary(), iodata(), binary()) :: boolean()
+  @spec verify?(_curve :: curve(), _public_key :: binary(), _data :: iodata(), _sig :: binary()) ::
+          boolean()
   def verify?(curve, public_key, data, sig)
       when curve in @curves and (is_binary(data) or is_list(data)) and is_binary(sig) do
     :crypto.verify(
