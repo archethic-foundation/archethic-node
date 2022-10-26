@@ -276,7 +276,7 @@ defmodule Archethic.SelfRepair.Sync do
     Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
     Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
 
-    Task.Supervisor.async_stream_nolink(
+    Task.Supervisor.async_stream(
       TaskSupervisor,
       transaction_summaries,
       &TransactionHandler.download_transaction(&1, node_patch),
