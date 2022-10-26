@@ -6,14 +6,14 @@ config :git_hooks,
   hooks: [
     pre_push: [
       tasks: [
-        "mix clean",
-        "mix format --check-formatted",
-        "mix compile --warnings-as-errors",
-        "mix credo",
-        "mix sobelow",
-        "mix knigge.verify",
-        "mix test --trace",
-        "mix dialyzer"
+        {:cmd, "mix clean"},
+        {:cmd, "mix format --check-formatted"},
+        {:cmd, "mix compile --warnings-as-errors"},
+        {:cmd, "mix credo"},
+        {:cmd, "mix sobelow"},
+        {:cmd, "mix knigge.verify"},
+        {:cmd, "mix test --trace"},
+        {:cmd, "mix dialyzer"}
       ]
     ]
   ]

@@ -59,22 +59,22 @@ defmodule Archethic.MixProject do
       {:websockex, "~> 0.4.3"},
 
       # Dev
-      {:benchee, "~> 1.0"},
+      {:benchee, "~> 1.1"},
       {:benchee_html, "~> 1.0", only: :dev},
-      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
-      {:git_hooks, "~> 0.4.0", runtime: false},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.29", only: :dev, runtime: false},
+      {:git_hooks, "~> 0.7.0", runtime: false},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:elixir_make, "~> 0.6.0", runtime: false},
-      {:dialyxir, "~> 1.0", runtime: false},
+      {:dialyxir, "~> 1.2", runtime: false},
       {:logger_file_backend, "~> 0.0.13", only: :dev},
 
       # Security
       {:sobelow, ">= 0.11.1", only: [:test, :dev], runtime: false},
 
       # Test
-      {:mox, "~> 0.5.2", only: [:test]},
+      {:mox, "~> 1.0.2", only: [:test]},
       {:stream_data, "~> 0.5.0", only: [:test], runtime: false},
-      {:floki, ">= 0.30.0", only: :test},
+      {:floki, ">= 0.33.0", only: :test},
 
       # P2P
       {:ranch, "~> 2.1", override: true},
@@ -99,12 +99,12 @@ defmodule Archethic.MixProject do
       {:exjsonpath, "~> 0.9.0"},
       {:rand_compat, "~> 0.0.3"},
       {:gen_state_machine, "~> 3.0"},
-      {:retry, "~> 0.14.1"},
+      {:retry, "~> 0.17.0"},
       {:gen_stage, "~> 1.1"},
-      {:flow, "~> 1.0"},
+      {:flow, "~> 1.2"},
       {:knigge, "~> 1.4"},
-      {:ex_json_schema, "~> 0.9.1", override: true},
-      {:pathex, "~> 2.0"},
+      {:ex_json_schema, "~> 0.9.2", override: true},
+      {:pathex, "~> 2.4"},
       {:easy_ssl, "~> 1.3.0"},
       {:castore, "~> 0.1.18"}
     ]
