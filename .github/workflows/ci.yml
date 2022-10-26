@@ -54,15 +54,15 @@ jobs:
       run: mix sobelow 
     - name: Run tests
       run: mix test --trace
-    - name: Retrieve PLT Cache
-      uses: actions/cache@v3
-      id: plt-cache
-      with:
-        path: priv/plts
-        key: ${{ runner.os }}-plts-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-plts-
+    # - name: Retrieve PLT Cache
+    #   uses: actions/cache@v3
+    #   id: plt-cache
+    #   with:
+    #     path: priv/plts
+    #     key: ${{ runner.os }}-plts-${{ hashFiles('**/mix.lock') }}
+    #     restore-keys: ${{ runner.os }}-plts-
     - name: Create PLTs
-      if: steps.plt-cache.outputs.cache-hit != 'true'
+      # if: steps.plt-cache.outputs.cache-hit != 'true'
       run: |
         mkdir -p priv/plts
         mix dialyzer --plt
