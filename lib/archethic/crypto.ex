@@ -1175,7 +1175,7 @@ defmodule Archethic.Crypto do
     end
   end
 
-  def get_root_ca_public_key(<<0::8, _::8, _::binary>>) do
+  def get_root_ca_public_key(_), do: ""
     # :ed25519
     # case Keyword.get(@ed25519_certification_public_keys, ID.to_origin(origin_id)) do
     #   nil ->
