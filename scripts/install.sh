@@ -66,7 +66,7 @@ sudo apt-get update
 sudo apt-get install -y esl-erlang=1:24.*
 
 mkdir -p ~/elixir
-wget https://github.com/elixir-lang/elixir/releases/download/v1.12.3/Precompiled.zip -O ~/elixir/Precompiled.zip
+wget https://github.com/elixir-lang/elixir/releases/download/v1.14.1/elixir-otp-24.zip -O ~/elixir/Precompiled.zip
 
 unzip ~/elixir/Precompiled.zip -d ~/elixir
 echo 'PATH=$PATH:~/elixir/bin' >> ~/.bashrc

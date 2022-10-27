@@ -14,7 +14,7 @@ defmodule Archethic.SharedSecrets do
 
   require Logger
 
-  @type origin_family :: :software | :hardware | :biometric
+  @type origin_family :: :software | :hardware | :biometric | :usb
 
   @spec list_origin_families() :: list(origin_family())
   def list_origin_families, do: [:software, :hardware, :biometric]
