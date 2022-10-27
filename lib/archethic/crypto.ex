@@ -1176,19 +1176,7 @@ defmodule Archethic.Crypto do
   end
 
   def get_root_ca_public_key(_), do: ""
-    # :ed25519
-    # case Keyword.get(@ed25519_certification_public_keys, ID.to_origin(origin_id)) do
-    #   nil ->
-    #     ""
-
-    #   "" ->
-    #     ""
-
-    #   <<_::binary-size(26), public_key::binary>> ->
-    #     public_key
-    # end
-    ""
-  end
+  # :ed25519
 
   @doc """
   Determine if the public key if authorized from the given certificate
