@@ -23,6 +23,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Set up Elixir
       uses: erlef/setup-beam@988e02bfe678367a02564f65ca2e37726dc0268f
+      id: beam
       with:
         elixir-version: '1.14.1' # Define the elixir version [required]
         otp-version: '24.3' # Define the OTP version [required]
@@ -31,8 +32,8 @@ jobs:
       id: mix-cache
       with:
         path: deps
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-mix-
+        key: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-
     - name: Make Clean
       run: mix clean
     - name: Install dependencies
@@ -44,8 +45,8 @@ jobs:
       uses: actions/cache@v3
       with:
         path: _build
-        key: ${{ runner.os }}-build-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-build-
+        key: ${{ runner.os }}-build-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-
     - name: Compile the codebase
       run: mix compile --warnings-as-errors
     - name: Set credo
@@ -59,8 +60,8 @@ jobs:
       id: plt-cache
       with:
         path: priv/plts
-        key: ${{ runner.os }}-plts-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-plts-
+        key: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
     - name: Create PLTs
       if: steps.plt-cache.outputs.cache-hit != 'true'
       run: |
