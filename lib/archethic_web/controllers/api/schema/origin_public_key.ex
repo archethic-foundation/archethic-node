@@ -4,6 +4,8 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKey do
   use Ecto.Schema
   import Ecto.Changeset
   @max_certificate_size_limit_in_bytes 9057
+  @supported_curve_bin [0, 1, 2]
+  @supported_origin_bin [0, 1, 2]
 
   alias ArchethicWeb.API.Types.{Hex, PublicKey}
 
@@ -40,10 +42,20 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKey do
 
   defp validate_origin_public_key(changeset = %Ecto.Changeset{}) do
     validate_change(changeset, :origin_public_key, fn :origin_public_key, origin_public_key ->
-      case SharedSecrets.has_origin_public_key?(origin_public_key) do
-        false ->
-          # no exisiting tx with the origin public key
-          []
+      <<curve_id::8, origin_id::8, _public_key_bin::binary>> = origin_public_key
+      supported_origin_bin = @supported_origin_bin
+      supported_curve_bin = @supported_curve_bin
+
+      with {:curve_id, true} <- {:curve_id, curve_id in supported_curve_bin},
+           {:origin_id, true} <- {:origin_id, origin_id in supported_origin_bin},
+           false <- SharedSecrets.has_origin_public_key?(origin_public_key) do
+        []
+      else
+        {:curve_id, false} ->
+          [{:origin_public_key, "Invalid Curve #{curve_id}"}]
+
+        {:origin_id, false} ->
+          [{:origin_public_key, "Invalid Origin #{origin_id}"}]
 
         true ->
           # exisiting tx with the origin public key
