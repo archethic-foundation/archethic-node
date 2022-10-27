@@ -71,6 +71,7 @@ defmodule Archethic.Crypto.ID do
   def from_origin(:on_chain_wallet), do: 0
   def from_origin(:software), do: 1
   def from_origin(:tpm), do: 2
+  def from_origin(:usb), do: 3
 
   @doc """
   Get a origin from an identification
@@ -79,6 +80,7 @@ defmodule Archethic.Crypto.ID do
   def to_origin(0), do: :on_chain_wallet
   def to_origin(1), do: :software
   def to_origin(2), do: :tpm
+  def to_origin(3), do: :usb
 
   @doc """
   Prepend hash by the algorithm identification byte

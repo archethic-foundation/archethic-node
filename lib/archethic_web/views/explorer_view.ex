@@ -8,6 +8,7 @@ defmodule ArchethicWeb.ExplorerView do
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
   alias Archethic.BeaconChain.Summary
 
+  alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.NodeRenewal
 
   alias Archethic.P2P.Node
@@ -235,17 +236,7 @@ defmodule ArchethicWeb.ExplorerView do
     <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size), _::binary>> =
       rest
 
-    family =
-      case Crypto.key_origin(origin_id) do
-        :software ->
-          :software
-
-        :tpm ->
-          :hardware
-
-        :on_chain_wallet ->
-          :software
-      end
+    family = SharedSecrets.get_origin_family_from_origin_id(origin_id)
 
     {family, key, key_certificate}
   end

@@ -88,11 +88,6 @@ defmodule Archethic.Replication do
              Enum.to_list(inputs)
            ) do
         :ok ->
-          Logger.info("Replication finished",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
-
           :telemetry.execute(
             [:archethic, :replication, :validation],
             %{
@@ -111,6 +106,12 @@ defmodule Archethic.Replication do
           TransactionChain.write_transaction(tx)
 
           :ok = ingest_transaction(tx)
+
+          Logger.info("Replication finished",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
           PubSub.notify_new_transaction(address, type, timestamp)
 
           :telemetry.execute(

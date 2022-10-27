@@ -5,7 +5,7 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKey do
   import Ecto.Changeset
   @max_certificate_size_limit_in_bytes 9057
   @supported_curve_bin [0, 1, 2]
-  @supported_origin_bin [0, 1, 2]
+  @supported_origin_bin [0, 1, 2, 3]
 
   alias ArchethicWeb.API.Types.{Hex, PublicKey}
 
