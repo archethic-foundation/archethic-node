@@ -1,4 +1,4 @@
-FROM elixir:1.12-alpine AS archethic-ci
+FROM hexpm/elixir:1.14.1-erlang-24.3.4.6-alpine-3.16.2 AS archethic-ci
 
 ARG skip_tests=0
 ARG MIX_ENV=prod
@@ -62,7 +62,7 @@ CMD /opt/app/bin/archethic_node foreground
 
 FROM archethic-ci as build
 
-FROM elixir:1.12-alpine
+FROM hexpm/elixir:1.14.1-erlang-24.3.4.6-alpine-3.16.2
 
 RUN apk add --no-cache --update bash git openssl libsodium
 
