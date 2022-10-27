@@ -272,7 +272,7 @@ defmodule Archethic.BeaconChain.Subset do
 
     # Avoid to store or dispatch an empty beacon's slot
     unless Slot.empty?(current_slot) do
-      # current_slot = %{current_slot | slot_time: SlotTimer.previous_slot(time)}
+      current_slot = %{current_slot | slot_time: time}
 
       if summary_time?(time) do
         SummaryCache.add_slot(subset, current_slot)
