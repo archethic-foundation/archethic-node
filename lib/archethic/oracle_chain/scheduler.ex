@@ -253,6 +253,14 @@ defmodule Archethic.OracleChain.Scheduler do
       "Reschedule polling after reception of an oracle summary transaction in scheduled state instead of triggered state"
     )
 
+    case Map.get(data, :polling_timer) do
+      nil ->
+        :skip
+
+      timer ->
+        Process.cancel_timer(timer)
+    end
+
     new_data = update_summary_date(data)
     {:next_state, :triggered, new_data, {:next_event, :internal, :fetch_data}}
   end
