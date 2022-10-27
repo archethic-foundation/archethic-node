@@ -253,7 +253,6 @@ defmodule Archethic.P2P.MemTable do
          geo_patch: geo_patch,
          network_patch: network_patch,
          average_availability: average_availability,
-         availability_history: availability_history,
          enrollment_date: enrollment_date,
          synced?: synced?,
          transport: transport,
@@ -290,16 +289,6 @@ defmodule Archethic.P2P.MemTable do
       if average_availability != nil do
         [
           {Keyword.fetch!(@discovery_index_position, :average_availability), average_availability}
-          | changes
-        ]
-      else
-        changes
-      end
-
-    changes =
-      if availability_history != nil and first_public_key != Crypto.first_node_public_key() do
-        [
-          {Keyword.fetch!(@discovery_index_position, :availability_history), availability_history}
           | changes
         ]
       else
