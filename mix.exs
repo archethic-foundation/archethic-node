@@ -128,8 +128,6 @@ defmodule Archethic.MixProject do
         "cmd mix test --trace",
         "dialyzer"
       ],
-      # paralele checks
-      "dev.pchecks": ["  clean &   format &    compile &   credo &   sobelow & test &   dialyzer"],
       # docker test-net with 3 nodes
       "dev.docker": [
         "cmd docker-compose down",

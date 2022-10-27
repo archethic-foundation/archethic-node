@@ -8,6 +8,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
 
   alias Archethic.P2P.Node
 
+  alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
   alias Archethic.SharedSecrets.NodeRenewal
@@ -94,17 +95,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
 
     <<_curve_id::8, origin_id::8, _rest::binary>> = origin_public_key
 
-    family =
-      case Crypto.key_origin(origin_id) do
-        :software ->
-          :software
-
-        :tpm ->
-          :hardware
-
-        :on_chain_wallet ->
-          :software
-      end
+    family = SharedSecrets.get_origin_family_from_origin_id(origin_id)
 
     OriginKeyLookup.add_public_key(family, origin_public_key)
 

@@ -120,7 +120,7 @@ defmodule Archethic.SharedSecrets do
       id when id in [:software, :on_chain_wallet] ->
         :software
 
-      id when id in [:tpm] ->
+      id when id in [:tpm, :usb] ->
         :hardware
 
       _ ->
