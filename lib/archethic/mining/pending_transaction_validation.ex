@@ -241,11 +241,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         {:ok, %Transaction{type: :mint_rewards}} ->
           :ok
 
-        {last_address, last_time} ->
-          Logger.debug(
-            "Invalid address #{Base.encode16(last_address)} - expected #{Base.encode16(last_network_pool_address)} - at last scheduling time: #{last_scheduling_date} - last time #{last_time}"
-          )
-
+        _ ->
           {:error, :time}
       end
 
