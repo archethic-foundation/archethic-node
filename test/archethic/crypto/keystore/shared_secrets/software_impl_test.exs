@@ -23,7 +23,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
     test "should initialize the node shared secrets index from the stored transactions" do
       %{secrets: secrets, daily_nonce_seed: daily_nonce_seed, aes_key: aes_key} = gen_secrets()
 
-      timestamp = ~U[2021-10-10 00:00:00Z]
+      timestamp = ~U[2021-10-09 23:55:00Z]
 
       MockDB
       |> stub(:count_transactions_by_type, fn
@@ -50,7 +50,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
 
       daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
-      unix_timestamp = DateTime.to_unix(timestamp)
+      unix_timestamp = DateTime.to_unix(~U[2021-10-10 00:00:00Z])
 
       assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
       assert [{_, 2}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
