@@ -75,6 +75,7 @@ defmodule ArchethicCase do
     |> stub(:get_beacon_summaries_aggregate, fn _ -> {:error, :not_exists} end)
     |> stub(:clear_beacon_summaries, fn -> :ok end)
     |> stub(:get_beacon_summary, fn _ -> {:error, :not_exists} end)
+    |> stub(:get_last_chain_public_key, fn public_key, _ -> public_key end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
@@ -179,7 +180,10 @@ defmodule ArchethicCase do
     |> stub(:set_storage_nonce, fn _ -> :ok end)
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)
+    |> stub(:new_connection, fn _, _, _, public_key ->
+      P2PMemTable.increase_node_availability(public_key)
+      {:ok, make_ref()}
+    end)
 
     start_supervised!(TokenLedger)
     start_supervised!(UCOLedger)

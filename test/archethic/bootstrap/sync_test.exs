@@ -335,7 +335,8 @@ defmodule Archethic.Bootstrap.SyncTest do
       port: 4390,
       http_port: 4000,
       first_public_key: "key1",
-      last_public_key: "key1"
+      last_public_key: "key1",
+      availability_history: <<1::1>>
     }
 
     :ok = P2P.add_and_connect_node(node)
@@ -366,7 +367,8 @@ defmodule Archethic.Bootstrap.SyncTest do
                port: 3000,
                http_port: 4000,
                first_public_key: "key2",
-               last_public_key: "key2"
+               last_public_key: "key2",
+               availability_history: <<2::2>>
              }
            ] == P2P.list_nodes()
   end

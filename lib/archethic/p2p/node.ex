@@ -31,7 +31,7 @@ defmodule Archethic.P2P.Node do
     available?: false,
     synced?: false,
     average_availability: 1.0,
-    availability_history: <<1::1>>,
+    availability_history: <<0::1>>,
     authorized?: false,
     authorization_date: nil,
     transport: :tcp,
