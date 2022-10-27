@@ -53,7 +53,7 @@ defmodule Archethic.MixProject do
       {:absinthe, "~> 1.7.0"},
       {:absinthe_plug, "~> 1.5"},
       {:absinthe_phoenix, "~> 2.0"},
-      {:cors_plug, "~> 1.5"},
+      {:cors_plug, "~> 3.0"},
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.9"},
       {:websockex, "~> 0.4.3"},
