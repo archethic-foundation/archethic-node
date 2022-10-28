@@ -24,8 +24,9 @@ defmodule Archethic.P2P.MemTableLoader do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
 
+  alias Archethic.Utils
+
   alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
 
   require Logger
 
@@ -57,48 +58,49 @@ defmodule Archethic.P2P.MemTableLoader do
     |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
     |> Enum.each(&load_transaction/1)
 
-    last_repair_time = SelfRepair.last_sync_date()
-
-    unless last_repair_time == nil do
-      self_repair_interval =
-        :archethic
-        |> Application.get_env(SelfRepairScheduler, [])
-        |> Keyword.fetch!(:interval)
-
-      last_repair_time = last_repair_time |> DateTime.add(1, :millisecond)
-
-      next_repair_time =
-        self_repair_interval
-        |> CronParser.parse!(true)
-        |> CronScheduler.get_next_run_date!(DateTime.to_naive(last_repair_time))
-        |> DateTime.from_naive!("Etc/UTC")
-
-      is_same_slot? = DateTime.compare(DateTime.utc_now(), next_repair_time) == :lt
-
-      p2p_summaries = DB.get_last_p2p_summaries()
-
-      previously_available = Enum.filter(p2p_summaries, &match?({_, {true, _}}, &1))
-
-      node_key = Crypto.first_node_public_key()
-
-      case previously_available do
-        # Ensure the only single node is globally available after a delayed bootstrap 
-        [{^node_key, {_, avg_availability}}] ->
-          P2P.set_node_globally_synced(node_key)
-          P2P.set_node_globally_available(node_key)
-          P2P.set_node_average_availability(node_key, avg_availability)
-
-        _ ->
-          # We want to reload the previous beacon chain summary information
-          # if the node haven't been disconnected for a significant time (one self-repair cycle)
-          # if the node was disconnected for long time, then we don't load the previous view, as it's obsolete
-          Enum.each(p2p_summaries, fn summary ->
-            load_p2p_summary(summary, is_same_slot?)
-          end)
-      end
-    end
+    SelfRepair.last_sync_date() |> load_p2p_view()
 
     {:ok, %{}}
+  end
+
+  defp load_p2p_view(nil), do: :ok
+
+  defp load_p2p_view(last_repair_time) do
+    next_repair_time =
+      :archethic
+      |> Application.get_env(SelfRepairScheduler, [])
+      |> Keyword.fetch!(:interval)
+      |> CronParser.parse!(true)
+      |> Utils.next_date(last_repair_time)
+
+    is_same_slot? = DateTime.compare(DateTime.utc_now(), next_repair_time) == :lt
+
+    p2p_summaries = DB.get_last_p2p_summaries()
+
+    previously_available = Enum.filter(p2p_summaries, &match?({_, {true, _}}, &1))
+
+    node_key = Crypto.first_node_public_key()
+
+    case previously_available do
+      # Ensure the only single node is globally available after a delayed bootstrap 
+      [{^node_key, {_, avg_availability}}] ->
+        P2P.set_node_globally_synced(node_key)
+        P2P.set_node_globally_available(node_key)
+        P2P.set_node_average_availability(node_key, avg_availability)
+
+      [] ->
+        P2P.set_node_globally_synced(node_key)
+        P2P.set_node_globally_available(node_key)
+        P2P.set_node_average_availability(node_key, 1.0)
+
+      _ ->
+        # We want to reload the previous beacon chain summary information
+        # if the node haven't been disconnected for a significant time (one self-repair cycle)
+        # if the node was disconnected for long time, then we don't load the previous view, as it's obsolete
+        Enum.each(p2p_summaries, fn summary ->
+          load_p2p_summary(summary, is_same_slot?)
+        end)
+    end
   end
 
   @doc """
