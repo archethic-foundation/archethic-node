@@ -32,7 +32,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    type: :UCO,
       ...>    timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...>  }
-      ...>  |> UnspentOutput.serialize(2)
+      ...>  |> UnspentOutput.serialize(current_protocol_version())
       <<
       # From
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -55,7 +55,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0},
       ...>     timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...>  }
-      ...>  |> UnspentOutput.serialize(2)
+      ...>  |> UnspentOutput.serialize(current_protocol_version())
       <<
       # From
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -107,7 +107,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 0>>
-      ...> |> UnspentOutput.deserialize(2)
+      ...> |> UnspentOutput.deserialize(current_protocol_version())
       {
         %UnspentOutput{
           from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -123,7 +123,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
       ...> 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0>>
-      ...> |> UnspentOutput.deserialize(2)
+      ...> |> UnspentOutput.deserialize(current_protocol_version())
       {
         %UnspentOutput{
           from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,

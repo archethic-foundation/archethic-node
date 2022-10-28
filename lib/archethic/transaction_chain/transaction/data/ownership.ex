@@ -62,7 +62,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       ...>        224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
       ...>   }
       ...> }
-      ...> |> Ownership.serialize(1)
+      ...> |> Ownership.serialize(current_transaction_version())
       <<
         # Secret size
         0, 0, 0, 16,

@@ -1,5 +1,7 @@
 defmodule Archethic.TransactionChain.TransactionDataTest do
-  use ExUnit.Case
+  use ArchethicCase
+
+  import ArchethicCase, only: [current_transaction_version: 0]
   use ExUnitProperties
 
   alias Archethic.Crypto
@@ -54,8 +56,8 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
           },
           recipients: recipients_addresses
         }
-        |> TransactionData.serialize(1)
-        |> TransactionData.deserialize(1)
+        |> TransactionData.serialize(current_transaction_version())
+        |> TransactionData.deserialize(current_transaction_version())
 
       assert tx_data.code == code
       assert tx_data.content == content

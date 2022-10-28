@@ -33,7 +33,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       ...>    spent?: true,
       ...>    timestamp: ~U[2021-03-05 11:17:20Z]
       ...> }
-      ...> |> TransactionInput.serialize(1)
+      ...> |> TransactionInput.serialize(current_protocol_version())
       <<
       # From
       0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
@@ -88,7 +88,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       ...>  0, 0, 0, 0, 62, 149, 186, 128,
       ...>  0,
       ...>  96, 66, 19, 64>>
-      ...> |> TransactionInput.deserialize(1)
+      ...> |> TransactionInput.deserialize(current_protocol_version())
       {
         %TransactionInput{
           from:  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,

@@ -2,6 +2,8 @@ defmodule Archethic.TransactionChain.TransactionTest do
   @moduledoc false
   use ArchethicCase, async: false
 
+  import ArchethicCase, only: [current_transaction_version: 0, current_protocol_version: 0]
+
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction

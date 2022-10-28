@@ -36,7 +36,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
       ...>   amount: 1_050_000_000,
       ...>   token_id: 0
       ...> }
-      ...> |> Transfer.serialize(1)
+      ...> |> Transfer.serialize(current_transaction_version())
       <<
         # Token address
         0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
@@ -69,7 +69,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger.Transfer do
       ...> 0, 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
       ...> 85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0>>
-      ...> |> Transfer.deserialize(1)
+      ...> |> Transfer.deserialize(current_transaction_version())
       {
         %Transfer{
           token_address: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,

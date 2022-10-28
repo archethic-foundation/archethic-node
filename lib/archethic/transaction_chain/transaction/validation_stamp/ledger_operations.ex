@@ -543,7 +543,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>     }
       ...>   ]
       ...> }
-      ...> |> LedgerOperations.serialize(2)
+      ...> |> LedgerOperations.serialize(current_protocol_version())
       <<
       # Fee (0.1 UCO)
       0, 0, 0, 0, 0, 152, 150, 128,
@@ -607,7 +607,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> 1, 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1,
       ...> 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0, 1, 131, 197, 240, 230, 191, 0>>
-      ...> |> LedgerOperations.deserialize(2)
+      ...> |> LedgerOperations.deserialize(current_protocol_version())
       {
         %LedgerOperations{
           fee: 10_000_000,

@@ -1,6 +1,8 @@
 defmodule Archethic.TransactionChain.TransactionData.TokenLedgerTest do
   @moduledoc false
-  use ExUnit.Case
+  use ArchethicCase
+
+  import ArchethicCase, only: [current_transaction_version: 0]
   use ExUnitProperties
 
   alias Archethic.TransactionChain.TransactionData.TokenLedger

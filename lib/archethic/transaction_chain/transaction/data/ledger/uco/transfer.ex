@@ -28,7 +28,7 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger.Transfer do
       ...>    85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14>>,
       ...>   amount: 1_050_000_000
       ...> }
-      ...> |> Transfer.serialize(1)
+      ...> |> Transfer.serialize(current_transaction_version())
       <<
         # UCO recipient
         0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
@@ -49,7 +49,7 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger.Transfer do
       iex> <<0, 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
       ...> 85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
       ...> 0, 0, 0, 0, 62, 149, 186, 128>>
-      ...> |> Transfer.deserialize(1)
+      ...> |> Transfer.deserialize(current_transaction_version())
       {
         %Transfer{
           to: <<0, 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,

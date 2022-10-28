@@ -1,5 +1,7 @@
 defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
   use ArchethicCase
+
+  import ArchethicCase, only: [current_protocol_version: 0]
   use ExUnitProperties
 
   alias Archethic.Crypto
@@ -28,7 +30,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
                proof_of_integrity: proof_of_integrity,
                proof_of_election: proof_of_election,
                ledger_operations: ledger_operations,
-               protocol_version: ArchethicCase.current_protocol_version()
+               protocol_version: current_protocol_version()
              }
              |> ValidationStamp.sign()
              |> ValidationStamp.valid_signature?(pub)

@@ -120,12 +120,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       ...>     126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
       ...>     238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
       ...>     66, 182, 168, 35, 129, 240, 35, 183, 47, 69, 154, 37, 172>>,
-      ...>   protocol_version: 1
+      ...>   protocol_version: current_protocol_version()
       ...> }
       ...> |> ValidationStamp.serialize()
       <<
       # Version
-      0, 0, 0, 1,
+      current_protocol_version()::32,
       # Timestamp
       0, 0, 1, 121, 70, 244, 48, 216,
       # Proof of work
@@ -218,7 +218,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
   ## Examples
 
-      iex> <<0, 0, 0, 1, 0, 0, 1, 121, 70, 244, 48, 216, 0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84,
+      iex> <<current_protocol_version()::32, 0, 0, 1, 121, 70, 244, 48, 216, 0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84,
       ...> 7, 6, 84, 66, 27, 8, 78, 103, 37, 155, 114, 208, 205, 40, 44, 6, 159, 178, 5,
       ...> 186, 168, 237, 206, 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140,
       ...> 254, 103, 186, 138, 175, 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180,
@@ -254,7 +254,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
             126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
             238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
             66, 182, 168, 35, 129, 240, 35, 183, 47, 69, 154, 37, 172>>,
-          protocol_version: 1
+          protocol_version: current_protocol_version()
         },
         ""
       }

@@ -30,7 +30,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
       ...>     token_id: 0
       ...>   }
       ...> ]}
-      ...> |> TokenLedger.serialize(1)
+      ...> |> TokenLedger.serialize(current_transaction_version())
       <<
         # Number of Token transfers in VarInt
         1, 1,
@@ -66,7 +66,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0>>
-      ...> |> TokenLedger.deserialize(1)
+      ...> |> TokenLedger.deserialize(current_transaction_version())
       {
         %TokenLedger{
           transfers: [

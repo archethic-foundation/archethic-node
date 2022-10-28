@@ -18,6 +18,8 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias Archethic.Utils
 
+  @version 1
+
   defstruct [
     :address,
     :type,
@@ -27,7 +29,7 @@ defmodule Archethic.TransactionChain.Transaction do
     :origin_signature,
     :validation_stamp,
     cross_validation_stamps: [],
-    version: 1
+    version: @version
   ]
 
   @typedoc """
@@ -97,6 +99,8 @@ defmodule Archethic.TransactionChain.Transaction do
   """
   @spec types() :: list(transaction_type())
   def types, do: @transaction_types
+
+  def version, do: @version
 
   @doc """
   Create a new pending transaction using the Crypto keystore to find out
@@ -591,12 +595,12 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>       73, 176, 212, 121, 236, 91, 94, 118, 108, 9, 228, 44, 237, 157, 90, 243,
       ...>       90, 6>>,
       ...>     timestamp: ~U[2022-02-15 21:15:50.000Z],
-      ...>     protocol_version: 2
+      ...>     protocol_version: current_protocol_version()
       ...>   },
-      ...>   version: 1
+      ...>   version: current_transaction_version()
       ...> }
       ...> |> Transaction.serialize()
-      <<0, 0, 0, 1, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
+      <<current_transaction_version()::32, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
           196, 25, 37, 237, 215, 122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217,
           180, 32, 3, 0, 0, 0, 0, 0, 0, 0, 92, 0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238,
           143, 251, 13, 151, 68, 48, 247, 25, 179, 245, 118, 171, 203, 76, 243, 214, 84,
@@ -702,7 +706,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   ## Examples
 
-      iex> <<0, 0, 0, 1, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
+      iex> <<current_transaction_version()::32, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
       ...> 196, 25, 37, 237, 215, 122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217,
       ...> 180, 32, 3, 0, 0, 0, 0, 0, 0, 0, 92, 0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238,
       ...> 143, 251, 13, 151, 68, 48, 247, 25, 179, 245, 118, 171, 203, 76, 243, 214, 84,

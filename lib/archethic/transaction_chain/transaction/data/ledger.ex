@@ -42,7 +42,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
       ...>     ]
       ...>   }
       ...> }
-      ...> |> Ledger.serialize(1)
+      ...> |> Ledger.serialize(current_transaction_version())
       <<
         # Number of UCO transfers
         1, 1,

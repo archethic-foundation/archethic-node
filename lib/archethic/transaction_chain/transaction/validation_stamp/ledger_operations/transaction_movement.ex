@@ -32,7 +32,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    amount: 30_000_000,
       ...>    type: :UCO
       ...>  }
-      ...>  |> TransactionMovement.serialize(1)
+      ...>  |> TransactionMovement.serialize(current_protocol_version())
       <<
       # Node public key
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -49,7 +49,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...> }
-      ...> |> TransactionMovement.serialize(1)
+      ...> |> TransactionMovement.serialize(current_protocol_version())
       <<
       # Node public key
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -78,7 +78,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 1, 201, 195, 128, 0>>
-      ...> |> TransactionMovement.deserialize(1)
+      ...> |> TransactionMovement.deserialize(current_protocol_version())
       {
         %TransactionMovement{
           to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
@@ -94,7 +94,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> 0, 0, 0, 0, 1, 201, 195, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0
       ...> >>
-      ...> |> TransactionMovement.deserialize(1)
+      ...> |> TransactionMovement.deserialize(current_protocol_version())
       {
         %TransactionMovement{
           to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
