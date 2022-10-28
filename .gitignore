@@ -33,7 +33,8 @@ erl_crash.dump
 # Since we are building assets from assets/,
 # we ignore priv/static. You may want to comment
 # this depending on your deployment strategy.
-/priv/static/*
+/priv/static/css
+/priv/static/js
 !/priv/static/docs/**/*.md
 
 # Self signed cert are used for local and dev purposes

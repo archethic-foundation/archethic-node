@@ -36,9 +36,9 @@ COPY config ./config
 RUN mix do deps.get, deps.compile
 
 # build assets
+COPY priv ./priv
 COPY assets ./assets 
-RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
-  && npm --prefix ./assets run deploy
+RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error 
 
 COPY . .
 
@@ -46,8 +46,15 @@ RUN git config user.name aebot \
   && git config user.email aebot@archethic.net \
   && git remote add origin https://github.com/archethic-foundation/archethic-node
 
+# Install Dart Sass
+RUN npm install -g sass
+
+# build Sass -> CSS
+RUN cd assets && \
+ sass --no-source-map --style=compressed css/app.scss ../priv/static/css/app.css && cd -
+
 # build release
-RUN mix do phx.digest, distillery.release
+RUN mix do assets.deploy, distillery.release
 
 # gen PLT
 RUN if [ $with_tests -eq 1 ]; then mix git_hooks.run pre_push ;fi

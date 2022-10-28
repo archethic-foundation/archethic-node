@@ -1,5 +1,5 @@
 import * as echarts from 'echarts'
-import worldmapJSON from '../static/worldmap.json'
+import worldmapJSON from './worldmap.json'
 
 let map
 let minNbOfAuthorizedNodes

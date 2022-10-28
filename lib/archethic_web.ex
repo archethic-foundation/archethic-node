@@ -28,7 +28,7 @@ defmodule ArchethicWeb do
   def live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {ArchethicWeb.LayoutView, "live.html"}
+        layout: {ArchethicWeb.LayoutView, :live}
 
       unquote(view_helpers())
     end

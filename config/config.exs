@@ -6,14 +6,15 @@ config :git_hooks,
   hooks: [
     pre_push: [
       tasks: [
-        "mix clean",
-        "mix format --check-formatted",
-        "mix compile --warnings-as-errors",
-        "mix credo",
-        "mix sobelow",
-        "mix knigge.verify",
-        "mix test --trace",
-        "mix dialyzer"
+        {:cmd, "mix clean"},
+        {:cmd, "mix hex.outdated --within-requirements"},
+        {:cmd, "mix format --check-formatted"},
+        {:cmd, "mix compile --warnings-as-errors"},
+        {:cmd, "mix credo"},
+        {:cmd, "mix sobelow"},
+        {:cmd, "mix knigge.verify"},
+        {:cmd, "mix test --trace"},
+        {:cmd, "mix dialyzer"}
       ]
     ]
   ]
@@ -148,6 +149,21 @@ config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
   provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY
 
 # -----End-of-Networking-configs ------
+
+config :esbuild,
+  version: "0.12.18",
+  default: [
+    args: ~w(js/app.js --bundle --target=es2018 --outdir=../priv/static/js),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
+
+config :dart_sass,
+  version: "1.54.5",
+  default: [
+    args: ~w(css/app.scss --load-path=node_modules ../priv/static/css/app.css),
+    cd: Path.expand("../assets", __DIR__)
+  ]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

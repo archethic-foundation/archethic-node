@@ -44,37 +44,39 @@ defmodule Archethic.MixProject do
   defp deps do
     [
       # Web
-      {:phoenix, ">= 1.5.4"},
-      {:phoenix_html, "~> 2.14"},
-      {:phoenix_live_view, "~> 0.15.0"},
-      {:phoenix_pubsub, "~> 2.0"},
+      {:phoenix, "~> 1.6"},
+      {:phoenix_html, "~> 3.0"},
+      {:phoenix_live_view, "~> 0.18"},
+      {:phoenix_pubsub, "~> 2.1"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.3"},
-      {:absinthe, "~> 1.5.0"},
+      {:absinthe, "~> 1.7"},
       {:absinthe_plug, "~> 1.5"},
       {:absinthe_phoenix, "~> 2.0"},
-      {:cors_plug, "~> 1.5"},
+      {:cors_plug, "~> 3.0"},
       {:mint, "~> 1.0"},
-      {:ecto, "~> 3.5"},
-      {:websockex, "~> 0.4.3"},
+      {:ecto, "~> 3.9"},
+      {:websockex, "~> 0.4"},
 
       # Dev
-      {:benchee, "~> 1.0"},
+      {:benchee, "~> 1.1"},
       {:benchee_html, "~> 1.0", only: :dev},
-      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
-      {:git_hooks, "~> 0.4.0", runtime: false},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:elixir_make, "~> 0.6.0", runtime: false},
-      {:dialyxir, "~> 1.0", runtime: false},
+      {:ex_doc, "~> 0.29", only: :dev, runtime: false},
+      {:git_hooks, "~> 0.7", runtime: false},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:elixir_make, "~> 0.6", runtime: false},
+      {:dialyxir, "~> 1.2", runtime: false},
       {:logger_file_backend, "~> 0.0.13", only: :dev},
+      {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
+      {:dart_sass, "~> 0.5", runtime: Mix.env() == :dev},
 
       # Security
-      {:sobelow, ">= 0.11.1", only: [:test, :dev], runtime: false},
+      {:sobelow, "~> 0.11", only: [:test, :dev], runtime: false},
 
       # Test
-      {:mox, "~> 0.5.2", only: [:test]},
-      {:stream_data, "~> 0.5.0", only: [:test], runtime: false},
-      {:floki, ">= 0.30.0", only: :test},
+      {:mox, "~> 1.0", only: [:test]},
+      {:stream_data, "~> 0.5", only: [:test], runtime: false},
+      {:floki, "~> 0.33", only: :test},
 
       # P2P
       {:ranch, "~> 2.1", override: true},
@@ -87,26 +89,26 @@ defmodule Archethic.MixProject do
       # Monitoring
       {:observer_cli, "~> 1.5"},
       {:telemetry_metrics, "~> 0.6"},
-      {:telemetry_metrics_prometheus_core, "~> 1.0.0"},
-      {:telemetry_poller, "~> 0.5.1"},
-      {:phoenix_live_dashboard, "~> 0.3"},
+      {:telemetry_metrics_prometheus_core, "~> 1.1"},
+      {:telemetry_poller, "~> 1.0"},
+      {:phoenix_live_dashboard, "~> 0.7"},
 
       # Utils
       {:crontab, "~> 1.1"},
       {:earmark, "~> 1.4"},
       {:sizeable, "~> 1.0"},
       {:distillery, github: "bitwalker/distillery", ref: "6700edb"},
-      {:exjsonpath, "~> 0.9.0"},
+      {:exjsonpath, "~> 0.9"},
       {:rand_compat, "~> 0.0.3"},
       {:gen_state_machine, "~> 3.0"},
-      {:retry, "~> 0.14.1"},
+      {:retry, "~> 0.17"},
       {:gen_stage, "~> 1.1"},
-      {:flow, "~> 1.0"},
+      {:flow, "~> 1.2"},
       {:knigge, "~> 1.4"},
-      {:ex_json_schema, "~> 0.9.1", override: true},
-      {:pathex, "~> 2.0"},
-      {:easy_ssl, "~> 1.3.0"},
-      {:castore, "~> 0.1.18"}
+      {:ex_json_schema, "~> 0.9", override: true},
+      {:pathex, "~> 2.4"},
+      {:easy_ssl, "~> 1.3"},
+      {:castore, "~> 0.1"}
     ]
   end
 
@@ -146,7 +148,12 @@ defmodule Archethic.MixProject do
       # dry-run,
       "run.dry": ["cmd iex -S mix run --no-start"],
       # Make sure the plts folder is created
-      dialyzer: ["cmd mkdir -p priv/plts", "dialyzer"]
+      dialyzer: ["cmd mkdir -p priv/plts", "dialyzer"],
+      "assets.saas": ["sass default --no-source-map --style=compressed"],
+      "assets.deploy": [
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 end

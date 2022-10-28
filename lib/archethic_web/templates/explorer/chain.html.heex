@@ -6,7 +6,7 @@
     </div>
     <div class="columns">
         <div class="column">
-            <form action="<%= Routes.explorer_path(@conn, :chain) %>">
+            <form action={Routes.explorer_path(@conn, :chain)}>
                 <div class="field is-horizontal">
                     <div class="field-label">
                         <label class="label" for="address">Transaction address</label>
@@ -14,7 +14,7 @@
                     <div class="field-body">
                         <div class="field">
                             <div class="control">
-                                <input id="address" name="address" class="input" type="text" placeholder="Enter transaction address" required value="<%= Base.encode16(@address) %>">
+                                <input id="address" name="address" class="input" type="text" placeholder="Enter transaction address" required value={Base.encode16(@address)} />
                             </div>
                             <%= if assigns[:error] != nil and @error == :invalid_address do %>
                                 <p class="help is-danger">Invalid address</p>
@@ -30,7 +30,7 @@
                         <div class="field is-narrow">
                             <div class="control">
                                 <label class="checkbox" for="last">
-                                    <input id="last" type="checkbox" name="last" <%= if @last_checked?, do: "checked" %>/>
+                                    <input id="last" type="checkbox" name="last" checked={@last_checked?} />
                                 </label>
                             </div>
                         </div>
@@ -84,6 +84,7 @@
                         <%= if @uco_balance > 0 do %>
                           (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
                         <% end %>
+                        </p>
                     </div>
               </div>
             </nav>
@@ -91,7 +92,7 @@
     </div>
 
     <%= if Enum.count(@transaction_chain) == 0 do %>
-    <p class="heading">No transaction yet existing for this chain<p>
+    <p class="heading">No transaction yet existing for this chain</p>
     <% else %>
       <%= for tx <- Enum.reverse(@transaction_chain) do %>
           <div class="columns">

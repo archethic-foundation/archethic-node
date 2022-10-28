@@ -6,15 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title><%= assigns[:page_title] || "ARCHETHIC" %></title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
+    <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")} />
     <%= csrf_meta_tag() %>
   </head>
   <body>
     <div class="container is-fluid">
       <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-          <a class="navbar-item is-size-5 is-uppercase" href="<%= Routes.live_path(@conn, ArchethicWeb.ExplorerIndexLive) %>">
-            <img src="<%= Routes.static_path(@conn, "/images/logo_full_white.svg") %>" alt="archethic_logo"/>
+          <a class="navbar-item is-size-5 is-uppercase" href={Routes.live_path(@conn, ArchethicWeb.ExplorerIndexLive)}>
+            <img src={Routes.static_path(@conn, "/images/logo_full_white.svg")} alt="archethic_logo"/>
           </a>
           <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
             <span aria-hidden="true"></span>
@@ -29,41 +29,41 @@
 
 
 
-              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.DashboardLive)%>">Dashboard </a>
+              <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.DashboardLive)}>Dashboard </a>
 
 
 
             <%= if faucet?() do %>
-              <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
+              <a class="navbar-item" href={Routes.faucet_path(@conn, :index)}>
                 Faucet
               </a>
             <% end %>
             <div class="navbar-item has-dropdown is-hoverable" >
-              <a class="navbar-link" href="<%= Routes.explorer_path(@conn, :chain) %>">Chains</a>
+              <a class="navbar-link" href={Routes.explorer_path(@conn, :chain)}>Chains</a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.OracleChainLive) %>">
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.OracleChainLive)}>
                   Oracle
                 </a>
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.BeaconChainLive) %>">
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.BeaconChainLive)}>
                   Beacon
                 </a>
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.RewardChainLive) %>">
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.RewardChainLive)}>
                   Reward
                 </a>
-                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.NodeSharedSecretsChainLive) %>">
+                 <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.NodeSharedSecretsChainLive)}>
                   Node Shared Secrets
                 </a>
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.OriginChainLive) %>">
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.OriginChainLive)}>
                    Origin
                 </a>
               </div>
             </div>
             <div class="navbar-item has-dropdown is-hoverable" >
-              <a class="navbar-link" href="<%= Routes.live_path(@conn, ArchethicWeb.NodeListLive) %>">
+              <a class="navbar-link" href={Routes.live_path(@conn, ArchethicWeb.NodeListLive)}>
                 Nodes
               </a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item"  href="<%= Routes.live_path(@conn, ArchethicWeb.WorldMapLive) %>">
+                <a class="navbar-item"  href={Routes.live_path(@conn, ArchethicWeb.WorldMapLive)}>
                   Map
                 </a>
               </div>
@@ -73,10 +73,10 @@
                 Governance
               </a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.CodeViewerLive) %>">
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.CodeViewerLive)}>
                   Code Viewer
                 </a>
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.CodeProposalsLive) %>">
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.CodeProposalsLive)}>
                   Code Proposals
                 </a>
               </div>
@@ -92,7 +92,7 @@
       </main>
     </div>
 
-    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+    <script type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}></script>
 
   </body>
 </html>

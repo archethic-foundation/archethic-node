@@ -101,15 +101,10 @@ defmodule ArchethicWeb.SettingsLive do
   end
 
   def render(assigns) do
-    ~L"""
+    ~H"""
+    <div>
     <%= if @notification != "" do %>
-      <div class="notification 
-        <%= if @notification_status == "success" do %>
-          is-success
-        <% else %>
-          is-danger
-        <% end %> 
-      is-light" x-data="{ open: true }" x-init="() => { setTimeout(() => open = false, 3000)}" x-show="open">
+    <div class={[if(@notification_status == "success", do:  "is-success", else: "is-danger"), "notification", "is-light"]} x-data="{ open: true }" x-init="() => { setTimeout(() => open = false, 3000)}" x-show="open">
       <button class="delete"></button>
       <%= @notification %>
     </div>
@@ -126,7 +121,7 @@ defmodule ArchethicWeb.SettingsLive do
           <div class="field">
             <label class="label">Reward's address</label>
             <div class="control">
-              <input class="input <%= if @error, do: 'is-danger'%>" type="text" placeholder="Enter your new reward address" value="<%= @reward_address %>" name="reward_address" />
+              <input class={[if(@error, do: "is-danger"), "input"]} type="text" placeholder="Enter your new reward address" value={@reward_address} name="reward_address" />
             </div>
             <p class="help is-danger"><%= @error %></p>
           </div>
@@ -136,12 +131,13 @@ defmodule ArchethicWeb.SettingsLive do
               <%= if @sending do %>
                 <button class="button is-link is-loading" disabled>Save</button>
               <% else %>
-                <button class="button is-link">Save</submit>
+                <submit class="button is-link">Save</submit>
               <% end %>
             </div>
           </div>
         </div>
-      </div>
+      </form>
+    </div>
     </div>
     """
   end

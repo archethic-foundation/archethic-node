@@ -1,7 +1,6 @@
 // We need to import the CSS so that webpack will load it.
 // The MiniCssExtractPlugin is used to separate it out into
 // its own CSS file.
-import {} from "../css/app.scss";
 import {} from "./ui";
 import {
   initializeNbTransactionGraph,
@@ -15,7 +14,7 @@ import { createWorldmap, updateWorldmap } from "./worldmap";
 // entry points. Those entry points can be configured
 
 import { Socket } from "phoenix";
-import LiveSocket from "phoenix_live_view";
+import { LiveSocket } from "phoenix_live_view";
 import { html } from "diff2html";
 import hljs from "highlight.js";
 

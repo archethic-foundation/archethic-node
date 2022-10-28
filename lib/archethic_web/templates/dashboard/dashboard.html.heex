@@ -8,11 +8,11 @@
   </div>
   <div class="tabs">
     <ul>
-      <li :class="tab_panel == 'network' ? 'is-active' : '' " @click="tab_panel='network'"><a>Network</a></li>
+      <li x-bind:class="tab_panel == 'network' ? 'is-active' : '' " @click="tab_panel='network'"><a>Network</a></li>
     </ul>
   </div>
 
-  <div :class=" tab_panel == 'network' ? '' : 'is-hidden'">
+  <div x-bind:class=" tab_panel == 'network' ? '' : 'is-hidden'">
     <div class="columns" phx-hook="network_charts" phx-update="ignore" id="network_charts">
       <div class="column is-6">
         <div id="nb_transactions" style="height: 200px">  </div>
@@ -38,7 +38,7 @@
             </thead>
             <tbody phx-update="prepend" id="stats_table">
             <%= for { node, data } <- @stats do %>
-              <tr id="<%= Base.encode16(node) %>">
+              <tr id={Base.encode16(node)}>
                 <td><%= Base.encode16(node) %></td>
                 <td><%= data.nb_transactions %></td>
                 <td><%= data.cumul.transaction_validation |> elem(0) %></td>

@@ -26,8 +26,8 @@
         <div class="column">
             <%= if @details != nil do %>
             <p class="heading"><%= @details.filename %></p>   
-            <pre style="width: 100%" phx-hook="CodeViewer">
-                <code class="<%= @details.language %>">
+            <pre style="width: 100%" phx-hook="CodeViewer" id="code_viewer">
+                <code class={@details.language}>
                     <%= @details.content %>
                 </code>
             </pre>         
