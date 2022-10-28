@@ -131,7 +131,7 @@
                                             <div class="is-relative">
                                                 <pre id="copy-code"><%= @transaction.data.code %></pre>
                                                 <button
-                                                    id="copy-code"
+                                                    id="copy-code-button"
                                                     phx-hook="CopyToClipboard"
                                                     class="button is-small is-primary is-outlined is-absolute on-top-right"
                                                 >
@@ -154,7 +154,7 @@
                                         <div x-show="show_content" class="is-relative">
                                             <pre id="copy-content"><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
                                             <button
-                                                id="copy-content"
+                                                id="copy-content-button"
                                                 phx-hook="CopyToClipboard"
                                                 class="button is-small is-primary is-outlined is-absolute on-top-right"
                                             >
