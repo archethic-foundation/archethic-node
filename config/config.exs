@@ -7,7 +7,7 @@ config :git_hooks,
     pre_push: [
       tasks: [
         {:cmd, "mix clean"},
-        {:file, "./scripts/check_mix_deps_updates.sh"},
+        {:cmd, "mix hex.outdated --within-requirements"},
         {:cmd, "mix format --check-formatted"},
         {:cmd, "mix compile --warnings-as-errors"},
         {:cmd, "mix credo"},
