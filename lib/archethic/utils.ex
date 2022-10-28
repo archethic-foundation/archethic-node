@@ -728,4 +728,87 @@ defmodule Archethic.Utils do
         (m1 + m2) / 2
     end
   end
+
+  @doc """
+  Return the next date with the cron expression from a given date
+
+  ## Examples
+
+      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00Z])
+      ~U[2022-10-01 01:00:10Z]
+
+      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00.100Z])
+      ~U[2022-10-01 01:00:10Z]
+
+      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:05Z])
+      ~U[2022-10-01 01:00:10Z]
+
+      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:05.139Z])
+      ~U[2022-10-01 01:00:10Z]
+  """
+  @spec next_date(Crontab.CronExpression.t(), DateTime.t()) :: DateTime.t()
+  def next_date(cron_expression, date_from = %DateTime{}) do
+    naive_date_from = DateTime.to_naive(date_from)
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      case date_from do
+        %DateTime{microsecond: {0, _}} ->
+          cron_expression
+          |> Crontab.Scheduler.get_next_run_dates(naive_date_from)
+          |> Enum.at(1)
+          |> DateTime.from_naive!("Etc/UTC")
+
+        _ ->
+          cron_expression
+          |> Crontab.Scheduler.get_next_run_date!(naive_date_from)
+          |> DateTime.from_naive!("Etc/UTC")
+      end
+    else
+      cron_expression
+      |> Crontab.Scheduler.get_next_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
+  end
+
+  @doc """
+  Return the previous date with the cron expression from a given date
+
+  ## Examples
+
+      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00Z])
+      ~U[2022-10-01 00:59:50Z]
+
+      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00.100Z])
+      ~U[2022-10-01 01:00:00Z]
+
+      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10Z])
+      ~U[2022-10-01 01:00:00Z]
+      
+      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10.100Z])
+      ~U[2022-10-01 01:00:10Z]
+      
+      iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 30}], extended: true}, ~U[2022-10-26 07:38:30.569648Z])
+      ~U[2022-10-26 07:38:30Z]
+  """
+  @spec previous_date(Crontab.CronExpression.t(), DateTime.t()) :: DateTime.t()
+  def previous_date(cron_expression, date_from = %DateTime{}) do
+    naive_date_from = DateTime.to_naive(date_from)
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      case date_from do
+        %DateTime{microsecond: {microsecond, _}} when microsecond > 0 ->
+          DateTime.truncate(date_from, :second)
+
+        _ ->
+          cron_expression
+          |> Crontab.Scheduler.get_previous_run_dates(naive_date_from)
+          |> Enum.at(1)
+          |> DateTime.from_naive!("Etc/UTC")
+      end
+    else
+      cron_expression
+      |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
+  end
 end

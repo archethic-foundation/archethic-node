@@ -59,6 +59,14 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   @doc """
+  Add node public key to the corresponding subset for beacon updates
+  """
+  @spec subscribe_for_beacon_updates(binary(), Crypto.key()) :: :ok
+  def subscribe_for_beacon_updates(subset, node_public_key) do
+    GenServer.cast(via_tuple(subset), {:subscribe_node_to_beacon_updates, node_public_key})
+  end
+
+  @doc """
   Get the current slot
   """
   @spec get_current_slot(binary()) :: Slot.t()
@@ -77,7 +85,10 @@ defmodule Archethic.BeaconChain.Subset do
      %{
        node_public_key: Crypto.first_node_public_key(),
        subset: subset,
-       current_slot: %Slot{subset: subset, slot_time: SlotTimer.next_slot(DateTime.utc_now())},
+       current_slot: %Slot{
+         subset: subset,
+         slot_time: SlotTimer.next_slot(DateTime.utc_now())
+       },
        subscribed_nodes: [],
        postponed: %{end_of_sync: [], transaction_attestations: []}
      }}
@@ -218,7 +229,7 @@ defmodule Archethic.BeaconChain.Subset do
         new_state = update_in(state, [:postponed, :transaction_attestations], &[attestation | &1])
 
         Logger.info(
-          "Transaction #{type}@#{Base.encode16(address)} will be added to the next beacon chain (#{DateTime.to_string(next_slot_time)} slot)",
+          "Transaction #{type}@#{Base.encode16(address)} will be added to the next beacon chain (#{DateTime.to_string(next_slot_time)} slot) - tx timestamp: #{timestamp} - current slot time: #{slot_time}",
           beacon_subset: Base.encode16(subset)
         )
 
@@ -261,7 +272,7 @@ defmodule Archethic.BeaconChain.Subset do
 
     # Avoid to store or dispatch an empty beacon's slot
     unless Slot.empty?(current_slot) do
-      current_slot = %{current_slot | slot_time: SlotTimer.previous_slot(time)}
+      current_slot = %{current_slot | slot_time: time}
 
       if summary_time?(time) do
         SummaryCache.add_slot(subset, current_slot)
@@ -371,12 +382,4 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp ensure_p2p_view(slot = %Slot{}, _), do: slot
-
-  @doc """
-  Add node public key to the corresponding subset for beacon updates
-  """
-  @spec subscribe_for_beacon_updates(binary(), Crypto.key()) :: :ok
-  def subscribe_for_beacon_updates(subset, node_public_key) do
-    GenServer.cast(via_tuple(subset), {:subscribe_node_to_beacon_updates, node_public_key})
-  end
 end

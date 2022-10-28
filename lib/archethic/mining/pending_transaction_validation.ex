@@ -534,7 +534,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     with :ok <- verify_token_creation(content),
          {:ok, %{"supply" => ^total_fee}} <- Jason.decode(content),
          {^last_address, _} <-
-           DB.get_last_chain_address(genesis_address, Reward.last_scheduling_date()) do
+           DB.get_last_chain_address(genesis_address, Reward.get_last_scheduling_date()) do
       :ok
     else
       {:ok, %{"supply" => _}} ->

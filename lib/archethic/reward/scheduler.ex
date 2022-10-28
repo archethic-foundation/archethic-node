@@ -3,9 +3,6 @@ defmodule Archethic.Reward.Scheduler do
 
   use GenStateMachine, callback_mode: [:handle_event_function]
 
-  alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
-
   alias Archethic.{
     Crypto,
     PubSub,
@@ -23,14 +20,6 @@ defmodule Archethic.Reward.Scheduler do
   @spec start_link(list(), any) :: GenStateMachine.on_start()
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
     GenStateMachine.start_link(__MODULE__, args, opts)
-  end
-
-  @doc """
-  Get the last node rewards scheduling date
-  """
-  @spec last_date() :: DateTime.t()
-  def last_date do
-    GenStateMachine.call(__MODULE__, :last_date)
   end
 
   def init(args) do
@@ -384,10 +373,6 @@ defmodule Archethic.Reward.Scheduler do
     {:next_state, :scheduled, new_data}
   end
 
-  def handle_event({:call, from}, :last_date, _state, _data = %{interval: interval}) do
-    {:keep_state_and_data, {:reply, from, get_last_date(interval)}}
-  end
-
   def handle_event(:cast, {:new_conf, conf}, _, data) do
     case Keyword.get(conf, :interval) do
       nil ->
@@ -419,23 +404,6 @@ defmodule Archethic.Reward.Scheduler do
     node_reward_tx = Reward.new_node_rewards(index)
 
     Archethic.send_new_transaction(node_reward_tx)
-  end
-
-  defp get_last_date(interval) do
-    cron_expression = CronParser.parse!(interval, true)
-
-    case DateTime.utc_now() do
-      %DateTime{microsecond: {0, 0}} ->
-        cron_expression
-        |> CronScheduler.get_next_run_dates(DateTime.utc_now() |> DateTime.to_naive())
-        |> Enum.at(1)
-        |> DateTime.from_naive!("Etc/UTC")
-
-      _ ->
-        cron_expression
-        |> CronScheduler.get_previous_run_date!(DateTime.utc_now() |> DateTime.to_naive())
-        |> DateTime.from_naive!("Etc/UTC")
-    end
   end
 
   defp schedule(interval) do
