@@ -144,7 +144,10 @@ defmodule Archethic.Bootstrap.SyncTest do
         http_port: 4000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
-        transport: :tcp
+        transport: :tcp,
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       assert false ==

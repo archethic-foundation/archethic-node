@@ -1,6 +1,8 @@
 defmodule Archethic.P2P.MemTableLoaderTest do
   use ArchethicCase
 
+  alias Archethic.Crypto
+
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.MemTableLoader
   alias Archethic.P2P.Node
@@ -68,6 +70,14 @@ defmodule Archethic.P2P.MemTableLoaderTest do
     end
 
     test "should fetch all the node shared secret transactions and integrate them" do
+      MemTable.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        enrollment_date: DateTime.utc_now()
+      })
+
       MemTable.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,

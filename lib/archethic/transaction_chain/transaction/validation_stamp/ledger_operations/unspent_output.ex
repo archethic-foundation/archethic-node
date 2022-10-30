@@ -81,8 +81,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           amount: amount,
           type: type
         },
-        1
-      ) do
+        protocol_version
+      )
+      when protocol_version <= 2 do
     <<from::binary, amount::64, TransactionMovementType.serialize(type)::binary>>
   end
 
@@ -130,7 +131,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 1_050_000_000,
           type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, 
+            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0},
           timestamp: ~U[2022-10-11 07:27:22.815Z]
         },
         ""
@@ -142,14 +143,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
       ...> 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0>>
-      ...> |> UnspentOutput.deserialize(1)
+      ...> |> UnspentOutput.deserialize(2)
       {
         %UnspentOutput{
           from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 1_050_000_000,
           type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}, 
+            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0},
           timestamp: nil
         },
         ""
@@ -157,7 +158,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   """
   @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
           {t(), bitstring}
-  def deserialize(data, 1) do
+  def deserialize(data, protocol_version) when protocol_version <= 2 do
     {address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(data)
     {type, rest} = TransactionMovementType.deserialize(rest)
 
@@ -172,7 +173,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  def deserialize(data, 2) do
+  def deserialize(data, _protocol_version) do
     {address, <<amount::64, timestamp::64, rest::bitstring>>} = Utils.deserialize_address(data)
     {type, rest} = TransactionMovementType.deserialize(rest)
 
@@ -196,7 +197,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>    159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
-      ...>  type: :UCO, 
+      ...>  type: :UCO,
       ...>  timestamp: ~U[2022-10-11 07:27:22.815Z]
       ...>  } |> UnspentOutput.cast()
       %UnspentOutput{
