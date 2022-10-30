@@ -10,12 +10,16 @@ defmodule Archethic.AccountTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.Transaction
 
   alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.Reward.MemTablesLoader, as: RewardMemTableLoader
 
   import Mox
+
+  setup :set_mox_global
 
   describe "get_balance/1" do
     setup do
@@ -24,35 +28,48 @@ defmodule Archethic.AccountTest do
           %Transaction{
             address: "@RewardToken0",
             type: :mint_rewards,
-            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+            validation_stamp: %ValidationStamp{
+              protocol_version: 1,
+              ledger_operations: %LedgerOperations{fee: 0}
+            }
           },
           %Transaction{
             address: "@RewardToken1",
             type: :mint_rewards,
-            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+            validation_stamp: %ValidationStamp{
+              protocol_version: 1,
+              ledger_operations: %LedgerOperations{fee: 0}
+            }
           },
           %Transaction{
             address: "@RewardToken2",
             type: :mint_rewards,
-            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+            validation_stamp: %ValidationStamp{
+              protocol_version: 1,
+              ledger_operations: %LedgerOperations{fee: 0}
+            }
           },
           %Transaction{
             address: "@RewardToken3",
             type: :mint_rewards,
-            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+            validation_stamp: %ValidationStamp{
+              protocol_version: 1,
+              ledger_operations: %LedgerOperations{fee: 0}
+            }
           },
           %Transaction{
             address: "@RewardToken4",
             type: :mint_rewards,
-            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+            validation_stamp: %ValidationStamp{
+              protocol_version: 1,
+              ledger_operations: %LedgerOperations{fee: 0}
+            }
           }
         ]
       end)
 
-      #  start supervised  ...
-      RewardTokens.start_link()
-      RewardMemTableLoader.start_link()
-
+      start_supervised!(RewardTokens)
+      start_supervised!(RewardMemTableLoader)
       start_supervised!(UCOLedger)
       start_supervised!(TokenLedger)
       :ok
@@ -63,31 +80,40 @@ defmodule Archethic.AccountTest do
 
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{
-          from: "@Bob3",
-          amount: 300_000_000,
-          type: :UCO,
-          timestamp: timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Bob3",
+            amount: 300_000_000,
+            type: :UCO,
+            timestamp: timestamp
+          },
+          protocol_version: 1
         }
       )
 
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{
-          from: "@Tom10",
-          amount: 100_000_000,
-          type: :UCO,
-          timestamp: timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Tom10",
+            amount: 100_000_000,
+            type: :UCO,
+            timestamp: timestamp
+          },
+          protocol_version: 1
         }
       )
 
       TokenLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{
-          from: "@Charlie2",
-          amount: 10_000_000_000,
-          type: {:token, "@CharlieToken", 0},
-          timestamp: timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Charlie2",
+            amount: 10_000_000_000,
+            type: {:token, "@CharlieToken", 0},
+            timestamp: timestamp
+          },
+          protocol_version: 1
         }
       )
 
@@ -104,21 +130,34 @@ defmodule Archethic.AccountTest do
 
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{from: "@Bob3", amount: 300_000_000, timestamp: timestamp}
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{from: "@Bob3", amount: 300_000_000, timestamp: timestamp},
+          protocol_version: 1
+        }
       )
 
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{from: "@Tom10", amount: 100_000_000, timestamp: timestamp}
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Tom10",
+            amount: 100_000_000,
+            timestamp: timestamp
+          },
+          protocol_version: 1
+        }
       )
 
       TokenLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{
-          from: "@Charlie2",
-          amount: 10_000_000_000,
-          type: {:token, "@CharlieToken", 0},
-          timestamp: timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Charlie2",
+            amount: 10_000_000_000,
+            type: {:token, "@CharlieToken", 0},
+            timestamp: timestamp
+          },
+          protocol_version: 1
         }
       )
 

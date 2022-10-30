@@ -22,8 +22,12 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   doctest TransactionChain
 
@@ -321,12 +325,15 @@ defmodule Archethic.TransactionChainTest do
         {:ok,
          %TransactionInputList{
            inputs: [
-             %TransactionInput{
-               from: "Alice2",
-               amount: 10,
-               type: :UCO,
-               spent?: false,
-               timestamp: DateTime.utc_now()
+             %VersionedTransactionInput{
+               input: %TransactionInput{
+                 from: "Alice2",
+                 amount: 10,
+                 type: :UCO,
+                 spent?: false,
+                 timestamp: DateTime.utc_now()
+               },
+               protocol_version: 1
              }
            ]
          }}
@@ -369,11 +376,14 @@ defmodule Archethic.TransactionChainTest do
           {:ok,
            %TransactionInputList{
              inputs: [
-               %TransactionInput{
-                 from: "Alice2",
-                 amount: 10,
-                 type: :UCO,
-                 timestamp: DateTime.utc_now()
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "Alice2",
+                   amount: 10,
+                   type: :UCO,
+                   timestamp: DateTime.utc_now()
+                 },
+                 protocol_version: 1
                }
              ]
            }}
@@ -382,17 +392,23 @@ defmodule Archethic.TransactionChainTest do
           {:ok,
            %TransactionInputList{
              inputs: [
-               %TransactionInput{
-                 from: "Alice2",
-                 amount: 10,
-                 type: :UCO,
-                 timestamp: DateTime.utc_now()
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "Alice2",
+                   amount: 10,
+                   type: :UCO,
+                   timestamp: DateTime.utc_now()
+                 },
+                 protocol_version: 1
                },
-               %TransactionInput{
-                 from: "Bob3",
-                 amount: 2,
-                 type: :UCO,
-                 timestamp: DateTime.utc_now()
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "Bob3",
+                   amount: 2,
+                   type: :UCO,
+                   timestamp: DateTime.utc_now()
+                 },
+                 protocol_version: 1
                }
              ]
            }}
@@ -436,7 +452,15 @@ defmodule Archethic.TransactionChainTest do
         {:ok,
          %UnspentOutputList{
            unspent_outputs: [
-             %UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: timestamp}
+             %VersionedUnspentOutput{
+               unspent_output: %UnspentOutput{
+                 from: "Alice2",
+                 amount: 10,
+                 type: :UCO,
+                 timestamp: timestamp
+               },
+               protocol_version: 1
+             }
            ]
          }}
       end)
@@ -479,7 +503,15 @@ defmodule Archethic.TransactionChainTest do
           {:ok,
            %UnspentOutputList{
              unspent_outputs: [
-               %UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: timestamp}
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "Alice2",
+                   amount: 10,
+                   type: :UCO,
+                   timestamp: timestamp
+                 },
+                 protocol_version: 1
+               }
              ]
            }}
 
@@ -487,8 +519,24 @@ defmodule Archethic.TransactionChainTest do
           {:ok,
            %UnspentOutputList{
              unspent_outputs: [
-               %UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: timestamp},
-               %UnspentOutput{from: "Bob3", amount: 2, type: :UCO, timestamp: timestamp}
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "Alice2",
+                   amount: 10,
+                   type: :UCO,
+                   timestamp: timestamp
+                 },
+                 protocol_version: 1
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "Bob3",
+                   amount: 2,
+                   type: :UCO,
+                   timestamp: timestamp
+                 },
+                 protocol_version: 1
+               }
              ]
            }}
       end)

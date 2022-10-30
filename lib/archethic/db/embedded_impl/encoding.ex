@@ -25,7 +25,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   """
   @spec encode(Transaction.t()) :: binary()
   def encode(%Transaction{
-        version: 1,
+        version: tx_version,
         address: address,
         type: type,
         data: %TransactionData{
@@ -56,17 +56,17 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       }) do
     ownerships_encoding =
       ownerships
-      |> Enum.map(&Ownership.serialize/1)
+      |> Enum.map(&Ownership.serialize(&1, tx_version))
       |> :erlang.list_to_binary()
 
     transaction_movements_encoding =
       transaction_movements
-      |> Enum.map(&TransactionMovement.serialize/1)
+      |> Enum.map(&TransactionMovement.serialize(&1, protocol_version))
       |> :erlang.list_to_binary()
 
     unspent_outputs_encoding =
       unspent_outputs
-      |> Enum.map(&UnspentOutput.serialize/1)
+      |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
       |> :erlang.list_to_binary()
 
     cross_validation_stamps_encoding =
@@ -77,11 +77,20 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
     encoded_ownerships_len = length(ownerships) |> VarInt.from_value()
 
-    encoded_transaction_movements_len = length(transaction_movements) |> VarInt.from_value()
+    encoded_transaction_movements_len =
+      transaction_movements
+      |> length()
+      |> VarInt.from_value()
 
-    encoded_unspent_outputs_len = length(unspent_outputs) |> VarInt.from_value()
+    encoded_unspent_outputs_len =
+      unspent_outputs
+      |> length()
+      |> VarInt.from_value()
 
-    encoded_resolved_recipients_len = length(resolved_recipients) |> VarInt.from_value()
+    encoded_resolved_recipients_len =
+      resolved_recipients
+      |> length()
+      |> VarInt.from_value()
 
     encoding =
       [
@@ -89,8 +98,8 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"type", <<Transaction.serialize_type(type)::8>>},
         {"data.content", content},
         {"data.code", code},
-        {"data.ledger.uco", UCOLedger.serialize(uco_ledger)},
-        {"data.ledger.token", TokenLedger.serialize(token_ledger)},
+        {"data.ledger.uco", UCOLedger.serialize(uco_ledger, tx_version)},
+        {"data.ledger.token", TokenLedger.serialize(token_ledger, tx_version)},
         {"data.ownerships", <<encoded_ownerships_len::binary, ownerships_encoding::binary>>},
         {"data.recipients",
          <<encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary>>},
@@ -134,26 +143,26 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     put_in(acc, [Access.key(:data, %{}), :code], code)
   end
 
-  def decode(_version, "data.ownerships", <<rest::binary>>, acc) do
-    {nb, rest} = rest |> VarInt.get_value()
-    ownerships = deserialize_ownerships(rest, nb, [])
+  def decode(tx_version, "data.ownerships", <<rest::binary>>, acc) do
+    {nb, rest} = VarInt.get_value(rest)
+    ownerships = deserialize_ownerships(rest, nb, [], tx_version)
     put_in(acc, [Access.key(:data, %{}), :ownerships], ownerships)
   end
 
-  def decode(_version, "data.ledger.uco", data, acc) do
-    {uco_ledger, _} = UCOLedger.deserialize(data)
+  def decode(tx_version, "data.ledger.uco", data, acc) do
+    {uco_ledger, _} = UCOLedger.deserialize(data, tx_version)
     put_in(acc, [Access.key(:data, %{}), Access.key(:ledger, %{}), :uco], uco_ledger)
   end
 
-  def decode(_version, "data.ledger.token", data, acc) do
-    {token_ledger, _} = TokenLedger.deserialize(data)
+  def decode(tx_version, "data.ledger.token", data, acc) do
+    {token_ledger, _} = TokenLedger.deserialize(data, tx_version)
     put_in(acc, [Access.key(:data, %{}), Access.key(:ledger, %{}), :token], token_ledger)
   end
 
   def decode(_version, "data.recipients", <<1::8, 0::8>>, acc), do: acc
 
   def decode(_version, "data.recipients", <<rest::binary>>, acc) do
-    {nb, rest} = rest |> VarInt.get_value()
+    {nb, rest} = VarInt.get_value(rest)
     {recipients, _} = Utils.deserialize_addresses(rest, nb, [])
     put_in(acc, [Access.key(:data, %{}), :recipients], recipients)
   end
@@ -187,13 +196,13 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   end
 
   def decode(
-        1,
+        protocol_version,
         "validation_stamp.ledger_operations.transaction_movements",
         <<rest::binary>>,
         acc
       ) do
     {nb, rest} = rest |> VarInt.get_value()
-    tx_movements = deserialize_transaction_movements(rest, nb, [])
+    tx_movements = deserialize_transaction_movements(rest, nb, [], protocol_version)
 
     put_in(
       acc,
@@ -207,13 +216,13 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   end
 
   def decode(
-        _version,
+        protocol_version,
         "validation_stamp.ledger_operations.unspent_outputs",
         <<rest::binary>>,
         acc
       ) do
-    {nb, rest} = rest |> VarInt.get_value()
-    utxos = deserialize_unspent_outputs(rest, nb, [])
+    {nb, rest} = VarInt.get_value(rest)
+    utxos = deserialize_unspent_outputs(rest, nb, [], protocol_version)
 
     put_in(
       acc,
@@ -223,7 +232,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   end
 
   def decode(_version, "validation_stamp.recipients", <<rest::binary>>, acc) do
-    {nb, rest} = rest |> VarInt.get_value()
+    {nb, rest} = VarInt.get_value(rest)
     {recipients, _} = Utils.deserialize_addresses(rest, nb, [])
     put_in(acc, [Access.key(:validation_stamp, %{}), :recipients], recipients)
   end
@@ -243,37 +252,37 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   def decode(_version, column, data, acc), do: Map.put(acc, column, data)
 
-  defp deserialize_ownerships(_, 0, _), do: []
+  defp deserialize_ownerships(_, 0, _, _), do: []
 
-  defp deserialize_ownerships(_, nb, acc) when length(acc) == nb do
+  defp deserialize_ownerships(_, nb, acc, _) when length(acc) == nb do
     Enum.reverse(acc)
   end
 
-  defp deserialize_ownerships(rest, nb, acc) do
-    {ownership, rest} = Ownership.deserialize(rest)
-    deserialize_ownerships(rest, nb, [ownership | acc])
+  defp deserialize_ownerships(rest, nb, acc, tx_version) do
+    {ownership, rest} = Ownership.deserialize(rest, tx_version)
+    deserialize_ownerships(rest, nb, [ownership | acc], tx_version)
   end
 
-  defp deserialize_unspent_outputs(_, 0, _), do: []
+  defp deserialize_unspent_outputs(_, 0, _, _), do: []
 
-  defp deserialize_unspent_outputs(_, nb, acc) when length(acc) == nb do
+  defp deserialize_unspent_outputs(_, nb, acc, _) when length(acc) == nb do
     Enum.reverse(acc)
   end
 
-  defp deserialize_unspent_outputs(rest, nb, acc) do
-    {utxo, rest} = UnspentOutput.deserialize(rest)
-    deserialize_unspent_outputs(rest, nb, [utxo | acc])
+  defp deserialize_unspent_outputs(rest, nb, acc, protocol_version) do
+    {utxo, rest} = UnspentOutput.deserialize(rest, protocol_version)
+    deserialize_unspent_outputs(rest, nb, [utxo | acc], protocol_version)
   end
 
-  defp deserialize_transaction_movements(_, 0, _), do: []
+  defp deserialize_transaction_movements(_, 0, _, _), do: []
 
-  defp deserialize_transaction_movements(_, nb, acc) when length(acc) == nb do
+  defp deserialize_transaction_movements(_, nb, acc, _) when length(acc) == nb do
     Enum.reverse(acc)
   end
 
-  defp deserialize_transaction_movements(rest, nb, acc) do
-    {tx_movement, rest} = TransactionMovement.deserialize(rest)
-    deserialize_transaction_movements(rest, nb, [tx_movement | acc])
+  defp deserialize_transaction_movements(rest, nb, acc, protocol_version) do
+    {tx_movement, rest} = TransactionMovement.deserialize(rest, protocol_version)
+    deserialize_transaction_movements(rest, nb, [tx_movement | acc], protocol_version)
   end
 
   defp deserialize_cross_validation_stamps(_, 0, _), do: []

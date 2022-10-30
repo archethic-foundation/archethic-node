@@ -25,6 +25,10 @@ defmodule Archethic.Mining do
 
   use Retry
 
+  @protocol_version 3
+
+  def protocol_version, do: @protocol_version
+
   @doc """
   Start mining process for a given transaction.
   """

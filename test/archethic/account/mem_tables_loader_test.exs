@@ -19,6 +19,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   import Mox
 
   doctest Archethic.Account.MemTablesLoader
@@ -45,27 +47,42 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         %Transaction{
           address: "@RewardToken0",
           type: :mint_rewards,
-          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          validation_stamp: %ValidationStamp{
+            protocol_version: 1,
+            ledger_operations: %LedgerOperations{fee: 0}
+          }
         },
         %Transaction{
           address: "@RewardToken1",
           type: :mint_rewards,
-          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          validation_stamp: %ValidationStamp{
+            protocol_version: 1,
+            ledger_operations: %LedgerOperations{fee: 0}
+          }
         },
         %Transaction{
           address: "@RewardToken2",
           type: :mint_rewards,
-          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          validation_stamp: %ValidationStamp{
+            protocol_version: 1,
+            ledger_operations: %LedgerOperations{fee: 0}
+          }
         },
         %Transaction{
           address: "@RewardToken3",
           type: :mint_rewards,
-          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          validation_stamp: %ValidationStamp{
+            protocol_version: 1,
+            ledger_operations: %LedgerOperations{fee: 0}
+          }
         },
         %Transaction{
           address: "@RewardToken4",
           type: :mint_rewards,
-          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          validation_stamp: %ValidationStamp{
+            protocol_version: 1,
+            ledger_operations: %LedgerOperations{fee: 0}
+          }
         }
       ]
     end)
@@ -93,27 +110,57 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       assert :ok = MemTablesLoader.load_transaction(create_transaction(timestamp))
 
       [
-        %UnspentOutput{
-          from: "@Charlie3",
-          amount: 1_900_000_000,
-          type: :UCO,
-          timestamp: ^timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Charlie3",
+            amount: 1_900_000_000,
+            type: :UCO,
+            timestamp: ^timestamp
+          },
+          protocol_version: 1
         },
-        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO, timestamp: ^timestamp}
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Alice2",
+            amount: 200_000_000,
+            type: :UCO,
+            timestamp: ^timestamp
+          },
+          protocol_version: 1
+        }
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000, timestamp: ^timestamp}] =
-        UCOLedger.get_unspent_outputs("@Tom4")
+      [
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Charlie3",
+            amount: 3_400_000_000,
+            timestamp: ^timestamp
+          },
+          protocol_version: 1
+        }
+      ] = UCOLedger.get_unspent_outputs("@Tom4")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 100_000_000, timestamp: ^timestamp}] =
-        UCOLedger.get_unspent_outputs(LedgerOperations.burning_address())
+      [
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Charlie3",
+            amount: 100_000_000,
+            timestamp: ^timestamp
+          },
+          protocol_version: 1
+        }
+      ] = UCOLedger.get_unspent_outputs(LedgerOperations.burning_address())
 
       assert [
-               %UnspentOutput{
-                 from: "@Charlie3",
-                 amount: 1_000_000_000,
-                 type: {:token, "@CharlieToken", 0},
-                 timestamp: ^timestamp
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 1_000_000_000,
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ^timestamp
+                 },
+                 protocol_version: 1
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
@@ -135,30 +182,47 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       assert {:ok, _} = MemTablesLoader.start_link()
 
       [
-        %UnspentOutput{
-          from: "@Charlie3",
-          amount: 1_900_000_000,
-          type: :UCO,
-          timestamp: ^timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Charlie3",
+            amount: 1_900_000_000,
+            type: :UCO,
+            timestamp: ^timestamp
+          },
+          protocol_version: 1
         },
-        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO, timestamp: ^timestamp}
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Alice2",
+            amount: 200_000_000,
+            type: :UCO,
+            timestamp: ^timestamp
+          },
+          protocol_version: 1
+        }
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
       [
-        %UnspentOutput{
-          from: "@Charlie3",
-          amount: 3_400_000_000,
-          type: :UCO,
-          timestamp: ^timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Charlie3",
+            amount: 3_400_000_000,
+            type: :UCO,
+            timestamp: ^timestamp
+          },
+          protocol_version: 1
         }
       ] = UCOLedger.get_unspent_outputs("@Tom4")
 
       assert [
-               %UnspentOutput{
-                 from: "@Charlie3",
-                 amount: 1_000_000_000,
-                 type: {:token, "@CharlieToken", 0},
-                 timestamp: ^timestamp
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 1_000_000_000,
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ^timestamp
+                 },
+                 protocol_version: 1
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
@@ -169,6 +233,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       address: "@Charlie3",
       previous_public_key: "Charlie2",
       validation_stamp: %ValidationStamp{
+        protocol_version: 1,
         timestamp: timestamp,
         ledger_operations: %LedgerOperations{
           fee: 100_000_000,
@@ -213,64 +278,88 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
       # uco ledger
       assert [
-               %UnspentOutput{
-                 from: "@Charlie3",
-                 amount: 1_900_000_000,
-                 type: :UCO,
-                 timestamp: ^validation_time
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 1_900_000_000,
+                   type: :UCO,
+                   timestamp: ^validation_time
+                 },
+                 protocol_version: 1
                },
-               %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO},
+                 protocol_version: 1
+               }
              ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
       assert [
-               %UnspentOutput{
-                 from: "@Charlie3",
-                 amount: 3_600_000_000,
-                 type: :UCO,
-                 timestamp: ^validation_time
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 3_600_000_000,
+                   type: :UCO,
+                   timestamp: ^validation_time
+                 },
+                 protocol_version: 1
                }
              ] = UCOLedger.get_unspent_outputs("@Tom4")
 
       assert [
-               %UnspentOutput{
-                 from: "@Charlie3",
-                 amount: 200_000_000,
-                 type: :UCO,
-                 timestamp: ^validation_time
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 200_000_000,
+                   type: :UCO,
+                   timestamp: ^validation_time
+                 },
+                 protocol_version: 1
                }
              ] = UCOLedger.get_unspent_outputs("@Bob3")
 
       #  token ledger
       assert [
-               %UnspentOutput{
-                 amount: 100_000_000,
-                 from: "@Rob1",
-                 reward?: false,
-                 timestamp: ^timestamp,
-                 type: {:token, "@WeatherNFT", 1}
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   amount: 100_000_000,
+                   from: "@Rob1",
+                   reward?: false,
+                   timestamp: ^timestamp,
+                   type: {:token, "@WeatherNFT", 1}
+                 },
+                 protocol_version: 1
                },
-               %UnspentOutput{
-                 from: "@RewardToken2",
-                 amount: 5_000_000_000,
-                 type: {:token, "@RewardToken2", 0},
-                 timestamp: ^validation_time
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@RewardToken2",
+                   amount: 5_000_000_000,
+                   type: {:token, "@RewardToken2", 0},
+                   timestamp: ^validation_time
+                 },
+                 protocol_version: 1
                },
-               %UnspentOutput{
-                 from: "@RewardToken1",
-                 amount: 5_000_000_000,
-                 type: {:token, "@RewardToken1", 0},
-                 timestamp: ^validation_time
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@RewardToken1",
+                   amount: 5_000_000_000,
+                   type: {:token, "@RewardToken1", 0},
+                   timestamp: ^validation_time
+                 },
+                 protocol_version: 1
                }
              ] = TokenLedger.get_unspent_outputs("@Charlie3")
 
       assert [] = TokenLedger.get_unspent_outputs("@Tom4")
 
       assert [
-               %UnspentOutput{
-                 from: "@Charlie3",
-                 amount: 1_000_000_000,
-                 type: {:token, "@CharlieToken", 0},
-                 timestamp: ^validation_time
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 1_000_000_000,
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ^validation_time
+                 },
+                 protocol_version: 1
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
@@ -281,6 +370,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       address: "@Charlie3",
       previous_public_key: "Charlie2",
       validation_stamp: %ValidationStamp{
+        protocol_version: 1,
         timestamp: validation_time,
         ledger_operations: %LedgerOperations{
           fee: 0,

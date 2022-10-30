@@ -19,7 +19,11 @@ defmodule Archethic.Replication.TransactionContextTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.P2P.Message.GetFirstAddress
   alias Archethic.P2P.Message.NotFound
   # alias Archethic.P2P.Message.FirstAddress
@@ -79,11 +83,14 @@ defmodule Archethic.Replication.TransactionContextTest do
   test "fetch_transaction_inputs/2 should retrieve the inputs of a transaction at a given date" do
     UCOLedger.add_unspent_output(
       "@Alice1",
-      %UnspentOutput{
-        from: "@Bob3",
-        amount: 19_300_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: "@Bob3",
+          amount: 19_300_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        },
+        protocol_version: 1
       }
     )
 
@@ -92,11 +99,14 @@ defmodule Archethic.Replication.TransactionContextTest do
       {:ok,
        %TransactionInputList{
          inputs: [
-           %TransactionInput{
-             from: "@Bob3",
-             amount: 19_300_000,
-             type: :UCO,
-             timestamp: DateTime.utc_now()
+           %VersionedTransactionInput{
+             input: %TransactionInput{
+               from: "@Bob3",
+               amount: 19_300_000,
+               type: :UCO,
+               timestamp: DateTime.utc_now()
+             },
+             protocol_version: 1
            }
          ]
        }}

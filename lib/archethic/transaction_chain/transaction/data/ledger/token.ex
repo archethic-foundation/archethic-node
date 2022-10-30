@@ -30,7 +30,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
       ...>     token_id: 0
       ...>   }
       ...> ]}
-      ...> |> TokenLedger.serialize()
+      ...> |> TokenLedger.serialize(current_transaction_version())
       <<
         # Number of Token transfers in VarInt
         1, 1,
@@ -46,9 +46,13 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
         1, 0
       >>
   """
-  @spec serialize(t()) :: binary()
-  def serialize(%__MODULE__{transfers: transfers}) do
-    transfers_bin = Enum.map(transfers, &Transfer.serialize/1) |> :erlang.list_to_binary()
+  @spec serialize(token_ledger :: t(), tx_version :: pos_integer()) :: binary()
+  def serialize(%__MODULE__{transfers: transfers}, tx_version) do
+    transfers_bin =
+      transfers
+      |> Enum.map(&Transfer.serialize(&1, tx_version))
+      |> :erlang.list_to_binary()
+
     encoded_transfer = VarInt.from_value(length(transfers))
     <<encoded_transfer::binary, transfers_bin::binary>>
   end
@@ -62,7 +66,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0>>
-      ...> |> TokenLedger.deserialize()
+      ...> |> TokenLedger.deserialize(current_transaction_version())
       {
         %TokenLedger{
           transfers: [
@@ -79,17 +83,10 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
         ""
       }
   """
-  @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<1::8, 0::8, rest::bitstring>>) do
-    {
-      %__MODULE__{},
-      rest
-    }
-  end
-
-  def deserialize(<<rest::bitstring>>) do
-    {nb_transfers, rest} = rest |> VarInt.get_value()
-    {transfers, rest} = do_reduce_transfers(rest, nb_transfers, [])
+  @spec deserialize(data :: bitstring(), tx_version :: pos_integer()) :: {t(), bitstring}
+  def deserialize(data, tx_version) do
+    {nb_transfers, rest} = VarInt.get_value(data)
+    {transfers, rest} = do_reduce_transfers(rest, nb_transfers, [], tx_version)
 
     {
       %__MODULE__{
@@ -99,12 +96,14 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
     }
   end
 
-  defp do_reduce_transfers(rest, nb_transfers, acc) when length(acc) == nb_transfers,
+  defp do_reduce_transfers(rest, 0, _, _), do: {[], rest}
+
+  defp do_reduce_transfers(rest, nb_transfers, acc, _) when length(acc) == nb_transfers,
     do: {Enum.reverse(acc), rest}
 
-  defp do_reduce_transfers(binary, nb_transfers, acc) do
-    {transfer, rest} = Transfer.deserialize(binary)
-    do_reduce_transfers(rest, nb_transfers, [transfer | acc])
+  defp do_reduce_transfers(binary, nb_transfers, acc, tx_version) do
+    {transfer, rest} = Transfer.deserialize(binary, tx_version)
+    do_reduce_transfers(rest, nb_transfers, [transfer | acc], tx_version)
   end
 
   @spec cast(map()) :: t()
@@ -117,12 +116,9 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
   @spec to_map(t() | nil) :: map()
   def to_map(nil), do: %{transfers: []}
 
-  def to_map(token_ledger = %__MODULE__{}) do
+  def to_map(%__MODULE__{transfers: transfers}) do
     %{
-      transfers:
-        token_ledger
-        |> Map.get(:transfers, [])
-        |> Enum.map(&Transfer.to_map/1)
+      transfers: Enum.map(transfers, &Transfer.to_map/1)
     }
   end
 

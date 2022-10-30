@@ -1,5 +1,7 @@
 defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperationsTest do
   use ArchethicCase
+
+  import ArchethicCase, only: [current_protocol_version: 0]
   use ExUnitProperties
 
   alias Archethic.TransactionChain.Transaction

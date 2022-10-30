@@ -2,7 +2,6 @@ defmodule Archethic.Mining.ValidationContext do
   @moduledoc """
   Represent the transaction validation workflow state
   """
-  @protocol_version 2
   defstruct [
     :transaction,
     :previous_transaction,
@@ -43,6 +42,7 @@ defmodule Archethic.Mining.ValidationContext do
 
   alias Archethic.Election
 
+  alias Archethic.Mining
   alias Archethic.Mining.Fee
   alias Archethic.Mining.ProofOfWork
 
@@ -772,7 +772,7 @@ defmodule Archethic.Mining.ValidationContext do
 
     validation_stamp =
       %ValidationStamp{
-        protocol_version: @protocol_version,
+        protocol_version: Mining.protocol_version(),
         timestamp: validation_time,
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
@@ -1145,7 +1145,7 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   defp valid_protocol_version?(%ValidationStamp{protocol_version: version}),
-    do: @protocol_version == version
+    do: Mining.protocol_version() == version
 
   @doc """
   Get the chain storage node position

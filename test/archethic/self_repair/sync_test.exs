@@ -20,16 +20,15 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
   alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetFirstAddress
   # alias Archethic.P2P.Message.FirstAddress
 
   alias Archethic.TransactionFactory
 
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -243,10 +242,13 @@ defmodule Archethic.SelfRepair.SyncTest do
           {:ok, %NotFound{}}
 
         _, %GetTransactionInputs{}, _ ->
-          {:ok, %TransactionInputList{inputs: inputs}}
-
-        _, %GetUnspentOutputs{}, _ ->
-          {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+          {:ok,
+           %TransactionInputList{
+             inputs:
+               Enum.map(inputs, fn input ->
+                 %VersionedTransactionInput{input: input, protocol_version: 1}
+               end)
+           }}
 
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
@@ -279,6 +281,8 @@ defmodule Archethic.SelfRepair.SyncTest do
     end
 
     test "should synchronize transactions" do
+      create_p2p_context()
+
       inputs = [
         %TransactionInput{
           from: "@Alice2",
@@ -287,22 +291,11 @@ defmodule Archethic.SelfRepair.SyncTest do
           timestamp: DateTime.utc_now()
         }
       ]
-
-      create_p2p_context()
 
       transfer_tx =
         TransactionFactory.create_valid_transaction(inputs,
           seed: "transfer_seed"
         )
-
-      inputs = [
-        %TransactionInput{
-          from: "@Alice2",
-          amount: 1_000_000_000,
-          type: :UCO,
-          timestamp: DateTime.utc_now()
-        }
-      ]
 
       tx_address = transfer_tx.address
       me = self()
@@ -325,10 +318,13 @@ defmodule Archethic.SelfRepair.SyncTest do
           {:ok, %TransactionList{transactions: []}}
 
         _, %GetTransactionInputs{address: _}, _ ->
-          {:ok, %TransactionInputList{inputs: inputs}}
-
-        _, %GetUnspentOutputs{}, _ ->
-          {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+          {:ok,
+           %TransactionInputList{
+             inputs:
+               Enum.map(inputs, fn input ->
+                 %VersionedTransactionInput{input: input, protocol_version: 1}
+               end)
+           }}
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}

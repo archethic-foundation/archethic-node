@@ -1,6 +1,7 @@
 defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovementTest do
-  @moduledoc false
-  use ExUnit.Case
+  use ArchethicCase
+
+  import ArchethicCase, only: [current_protocol_version: 0]
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 

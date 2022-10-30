@@ -1,5 +1,7 @@
 defmodule Archethic.TransactionChain.TransactionData.OwnershipTest do
-  use ExUnit.Case
+  use ArchethicCase
+
+  import ArchethicCase, only: [current_transaction_version: 0]
   use ExUnitProperties
 
   alias Archethic.Crypto
@@ -40,8 +42,8 @@ defmodule Archethic.TransactionChain.TransactionData.OwnershipTest do
 
       {key, _} =
         Ownership.new(secret, secret_key, public_keys)
-        |> Ownership.serialize()
-        |> Ownership.deserialize()
+        |> Ownership.serialize(current_transaction_version())
+        |> Ownership.deserialize(current_transaction_version())
 
       assert key.secret == secret
 

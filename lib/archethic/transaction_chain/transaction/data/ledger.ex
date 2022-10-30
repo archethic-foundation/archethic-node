@@ -42,7 +42,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
       ...>     ]
       ...>   }
       ...> }
-      ...> |> Ledger.serialize()
+      ...> |> Ledger.serialize(current_transaction_version())
       <<
         # Number of UCO transfers
         1, 1,
@@ -65,9 +65,10 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
         1, 0
       >>
   """
-  @spec serialize(t()) :: binary()
-  def serialize(%__MODULE__{uco: uco_ledger, token: token_ledger}) do
-    <<UCOLedger.serialize(uco_ledger)::binary, TokenLedger.serialize(token_ledger)::binary>>
+  @spec serialize(transaction_ledger :: t(), transaction_version :: pos_integer()) :: binary()
+  def serialize(%__MODULE__{uco: uco_ledger, token: token_ledger}, tx_version) do
+    <<UCOLedger.serialize(uco_ledger, tx_version)::binary,
+      TokenLedger.serialize(token_ledger, tx_version)::binary>>
   end
 
   @doc """
@@ -82,7 +83,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
       ...> 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0>>
-      ...> |> Ledger.deserialize()
+      ...> |> Ledger.deserialize(1)
       {
         %Ledger{
           uco: %UCOLedger{
@@ -110,10 +111,11 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
         ""
       }
   """
-  @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(binary) when is_bitstring(binary) do
-    {uco_ledger, rest} = UCOLedger.deserialize(binary)
-    {token_ledger, rest} = TokenLedger.deserialize(rest)
+  @spec deserialize(data :: bitstring(), transaction_version :: pos_integer()) ::
+          {t(), bitstring()}
+  def deserialize(data, tx_version) when is_bitstring(data) do
+    {uco_ledger, rest} = UCOLedger.deserialize(data, tx_version)
+    {token_ledger, rest} = TokenLedger.deserialize(rest, tx_version)
 
     {
       %__MODULE__{

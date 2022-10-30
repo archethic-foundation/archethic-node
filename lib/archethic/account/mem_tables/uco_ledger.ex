@@ -5,7 +5,11 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   @unspent_output_index_table :archethic_uco_unspent_output_index
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   use GenServer
 
@@ -13,7 +17,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
   @doc """
   Initialize the UCO ledger tables:
-  - Main UCO ledger as ETS set ({{to, from}, amount, spent?, timestamp, reward?})
+  - Main UCO ledger as ETS set ({{to, from}, amount, spent?, timestamp, reward?, protocol_version})
   - UCO Unspent Output Index as ETS bag (to, from)
   """
   @spec start_link(args :: list()) :: GenServer.on_start()
@@ -43,33 +47,21 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
   @doc """
   Add an unspent output to the ledger for the recipient address
-
-  ## Examples
-
-      iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> { :ets.tab2list(:archethic_uco_ledger), :ets.tab2list(:archethic_uco_unspent_output_index) }
-      {
-        [
-          {{"@Alice2", "@Bob3"}, 300_000_000, false, ~U[2022-10-11 09:24:01.879Z], false},
-          {{"@Alice2", "@Charlie10"}, 100_000_000, false, ~U[2022-10-11 09:24:01.879Z], false}
-       ],
-        [
-          {"@Alice2", "@Bob3"},
-          {"@Alice2", "@Charlie10"}
-        ]
-      }
-
   """
-  @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
+  @spec add_unspent_output(
+          recipient_address :: binary(),
+          utxo :: VersionedUnspentOutput.t()
+        ) :: :ok
   def add_unspent_output(
         to,
-        %UnspentOutput{
-          from: from,
-          amount: amount,
-          reward?: reward?,
-          timestamp: %DateTime{} = timestamp
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: from,
+            amount: amount,
+            reward?: reward?,
+            timestamp: %DateTime{} = timestamp
+          },
+          protocol_version: protocol_version
         }
       )
       when is_binary(to) and is_integer(amount) and amount > 0 do
@@ -82,7 +74,12 @@ defmodule Archethic.Account.MemTables.UCOLedger do
           :ets.lookup_element(@ledger_table, ledger_key, 3)
       end
 
-    true = :ets.insert(@ledger_table, {{to, from}, amount, spent?, timestamp, reward?})
+    true =
+      :ets.insert(
+        @ledger_table,
+        {{to, from}, amount, spent?, timestamp, reward?, protocol_version}
+      )
+
     true = :ets.insert(@unspent_output_index_table, {to, from})
 
     Logger.info("#{amount} unspent UCO added for #{Base.encode16(to)}",
@@ -94,36 +91,24 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
   @doc """
   Get the unspent outputs for a given transaction address
-
-  ## Examples
-
-      iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: :UCO, timestamp: ~U[2022-10-10 09:27:17.846Z]})
-      iex> UCOLedger.get_unspent_outputs("@Alice2")
-      [
-        %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: :UCO,  timestamp: ~U[2022-10-10 09:27:17.846Z] },
-        %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]},
-       ]
-
-      iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> UCOLedger.get_unspent_outputs("@Alice2")
-      []
   """
-  @spec get_unspent_outputs(binary()) :: list(UnspentOutput.t())
+  @spec get_unspent_outputs(address :: binary()) :: list(VersionedUnspentOutput.t())
   def get_unspent_outputs(address) when is_binary(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
     |> Enum.reduce([], fn {_, from}, acc ->
       case :ets.lookup(@ledger_table, {address, from}) do
-        [{{^address, ^from}, amount, false, timestamp, reward?}] ->
+        [{{^address, ^from}, amount, false, timestamp, reward?, protocol_version}] ->
           [
-            %UnspentOutput{
-              from: from,
-              amount: amount,
-              type: :UCO,
-              reward?: reward?,
-              timestamp: timestamp
+            %VersionedUnspentOutput{
+              unspent_output: %UnspentOutput{
+                from: from,
+                amount: amount,
+                type: :UCO,
+                reward?: reward?,
+                timestamp: timestamp
+              },
+              protocol_version: protocol_version
             }
             | acc
           ]
@@ -136,16 +121,6 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
   @doc """
   Spend all the unspent outputs for the given address
-
-  ## Examples
-
-      iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> :ok = UCOLedger.spend_all_unspent_outputs("@Alice2")
-      iex> UCOLedger.get_unspent_outputs("@Alice2")
-      []
-
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
@@ -158,42 +133,25 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
   @doc """
   Retrieve the entire inputs for a given address (spent or unspent)
-
-  ## Examples
-
-      iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: :UCO, timestamp:  ~U[2022-10-11 09:24:01.879Z]})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> UCOLedger.get_inputs("@Alice2")
-      [
-        %TransactionInput{from: "@Bob3", amount: 300_000_000, spent?: false, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]},
-        %TransactionInput{from: "@Charlie10", amount: 100_000_000, spent?: false, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]}
-      ]
-
-      iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]})
-      iex> :ok = UCOLedger.spend_all_unspent_outputs("@Alice2")
-      iex> UCOLedger.get_inputs("@Alice2")
-      [
-        %TransactionInput{from: "@Bob3", amount: 300_000_000, spent?: true, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z] },
-        %TransactionInput{from: "@Charlie10", amount: 100_000_000, spent?: true, type: :UCO, timestamp: ~U[2022-10-11 09:24:01.879Z]}
-      ]
   """
-  @spec get_inputs(binary()) :: list(TransactionInput.t())
+  @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
     |> Enum.map(fn {_, from} ->
-      [{_, amount, spent?, timestamp, reward?}] = :ets.lookup(@ledger_table, {address, from})
+      [{_, amount, spent?, timestamp, reward?, protocol_version}] =
+        :ets.lookup(@ledger_table, {address, from})
 
-      %TransactionInput{
-        from: from,
-        amount: amount,
-        spent?: spent?,
-        type: :UCO,
-        timestamp: timestamp,
-        reward?: reward?
+      %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: from,
+          amount: amount,
+          spent?: spent?,
+          type: :UCO,
+          timestamp: timestamp,
+          reward?: reward?
+        },
+        protocol_version: protocol_version
       }
     end)
   end

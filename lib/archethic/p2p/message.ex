@@ -84,8 +84,11 @@ defmodule Archethic.P2P.Message do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.TaskSupervisor
@@ -507,7 +510,7 @@ defmodule Archethic.P2P.Message do
   def encode(%TransactionInputList{inputs: inputs, more?: more?, offset: offset}) do
     inputs_bin =
       inputs
-      |> Stream.map(&TransactionInput.serialize/1)
+      |> Stream.map(&VersionedTransactionInput.serialize/1)
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
@@ -576,11 +579,14 @@ defmodule Archethic.P2P.Message do
   def encode(%UnspentOutputList{unspent_outputs: unspent_outputs, more?: more?, offset: offset}) do
     unspent_outputs_bin =
       unspent_outputs
-      |> Stream.map(&UnspentOutput.serialize/1)
+      |> Stream.map(&VersionedUnspentOutput.serialize/1)
       |> Enum.to_list()
       |> :erlang.list_to_binary()
 
-    encoded_unspent_outputs_length = Enum.count(unspent_outputs) |> VarInt.from_value()
+    encoded_unspent_outputs_length =
+      unspent_outputs
+      |> Enum.count()
+      |> VarInt.from_value()
 
     more_bit = if more?, do: 1, else: 0
 
@@ -1064,7 +1070,7 @@ defmodule Archethic.P2P.Message do
     {nb_inputs, rest} = rest |> VarInt.get_value()
 
     {inputs, <<more_bit::1, rest::bitstring>>} =
-      deserialize_transaction_inputs(rest, nb_inputs, [])
+      deserialize_versioned_transaction_inputs(rest, nb_inputs, [])
 
     more? = more_bit == 1
 
@@ -1124,7 +1130,7 @@ defmodule Archethic.P2P.Message do
     {nb_unspent_outputs, rest} = rest |> VarInt.get_value()
 
     {unspent_outputs, <<more_bit::1, rest::bitstring>>} =
-      deserialize_unspent_output_list(rest, nb_unspent_outputs, [])
+      deserialize_versioned_unspent_output_list(rest, nb_unspent_outputs, [])
 
     more? = more_bit == 1
 
@@ -1189,27 +1195,37 @@ defmodule Archethic.P2P.Message do
     deserialize_tx_list(rest, nb_transactions, [tx | acc])
   end
 
-  defp deserialize_unspent_output_list(rest, 0, _acc), do: {[], rest}
+  defp deserialize_versioned_unspent_output_list(rest, 0, _acc), do: {[], rest}
 
-  defp deserialize_unspent_output_list(rest, nb_unspent_outputs, acc)
+  defp deserialize_versioned_unspent_output_list(rest, nb_unspent_outputs, acc)
        when length(acc) == nb_unspent_outputs do
     {Enum.reverse(acc), rest}
   end
 
-  defp deserialize_unspent_output_list(rest, nb_unspent_outputs, acc) do
-    {unspent_output, rest} = UnspentOutput.deserialize(rest)
-    deserialize_unspent_output_list(rest, nb_unspent_outputs, [unspent_output | acc])
+  defp deserialize_versioned_unspent_output_list(
+         rest,
+         nb_unspent_outputs,
+         acc
+       ) do
+    {unspent_output, rest} = VersionedUnspentOutput.deserialize(rest)
+
+    deserialize_versioned_unspent_output_list(rest, nb_unspent_outputs, [unspent_output | acc])
   end
 
-  defp deserialize_transaction_inputs(rest, 0, _acc), do: {[], rest}
+  defp deserialize_versioned_transaction_inputs(rest, 0, _acc), do: {[], rest}
 
-  defp deserialize_transaction_inputs(rest, nb_inputs, acc) when length(acc) == nb_inputs do
+  defp deserialize_versioned_transaction_inputs(rest, nb_inputs, acc)
+       when length(acc) == nb_inputs do
     {Enum.reverse(acc), rest}
   end
 
-  defp deserialize_transaction_inputs(rest, nb_inputs, acc) do
-    {input, rest} = TransactionInput.deserialize(rest)
-    deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
+  defp deserialize_versioned_transaction_inputs(
+         rest,
+         nb_inputs,
+         acc
+       ) do
+    {input, rest} = VersionedTransactionInput.deserialize(rest)
+    deserialize_versioned_transaction_inputs(rest, nb_inputs, [input | acc])
   end
 
   defp deserialize_token_balances(rest, 0, _acc), do: {%{}, rest}
@@ -1328,19 +1344,23 @@ defmodule Archethic.P2P.Message do
       # |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
       |> Enum.with_index()
       |> Enum.drop(offset)
-      |> Enum.reduce_while(%{utxos: [], offset: 0, more?: false}, fn {utxo, index}, acc ->
+      |> Enum.reduce_while(%{utxos: [], offset: 0, more?: false}, fn {versioned_utxo, index},
+                                                                     acc ->
         acc_size =
           acc.utxos
-          |> Enum.map(&UnspentOutput.serialize/1)
+          |> Enum.map(&VersionedUnspentOutput.serialize/1)
           |> :erlang.list_to_binary()
           |> byte_size()
 
-        utxo_size = UnspentOutput.serialize(utxo) |> byte_size
+        utxo_size =
+          versioned_utxo
+          |> VersionedUnspentOutput.serialize()
+          |> byte_size
 
         if acc_size + utxo_size < 3_000_000 do
           new_acc =
             acc
-            |> Map.update!(:utxos, &[utxo | &1])
+            |> Map.update!(:utxos, &[versioned_utxo | &1])
             |> Map.put(:offset, index + 1)
             |> Map.put(:more?, index + 1 < utxos_length)
 
@@ -1535,17 +1555,21 @@ defmodule Archethic.P2P.Message do
 
     %{inputs: inputs, offset: offset, more?: more?} =
       inputs
-      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+      |> Enum.sort_by(& &1.input.timestamp, {:desc, DateTime})
       |> Enum.with_index()
       |> Enum.drop(offset)
-      |> Enum.reduce_while(%{inputs: [], offset: 0, more?: false}, fn {input, index}, acc ->
+      |> Enum.reduce_while(%{inputs: [], offset: 0, more?: false}, fn {versioned_input, index},
+                                                                      acc ->
         acc_size =
           acc.inputs
-          |> Enum.map(&TransactionInput.serialize/1)
+          |> Enum.map(&VersionedTransactionInput.serialize/1)
           |> :erlang.list_to_bitstring()
           |> byte_size()
 
-        input_size = TransactionInput.serialize(input) |> byte_size
+        input_size =
+          versioned_input
+          |> VersionedTransactionInput.serialize()
+          |> byte_size
 
         size_capacity? = acc_size + input_size < 3_000_000
 
@@ -1559,7 +1583,7 @@ defmodule Archethic.P2P.Message do
         if should_take_more? do
           new_acc =
             acc
-            |> Map.update!(:inputs, &[input | &1])
+            |> Map.update!(:inputs, &[versioned_input | &1])
             |> Map.put(:offset, index + 1)
             |> Map.put(:more?, index + 1 < inputs_length)
 

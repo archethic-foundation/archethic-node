@@ -19,6 +19,9 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -41,11 +44,14 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
     })
 
     unspent_outputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        },
+        protocol_version: 1
       }
     ]
 

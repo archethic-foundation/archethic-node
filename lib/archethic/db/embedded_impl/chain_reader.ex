@@ -32,14 +32,26 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         {:ok, <<size::32, version::32>>} = :file.pread(fd, offset, 8)
         column_names = fields_to_column_names(fields)
 
+        # Ensure the validation stamp's protocol version is retrieved if we fetch validation stamp fields
+        has_validation_stamp_fields? =
+          Enum.any?(column_names, &String.starts_with?(&1, "validation_stamp."))
+
+        has_validation_stamp_protocol_field? =
+          Enum.any?(column_names, &(&1 == "validation_stamp.protocol_version"))
+
+        column_names =
+          if has_validation_stamp_fields? and !has_validation_stamp_protocol_field? do
+            ["validation_stamp.protocol_version" | column_names]
+          else
+            column_names
+          end
+
         # Read the transaction and extract requested columns from the fields arg
         tx =
-          read_transaction(fd, column_names, size, 0)
-          |> Enum.reduce(%{version: version}, fn {column, data}, acc ->
-            Encoding.decode(version, column, data, acc)
-          end)
-          |> Utils.atomize_keys()
-          |> Transaction.cast()
+          fd
+          |> read_transaction(column_names, size, 0)
+          |> Enum.into(%{})
+          |> decode_transaction_columns(version)
 
         :file.close(fd)
 
@@ -152,6 +164,20 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
     column_names = fields_to_column_names(fields)
 
+    # Ensure the validation stamp's protocol version is retrieved if we fetch validation stamp fields
+    has_validation_stamp_fields? =
+      Enum.any?(column_names, &String.starts_with?(&1, "validation_stamp."))
+
+    has_validation_stamp_protocol_field? =
+      Enum.any?(column_names, &(&1 == "validation_stamp.protocol_version"))
+
+    column_names =
+      if has_validation_stamp_fields? and !has_validation_stamp_protocol_field? do
+        ["validation_stamp.protocol_version" | column_names]
+      else
+        column_names
+      end
+
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
     {transactions, more?, paging_state} = do_scan_chain(fd, column_names, address)
     :file.close(fd)
@@ -236,15 +262,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           %Transaction{address: address} = List.first(acc)
           {Enum.reverse(acc), true, address}
         else
-          data = read_transaction(fd, fields, size, 0)
-
           tx =
-            data
-            |> Enum.reduce(%{version: version}, fn {column, data}, acc ->
-              Encoding.decode(version, column, data, acc)
-            end)
-            |> Utils.atomize_keys()
-            |> Transaction.cast()
+            fd
+            |> read_transaction(fields, size, 0)
+            |> decode_transaction_columns(version)
 
           if tx.address == limit_address do
             {Enum.reverse([tx | acc]), false, nil}
@@ -330,5 +351,28 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
   def fields_to_column_names(field, acc, prepend) do
     fields_to_column_names([], ["#{prepend}.#{Atom.to_string(field)}" | acc])
+  end
+
+  defp decode_transaction_columns(tx_columns, tx_version) do
+    <<protocol_version::32>> = Map.get(tx_columns, "validation_stamp.protocol_version", <<1::32>>)
+
+    Enum.reduce(
+      tx_columns,
+      %{version: tx_version, validation_stamp: %{protocol_version: protocol_version}},
+      fn {column, data}, acc ->
+        if String.starts_with?(column, "validation_stamp.") do
+          Encoding.decode(
+            protocol_version,
+            column,
+            data,
+            acc
+          )
+        else
+          Encoding.decode(tx_version, column, data, acc)
+        end
+      end
+    )
+    |> Utils.atomize_keys()
+    |> Transaction.cast()
   end
 end

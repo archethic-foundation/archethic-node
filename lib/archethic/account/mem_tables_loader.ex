@@ -21,6 +21,8 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.Utils
 
   require Logger
@@ -33,6 +35,7 @@ defmodule Archethic.Account.MemTablesLoader do
     :previous_public_key,
     validation_stamp: [
       :timestamp,
+      :protocol_version,
       ledger_operations: [:fee, :unspent_outputs, :transaction_movements]
     ]
   ]
@@ -71,6 +74,7 @@ defmodule Archethic.Account.MemTablesLoader do
         previous_public_key: previous_public_key,
         validation_stamp: %ValidationStamp{
           timestamp: timestamp,
+          protocol_version: protocol_version,
           ledger_operations: %LedgerOperations{
             fee: fee,
             unspent_outputs: unspent_outputs,
@@ -101,8 +105,17 @@ defmodule Archethic.Account.MemTablesLoader do
         transaction_movements
       end
 
-    :ok = set_transaction_movements(address, transaction_movements, timestamp, tx_type)
-    :ok = set_unspent_outputs(address, unspent_outputs)
+    :ok =
+      set_transaction_movements(
+        address,
+        transaction_movements,
+        timestamp,
+        tx_type,
+        protocol_version
+      )
+
+    # TODO: Remove timestamp argument before mainnet (reason: migration)
+    :ok = set_unspent_outputs(address, unspent_outputs, timestamp, protocol_version)
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
@@ -110,30 +123,58 @@ defmodule Archethic.Account.MemTablesLoader do
     )
   end
 
-  defp set_unspent_outputs(address, unspent_outputs) do
+  defp set_unspent_outputs(address, unspent_outputs, validation_timestamp, protocol_version) do
     unspent_outputs
     |> Enum.filter(&(&1.amount > 0))
+    |> Enum.map(fn
+      # TODO: Remove before mainnet (reason: migration)
+      unspent_output = %UnspentOutput{timestamp: nil} ->
+        %VersionedUnspentOutput{
+          unspent_output: %{unspent_output | timestamp: validation_timestamp},
+          protocol_version: protocol_version
+        }
+
+      unspent_output ->
+        %VersionedUnspentOutput{
+          unspent_output: unspent_output,
+          protocol_version: protocol_version
+        }
+    end)
     |> Enum.each(fn
-      unspent_output = %UnspentOutput{type: :UCO} ->
+      unspent_output = %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO}} ->
         UCOLedger.add_unspent_output(address, unspent_output)
 
-      unspent_output = %UnspentOutput{
-        type: {:token, _token_address, _token_id}
+      unspent_output = %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          type: {:token, _token_address, _token_id}
+        }
       } ->
         TokenLedger.add_unspent_output(address, unspent_output)
     end)
   end
 
-  defp set_transaction_movements(address, transaction_movements, timestamp, tx_type) do
+  defp set_transaction_movements(
+         address,
+         transaction_movements,
+         timestamp,
+         tx_type,
+         protocol_version
+       ) do
     transaction_movements
     |> Enum.filter(&(&1.amount > 0))
     |> Enum.reduce(%{}, &aggregate_movements(&1, &2, address, tx_type, timestamp))
     |> Enum.each(fn
       {{to, :uco}, utxo} ->
-        UCOLedger.add_unspent_output(to, utxo)
+        UCOLedger.add_unspent_output(to, %VersionedUnspentOutput{
+          unspent_output: utxo,
+          protocol_version: protocol_version
+        })
 
       {{to, _token_address, _token_id}, utxo} ->
-        TokenLedger.add_unspent_output(to, utxo)
+        TokenLedger.add_unspent_output(to, %VersionedUnspentOutput{
+          unspent_output: utxo,
+          protocol_version: protocol_version
+        })
     end)
   end
 

@@ -96,9 +96,9 @@ defmodule Archethic.Mining.Fee do
     |> byte_size()
   end
 
-  defp get_transaction_size(%Transaction{data: tx_data}) do
+  defp get_transaction_size(%Transaction{version: version, data: tx_data}) do
     tx_data
-    |> TransactionData.serialize()
+    |> TransactionData.serialize(version)
     |> byte_size()
   end
 

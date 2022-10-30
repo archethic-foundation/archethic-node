@@ -18,6 +18,8 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias Archethic.Utils
 
+  @version 1
+
   defstruct [
     :address,
     :type,
@@ -27,7 +29,7 @@ defmodule Archethic.TransactionChain.Transaction do
     :origin_signature,
     :validation_stamp,
     cross_validation_stamps: [],
-    version: 1
+    version: @version
   ]
 
   @typedoc """
@@ -97,6 +99,8 @@ defmodule Archethic.TransactionChain.Transaction do
   """
   @spec types() :: list(transaction_type())
   def types, do: @transaction_types
+
+  def version, do: @version
 
   @doc """
   Create a new pending transaction using the Crypto keystore to find out
@@ -591,12 +595,12 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>       73, 176, 212, 121, 236, 91, 94, 118, 108, 9, 228, 44, 237, 157, 90, 243,
       ...>       90, 6>>,
       ...>     timestamp: ~U[2022-02-15 21:15:50.000Z],
-      ...>     protocol_version: 2
+      ...>     protocol_version: current_protocol_version()
       ...>   },
-      ...>   version: 1
+      ...>   version: current_transaction_version()
       ...> }
       ...> |> Transaction.serialize()
-      <<0, 0, 0, 1, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
+      <<current_transaction_version()::32, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
           196, 25, 37, 237, 215, 122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217,
           180, 32, 3, 0, 0, 0, 0, 0, 0, 0, 92, 0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238,
           143, 251, 13, 151, 68, 48, 247, 25, 179, 245, 118, 171, 203, 76, 243, 214, 84,
@@ -613,7 +617,7 @@ defmodule Archethic.TransactionChain.Transaction do
           241, 235, 35, 167, 197, 56, 228, 120, 110, 122, 64, 31, 230, 231, 110, 247,
           119, 139, 211, 85, 134, 192, 125, 6, 190, 51, 118, 60, 239, 190, 15, 138, 6,
           137, 87, 32, 13, 241, 26, 186, 1, 113, 112, 58, 24, 242, 140, 245, 201, 66,
-          132, 213, 105, 229, 14, 2, 1, 0, 0, 0, 2, 0, 0, 1, 126, 255, 61, 215, 112, 0, 0, 29, 150,
+          132, 213, 105, 229, 14, 2, 1, current_protocol_version()::32, 0, 0, 1, 126, 255, 61, 215, 112, 0, 0, 29, 150,
           125, 113, 178, 225, 53, 200, 66, 6, 221, 209, 8, 181, 146, 90, 44, 217, 156,
           142, 188, 90, 181, 216, 253, 46, 201, 64, 12, 227, 201, 138, 0, 188, 101, 205,
           214, 203, 136, 90, 130, 68, 147, 79, 76, 46, 139, 19, 189, 123, 142, 29, 113,
@@ -639,7 +643,7 @@ defmodule Archethic.TransactionChain.Transaction do
         validation_stamp: nil
       }) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary>>
+      TransactionData.serialize(data, version)::binary>>
   end
 
   def serialize(%__MODULE__{
@@ -653,7 +657,7 @@ defmodule Archethic.TransactionChain.Transaction do
         validation_stamp: nil
       }) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary>>
   end
 
@@ -668,7 +672,7 @@ defmodule Archethic.TransactionChain.Transaction do
         validation_stamp: nil
       }) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 0::8>>
   end
@@ -690,7 +694,7 @@ defmodule Archethic.TransactionChain.Transaction do
       |> :erlang.list_to_binary()
 
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 1::8,
       ValidationStamp.serialize(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
@@ -702,7 +706,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   ## Examples
 
-      iex> <<0, 0, 0, 1, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
+      iex> <<current_transaction_version()::32, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
       ...> 196, 25, 37, 237, 215, 122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217,
       ...> 180, 32, 3, 0, 0, 0, 0, 0, 0, 0, 92, 0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238,
       ...> 143, 251, 13, 151, 68, 48, 247, 25, 179, 245, 118, 171, 203, 76, 243, 214, 84,
@@ -801,7 +805,7 @@ defmodule Archethic.TransactionChain.Transaction do
   def deserialize(_serialized_term = <<version::32, rest::bitstring>>) do
     {address, <<type::8, rest::bitstring>>} = Utils.deserialize_address(rest)
 
-    {data, rest} = TransactionData.deserialize(rest)
+    {data, rest} = TransactionData.deserialize(rest, version)
 
     {previous_public_key,
      <<previous_signature_size::8, previous_signature::binary-size(previous_signature_size),

@@ -62,7 +62,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       ...>        224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
       ...>   }
       ...> }
-      ...> |> Ownership.serialize()
+      ...> |> Ownership.serialize(current_transaction_version())
       <<
         # Secret size
         0, 0, 0, 16,
@@ -81,7 +81,8 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
         224, 214, 225, 146, 44, 83, 111, 34, 239, 99
       >>
   """
-  def serialize(%__MODULE__{secret: secret, authorized_keys: authorized_keys}) do
+  @spec serialize(ownership :: t(), tx_version :: pos_integer()) :: bitstring()
+  def serialize(%__MODULE__{secret: secret, authorized_keys: authorized_keys}, _tx_version) do
     authorized_keys_bin =
       Enum.map(authorized_keys, fn {public_key, encrypted_key} ->
         <<public_key::binary, encrypted_key::binary>>
@@ -107,7 +108,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       ...> 233, 227, 98, 209, 211, 97, 117, 68, 101, 59, 121, 214, 105, 225, 218, 91, 92,
       ...> 212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
       ...> 224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
-      ...> |> Ownership.deserialize()
+      ...> |> Ownership.deserialize(1)
       {
         %Ownership{
           secret: <<205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206, 198, 202>>,
@@ -124,8 +125,11 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
         <<>>
       }
   """
-  @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<secret_size::32, secret::binary-size(secret_size), rest::bitstring>>) do
+  @spec deserialize(data :: bitstring(), tx_version :: pos_integer()) :: {t(), bitstring}
+  def deserialize(
+        <<secret_size::32, secret::binary-size(secret_size), rest::bitstring>>,
+        _tx_version
+      ) do
     {nb_authorized_keys_len, rest} = rest |> VarInt.get_value()
     {authorized_keys, rest} = reduce_authorized_keys_bin(rest, nb_authorized_keys_len, %{})
 
@@ -180,10 +184,10 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
     %{secret: <<>>, authorized_keys: []}
   end
 
-  def to_map(ownership = %__MODULE__{}) do
+  def to_map(%__MODULE__{secret: secret, authorized_keys: authorized_keys}) do
     %{
-      secret: Map.get(ownership, :secret, <<>>),
-      authorized_keys: Map.get(ownership, :authorized_keys, %{})
+      secret: secret,
+      authorized_keys: authorized_keys
     }
   end
 

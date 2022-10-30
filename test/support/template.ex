@@ -16,9 +16,12 @@ defmodule ArchethicCase do
 
   alias Archethic.P2P.MemTable, as: P2PMemTable
 
+  alias Archethic.Mining
+
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
 
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.MemTables.KOLedger
   alias Archethic.TransactionChain.MemTables.PendingLedger
 
@@ -26,7 +29,8 @@ defmodule ArchethicCase do
 
   import Mox
 
-  def current_protocol_version(), do: 2
+  def current_protocol_version(), do: Mining.protocol_version()
+  def current_transaction_version(), do: Transaction.version()
 
   setup :verify_on_exit!
   setup :set_mox_global

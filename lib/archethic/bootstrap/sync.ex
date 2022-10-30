@@ -65,7 +65,7 @@ defmodule Archethic.Bootstrap.Sync do
   def require_update?(ip, port, http_port, transport, last_sync_date) do
     first_node_public_key = Crypto.first_node_public_key()
 
-    case P2P.list_nodes() do
+    case P2P.authorized_and_available_nodes() do
       [%Node{first_public_key: ^first_node_public_key}] ->
         false
 

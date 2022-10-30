@@ -29,6 +29,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
@@ -360,11 +361,14 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         {:ok,
          %TransactionInputList{
            inputs: [
-             %TransactionInput{
-               from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-               amount: 20_200_000,
-               type: :UCO,
-               timestamp: DateTime.from_unix!(1_614_951_694)
+             %VersionedTransactionInput{
+               input: %TransactionInput{
+                 from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 amount: 20_200_000,
+                 type: :UCO,
+                 timestamp: DateTime.from_unix!(1_614_951_694)
+               },
+               protocol_version: 1
              }
            ]
          }}
