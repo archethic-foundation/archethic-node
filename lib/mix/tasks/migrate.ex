@@ -32,14 +32,20 @@ defmodule Mix.Tasks.Archethic.Migrate do
       summary
     end)
     |> Enum.reduce(%{}, fn summary = %Summary{summary_time: summary_time}, acc ->
-      Map.update(acc, summary_time, %SummaryAggregate{summary_time: summary_time}, fn aggregate ->
-        aggregate
-        |> SummaryAggregate.add_summary(summary, false)
-      end)
+      Map.update(
+        acc,
+        summary_time,
+        %SummaryAggregate{summary_time: summary_time},
+        &SummaryAggregate.add_summary(&1, summary, false)
+      )
     end)
     |> Enum.map(fn {_, summary_aggregate} -> SummaryAggregate.aggregate(summary_aggregate) end)
-    |> Enum.each(fn aggregate ->
-      EmbeddedImpl.write_beacon_summaries_aggregate(aggregate)
+    |> Enum.each(fn aggregate = %SummaryAggregate{summary_time: summary_time} ->
+      filepath = ChainWriter.beacon_aggregate_path(db_path, summary_time)
+
+      unless File.exists?(filepath) do
+        EmbeddedImpl.write_beacon_summaries_aggregate(aggregate)
+      end
     end)
   end
 
