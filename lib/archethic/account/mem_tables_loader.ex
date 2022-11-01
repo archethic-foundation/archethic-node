@@ -41,7 +41,6 @@ defmodule Archethic.Account.MemTablesLoader do
   ]
 
   @excluded_types [
-    :node,
     :oracle,
     :oracle_summary,
     :node_shared_secrets,
