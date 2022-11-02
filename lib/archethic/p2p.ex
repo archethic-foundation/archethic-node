@@ -95,21 +95,13 @@ defmodule Archethic.P2P do
   Add a node first public key to the list of nodes globally synced.
   """
   @spec set_node_globally_synced(first_public_key :: Crypto.key()) :: :ok
-  def set_node_globally_synced(first_public_key) do
-    get_node_info!(first_public_key)
-    |> Node.synced()
-    |> MemTable.add_node()
-  end
+  defdelegate set_node_globally_synced(first_public_key), to: MemTable, as: :set_node_synced
 
   @doc """
   Add a node first public key to the list of nodes globally unsynced.
   """
   @spec set_node_globally_unsynced(first_public_key :: Crypto.key()) :: :ok
-  def set_node_globally_unsynced(first_public_key) do
-    get_node_info!(first_public_key)
-    |> Node.unsynced()
-    |> MemTable.add_node()
-  end
+  defdelegate set_node_globally_unsynced(first_public_key), to: MemTable, as: :set_node_unsynced
 
   @doc """
   Set the node's average availability
