@@ -18,7 +18,8 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
     :address,
     :type,
     :previous_public_key,
-    data: [:code]
+    data: [:code],
+    validation_stamp: [:timestamp]
   ]
 
   @excluded_types [
