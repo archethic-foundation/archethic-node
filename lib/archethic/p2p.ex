@@ -45,8 +45,9 @@ defmodule Archethic.P2P do
   Register a node and establish a connection with
   """
   @spec add_and_connect_node(Node.t()) :: :ok
-  def add_and_connect_node(node = %Node{}) do
+  def add_and_connect_node(node = %Node{first_public_key: first_public_key}) do
     :ok = MemTable.add_node(node)
+    node = get_node_info!(first_public_key)
     do_connect_node(node)
   end
 
