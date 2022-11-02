@@ -736,6 +736,59 @@ defmodule Archethic.P2P.MemTable do
   end
 
   @doc """
+  Mark the node synced
+
+  ## Examples
+
+      iex> MemTable.start_link()
+      iex> node = %Node{
+      ...>   ip: {127, 0, 0, 1},
+      ...>   port: 3000,
+      ...>   http_port: 4000,
+      ...>   first_public_key: "key1",
+      ...>   last_public_key: "key2"
+      ...> }
+      iex> MemTable.add_node(node)
+      iex> :ok = MemTable.set_node_synced("key1")
+      iex> {:ok, %Node{synced?: true}} = MemTable.get_node("key1")
+  """
+  @spec set_node_synced(Crypto.key()) :: :ok
+  def set_node_synced(first_public_key) when is_binary(first_public_key) do
+    synced_pos = Keyword.fetch!(@discovery_index_position, :synced?)
+    :ets.update_element(@discovery_table, first_public_key, {synced_pos, true})
+    Logger.info("Node synced", node: Base.encode16(first_public_key))
+    notify_node_update(first_public_key)
+    :ok
+  end
+
+  @doc """
+  Mark the node unsynced
+
+  ## Examples
+
+      iex> MemTable.start_link()
+      iex> node = %Node{
+      ...>   ip: {127, 0, 0, 1},
+      ...>   port: 3000,
+      ...>   http_port: 4000,
+      ...>   first_public_key: "key1",
+      ...>   last_public_key: "key2"
+      ...> }
+      iex> MemTable.add_node(node)
+      iex> :ok = MemTable.set_node_synced("key1")
+      iex> :ok = MemTable.set_node_unsynced("key1")
+      iex> {:ok, %Node{synced?: false}} = MemTable.get_node("key1")
+  """
+  @spec set_node_unsynced(Crypto.key()) :: :ok
+  def set_node_unsynced(first_public_key) when is_binary(first_public_key) do
+    synced_pos = Keyword.fetch!(@discovery_index_position, :synced?)
+    :ets.update_element(@discovery_table, first_public_key, {synced_pos, false})
+    Logger.info("Node unsynced", node: Base.encode16(first_public_key))
+    notify_node_update(first_public_key)
+    :ok
+  end
+
+  @doc """
   Set the node as available if previously flagged as offline
 
   ## Examples
