@@ -1746,4 +1746,15 @@ defmodule Archethic.P2P.Message do
         %NotFound{}
     end
   end
+
+  # 231
+  def process(aggregate = %SummaryAggregate{summary_time: summary_date}) do
+    case BeaconChain.get_summaries_aggregate(summary_date) do
+      {:ok, _aggregate} ->
+        %Ok{}
+
+      {:error, :not_exists} ->
+        BeaconChain.write_summaries_aggregate(aggregate)
+    end
+  end
 end

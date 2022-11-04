@@ -21,45 +21,54 @@ defmodule Archethic.SelfRepair.Notifier do
 
   use GenServer
 
-  alias Archethic.Crypto
+  alias Archethic.{
+    BeaconChain,
+    BeaconChain.SummaryAggregate,
+    BeaconChain.SummaryTimer,
+    Crypto,
+    Election,
+    PubSub,
+    P2P,
+    P2P.Node,
+    TaskSupervisor,
+    TransactionChain,
+    Utils
+  }
 
-  alias Archethic.Election
+  alias Archethic.P2P.Message.{
+    ReplicateTransaction
+  }
 
-  alias Archethic.PubSub
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.ReplicateTransaction
-  alias Archethic.P2P.Node
-
-  alias Archethic.TaskSupervisor
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-
-  alias Archethic.Utils
+  alias Archethic.TransactionChain.{Transaction, Transaction.ValidationStamp}
 
   require Logger
 
+  @spec start_link(args :: any()) :: GenServer.on_start()
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args)
   end
 
+  @spec init(any()) :: {:ok, %{notified: %{}}}
   def init(_) do
     PubSub.register_to_node_update()
     {:ok, %{notified: %{}}}
   end
 
-  def handle_info(
-        {:node_update,
-         %Node{
-           available?: false,
-           authorized?: true,
-           first_public_key: node_key,
-           authorization_date: authorization_date
-         }},
-        state = %{notified: notified}
-      ) do
+  # authorized node becomes unavailable
+  @spec handle_info(msg :: {:node_update, Node.t()} | any(), state :: map()) ::
+          {:noreply, state :: map()}
+  def(
+    handle_info(
+      {:node_update,
+       %Node{
+         available?: false,
+         authorized?: true,
+         first_public_key: node_key,
+         authorization_date: authorization_date
+       }},
+      state = %{notified: notified}
+    )
+  ) do
     current_node_public_key = Crypto.first_node_public_key()
     now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
@@ -67,6 +76,8 @@ defmodule Archethic.SelfRepair.Notifier do
          nil <- Map.get(notified, node_key),
          false <- current_node_public_key == node_key do
       repair_transactions(node_key, current_node_public_key)
+      repair_beacon_summary_aggregates(node_key, current_node_public_key)
+
       {:noreply, Map.update!(state, :notified, &Map.put(&1, node_key, %{}))}
     else
       _ ->
@@ -74,6 +85,7 @@ defmodule Archethic.SelfRepair.Notifier do
     end
   end
 
+  # authorized node becomes unauthorized
   def handle_info(
         {:node_update,
          %Node{authorized?: false, authorization_date: date, first_public_key: node_key}},
@@ -85,6 +97,7 @@ defmodule Archethic.SelfRepair.Notifier do
     with nil <- Map.get(notified, node_key),
          false <- current_node_public_key == node_key do
       repair_transactions(node_key, current_node_public_key)
+      repair_beacon_summary_aggregates(node_key, current_node_public_key)
       {:noreply, Map.update!(state, :notified, &Map.put(&1, node_key, %{}))}
     else
       _ ->
@@ -92,6 +105,7 @@ defmodule Archethic.SelfRepair.Notifier do
     end
   end
 
+  # authorized node becomes available again
   def handle_info(
         {:node_update,
          %Node{available?: true, first_public_key: node_key, authorization_date: date}},
@@ -105,7 +119,129 @@ defmodule Archethic.SelfRepair.Notifier do
     {:noreply, state}
   end
 
-  defp repair_transactions(node_key, current_node_public_key) do
+  @spec repair_beacon_summary_aggregates(
+          unavailable_node_key :: Crypto.key(),
+          current_node_public_key :: Crypto.key()
+        ) :: :ok
+  def repair_beacon_summary_aggregates(unavailable_node_key, current_node_public_key) do
+    if P2P.authorized_node?(current_node_public_key) do
+      Logger.debug("Trying to repair shard unavailablity due to a topology change",
+        node: Base.encode16(unavailable_node_key)
+      )
+
+      Utils.genesis_node_enrollment_date()
+      |> SummaryTimer.next_summaries()
+      |> Stream.map(&summary_aggregates_to_sync(&1))
+      |> Stream.filter(&Utils.key_in_node_list?(elem(&1, 1), unavailable_node_key))
+      |> Stream.filter(&(&1 |> elem(1) != []))
+      |> Stream.map(
+        &sync_unavailable_summary_aggregate(&1, current_node_public_key, unavailable_node_key)
+      )
+      |> Stream.run()
+    end
+
+    :ok
+  end
+
+  @spec summary_aggregates_to_sync(summary_time :: DateTime.t()) ::
+          {summary_time :: DateTime.t(), previous_chain_storage_nodes :: list(Node.t())}
+  def summary_aggregates_to_sync(summary_time) do
+    node_list =
+      P2P.list_nodes()
+      |> Enum.filter(fn node ->
+        node.authorization_date != nil &&
+          DateTime.compare(node.authorization_date, summary_time) == :lt
+      end)
+
+    previous_chain_storage_nodes =
+      summary_time
+      |> Crypto.derive_beacon_aggregate_address()
+      |> Election.chain_storage_nodes(node_list)
+
+    {summary_time, previous_chain_storage_nodes}
+  end
+
+  @spec sync_unavailable_summary_aggregate(
+          {summary_time :: DateTime.t(), previous_chain_storage_nodes :: list(Node.t())},
+          current_node_public_key :: Crypto.key(),
+          unavailable_node_key :: Crypto.key()
+        ) :: :ok
+  def sync_unavailable_summary_aggregate(
+        {summary_time, previous_chain_storage_nodes},
+        current_node_public_key,
+        unavailable_node_key
+      ) do
+    new_chain_storage_nodes =
+      Election.chain_storage_nodes(
+        Crypto.derive_beacon_aggregate_address(summary_time),
+        P2P.authorized_nodes()
+        |> Enum.reject(&(&1.first_public_key == unavailable_node_key))
+      ) -- previous_chain_storage_nodes
+
+    with {:empty, false} <- {:empty, Enum.empty?(new_chain_storage_nodes)},
+         #  current node should not be part of previous_chain_storage_nodes as it would already have aggregate
+         {:prev_election, false} <-
+           {:prev_election,
+            Utils.key_in_node_list?(previous_chain_storage_nodes, current_node_public_key)},
+         # current node should be part of new_chain storage nodes to do the pull
+         {:new_election, true} <-
+           {:new_election,
+            Utils.key_in_node_list?(new_chain_storage_nodes, current_node_public_key)},
+         # filter out unavailable nodes from prev strage nodes to fetch aggregate
+         storage_nodes when storage_nodes != [] <-
+           Enum.filter(previous_chain_storage_nodes, &(&1.available? == true)),
+         #  quorum read for aggregate fetching
+         {:ok, aggregate = %SummaryAggregate{}} <-
+           BeaconChain.fetch_summaries_aggregate_from_nodes(summary_time, storage_nodes) do
+      # Pull mechnism to fetch summary aggreagete from local calulation os shards
+      BeaconChain.write_summaries_aggregate(aggregate)
+
+      Logger.debug(
+        "Fetched and Stored Missing #{summary_time} Aggregate due to shard unavailablity",
+        Repair: "SelfRepair.Notifier"
+      )
+
+      :ok
+    else
+      {:empty, true} ->
+        Logger.debug("AggregateRepair: #{summary_time} : omitted ",
+          reason:
+            "There are currently no new nodes in the New (Election)/(shard selection) for Chain Storage Nodes. and Summarytime"
+        )
+
+      {:prev_election, false} ->
+        Logger.debug("AggregateRepair: #{summary_time} : omitted ",
+          Repair: SelfRepair.Notifier,
+          error: "Current Node is already a member of the Previous Chain Storage Nodes."
+        )
+
+      {:new_election, false} ->
+        Logger.debug("AggregateRepair: #{summary_time} : omitted",
+          Repair: "SelfRepair.Notifier",
+          error: "The current node is not a part of the New Shard Selection/New Election."
+        )
+
+      [] ->
+        Logger.warning("AggregateRepair: #{summary_time} : omitted",
+          Repair: "SelfRepair.Notifier",
+          error: "Previous Storage Nodes are not available"
+        )
+
+      {:error, e} ->
+        Logger.warning("AggregateRepair: #{summary_time} : AggregateFetchError",
+          error: e
+        )
+
+      error ->
+        Logger.warning("AggregateRepair: #{summary_time} : Unhandled Error",
+          error: error
+        )
+
+        :ok
+    end
+  end
+
+  def repair_transactions(node_key, current_node_public_key) do
     Logger.debug("Trying to repair transactions due to a topology change",
       node: Base.encode16(node_key)
     )

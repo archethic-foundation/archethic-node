@@ -18,6 +18,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   @type t :: %__MODULE__{
           version: non_neg_integer(),
+          # truncate to seconds
           summary_time: DateTime.t(),
           transaction_summaries: list(TransactionSummary.t()),
           p2p_availabilities: %{
@@ -266,9 +267,13 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       end)
       |> :erlang.list_to_bitstring()
 
-    <<version::8, DateTime.to_unix(summary_time)::32, nb_tx_summaries::binary,
-      tx_summaries_bin::binary, map_size(p2p_availabilities)::8,
-      p2p_availabilities_bin::bitstring>>
+    unix_time =
+      summary_time
+      |> DateTime.truncate(:second)
+      |> DateTime.to_unix()
+
+    <<version::8, unix_time::32, nb_tx_summaries::binary, tx_summaries_bin::binary,
+      map_size(p2p_availabilities)::8, p2p_availabilities_bin::bitstring>>
   end
 
   @doc """
@@ -276,10 +281,10 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   ## Examples
 
-  iex> SummaryAggregate.deserialize(<<1, 98, 29, 98, 0, 1, 1, 0, 0, 120, 123, 229, 13, 144, 130, 230, 
-  ...> 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69, 131, 97, 
-  ...> 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128, 1, 0, 1, 
-  ...> 0, 1, 3, 1::1, 0::1, 1::1, 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 
+  iex> SummaryAggregate.deserialize(<<1, 98, 29, 98, 0, 1, 1, 0, 0, 120, 123, 229, 13, 144, 130, 230,
+  ...> 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69, 131, 97,
+  ...> 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128, 1, 0, 1,
+  ...> 0, 1, 3, 1::1, 0::1, 1::1, 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213,
   ...> 109, 252, 111, 87, 231, 170, 54, 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>)
   {
     %SummaryAggregate{
@@ -303,7 +308,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           ]
         }
       }
-    }, 
+    },
     ""
   }
   """

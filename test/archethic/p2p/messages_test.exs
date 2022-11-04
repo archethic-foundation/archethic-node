@@ -1,53 +1,56 @@
 defmodule Archethic.P2P.MessageTest do
   use ArchethicCase
 
+  alias Archethic.P2P.Message.{
+    AcknowledgeStorage,
+    AddMiningContext,
+    Balance,
+    BootstrappingNodes,
+    CrossValidate,
+    CrossValidationDone,
+    EncryptedStorageNonce,
+    Error,
+    FirstPublicKey,
+    GetBalance,
+    GetBootstrappingNodes,
+    GetFirstPublicKey,
+    GetLastTransaction,
+    GetLastTransactionAddress,
+    GetP2PView,
+    GetStorageNonce,
+    GetTransaction,
+    GetTransactionChain,
+    GetTransactionChainLength,
+    GetTransactionInputs,
+    GetTransactionSummary,
+    GetBeaconSummariesAggregate,
+    GetUnspentOutputs,
+    LastTransactionAddress,
+    ListNodes,
+    NewTransaction,
+    NodeAvailability,
+    NodeList,
+    NotFound,
+    NotifyEndOfNodeSync,
+    NotifyLastTransactionAddress,
+    Ok,
+    P2PView,
+    Ping,
+    RegisterBeaconUpdates,
+    ReplicateTransaction,
+    ReplicateTransactionChain,
+    StartMining,
+    StartMining,
+    TransactionChainLength,
+    TransactionInputList,
+    TransactionList,
+    UnspentOutputList
+  }
+
   alias Archethic.Crypto
-
-  alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.AcknowledgeStorage
-  alias Archethic.P2P.Message.AddMiningContext
-  alias Archethic.P2P.Message.Balance
-  alias Archethic.P2P.Message.BootstrappingNodes
-  alias Archethic.P2P.Message.CrossValidate
-  alias Archethic.P2P.Message.CrossValidationDone
-  alias Archethic.P2P.Message.EncryptedStorageNonce
-  alias Archethic.P2P.Message.Error
-  alias Archethic.P2P.Message.FirstPublicKey
-  alias Archethic.P2P.Message.GetBalance
-  alias Archethic.P2P.Message.GetBootstrappingNodes
-  alias Archethic.P2P.Message.GetFirstPublicKey
-  alias Archethic.P2P.Message.GetLastTransaction
-  alias Archethic.P2P.Message.GetLastTransactionAddress
-  alias Archethic.P2P.Message.GetP2PView
-  alias Archethic.P2P.Message.GetStorageNonce
-  alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.GetTransactionSummary
-  alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.LastTransactionAddress
-  alias Archethic.P2P.Message.ListNodes
-  alias Archethic.P2P.Message.NewTransaction
-  alias Archethic.P2P.Message.NodeAvailability
-  alias Archethic.P2P.Message.NodeList
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.NotifyEndOfNodeSync
-  alias Archethic.P2P.Message.NotifyLastTransactionAddress
-  alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.P2PView
-  alias Archethic.P2P.Message.Ping
-  alias Archethic.P2P.Message.RegisterBeaconUpdates
-  alias Archethic.P2P.Message.ReplicateTransaction
-  alias Archethic.P2P.Message.ReplicateTransactionChain
-  alias Archethic.P2P.Message.StartMining
-  alias Archethic.P2P.Message.StartMining
-  alias Archethic.P2P.Message.TransactionChainLength
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.P2P.Node
-
+  alias Archethic.P2P.Message
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -59,6 +62,16 @@ defmodule Archethic.P2P.MessageTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
+
+  alias Archethic.TransactionChain.{
+    TransactionData,
+    TransactionInput,
+    TransactionSummary,
+    Transaction.CrossValidationStamp,
+    Transaction.ValidationStamp,
+    Transaction.ValidationStamp.LedgerOperations,
+    Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  }
 
   doctest Message
 
@@ -936,5 +949,73 @@ defmodule Archethic.P2P.MessageTest do
   test "get_timeout should return timeout according to message type" do
     assert 3_000 == Message.get_timeout(%GetBalance{address: "123"})
     assert 25_165 == Message.get_timeout(%GetTransaction{address: "123"})
+  end
+
+  describe "Test BeaconSummariesAggregates" do
+    test "GetBeaconSummariesAggregate" do
+      time = DateTime.utc_now() |> DateTime.truncate(:second)
+      msg = %GetBeaconSummariesAggregate{date: time}
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "TransactionSummary" do
+      msg = %TransactionSummary{
+        address:
+          <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199, 168,
+            212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
+        type: :transfer,
+        movements_addresses: [
+          <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+            99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
+        ],
+        fee: 10_000_000
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "SummaryAggregate" do
+      summary_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
+      msg = %SummaryAggregate{
+        summary_time: summary_time |> DateTime.truncate(:second),
+        transaction_summaries: [
+          %TransactionSummary{
+            address:
+              <<0, 0, 120, 123, 229, 13, 144, 130, 230, 18, 17, 45, 244, 92, 226, 107, 11, 104,
+                226, 249, 138, 85, 71, 127, 190, 20, 186, 69, 131, 97, 194, 30, 71, 116>>,
+            type: :transfer,
+            timestamp: summary_time,
+            fee: 10_000_000
+          }
+        ],
+        p2p_availabilities: %{
+          <<0>> => %{
+            node_availabilities: <<1::1, 0::1, 1::1>>,
+            node_average_availabilities: [0.5, 0.7, 0.8],
+            end_of_node_synchronizations: [
+              <<0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 109, 252, 111, 87, 231, 170,
+                54, 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>
+            ]
+          }
+        }
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
   end
 end

@@ -388,6 +388,12 @@ defmodule Archethic.BeaconChain do
       |> Crypto.derive_beacon_aggregate_address()
       |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
 
+    fetch_summaries_aggregate_from_nodes(summary_time, storage_nodes)
+  end
+
+  @spec fetch_summaries_aggregate_from_nodes(DateTime.t(), list(Node.t())) ::
+          {:ok, SummaryAggregate.t()} | {:error, :not_exists} | {:error, :network_issue}
+  def fetch_summaries_aggregate_from_nodes(summary_time, storage_nodes) do
     conflict_resolver = fn results ->
       # Prioritize results over not found
       with nil <- Enum.find(results, &match?(%SummaryAggregate{}, &1)),

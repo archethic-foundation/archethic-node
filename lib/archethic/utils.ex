@@ -783,10 +783,10 @@ defmodule Archethic.Utils do
 
       iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10Z])
       ~U[2022-10-01 01:00:00Z]
-      
+
       iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10.100Z])
       ~U[2022-10-01 01:00:10Z]
-      
+
       iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 30}], extended: true}, ~U[2022-10-26 07:38:30.569648Z])
       ~U[2022-10-26 07:38:30Z]
   """
@@ -809,6 +809,25 @@ defmodule Archethic.Utils do
       cron_expression
       |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
       |> DateTime.from_naive!("Etc/UTC")
+    end
+  end
+
+  @doc """
+  Return the genesis node Enrollment date
+  """
+  def genesis_node_enrollment_date() do
+    case Archethic.P2P.authorized_nodes() do
+      [] ->
+        nil
+
+      nodes ->
+        %Node{enrollment_date: enrollment_date} =
+          nodes
+          |> Enum.reject(&(&1.enrollment_date == nil))
+          |> Enum.sort_by(& &1.enrollment_date)
+          |> Enum.at(0)
+
+        enrollment_date
     end
   end
 end
