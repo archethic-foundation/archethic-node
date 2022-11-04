@@ -50,14 +50,18 @@ defmodule Archethic.Replication do
   It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
   and update the internal ledger and views
   """
-  @spec validate_and_store_transaction_chain(validated_tx :: Transaction.t()) ::
+  @spec validate_and_store_transaction_chain(
+          validated_tx :: Transaction.t(),
+          self_repair? :: boolean()
+        ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
   def validate_and_store_transaction_chain(
         tx = %Transaction{
           address: address,
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
-        }
+        },
+        self_repair? \\ false
       ) do
     if TransactionChain.transaction_exists?(address) do
       Logger.warning("Transaction already exists",
@@ -79,13 +83,14 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {previous_tx, inputs} = fetch_context(tx)
+      {previous_tx, inputs} = fetch_context(tx, self_repair?)
 
       # Validate the transaction and check integrity from the previous transaction
       case TransactionValidator.validate(
              tx,
              previous_tx,
-             Enum.to_list(inputs)
+             inputs,
+             self_repair?
            ) do
         :ok ->
           :telemetry.execute(
@@ -142,14 +147,15 @@ defmodule Archethic.Replication do
 
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
   """
-  @spec validate_and_store_transaction(Transaction.t()) ::
+  @spec validate_and_store_transaction(Transaction.t(), boolean()) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
   def validate_and_store_transaction(
         tx = %Transaction{
           address: address,
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
-        }
+        },
+        self_repair? \\ false
       ) do
     if TransactionChain.transaction_exists?(address) do
       Logger.warning("Transaction already exists",
@@ -166,7 +172,7 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      case TransactionValidator.validate(tx) do
+      case TransactionValidator.validate(tx, self_repair?) do
         :ok ->
           :ok = TransactionChain.write_transaction(tx)
           ingest_transaction(tx)
@@ -201,15 +207,15 @@ defmodule Archethic.Replication do
     end
   end
 
-  defp fetch_context(tx = %Transaction{type: type}) do
+  defp fetch_context(tx = %Transaction{type: type}, self_repair?) do
     if Transaction.network_type?(type) do
-      fetch_context_for_network_transaction(tx)
+      fetch_context_for_network_transaction(tx, self_repair?)
     else
-      fetch_context_for_regular_transaction(tx)
+      fetch_context_for_regular_transaction(tx, self_repair?)
     end
   end
 
-  defp fetch_context_for_network_transaction(tx = %Transaction{}) do
+  defp fetch_context_for_network_transaction(tx = %Transaction{}, self_repair?) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -240,12 +246,12 @@ defmodule Archethic.Replication do
       transaction_type: tx.type
     )
 
-    inputs = fetch_inputs(tx)
+    inputs = if self_repair?, do: [], else: fetch_inputs(tx)
 
     {previous_transaction, inputs}
   end
 
-  defp fetch_context_for_regular_transaction(tx = %Transaction{}) do
+  defp fetch_context_for_regular_transaction(tx = %Transaction{}, self_repair?) do
     previous_address = Transaction.previous_address(tx)
 
     t1 =
@@ -259,10 +265,13 @@ defmodule Archethic.Replication do
         TransactionContext.fetch_transaction(previous_address)
       end)
 
-    t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx) end)
-
-    previous_transaction = Task.await(t1, Message.get_max_timeout())
-    inputs = Task.await(t2)
+    {previous_transaction, inputs} =
+      if self_repair? do
+        {Task.await(t1, Message.get_max_timeout()), []}
+      else
+        t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx) end)
+        {Task.await(t1, Message.get_max_timeout()), Task.await(t2)}
+      end
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
       transaction_address: Base.encode16(tx.address),

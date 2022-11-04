@@ -36,7 +36,7 @@ defmodule Archethic.P2P.Node do
     authorization_date: nil,
     transport: :tcp,
     origin_public_key: nil,
-    last_update_date: ~U[2008-10-31 00:00:00Z]
+    last_update_date: ~U[2019-07-14 00:00:00Z]
   ]
 
   @doc """

@@ -103,10 +103,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
     cond do
       Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list) ->
-        Replication.validate_and_store_transaction_chain(tx)
+        Replication.validate_and_store_transaction_chain(tx, true)
 
       Election.io_storage_node?(tx, Crypto.first_node_public_key(), node_list) ->
-        Replication.validate_and_store_transaction(tx)
+        Replication.validate_and_store_transaction(tx, true)
 
       true ->
         :ok
