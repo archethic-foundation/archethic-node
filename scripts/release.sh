@@ -39,6 +39,24 @@ do
 done
 shift $((OPTIND -1))
 
+source ~/.profile
+
+if [[ -d $HOME/.asdf ]]
+then
+
+  SCRIPT_DIR=$(dirname $(readlink -f $0))
+
+  cd $SCRIPT_DIR/..
+
+  asdf install
+
+  ELIXIR_VERSION=$(asdf current elixir 2>&1 | grep -o '\S*' | sed -n 2p)
+  ERLANG_VERSION=$(asdf current erlang 2>&1 | grep -o '\S*' | sed -n 2p)
+
+  asdf global elixir $ELIXIR_VERSION
+  asdf global erlang $ERLANG_VERSION
+fi
+
 # Install updated versions of hex/rebar
 mix local.rebar --force
 mix local.hex --if-missing --force
@@ -49,9 +67,6 @@ export MIX_ENV=prod
 mix deps.get
 
 # Builds WEB assets in production mode
-cd assets
-npm ci
-cd -
 mix assets.saas
 mix assets.deploy
 
