@@ -205,37 +205,29 @@ defmodule Archethic.SelfRepair.Notifier do
     else
       {:empty, true} ->
         Logger.debug("AggregateRepair: #{summary_time} : omitted ",
-          reason:
-            "There are currently no new nodes in the New (Election)/(shard selection) for Chain Storage Nodes. and Summarytime"
+          reason: "List of New Storage Nodes is empty."
         )
 
-      {:prev_election, false} ->
+      {:prev_election, true} ->
         Logger.debug("AggregateRepair: #{summary_time} : omitted ",
-          Repair: SelfRepair.Notifier,
-          error: "Current Node is already a member of the Previous Chain Storage Nodes."
+          reason: "Current Node is already a member of the Previous Chain Storage Nodes."
         )
 
       {:new_election, false} ->
         Logger.debug("AggregateRepair: #{summary_time} : omitted",
-          Repair: "SelfRepair.Notifier",
-          error: "The current node is not a part of the New Shard Selection/New Election."
+          reason: "The current node is not a part of the New Shard Selection/New Election."
         )
 
       [] ->
         Logger.warning("AggregateRepair: #{summary_time} : omitted",
-          Repair: "SelfRepair.Notifier",
-          error: "Previous Storage Nodes are not available"
+          reason: "Previous Storage Nodes are not available"
         )
 
       {:error, e} ->
-        Logger.warning("AggregateRepair: #{summary_time} : AggregateFetchError",
-          error: e
-        )
+        Logger.warning("AggregateRepair: #{summary_time} : AggregateFetchError #{e}")
 
-      error ->
-        Logger.warning("AggregateRepair: #{summary_time} : Unhandled Error",
-          error: error
-        )
+      e ->
+        Logger.warning("AggregateRepair: #{summary_time} : Unhandled Error #{e}")
 
         :ok
     end

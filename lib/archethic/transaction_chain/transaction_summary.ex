@@ -87,13 +87,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
       }) do
     encoded_movement_addresses_len = length(movements_addresses) |> VarInt.from_value()
 
-    unix_time =
-      timestamp
-      |> DateTime.truncate(:millisecond)
-      |> DateTime.to_unix(:millisecond)
-
-    <<address::binary, unix_time::64, Transaction.serialize_type(type), fee::64,
-      encoded_movement_addresses_len::binary,
+    <<address::binary, DateTime.to_unix(timestamp, :millisecond)::64,
+      Transaction.serialize_type(type), fee::64, encoded_movement_addresses_len::binary,
       :erlang.list_to_binary(movements_addresses)::binary>>
   end
 

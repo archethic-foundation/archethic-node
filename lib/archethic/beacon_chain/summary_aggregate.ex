@@ -267,13 +267,9 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       end)
       |> :erlang.list_to_bitstring()
 
-    unix_time =
-      summary_time
-      |> DateTime.truncate(:second)
-      |> DateTime.to_unix()
-
-    <<version::8, unix_time::32, nb_tx_summaries::binary, tx_summaries_bin::binary,
-      map_size(p2p_availabilities)::8, p2p_availabilities_bin::bitstring>>
+    <<version::8, DateTime.to_unix(summary_time)::32, nb_tx_summaries::binary,
+      tx_summaries_bin::binary, map_size(p2p_availabilities)::8,
+      p2p_availabilities_bin::bitstring>>
   end
 
   @doc """
