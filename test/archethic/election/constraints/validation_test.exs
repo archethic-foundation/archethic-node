@@ -59,7 +59,7 @@ defmodule Archethic.Election.ValidationConstraintsTest do
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
-              transfers: [%Transfer{to: "@Alice2", amount: 0.05}]
+              transfers: [%Transfer{to: "@Alice2", amount: 100_000_000}]
             }
           }
         }
@@ -73,25 +73,25 @@ defmodule Archethic.Election.ValidationConstraintsTest do
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
-              transfers: [%Transfer{to: "@Alice2", amount: 200}]
+              transfers: [%Transfer{to: "@Alice2", amount: 2_000_000_000}]
+            }
+          }
+        }
+      }
+
+      assert 4 == ValidationConstraints.validation_number(tx, 10)
+
+      tx = %Transaction{
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [%Transfer{to: "@Alice2", amount: 100_000_000_000}]
             }
           }
         }
       }
 
       assert 6 == ValidationConstraints.validation_number(tx, 10)
-
-      tx = %Transaction{
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [%Transfer{to: "@Alice2", amount: 1000}]
-            }
-          }
-        }
-      }
-
-      assert 9 == ValidationConstraints.validation_number(tx, 10)
     end
   end
 end

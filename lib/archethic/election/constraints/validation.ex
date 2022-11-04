@@ -73,11 +73,10 @@ defmodule Archethic.Election.ValidationConstraints do
       when is_integer(nb_authorized_nodes) do
     total_transfers = Enum.reduce(transfers, 0.0, &(&2 + &1.amount))
 
-    if total_transfers > 10 do
+    if total_transfers > 0 do
       validation_number =
-        trunc(
-          :math.floor(min_validation_nodes(nb_authorized_nodes) * :math.log10(total_transfers))
-        )
+        @default_min_validations +
+          (:math.log10(total_transfers / 100_000_000) |> trunc())
 
       if validation_number > nb_authorized_nodes do
         nb_authorized_nodes
