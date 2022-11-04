@@ -37,7 +37,7 @@ defmodule Archethic.P2P.Listener do
            ranch_transport,
            %{socket_opts: [{:port, port}, {:backlog, 4096}], num_acceptors: 100},
            ListenerProtocol,
-           [:binary, packet: 4, active: :once]
+           [:binary, packet: 4, active: :once, keepalive: true, reuseaddr: true]
          ) do
       {:ok, listener_pid} ->
         Logger.info("P2P #{transport} Endpoint running on port #{port}")
