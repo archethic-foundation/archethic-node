@@ -87,10 +87,8 @@ defmodule Archethic.OracleChain.Scheduler do
       # This case may happen in case of process restart after crash
       {:ok, %Node{authorized?: true, available?: true}} ->
         summary_date =
-          next_date(
-            Map.get(state_data, :summary_interval),
-            DateTime.utc_now() |> DateTime.truncate(:second)
-          )
+          Map.get(state_data, :summary_interval)
+          |> next_date()
 
         PubSub.register_to_new_transaction_by_type(:oracle)
         PubSub.register_to_new_transaction_by_type(:oracle_summary)
@@ -122,17 +120,16 @@ defmodule Archethic.OracleChain.Scheduler do
         _state,
         data = %{polling_interval: polling_interval, indexes: indexes, summary_date: summary_date}
       ) do
-    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
-    polling_date = next_date(polling_interval, current_time)
+    polling_date = next_date(polling_interval)
 
     polling_timer =
       case Map.get(data, :polling_timer) do
         nil ->
-          schedule_new_polling(polling_date, current_time)
+          schedule_new_polling(polling_date)
 
         timer ->
           Process.cancel_timer(timer)
-          schedule_new_polling(polling_date, current_time)
+          schedule_new_polling(polling_date)
       end
 
     index = Map.fetch!(indexes, summary_date)
@@ -152,8 +149,7 @@ defmodule Archethic.OracleChain.Scheduler do
         :idle,
         data = %{summary_date: summary_date, indexes: indexes}
       ) do
-    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
-    polling_timer = schedule_new_polling(polling_date, current_time)
+    polling_timer = schedule_new_polling(polling_date)
     index = Map.fetch!(indexes, summary_date)
 
     new_data =
@@ -419,9 +415,7 @@ defmodule Archethic.OracleChain.Scheduler do
         data = %{summary_interval: summary_interval}
       ) do
     # Discard the oracle summary if there is not previous indexing
-
-    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
-    next_summary_date = next_date(summary_interval, current_time)
+    next_summary_date = next_date(summary_interval)
     Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
 
     new_data =
@@ -471,9 +465,7 @@ defmodule Archethic.OracleChain.Scheduler do
         data = %{summary_interval: summary_interval, polling_interval: polling_interval}
       ) do
     if Crypto.first_node_public_key() == first_public_key do
-      current_time = DateTime.utc_now() |> DateTime.truncate(:second)
-
-      next_summary_date = next_date(summary_interval, current_time)
+      next_summary_date = next_date(summary_interval)
       index = chain_size(next_summary_date)
 
       other_authorized_nodes =
@@ -486,7 +478,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
       case other_authorized_nodes do
         [] ->
-          next_polling_date = next_date(polling_interval, current_time)
+          next_polling_date = next_date(polling_interval)
 
           new_data =
             data
@@ -595,8 +587,7 @@ defmodule Archethic.OracleChain.Scheduler do
   defp update_summary_date(data = %{summary_interval: summary_interval}) do
     OracleChain.update_summ_gen_addr()
 
-    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
-    next_summary_date = next_date(summary_interval, current_time)
+    next_summary_date = next_date(summary_interval)
     Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
 
     data
@@ -620,13 +611,13 @@ defmodule Archethic.OracleChain.Scheduler do
     end)
   end
 
-  defp schedule_new_polling(next_polling_date, current_time = %DateTime{}) do
+  defp schedule_new_polling(next_polling_date) do
     Logger.info("Next oracle polling at #{DateTime.to_string(next_polling_date)}")
 
     Process.send_after(
       self(),
       :poll,
-      DateTime.diff(next_polling_date, current_time, :millisecond)
+      DateTime.diff(next_polling_date, DateTime.utc_now(), :millisecond)
     )
   end
 
@@ -753,10 +744,10 @@ defmodule Archethic.OracleChain.Scheduler do
     end
   end
 
-  defp next_date(interval, from_date = %DateTime{}) do
+  defp next_date(interval) do
     interval
     |> CronParser.parse!(true)
-    |> Utils.next_date(from_date)
+    |> Utils.next_date(DateTime.utc_now())
   end
 
   defp get_validation_nodes(summary_date, index) do

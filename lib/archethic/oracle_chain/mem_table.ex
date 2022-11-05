@@ -50,7 +50,6 @@ defmodule Archethic.OracleChain.MemTable do
   def add_oracle_data(type, data, date = %DateTime{}) when is_map(data) do
     timestamp =
       date
-      |> DateTime.truncate(:second)
       |> DateTime.to_unix()
 
     true = :ets.insert(:archethic_oracle, {{timestamp, type}, data})
@@ -76,7 +75,6 @@ defmodule Archethic.OracleChain.MemTable do
   def get_oracle_data(type, date = %DateTime{}) do
     timestamp =
       date
-      |> DateTime.truncate(:second)
       |> DateTime.to_unix()
 
     case :ets.lookup(:archethic_oracle, {timestamp, type}) do
