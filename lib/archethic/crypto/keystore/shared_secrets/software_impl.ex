@@ -125,13 +125,17 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   @impl SharedSecretsKeystore
   def sign_with_daily_nonce_key(data, timestamp) do
-    [{_, sign_fun}] =
-      case :ets.prev(@daily_keys, DateTime.to_unix(timestamp)) do
-        :"$end_of_table" ->
-          :ets.lookup(@daily_keys, DateTime.to_unix(timestamp))
+    timestamp = DateTime.to_unix(timestamp)
 
-        key ->
-          :ets.lookup(@daily_keys, key)
+    sign_fun =
+      case :ets.lookup(@daily_keys, timestamp) do
+        [{_, sign_fun}] ->
+          sign_fun
+
+        [] ->
+          timestamp = :ets.prev(@daily_keys, timestamp)
+          [{_, sign_fun}] = :ets.lookup(@daily_keys, timestamp)
+          sign_fun
       end
 
     sign_fun.(data)
