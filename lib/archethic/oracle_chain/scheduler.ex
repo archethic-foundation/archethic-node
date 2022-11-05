@@ -357,17 +357,15 @@ defmodule Archethic.OracleChain.Scheduler do
     Logger.debug("Oracle summary - state: #{inspect(data)}")
 
     index = Map.fetch!(indexes, summary_date)
-    validation_nodes = get_validation_nodes(summary_date, index + 1)
 
-    tx_address =
-      summary_date
-      |> Crypto.derive_oracle_keypair(index + 1)
-      |> elem(0)
-      |> Crypto.derive_address()
+    tx_address = summary_date |> Crypto.derive_oracle_address(index + 1)
+
+    authorized_nodes = P2P.authorized_and_available_nodes(summary_date)
+    storage_nodes = tx_address |> Election.storage_nodes(authorized_nodes)
 
     watcher_pid =
       with {:exists, false} <- {:exists, DB.transaction_exists?(tx_address)},
-           {:trigger, true} <- {:trigger, trigger_node?(validation_nodes)} do
+           {:trigger, true} <- {:trigger, trigger_node?(storage_nodes)} do
         Logger.debug("Oracle transaction summary sending",
           transaction_address: Base.encode16(tx_address),
           transaction_type: :oracle_summary
@@ -383,8 +381,8 @@ defmodule Archethic.OracleChain.Scheduler do
           )
 
           {:ok, pid} =
-            DetectNodeResponsiveness.start_link(tx_address, length(validation_nodes), fn count ->
-              if trigger_node?(validation_nodes, count) do
+            DetectNodeResponsiveness.start_link(tx_address, length(storage_nodes), fn count ->
+              if trigger_node?(storage_nodes, count) do
                 Logger.info("Oracle summary transaction ...attempt #{count}",
                   transaction_address: Base.encode16(tx_address),
                   transaction_type: :oracle_summary
@@ -748,19 +746,6 @@ defmodule Archethic.OracleChain.Scheduler do
     interval
     |> CronParser.parse!(true)
     |> Utils.next_date(DateTime.utc_now())
-  end
-
-  defp get_validation_nodes(summary_date, index) do
-    authorized_nodes =
-      Enum.filter(
-        P2P.list_nodes(),
-        &(&1.authorized? && DateTime.diff(&1.authorization_date, summary_date) <= 0 &&
-            &1.available?)
-      )
-
-    summary_date
-    |> Crypto.derive_oracle_address(index)
-    |> Election.storage_nodes(authorized_nodes)
   end
 
   defp get_new_oracle_data(summary_date, index) do
