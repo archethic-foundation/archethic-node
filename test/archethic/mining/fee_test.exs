@@ -40,7 +40,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(0.2)
+               |> Fee.calculate(0.2, DateTime.utc_now())
     end
 
     test "should increase fee when the amount increases for single transfer " do
@@ -65,7 +65,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(2.0)
+               |> Fee.calculate(2.0, DateTime.utc_now())
 
       # 0.00501425 UCO for 60 UCO
       assert 501_425 =
@@ -88,7 +88,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(2.0)
+               |> Fee.calculate(2.0, DateTime.utc_now())
     end
 
     test "should decrease the fee when the amount stays the same but the price of UCO increases" do
@@ -113,7 +113,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(2.0)
+               |> Fee.calculate(2.0, DateTime.utc_now())
 
       # 0.00100285 UCO for 1 UCO at $10.0
       assert 100_285 =
@@ -136,7 +136,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(10.0)
+               |> Fee.calculate(10.0, DateTime.utc_now())
     end
 
     test "sending multiple transfers should cost more than sending a single big transfer" do
@@ -161,7 +161,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(0.2)
+               |> Fee.calculate(0.2, DateTime.utc_now())
 
       # 500.1525425 UCO for 1000 transfer of 1 UCO
       assert 50_015_254_250 =
@@ -185,7 +185,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(0.2)
+               |> Fee.calculate(0.2, DateTime.utc_now())
     end
 
     test "should increase the fee when the transaction size increases" do
@@ -201,7 +201,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(0.2)
+               |> Fee.calculate(0.2, DateTime.utc_now())
 
       # 25.05004 UCO to store 10MB
       assert 2_505_004_000 =
@@ -215,7 +215,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(0.2)
+               |> Fee.calculate(0.2, DateTime.utc_now())
     end
 
     test "should cost more with more replication nodes" do
@@ -240,7 +240,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(2.0)
+               |> Fee.calculate(2.0, DateTime.utc_now())
 
       add_nodes(100)
 
@@ -265,7 +265,7 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(2.0)
+               |> Fee.calculate(2.0, DateTime.utc_now())
     end
   end
 

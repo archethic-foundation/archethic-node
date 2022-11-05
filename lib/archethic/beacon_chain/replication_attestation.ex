@@ -177,15 +177,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
       ) do
     tx_summary_payload = TransactionSummary.serialize(tx_summary)
 
-    authorized_nodes =
-      case P2P.authorized_nodes(timestamp) do
-        # Should only happens when the network bootstrap
-        [] ->
-          P2P.authorized_nodes()
-
-        nodes ->
-          nodes
-      end
+    authorized_nodes = P2P.authorized_and_available_nodes(timestamp)
 
     storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, authorized_nodes)
 

@@ -8,8 +8,6 @@ defmodule Archethic do
 
   alias __MODULE__.Election
 
-  alias __MODULE__.Mining
-
   alias __MODULE__.P2P
   alias __MODULE__.P2P.Node
 
@@ -73,7 +71,7 @@ defmodule Archethic do
 
     # We are selecting only the authorized nodes the current date of the transaction
     # If new nodes have been authorized, they only will be selected at the application date
-    node_list = Mining.transaction_validation_node_list(current_date)
+    node_list = P2P.authorized_and_available_nodes(current_date)
 
     storage_nodes = Election.chain_storage_nodes_with_type(tx.address, tx.type, node_list)
 

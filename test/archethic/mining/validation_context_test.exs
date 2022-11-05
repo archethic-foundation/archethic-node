@@ -250,7 +250,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Fee.calculate(tx, 0.07),
+          fee: Fee.calculate(tx, 0.07, timestamp),
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.from_transaction(tx, timestamp)
@@ -272,7 +272,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Fee.calculate(tx, 0.07),
+          fee: Fee.calculate(tx, 0.07, timestamp),
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.from_transaction(tx, timestamp)
@@ -330,7 +330,7 @@ defmodule Archethic.Mining.ValidationContextTest do
          validation_time: timestamp,
          unspent_outputs: unspent_outputs
        }) do
-    fee = Fee.calculate(tx, 0.07)
+    fee = Fee.calculate(tx, 0.07, timestamp)
 
     %ValidationStamp{
       timestamp: timestamp,
@@ -369,7 +369,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07),
+        fee: Fee.calculate(tx, 0.07, timestamp),
         transaction_movements: Transaction.get_movements(tx),
         unspent_outputs: [
           %UnspentOutput{
@@ -397,7 +397,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Fee.calculate(tx, 0.07),
+          fee: Fee.calculate(tx, 0.07, timestamp),
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),

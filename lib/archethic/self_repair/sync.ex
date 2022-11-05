@@ -58,7 +58,7 @@ defmodule Archethic.SelfRepair.Sync do
   end
 
   defp default_last_sync_date do
-    case P2P.authorized_nodes() do
+    case P2P.list_nodes() do
       [] ->
         nil
 
@@ -173,10 +173,7 @@ defmodule Archethic.SelfRepair.Sync do
     # from remote nodes to avoid self-repair to be acknowledged if those
     # cannot be reached
 
-    nodes =
-      summary_time
-      |> P2P.authorized_nodes()
-      |> Enum.filter(& &1.available?)
+    nodes = P2P.authorized_and_available_nodes(summary_time)
 
     # If number of authorized node is <= 2 and current node is part of it
     # we accept the self repair as the other node may be unavailable and so

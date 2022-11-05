@@ -149,31 +149,32 @@ defmodule Archethic.P2P do
   end
 
   @doc """
-  List all the authorized nodes
-  """
-  @spec authorized_nodes() :: list(Node.t())
-  def authorized_nodes do
-    MemTable.authorized_nodes()
-  end
-
-  @doc """
   List the authorized nodes for the given datetime (default to now)
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
-  def authorized_nodes(date = %DateTime{}) do
-    Enum.filter(authorized_nodes(), fn %Node{
-                                         authorization_date: authorization_date
-                                       } ->
-      DateTime.diff(authorization_date, DateTime.truncate(date, :second)) < 0
+  def authorized_nodes(date \\ DateTime.utc_now()) do
+    MemTable.authorized_nodes()
+    |> Enum.filter(fn %Node{authorization_date: authorization_date} ->
+      DateTime.compare(authorization_date, date) != :gt
     end)
   end
 
   @doc """
   List the authorized and available nodes
   """
-  @spec authorized_and_available_nodes() :: list(Node.t())
-  def authorized_and_available_nodes() do
-    Enum.filter(authorized_nodes(), & &1.available?)
+  @spec authorized_and_available_nodes(DateTime.t()) :: list(Node.t())
+  def authorized_and_available_nodes(date \\ DateTime.utc_now()) do
+    case authorized_nodes(date) do
+      [] ->
+        # Only happen for init transactions so we take the first enrolled node
+        list_nodes()
+        |> Enum.reject(&(&1.enrollment_date == nil))
+        |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime})
+        |> Enum.take(1)
+
+      nodes ->
+        Enum.filter(nodes, & &1.available?)
+    end
   end
 
   @doc """

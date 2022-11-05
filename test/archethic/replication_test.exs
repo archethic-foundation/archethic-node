@@ -214,7 +214,7 @@ defmodule Archethic.ReplicationTest do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07)
+        fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
 

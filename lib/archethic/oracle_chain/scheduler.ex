@@ -301,10 +301,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
     new_oracle_data = get_new_oracle_data(summary_date, index)
 
-    authorized_nodes =
-      summary_date
-      |> P2P.authorized_nodes()
-      |> Enum.filter(& &1.available?)
+    authorized_nodes = P2P.authorized_and_available_nodes(summary_date)
 
     storage_nodes =
       summary_date

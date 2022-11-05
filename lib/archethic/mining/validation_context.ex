@@ -731,7 +731,8 @@ defmodule Archethic.Mining.ValidationContext do
     fee =
       Fee.calculate(
         tx,
-        usd_price
+        usd_price,
+        validation_time
       )
 
     resolved_movements =
@@ -1049,7 +1050,8 @@ defmodule Archethic.Mining.ValidationContext do
        ) do
     Fee.calculate(
       tx,
-      OracleChain.get_uco_price(timestamp) |> Keyword.fetch!(:usd)
+      OracleChain.get_uco_price(timestamp) |> Keyword.fetch!(:usd),
+      timestamp
     ) == fee
   end
 
