@@ -126,7 +126,9 @@ defmodule ArchethicWeb.API.TransactionController do
   def transaction_fee(conn, tx) do
     case TransactionPayload.changeset(tx) do
       changeset = %{valid?: true} ->
-        uco_price = OracleChain.get_uco_price(DateTime.utc_now())
+        timestamp = DateTime.utc_now()
+
+        uco_price = OracleChain.get_uco_price(timestamp)
         uco_eur = uco_price |> Keyword.fetch!(:eur)
         uco_usd = uco_price |> Keyword.fetch!(:usd)
 
@@ -134,7 +136,7 @@ defmodule ArchethicWeb.API.TransactionController do
           changeset
           |> TransactionPayload.to_map()
           |> Transaction.cast()
-          |> Mining.get_transaction_fee(uco_usd)
+          |> Mining.get_transaction_fee(uco_usd, timestamp)
 
         conn
         |> put_status(:ok)

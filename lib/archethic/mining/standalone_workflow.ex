@@ -55,7 +55,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
     current_node = P2P.get_node_info()
 
-    authorized_nodes = P2P.authorized_nodes(validation_time)
+    authorized_nodes = [current_node]
 
     chain_storage_nodes =
       Election.chain_storage_nodes_with_type(

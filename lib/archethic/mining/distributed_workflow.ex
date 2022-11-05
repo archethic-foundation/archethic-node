@@ -165,9 +165,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   def handle_event(:internal, {:start_mining, tx, welcome_node, validation_nodes}, :idle, data) do
     validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
-    authorized_nodes =
-      validation_time
-      |> P2P.authorized_nodes()
+    authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
     chain_storage_nodes =
       Election.chain_storage_nodes_with_type(

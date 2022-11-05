@@ -592,6 +592,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           last_public_key: "key10",
           reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           authorized?: true,
+          available?: true,
           authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
           geo_patch: "AAA",
           network_patch: "AAA"
@@ -604,6 +605,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           last_public_key: "key23",
           reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           authorized?: true,
+          available?: true,
           authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
           geo_patch: "AAA",
           network_patch: "AAA"

@@ -24,16 +24,21 @@ defmodule Archethic.Mining.Fee do
   Genesis, network and wallet transaction cost nothing.
 
   """
-  @spec calculate(transaction :: Transaction.t(), uco_usd_price :: float()) :: non_neg_integer()
-  def calculate(%Transaction{type: :keychain}, _), do: 0
-  def calculate(%Transaction{type: :keychain_access}, _), do: 0
+  @spec calculate(
+          transaction :: Transaction.t(),
+          uco_usd_price :: float(),
+          timestamp :: DateTime.t()
+        ) :: non_neg_integer()
+  def calculate(%Transaction{type: :keychain}, _, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _, _), do: 0
 
   def calculate(
         tx = %Transaction{
           address: address,
           type: type
         },
-        uco_price_in_usd
+        uco_price_in_usd,
+        timestamp
       ) do
     cond do
       address == Bootstrap.genesis_address() ->
@@ -45,7 +50,7 @@ defmodule Archethic.Mining.Fee do
       true ->
         nb_recipients = get_number_recipients(tx)
         nb_bytes = get_transaction_size(tx)
-        nb_storage_nodes = get_number_replicas(tx)
+        nb_storage_nodes = get_number_replicas(tx, timestamp)
 
         # TODO: determine the fee for smart contract execution
 
@@ -115,18 +120,9 @@ defmodule Archethic.Mining.Fee do
     |> length()
   end
 
-  defp get_number_replicas(%Transaction{
-         address: address,
-         validation_stamp: %ValidationStamp{timestamp: timestamp}
-       }) do
+  defp get_number_replicas(%Transaction{address: address}, timestamp) do
     address
-    |> Election.chain_storage_nodes(P2P.authorized_nodes(timestamp))
-    |> length()
-  end
-
-  defp get_number_replicas(%Transaction{address: address}) do
-    address
-    |> Election.chain_storage_nodes(P2P.authorized_nodes())
+    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes(timestamp))
     |> length()
   end
 

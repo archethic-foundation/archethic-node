@@ -257,7 +257,7 @@ defmodule Archethic.BeaconChain.Subset do
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(address),
         BeaconChain.next_slot(timestamp),
-        P2P.authorized_nodes(timestamp)
+        P2P.authorized_and_available_nodes(timestamp)
       )
       |> Enum.map(& &1.first_public_key)
 
@@ -322,14 +322,11 @@ defmodule Archethic.BeaconChain.Subset do
     )
   end
 
-  defp broadcast_beacon_slot(subset, next_time, slot) do
-    node_list =
-      next_time
-      |> P2P.authorized_nodes()
-      |> Enum.filter(& &1.available?)
+  defp broadcast_beacon_slot(subset, next_time, slot = %Slot{slot_time: slot_time}) do
+    nodes = P2P.authorized_and_available_nodes(slot_time)
 
     subset
-    |> Election.beacon_storage_nodes(next_time, node_list)
+    |> Election.beacon_storage_nodes(next_time, nodes)
     |> P2P.broadcast_message(%NewBeaconSlot{slot: slot})
   end
 
@@ -365,7 +362,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp beacon_summary_node?(subset, summary_time, node_public_key) do
-    node_list = P2P.authorized_nodes(summary_time)
+    node_list = P2P.authorized_and_available_nodes(summary_time)
 
     Election.beacon_storage_nodes(
       subset,

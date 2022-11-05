@@ -593,7 +593,7 @@ defmodule Archethic.BeaconChain.Slot do
   """
   @spec involved_nodes(t()) :: list(Node.t())
   def involved_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
-    node_list = P2P.authorized_nodes(slot_time)
+    node_list = P2P.authorized_and_available_nodes(slot_time)
 
     Election.beacon_storage_nodes(
       subset,
@@ -608,7 +608,7 @@ defmodule Archethic.BeaconChain.Slot do
   """
   @spec summary_storage_nodes(t()) :: list(Node.t())
   def summary_storage_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
-    node_list = P2P.authorized_nodes(slot_time)
+    node_list = P2P.authorized_and_available_nodes(slot_time)
 
     Election.beacon_storage_nodes(
       subset,

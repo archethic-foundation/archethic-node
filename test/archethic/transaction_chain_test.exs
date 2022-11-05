@@ -57,7 +57,7 @@ defmodule Archethic.TransactionChainTest do
         geo_patch: "AAA",
         network_patch: "AAA",
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: ~U[2021-03-25 15:11:29Z]
       })
 
       assert {:ok, "@Alice1"} =

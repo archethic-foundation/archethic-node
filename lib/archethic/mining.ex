@@ -15,7 +15,6 @@ defmodule Archethic.Mining do
   alias __MODULE__.WorkflowRegistry
 
   alias Archethic.P2P
-  alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
@@ -53,22 +52,6 @@ defmodule Archethic.Mining do
   end
 
   @doc """
-  Return the list of candidates nodes for validation and storage
-  """
-  @spec transaction_validation_node_list(DateTime.t()) ::
-          list(Node.t())
-  def transaction_validation_node_list(time = %DateTime{}) do
-    case P2P.authorized_nodes(time) do
-      [] ->
-        # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
-        P2P.authorized_nodes()
-
-      nodes ->
-        nodes
-    end
-  end
-
-  @doc """
   Determines if the election of validation nodes performed by the welcome node is valid
   """
   @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
@@ -77,9 +60,10 @@ defmodule Archethic.Mining do
         validation_node_public_keys
       )
       when is_list(validation_node_public_keys) do
-    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now())
+    current_date = DateTime.utc_now()
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
-    node_list = transaction_validation_node_list(DateTime.utc_now())
+    node_list = P2P.authorized_and_available_nodes(current_date)
 
     storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
 
@@ -231,6 +215,6 @@ defmodule Archethic.Mining do
   @doc """
   Get the transaction fee
   """
-  @spec get_transaction_fee(Transaction.t(), float()) :: non_neg_integer()
-  defdelegate get_transaction_fee(tx, uco_price_in_usd), to: Fee, as: :calculate
+  @spec get_transaction_fee(Transaction.t(), float(), DateTime.t()) :: non_neg_integer()
+  defdelegate get_transaction_fee(tx, uco_price_in_usd, timestamp), to: Fee, as: :calculate
 end

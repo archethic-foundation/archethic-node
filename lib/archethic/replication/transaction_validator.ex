@@ -198,7 +198,7 @@ defmodule Archethic.Replication.TransactionValidator do
            cross_validation_stamps: cross_validation_stamps
          }
        ) do
-    authorized_nodes = Mining.transaction_validation_node_list(tx_timestamp)
+    authorized_nodes = P2P.authorized_and_available_nodes(tx_timestamp)
     daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(tx_timestamp)
 
     case authorized_nodes do
@@ -211,7 +211,7 @@ defmodule Archethic.Replication.TransactionValidator do
           Election.chain_storage_nodes_with_type(
             tx_address,
             tx_type,
-            P2P.authorized_nodes(tx_timestamp)
+            authorized_nodes
           )
 
         validation_nodes =
@@ -279,7 +279,7 @@ defmodule Archethic.Replication.TransactionValidator do
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, uco_price_usd)
+    Mining.get_transaction_fee(tx, uco_price_usd, timestamp)
   end
 
   defp validate_transaction_movements(

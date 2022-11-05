@@ -34,7 +34,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07),
+        fee: Fee.calculate(tx, 0.07, timestamp),
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
@@ -74,7 +74,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07)
+        fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
@@ -108,7 +108,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07)
+        fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
@@ -137,7 +137,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07)
+        fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
 
@@ -197,7 +197,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07),
+        fee: Fee.calculate(tx, 0.07, timestamp),
         transaction_movements: [
           %TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}
         ]
@@ -248,7 +248,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07),
+        fee: Fee.calculate(tx, 0.07, timestamp),
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
