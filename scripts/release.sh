@@ -50,8 +50,8 @@ then
 
   asdf install
 
-  ELIXIR_VERSION=$(asdf current elixir 2>&1 | grep -o '\S*' | sed -n 2p)
-  ERLANG_VERSION=$(asdf current erlang 2>&1 | grep -o '\S*' | sed -n 2p)
+  ELIXIR_VERSION=$(asdf current elixir 2>&1 | grep -oP '\d\S+')
+  ERLANG_VERSION=$(asdf current erlang 2>&1 | grep -oP '\d\S+')
 
   asdf global elixir $ELIXIR_VERSION
   asdf global erlang $ERLANG_VERSION
