@@ -380,11 +380,12 @@ defmodule Archethic.P2P.Message do
   end
 
   def encode(%NotifyLastTransactionAddress{
-        address: address,
+        last_address: last_address,
+        genesis_address: genesis_address,
         previous_address: previous_address,
         timestamp: timestamp
       }) do
-    <<22::8, address::binary, previous_address::binary,
+    <<22::8, last_address::binary, genesis_address::binary, previous_address::binary,
       DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
@@ -881,11 +882,13 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<22::8, rest::bitstring>>) do
-    {address, rest} = Utils.deserialize_address(rest)
+    {last_address, rest} = Utils.deserialize_address(rest)
+    {genesis_address, rest} = Utils.deserialize_address(rest)
     {previous_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%NotifyLastTransactionAddress{
-       address: address,
+       last_address: last_address,
+       genesis_address: genesis_address,
        previous_address: previous_address,
        timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
@@ -1625,11 +1628,18 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(%NotifyLastTransactionAddress{
-        address: address,
+        last_address: last_address,
+        genesis_address: genesis_address,
         previous_address: previous_address,
         timestamp: timestamp
       }) do
-    Replication.acknowledge_previous_storage_nodes(address, previous_address, timestamp)
+    Replication.acknowledge_previous_storage_nodes(
+      last_address,
+      genesis_address,
+      previous_address,
+      timestamp
+    )
+
     %Ok{}
   end
 
