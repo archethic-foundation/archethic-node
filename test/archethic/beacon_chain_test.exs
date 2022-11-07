@@ -19,6 +19,7 @@ defmodule Archethic.BeaconChainTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetBeaconSummaries
+  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Node
 
@@ -217,6 +218,9 @@ defmodule Archethic.BeaconChainTest do
       |> stub(:send_message, fn
         _, %GetBeaconSummaries{}, _ ->
           {:ok, %BeaconSummaryList{summaries: [beacon_summary]}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, tx_summary}
       end)
 
       %SummaryAggregate{transaction_summaries: transaction_summaries} =
@@ -314,6 +318,9 @@ defmodule Archethic.BeaconChainTest do
 
         ^node4, %GetBeaconSummaries{}, _ ->
           {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, tx_summary}
       end)
 
       %SummaryAggregate{transaction_summaries: transaction_summaries} =

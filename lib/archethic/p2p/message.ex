@@ -16,6 +16,8 @@ defmodule Archethic.P2P.Message do
 
   alias Archethic.Crypto
 
+  alias Archethic.Election
+
   alias Archethic.Mining
 
   alias Archethic.P2P
@@ -85,6 +87,8 @@ defmodule Archethic.P2P.Message do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
@@ -1280,7 +1284,8 @@ defmodule Archethic.P2P.Message do
   @doc """
   Handle a P2P message by processing it and return list of responses to be streamed back to the client
   """
-  def process(%GetBootstrappingNodes{patch: patch}) do
+  @spec process(request(), Crypto.key()) :: response()
+  def process(%GetBootstrappingNodes{patch: patch}, _) do
     top_nodes = P2P.authorized_and_available_nodes()
 
     closest_nodes =
@@ -1294,17 +1299,17 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def process(%GetStorageNonce{public_key: public_key}) do
+  def process(%GetStorageNonce{public_key: public_key}, _) do
     %EncryptedStorageNonce{
       digest: Crypto.encrypt_storage_nonce(public_key)
     }
   end
 
-  def process(%ListNodes{}) do
+  def process(%ListNodes{}, _) do
     %NodeList{nodes: P2P.list_nodes()}
   end
 
-  def process(%NewTransaction{transaction: tx}) do
+  def process(%NewTransaction{transaction: tx}, _) do
     case Archethic.send_new_transaction(tx) do
       :ok ->
         %Ok{}
@@ -1314,12 +1319,12 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%ValidationError{context: context, reason: reason, address: address}) do
+  def process(%ValidationError{context: context, reason: reason, address: address}, _) do
     TransactionSubscriber.report_error(address, context, reason)
     %Ok{}
   end
 
-  def process(%GetTransaction{address: tx_address}) do
+  def process(%GetTransaction{address: tx_address}, _) do
     case TransactionChain.get_transaction(tx_address) do
       {:ok, tx} ->
         tx
@@ -1333,10 +1338,13 @@ defmodule Archethic.P2P.Message do
   end
 
   # paging_state recieved  contains binary offset for next page , to be used for query
-  def process(%GetTransactionChain{
-        address: tx_address,
-        paging_state: paging_state
-      }) do
+  def process(
+        %GetTransactionChain{
+          address: tx_address,
+          paging_state: paging_state
+        },
+        _
+      ) do
     {chain, more?, paging_state} =
       tx_address
       |> TransactionChain.get([], paging_state: paging_state)
@@ -1346,7 +1354,7 @@ defmodule Archethic.P2P.Message do
     %TransactionList{transactions: chain, paging_state: paging_state, more?: more?}
   end
 
-  def process(%GetUnspentOutputs{address: tx_address, offset: offset}) do
+  def process(%GetUnspentOutputs{address: tx_address, offset: offset}, _) do
     utxos = Account.get_unspent_outputs(tx_address)
     utxos_length = length(utxos)
 
@@ -1388,7 +1396,7 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def process(%GetP2PView{node_public_keys: node_public_keys}) do
+  def process(%GetP2PView{node_public_keys: node_public_keys}, _) do
     nodes =
       Enum.map(node_public_keys, fn key ->
         {:ok, node} = P2P.get_node_info(key)
@@ -1399,26 +1407,38 @@ defmodule Archethic.P2P.Message do
     %P2PView{nodes_view: view}
   end
 
-  def process(%StartMining{
-        transaction: tx = %Transaction{},
-        welcome_node_public_key: welcome_node_public_key,
-        validation_node_public_keys: validation_nodes
-      })
-      when length(validation_nodes) > 0 do
+  def process(
+        %StartMining{
+          transaction: tx = %Transaction{},
+          welcome_node_public_key: welcome_node_public_key,
+          validation_node_public_keys: validation_nodes
+        },
+        _
+      ) do
     with {:election, true} <- {:election, Mining.valid_election?(tx, validation_nodes)},
+         {:elected, true} <-
+           {:elected, Enum.any?(validation_nodes, &(&1 == Crypto.last_node_public_key()))},
          {:mining, false} <- {:mining, Mining.processing?(tx.address)} do
       {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
       %Ok{}
     else
-      {:election, _} ->
+      {:election, false} ->
         Logger.error("Invalid validation node election",
           transaction_address: Base.encode16(tx.address),
           transaction_type: tx.type
         )
 
-        raise "Invalid validate node election"
+        %Error{reason: :network_issue}
 
-      {:mining, _} ->
+      {:elected, false} ->
+        Logger.error("Unexpected start mining message",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        %Error{reason: :network_issue}
+
+      {:mining, true} ->
         Logger.warning("Transaction already in mining process",
           transaction_address: Base.encode16(tx.address),
           transaction_type: tx.type
@@ -1428,14 +1448,17 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%AddMiningContext{
-        address: tx_address,
-        validation_node_public_key: validation_node,
-        previous_storage_nodes_public_keys: previous_storage_nodes_public_keys,
-        chain_storage_nodes_view: chain_storage_nodes_view,
-        beacon_storage_nodes_view: beacon_storage_nodes_view,
-        io_storage_nodes_view: io_storage_nodes_view
-      }) do
+  def process(
+        %AddMiningContext{
+          address: tx_address,
+          validation_node_public_key: validation_node,
+          previous_storage_nodes_public_keys: previous_storage_nodes_public_keys,
+          chain_storage_nodes_view: chain_storage_nodes_view,
+          beacon_storage_nodes_view: beacon_storage_nodes_view,
+          io_storage_nodes_view: io_storage_nodes_view
+        },
+        _
+      ) do
     :ok =
       Mining.add_mining_context(
         tx_address,
@@ -1449,89 +1472,118 @@ defmodule Archethic.P2P.Message do
     %Ok{}
   end
 
-  def process(%ReplicateTransactionChain{
-        transaction: tx,
-        replying_node: replying_node_public_key
-      }) do
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
-      response =
-        case Replication.validate_and_store_transaction_chain(tx) do
-          :ok ->
-            tx_summary = TransactionSummary.from_transaction(tx)
+  def process(
+        %ReplicateTransactionChain{
+          transaction: tx = %Transaction{address: tx_address, type: tx_type},
+          replying_node: replying_node_public_key
+        },
+        _
+      ) do
+    # We don't check the election for network transactions because all the nodes receive the chain replication message
+    # The chain storage nodes election is all the authorized nodes but during I/O replication, we send this message to enforce
+    # the synchronization of the network chains
+    if Transaction.network_type?(tx_type) do
+      process_replication_chain(tx, replying_node_public_key)
+    else
+      storage_nodes =
+        Election.chain_storage_nodes_with_type(
+          tx_address,
+          tx_type,
+          P2P.authorized_and_available_nodes()
+        )
 
-            %AcknowledgeStorage{
-              address: tx.address,
-              signature:
-                Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
-              node_public_key: Crypto.first_node_public_key()
-            }
-
-          {:error, :transaction_already_exists} ->
-            %ReplicationError{address: tx.address, reason: :transaction_already_exists}
-
-          {:error, invalid_tx_error} ->
-            %ReplicationError{address: tx.address, reason: invalid_tx_error}
-        end
-
-      if replying_node_public_key do
-        P2P.send_message(replying_node_public_key, response)
+      # Replicate transaction chain only if the current node is one of the chain storage nodes
+      if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
+        process_replication_chain(tx, replying_node_public_key)
       end
-    end)
+    end
 
     %Ok{}
   end
 
-  def process(%ReplicateTransaction{transaction: tx}) do
-    case Replication.validate_and_store_transaction(tx) do
-      :ok ->
-        %Ok{}
+  def process(
+        %ReplicateTransaction{
+          transaction:
+            tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}}
+        },
+        _
+      ) do
+    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
 
-      {:error, :transaction_already_exists} ->
-        %ReplicationError{address: tx.address, reason: :transaction_already_exists}
+    io_storage_nodes =
+      if Transaction.network_type?(tx.type) do
+        P2P.list_nodes()
+      else
+        resolved_addresses
+        |> Enum.map(fn {_origin, resolved} -> resolved end)
+        |> Enum.concat([LedgerOperations.burning_address()])
+        |> Election.io_storage_nodes(P2P.authorized_and_available_nodes())
+      end
 
-      {:error, invalid_tx_reason} ->
-        %ReplicationError{address: tx.address, reason: invalid_tx_reason}
+    # Replicate tx only if the current node is one of the I/O storage nodes
+    if Utils.key_in_node_list?(io_storage_nodes, Crypto.first_node_public_key()) do
+      case Replication.validate_and_store_transaction(tx) do
+        :ok ->
+          %Ok{}
+
+        {:error, :transaction_already_exists} ->
+          %ReplicationError{address: tx.address, reason: :transaction_already_exists}
+
+        {:error, invalid_tx_reason} ->
+          %ReplicationError{address: tx.address, reason: invalid_tx_reason}
+      end
+    else
+      %Ok{}
     end
   end
 
-  def process(%AcknowledgeStorage{
-        address: address,
-        signature: signature,
-        node_public_key: node_public_key
-      }) do
+  def process(
+        %AcknowledgeStorage{
+          address: address,
+          signature: signature,
+          node_public_key: node_public_key
+        },
+        _
+      ) do
     Mining.confirm_replication(address, signature, node_public_key)
     %Ok{}
   end
 
-  def process(%ReplicationError{
-        address: address,
-        reason: reason
-      }) do
+  def process(
+        %ReplicationError{
+          address: address,
+          reason: reason
+        },
+        _
+      ) do
     Mining.notify_replication_error(address, reason)
     %Ok{}
   end
 
-  def process(%CrossValidate{
-        address: tx_address,
-        validation_stamp: stamp,
-        replication_tree: replication_tree,
-        confirmed_validation_nodes: confirmed_validation_nodes
-      }) do
+  def process(
+        %CrossValidate{
+          address: tx_address,
+          validation_stamp: stamp,
+          replication_tree: replication_tree,
+          confirmed_validation_nodes: confirmed_validation_nodes
+        },
+        _
+      ) do
     Mining.cross_validate(tx_address, stamp, replication_tree, confirmed_validation_nodes)
     %Ok{}
   end
 
-  def process(%CrossValidationDone{address: tx_address, cross_validation_stamp: stamp}) do
+  def process(%CrossValidationDone{address: tx_address, cross_validation_stamp: stamp}, _) do
     Mining.add_cross_validation_stamp(tx_address, stamp)
     %Ok{}
   end
 
-  def process(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}) do
+  def process(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}, _) do
     BeaconChain.add_end_of_node_sync(public_key, timestamp)
     %Ok{}
   end
 
-  def process(%GetLastTransaction{address: address}) do
+  def process(%GetLastTransaction{address: address}, _) do
     case TransactionChain.get_last_transaction(address) do
       {:ok, tx} ->
         tx
@@ -1544,7 +1596,7 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%GetBalance{address: address}) do
+  def process(%GetBalance{address: address}, _) do
     %{uco: uco, token: token} = Account.get_balance(address)
 
     %Balance{
@@ -1553,7 +1605,7 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def process(%GetTransactionInputs{address: address, offset: offset, limit: limit}) do
+  def process(%GetTransactionInputs{address: address, offset: offset, limit: limit}, _) do
     contract_inputs =
       address
       |> Contracts.list_contract_transactions()
@@ -1612,34 +1664,37 @@ defmodule Archethic.P2P.Message do
   end
 
   # Returns the length of the transaction chain
-  def process(%GetTransactionChainLength{address: address}) do
+  def process(%GetTransactionChainLength{address: address}, _) do
     %TransactionChainLength{
       length: TransactionChain.size(address)
     }
   end
 
   # Returns the first public_key for a given public_key and if the public_key is used for the first time, return the same public_key.
-  def process(%GetFirstPublicKey{public_key: public_key}) do
+  def process(%GetFirstPublicKey{public_key: public_key}, _) do
     %FirstPublicKey{
       public_key: TransactionChain.get_first_public_key(public_key)
     }
   end
 
-  def process(%GetFirstAddress{address: address}) do
+  def process(%GetFirstAddress{address: address}, _) do
     genesis_address = TransactionChain.get_genesis_address(address)
     %FirstAddress{address: genesis_address}
   end
 
-  def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
+  def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}, _) do
     {address, time} = TransactionChain.get_last_address(address, timestamp)
     %LastTransactionAddress{address: address, timestamp: time}
   end
 
-  def process(%NotifyLastTransactionAddress{
-        last_address: last_address,
-        genesis_address: genesis_address,
-        timestamp: timestamp
-      }) do
+  def process(
+        %NotifyLastTransactionAddress{
+          last_address: last_address,
+          genesis_address: genesis_address,
+          timestamp: timestamp
+        },
+        _
+      ) do
     with {local_last_address, local_last_timestamp} <-
            TransactionChain.get_last_address(genesis_address),
          true <- local_last_address != last_address,
@@ -1653,7 +1708,7 @@ defmodule Archethic.P2P.Message do
     %Ok{}
   end
 
-  def process(%GetTransactionSummary{address: address}) do
+  def process(%GetTransactionSummary{address: address}, _) do
     case TransactionChain.get_transaction_summary(address) do
       {:ok, summary} ->
         summary
@@ -1663,7 +1718,7 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%GetCurrentSummaries{subsets: subsets}) do
+  def process(%GetCurrentSummaries{subsets: subsets}, _) do
     transaction_summaries =
       Enum.flat_map(subsets, fn subset ->
         transaction_summaries = BeaconChain.get_summary_slots(subset)
@@ -1683,14 +1738,14 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def process(%NodeAvailability{public_key: public_key}) do
+  def process(%NodeAvailability{public_key: public_key}, _) do
     P2P.set_node_globally_available(public_key)
     %Ok{}
   end
 
-  def process(%Ping{}), do: %Ok{}
+  def process(%Ping{}, _), do: %Ok{}
 
-  def process(%GetBeaconSummary{address: address}) do
+  def process(%GetBeaconSummary{address: address}, _) do
     case BeaconChain.get_summary(address) do
       {:ok, summary} ->
         summary
@@ -1700,38 +1755,54 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%NewBeaconSlot{slot: slot}) do
-    case BeaconChain.load_slot(slot) do
-      :ok ->
-        %Ok{}
+  def process(%NewBeaconSlot{slot: slot = %Slot{subset: subset, slot_time: slot_time}}, _) do
+    summary_time = BeaconChain.next_summary_date(slot_time)
+    node_list = P2P.authorized_nodes(summary_time)
+
+    beacon_summary_nodes =
+      Election.beacon_storage_nodes(
+        subset,
+        summary_time,
+        node_list,
+        Election.get_storage_constraints()
+      )
+
+    # Load BeaconChain's slot only for the summary nodes
+    with true <- Utils.key_in_node_list?(beacon_summary_nodes, Crypto.first_node_public_key()),
+         :ok <- BeaconChain.load_slot(slot) do
+      %Ok{}
+    else
+      false ->
+        Logger.error("Unexpected beacon slot broadcast")
+        %Error{reason: :network_issue}
 
       :error ->
         %Error{reason: :invalid_transaction}
     end
   end
 
-  def process(%GetBeaconSummaries{addresses: addresses}) do
+  def process(%GetBeaconSummaries{addresses: addresses}, _) do
     %BeaconSummaryList{
       summaries: BeaconChain.get_beacon_summaries(addresses)
     }
   end
 
-  def process(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
+  def process(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}, _) do
     BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
     %Ok{}
   end
 
-  def process(%BeaconUpdate{transaction_attestations: transaction_attestations}) do
+  def process(%BeaconUpdate{transaction_attestations: transaction_attestations}, sender) do
     Enum.each(transaction_attestations, fn %ReplicationAttestation{
                                              transaction_summary: tx_summary
                                            } ->
-      process(tx_summary)
+      process(tx_summary, sender)
     end)
 
     %Ok{}
   end
 
-  def process(tx_summary = %TransactionSummary{}) do
+  def process(tx_summary = %TransactionSummary{}, _) do
     PubSub.notify_transaction_attestation(tx_summary)
 
     %Ok{}
@@ -1740,7 +1811,8 @@ defmodule Archethic.P2P.Message do
   def process(
         attestation = %ReplicationAttestation{
           transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}
-        }
+        },
+        _
       ) do
     case ReplicationAttestation.validate(attestation) do
       :ok ->
@@ -1757,7 +1829,7 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%GetBeaconSummariesAggregate{date: date}) do
+  def process(%GetBeaconSummariesAggregate{date: date}, _) do
     case BeaconChain.get_summaries_aggregate(date) do
       {:ok, aggregate} ->
         aggregate
@@ -1767,8 +1839,35 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%NotifyPreviousChain{address: address}) do
+  def process(%NotifyPreviousChain{address: address}, _) do
     Replication.acknowledge_previous_storage_nodes(address)
     %Ok{}
+  end
+
+  defp process_replication_chain(tx, replying_node_public_key) do
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      response =
+        case Replication.validate_and_store_transaction_chain(tx) do
+          :ok ->
+            tx_summary = TransactionSummary.from_transaction(tx)
+
+            %AcknowledgeStorage{
+              address: tx.address,
+              signature:
+                Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
+              node_public_key: Crypto.first_node_public_key()
+            }
+
+          {:error, :transaction_already_exists} ->
+            %ReplicationError{address: tx.address, reason: :transaction_already_exists}
+
+          {:error, invalid_tx_error} ->
+            %ReplicationError{address: tx.address, reason: invalid_tx_error}
+        end
+
+      if replying_node_public_key do
+        P2P.send_message(replying_node_public_key, response)
+      end
+    end)
   end
 end
