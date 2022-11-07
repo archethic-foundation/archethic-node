@@ -171,12 +171,15 @@ defmodule Archethic.SelfRepair.Notifier do
         current_node_public_key,
         unavailable_node_key
       ) do
+    old_nodes_key = Enum.map(previous_chain_storage_nodes, & &1.first_public_key)
+
     new_chain_storage_nodes =
       Election.chain_storage_nodes(
         Crypto.derive_beacon_aggregate_address(summary_time),
         P2P.authorized_nodes()
         |> Enum.reject(&(&1.first_public_key == unavailable_node_key))
-      ) -- previous_chain_storage_nodes
+      )
+      |> Enum.reject(&(&1.first_public_key in old_nodes_key))
 
     with {:empty, false} <- {:empty, Enum.empty?(new_chain_storage_nodes)},
          #  current node should not be part of previous_chain_storage_nodes as it would already have aggregate
