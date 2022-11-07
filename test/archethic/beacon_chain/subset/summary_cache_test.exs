@@ -26,6 +26,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
       slot_time: DateTime.utc_now() |> DateTime.truncate(:second),
       transaction_attestations: [
         %ReplicationAttestation{
+          version: 2,
           transaction_summary: %TransactionSummary{
             address:
               <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232,
@@ -33,7 +34,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
             timestamp: ~U[2020-06-25 15:11:53.000Z],
             type: :transfer,
             movements_addresses: [],
-            fee: 10_000_000
+            fee: 10_000_000,
+            checksum: <<0::8, 0::256>>
           },
           confirmations: [
             {0,

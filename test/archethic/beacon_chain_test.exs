@@ -185,7 +185,8 @@ defmodule Archethic.BeaconChainTest do
         address: addr1,
         timestamp: DateTime.utc_now(),
         type: :transfer,
-        fee: 100_000_000
+        fee: 100_000_000,
+        checksum: <<0, 0::256>>
       }
 
       storage_nodes =
@@ -243,7 +244,8 @@ defmodule Archethic.BeaconChainTest do
         address: addr1,
         timestamp: DateTime.utc_now(),
         type: :transfer,
-        fee: 100_000_000
+        fee: 100_000_000,
+        checksum: <<0, 0::256>>
       }
 
       summary_v1 = %Summary{
@@ -284,7 +286,8 @@ defmodule Archethic.BeaconChainTest do
               address: addr2,
               timestamp: DateTime.utc_now(),
               type: :transfer,
-              fee: 100_000_000
+              fee: 100_000_000,
+              checksum: <<0, 0::256>>
             },
             confirmations:
               [node1, node2, node3, node4]

@@ -359,6 +359,7 @@ defmodule Archethic.BeaconChain.Slot do
         ...>    slot_time: ~U[2021-01-20 10:10:00Z],
         ...>    transaction_attestations: [
         ...>      %ReplicationAttestation {
+        ...>        version: 1,
         ...>        transaction_summary: %TransactionSummary{
         ...>          address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
         ...>            99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
@@ -497,6 +498,7 @@ defmodule Archethic.BeaconChain.Slot do
           slot_time: ~U[2021-01-20 10:10:00Z],
           transaction_attestations: [
             %ReplicationAttestation{
+              version: 1,
               transaction_summary:  %TransactionSummary{
                 address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
                   99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
@@ -528,7 +530,7 @@ defmodule Archethic.BeaconChain.Slot do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<1::8, subset::8, slot_timestamp::32, rest::bitstring>>) do
+  def deserialize(<<version::8, subset::8, slot_timestamp::32, rest::bitstring>>) do
     {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
 
     {tx_attestations, rest} =
@@ -549,7 +551,7 @@ defmodule Archethic.BeaconChain.Slot do
 
     {
       %__MODULE__{
-        version: 1,
+        version: version,
         subset: <<subset>>,
         slot_time: DateTime.from_unix!(slot_timestamp),
         transaction_attestations: tx_attestations,

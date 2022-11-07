@@ -641,7 +641,29 @@ defmodule Archethic.Utils do
 
   def deserialize_transaction_summaries(rest, nb_transaction_summaries, acc) do
     {transaction_summary, rest} = TransactionSummary.deserialize(rest)
-    deserialize_transaction_summaries(rest, nb_transaction_summaries, [transaction_summary | acc])
+
+    deserialize_transaction_summaries(
+      rest,
+      nb_transaction_summaries,
+      [transaction_summary | acc]
+    )
+  end
+
+  def deserialize_transaction_summaries(rest, 0, _acc, _version), do: {[], rest}
+
+  def deserialize_transaction_summaries(rest, nb_transaction_summaries, acc, _version)
+      when nb_transaction_summaries == length(acc),
+      do: {Enum.reverse(acc), rest}
+
+  def deserialize_transaction_summaries(rest, nb_transaction_summaries, acc, version) do
+    {transaction_summary, rest} = TransactionSummary.deserialize(rest, version)
+
+    deserialize_transaction_summaries(
+      rest,
+      nb_transaction_summaries,
+      [transaction_summary | acc],
+      version
+    )
   end
 
   @doc """

@@ -239,7 +239,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
     tx_summaries_bin =
       transaction_summaries
-      |> Enum.map(&TransactionSummary.serialize/1)
+      |> Enum.map(&TransactionSummary.serialize(&1, version))
       |> :erlang.list_to_binary()
 
     p2p_availabilities_bin =
@@ -283,6 +283,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   ...> 109, 252, 111, 87, 231, 170, 54, 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>)
   {
     %SummaryAggregate{
+      version: 1,
       summary_time: ~U[2022-03-01 00:00:00Z],
       transaction_summaries: [
         %TransactionSummary{
@@ -308,17 +309,17 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<1::8, timestamp::32, rest::bitstring>>) do
+  def deserialize(<<version::8, timestamp::32, rest::bitstring>>) do
     {nb_tx_summaries, rest} = Utils.VarInt.get_value(rest)
 
     {tx_summaries, <<nb_p2p_availabilities::8, rest::bitstring>>} =
-      Utils.deserialize_transaction_summaries(rest, nb_tx_summaries, [])
+      Utils.deserialize_transaction_summaries(rest, nb_tx_summaries, [], version)
 
     {p2p_availabilities, rest} = deserialize_p2p_availabilities(rest, nb_p2p_availabilities, %{})
 
     {
       %__MODULE__{
-        version: 1,
+        version: version,
         summary_time: DateTime.from_unix!(timestamp),
         transaction_summaries: tx_summaries,
         p2p_availabilities: p2p_availabilities

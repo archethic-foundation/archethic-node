@@ -365,13 +365,15 @@ defmodule Archethic.BeaconChain.Summary do
       ...>   summary_time: ~U[2021-01-20 00:00:00Z],
       ...>   transaction_attestations: [
       ...>     %ReplicationAttestation {
+      ...>       version: 2,
       ...>       transaction_summary: %TransactionSummary{
       ...>          address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       ...>            99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
       ...>          timestamp: ~U[2020-06-25 15:11:53Z],
       ...>          type: :transfer,
       ...>          movements_addresses: [],
-      ...>          fee: 10_000_000
+      ...>          fee: 10_000_000,
+      ...>          checksum: <<0::8, 0::256>>
       ...>       },
       ...>       confirmations: [{0, <<255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
       ...>         170, 197, 102, 148, 208, 119, 130, 225, 102, 130, 96, 223, 61, 36, 76, 229,
@@ -395,7 +397,7 @@ defmodule Archethic.BeaconChain.Summary do
       # Nb transactions attestations
       1, 1,
       # Replication attestation version
-      1,
+      2,
       # Transaction address
       0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
@@ -407,6 +409,8 @@ defmodule Archethic.BeaconChain.Summary do
       0, 0, 0, 0, 0, 152, 150, 128,
       # Nb movement addresses
       1, 0,
+      # Checksum
+      0::8, 0::256,
       # Nb confirmations
       1,
       # Replication storage node position
@@ -434,7 +438,7 @@ defmodule Archethic.BeaconChain.Summary do
   """
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
-        version: 1,
+        version: version,
         subset: subset,
         summary_time: summary_time,
         transaction_attestations: transaction_attestations,
@@ -461,7 +465,7 @@ defmodule Archethic.BeaconChain.Summary do
     encoded_end_of_node_synchronizations_len =
       length(end_of_node_synchronizations) |> VarInt.from_value()
 
-    <<1::8, subset::binary, DateTime.to_unix(summary_time)::32,
+    <<version::8, subset::binary, DateTime.to_unix(summary_time)::32,
       encoded_transaction_attestations_len::binary, transaction_attestations_bin::binary,
       bit_size(node_availabilities)::16, node_availabilities::bitstring,
       node_average_availabilities_bin::binary, encoded_end_of_node_synchronizations_len::binary,
@@ -489,6 +493,7 @@ defmodule Archethic.BeaconChain.Summary do
           summary_time: ~U[2021-01-20 00:00:00Z],
           transaction_attestations: [
             %ReplicationAttestation{
+              version: 1,
               transaction_summary:  %TransactionSummary{
                   address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
                   99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
@@ -512,7 +517,7 @@ defmodule Archethic.BeaconChain.Summary do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<1::8, subset::8, summary_timestamp::32, rest::bitstring>>) do
+  def deserialize(<<_version::8, subset::8, summary_timestamp::32, rest::bitstring>>) do
     {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
 
     {transaction_attestations, rest} =

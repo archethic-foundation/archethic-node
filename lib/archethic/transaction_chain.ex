@@ -603,6 +603,7 @@ defmodule Archethic.TransactionChain do
            :type,
            validation_stamp: [
              :timestamp,
+             :proof_of_integrity,
              ledger_operations: [:fee, :transaction_movements]
            ]
          ]) do

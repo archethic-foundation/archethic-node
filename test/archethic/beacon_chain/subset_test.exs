@@ -77,7 +77,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
         address: tx_address,
         timestamp: tx_time,
         type: :node,
-        fee: 0
+        fee: 0,
+        checksum: <<0::8, 0::256>>
       }
 
       sig = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
@@ -120,7 +121,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
         address: tx_address,
         timestamp: tx_time,
         type: :node,
-        fee: 0
+        fee: 0,
+        checksum: <<0::8, 0::256>>
       }
 
       tx_summary_payload = TransactionSummary.serialize(tx_summary)
@@ -200,7 +202,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
           <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
             24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
         ],
-        fee: 0
+        fee: 0,
+        checksum: <<0::8, 0::256>>
       }
 
       tx_summary_payload = TransactionSummary.serialize(tx_summary)
@@ -308,7 +311,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
           <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
             24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
         ],
-        fee: 0
+        fee: 0,
+        checksum: <<0::8, 0::256>>
       }
 
       send(
@@ -396,7 +400,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
         <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
           24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
       ],
-      fee: 0
+      fee: 0,
+      checksum: <<0::8, 0::256>>
     }
 
     tx_summary_payload = TransactionSummary.serialize(tx_summary)

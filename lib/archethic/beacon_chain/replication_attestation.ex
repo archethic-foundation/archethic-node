@@ -12,7 +12,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
 
   alias Archethic.TransactionChain.TransactionSummary
 
-  defstruct [:transaction_summary, confirmations: [], version: 1]
+  defstruct [:transaction_summary, confirmations: [], version: 2]
 
   @type t :: %__MODULE__{
           transaction_summary: TransactionSummary.t(),
@@ -24,6 +24,57 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
 
   ## Examples
 
+        iex> %ReplicationAttestation{
+        ...>    version: 2,
+        ...>    transaction_summary: %TransactionSummary{
+        ...>      address: <<0, 0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216, 164, 4, 187, 38,
+        ...>        200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66>>,
+        ...>      type: :transfer,
+        ...>      timestamp: ~U[2022-01-27 09:14:22Z],
+        ...>      fee: 10_000_000,
+        ...>      checksum: <<0, 0::256>>
+        ...>    },
+        ...>    confirmations: [
+        ...>      {
+        ...>        0,
+        ...>        <<129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
+        ...>         100, 172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138,
+        ...>         201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
+        ...>         119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195>>
+        ...>       }
+        ...>    ]
+        ...> } |> ReplicationAttestation.serialize()
+        <<
+          # Version
+          2,
+          # Tx address
+          0, 0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216,
+          164, 4, 187, 38, 200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66,
+          # Timestamp
+          0, 0, 1, 126, 154, 208, 125, 176,
+          # Transaction type
+          253,
+          # Fee
+          0, 0, 0, 0, 0, 152, 150, 128,
+          # Nb movements
+          1, 0,
+          # Checksum
+          0, 0::256,
+          # Nb confirmations
+          1,
+          # Replication node position
+          0,
+          # Signature size
+          64,
+          # Replication node signature
+          129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
+          100, 172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138,
+          201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
+          119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195
+        >>
+
+        # Backward compatible tests
+          
         iex> %ReplicationAttestation{
         ...>    version: 1,
         ...>    transaction_summary: %TransactionSummary{
@@ -72,12 +123,12 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   """
   @spec serialize(t()) :: binary()
   def serialize(%__MODULE__{
-        version: 1,
+        version: version,
         transaction_summary: transaction_summary,
         confirmations: confirmations
       }) do
-    <<1::8, TransactionSummary.serialize(transaction_summary)::binary, length(confirmations)::8,
-      serialize_confirmations(confirmations)::binary>>
+    <<version::8, TransactionSummary.serialize(transaction_summary, version)::binary,
+      length(confirmations)::8, serialize_confirmations(confirmations)::binary>>
   end
 
   defp serialize_confirmations(confirmations) do
@@ -126,13 +177,14 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
 
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<1::8, rest::bitstring>>) do
-    {tx_summary, <<nb_confirmations::8, rest::bitstring>>} = TransactionSummary.deserialize(rest)
+  def deserialize(<<version::8, rest::bitstring>>) do
+    {tx_summary, <<nb_confirmations::8, rest::bitstring>>} =
+      TransactionSummary.deserialize(rest, version)
 
     {confirmations, rest} = deserialize_confirmations(rest, nb_confirmations, [])
 
     {%__MODULE__{
-       version: 1,
+       version: version,
        transaction_summary: tx_summary,
        confirmations: confirmations
      }, rest}
@@ -160,6 +212,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           :ok
           | {:error, :invalid_confirmations_signatures}
   def validate(%__MODULE__{
+        version: version,
         transaction_summary:
           tx_summary = %TransactionSummary{
             address: tx_address,
@@ -168,7 +221,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           },
         confirmations: confirmations
       }) do
-    tx_summary_payload = TransactionSummary.serialize(tx_summary)
+    tx_summary_payload = TransactionSummary.serialize(tx_summary, version)
 
     authorized_nodes =
       case P2P.authorized_nodes(timestamp) do
