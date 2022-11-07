@@ -22,6 +22,7 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
 
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -232,10 +233,7 @@ defmodule Archethic.SelfRepair.Sync do
       ) do
     start_time = System.monotonic_time()
 
-    transactions_to_sync =
-      transaction_summaries
-      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
-      |> Enum.filter(&TransactionHandler.download_transaction?/1)
+    transactions_to_sync = Enum.filter(transaction_summaries, &should_repair_transaction?/1)
 
     synchronize_transactions(transactions_to_sync, node_patch)
 
@@ -268,6 +266,19 @@ defmodule Archethic.SelfRepair.Sync do
     update_statistics(summary_time, transaction_summaries)
 
     store_aggregate(aggregate)
+  end
+
+  defp should_repair_transaction?(tx_summary = %TransactionSummary{address: address}) do
+    with true <- TransactionHandler.download_transaction?(tx_summary),
+         {:error, :transaction_not_exists} <- TransactionChain.get_transaction(address) do
+      true
+    else
+      false ->
+        false
+
+      {:ok, tx = %Transaction{}} ->
+        TransactionSummary.from_transaction(tx) != tx_summary
+    end
   end
 
   defp synchronize_transactions([], _node_patch), do: :ok

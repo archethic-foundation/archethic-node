@@ -29,6 +29,10 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.TransactionFactory
 
   alias Archethic.TransactionChain.VersionedTransactionInput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -177,7 +181,8 @@ defmodule Archethic.SelfRepair.SyncTest do
         address: tx.address,
         type: :transfer,
         timestamp: DateTime.utc_now(),
-        fee: 100_000_000
+        fee: 100_000_000,
+        checksum: <<0::8, 0::256>>
       }
 
       elected_storage_nodes =
@@ -304,6 +309,105 @@ defmodule Archethic.SelfRepair.SyncTest do
       |> stub(:write_transaction, fn ^transfer_tx ->
         send(me, :transaction_stored)
         :ok
+      end)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^tx_address}, _ ->
+          {:ok, transfer_tx}
+
+        _, %GetTransaction{address: _}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %GetTransactionChain{}, _ ->
+          {:ok, %TransactionList{transactions: []}}
+
+        _, %GetTransactionInputs{address: _}, _ ->
+          {:ok,
+           %TransactionInputList{
+             inputs:
+               Enum.map(inputs, fn input ->
+                 %VersionedTransactionInput{input: input, protocol_version: 1}
+               end)
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %NotFound{}}
+      end)
+
+      MockDB
+      |> stub(:register_stats, fn _, _, _, _ ->
+        :ok
+      end)
+
+      assert :ok =
+               Sync.process_summary_aggregate(
+                 %SummaryAggregate{
+                   summary_time: DateTime.utc_now(),
+                   transaction_summaries: [
+                     %TransactionSummary{
+                       address: tx_address,
+                       type: :transfer,
+                       timestamp: DateTime.utc_now(),
+                       fee: 0
+                     }
+                   ]
+                 },
+                 "AAA"
+               )
+
+      assert_received :transaction_stored
+    end
+
+    test "should repair inconsistent transactions" do
+      create_p2p_context()
+
+      inputs = [
+        %TransactionInput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      transfer_tx =
+        TransactionFactory.create_valid_transaction(inputs,
+          seed: "transfer_seed"
+        )
+
+      tx_address = transfer_tx.address
+      me = self()
+
+      MockDB
+      |> stub(:write_transaction, fn ^transfer_tx ->
+        send(me, :transaction_stored)
+        :ok
+      end)
+      |> stub(:get_transaction, fn _, _ ->
+        {:ok,
+         %Transaction{
+           address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+           type: :transfer,
+           data: %TransactionData{},
+           previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+           previous_signature: :crypto.strong_rand_bytes(64),
+           origin_signature: :crypto.strong_rand_bytes(64),
+           validation_stamp: %ValidationStamp{
+             proof_of_work: :crypto.strong_rand_bytes(32),
+             proof_of_integrity: :crypto.strong_rand_bytes(32),
+             proof_of_election: :crypto.strong_rand_bytes(32),
+             timestamp: DateTime.utc_now(),
+             protocol_version: 4,
+             ledger_operations: %LedgerOperations{
+               fee: 0,
+               transaction_movements: []
+             }
+           }
+         }}
       end)
 
       MockClient
