@@ -51,6 +51,7 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias Archethic.SharedSecrets
   alias Archethic.Replication
 
   alias Archethic.TransactionChain
@@ -1001,14 +1002,13 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.map(&{elem(&1, 0), elem(&1, 1).()})
     |> Enum.filter(&match?({_, false}, &1))
     |> Enum.map(&elem(&1, 0))
-  end
-
-  defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, %__MODULE__{
-         validation_time: validation_time
-       }) do
-    diff = DateTime.diff(timestamp, validation_time)
-    diff <= 3 and diff > -10
-  end
+  end <
+    defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, %__MODULE__{
+           validation_time: validation_time
+         }) do
+      diff = DateTime.diff(timestamp, validation_time)
+      diff <= 3 and diff > -10
+    end
 
   defp valid_stamp_signature(stamp = %ValidationStamp{}, %__MODULE__{
          coordinator_node: %Node{last_public_key: coordinator_node_public_key}
@@ -1024,7 +1024,8 @@ defmodule Archethic.Mining.ValidationContext do
         do_proof_of_work(tx) == ""
 
       _ ->
-        Transaction.verify_origin_signature?(tx, pow)
+        Transaction.verify_origin_signature?(tx, pow) and
+          SharedSecrets.has_origin_public_key?(pow)
     end
   end
 
