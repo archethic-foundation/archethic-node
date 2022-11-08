@@ -72,6 +72,12 @@ defmodule Archethic.P2P do
   defdelegate list_nodes, to: MemTable
 
   @doc """
+  Stream the registered nodes.
+  """
+  @spec stream_nodes() :: Enumerable.t()
+  defdelegate stream_nodes(), to: MemTable
+
+  @doc """
   Return the list of available nodes
   """
   @spec available_nodes() :: list(Node.t())

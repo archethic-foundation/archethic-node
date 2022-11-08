@@ -434,6 +434,51 @@ defmodule Archethic.P2P.MemTable do
   end
 
   @doc """
+  Stream List of nodes from heap to stack
+  """
+  @spec stream_nodes() :: Enumerable.t()
+  def stream_nodes() do
+    Stream.resource(
+      fn ->
+        nil
+      end,
+      fn
+        nil ->
+          # first iteration
+          node_from_key(:ets.first(@discovery_table))
+
+        prev_ele ->
+          # next and last iteration
+          next_key = :ets.next(@discovery_table, prev_ele)
+          node_from_key(next_key)
+      end,
+      fn _ ->
+        :ok
+      end
+    )
+  end
+
+  def node_from_key(:"$end_of_table"), do: {:halt, nil}
+
+  def node_from_key(key) when is_binary(key) do
+    case :ets.lookup(@discovery_table, key) do
+      [] ->
+        {:halt, nil}
+
+      [object] ->
+        node =
+          object
+          |> Node.cast()
+          |> toggle_node_authorization
+          |> toggle_node_availability
+
+        {[node], key}
+    end
+  end
+
+  def node_from_key(_), do: {:halt, nil}
+
+  @doc """
   List the authorized nodes
 
   ## Examples

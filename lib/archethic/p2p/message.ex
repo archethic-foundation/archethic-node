@@ -2,107 +2,105 @@ defmodule Archethic.P2P.Message do
   @moduledoc """
   Provide functions to encode and decode P2P messages using a custom binary protocol
   """
-  alias Archethic.Account
 
-  alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.BeaconChain.Summary
-  alias Archethic.BeaconChain.SummaryAggregate
-  alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.Subset
-  alias Archethic.BeaconChain.Slot
-
-  alias Archethic.Contracts
-
-  alias Archethic.Crypto
-
-  alias Archethic.Election
-
-  alias Archethic.Mining
-
-  alias Archethic.P2P
-
-  alias __MODULE__.AcknowledgeStorage
-  alias __MODULE__.AddMiningContext
-  alias __MODULE__.Balance
-  alias __MODULE__.BeaconSummaryList
-  alias __MODULE__.BeaconUpdate
-  alias __MODULE__.BootstrappingNodes
-  alias __MODULE__.CrossValidate
-  alias __MODULE__.CrossValidationDone
-  alias __MODULE__.EncryptedStorageNonce
-  alias __MODULE__.Error
-  alias __MODULE__.FirstPublicKey
-  alias __MODULE__.FirstAddress
-  alias __MODULE__.GetFirstAddress
-  alias __MODULE__.GetBalance
-  alias __MODULE__.GetBeaconSummaries
-  alias __MODULE__.GetBeaconSummary
-  alias __MODULE__.GetBeaconSummariesAggregate
-  alias __MODULE__.GetBootstrappingNodes
-  alias __MODULE__.GetCurrentSummaries
-  alias __MODULE__.GetFirstPublicKey
-  alias __MODULE__.GetLastTransaction
-  alias __MODULE__.GetLastTransactionAddress
-  alias __MODULE__.GetP2PView
-  alias __MODULE__.GetStorageNonce
-  alias __MODULE__.GetTransaction
-  alias __MODULE__.GetTransactionChain
-  alias __MODULE__.GetTransactionChainLength
-  alias __MODULE__.GetTransactionInputs
-  alias __MODULE__.GetTransactionSummary
-  alias __MODULE__.GetUnspentOutputs
-  alias __MODULE__.LastTransactionAddress
-  alias __MODULE__.ListNodes
-  alias __MODULE__.NewBeaconSlot
-  alias __MODULE__.NewTransaction
-  alias __MODULE__.NodeList
-  alias __MODULE__.NotFound
-  alias __MODULE__.NotifyEndOfNodeSync
-  alias __MODULE__.NotifyPreviousChain
-  alias __MODULE__.NotifyLastTransactionAddress
-  alias __MODULE__.Ok
-  alias __MODULE__.P2PView
-  alias __MODULE__.Ping
-  alias __MODULE__.RegisterBeaconUpdates
-  alias __MODULE__.ReplicateTransaction
-  alias __MODULE__.ReplicateTransactionChain
-  alias __MODULE__.ReplicationError
-  alias __MODULE__.StartMining
-  alias __MODULE__.TransactionChainLength
-  alias __MODULE__.TransactionInputList
-  alias __MODULE__.TransactionSummaryList
-  alias __MODULE__.TransactionList
-  alias __MODULE__.UnspentOutputList
-  alias __MODULE__.ValidationError
-
-  alias Archethic.P2P.Node
-
-  alias Archethic.PubSub
-
-  alias Archethic.Replication
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
-  alias Archethic.TransactionChain.TransactionSummary
-
-  alias Archethic.TaskSupervisor
-
-  alias Archethic.Utils
-  alias Archethic.Utils.VarInt
-
-  require Logger
+  alias Archethic.{
+    Account,
+    BeaconChain,
+    Contracts,
+    Crypto,
+    Election,
+    Mining,
+    P2P,
+    P2P.Node,
+    PubSub,
+    Replication,
+    TransactionChain,
+    TaskSupervisor,
+    Utils,
+    Utils.VarInt
+  }
 
   alias ArchethicWeb.TransactionSubscriber
+
+  alias Archethic.BeaconChain.{
+    ReplicationAttestation,
+    Summary,
+    SummaryAggregate,
+    Slot,
+    Subset,
+    Slot
+  }
+
+  alias Archethic.TransactionChain.{
+    Transaction,
+    Transaction.CrossValidationStamp,
+    Transaction.ValidationStamp,
+    TransactionInput,
+    TransactionSummary,
+    VersionedTransactionInput,
+    Transaction.ValidationStamp.LedgerOperations,
+    Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+  }
+
+  alias __MODULE__.{
+    AcknowledgeStorage,
+    AddMiningContext,
+    Balance,
+    BeaconSummaryList,
+    BeaconUpdate,
+    BootstrappingNodes,
+    CrossValidate,
+    CrossValidationDone,
+    EncryptedStorageNonce,
+    Error,
+    FirstPublicKey,
+    FirstAddress,
+    GetFirstAddress,
+    GetBalance,
+    GetBeaconSummaries,
+    GetBeaconSummary,
+    GetBeaconSummariesAggregate,
+    GetBootstrappingNodes,
+    GetCurrentSummaries,
+    GetFirstPublicKey,
+    GetLastTransaction,
+    GetLastTransactionAddress,
+    GetP2PView,
+    GetStorageNonce,
+    GetTransaction,
+    GetTransactionChain,
+    GetTransactionChainLength,
+    GetTransactionInputs,
+    GetTransactionSummary,
+    GetUnspentOutputs,
+    LastTransactionAddress,
+    ListNodes,
+    NewBeaconSlot,
+    NewTransaction,
+    NodeAvailability,
+    NodeList,
+    NotFound,
+    NotifyEndOfNodeSync,
+    NotifyLastTransactionAddress,
+    NotifyPreviousChain,
+    Ok,
+    P2PView,
+    Ping,
+    RegisterBeaconUpdates,
+    ReplicateTransaction,
+    ReplicateTransactionChain,
+    ReplicationError,
+    ShardRepair,
+    StartMining,
+    TransactionChainLength,
+    TransactionInputList,
+    TransactionSummaryList,
+    TransactionList,
+    UnspentOutputList,
+    ValidationError
+  }
+
+  require Logger
 
   @type t :: request() | response()
 
@@ -141,6 +139,7 @@ defmodule Archethic.P2P.Message do
           | GetCurrentSummaries.t()
           | GetBeaconSummariesAggregate.t()
           | NotifyPreviousChain.t()
+          | ShardRepair.t()
 
   @type response ::
           Ok.t()
@@ -432,6 +431,10 @@ defmodule Archethic.P2P.Message do
 
   def encode(%NotifyPreviousChain{address: address}) do
     <<34::8, address::binary>>
+  end
+
+  def encode(msg = %ShardRepair{}) do
+    <<230::8, ShardRepair.serialize(msg)::bitstring>>
   end
 
   def encode(aggregate = %SummaryAggregate{}) do
@@ -966,6 +969,10 @@ defmodule Archethic.P2P.Message do
   def decode(<<34::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
     {%NotifyPreviousChain{address: address}, rest}
+  end
+
+  def decode(<<230::8, rest::bitstring>>) do
+    ShardRepair.deserialize(rest)
   end
 
   def decode(<<231::8, rest::bitstring>>) do
@@ -1833,7 +1840,40 @@ defmodule Archethic.P2P.Message do
   def process(%NotifyPreviousChain{address: address}, _) do
     Replication.acknowledge_previous_storage_nodes(address)
     %Ok{}
+
+  def process(
+        msg = %ShardRepair{
+          genesis_address: genesis_address,
+          last_address: last_address
+        },
+        _
+      ) do
+    alias Archethic.SelfRepair.Notifier
+
+    with {:exists?, false} <- {:exists?, TransactionChain.transaction_exists?(last_address)},
+         {:worker?, false} <- {:worker?, Notifier.Impl.repair_in_progress?(genesis_address)} do
+      msg
+      |> ShardRepair.cast()
+      |> Notifier.Impl.start_worker()
+
+      Logger.debug("Repair-Worker has begain Repair")
+    else
+      {:exists?, true} ->
+        # corner case: check if the complete chain exists or not?
+        Logger.debug("TransactionChain exists")
+        :ok
+
+      {:worker?, pid} when is_pid(pid) ->
+        msg
+        |> ShardRepair.cast()
+        |> Notifier.Impl.update_worker(pid)
+
+        Logger.debug("Repair-Worker was updated")
+    end
+
+    %Ok{}
   end
+
 
   defp process_replication_chain(tx, replying_node_public_key) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->

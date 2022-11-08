@@ -4,10 +4,10 @@ defmodule Archethic.P2P.Message.TransactionInputList do
   """
   defstruct inputs: [], more?: false, offset: 0
 
-  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   @type t() :: %__MODULE__{
-          inputs: list(TransactionInput.t()),
+          inputs: list(VersionedTransactionInput.t()),
           more?: boolean(),
           offset: non_neg_integer()
         }

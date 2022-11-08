@@ -18,6 +18,7 @@ defmodule Archethic.TransactionFactory do
 
   alias Archethic.TransactionChain.TransactionData
 
+  @deprecated "use_create_valid_chain/2 instead"
   def create_valid_transaction(
         inputs \\ [],
         opts \\ []
@@ -226,7 +227,8 @@ defmodule Archethic.TransactionFactory do
   end
 
   @doc """
-  Creates a valid Node Shared Secrets Tx with parameters index, timestamp, prev_txn
+  Creates a valid Node Shared Secrets Tx with parameters index, timestamp, prev_txn.any()
+  requires valid_p2p_Context
   """
   @spec create_network_tx(:node_shared_secrets, keyword) ::
           Archethic.TransactionChain.Transaction.t()
@@ -271,5 +273,99 @@ defmodule Archethic.TransactionFactory do
       | validation_stamp: validation_stamp,
         cross_validation_stamps: [cross_validation_stamp]
     }
+  end
+
+  @doc """
+  Creates a valid Txn Chain with parameters index, timestamp, prev_txn.
+  required valid_p2p_Context
+  """
+  def create_valid_chain(
+        inputs \\ [],
+        opts \\ []
+      ) do
+    type = Keyword.get(opts, :type, :transfer)
+    seed = Keyword.get(opts, :seed, "seed")
+    index = Keyword.get(opts, :index)
+    content = Keyword.get(opts, :content, "")
+    prev_txn = Keyword.get(opts, :prev_txn, [])
+    timestamp = Keyword.get(opts, :timestamp) |> DateTime.truncate(:millisecond)
+
+    txn = Transaction.new(type, %TransactionData{content: content}, seed, index)
+
+    ledger_operations =
+      %LedgerOperations{
+        fee: Fee.calculate(txn, 0.07),
+        transaction_movements: Transaction.get_movements(txn)
+      }
+      |> LedgerOperations.consume_inputs(txn.address, inputs, timestamp)
+
+    validation_stamp =
+      %ValidationStamp{
+        timestamp: timestamp,
+        proof_of_work: Crypto.origin_node_public_key(),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(txn, timestamp),
+        proof_of_integrity: TransactionChain.proof_of_integrity([txn | prev_txn]),
+        ledger_operations: ledger_operations,
+        protocol_version: ArchethicCase.current_protocol_version()
+      }
+      |> ValidationStamp.sign()
+
+    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
+    %{txn | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+  end
+
+  def build_valid_p2p_view() do
+    alias Archethic.P2P.Node
+    alias Archethic.P2P
+
+    pb_key2 = Crypto.derive_keypair("key22_random", 0) |> elem(0)
+    pb_key3 = Crypto.derive_keypair("key23_random", 0) |> elem(0)
+
+    SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
+
+    %Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: true,
+      authorization_date: DateTime.add(DateTime.utc_now(), -86_400, :second),
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      enrollment_date: DateTime.add(DateTime.utc_now(), -86_400, :second),
+      reward_address: Crypto.derive_address(Crypto.last_node_public_key())
+    }
+    |> P2P.add_and_connect_node()
+
+    %Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: pb_key2,
+      last_public_key: pb_key2,
+      available?: true,
+      authorized?: true,
+      geo_patch: "BBB",
+      network_patch: "BBB",
+      authorization_date: DateTime.add(DateTime.utc_now(), -86_400, :second),
+      reward_address: Crypto.derive_address(pb_key2),
+      enrollment_date: DateTime.add(DateTime.utc_now(), -86_400, :second)
+    }
+    |> P2P.add_and_connect_node()
+
+    %Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: pb_key3,
+      last_public_key: pb_key3,
+      available?: true,
+      authorized?: true,
+      geo_patch: "BBB",
+      network_patch: "BBB",
+      authorization_date: DateTime.add(DateTime.utc_now(), -86_400 * 2, :second),
+      reward_address: Crypto.derive_address(pb_key3),
+      enrollment_date: DateTime.add(DateTime.utc_now(), -86_400 * 2, :second)
+    }
+    |> P2P.add_and_connect_node()
+
+    :ok
   end
 end

@@ -79,4 +79,6 @@ defmodule Archethic.DB do
               :ok
   @callback get_inputs(ledger :: :UCO | :token, address :: binary()) ::
               list(VersionedTransactionInput.t())
+
+  @callback stream_genesis_addresses() :: Enumerable.t()
 end

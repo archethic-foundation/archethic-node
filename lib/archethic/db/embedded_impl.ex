@@ -384,4 +384,12 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec get_inputs(ledger :: :UCO | :token, address :: binary()) ::
           list(VersionedTransactionInput.t())
   defdelegate get_inputs(ledger, address), to: InputsReader, as: :get_inputs
+
+  @doc """
+  Stream Genesis Addresses from last index ETS Table
+  """
+  @spec stream_genesis_addresses :: Enumerable.t()
+  def stream_genesis_addresses() do
+    ChainIndex.list_genesis_addresses()
+  end
 end

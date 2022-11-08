@@ -112,6 +112,14 @@ defmodule Archethic.TransactionChain do
   defdelegate get_first_public_key(previous_public_key), to: DB, as: :get_first_public_key
 
   @doc """
+   Stream Genesis Addresses from heap to stack
+  """
+  @spec stream_genesis_addresses() :: Enumerable.t()
+  defdelegate stream_genesis_addresses(),
+    to: DB,
+    as: :stream_genesis_addresses
+
+  @doc """
   Get a transaction
 
   A lookup is performed into the KO ledger to determine if the transaction is invalid

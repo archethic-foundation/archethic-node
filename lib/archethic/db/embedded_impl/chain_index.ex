@@ -10,6 +10,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   alias Archethic.DB.EmbeddedImpl.ChainWriter
   alias Archethic.TransactionChain.Transaction
 
+  @archethic_db_tx_index :archethic_db_tx_index
+  @archethic_db_chain_stats :archethic_db_chain_stats
+  @archethic_db_last_index :archethic_db_last_index
+  @archethic_db_type_stats :archethic_db_type_stats
+
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
@@ -17,10 +22,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   def init(opts) do
     db_path = Keyword.fetch!(opts, :path)
 
-    :ets.new(:archethic_db_tx_index, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(:archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(:archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(:archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@archethic_db_tx_index, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
 
     fill_tables(db_path)
 
@@ -60,12 +65,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
       true =
         :ets.insert(
-          :archethic_db_tx_index,
+          @archethic_db_tx_index,
           {current_address, %{size: size, offset: offset, genesis_address: genesis_address}}
         )
 
       :ets.update_counter(
-        :archethic_db_chain_stats,
+        @archethic_db_chain_stats,
         genesis_address,
         [
           {2, size},
@@ -89,7 +94,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
       true =
         :ets.insert(
-          :archethic_db_last_index,
+          @archethic_db_last_index,
           {genesis_address, last_address, DateTime.to_unix(timestamp, :millisecond)}
         )
     end)
@@ -100,10 +105,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       case File.open(type_path(db_path, type), [:read, :binary]) do
         {:ok, fd} ->
           nb_txs = do_scan_types(fd)
-          :ets.insert(:archethic_db_type_stats, {type, nb_txs})
+          :ets.insert(@archethic_db_type_stats, {type, nb_txs})
 
         {:error, _} ->
-          :ets.insert(:archethic_db_type_stats, {type, 0})
+          :ets.insert(@archethic_db_type_stats, {type, 0})
       end
     end)
   end
@@ -142,12 +147,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     # Write fast lookup entry for this transaction on memory
     true =
       :ets.insert(
-        :archethic_db_tx_index,
+        @archethic_db_tx_index,
         {tx_address, %{size: size, offset: last_offset, genesis_address: genesis_address}}
       )
 
     :ets.update_counter(
-      :archethic_db_chain_stats,
+      @archethic_db_chain_stats,
       genesis_address,
       [
         {2, size},
@@ -162,7 +167,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @spec get_file_stats(binary()) ::
           {offset :: non_neg_integer(), nb_transactions :: non_neg_integer()}
   def get_file_stats(genesis_address) do
-    case :ets.lookup(:archethic_db_chain_stats, genesis_address) do
+    case :ets.lookup(@archethic_db_chain_stats, genesis_address) do
       [{_, last_offset, nb_txs}] ->
         {last_offset, nb_txs}
 
@@ -207,7 +212,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   """
   @spec get_tx_entry(binary(), String.t()) :: {:ok, map()} | {:error, :not_exists}
   def get_tx_entry(address, db_path) do
-    case :ets.lookup(:archethic_db_tx_index, address) do
+    case :ets.lookup(@archethic_db_tx_index, address) do
       [] ->
         # If the transaction is not found in the in memory lookup
         # we scan the index file for the subset of the transaction to find the relative information
@@ -335,7 +340,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   """
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
   def count_transactions_by_type(type) do
-    case :ets.lookup(:archethic_db_type_stats, type) do
+    case :ets.lookup(@archethic_db_type_stats, type) do
       [] ->
         0
 
@@ -351,7 +356,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
           :ok
   def add_tx_type(type, address, db_path) do
     File.write!(type_path(db_path, type), address, [:append, :binary])
-    :ets.update_counter(:archethic_db_type_stats, type, {2, 1}, {type, 0})
+    :ets.update_counter(@archethic_db_type_stats, type, {2, 1}, {type, 0})
     :ok
   end
 
@@ -372,7 +377,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     filename = chain_addresses_path(db_path, genesis_address)
 
     write_last_chain_transaction? =
-      case :ets.lookup(:archethic_db_last_index, genesis_address) do
+      case :ets.lookup(@archethic_db_last_index, genesis_address) do
         [{_, ^new_address, _}] -> false
         [{_, _, chain_unix_time}] when unix_time < chain_unix_time -> false
         _ -> true
@@ -380,7 +385,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
     if write_last_chain_transaction? do
       :ok = File.write!(filename, encoded_data, [:binary, :append])
-      true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time})
+      true = :ets.insert(@archethic_db_last_index, {genesis_address, new_address, unix_time})
     end
 
     :ok
@@ -396,7 +401,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     case get_tx_entry(address, db_path) do
       {:ok, %{genesis_address: genesis_address}} ->
         # Search in the latest in memory index
-        case :ets.lookup(:archethic_db_last_index, genesis_address) do
+        case :ets.lookup(@archethic_db_last_index, genesis_address) do
           [] ->
             # If not present, the we search in the index file
             unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
@@ -410,7 +415,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
       {:error, :not_exists} ->
         # We try if the request address is the genesis address to fetch the in memory index
-        case :ets.lookup(:archethic_db_last_index, address) do
+        case :ets.lookup(@archethic_db_last_index, address) do
           [] ->
             # If not present, the we search in the index file
             unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
@@ -610,14 +615,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp stream_genesis_addresses(acc = []) do
-    case :ets.first(:archethic_db_chain_stats) do
+    case :ets.first(@archethic_db_chain_stats) do
       :"$end_of_table" -> {:halt, acc}
       first_key -> {[first_key], first_key}
     end
   end
 
   defp stream_genesis_addresses(acc) do
-    case :ets.next(:archethic_db_chain_stats, acc) do
+    case :ets.next(@archethic_db_chain_stats, acc) do
       :"$end_of_table" -> {:halt, acc}
       next_key -> {[next_key], next_key}
     end
