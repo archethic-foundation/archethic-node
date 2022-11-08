@@ -24,7 +24,7 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @protocol_version 3
+  @protocol_version 4
 
   def protocol_version, do: @protocol_version
 
@@ -75,9 +75,6 @@ defmodule Archethic.Mining do
         storage_nodes,
         Election.get_validation_constraints()
       )
-      # We reject the unavailable nodes at the time of the tx validation
-      # but not for the election to avoid any issue in the future
-      |> Enum.filter(& &1.available?)
 
     validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
   end
