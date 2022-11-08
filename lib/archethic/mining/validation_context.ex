@@ -1002,13 +1002,14 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.map(&{elem(&1, 0), elem(&1, 1).()})
     |> Enum.filter(&match?({_, false}, &1))
     |> Enum.map(&elem(&1, 0))
-  end <
-    defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, %__MODULE__{
-           validation_time: validation_time
-         }) do
-      diff = DateTime.diff(timestamp, validation_time)
-      diff <= 3 and diff > -10
-    end
+  end
+
+  defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, %__MODULE__{
+         validation_time: validation_time
+       }) do
+    diff = DateTime.diff(timestamp, validation_time)
+    diff <= 3 and diff > -10
+  end
 
   defp valid_stamp_signature(stamp = %ValidationStamp{}, %__MODULE__{
          coordinator_node: %Node{last_public_key: coordinator_node_public_key}

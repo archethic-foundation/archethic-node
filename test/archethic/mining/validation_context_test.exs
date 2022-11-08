@@ -27,6 +27,20 @@ defmodule Archethic.Mining.ValidationContextTest do
   doctest ValidationContext
 
   describe "cross_validate/1" do
+    test "should validate with a valid validation stamp" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      validation_context = create_context(timestamp)
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      %ValidationContext{
+        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: []}]
+      } =
+        validation_context
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
+        |> ValidationContext.cross_validate()
+    end
+
     test "should get inconsistency when the validation stamp signature is invalid" do
       validation_context = create_context()
 
@@ -66,9 +80,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
       } =
         validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_non_authorized_proof_of_work(validation_context)
-        )
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
         |> ValidationContext.cross_validate()
     end
 
@@ -270,7 +282,7 @@ defmodule Archethic.Mining.ValidationContextTest do
     |> ValidationStamp.sign()
   end
 
-  defp create_validation_stamp_with_non_authorized_proof_of_work(%ValidationContext{
+  defp create_validation_stamp(%ValidationContext{
          transaction: tx,
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
