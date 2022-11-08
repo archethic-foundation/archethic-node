@@ -83,10 +83,6 @@ defmodule Archethic do
         storage_nodes,
         Election.get_validation_constraints()
       )
-      # We reject the unavailable nodes for the mining notification
-      # but not for the election to avoid any issue in the future
-      # during the verification
-      |> Enum.filter(& &1.available?)
 
     message = %StartMining{
       transaction: tx,
