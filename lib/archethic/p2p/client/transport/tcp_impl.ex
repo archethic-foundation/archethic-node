@@ -3,7 +3,15 @@ defmodule Archethic.P2P.Client.Transport.TCPImpl do
 
   alias Archethic.P2P.Client.Transport
 
-  @options [:binary, packet: 4, active: :once, keepalive: true, reuseaddr: true]
+  @options [
+    :binary,
+    packet: 4,
+    active: :once,
+    keepalive: true,
+    reuseaddr: true,
+    send_timeout: 30_000,
+    send_timeout_close: true
+  ]
 
   @behaviour Transport
 
