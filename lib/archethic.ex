@@ -43,7 +43,7 @@ defmodule Archethic do
   """
   @spec send_new_transaction(Transaction.t()) :: :ok | {:error, :network_issue}
   def send_new_transaction(tx = %Transaction{}) do
-    if P2P.authorized_node?() do
+    if P2P.authorized_and_available_node?() do
       do_send_transaction(tx)
     else
       P2P.authorized_and_available_nodes()

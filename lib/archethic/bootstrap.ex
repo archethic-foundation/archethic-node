@@ -222,7 +222,7 @@ defmodule Archethic.Bootstrap do
   def resync_network_chain() do
     Logger.info("Enforced Resync: Started!")
 
-    if P2P.authorized_node?() && P2P.available_node?() do
+    if P2P.authorized_and_available_node?() do
       # evict this node
       nodes =
         Enum.reject(

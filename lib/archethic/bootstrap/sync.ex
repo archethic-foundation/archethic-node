@@ -18,7 +18,7 @@ defmodule Archethic.Bootstrap.Sync do
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
   alias Archethic.P2P.Node
 
-  alias Archethic.Election
+  alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -116,9 +116,13 @@ defmodule Archethic.Bootstrap.Sync do
       |> NetworkInit.self_validation()
       |> NetworkInit.self_replication()
 
-    P2P.set_node_globally_available(Crypto.first_node_public_key())
+    P2P.set_node_globally_available(Crypto.first_node_public_key(), DateTime.utc_now())
     P2P.set_node_globally_synced(Crypto.first_node_public_key())
-    P2P.authorize_node(Crypto.last_node_public_key(), DateTime.utc_now())
+
+    P2P.authorize_node(
+      Crypto.last_node_public_key(),
+      SharedSecrets.next_application_date(DateTime.utc_now())
+    )
 
     NetworkInit.init_software_origin_chain()
     NetworkInit.init_node_shared_secrets_chain()

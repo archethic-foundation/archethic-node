@@ -3,7 +3,6 @@ defmodule Archethic.P2P.MemTable do
 
   @discovery_table :archethic_node_discovery
   @nodes_key_lookup_table :archethic_node_keys
-  @availability_lookup_table :archethic_available_nodes
   @authorized_nodes_table :archethic_authorized_nodes
 
   alias Archethic.Crypto
@@ -33,7 +32,9 @@ defmodule Archethic.P2P.MemTable do
     last_address: 13,
     origin_public_key: 14,
     synced?: 15,
-    last_update_date: 16
+    last_update_date: 16,
+    available?: 17,
+    availability_update: 18
   ]
 
   @doc """
@@ -46,7 +47,6 @@ defmodule Archethic.P2P.MemTable do
 
   def init(_args) do
     :ets.new(@discovery_table, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(@availability_lookup_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@authorized_nodes_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@nodes_key_lookup_table, [:set, :named_table, :public, read_concurrency: true])
 
@@ -79,6 +79,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   last_update_date: ~U[2020-10-22 23:19:45.797109Z],
+      ...>   availability_update: ~U[2020-10-22 23:19:45.797109Z],
       ...>   transport: :tcp,
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -90,7 +91,6 @@ defmodule Archethic.P2P.MemTable do
       iex> :ok = MemTable.add_node(node)
       iex> {
       ...>   :ets.tab2list(:archethic_node_discovery),
-      ...>   :ets.tab2list(:archethic_available_nodes),
       ...>   :ets.tab2list(:archethic_authorized_nodes),
       ...>   :ets.tab2list(:archethic_node_keys)
       ...>  }
@@ -103,10 +103,9 @@ defmodule Archethic.P2P.MemTable do
           <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
             88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
           <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>, true, ~U[2020-10-22 23:19:45.797109Z]
+            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>, true, ~U[2020-10-22 23:19:45.797109Z],
+            true, ~U[2020-10-22 23:19:45.797109Z]
         }],
-        # Globally available nodes
-        [{ "key1" }],
         # Authorized nodes
         [{ "key1",  ~U[2020-10-22 23:19:45.797109Z] }],
         # Node key lookup
@@ -132,6 +131,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   last_update_date: ~U[2020-10-22 23:19:45.797109Z],
+      ...>   availability_update: ~U[2020-10-22 23:19:45.797109Z],
       ...>   transport: :tcp,
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -151,6 +151,8 @@ defmodule Archethic.P2P.MemTable do
       ...>   availability_history: <<1::1, 1::1>>,
       ...>   last_update_date: ~U[2020-10-22 23:20:45.797109Z],
       ...>   synced?: false,
+      ...>   availability_update: ~U[2020-10-23 23:20:45.797109Z],
+      ...>   available?: false,
       ...>   transport: :sctp,
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -177,7 +179,9 @@ defmodule Archethic.P2P.MemTable do
         <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
           185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>,
         false,
-        ~U[2020-10-22 23:20:45.797109Z]
+        ~U[2020-10-22 23:20:45.797109Z],
+        false,
+        ~U[2020-10-23 23:20:45.797109Z]
       }]
   """
   @spec add_node(Node.t()) :: :ok
@@ -185,7 +189,6 @@ defmodule Archethic.P2P.MemTable do
         node = %Node{
           first_public_key: first_public_key,
           last_public_key: last_public_key,
-          available?: available?,
           authorized?: authorized?,
           authorization_date: authorization_date
         }
@@ -205,10 +208,6 @@ defmodule Archethic.P2P.MemTable do
 
     if authorized? do
       authorize_node(first_public_key, authorization_date)
-    end
-
-    if available? do
-      set_node_available(first_public_key)
     end
 
     notify_node_update(first_public_key)
@@ -236,7 +235,9 @@ defmodule Archethic.P2P.MemTable do
          reward_address: reward_address,
          last_address: last_address,
          origin_public_key: origin_public_key,
-         last_update_date: last_update_date
+         last_update_date: last_update_date,
+         available?: available?,
+         availability_update: availability_update
        }) do
     availability_history =
       if first_public_key == Crypto.first_node_public_key(),
@@ -247,7 +248,8 @@ defmodule Archethic.P2P.MemTable do
       @discovery_table,
       {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
        average_availability, availability_history, enrollment_date, transport, reward_address,
-       last_address, origin_public_key, synced?, last_update_date}
+       last_address, origin_public_key, synced?, last_update_date, available?,
+       availability_update}
     )
   end
 
@@ -266,8 +268,14 @@ defmodule Archethic.P2P.MemTable do
          reward_address: reward_address,
          last_address: last_address,
          origin_public_key: origin_public_key,
-         last_update_date: timestamp
+         last_update_date: timestamp,
+         available?: available?,
+         availability_update: availability_update
        }) do
+    if available?,
+      do: set_node_available(first_public_key, availability_update),
+      else: set_node_unavailable(first_public_key, availability_update)
+
     changes = [
       {Keyword.fetch!(@discovery_index_position, :last_public_key), last_public_key},
       {Keyword.fetch!(@discovery_index_position, :reward_address), reward_address},
@@ -387,7 +395,6 @@ defmodule Archethic.P2P.MemTable do
           res
           |> Node.cast()
           |> toggle_node_authorization
-          |> toggle_node_availability
 
         {:ok, node}
     end
@@ -418,7 +425,6 @@ defmodule Archethic.P2P.MemTable do
           entry
           |> Node.cast()
           |> toggle_node_authorization()
-          |> toggle_node_availability()
 
         [node | acc]
       end,
@@ -465,7 +471,6 @@ defmodule Archethic.P2P.MemTable do
           res
           |> Node.cast()
           |> Node.authorize(authorization_date)
-          |> toggle_node_availability()
 
         [node | acc]
       end,
@@ -504,20 +509,23 @@ defmodule Archethic.P2P.MemTable do
   """
   @spec available_nodes() :: list(Node.t())
   def available_nodes do
+    availability_pos = Keyword.fetch!(@discovery_index_position, :available?) - 1
+
     :ets.foldl(
-      fn {key}, acc ->
-        [res] = :ets.lookup(@discovery_table, key)
+      fn
+        res, acc when elem(res, availability_pos) == true ->
+          node =
+            res
+            |> Node.cast()
+            |> toggle_node_authorization()
 
-        node =
-          res
-          |> Node.cast()
-          |> toggle_node_authorization()
-          |> Node.available()
+          [node | acc]
 
-        [node | acc]
+        _, acc ->
+          acc
       end,
       [],
-      @availability_lookup_table
+      @discovery_table
     )
   end
 
@@ -695,15 +703,30 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key2"
       ...> }
       iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_available("key1")
-      iex> {:ok, %Node{available?: true}} = MemTable.get_node("key1")
+      iex> :ok = MemTable.set_node_available("key1", ~U[2020-10-22 23:45:41Z])
+      iex> {:ok, %Node{available?: true, availability_update: ~U[2020-10-22 23:45:41Z]}} = MemTable.get_node("key1")
+      iex> MemTable.add_node(node)
+      iex> :ok = MemTable.set_node_available("key1", ~U[2020-10-23 23:45:41Z])
+      iex> {:ok, %Node{available?: true, availability_update: ~U[2020-10-23 23:45:41Z]}} = MemTable.get_node("key1")
   """
-  @spec set_node_available(Crypto.key()) :: :ok
-  def set_node_available(first_public_key) when is_binary(first_public_key) do
+  @spec set_node_available(Crypto.key(), DateTime.t()) :: :ok
+  def set_node_available(first_public_key, availability_update)
+      when is_binary(first_public_key) do
     Logger.info("Node globally available", node: Base.encode16(first_public_key))
 
-    if !:ets.member(@availability_lookup_table, first_public_key) do
-      true = :ets.insert(@availability_lookup_table, {first_public_key})
+    availability_pos = Keyword.fetch!(@discovery_index_position, :available?)
+
+    unless :ets.lookup_element(@discovery_table, first_public_key, availability_pos) do
+      availability_update_pos = Keyword.fetch!(@discovery_index_position, :availability_update)
+
+      :ets.update_element(@discovery_table, first_public_key, {availability_pos, true})
+
+      :ets.update_element(
+        @discovery_table,
+        first_public_key,
+        {availability_update_pos, availability_update}
+      )
+
       notify_node_update(first_public_key)
     end
 
@@ -724,15 +747,31 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key2"
       ...> }
       iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_available("key1")
-      iex> :ok = MemTable.set_node_unavailable("key1")
-      iex> {:ok, %Node{available?: false}} = MemTable.get_node("key1")
+      iex> :ok = MemTable.set_node_available("key1", ~U[2020-10-22 23:45:41Z])
+      iex> :ok = MemTable.set_node_unavailable("key1", ~U[2020-10-23 23:45:41Z])
+      iex> {:ok, %Node{available?: false, availability_update: ~U[2020-10-23 23:45:41Z]}} = MemTable.get_node("key1")
   """
-  @spec set_node_unavailable(Crypto.key()) :: :ok
-  def set_node_unavailable(first_public_key) when is_binary(first_public_key) do
-    :ets.delete(@availability_lookup_table, first_public_key)
+  @spec set_node_unavailable(Crypto.key(), DateTime.t()) :: :ok
+  def set_node_unavailable(first_public_key, availability_update)
+      when is_binary(first_public_key) do
     Logger.info("Node globally unavailable", node: Base.encode16(first_public_key))
-    notify_node_update(first_public_key)
+
+    availability_pos = Keyword.fetch!(@discovery_index_position, :available?)
+
+    if :ets.lookup_element(@discovery_table, first_public_key, availability_pos) do
+      availability_update_pos = Keyword.fetch!(@discovery_index_position, :availability_update)
+
+      :ets.update_element(@discovery_table, first_public_key, {availability_pos, false})
+
+      :ets.update_element(
+        @discovery_table,
+        first_public_key,
+        {availability_update_pos, availability_update}
+      )
+
+      notify_node_update(first_public_key)
+    end
+
     :ok
   end
 
@@ -949,14 +988,6 @@ defmodule Archethic.P2P.MemTable do
 
       [{_, authorization_date}] ->
         Node.authorize(node, authorization_date)
-    end
-  end
-
-  def toggle_node_availability(node = %Node{first_public_key: first_public_key}) do
-    if :ets.member(@availability_lookup_table, first_public_key) do
-      Node.available(node)
-    else
-      Node.unavailable(node)
     end
   end
 
