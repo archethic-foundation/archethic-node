@@ -271,7 +271,8 @@ defmodule Archethic.SelfRepair.Sync do
         acc
       )
     end)
-    |> Enum.each(&update_availabilities(&1, availability_update))
+    |> Enum.map(&update_availabilities(&1, availability_update))
+    |> DB.register_p2p_summary()
 
     update_statistics(summary_time, transaction_summaries)
 
@@ -335,8 +336,6 @@ defmodule Archethic.SelfRepair.Sync do
           %{available?: available?, average_availability: avg_availability}},
          availability_update
        ) do
-    DB.register_p2p_summary(node_key, DateTime.utc_now(), available?, avg_availability)
-
     if available? do
       P2P.set_node_globally_available(node_key, availability_update)
     else
@@ -345,6 +344,10 @@ defmodule Archethic.SelfRepair.Sync do
     end
 
     P2P.set_node_average_availability(node_key, avg_availability)
+
+    %Node{availability_update: availability_update} = P2P.get_node_info!(node_key)
+
+    {node_key, available?, avg_availability, availability_update}
   end
 
   defp update_statistics(date, []) do

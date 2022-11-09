@@ -6,20 +6,18 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
 
   alias Archethic.Crypto
 
+  alias Archethic.Utils
+
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @doc """
-  Register a new node view from the last self-repair cycle
+  Register a new nodes view from the last self-repair cycle
   """
-  @spec add_node_view(Crypto.key(), DateTime.t(), boolean(), float()) :: :ok
-  def add_node_view(node_public_key, date = %DateTime{}, available?, avg_availability)
-      when is_binary(node_public_key) and is_boolean(available?) and is_float(avg_availability) do
-    GenServer.cast(
-      __MODULE__,
-      {:new_node_view, node_public_key, date, available?, avg_availability}
-    )
+  @spec set_node_view(list()) :: :ok
+  def set_node_view(nodes_view) when is_list(nodes_view) do
+    GenServer.cast(__MODULE__, {:set_node_view, nodes_view})
   end
 
   @doc """
@@ -39,58 +37,17 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
     db_path = Keyword.get(opts, :path)
     filepath = Path.join(db_path, "p2p_view")
 
-    {:ok, %{filepath: filepath, views: %{}}, {:continue, :load_from_file}}
+    {:ok, %{filepath: filepath, views: []}, {:continue, :load_from_file}}
   end
 
   def handle_continue(:load_from_file, state = %{filepath: filepath}) do
     if File.exists?(filepath) do
-      fd = File.open!(filepath, [:binary, :read])
-      views = load_from_file(fd)
-      new_state = Map.put(state, :views, views)
+      data = File.read!(filepath)
+      nodes_view = deserialize(data, [])
+      new_state = Map.put(state, :views, nodes_view)
       {:noreply, new_state}
     else
       {:noreply, state}
-    end
-  end
-
-  defp load_from_file(fd, acc \\ %{}) do
-    with {:ok, <<public_key_size::8>>} <- :file.read(fd, 1),
-         {:ok,
-          <<public_key::binary-size(public_key_size), timestamp::32, available::8,
-            avg_availability::8>>} <- :file.read(fd, public_key_size + 6) do
-      available? = if available == 1, do: true, else: false
-
-      case Map.get(acc, public_key) do
-        nil ->
-          load_from_file(
-            fd,
-            Map.put(acc, public_key, %{
-              available?: available?,
-              avg_availability: avg_availability / 100,
-              timestamp: timestamp
-            })
-          )
-
-        %{timestamp: prev_timestamp} when timestamp > prev_timestamp ->
-          load_from_file(
-            fd,
-            Map.put(acc, public_key, %{
-              available?: available?,
-              avg_availability: avg_availability / 100,
-              timestamp: timestamp
-            })
-          )
-
-        _ ->
-          load_from_file(fd, acc)
-      end
-    else
-      :eof ->
-        Enum.map(acc, fn {node_public_key,
-                          %{available?: available?, avg_availability: avg_availability}} ->
-          {node_public_key, {available?, avg_availability}}
-        end)
-        |> Enum.into(%{})
     end
   end
 
@@ -99,24 +56,43 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
   end
 
   def handle_cast(
-        {:new_node_view, node_public_key, date, available?, avg_availability},
-        state = %{filepath: filepath, views: views}
+        {:set_node_view, nodes_view},
+        state = %{filepath: filepath}
       ) do
-    append_to_file(filepath, node_public_key, date, available?, avg_availability)
-    new_views = Map.put(views, node_public_key, {available?, avg_availability})
+    nodes_view_bin = serialize(nodes_view, <<>>)
 
-    {:noreply, %{state | views: new_views}}
+    File.write!(filepath, nodes_view_bin, [:binary])
+
+    {:noreply, %{state | views: nodes_view}}
   end
 
-  defp append_to_file(filepath, public_key, date, available?, avg_availability) do
+  defp serialize([], acc), do: acc
+
+  defp serialize([view | rest], acc) do
+    {node_key, available?, avg_availability, availability_update} = view
+
     available_bit = if available?, do: 1, else: 0
     avg_availability_int = (avg_availability * 100) |> trunc()
 
-    File.write!(
-      filepath,
-      <<byte_size(public_key)::8, public_key::binary, DateTime.to_unix(date)::32,
-        available_bit::8, avg_availability_int::8>>,
-      [:binary, :append]
-    )
+    acc =
+      <<acc::bitstring, node_key::binary, available_bit::8, avg_availability_int::8,
+        DateTime.to_unix(availability_update)::32>>
+
+    serialize(rest, acc)
+  end
+
+  defp deserialize(<<>>, acc), do: acc
+
+  defp deserialize(data, acc) do
+    {node_key,
+     <<available_bit::8, avg_availability_int::8, availability_update::32, rest::bitstring>>} =
+      Utils.deserialize_public_key(data)
+
+    available? = if available_bit == 1, do: true, else: false
+
+    view =
+      {node_key, available?, avg_availability_int / 100, DateTime.from_unix!(availability_update)}
+
+    deserialize(rest, [view | acc])
   end
 end

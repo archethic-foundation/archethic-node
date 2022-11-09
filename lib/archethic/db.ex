@@ -63,12 +63,7 @@ defmodule Archethic.DB do
 
   @callback transaction_exists?(binary()) :: boolean()
 
-  @callback register_p2p_summary(
-              node_public_key :: Crypto.key(),
-              date :: DateTime.t(),
-              available? :: boolean(),
-              average_availability :: float()
-            ) :: :ok
+  @callback register_p2p_summary(list()) :: :ok
 
   @callback get_last_p2p_summaries() :: %{
               (node_public_key :: Crypto.key()) =>

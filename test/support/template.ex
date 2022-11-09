@@ -57,7 +57,7 @@ defmodule ArchethicCase do
     |> stub(:list_addresses_by_type, fn _ -> [] end)
     |> stub(:list_transactions, fn _ -> [] end)
     |> stub(:transaction_exists?, fn _ -> false end)
-    |> stub(:register_p2p_summary, fn _, _, _, _ -> :ok end)
+    |> stub(:register_p2p_summary, fn _ -> :ok end)
     |> stub(:get_last_p2p_summaries, fn -> [] end)
     |> stub(:get_latest_tps, fn -> 0.0 end)
     |> stub(:register_stats, fn _, _, _, _ -> :ok end)
