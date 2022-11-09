@@ -56,7 +56,6 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.ListNodes
   alias __MODULE__.NewBeaconSlot
   alias __MODULE__.NewTransaction
-  alias __MODULE__.NodeAvailability
   alias __MODULE__.NodeList
   alias __MODULE__.NotFound
   alias __MODULE__.NotifyEndOfNodeSync
@@ -129,7 +128,6 @@ defmodule Archethic.P2P.Message do
           | NotifyEndOfNodeSync.t()
           | GetLastTransactionAddress.t()
           | NotifyLastTransactionAddress.t()
-          | NodeAvailability.t()
           | Ping.t()
           | GetBeaconSummary.t()
           | NewBeaconSlot.t()
@@ -397,10 +395,6 @@ defmodule Archethic.P2P.Message do
 
   def encode(%GetTransactionSummary{address: address}) do
     <<23::8, address::binary>>
-  end
-
-  def encode(%NodeAvailability{public_key: node_public_key}) do
-    <<24::8, node_public_key::binary>>
   end
 
   def encode(%Ping{}), do: <<25::8>>
@@ -906,11 +900,6 @@ defmodule Archethic.P2P.Message do
   def decode(<<23::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
     {%GetTransactionSummary{address: address}, rest}
-  end
-
-  def decode(<<24::8, rest::binary>>) do
-    {public_key, rest} = Utils.deserialize_public_key(rest)
-    {%NodeAvailability{public_key: public_key}, rest}
   end
 
   def decode(<<25::8, rest::binary>>), do: {%Ping{}, rest}
@@ -1738,11 +1727,6 @@ defmodule Archethic.P2P.Message do
     %TransactionSummaryList{
       transaction_summaries: transaction_summaries
     }
-  end
-
-  def process(%NodeAvailability{public_key: public_key}, _) do
-    P2P.set_node_globally_available(public_key)
-    %Ok{}
   end
 
   def process(%Ping{}, _), do: %Ok{}

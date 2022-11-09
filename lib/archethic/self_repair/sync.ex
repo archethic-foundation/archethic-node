@@ -322,7 +322,7 @@ defmodule Archethic.SelfRepair.Sync do
       node = Enum.at(subset_node_list, index)
       avg_availability = Enum.at(node_average_availabilities, index)
 
-      if available_bit == 1 and Node.synced?(node) do
+      if available_bit == 1 and node.synced? do
         Map.put(acc, node, %{available?: true, average_availability: avg_availability})
       else
         Map.put(acc, node, %{available?: false, average_availability: avg_availability})
