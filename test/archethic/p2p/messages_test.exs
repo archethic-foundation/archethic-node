@@ -29,7 +29,6 @@ defmodule Archethic.P2P.MessageTest do
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.ListNodes
   alias Archethic.P2P.Message.NewTransaction
-  alias Archethic.P2P.Message.NodeAvailability
   alias Archethic.P2P.Message.NodeList
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
