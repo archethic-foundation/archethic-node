@@ -7,11 +7,11 @@ defmodule Archethic.SelfRepair.Notifier.Impl do
     P2P,
     P2P.Node,
     TransactionChain,
-    RepairWorker,
-    RepairSupervisor,
     Replication
   }
 
+  alias Archethic.SelfRepair.Notifier.RepairWorker
+  alias Archethic.SelfRepair.Notifier.RepairSupervisor
   require Logger
 
   @registry_name Archethic.SelfRepair.Notifier.RepairRegistry

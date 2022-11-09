@@ -135,10 +135,9 @@ defmodule Archethic.SelfRepair.Notifier do
 
     TransactionChain.stream_genesis_addresses()
     |> Stream.filter(&(network_chain?(&1) == false))
-    |> tap(fn x -> IO.inspect(x) end)
+    # |> tap(fn x -> IO.inspect(x) end)
     |> Stream.each(&sync_chain_by_chain(&1, unavailable_node_key, current_node_public_key))
     |> Stream.run()
-    |> tap(fn x -> IO.inspect(x) end)
 
     :ok
   end

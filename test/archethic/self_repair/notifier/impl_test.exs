@@ -139,7 +139,7 @@ defmodule Archethic.SelfRepair.Notifier.ImplTest do
       :ok
     end
 
-    test " a" do
+    test "RepairChain/2 " do
       %{txn0: txn0, txn1: txn1, txn2: txn2} = factory_built_chain()
 
       addr0 = txn0.address

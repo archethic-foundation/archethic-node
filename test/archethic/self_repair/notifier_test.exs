@@ -5,10 +5,12 @@ defmodule Archethic.SelfRepair.NotifierTest do
     Crypto,
     P2P,
     P2P.Node,
-    P2P.Message.ShardRepair,
     SelfRepair.Notifier,
-    TransactionChain.Transaction
+    TransactionChain.Transaction,
+    TransactionFactory
   }
+
+  alias Archethic.P2P.Message.{ShardRepair, Ok}
 
   import Mox
 
@@ -219,7 +221,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
         %Transaction{
           address: chain <> "#{i}",
           validation_stamp: %Transaction.ValidationStamp{
-            timestamp: DateTime.add(~U[2022-10-10 00:00:00Z], 86400 * i)
+            timestamp: DateTime.add(~U[2022-10-10 00:00:00Z], 86_400 * i)
           },
           type: type
         }
@@ -285,75 +287,175 @@ defmodule Archethic.SelfRepair.NotifierTest do
     # end
   end
 
-  # test "when a node is becoming offline new nodes should receive transaction to replicate" do
-  #   P2P.add_and_connect_node(%Node{
-  #     first_public_key: Crypto.first_node_public_key(),
-  #     last_public_key: Crypto.first_node_public_key(),
-  #     ip: {127, 0, 0, 1},
-  #     port: 3000,
-  #     authorized?: true,
-  #     authorization_date: ~U[2022-02-01 00:00:00Z],
-  #     geo_patch: "AAA"
-  #   })
+  describe "when a node is becoming offline new nodes should receive transaction to replicate" do
+    setup do
+      P2P.add_and_connect_node(%Node{
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        authorized?: true,
+        authorization_date: ~U[2022-10-05 00:00:00Z],
+        geo_patch: "AAA"
+      })
 
-  #   P2P.add_and_connect_node(%Node{
-  #     first_public_key: "node2",
-  #     last_public_key: "node2",
-  #     ip: {127, 0, 0, 1},
-  #     port: 3001,
-  #     authorized?: true,
-  #     authorization_date: ~U[2022-02-01 00:00:00Z],
-  #     geo_patch: "CCC"
-  #   })
+      P2P.add_and_connect_node(%Node{
+        first_public_key: "node2",
+        last_public_key: "node2",
+        ip: {127, 0, 0, 1},
+        port: 3001,
+        authorized?: true,
+        authorization_date: ~U[2022-10-10 00:00:00Z],
+        geo_patch: "CCC"
+      })
 
-  #   P2P.add_and_connect_node(%Node{
-  #     first_public_key: "node3",
-  #     last_public_key: "node3",
-  #     ip: {127, 0, 0, 1},
-  #     port: 3002,
-  #     authorized?: true,
-  #     authorization_date: ~U[2022-02-03 00:00:00Z],
-  #     geo_patch: "DDD"
-  #   })
+      P2P.add_and_connect_node(%Node{
+        first_public_key: "node3",
+        last_public_key: "node3",
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        authorized?: true,
+        authorization_date: ~U[2022-10-15 00:00:00Z],
+        geo_patch: "DDD"
+      })
 
-  #   {:ok, pid} = Notifier.start_link()
+      chain_a = build_chain("chain_a", 3)
+      chain_b = build_chain("chain_b", 3)
+      gen_addr_a = Map.get(chain_a, 0).address
+      last_addr_a = Map.get(chain_a, 2).address
+      last_addr_b = Map.get(chain_b, 2).address
+      gen_addr_b = Map.get(chain_b, 0).address
 
-  #   MockDB
-  #   |> expect(:list_transactions, fn _ ->
-  #     [
-  #       %Transaction{
-  #         address: "@Alice1",
-  #         type: :transfer,
-  #         validation_stamp: %ValidationStamp{
-  #           timestamp: ~U[2022-02-01 12:54:00Z]
-  #         }
-  #       }
-  #     ]
-  #   end)
+      [net_txn0] = network_txns()
 
-  #   me = self()
+      net_chain_gen_addr = net_txn0.address
 
-  #   MockClient
-  #   |> expect(:send_message, fn %Node{first_public_key: "node3"},
-  #                               %ReplicateTransaction{
-  #                                 transaction: %Transaction{address: "@Alice1"}
-  #                               },
-  #                               _ ->
-  #     send(me, :tx_replicated)
-  #     %Ok{}
-  #   end)
+      %{
+        chain_a: chain_a,
+        chain_b: chain_b,
+        gen_addr_a: gen_addr_a,
+        gen_addr_b: gen_addr_b,
+        net_chain_gen_addr: net_chain_gen_addr,
+        net_txn0: net_txn0,
+        last_addr_a: last_addr_a,
+        last_addr_b: last_addr_b
+      }
+    end
 
-  #   send(
-  #     pid,
-  #     {:node_update,
-  #      %Node{
-  #        first_public_key: "node2",
-  #        available?: false,
-  #        authorized?: true,
-  #        authorization_date: ~U[2022-02-01 00:00:00Z]
-  #      }}
-  #   )
+    test "Integeration Test", %{
+      chain_a: chain_a,
+      chain_b: chain_b,
+      gen_addr_a: gen_addr_a,
+      gen_addr_b: gen_addr_b,
+      net_chain_gen_addr: net_chain_gen_addr,
+      last_addr_a: last_addr_a,
+      last_addr_b: last_addr_b,
+      net_txn0: net_txn0
+    } do
+      # new node
+      P2P.add_and_connect_node(%Node{
+        first_public_key: "node4",
+        last_public_key: "node4",
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "DDD"
+      })
 
-  #   assert_receive :tx_replicated
-  # end
+      Notifier.start_link()
+
+      MockDB
+      |> stub(:get_transaction_chain, fn
+        ^gen_addr_a, [:address, validation_stamp: [:timestamp]], _ ->
+          {[Map.get(chain_a, 0), Map.get(chain_a, 1), Map.get(chain_a, 2)], false, nil}
+
+        ^gen_addr_b, [:address, validation_stamp: [:timestamp]], _ ->
+          {[Map.get(chain_b, 0), Map.get(chain_b, 1), Map.get(chain_b, 2)], false, nil}
+      end)
+      |> stub(:stream_genesis_addresses, fn ->
+        [gen_addr_a, net_chain_gen_addr, gen_addr_b]
+      end)
+      |> stub(:get_transaction, fn
+        ^net_chain_gen_addr, [:type] ->
+          {:ok, net_txn0}
+
+        ^gen_addr_a, [:type] ->
+          {:ok, Map.get(chain_a, 0)}
+
+        ^gen_addr_b, [:type] ->
+          {:ok, Map.get(chain_b, 0)}
+      end)
+
+      me = self()
+
+      MockClient
+      |> stub(
+        :send_message,
+        fn
+          %Node{first_public_key: "node4"},
+          %ShardRepair{
+            genesis_address: ^gen_addr_a,
+            last_address: ^last_addr_a
+          },
+          _ ->
+            send(me, :msg_sent_A)
+            %Ok{}
+
+          %Node{first_public_key: "node4"},
+          %ShardRepair{
+            genesis_address: ^gen_addr_b,
+            last_address: ^last_addr_b
+          },
+          _ ->
+            send(me, :msg_sent_B)
+            %Ok{}
+        end
+      )
+
+      P2P.set_node_globally_unavailable("node2")
+      # send node2 is down
+
+      assert_receive :msg_sent_A
+      assert_receive :msg_sent_B
+    end
+
+    def build_chain(seed, length \\ 1) when length > 0 do
+      alias Archethic.TransactionFactory
+
+      time = DateTime.utc_now() |> DateTime.add(-5000 * length)
+
+      Enum.reduce(0..(length - 1), _acc = {_map = %{}, _prev_tx = []}, fn
+        index, {map, prev_tx} ->
+          # put input un mock client
+          txn =
+            TransactionFactory.create_valid_chain(
+              [],
+              seed: seed,
+              index: index,
+              prev_txn: prev_tx,
+              timestamp: time |> DateTime.add(5000 * index)
+            )
+
+          {
+            Map.put(map, index, txn),
+            [txn]
+          }
+      end)
+      |> elem(0)
+    end
+
+    def network_txns() do
+      curr_time = DateTime.utc_now()
+
+      txn0 =
+        TransactionFactory.create_network_tx(:node_shared_secrets,
+          index: 0,
+          timestamp: curr_time |> DateTime.add(-14_400, :second),
+          prev_txn: []
+        )
+
+      [txn0]
+    end
+  end
 end
