@@ -238,20 +238,6 @@ defmodule Archethic.P2P.Node do
   def locally_available?(%__MODULE__{availability_history: <<0::1, _::bitstring>>}), do: false
 
   @doc """
-  Determine if the node is globally available
-  """
-  @spec globally_available?(__MODULE__.t()) :: boolean()
-  def globally_available?(%__MODULE__{available?: true}), do: true
-  def globally_available?(%__MODULE__{available?: _}), do: false
-
-  @doc """
-  Determine if the node is synced
-  """
-  @spec synced?(__MODULE__.t()) :: boolean()
-  def synced?(%__MODULE__{synced?: true}), do: true
-  def synced?(%__MODULE__{synced?: _}), do: false
-
-  @doc """
   Mark the node as authorized by including the authorization date
 
   ## Examples
@@ -281,38 +267,6 @@ defmodule Archethic.P2P.Node do
   @spec remove_authorization(__MODULE__.t()) :: __MODULE__.t()
   def remove_authorization(node = %__MODULE__{}) do
     %{node | authorized?: false, authorization_date: nil}
-  end
-
-  @doc """
-  Mark the node as globally available
-  """
-  @spec available(__MODULE__.t(), DateTime.t()) :: __MODULE__.t()
-  def available(node = %__MODULE__{}, availability_update) do
-    %{node | available?: true, availability_update: availability_update}
-  end
-
-  @doc """
-  Mark the node as globally unavailable
-  """
-  @spec unavailable(__MODULE__.t(), DateTime.t()) :: __MODULE__.t()
-  def unavailable(node = %__MODULE__{}, availability_update) do
-    %{node | available?: false, availability_update: availability_update}
-  end
-
-  @doc """
-  Mark the node as sync
-  """
-  @spec synced(__MODULE__.t()) :: __MODULE__.t()
-  def synced(node = %__MODULE__{}) do
-    %{node | synced?: true}
-  end
-
-  @doc """
-  Mark the node as unsync
-  """
-  @spec unsynced(__MODULE__.t()) :: __MODULE__.t()
-  def unsynced(node = %__MODULE__{}) do
-    %{node | synced?: false}
   end
 
   @doc """

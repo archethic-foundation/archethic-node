@@ -946,18 +946,6 @@ defmodule Archethic.P2P.MessageTest do
                |> elem(0)
     end
 
-    test "NodeAvailability" do
-      msg = %NodeAvailability{
-        public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
     test "Ping message" do
       msg = %Ping{}
 
