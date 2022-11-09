@@ -128,7 +128,8 @@ config :archethic, Archethic.Reward.MemTablesLoader, enabled: false
 
 config :archethic, Archethic.SelfRepair.Scheduler,
   enabled: false,
-  interval: "0 0 * * * * *"
+  interval: "0 0 * * * * *",
+  availability_application: 1
 
 config :archethic, Archethic.SelfRepair.Notifier, enabled: false
 

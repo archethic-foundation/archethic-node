@@ -320,8 +320,12 @@ defmodule Archethic.BeaconChain do
   end
 
   defp get_summary_address_by_node(date, subset, authorized_nodes) do
+    # Remove the newly authorized nodes at this specific time
     filter_nodes =
-      Enum.filter(authorized_nodes, &(DateTime.compare(&1.authorization_date, date) == :lt))
+      case authorized_nodes do
+        [node] -> [node]
+        nodes -> Enum.filter(nodes, &(DateTime.compare(&1.authorization_date, date) == :lt))
+      end
 
     summary_address = Crypto.derive_beacon_chain_address(subset, date, true)
 

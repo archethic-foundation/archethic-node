@@ -18,6 +18,8 @@ defmodule Archethic.SelfRepair.Sync do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message
 
+  alias Archethic.SelfRepair.Scheduler
+
   alias __MODULE__.TransactionHandler
 
   alias Archethic.TaskSupervisor
@@ -245,6 +247,12 @@ defmodule Archethic.SelfRepair.Sync do
       %{nb_transactions: length(transactions_to_sync)}
     )
 
+    time_to_add =
+      Application.get_env(:archethic, Scheduler)
+      |> Keyword.fetch!(:availability_application)
+
+    availability_update = DateTime.add(summary_time, time_to_add)
+
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
                             %{
@@ -263,7 +271,7 @@ defmodule Archethic.SelfRepair.Sync do
         acc
       )
     end)
-    |> Enum.each(&update_availabilities/1)
+    |> Enum.each(&update_availabilities(&1, availability_update))
 
     update_statistics(summary_time, transaction_summaries)
 
@@ -324,14 +332,15 @@ defmodule Archethic.SelfRepair.Sync do
 
   defp update_availabilities(
          {%Node{first_public_key: node_key},
-          %{available?: available?, average_availability: avg_availability}}
+          %{available?: available?, average_availability: avg_availability}},
+         availability_update
        ) do
     DB.register_p2p_summary(node_key, DateTime.utc_now(), available?, avg_availability)
 
     if available? do
-      P2P.set_node_globally_available(node_key)
+      P2P.set_node_globally_available(node_key, availability_update)
     else
-      P2P.set_node_globally_unavailable(node_key)
+      P2P.set_node_globally_unavailable(node_key, availability_update)
       P2P.set_node_globally_unsynced(node_key)
     end
 
