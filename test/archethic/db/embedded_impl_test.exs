@@ -780,29 +780,22 @@ defmodule Archethic.DB.EmbeddedTest do
   describe "P2P summaries listing" do
     test "should register new P2P summary " do
       node_public_key = :crypto.strong_rand_bytes(32)
-      EmbeddedImpl.register_p2p_summary(node_public_key, DateTime.utc_now(), true, 0.8)
-      assert %{^node_public_key => {true, 0.8}} = EmbeddedImpl.get_last_p2p_summaries()
+      views = [{node_public_key, true, 0.8, DateTime.utc_now()}]
+
+      EmbeddedImpl.register_p2p_summary(views)
+
+      assert ^views = EmbeddedImpl.get_last_p2p_summaries()
 
       node_public_key2 = :crypto.strong_rand_bytes(32)
-      EmbeddedImpl.register_p2p_summary(node_public_key2, DateTime.utc_now(), true, 0.5)
-      summaries = EmbeddedImpl.get_last_p2p_summaries()
 
-      assert node_public_key in Map.keys(summaries)
-      assert node_public_key2 in Map.keys(summaries)
-    end
+      views = [
+        {node_public_key, true, 0.8, DateTime.utc_now()},
+        {node_public_key2, true, 0.5, DateTime.utc_now()}
+      ]
 
-    test "should register update P2P summaries and get the latest one" do
-      node_public_key = :crypto.strong_rand_bytes(32)
-      EmbeddedImpl.register_p2p_summary(node_public_key, DateTime.utc_now(), true, 0.8)
+      EmbeddedImpl.register_p2p_summary(views)
 
-      EmbeddedImpl.register_p2p_summary(
-        node_public_key,
-        DateTime.utc_now() |> DateTime.add(86_400),
-        true,
-        0.4
-      )
-
-      assert %{^node_public_key => {true, 0.4}} = EmbeddedImpl.get_last_p2p_summaries()
+      ^views = EmbeddedImpl.get_last_p2p_summaries()
     end
   end
 
