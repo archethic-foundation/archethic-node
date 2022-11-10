@@ -214,4 +214,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   def base_beacon_aggregate_path(db_path) do
     Path.join([db_path, "beacon_aggregate"])
   end
+
+  @doc """
+  Return the migration file path
+  """
+  @spec migration_file_path(String.t()) :: String.t()
+  def migration_file_path(db_path) do
+    Path.join([db_path, "migration"])
+  end
 end

@@ -10,10 +10,26 @@ defmodule Mix.Tasks.Archethic.Migrate do
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
   def run(_arg) do
-    :archethic
-    |> Application.spec(:vsn)
-    |> List.to_string()
-    |> migrate()
+    version =
+      :archethic
+      |> Application.spec(:vsn)
+      |> List.to_string()
+
+    file_path = EmbeddedImpl.db_path() |> ChainWriter.migration_file_path()
+
+    migration_done? =
+      if File.exists?(file_path) do
+        file_path |> File.read!() |> String.split(";") |> Enum.member?(version)
+      else
+        File.touch!(file_path)
+        true
+      end
+
+    unless migration_done? do
+      migrate(version)
+
+      File.write!(file_path, "#{version};", [:append])
+    end
   end
 
   def migrate("0.25.0") do
