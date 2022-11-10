@@ -51,8 +51,8 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
       {
           [
             {"key1", :software},
-            {"key3", :hardware},
-            {"key2", :hardware}
+            {"key2", :hardware},
+            {"key3", :hardware}
           ],
           [
             {:hardware, "key2"},
@@ -101,8 +101,8 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
       iex> OriginKeyLookup.list_public_keys()
       [
         "key1",
-        "key3",
-        "key2"
+        "key2",
+        "key3"
       ]
   """
   @spec list_public_keys() :: list(Crypto.key())

@@ -26,7 +26,7 @@ jobs:
       id: beam
       with:
         elixir-version: '1.14.1' # Define the elixir version [required]
-        otp-version: '24.3' # Define the OTP version [required]
+        otp-version: '25.1' # Define the OTP version [required]
     - name: Restore dependencies cache
       uses: actions/cache@v3
       id: mix-cache

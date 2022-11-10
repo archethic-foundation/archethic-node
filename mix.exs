@@ -13,7 +13,7 @@ defmodule Archethic.MixProject do
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
+      compilers: [:elixir_make] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
       dialyzer: dialyzer()
@@ -97,7 +97,7 @@ defmodule Archethic.MixProject do
       {:crontab, "~> 1.1"},
       {:earmark, "~> 1.4"},
       {:sizeable, "~> 1.0"},
-      {:distillery, github: "bitwalker/distillery", ref: "6700edb"},
+      {:distillery, github: "archethic-foundation/distillery"},
       {:exjsonpath, "~> 0.9"},
       {:rand_compat, "~> 0.0.3"},
       {:gen_state_machine, "~> 3.0"},
