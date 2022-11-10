@@ -6,19 +6,19 @@ defmodule Archethic.SelfRepair.Notifier.ImplTest do
     Crypto,
     P2P,
     P2P.Node,
-    SharedSecrets,
     SelfRepair.Notifier.Impl,
+    SharedSecrets,
     TransactionChain.TransactionInput,
     TransactionChain.VersionedTransactionInput
   }
 
   alias P2P.Message.{
-    GetTransaction,
     FirstAddress,
+    GetFirstAddress,
+    GetTransaction,
+    GetTransactionChain,
     GetTransactionInputs,
     TransactionInputList,
-    GetFirstAddress,
-    GetTransactionChain,
     TransactionList
   }
 
@@ -195,12 +195,12 @@ defmodule Archethic.SelfRepair.Notifier.ImplTest do
            }}
       end)
 
-      {:ok, :continue} = NotifierImpl.repair_chain(txn2.address, txn0.address)
+      {:continue, :success} = NotifierImpl.repair_chain(txn2.address, txn0.address)
     end
 
-    def factory_built_chain() do
+    def factory_built_chain do
       alias Archethic.TransactionFactory
-      seed = "seed gta sa"
+      seed = :crypto.strong_rand_bytes(4)
       time = DateTime.utc_now()
       timestamp2 = time |> DateTime.add(-5000)
       timestamp1 = time |> DateTime.add(-5000 * 2)

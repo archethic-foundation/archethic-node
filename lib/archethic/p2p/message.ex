@@ -1848,27 +1848,38 @@ defmodule Archethic.P2P.Message do
         },
         _
       ) do
-    alias Archethic.SelfRepair.Notifier
+    alias Archethic.SelfRepair.Notifier.Impl, as: NotifierImpl
 
     with {:exists?, false} <- {:exists?, TransactionChain.transaction_exists?(last_address)},
-         {:worker?, false} <- {:worker?, Notifier.Impl.repair_in_progress?(genesis_address)} do
+         {:worker?, false} <- {:worker?, NotifierImpl.repair_in_progress?(genesis_address)} do
       msg
-      |> ShardRepair.cast()
-      |> Notifier.Impl.start_worker()
+      |> NotifierImpl.start_worker()
 
-      Logger.debug("Repair-Worker has begain Repair")
+      NotifierImpl.log(:debug, "Repair Started", genesis_address, last_address, "none")
     else
       {:exists?, true} ->
         # corner case: check if the complete chain exists or not?
-        Logger.debug("TransactionChain exists")
+        NotifierImpl.log(
+          :debug,
+          "Message.Process Txn exists",
+          genesis_address,
+          last_address,
+          "none"
+        )
+
         :ok
 
       {:worker?, pid} when is_pid(pid) ->
         msg
-        |> ShardRepair.cast()
-        |> Notifier.Impl.update_worker(pid)
+        |> NotifierImpl.update_worker(pid)
 
-        Logger.debug("Repair-Worker was updated")
+        NotifierImpl.log(
+          :debug,
+          "New-Message: WorkerUpdated",
+          genesis_address,
+          last_address,
+          "none"
+        )
     end
 
     %Ok{}

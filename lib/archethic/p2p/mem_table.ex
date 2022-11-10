@@ -436,8 +436,8 @@ defmodule Archethic.P2P.MemTable do
   @doc """
   Stream List of nodes from heap to stack
   """
-  @spec stream_nodes() :: Enumerable.t()
-  def stream_nodes() do
+  @spec stream_nodes :: Enumerable.t()
+  def stream_nodes do
     Stream.resource(
       fn ->
         nil

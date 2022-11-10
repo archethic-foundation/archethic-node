@@ -1,6 +1,6 @@
 defmodule Archethic.SelfRepair.Notifier.RepairWorker do
   @moduledoc false
-  use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
+  use GenStateMachine, callback_mode: [:handle_event_function], restart: :temporary
 
   alias Archethic.{
     SelfRepair.Notifier
@@ -18,35 +18,18 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
 
     # IO.inspect(binding(), label: "0-> init")
 
-    {:ok, :repair,
-     %{
-       genesis_address: args.genesis_address,
-       addresses: [args.last_address]
-     }, [{:next_event, :internal, :start_repair}]}
-  end
-
-  def handle_event(:enter, :repair, :repair, _) do
-    # IO.inspect(binding(), label: "1 repair -> repair")
-
-    :keep_state_and_data
-  end
-
-  def handle_event(:internal, :start_repair, :repair, data) do
-    # IO.inspect(binding(), label: "2 :start_repair")
+    data = %{
+      genesis_address: args.genesis_address,
+      addresses: [args.last_address]
+    }
 
     new_data = repair_task(data)
 
-    {:next_state, :idle, new_data, []}
+    {:ok, :idle, new_data, []}
   end
 
-  def handle_event(:enter, :repair, :idle, _data) do
-    # IO.inspect(binding(), label: "4 :handle_event(:enter, :repair, :idle, _data)")
-
-    :keep_state_and_data
-  end
-
-  def handle_event(:info, {:DOWN, _, :process, pid, :normal}, :idle, data) do
-    # IO.inspect(binding(), label: "5 :down event -> :idle")
+  def handle_event(:info, {:DOWN, _ref, :process, pid, _normal}, :idle, data) do
+    # IO.inspect(binding(), label: "2 :down event -> :idle")
 
     {_, data} = Map.pop(data, pid)
 
@@ -62,23 +45,15 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
     case address_list do
       [] ->
         Logger.debug("Done processing Requests", server_data: data)
-        # IO.inspect(binding(), label: "10: terminateing")
+        # IO.inspect(binding(), label: "4: terminateing")
 
         :stop
 
       x when is_list(x) ->
         new_data = repair_task(data)
-        # IO.inspect(binding(), label: "6: :process_update_requests,:ack_req")
+        # IO.inspect(binding(), label: "3: :process_update_requests,:ack_req")
         {:next_state, :idle, new_data, []}
     end
-  end
-
-  def handle_event(:enter, :idle, :ack_req, _) do
-    :keep_state_and_data
-  end
-
-  def handle_event(:enter, :ack_req, :idle, _) do
-    :keep_state_and_data
   end
 
   def handle_event(
@@ -97,7 +72,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
     {:keep_state, %{data | addresses: [address | address_list]}, []}
   end
 
-  def handle_event(:info, {_, {:ok, _}}, _s, _data) do
+  def handle_event(:info, {_, {:continue, _}}, _s, _data) do
     # IO.inspect(label: "--- nil")
     :keep_state_and_data
   end
@@ -109,8 +84,8 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
       pid: pid
     } =
       Task.async(fn ->
-        # IO.inspect(binding(), label: "3: repair_task")
-        {:ok, _} = Notifier.Impl.repair_chain(repair_addr, genesis_address)
+        # IO.inspect(binding(), label: "1: repair_task")
+        {:continue, _} = Notifier.Impl.repair_chain(repair_addr, genesis_address)
       end)
 
     data

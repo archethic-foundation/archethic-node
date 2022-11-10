@@ -1,4 +1,5 @@
 defmodule Archethic.SelfRepair.NotifierTest do
+  @moduledoc false
   use ArchethicCase
 
   alias Archethic.{
@@ -10,7 +11,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
     TransactionFactory
   }
 
-  alias Archethic.P2P.Message.{ShardRepair, Ok}
+  alias Archethic.P2P.Message.{Ok, ShardRepair}
 
   import Mox
 
@@ -278,12 +279,12 @@ defmodule Archethic.SelfRepair.NotifierTest do
     #     IO.inspect({node, msg, timeout}, label: " 9===mock client ")
     #   end)
 
-    #   Notifier.sync_chain_by_chain(txn0_address, "node3", Crypto.first_node_public_key())
-    #   Notifier.sync_chain_by_chain(txn0_address, "node3", "node1")
-    #   Notifier.sync_chain_by_chain(txn0_address, "node3", "node2")
-    #   Notifier.sync_chain_by_chain(txn0_address, "node3", "node3")
-    #   Notifier.sync_chain_by_chain(txn0_address, "node3", "node4")
-    #   Notifier.sync_chain_by_chain(txn0_address, "node3", "node5")
+    #   Notifier.sync_chain(txn0_address, "node3", Crypto.first_node_public_key())
+    #   Notifier.sync_chain(txn0_address, "node3", "node1")
+    #   Notifier.sync_chain(txn0_address, "node3", "node2")
+    #   Notifier.sync_chain(txn0_address, "node3", "node3")
+    #   Notifier.sync_chain(txn0_address, "node3", "node4")
+    #   Notifier.sync_chain(txn0_address, "node3", "node5")
     # end
   end
 
@@ -445,7 +446,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
       |> elem(0)
     end
 
-    def network_txns() do
+    def network_txns do
       curr_time = DateTime.utc_now()
 
       txn0 =

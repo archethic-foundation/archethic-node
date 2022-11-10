@@ -59,11 +59,4 @@ defmodule Archethic.P2P.Message.ShardRepair do
        last_address: last_address
      }, rest}
   end
-
-  def cast(%__MODULE__{
-        genesis_address: genesis_address,
-        last_address: last_address
-      }) do
-    %{genesis_address: genesis_address, last_address: last_address}
-  end
 end

@@ -16,25 +16,25 @@ defmodule Archethic.SelfRepair.Notifier do
       H -->|Replicate Transaction| C[Node2]
       H -->|Replicate Transaction| D[Node3]
   ```
-
-   Different nodes holding same chain, but with different length of txn chain
-   node       | node-A| node-B| node-C| node-D    | node-E
-   txn_chain  | 1     | 1 2   | 1 2 3 | 1 2 3 4 5| 1 2 3 4 5
-
-   Sharding on single txn results in holding that txn chain upto that txn
-   txn_chain => A -> B -> C -> D
-   A Sharded tranction replication mean tx from genesis addr to that tx address.
   """
   use GenServer
   require Logger
 
+  #  Different nodes holding same chain, but with different length of txn chain
+  #  node       | node-A| node-B| node-C| node-D    | node-E
+  #  txn_chain  | 1     | 1 2   | 1 2 3 | 1 2 3 4 5| 1 2 3 4 5
+
+  #  Sharding on single txn results in holding that txn chain upto that txn
+  #  txn_chain => A -> B -> C -> D
+  #  A Sharded tranction replication mean tx from genesis addr to that tx address.
+
   alias Archethic.{
     Crypto,
     Election,
-    PubSub,
     P2P,
-    P2P.Node,
     P2P.Message.ShardRepair,
+    P2P.Node,
+    PubSub,
     TransactionChain,
     TransactionChain.Transaction
   }
@@ -126,6 +126,7 @@ defmodule Archethic.SelfRepair.Notifier do
   dependent bootstrap operations.
   """
   @spec repair_transactions(Crypto.key(), Crypto.key()) :: :ok
+  @concurrent_limit 20
   def repair_transactions(unavailable_node_key, current_node_public_key) do
     Logger.debug("Trying to repair transactions due to a topology change",
       node: Base.encode16(unavailable_node_key)
@@ -135,18 +136,34 @@ defmodule Archethic.SelfRepair.Notifier do
 
     TransactionChain.stream_genesis_addresses()
     |> Stream.filter(&(network_chain?(&1) == false))
-    # |> tap(fn x -> IO.inspect(x) end)
-    |> Stream.each(&sync_chain_by_chain(&1, unavailable_node_key, current_node_public_key))
+    |> Stream.chunk_every(@concurrent_limit)
+    |> Stream.each(fn chunk ->
+      concurrent_txn_processing(chunk, unavailable_node_key, current_node_public_key)
+    end)
     |> Stream.run()
 
     :ok
   end
 
+  def concurrent_txn_processing(address_list, unavailable_node_key, current_node_public_key) do
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      address_list,
+      fn
+        genesis_address ->
+          sync_chain(genesis_address, unavailable_node_key, current_node_public_key)
+      end,
+      ordered: false,
+      on_timeout: :kill_task
+    )
+    |> Stream.run()
+  end
+
   @doc """
   Loads a Txn Chain by a genesis address, Allocate new shards for the txn went down with down node.
   """
-  @spec sync_chain_by_chain(binary(), Crypto.key(), Crypto.key()) :: :ok
-  def sync_chain_by_chain(
+  @spec sync_chain(binary(), Crypto.key(), Crypto.key()) :: :ok
+  def sync_chain(
         genesis_address,
         unavailable_node_key,
         current_node_public_key
@@ -199,15 +216,16 @@ defmodule Archethic.SelfRepair.Notifier do
   """
   @spec with_down_shard?({binary(), list(Crypto.key())}, Crypto.key()) :: boolean()
   def with_down_shard?({_address, node_list}, unavailable_node_key) do
-    Enum.any?(node_list, &(&1 == unavailable_node_key))
+    Enum.member?(node_list, unavailable_node_key)
   end
 
   @doc """
-  Is current node key in the list of previous nodes/shards
+  Is current node key in the list of previous nodes/shards.
+  An Old storeage will only be able to notify the new storage Nodes.
   """
   @spec current_node_in_node_list?({binary(), list(Crypto.key())}, Crypto.key()) :: boolean()
   def current_node_in_node_list?({_address, node_list}, current_node_key) do
-    Enum.any?(node_list, &(&1 == current_node_key))
+    Enum.member?(node_list, current_node_key)
   end
 
   @doc """
@@ -262,57 +280,3 @@ defmodule Archethic.SelfRepair.Notifier do
     |> Stream.run()
   end
 end
-
-#  genesis_address
-#     |> TransactionChain.stream([:address, validation_stamp: [:timestamp]])
-#     |> tap(fn x ->
-#       Enum.each(x, &IO.inspect({&1.address, &1.validation_stamp.timestamp}, label: "1"))
-#     end)
-#     # |> tap(fn x -> IO.inspect(x, label: "----") end)
-#     |> Stream.map(&list_previous_shards(&1))
-#     |> Enum.to_list()
-#     |> tap(fn x ->
-#       IO.inspect(label: "2=======")
-
-#       Enum.each(
-#         x,
-#         &IO.inspect({elem(&1, 0), length(elem(&1, 1))}, label: "post_list_shards==2==")
-#       )
-#     end)
-#     |> Stream.filter(&with_down_shard?(&1, unavailable_node_key))
-#     |> Enum.to_list()
-#     |> tap(fn x ->
-#       IO.inspect(label: "3=======")
-#       Enum.each(x, &IO.inspect({elem(&1, 0), length(elem(&1, 1))}, label: "with_down_shard==3=="))
-#     end)
-#     |> Stream.filter(&current_node_in_node_list?(&1, current_node_public_key))
-#     |> Enum.to_list()
-#     |> tap(fn x ->
-#       IO.inspect(label: "4==")
-
-#       Enum.each(
-#         x,
-#         &IO.inspect({elem(&1, 0), length(elem(&1, 1))}, label: " current_node_in_node_list4==")
-#       )
-#     end)
-#     |> Stream.map(&new_storage_nodes(&1, unavailable_node_key))
-#     |> Enum.to_list()
-#     |> tap(fn x ->
-#       IO.inspect(label: "5=======")
-
-#       Enum.each(
-#         x,
-#         &IO.inspect({elem(&1, 0), length(elem(&1, 1))}, label: "5 new_storage_nodes==")
-#       )
-#     end)
-#     |> Stream.scan(%{}, &map_node_and_address(&1, _acc = &2))
-#     |> Enum.to_list()
-#     |> tap(fn x -> IO.inspect(x, label: "6==") end)
-#     |> Stream.take(-1)
-#     |> Enum.to_list()
-#     |> tap(fn x -> IO.inspect(x, label: "7==") end)
-#     |> notify_nodes(genesis_address)
-#     |> tap(fn x -> IO.inspect(x, label: "8==") end)
-
-#     :ok
-#   end

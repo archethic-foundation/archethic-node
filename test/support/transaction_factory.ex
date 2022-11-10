@@ -18,7 +18,7 @@ defmodule Archethic.TransactionFactory do
 
   alias Archethic.TransactionChain.TransactionData
 
-  @deprecated "use_create_valid_chain/2 instead"
+  # @deprecated "use_create_valid_chain/2 instead"
   def create_valid_transaction(
         inputs \\ [],
         opts \\ []
@@ -275,6 +275,8 @@ defmodule Archethic.TransactionFactory do
     }
   end
 
+  @spec create_valid_chain(input :: list(), opts :: list()) ::
+          Archethic.TransactionChain.Transaction.t()
   @doc """
   Creates a valid Txn Chain with parameters index, timestamp, prev_txn.
   required valid_p2p_Context
@@ -314,9 +316,10 @@ defmodule Archethic.TransactionFactory do
     %{txn | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
   end
 
-  def build_valid_p2p_view() do
-    alias Archethic.P2P.Node
+  @spec build_valid_p2p_view :: :ok
+  def build_valid_p2p_view do
     alias Archethic.P2P
+    alias Archethic.P2P.Node
 
     pb_key2 = Crypto.derive_keypair("key22_random", 0) |> elem(0)
     pb_key3 = Crypto.derive_keypair("key23_random", 0) |> elem(0)

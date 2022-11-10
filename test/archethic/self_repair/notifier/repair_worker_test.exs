@@ -36,6 +36,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
 
       {:ok, pid} = RepairWorker.start_link(opts)
 
+      # first repair task deployed during init
       assert {:idle, %{:addresses => [], :genesis_address => "gen_addr"}} = :sys.get_state(pid)
 
       assert [{^pid, _}] = Registry.lookup(@registry_name, gen_addr)
