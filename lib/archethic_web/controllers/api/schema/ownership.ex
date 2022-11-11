@@ -15,8 +15,8 @@ defmodule ArchethicWeb.API.Schema.Ownership do
   def changeset(changeset = %__MODULE__{}, params = %{}) do
     changeset
     |> cast(params, [:secret])
-    |> cast_embed(:authorizedKeys)
-    |> validate_required([:secret, :authorizedKeys])
+    |> cast_embed(:authorizedKeys, required: [:publicKey, :encryptedSecretKey])
+    |> validate_required([:secret])
     |> validate_length(:authorizedKeys,
       max: 256,
       message: "maximum number of authorized keys can be 256"

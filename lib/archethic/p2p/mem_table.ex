@@ -31,7 +31,8 @@ defmodule Archethic.P2P.MemTable do
     reward_address: 12,
     last_address: 13,
     origin_public_key: 14,
-    synced?: 15
+    synced?: 15,
+    last_update_date: 16
   ]
 
   @doc """
@@ -76,6 +77,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   authorized?: true,
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
+      ...>   last_update_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   transport: :tcp,
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -100,7 +102,7 @@ defmodule Archethic.P2P.MemTable do
           <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
             88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
           <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>, true
+            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>, true, ~U[2020-10-22 23:19:45.797109Z]
         }],
         # Globally available nodes
         [{ "key1" }],
@@ -128,6 +130,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   authorized?: true,
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
+      ...>   last_update_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   transport: :tcp,
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -145,6 +148,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key5",
       ...>   average_availability: 90,
       ...>   availability_history: <<1::1, 1::1>>,
+      ...>   last_update_date: ~U[2020-10-22 23:20:45.797109Z],
       ...>   synced?: false,
       ...>   transport: :sctp,
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
@@ -171,7 +175,8 @@ defmodule Archethic.P2P.MemTable do
         <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
         <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
           185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>,
-        false
+        false,
+        ~U[2020-10-22 23:20:45.797109Z]
       }]
   """
   @spec add_node(Node.t()) :: :ok
@@ -229,7 +234,8 @@ defmodule Archethic.P2P.MemTable do
          transport: transport,
          reward_address: reward_address,
          last_address: last_address,
-         origin_public_key: origin_public_key
+         origin_public_key: origin_public_key,
+         last_update_date: last_update_date
        }) do
     availability_history =
       if first_public_key == Crypto.first_node_public_key(),
@@ -240,7 +246,7 @@ defmodule Archethic.P2P.MemTable do
       @discovery_table,
       {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
        average_availability, availability_history, enrollment_date, transport, reward_address,
-       last_address, origin_public_key, synced?}
+       last_address, origin_public_key, synced?, last_update_date}
     )
   end
 
@@ -258,18 +264,33 @@ defmodule Archethic.P2P.MemTable do
          transport: transport,
          reward_address: reward_address,
          last_address: last_address,
-         origin_public_key: origin_public_key
+         origin_public_key: origin_public_key,
+         last_update_date: timestamp
        }) do
     changes = [
       {Keyword.fetch!(@discovery_index_position, :last_public_key), last_public_key},
-      {Keyword.fetch!(@discovery_index_position, :ip), ip},
-      {Keyword.fetch!(@discovery_index_position, :port), port},
-      {Keyword.fetch!(@discovery_index_position, :http_port), http_port},
-      {Keyword.fetch!(@discovery_index_position, :transport), transport},
       {Keyword.fetch!(@discovery_index_position, :reward_address), reward_address},
       {Keyword.fetch!(@discovery_index_position, :last_address), last_address},
       {Keyword.fetch!(@discovery_index_position, :origin_public_key), origin_public_key}
     ]
+
+    # We change connection informations only if these infos are newer than the actual ones
+    timestamp_pos = Keyword.fetch!(@discovery_index_position, :last_update_date)
+    last_update_date = :ets.lookup_element(@discovery_table, first_public_key, timestamp_pos)
+
+    changes =
+      if DateTime.compare(timestamp, last_update_date) != :lt do
+        changes ++
+          [
+            {Keyword.fetch!(@discovery_index_position, :ip), ip},
+            {Keyword.fetch!(@discovery_index_position, :port), port},
+            {Keyword.fetch!(@discovery_index_position, :http_port), http_port},
+            {Keyword.fetch!(@discovery_index_position, :transport), transport},
+            {timestamp_pos, timestamp}
+          ]
+      else
+        changes
+      end
 
     changes =
       if geo_patch != nil do
@@ -710,6 +731,59 @@ defmodule Archethic.P2P.MemTable do
   def set_node_unavailable(first_public_key) when is_binary(first_public_key) do
     :ets.delete(@availability_lookup_table, first_public_key)
     Logger.info("Node globally unavailable", node: Base.encode16(first_public_key))
+    notify_node_update(first_public_key)
+    :ok
+  end
+
+  @doc """
+  Mark the node synced
+
+  ## Examples
+
+      iex> MemTable.start_link()
+      iex> node = %Node{
+      ...>   ip: {127, 0, 0, 1},
+      ...>   port: 3000,
+      ...>   http_port: 4000,
+      ...>   first_public_key: "key1",
+      ...>   last_public_key: "key2"
+      ...> }
+      iex> MemTable.add_node(node)
+      iex> :ok = MemTable.set_node_synced("key1")
+      iex> {:ok, %Node{synced?: true}} = MemTable.get_node("key1")
+  """
+  @spec set_node_synced(Crypto.key()) :: :ok
+  def set_node_synced(first_public_key) when is_binary(first_public_key) do
+    synced_pos = Keyword.fetch!(@discovery_index_position, :synced?)
+    :ets.update_element(@discovery_table, first_public_key, {synced_pos, true})
+    Logger.info("Node synced", node: Base.encode16(first_public_key))
+    notify_node_update(first_public_key)
+    :ok
+  end
+
+  @doc """
+  Mark the node unsynced
+
+  ## Examples
+
+      iex> MemTable.start_link()
+      iex> node = %Node{
+      ...>   ip: {127, 0, 0, 1},
+      ...>   port: 3000,
+      ...>   http_port: 4000,
+      ...>   first_public_key: "key1",
+      ...>   last_public_key: "key2"
+      ...> }
+      iex> MemTable.add_node(node)
+      iex> :ok = MemTable.set_node_synced("key1")
+      iex> :ok = MemTable.set_node_unsynced("key1")
+      iex> {:ok, %Node{synced?: false}} = MemTable.get_node("key1")
+  """
+  @spec set_node_unsynced(Crypto.key()) :: :ok
+  def set_node_unsynced(first_public_key) when is_binary(first_public_key) do
+    synced_pos = Keyword.fetch!(@discovery_index_position, :synced?)
+    :ets.update_element(@discovery_table, first_public_key, {synced_pos, false})
+    Logger.info("Node unsynced", node: Base.encode16(first_public_key))
     notify_node_update(first_public_key)
     :ok
   end

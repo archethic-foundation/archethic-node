@@ -22,9 +22,8 @@ sudo apt-get install -y \
   git \
   zlib1g-dev \
   libgmp-dev \
-  nodejs \
-  npm \
-  net-tools
+  net-tools \
+  libncurses5-dev
 
 sudo locale-gen en_US.UTF-8
 
@@ -58,19 +57,29 @@ echo "Install Erlang & Elixir"
 export DEBIAN_FRONTEND=noninteractive
 export LANG=en_US.UTF-8
 
-wget -O  $INSTALL_DIR/erlang-solutions_2.0_all.deb  https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb
+if [[ ! -d $HOME/.asdf ]]
+then
+  git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.10.2
+fi
 
-sudo dpkg -i $INSTALL_DIR/erlang-solutions_2.0_all.deb
+echo '. $HOME/.asdf/asdf.sh' >> ~/.profile
+echo '. $HOME/.asdf/completions/asdf.bash' >> ~/.profile
+source ~/.profile
 
-sudo apt-get update
-sudo apt-get install -y esl-erlang=1:24.*
+asdf update
 
-mkdir -p ~/elixir
-wget https://github.com/elixir-lang/elixir/releases/download/v1.14.1/elixir-otp-24.zip -O ~/elixir/Precompiled.zip
+asdf plugin add erlang || :
+asdf plugin add elixir || :
 
-unzip ~/elixir/Precompiled.zip -d ~/elixir
-echo 'PATH=$PATH:~/elixir/bin' >> ~/.bashrc
-source ~/.bashrc
+cd $SCRIPT_DIR/..
+
+asdf install
+
+ELIXIR_VERSION=$(asdf current elixir 2>&1 | grep -oP '\d\S+')
+ERLANG_VERSION=$(asdf current erlang 2>&1 | grep -oP '\d\S+')
+
+asdf global elixir $ELIXIR_VERSION
+asdf global erlang $ERLANG_VERSION
 
 echo "Install Libsodium"
 

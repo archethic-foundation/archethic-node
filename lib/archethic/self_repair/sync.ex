@@ -108,7 +108,7 @@ defmodule Archethic.SelfRepair.Sync do
   def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
     last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
-    if last_summary_time > last_sync_date do
+    if DateTime.compare(last_summary_time, last_sync_date) == :gt do
       Logger.info(
         "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
       )

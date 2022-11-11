@@ -191,7 +191,7 @@ defmodule Archethic.Mining do
   """
   @spec notify_replication_error(binary(), any()) :: :ok
   def notify_replication_error(tx_address, error_reason) do
-    pid = get_mining_process!(tx_address)
+    pid = get_mining_process!(tx_address, 1_000)
     if pid, do: send(pid, {:replication_error, error_reason})
     :ok
   end

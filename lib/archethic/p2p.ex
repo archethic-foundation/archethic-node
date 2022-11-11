@@ -45,8 +45,9 @@ defmodule Archethic.P2P do
   Register a node and establish a connection with
   """
   @spec add_and_connect_node(Node.t()) :: :ok
-  def add_and_connect_node(node = %Node{}) do
+  def add_and_connect_node(node = %Node{first_public_key: first_public_key}) do
     :ok = MemTable.add_node(node)
+    node = get_node_info!(first_public_key)
     do_connect_node(node)
   end
 
@@ -94,21 +95,13 @@ defmodule Archethic.P2P do
   Add a node first public key to the list of nodes globally synced.
   """
   @spec set_node_globally_synced(first_public_key :: Crypto.key()) :: :ok
-  def set_node_globally_synced(first_public_key) do
-    get_node_info!(first_public_key)
-    |> Node.synced()
-    |> MemTable.add_node()
-  end
+  defdelegate set_node_globally_synced(first_public_key), to: MemTable, as: :set_node_synced
 
   @doc """
   Add a node first public key to the list of nodes globally unsynced.
   """
   @spec set_node_globally_unsynced(first_public_key :: Crypto.key()) :: :ok
-  def set_node_globally_unsynced(first_public_key) do
-    get_node_info!(first_public_key)
-    |> Node.unsynced()
-    |> MemTable.add_node()
-  end
+  defdelegate set_node_globally_unsynced(first_public_key), to: MemTable, as: :set_node_unsynced
 
   @doc """
   Set the node's average availability
