@@ -351,7 +351,8 @@ defmodule Archethic.SelfRepair.SyncTest do
                      }
                    ]
                  },
-                 "AAA"
+                 "AAA",
+                 P2P.authorized_and_available_nodes()
                )
 
       assert_received :transaction_stored
