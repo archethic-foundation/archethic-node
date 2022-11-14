@@ -4,6 +4,8 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   @ledger_table :archethic_uco_ledger
   @unspent_output_index_table :archethic_uco_unspent_output_index
 
+  alias Archethic.DB.EmbeddedImpl.Inputs
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -120,39 +122,74 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   end
 
   @doc """
-  Spend all the unspent outputs for the given address
+  Spend all the unspent outputs for the given address.
+  Spent UTXO are removed from the ETS table
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
-    @unspent_output_index_table
-    |> :ets.lookup(address)
-    |> Enum.each(&:ets.update_element(@ledger_table, &1, {3, true}))
+    inputs =
+      @unspent_output_index_table
+      |> :ets.lookup(address)
+      |> Enum.map(fn {to, from} ->
+        [{_, amount, _, timestamp, reward?, protocol_version}] =
+          :ets.lookup(@ledger_table, {to, from})
 
-    :ok
+        %VersionedTransactionInput{
+          protocol_version: protocol_version,
+          input: %TransactionInput{
+            from: from,
+            amount: amount,
+            spent?: true,
+            reward?: reward?,
+            timestamp: timestamp,
+            type: :UCO
+          }
+        }
+      end)
+
+    Inputs.append_inputs(inputs, address)
+
+    Enum.each(inputs, fn %VersionedTransactionInput{input: %TransactionInput{from: from}} ->
+      :ets.delete(@ledger_table, {address, from})
+    end)
   end
 
   @doc """
   Retrieve the entire inputs for a given address (spent or unspent)
+  Unspent come from the ETS table
+  Spent come from local disk
   """
   @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do
-    @unspent_output_index_table
-    |> :ets.lookup(address)
-    |> Enum.map(fn {_, from} ->
-      [{_, amount, spent?, timestamp, reward?, protocol_version}] =
-        :ets.lookup(@ledger_table, {address, from})
+    unspent =
+      @unspent_output_index_table
+      |> :ets.lookup(address)
+      |> Enum.reduce([], fn {_, from}, acc ->
+        case :ets.lookup(@ledger_table, {address, from}) do
+          [] ->
+            # the output has been spent and is now written on disk
+            acc
 
-      %VersionedTransactionInput{
-        input: %TransactionInput{
-          from: from,
-          amount: amount,
-          spent?: spent?,
-          type: :UCO,
-          timestamp: timestamp,
-          reward?: reward?
-        },
-        protocol_version: protocol_version
-      }
-    end)
+          [{_, amount, spent?, timestamp, reward?, protocol_version}] ->
+            [
+              %VersionedTransactionInput{
+                input: %TransactionInput{
+                  from: from,
+                  amount: amount,
+                  spent?: spent?,
+                  type: :UCO,
+                  timestamp: timestamp,
+                  reward?: reward?
+                },
+                protocol_version: protocol_version
+              }
+              | acc
+            ]
+        end
+      end)
+      |> Enum.reverse()
+
+    spent = Inputs.get_inputs(address)
+    Enum.concat(spent, unspent)
   end
 end

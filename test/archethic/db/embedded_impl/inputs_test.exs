@@ -10,8 +10,6 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
     db_path = Application.app_dir(:archethic, "data_test")
     File.mkdir_p!(db_path)
 
-    {:ok, _} = Inputs.start_link(path: db_path)
-
     on_exit(fn ->
       File.rm_rf!(db_path)
     end)
@@ -20,13 +18,13 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
   end
 
   describe "Append/Get" do
-    test "returns empty when there is none", %{db_path: db_path} do
+    test "returns empty when there is none" do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       assert [] = Inputs.get_inputs(address)
     end
 
-    test "returns the inputs that were appended", %{db_path: db_path} do
+    test "returns the inputs that were appended" do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       address3 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -40,7 +38,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
             from: address2,
             reward?: true,
             spent?: true,
-            timestamp: DateTime.utc_now()
+            timestamp: ~U[2022-11-14 14:54:12Z]
           }
         },
         %VersionedTransactionInput{
@@ -51,13 +49,13 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
             from: address3,
             reward?: true,
             spent?: true,
-            timestamp: DateTime.utc_now()
+            timestamp: ~U[2022-11-14 14:54:12Z]
           }
         }
       ]
 
       Inputs.append_inputs(inputs, address)
-      assert inputs = Inputs.get_inputs(address)
+      assert ^inputs = Inputs.get_inputs(address)
       assert [] = Inputs.get_inputs(address2)
       assert [] = Inputs.get_inputs(address3)
     end

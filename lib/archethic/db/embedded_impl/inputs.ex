@@ -4,56 +4,28 @@ defmodule Archethic.DB.EmbeddedImpl.Inputs do
   There will be many files
   """
 
-  use GenServer
-
+  alias Archethic.DB.EmbeddedImpl
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.Utils
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
   @spec append_inputs(inputs :: list(VersionedTransactionInput.t()), address :: binary()) :: :ok
   def append_inputs(inputs, address) do
-    GenServer.call(__MODULE__, {:append_inputs, inputs, address})
+    filename = address_to_filename(address)
+    :ok = File.mkdir_p!(Path.dirname(filename))
+    write_inputs_to_file(filename, inputs)
   end
 
   @spec get_inputs(address :: binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) do
-    GenServer.call(__MODULE__, {:get_inputs, address})
-  end
-
-  def init(opts) do
-    db_path = Keyword.get(opts, :path)
-    input_path = Path.join(db_path, "inputs")
-
-    # setup folder
-    :ok = File.mkdir_p!(input_path)
-
-    {:ok, %{input_path: input_path}}
-  end
-
-  def handle_call({:get_inputs, address}, _, state = %{input_path: input_path}) do
-    inputs =
-      address
-      |> address_to_filename(input_path)
-      |> read_inputs_from_file()
-
-    {:reply, inputs, state}
-  end
-
-  def handle_call({:append_inputs, inputs, address}, _, state = %{input_path: input_path}) do
     address
-    |> address_to_filename(input_path)
-    |> write_inputs_to_file(inputs)
-
-    {:reply, :ok, state}
+    |> address_to_filename()
+    |> read_inputs_from_file()
   end
 
   defp read_inputs_from_file(filename) do
     case File.read(filename) do
       {:ok, bin} ->
-        deserialize_inputs_file(bin, [])
+        Enum.reverse(deserialize_inputs_file(bin, []))
 
       _ ->
         []
@@ -70,6 +42,7 @@ defmodule Archethic.DB.EmbeddedImpl.Inputs do
     File.write!(filename, inputs_bin, [:append, :binary])
   end
 
+  # instead of ignoring padding, we should count the iteration and stop once over
   defp deserialize_inputs_file(bin, acc) do
     if bit_size(bin) < 8 do
       # less than a byte, we are in the padding of wrap_binary
@@ -82,5 +55,6 @@ defmodule Archethic.DB.EmbeddedImpl.Inputs do
     end
   end
 
-  defp address_to_filename(address, path), do: Path.join([path, Base.encode16(address)])
+  defp address_to_filename(address),
+    do: Path.join([EmbeddedImpl.db_path(), "inputs", Base.encode16(address)])
 end
