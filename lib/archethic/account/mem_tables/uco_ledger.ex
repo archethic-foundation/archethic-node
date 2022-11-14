@@ -21,6 +21,10 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   Initialize the UCO ledger tables:
   - Main UCO ledger as ETS set ({{to, from}, amount, spent?, timestamp, reward?, protocol_version})
   - UCO Unspent Output Index as ETS bag (to, from)
+
+  The ETS ledger caches the unspent UTXO
+  The ETS index caches both unspent and spent UTXO
+  Once a UTXO is spent, it is removed from the ledger and written to disk to reduce memory footprint
   """
   @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
@@ -123,7 +127,6 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
   @doc """
   Spend all the unspent outputs for the given address.
-  Spent UTXO are removed from the ETS table
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
@@ -156,8 +159,6 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
   @doc """
   Retrieve the entire inputs for a given address (spent or unspent)
-  Unspent come from the ETS table
-  Spent come from local disk
   """
   @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do

@@ -21,6 +21,10 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   Initialize the Token ledger tables:
   - Main Token ledger as ETS set ({to, from, token_address, token_id}, amount, spent?, timestamp, protocol_version)
   - Token Unspent Output Index as ETS bag (to, from, token_address, token_id)
+
+  The ETS ledger caches the unspent UTXO
+  The ETS index caches both unspent and spent UTXO
+  Once a UTXO is spent, it is removed from the ledger and written to disk to reduce memory footprint
   """
   @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
