@@ -341,15 +341,18 @@ defmodule Archethic.BeaconChain do
 
     addresses
     |> Stream.chunk_every(10)
-    |> Task.async_stream(fn addresses ->
-      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
-        {:ok, %BeaconSummaryList{summaries: summaries}} ->
-          summaries
+    |> Task.async_stream(
+      fn addresses ->
+        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+          {:ok, %BeaconSummaryList{summaries: summaries}} ->
+            summaries
 
-        _ ->
-          []
-      end
-    end)
+          _ ->
+            []
+        end
+      end,
+      on_timeout: :kill_task
+    )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
