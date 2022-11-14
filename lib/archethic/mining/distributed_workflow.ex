@@ -755,9 +755,21 @@ defmodule Archethic.Mining.DistributedWorkflow do
           }
         }
       ) do
+    previous_address = Transaction.previous_address(tx)
+
+    genesis_address =
+      case TransactionChain.fetch_genesis_address_remotely(previous_address) do
+        {:ok, genesis_address} ->
+          genesis_address
+
+        _ ->
+          previous_address
+      end
+
     Replication.acknowledge_previous_storage_nodes(
       tx.address,
-      Transaction.previous_address(tx),
+      genesis_address,
+      previous_address,
       tx_timestamp
     )
 
