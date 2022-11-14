@@ -13,6 +13,8 @@ defmodule Archethic.AccountTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.Reward.MemTablesLoader, as: RewardMemTableLoader
@@ -126,21 +128,31 @@ defmodule Archethic.AccountTest do
     end
 
     test "should return 0 when all the unspent outputs have been spent" do
-      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      alice2_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      bob3_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      charlie2_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      tom10_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      charlie_token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       UCOLedger.add_unspent_output(
-        "@Alice2",
+        alice2_address,
         %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{from: "@Bob3", amount: 300_000_000, timestamp: timestamp},
+          unspent_output: %UnspentOutput{
+            from: bob3_address,
+            amount: 300_000_000,
+            timestamp: timestamp
+          },
           protocol_version: 1
         }
       )
 
       UCOLedger.add_unspent_output(
-        "@Alice2",
+        alice2_address,
         %VersionedUnspentOutput{
           unspent_output: %UnspentOutput{
-            from: "@Tom10",
+            from: tom10_address,
             amount: 100_000_000,
             timestamp: timestamp
           },
@@ -149,22 +161,121 @@ defmodule Archethic.AccountTest do
       )
 
       TokenLedger.add_unspent_output(
-        "@Alice2",
+        alice2_address,
         %VersionedUnspentOutput{
           unspent_output: %UnspentOutput{
-            from: "@Charlie2",
+            from: charlie2_address,
             amount: 10_000_000_000,
-            type: {:token, "@CharlieToken", 0},
+            type: {:token, charlie_token_address, 0},
             timestamp: timestamp
           },
           protocol_version: 1
         }
       )
 
-      UCOLedger.spend_all_unspent_outputs("@Alice2")
-      TokenLedger.spend_all_unspent_outputs("@Alice2")
+      UCOLedger.spend_all_unspent_outputs(alice2_address)
+      TokenLedger.spend_all_unspent_outputs(alice2_address)
 
-      assert %{uco: 0, token: %{}} == Account.get_balance("@Alice2")
+      assert %{uco: 0, token: %{}} == Account.get_balance(alice2_address)
     end
+  end
+
+  test "should return both UCO and TOKEN spent" do
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    start_supervised!(UCOLedger)
+    start_supervised!(TokenLedger)
+
+    alice2_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    bob3_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    charlie2_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    tom10_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    charlie_token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+    UCOLedger.add_unspent_output(
+      alice2_address,
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: bob3_address,
+          amount: 300_000_000,
+          timestamp: timestamp
+        },
+        protocol_version: 1
+      }
+    )
+
+    UCOLedger.add_unspent_output(
+      alice2_address,
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: tom10_address,
+          amount: 100_000_000,
+          timestamp: timestamp
+        },
+        protocol_version: 1
+      }
+    )
+
+    TokenLedger.add_unspent_output(
+      alice2_address,
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: charlie2_address,
+          amount: 10_000_000_000,
+          type: {:token, charlie_token_address, 0},
+          timestamp: timestamp
+        },
+        protocol_version: 1
+      }
+    )
+
+    UCOLedger.spend_all_unspent_outputs(alice2_address)
+    TokenLedger.spend_all_unspent_outputs(alice2_address)
+
+    inputs = Account.get_inputs(alice2_address)
+
+    assert 3 == length(inputs)
+
+    assert Enum.any?(
+             inputs,
+             &(&1 == %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: charlie2_address,
+                   amount: 10_000_000_000,
+                   type: {:token, charlie_token_address, 0},
+                   timestamp: timestamp,
+                   spent?: true
+                 },
+                 protocol_version: 1
+               })
+           )
+
+    assert Enum.any?(
+             inputs,
+             &(&1 == %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: tom10_address,
+                   amount: 100_000_000,
+                   type: :UCO,
+                   timestamp: timestamp,
+                   spent?: true
+                 },
+                 protocol_version: 1
+               })
+           )
+
+    assert Enum.any?(
+             inputs,
+             &(&1 == %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: bob3_address,
+                   amount: 300_000_000,
+                   type: :UCO,
+                   timestamp: timestamp,
+                   spent?: true
+                 },
+                 protocol_version: 1
+               })
+           )
   end
 end

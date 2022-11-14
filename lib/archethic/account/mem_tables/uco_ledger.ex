@@ -147,7 +147,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         }
       end)
 
-    Inputs.append_inputs(inputs, address)
+    Inputs.append_inputs(:UCO, inputs, address)
 
     Enum.each(inputs, fn %VersionedTransactionInput{input: %TransactionInput{from: from}} ->
       :ets.delete(@ledger_table, {address, from})
@@ -189,7 +189,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
       end)
       |> Enum.reverse()
 
-    spent = Inputs.get_inputs(address)
+    spent = Inputs.get_inputs(:UCO, address)
     Enum.concat(spent, unspent)
   end
 end

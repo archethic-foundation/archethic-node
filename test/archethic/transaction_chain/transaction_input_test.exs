@@ -13,12 +13,12 @@ defmodule Archethic.TransactionChain.TransactionInputTest do
         from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         reward?: true,
         spent?: true,
-        timestamp: DateTime.utc_now()
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
       protocol_version = Mining.protocol_version()
 
-      assert input =
+      assert {^input, _} =
                TransactionInput.deserialize(
                  TransactionInput.serialize(input, protocol_version),
                  protocol_version

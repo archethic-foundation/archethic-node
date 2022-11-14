@@ -8,17 +8,23 @@ defmodule Archethic.DB.EmbeddedImpl.Inputs do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.Utils
 
-  @spec append_inputs(inputs :: list(VersionedTransactionInput.t()), address :: binary()) :: :ok
-  def append_inputs(inputs, address) do
-    filename = address_to_filename(address)
+  @type ledger :: :token | :UCO
+
+  @spec append_inputs(
+          ledger :: ledger,
+          inputs :: list(VersionedTransactionInput.t()),
+          address :: binary()
+        ) :: :ok
+  def append_inputs(ledger, inputs, address) do
+    filename = address_to_filename(address, ledger)
     :ok = File.mkdir_p!(Path.dirname(filename))
     write_inputs_to_file(filename, inputs)
   end
 
-  @spec get_inputs(address :: binary()) :: list(VersionedTransactionInput.t())
-  def get_inputs(address) do
+  @spec get_inputs(ledger :: ledger, address :: binary()) :: list(VersionedTransactionInput.t())
+  def get_inputs(ledger, address) do
     address
-    |> address_to_filename()
+    |> address_to_filename(ledger)
     |> read_inputs_from_file()
   end
 
@@ -55,6 +61,13 @@ defmodule Archethic.DB.EmbeddedImpl.Inputs do
     end
   end
 
-  defp address_to_filename(address),
-    do: Path.join([EmbeddedImpl.db_path(), "inputs", Base.encode16(address)])
+  defp address_to_filename(address, ledger) do
+    prefix =
+      case ledger do
+        :UCO -> "uco"
+        :token -> "token"
+      end
+
+    Path.join([EmbeddedImpl.db_path(), "inputs", prefix, Base.encode16(address)])
+  end
 end

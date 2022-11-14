@@ -21,10 +21,11 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
     test "returns empty when there is none" do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      assert [] = Inputs.get_inputs(address)
+      assert [] = Inputs.get_inputs(:UCO, address)
+      assert [] = Inputs.get_inputs(:token, address)
     end
 
-    test "returns the inputs that were appended" do
+    test "returns the UCO inputs that were appended" do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       address3 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -54,10 +55,47 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
         }
       ]
 
-      Inputs.append_inputs(inputs, address)
-      assert ^inputs = Inputs.get_inputs(address)
-      assert [] = Inputs.get_inputs(address2)
-      assert [] = Inputs.get_inputs(address3)
+      Inputs.append_inputs(:UCO, inputs, address)
+      assert ^inputs = Inputs.get_inputs(:UCO, address)
+      assert [] = Inputs.get_inputs(:UCO, address2)
+      assert [] = Inputs.get_inputs(:UCO, address3)
+    end
+
+    test "returns the TOKEN inputs that were appended" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      address3 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      inputs = [
+        %VersionedTransactionInput{
+          protocol_version: 1,
+          input: %TransactionInput{
+            amount: 1,
+            type: {:token, token_address, 0},
+            from: address2,
+            reward?: true,
+            spent?: true,
+            timestamp: ~U[2022-11-14 14:54:12Z]
+          }
+        },
+        %VersionedTransactionInput{
+          protocol_version: 1,
+          input: %TransactionInput{
+            amount: 2,
+            type: {:token, token_address, 0},
+            from: address3,
+            reward?: true,
+            spent?: true,
+            timestamp: ~U[2022-11-14 14:54:12Z]
+          }
+        }
+      ]
+
+      Inputs.append_inputs(:token, inputs, address)
+      assert ^inputs = Inputs.get_inputs(:token, address)
+      assert [] = Inputs.get_inputs(:token, address2)
+      assert [] = Inputs.get_inputs(:token, address3)
     end
   end
 end

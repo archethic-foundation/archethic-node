@@ -151,7 +151,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
         }
       end)
 
-    Inputs.append_inputs(inputs, address)
+    Inputs.append_inputs(:token, inputs, address)
 
     inputs
     |> Enum.each(fn %VersionedTransactionInput{
@@ -195,7 +195,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
       end)
       |> Enum.reverse()
 
-    spent = Inputs.get_inputs(address)
+    spent = Inputs.get_inputs(:token, address)
     Enum.concat(spent, unspent)
   end
 end
