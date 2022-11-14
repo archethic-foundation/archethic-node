@@ -4,6 +4,8 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   @ledger_table :archethic_token_ledger
   @unspent_output_index_table :archethic_token_unspent_output_index
 
+  alias Archethic.DB.EmbeddedImpl.Inputs
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -17,8 +19,8 @@ defmodule Archethic.Account.MemTables.TokenLedger do
 
   @doc """
   Initialize the Token ledger tables:
-  - Main Token ledger as ETS set ({token, to, from, token_id}, amount, spent?, timestamp, protocol_version)
-  - Token Unspent Output Index as ETS bag (to, {from, token, token_id})
+  - Main Token ledger as ETS set ({to, from, token_address, token_id}, amount, spent?, timestamp, protocol_version)
+  - Token Unspent Output Index as ETS bag (to, from, token_address, token_id)
   """
   @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
@@ -130,10 +132,35 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
-    @unspent_output_index_table
-    |> :ets.lookup(address)
-    |> Enum.each(fn {_, from, token_address, token_id} ->
-      :ets.update_element(@ledger_table, {address, from, token_address, token_id}, {3, true})
+    inputs =
+      @unspent_output_index_table
+      |> :ets.lookup(address)
+      |> Enum.map(fn {to, from, token_address, token_id} ->
+        [{_, amount, _, timestamp, protocol_version}] =
+          :ets.lookup(@ledger_table, {to, from, token_address, token_id})
+
+        %VersionedTransactionInput{
+          protocol_version: protocol_version,
+          input: %TransactionInput{
+            from: from,
+            amount: amount,
+            spent?: true,
+            timestamp: timestamp,
+            type: {:token, token_address, token_id}
+          }
+        }
+      end)
+
+    Inputs.append_inputs(inputs, address)
+
+    inputs
+    |> Enum.each(fn %VersionedTransactionInput{
+                      input: %TransactionInput{
+                        from: from,
+                        type: {:token, token_address, token_id}
+                      }
+                    } ->
+      :ets.delete(@ledger_table, {address, from, token_address, token_id})
     end)
   end
 
@@ -142,22 +169,33 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   """
   @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do
-    @unspent_output_index_table
-    |> :ets.lookup(address)
-    |> Enum.map(fn {_, from, token_address, token_id} ->
-      [{_, amount, spent?, timestamp, protocol_version}] =
-        :ets.lookup(@ledger_table, {address, from, token_address, token_id})
+    unspent =
+      @unspent_output_index_table
+      |> :ets.lookup(address)
+      |> Enum.reduce([], fn {_, from, token_address, token_id}, acc ->
+        case :ets.lookup(@ledger_table, {address, from, token_address, token_id}) do
+          [] ->
+            acc
 
-      %VersionedTransactionInput{
-        input: %TransactionInput{
-          from: from,
-          amount: amount,
-          type: {:token, token_address, token_id},
-          spent?: spent?,
-          timestamp: timestamp
-        },
-        protocol_version: protocol_version
-      }
-    end)
+          [{_, amount, spent?, timestamp, protocol_version}] ->
+            [
+              %VersionedTransactionInput{
+                input: %TransactionInput{
+                  from: from,
+                  amount: amount,
+                  type: {:token, token_address, token_id},
+                  spent?: spent?,
+                  timestamp: timestamp
+                },
+                protocol_version: protocol_version
+              }
+              | acc
+            ]
+        end
+      end)
+      |> Enum.reverse()
+
+    spent = Inputs.get_inputs(address)
+    Enum.concat(spent, unspent)
   end
 end
