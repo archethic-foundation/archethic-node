@@ -246,6 +246,7 @@ defmodule Archethic.ReplicationTest do
       assert :ok =
                Replication.acknowledge_previous_storage_nodes(
                  "@Alice2",
+                 "@Alice0",
                  "@Alice1",
                  DateTime.utc_now()
                )
@@ -266,7 +267,7 @@ defmodule Archethic.ReplicationTest do
       me = self()
 
       MockClient
-      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{address: _}, _ ->
+      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{last_address: _}, _ ->
         send(me, :notification_sent)
         {:ok, %Ok{}}
       end)
@@ -286,6 +287,7 @@ defmodule Archethic.ReplicationTest do
       assert :ok =
                Replication.acknowledge_previous_storage_nodes(
                  "@Alice2",
+                 "@Alice0",
                  "@Alice1",
                  DateTime.utc_now()
                )

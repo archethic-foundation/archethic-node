@@ -25,8 +25,11 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Node
 
+  alias Archethic.Replication
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -277,6 +280,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp notify(%{context: context}) do
     notify_attestation(context)
     notify_io_nodes(context)
+    notify_previous_chain(context)
   end
 
   defp notify_attestation(
@@ -324,6 +328,29 @@ defmodule Archethic.Mining.StandaloneWorkflow do
           transaction: validated_tx
         },
         else: %ReplicateTransaction{transaction: validated_tx}
+    )
+  end
+
+  defp notify_previous_chain(%ValidationContext{
+         transaction: tx,
+         validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
+       }) do
+    previous_address = Transaction.previous_address(tx)
+
+    genesis_address =
+      case TransactionChain.fetch_genesis_address_remotely(previous_address) do
+        {:ok, genesis_address} ->
+          genesis_address
+
+        _ ->
+          previous_address
+      end
+
+    Replication.acknowledge_previous_storage_nodes(
+      tx.address,
+      genesis_address,
+      previous_address,
+      tx_timestamp
     )
   end
 end
