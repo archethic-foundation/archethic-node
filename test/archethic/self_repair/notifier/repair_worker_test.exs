@@ -2,8 +2,8 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
   @moduledoc false
   use ArchethicCase
 
-  alias Archethic.SelfRepair.Notifier.RepairWorker
   alias Archethic.SelfRepair.Notifier.Impl, as: NotifierImpl
+  alias Archethic.SelfRepair.Notifier.RepairWorker
 
   import Mox
   @registry_name Archethic.SelfRepair.Notifier.Impl.registry_name()
@@ -152,5 +152,8 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
       end)
       |> elem(0)
     end
+
+    # test "Stress Test RepairWorker" do
+    # end
   end
 end
