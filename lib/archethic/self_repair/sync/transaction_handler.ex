@@ -6,7 +6,6 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Node
 
   alias Archethic.Replication
 
@@ -51,14 +50,12 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   @doc """
   Request the transaction for the closest storage nodes and replicate it locally.
   """
-  @spec download_transaction(TransactionSummary.t(), patch :: binary(), list(Node.t())) ::
+  @spec download_transaction(TransactionSummary.t(), list(Node.t())) ::
           Transaction.t()
   def download_transaction(
         %TransactionSummary{address: address, type: type, timestamp: _timestamp},
-        node_patch,
-        download_nodes
-      )
-      when is_binary(node_patch) do
+        node_list
+      ) do
     Logger.info("Synchronize missed transaction",
       transaction_address: Base.encode16(address),
       transaction_type: type
@@ -66,10 +63,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
     storage_nodes =
       address
-      |> Election.chain_storage_nodes_with_type(type, download_nodes)
+      |> Election.chain_storage_nodes_with_type(type, node_list)
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-      |> P2P.nearest_nodes()
-      |> Enum.filter(&Node.locally_available?/1)
 
     case TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
       {:ok, tx = %Transaction{}} ->
@@ -100,13 +95,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           address: address,
           type: type
         },
-        download_nodes
+        node_list
       ) do
-    node_list = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
+    node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
 
     cond do
       Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list) ->
-        Replication.validate_and_store_transaction_chain(tx, true, download_nodes)
+        Replication.validate_and_store_transaction_chain(tx, true, node_list)
 
       Election.io_storage_node?(tx, Crypto.first_node_public_key(), node_list) ->
         Replication.validate_and_store_transaction(tx, true)

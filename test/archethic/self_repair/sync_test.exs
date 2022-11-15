@@ -263,11 +263,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       MockDB
       |> stub(:register_stats, fn _, _, _, _ -> :ok end)
 
-      assert :ok =
-               Sync.load_missed_transactions(
-                 DateTime.utc_now() |> DateTime.add(-86_400),
-                 "AAA"
-               )
+      assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-86_400))
 
       assert_received :storage
     end
@@ -351,7 +347,6 @@ defmodule Archethic.SelfRepair.SyncTest do
                      }
                    ]
                  },
-                 "AAA",
                  P2P.authorized_and_available_nodes()
                )
 
