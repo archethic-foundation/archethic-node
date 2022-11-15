@@ -207,28 +207,39 @@ defmodule Archethic.Account.MemTables.TokenLedgerTest do
           }
         )
 
-      assert [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^bob3,
-                   amount: 300_000_000,
-                   type: {:token, @token1, 0},
-                   spent?: false,
-                   timestamp: ~U[2022-10-10 09:27:17Z]
-                 },
-                 protocol_version: 1
-               },
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^charlie10,
-                   amount: 100_000_000,
-                   type: {:token, @token1, 1},
-                   spent?: false,
-                   timestamp: ~U[2022-10-10 09:27:17Z]
-                 },
-                 protocol_version: 1
-               }
-             ] = TokenLedger.get_inputs(alice2)
+      # cannot rely on ordering because ETS are ordered by key and here the keys are randomly generated
+      inputs = TokenLedger.get_inputs(alice2)
+      assert length(inputs) == 2
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: bob3,
+                       amount: 300_000_000,
+                       type: {:token, @token1, 0},
+                       spent?: false,
+                       timestamp: ~U[2022-10-10 09:27:17Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: charlie10,
+                       amount: 100_000_000,
+                       type: {:token, @token1, 1},
+                       spent?: false,
+                       timestamp: ~U[2022-10-10 09:27:17Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
     end
 
     test "should convert spent outputs" do
@@ -268,28 +279,39 @@ defmodule Archethic.Account.MemTables.TokenLedgerTest do
 
       :ok = TokenLedger.spend_all_unspent_outputs(alice2)
 
-      assert [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^bob3,
-                   amount: 300_000_000,
-                   type: {:token, @token1, 0},
-                   spent?: true,
-                   timestamp: ~U[2022-10-10 09:27:17Z]
-                 },
-                 protocol_version: 1
-               },
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^charlie10,
-                   amount: 100_000_000,
-                   type: {:token, @token1, 1},
-                   spent?: true,
-                   timestamp: ~U[2022-10-10 09:27:17Z]
-                 },
-                 protocol_version: 1
-               }
-             ] = TokenLedger.get_inputs(alice2)
+      # cannot rely on ordering because ETS are ordered by key and here the keys are randomly generated
+      inputs = TokenLedger.get_inputs(alice2)
+      assert length(inputs) == 2
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: bob3,
+                       amount: 300_000_000,
+                       type: {:token, @token1, 0},
+                       spent?: true,
+                       timestamp: ~U[2022-10-10 09:27:17Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: charlie10,
+                       amount: 100_000_000,
+                       type: {:token, @token1, 1},
+                       spent?: true,
+                       timestamp: ~U[2022-10-10 09:27:17Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
     end
   end
 end

@@ -1,28 +1,18 @@
 defmodule Archethic.DB.EmbeddedImpl.InputsTest do
   use ArchethicCase
 
-  alias Archethic.DB.EmbeddedImpl.Inputs
+  alias Archethic.DB.EmbeddedImpl.InputsReader
+  alias Archethic.DB.EmbeddedImpl.InputsWriter
 
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionInput
-
-  setup do
-    db_path = Application.app_dir(:archethic, "data_test")
-    File.mkdir_p!(db_path)
-
-    on_exit(fn ->
-      File.rm_rf!(db_path)
-    end)
-
-    %{db_path: db_path}
-  end
 
   describe "Append/Get" do
     test "returns empty when there is none" do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      assert [] = Inputs.get_inputs(:UCO, address)
-      assert [] = Inputs.get_inputs(:token, address)
+      assert [] = InputsReader.get_inputs(:UCO, address)
+      assert [] = InputsReader.get_inputs(:token, address)
     end
 
     test "returns the UCO inputs that were appended" do
@@ -55,10 +45,12 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
         }
       ]
 
-      Inputs.append_inputs(:UCO, inputs, address)
-      assert ^inputs = Inputs.get_inputs(:UCO, address)
-      assert [] = Inputs.get_inputs(:UCO, address2)
-      assert [] = Inputs.get_inputs(:UCO, address3)
+      {:ok, pid1} = InputsWriter.start_link(:UCO, address)
+      Enum.each(inputs, &InputsWriter.append_input(pid1, &1))
+
+      assert ^inputs = InputsReader.get_inputs(:UCO, address)
+      assert [] = InputsReader.get_inputs(:UCO, address2)
+      assert [] = InputsReader.get_inputs(:UCO, address3)
     end
 
     test "returns the TOKEN inputs that were appended" do
@@ -92,10 +84,12 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
         }
       ]
 
-      Inputs.append_inputs(:token, inputs, address)
-      assert ^inputs = Inputs.get_inputs(:token, address)
-      assert [] = Inputs.get_inputs(:token, address2)
-      assert [] = Inputs.get_inputs(:token, address3)
+      {:ok, pid1} = InputsWriter.start_link(:token, address)
+      Enum.each(inputs, &InputsWriter.append_input(pid1, &1))
+
+      assert ^inputs = InputsReader.get_inputs(:token, address)
+      assert [] = InputsReader.get_inputs(:token, address2)
+      assert [] = InputsReader.get_inputs(:token, address3)
     end
   end
 end

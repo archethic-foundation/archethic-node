@@ -209,28 +209,39 @@ defmodule Archethic.Account.MemTables.UCOLedgerTest do
           }
         )
 
-      assert [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^bob3,
-                   amount: 300_000_000,
-                   spent?: false,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-11 09:24:01Z]
-                 },
-                 protocol_version: 1
-               },
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^charlie10,
-                   amount: 100_000_000,
-                   spent?: false,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-11 09:24:01Z]
-                 },
-                 protocol_version: 1
-               }
-             ] = UCOLedger.get_inputs(alice2)
+      # cannot rely on ordering because ETS are ordered by key and here the keys are randomly generated
+      inputs = UCOLedger.get_inputs(alice2)
+      assert length(inputs) == 2
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: bob3,
+                       amount: 300_000_000,
+                       spent?: false,
+                       type: :UCO,
+                       timestamp: ~U[2022-10-11 09:24:01Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: charlie10,
+                       amount: 100_000_000,
+                       spent?: false,
+                       type: :UCO,
+                       timestamp: ~U[2022-10-11 09:24:01Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
     end
 
     test "should convert spent outputs" do
@@ -270,28 +281,39 @@ defmodule Archethic.Account.MemTables.UCOLedgerTest do
 
       :ok = UCOLedger.spend_all_unspent_outputs(alice2)
 
-      assert [
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^bob3,
-                   amount: 300_000_000,
-                   spent?: true,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-11 09:24:01Z]
-                 },
-                 protocol_version: 1
-               },
-               %VersionedTransactionInput{
-                 input: %TransactionInput{
-                   from: ^charlie10,
-                   amount: 100_000_000,
-                   spent?: true,
-                   type: :UCO,
-                   timestamp: ~U[2022-10-11 09:24:01Z]
-                 },
-                 protocol_version: 1
-               }
-             ] = UCOLedger.get_inputs(alice2)
+      # cannot rely on ordering because ETS are ordered by key and here the keys are randomly generated
+      inputs = UCOLedger.get_inputs(alice2)
+      assert length(inputs) == 2
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: bob3,
+                       amount: 300_000_000,
+                       spent?: true,
+                       type: :UCO,
+                       timestamp: ~U[2022-10-11 09:24:01Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
+
+      assert Enum.any?(
+               inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     input: %TransactionInput{
+                       from: charlie10,
+                       amount: 100_000_000,
+                       spent?: true,
+                       type: :UCO,
+                       timestamp: ~U[2022-10-11 09:24:01Z]
+                     },
+                     protocol_version: 1
+                   })
+             )
     end
   end
 end
