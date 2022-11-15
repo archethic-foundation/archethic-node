@@ -26,7 +26,7 @@ defmodule Archethic.SelfRepair.Notifier do
 
   #  Sharding on single txn results in holding that txn chain upto that txn
   #  txn_chain => A -> B -> C -> D
-  #  A Sharded tranction replication mean tx from genesis addr to that tx address.
+  #  A Sharded tranction replication mean tx from genesis addr to that txn.
 
   alias Archethic.{
     Crypto,
