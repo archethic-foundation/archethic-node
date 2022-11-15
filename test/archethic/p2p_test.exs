@@ -43,31 +43,51 @@ defmodule Archethic.P2PTest do
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: pub1,
-          last_public_key: pub1
+          last_public_key: pub1,
+          available?: true,
+          availability_history: <<1::1>>,
+          network_patch: "AAA",
+          geo_patch: "AAA"
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3003,
           first_public_key: pub2,
-          last_public_key: pub2
+          last_public_key: pub2,
+          available?: true,
+          availability_history: <<1::1>>,
+          network_patch: "AAA",
+          geo_patch: "AAA"
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3004,
           first_public_key: pub3,
-          last_public_key: pub3
+          last_public_key: pub3,
+          available?: true,
+          availability_history: <<1::1>>,
+          network_patch: "AAA",
+          geo_patch: "AAA"
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3005,
           first_public_key: pub4,
-          last_public_key: pub4
+          last_public_key: pub4,
+          available?: true,
+          availability_history: <<1::1>>,
+          network_patch: "AAA",
+          geo_patch: "AAA"
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3006,
           first_public_key: pub5,
-          last_public_key: pub5
+          last_public_key: pub5,
+          available?: true,
+          availability_history: <<1::1>>,
+          network_patch: "AAA",
+          geo_patch: "AAA"
         }
       ]
 

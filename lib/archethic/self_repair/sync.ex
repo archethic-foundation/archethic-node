@@ -101,11 +101,9 @@ defmodule Archethic.SelfRepair.Sync do
 
   Once retrieved, the transactions are downloaded and stored if not exists locally
   """
-  @spec load_missed_transactions(
-          last_sync_date :: DateTime.t(),
-          patch :: binary()
-        ) :: :ok | {:error, :unreachable_nodes}
-  def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
+  @spec load_missed_transactions(last_sync_date :: DateTime.t()) ::
+          :ok | {:error, :unreachable_nodes}
+  def load_missed_transactions(last_sync_date = %DateTime{}) do
     last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     if DateTime.compare(last_summary_time, last_sync_date) == :gt do
@@ -113,7 +111,7 @@ defmodule Archethic.SelfRepair.Sync do
         "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
       )
 
-      do_load_missed_transactions(last_sync_date, last_summary_time, patch)
+      do_load_missed_transactions(last_sync_date, last_summary_time)
     else
       Logger.info("Already synchronized for #{DateTime.to_string(last_sync_date)}")
 
@@ -122,7 +120,7 @@ defmodule Archethic.SelfRepair.Sync do
     end
   end
 
-  defp do_load_missed_transactions(last_sync_date, last_summary_time, patch) do
+  defp do_load_missed_transactions(last_sync_date, last_summary_time) do
     start = System.monotonic_time()
 
     download_nodes = P2P.authorized_and_available_nodes()
@@ -137,7 +135,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     summaries_aggregates
     |> Stream.concat([last_aggregate])
-    |> Enum.each(&process_summary_aggregate(&1, patch, download_nodes))
+    |> Enum.each(&process_summary_aggregate(&1, download_nodes))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
@@ -176,7 +174,8 @@ defmodule Archethic.SelfRepair.Sync do
     # cannot be reached
 
     nodes =
-      P2P.authorized_nodes(summary_time)
+      summary_time
+      |> P2P.authorized_nodes()
       |> Enum.filter(& &1.available?)
 
     # If number of authorized node is <= 2 and current node is part of it
@@ -225,14 +224,13 @@ defmodule Archethic.SelfRepair.Sync do
 
   At the end of the execution, the summaries aggregate will persisted locally if the node is member of the shard of the summary
   """
-  @spec process_summary_aggregate(SummaryAggregate.t(), binary(), list(Node.t())) :: :ok
+  @spec process_summary_aggregate(SummaryAggregate.t(), list(Node.t())) :: :ok
   def process_summary_aggregate(
         aggregate = %SummaryAggregate{
           summary_time: summary_time,
           transaction_summaries: transaction_summaries,
           p2p_availabilities: p2p_availabilities
         },
-        node_patch,
         download_nodes
       ) do
     start_time = System.monotonic_time()
@@ -242,7 +240,7 @@ defmodule Archethic.SelfRepair.Sync do
       |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
       |> Enum.filter(&TransactionHandler.download_transaction?/1)
 
-    synchronize_transactions(transactions_to_sync, node_patch, download_nodes)
+    synchronize_transactions(transactions_to_sync, download_nodes)
 
     :telemetry.execute(
       [:archethic, :self_repair, :process_aggregate],
@@ -275,16 +273,16 @@ defmodule Archethic.SelfRepair.Sync do
     store_aggregate(aggregate)
   end
 
-  defp synchronize_transactions([], _node_patch, _), do: :ok
+  defp synchronize_transactions([], _), do: :ok
 
-  defp synchronize_transactions(transaction_summaries, node_patch, download_nodes) do
+  defp synchronize_transactions(transaction_summaries, download_nodes) do
     Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
     Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
 
     Task.Supervisor.async_stream(
       TaskSupervisor,
       transaction_summaries,
-      &TransactionHandler.download_transaction(&1, node_patch, download_nodes),
+      &TransactionHandler.download_transaction(&1, download_nodes),
       on_timeout: :kill_task,
       timeout: Message.get_max_timeout() + 2000,
       max_concurrency: 100

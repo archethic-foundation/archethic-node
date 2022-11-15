@@ -126,7 +126,6 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     assert ^tx =
              TransactionHandler.download_transaction(
                tx_summary,
-               "AAA",
                P2P.authorized_and_available_nodes()
              )
   end

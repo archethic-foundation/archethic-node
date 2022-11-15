@@ -7,7 +7,6 @@ defmodule Archethic.SelfRepair.Scheduler do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.P2P
-  alias Archethic.P2P.Node
 
   alias Archethic.SelfRepair.Sync
 
@@ -94,7 +93,7 @@ defmodule Archethic.SelfRepair.Scheduler do
       # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
       # at the end of loading (in case there is a crash during self repair)
       start_date = DateTime.utc_now()
-      :ok = Sync.load_missed_transactions(last_sync_date, get_node_patch())
+      :ok = Sync.load_missed_transactions(last_sync_date)
       {:ok, start_date}
     end)
 
@@ -134,11 +133,6 @@ defmodule Archethic.SelfRepair.Scheduler do
       new_interval ->
         {:noreply, Map.put(state, :interval, new_interval)}
     end
-  end
-
-  defp get_node_patch do
-    %Node{network_patch: network_patch} = P2P.get_node_info()
-    network_patch
   end
 
   defp update_last_sync_date(date = %DateTime{}) do
