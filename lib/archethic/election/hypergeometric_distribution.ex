@@ -52,6 +52,15 @@ defmodule Archethic.Election.HypergeometricDistribution do
 
   ## Examples
 
+      iex> HypergeometricDistribution.run_simulation(5)
+      5
+      
+      iex> HypergeometricDistribution.run_simulation(20)
+      19
+      
+      iex> HypergeometricDistribution.run_simulation(40)
+      37
+
       iex> HypergeometricDistribution.run_simulation(100)
       84
 
@@ -62,6 +71,9 @@ defmodule Archethic.Election.HypergeometricDistribution do
       195
   """
   @spec run_simulation(pos_integer) :: pos_integer
+  def run_simulation(nb_nodes) when is_integer(nb_nodes) and nb_nodes > 0 and nb_nodes <= 10,
+    do: nb_nodes
+
   def run_simulation(nb_nodes) when is_integer(nb_nodes) and nb_nodes > 0 do
     GenServer.call(__MODULE__, {:run_simulation, nb_nodes}, 60_000)
   end
