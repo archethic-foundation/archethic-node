@@ -11,6 +11,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   alias Archethic.BeaconChain.SummaryTimer
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   @table_name :archethic_summary_cache
 

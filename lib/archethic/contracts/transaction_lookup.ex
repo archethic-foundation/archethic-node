@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.TransactionLookup do
   @table_name :archethic_contract_transaction_lookup
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

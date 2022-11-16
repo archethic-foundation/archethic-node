@@ -37,6 +37,7 @@ defmodule Archethic.Contracts.Worker do
   require Logger
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   def start_link(contract = %Contract{constants: %Constants{contract: constants}}) do
     GenServer.start_link(__MODULE__, contract, name: via_tuple(Map.get(constants, "address")))

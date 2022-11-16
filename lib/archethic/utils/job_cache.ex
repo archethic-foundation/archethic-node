@@ -34,6 +34,7 @@ defmodule Archethic.Utils.JobCache do
   """
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   defmodule S do
     @moduledoc false

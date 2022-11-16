@@ -2,6 +2,7 @@ defmodule Archethic.Governance.Pools.MemTableLoader do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Governance.Pools
   alias Archethic.Governance.Pools.MemTable

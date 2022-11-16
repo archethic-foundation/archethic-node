@@ -2,6 +2,7 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
 

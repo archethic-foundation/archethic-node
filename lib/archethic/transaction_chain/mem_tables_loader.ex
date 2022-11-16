@@ -2,6 +2,7 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.Conditions

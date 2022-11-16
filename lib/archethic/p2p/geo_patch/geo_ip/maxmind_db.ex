@@ -5,6 +5,7 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
   alias MMDB2Decoder
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

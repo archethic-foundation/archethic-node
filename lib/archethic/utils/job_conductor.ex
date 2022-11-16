@@ -32,6 +32,7 @@ defmodule Archethic.Utils.JobConductor do
   @type conduct :: {:ok, any} | {:caught, any} | {:rescued, any}
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   defmodule S do
     @moduledoc false

@@ -18,6 +18,7 @@ defmodule Archethic.P2P.BootstrappingSeeds do
   alias Archethic.P2P.Node
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 
