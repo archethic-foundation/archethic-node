@@ -141,7 +141,11 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   @doc """
   Retrieve the entire inputs for a given address (spent or unspent)
   """
-  @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
+  @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())g/distributed_workflow.ex
+	modified:   lib/archethic/oracle_chain/scheduler.ex
+	modified:   lib/archethic/p2p/client/connection.ex
+	modified:   lib/archethic/reward/scheduler.ex
+	modified:   lib/archethic/shared
   def get_inputs(address) when is_binary(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
