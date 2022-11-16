@@ -1,6 +1,6 @@
 defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
   @moduledoc """
-  Inputs are stored by destination address. 1 file per address
+  Inputs are stored by destination address. 1 file per address per ledger
   There will be many files
   """
   use GenServer
@@ -46,7 +46,20 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
     filename = address_to_filename(ledger, address)
     :ok = File.mkdir_p!(Path.dirname(filename))
 
-    {:ok, %{filename: filename, fd: File.open!(filename, [:read, :append, :binary])}}
+    # We use the `exclusive` flag. This means we can only open a file that does not exist yet.
+    # We use this mechanism to prevent rewriting the same data over and over when we restart the node and reprocess the transaction history.
+    # If the InputsWriter is called on an existing file, it will behave as normal but will write to the null device (= do nothing)
+    # This optimization is possible only because we always spend all the inputs of an address at the same time
+    fd =
+      case File.open(filename, [:binary, :exclusive]) do
+        {:error, :eexist} ->
+          File.open!("/dev/null", [:binary, :write])
+
+        {:ok, iodevice} ->
+          iodevice
+      end
+
+    {:ok, %{filename: filename, fd: fd}}
   end
 
   def terminate(_reason, %{fd: fd}) do
