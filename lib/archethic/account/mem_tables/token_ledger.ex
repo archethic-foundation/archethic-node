@@ -4,7 +4,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   @ledger_table :archethic_token_ledger
   @unspent_output_index_table :archethic_token_unspent_output_index
 
-  alias Archethic.DB.EmbeddedImpl
+  alias Archethic.DB
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -135,7 +135,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
-    {:ok, pid} = EmbeddedImpl.start_inputs_writer(:token, address)
+    {:ok, pid} = DB.start_inputs_writer(:token, address)
 
     @unspent_output_index_table
     |> :ets.lookup(address)
@@ -143,7 +143,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
       [{_, amount, _, timestamp, protocol_version}] =
         :ets.lookup(@ledger_table, {to, from, token_address, token_id})
 
-      EmbeddedImpl.append_input(pid, %VersionedTransactionInput{
+      DB.append_input(pid, %VersionedTransactionInput{
         protocol_version: protocol_version,
         input: %TransactionInput{
           from: from,
@@ -159,7 +159,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
 
     :ets.delete(@unspent_output_index_table, address)
 
-    EmbeddedImpl.stop_inputs_writer(pid)
+    DB.stop_inputs_writer(pid)
   end
 
   @doc """
@@ -167,7 +167,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   """
   @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do
-    spent = EmbeddedImpl.get_inputs(:token, address)
+    spent = DB.get_inputs(:token, address)
 
     @unspent_output_index_table
     |> :ets.lookup(address)

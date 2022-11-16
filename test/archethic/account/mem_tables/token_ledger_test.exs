@@ -13,6 +13,8 @@ defmodule Archethic.Account.MemTables.TokenLedgerTest do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
 
+  import Mox
+
   test "add_unspent_output/3 insert a new entry in the tables" do
     {:ok, _pid} = TokenLedger.start_link()
 
@@ -166,6 +168,11 @@ defmodule Archethic.Account.MemTables.TokenLedgerTest do
         protocol_version: 1
       })
 
+    MockDB
+    |> expect(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+    |> expect(:stop_inputs_writer, fn _ -> :ok end)
+    |> stub(:append_input, fn _, _ -> :ok end)
+
     :ok = TokenLedger.spend_all_unspent_outputs(alice2)
 
     assert [] = TokenLedger.get_unspent_outputs(alice2)
@@ -206,6 +213,12 @@ defmodule Archethic.Account.MemTables.TokenLedgerTest do
             protocol_version: 1
           }
         )
+
+      MockDB
+      |> expect(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+      |> expect(:stop_inputs_writer, fn _ -> :ok end)
+      |> stub(:append_input, fn _, _ -> :ok end)
+      |> expect(:get_inputs, fn _, _ -> [] end)
 
       # cannot rely on ordering because ETS are ordered by key and here the keys are randomly generated
       inputs = TokenLedger.get_inputs(alice2)
@@ -276,6 +289,35 @@ defmodule Archethic.Account.MemTables.TokenLedgerTest do
             protocol_version: 1
           }
         )
+
+      MockDB
+      |> expect(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+      |> expect(:stop_inputs_writer, fn _ -> :ok end)
+      |> stub(:append_input, fn _, _ -> :ok end)
+      |> expect(:get_inputs, fn _, _ ->
+        [
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              spent?: true,
+              from: bob3,
+              amount: 300_000_000,
+              type: {:token, @token1, 0},
+              timestamp: ~U[2022-10-10 09:27:17Z]
+            },
+            protocol_version: 1
+          },
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              spent?: true,
+              from: charlie10,
+              amount: 100_000_000,
+              type: {:token, @token1, 1},
+              timestamp: ~U[2022-10-10 09:27:17Z]
+            },
+            protocol_version: 1
+          }
+        ]
+      end)
 
       :ok = TokenLedger.spend_all_unspent_outputs(alice2)
 

@@ -10,6 +10,8 @@ defmodule Archethic.Account.MemTables.UCOLedgerTest do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
 
+  import Mox
+
   test "add_unspent_output/3 should insert a new entry in the tables" do
     {:ok, _pid} = UCOLedger.start_link()
 
@@ -169,6 +171,11 @@ defmodule Archethic.Account.MemTables.UCOLedgerTest do
         }
       )
 
+    MockDB
+    |> expect(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+    |> expect(:stop_inputs_writer, fn _ -> :ok end)
+    |> stub(:append_input, fn _, _ -> :ok end)
+
     :ok = UCOLedger.spend_all_unspent_outputs(alice2)
     assert [] = UCOLedger.get_unspent_outputs(alice2)
   end
@@ -208,6 +215,12 @@ defmodule Archethic.Account.MemTables.UCOLedgerTest do
             protocol_version: 1
           }
         )
+
+      MockDB
+      |> expect(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+      |> expect(:stop_inputs_writer, fn _ -> :ok end)
+      |> stub(:append_input, fn _, _ -> :ok end)
+      |> expect(:get_inputs, fn _, _ -> [] end)
 
       # cannot rely on ordering because ETS are ordered by key and here the keys are randomly generated
       inputs = UCOLedger.get_inputs(alice2)
@@ -278,6 +291,35 @@ defmodule Archethic.Account.MemTables.UCOLedgerTest do
             protocol_version: 1
           }
         )
+
+      MockDB
+      |> expect(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+      |> expect(:stop_inputs_writer, fn _ -> :ok end)
+      |> stub(:append_input, fn _, _ -> :ok end)
+      |> expect(:get_inputs, fn _, _ ->
+        [
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              from: bob3,
+              amount: 300_000_000,
+              spent?: true,
+              type: :UCO,
+              timestamp: ~U[2022-10-11 09:24:01Z]
+            },
+            protocol_version: 1
+          },
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              from: charlie10,
+              amount: 100_000_000,
+              spent?: true,
+              type: :UCO,
+              timestamp: ~U[2022-10-11 09:24:01Z]
+            },
+            protocol_version: 1
+          }
+        ]
+      end)
 
       :ok = UCOLedger.spend_all_unspent_outputs(alice2)
 

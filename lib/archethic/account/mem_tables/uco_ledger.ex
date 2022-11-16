@@ -4,7 +4,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   @ledger_table :archethic_uco_ledger
   @unspent_output_index_table :archethic_uco_unspent_output_index
 
-  alias Archethic.DB.EmbeddedImpl
+  alias Archethic.DB
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -129,7 +129,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
-    {:ok, pid} = EmbeddedImpl.start_inputs_writer(:UCO, address)
+    {:ok, pid} = DB.start_inputs_writer(:UCO, address)
 
     @unspent_output_index_table
     |> :ets.lookup(address)
@@ -137,7 +137,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
       [{_, amount, _, timestamp, reward?, protocol_version}] =
         :ets.lookup(@ledger_table, {to, from})
 
-      EmbeddedImpl.append_input(pid, %VersionedTransactionInput{
+      DB.append_input(pid, %VersionedTransactionInput{
         protocol_version: protocol_version,
         input: %TransactionInput{
           from: from,
@@ -154,7 +154,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
     :ets.delete(@unspent_output_index_table, address)
 
-    EmbeddedImpl.stop_inputs_writer(pid)
+    DB.stop_inputs_writer(pid)
   end
 
   @doc """
@@ -162,7 +162,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   """
   @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do
-    spent = EmbeddedImpl.get_inputs(:UCO, address)
+    spent = DB.get_inputs(:UCO, address)
 
     @unspent_output_index_table
     |> :ets.lookup(address)

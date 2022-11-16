@@ -173,6 +173,11 @@ defmodule Archethic.AccountTest do
         }
       )
 
+      MockDB
+      |> stub(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+      |> stub(:stop_inputs_writer, fn _ -> :ok end)
+      |> stub(:append_input, fn _, _ -> :ok end)
+
       UCOLedger.spend_all_unspent_outputs(alice2_address)
       TokenLedger.spend_all_unspent_outputs(alice2_address)
 
@@ -228,6 +233,50 @@ defmodule Archethic.AccountTest do
         protocol_version: 1
       }
     )
+
+    MockDB
+    |> stub(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+    |> stub(:stop_inputs_writer, fn _ -> :ok end)
+    |> stub(:append_input, fn _, _ -> :ok end)
+    |> stub(:get_inputs, fn
+      :UCO, _ ->
+        [
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              from: tom10_address,
+              amount: 100_000_000,
+              type: :UCO,
+              timestamp: timestamp,
+              spent?: true
+            },
+            protocol_version: 1
+          },
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              from: bob3_address,
+              amount: 300_000_000,
+              type: :UCO,
+              timestamp: timestamp,
+              spent?: true
+            },
+            protocol_version: 1
+          }
+        ]
+
+      :token, _ ->
+        [
+          %VersionedTransactionInput{
+            input: %TransactionInput{
+              from: charlie2_address,
+              amount: 10_000_000_000,
+              type: {:token, charlie_token_address, 0},
+              timestamp: timestamp,
+              spent?: true
+            },
+            protocol_version: 1
+          }
+        ]
+    end)
 
     UCOLedger.spend_all_unspent_outputs(alice2_address)
     TokenLedger.spend_all_unspent_outputs(alice2_address)
