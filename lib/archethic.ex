@@ -168,6 +168,27 @@ defmodule Archethic do
   """
   @spec get_transaction_inputs(binary()) :: list(TransactionInput.t())
   def get_transaction_inputs(address) when is_binary(address) do
+    # check the last transaction inputs to determine if a utxo is spent or not
+    {:ok, latest_address} = get_last_transaction_address(address)
+
+    if latest_address == address do
+      do_get_transaction_inputs(address)
+    else
+      latest_tx_inputs = do_get_transaction_inputs(latest_address)
+      current_tx_inputs = do_get_transaction_inputs(address)
+
+      Enum.map(current_tx_inputs, fn input ->
+        spent? =
+          not Enum.any?(latest_tx_inputs, fn input2 ->
+            input.from == input2.from and input.type == input2.type
+          end)
+
+        %TransactionInput{input | spent?: spent?}
+      end)
+    end
+  end
+
+  defp do_get_transaction_inputs(address) do
     nodes =
       address
       |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
