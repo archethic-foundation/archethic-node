@@ -17,9 +17,10 @@ defmodule Archethic.Replication.TransactionContext do
   @doc """
   Fetch transaction
   """
-  @spec fetch_transaction(address :: Crypto.versioned_hash()) :: Transaction.t() | nil
-  def fetch_transaction(address) when is_binary(address) do
-    nodes = replication_nodes(address)
+  @spec fetch_transaction(address :: Crypto.versioned_hash(), list(Node.t())) ::
+          Transaction.t() | nil
+  def fetch_transaction(address, download_nodes) when is_binary(address) do
+    nodes = replication_nodes(address, download_nodes)
 
     case TransactionChain.fetch_transaction_remotely(address, nodes) do
       {:ok, tx} ->
@@ -33,10 +34,10 @@ defmodule Archethic.Replication.TransactionContext do
   @doc """
   Stream transaction chain
   """
-  @spec stream_transaction_chain(address :: Crypto.versioned_hash()) ::
+  @spec stream_transaction_chain(address :: Crypto.versioned_hash(), list(Node.t())) ::
           Enumerable.t() | list(Transaction.t())
-  def stream_transaction_chain(address) when is_binary(address) do
-    case replication_nodes(address) do
+  def stream_transaction_chain(address, download_nodes) when is_binary(address) do
+    case replication_nodes(address, download_nodes) do
       [] ->
         []
 
@@ -54,21 +55,22 @@ defmodule Archethic.Replication.TransactionContext do
   @doc """
   Fetch the transaction inputs for a transaction address at a given time
   """
-  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), DateTime.t()) ::
+  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), DateTime.t(), list(Node.t())) ::
           list(TransactionInput.t())
-  def fetch_transaction_inputs(address, timestamp = %DateTime{}) when is_binary(address) do
-    nodes = replication_nodes(address)
+  def fetch_transaction_inputs(address, timestamp = %DateTime{}, download_nodes)
+      when is_binary(address) do
+    nodes = replication_nodes(address, download_nodes)
 
     address
     |> TransactionChain.stream_inputs_remotely(nodes, timestamp)
     |> Enum.to_list()
   end
 
-  defp replication_nodes(address) do
+  defp replication_nodes(address, download_nodes) do
     address
     # returns the storage nodes for the transaction chain based on the transaction address
     # from a list of available node
-    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+    |> Election.chain_storage_nodes(download_nodes)
     #  Returns the nearest storages nodes from the local node as per the patch
     #  when the input is a list of nodes
     |> P2P.nearest_nodes()

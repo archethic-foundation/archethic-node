@@ -125,21 +125,25 @@ defmodule Archethic.SelfRepair.Sync do
   defp do_load_missed_transactions(last_sync_date, last_summary_time, patch) do
     start = System.monotonic_time()
 
-    summaries_aggregates = fetch_summaries_aggregates(last_sync_date, last_summary_time)
-    last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time)
+    download_nodes = P2P.authorized_and_available_nodes()
+
+    summaries_aggregates =
+      fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)
+
+    last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time, download_nodes)
     ensure_download_last_aggregate(last_aggregate)
 
     last_aggregate = aggregate_with_local_summaries(last_aggregate, last_summary_time)
 
     summaries_aggregates
     |> Stream.concat([last_aggregate])
-    |> Enum.each(&process_summary_aggregate(&1, patch))
+    |> Enum.each(&process_summary_aggregate(&1, patch, download_nodes))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
   end
 
-  defp fetch_summaries_aggregates(last_sync_date, last_summary_time) do
+  defp fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes) do
     last_sync_date
     |> BeaconChain.next_summary_dates()
     # Take only the previous summaries before the last one
@@ -149,7 +153,7 @@ defmodule Archethic.SelfRepair.Sync do
     # Fetch the beacon summaries aggregate
     |> Task.async_stream(fn date ->
       Logger.debug("Fetch summary aggregate for #{date}")
-      BeaconChain.fetch_summaries_aggregate(date)
+      BeaconChain.fetch_summaries_aggregate(date, download_nodes)
     end)
     |> Stream.filter(fn
       {:ok, {:ok, %SummaryAggregate{}}} ->
@@ -221,14 +225,15 @@ defmodule Archethic.SelfRepair.Sync do
 
   At the end of the execution, the summaries aggregate will persisted locally if the node is member of the shard of the summary
   """
-  @spec process_summary_aggregate(SummaryAggregate.t(), binary()) :: :ok
+  @spec process_summary_aggregate(SummaryAggregate.t(), binary(), list(Node.t())) :: :ok
   def process_summary_aggregate(
         aggregate = %SummaryAggregate{
           summary_time: summary_time,
           transaction_summaries: transaction_summaries,
           p2p_availabilities: p2p_availabilities
         },
-        node_patch
+        node_patch,
+        download_nodes
       ) do
     start_time = System.monotonic_time()
 
@@ -237,7 +242,7 @@ defmodule Archethic.SelfRepair.Sync do
       |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
       |> Enum.filter(&TransactionHandler.download_transaction?/1)
 
-    synchronize_transactions(transactions_to_sync, node_patch)
+    synchronize_transactions(transactions_to_sync, node_patch, download_nodes)
 
     :telemetry.execute(
       [:archethic, :self_repair, :process_aggregate],
@@ -270,23 +275,23 @@ defmodule Archethic.SelfRepair.Sync do
     store_aggregate(aggregate)
   end
 
-  defp synchronize_transactions([], _node_patch), do: :ok
+  defp synchronize_transactions([], _node_patch, _), do: :ok
 
-  defp synchronize_transactions(transaction_summaries, node_patch) do
+  defp synchronize_transactions(transaction_summaries, node_patch, download_nodes) do
     Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
     Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
 
     Task.Supervisor.async_stream(
       TaskSupervisor,
       transaction_summaries,
-      &TransactionHandler.download_transaction(&1, node_patch),
+      &TransactionHandler.download_transaction(&1, node_patch, download_nodes),
       on_timeout: :kill_task,
       timeout: Message.get_max_timeout() + 2000,
       max_concurrency: 100
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.each(fn {:ok, tx} ->
-      :ok = TransactionHandler.process_transaction(tx)
+      :ok = TransactionHandler.process_transaction(tx, download_nodes)
     end)
     |> Stream.run()
   end

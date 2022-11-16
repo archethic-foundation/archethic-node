@@ -139,13 +139,16 @@ defmodule Archethic.BeaconChain.Subset do
       ) do
     nodes_availability_times =
       P2PSampling.list_nodes_to_sample(subset)
-      |> Task.async_stream(fn node ->
-        if node.first_public_key == Crypto.first_node_public_key() do
-          SlotTimer.get_time_interval()
-        else
-          Client.get_availability_timer(node.first_public_key, true)
-        end
-      end)
+      |> Task.async_stream(
+        fn node ->
+          if node.first_public_key == Crypto.first_node_public_key() do
+            SlotTimer.get_time_interval()
+          else
+            Client.get_availability_timer(node.first_public_key, true)
+          end
+        end,
+        on_timeout: :kill_task
+      )
       |> Enum.map(fn
         {:ok, res} -> res
         _ -> 0

@@ -51,7 +51,6 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias Archethic.SharedSecrets
   alias Archethic.Replication
 
   alias Archethic.TransactionChain
@@ -1026,7 +1025,7 @@ defmodule Archethic.Mining.ValidationContext do
 
       _ ->
         Transaction.verify_origin_signature?(tx, pow) and
-          SharedSecrets.has_origin_public_key?(pow)
+          pow in ProofOfWork.list_origin_public_keys_candidates(tx)
     end
   end
 

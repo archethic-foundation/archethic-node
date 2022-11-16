@@ -41,7 +41,7 @@ Requirements:
 
 - Libsodium: for the ed25519 to Curve25519 conversion
 - OpenSSL 1.11
-- Erlang OTP 24
+- Erlang OTP 25
 - Elixir 1.14
 - GMP (https://gmplib.org/)
 

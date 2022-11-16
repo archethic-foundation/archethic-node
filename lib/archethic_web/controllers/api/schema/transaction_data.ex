@@ -26,11 +26,13 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
     |> cast_embed(:ownerships)
     |> validate_length(:content,
       max: @content_max_size,
-      message: "content size must be less than content_max_size"
+      message: "content size must be less than content_max_size",
+      count: :bytes
     )
     |> validate_length(:code,
       max: @code_max_size,
-      message: "code size can't be more than #{Integer.to_string(@code_max_size)} bytes"
+      message: "code size can't be more than #{Integer.to_string(@code_max_size)} bytes",
+      count: :bytes
     )
     |> validate_length(:ownerships, max: 256, message: "ownerships can not be more that 256")
     |> validate_length(:recipients, max: 256, message: "maximum number of recipients can be 256")

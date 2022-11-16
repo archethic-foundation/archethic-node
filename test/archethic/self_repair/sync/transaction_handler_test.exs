@@ -122,7 +122,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     end)
 
     tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
-    assert ^tx = TransactionHandler.download_transaction(tx_summary, "AAA")
+
+    assert ^tx =
+             TransactionHandler.download_transaction(
+               tx_summary,
+               "AAA",
+               P2P.authorized_and_available_nodes()
+             )
   end
 
   test "process_transaction/1 should handle the transaction and replicate it" do
@@ -173,7 +179,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       :ok
     end)
 
-    assert :ok = TransactionHandler.process_transaction(tx)
+    assert :ok = TransactionHandler.process_transaction(tx, P2P.authorized_and_available_nodes())
 
     assert_received :transaction_replicated
   end

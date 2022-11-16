@@ -225,7 +225,7 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   defp list_transactions_from_summaries(date = %DateTime{}) do
     %SummaryAggregate{transaction_summaries: tx_summaries} =
-      BeaconChain.fetch_and_aggregate_summaries(date)
+      BeaconChain.fetch_and_aggregate_summaries(date, P2P.authorized_and_available_nodes())
 
     Enum.sort_by(tx_summaries, & &1.timestamp, {:desc, DateTime})
   end
