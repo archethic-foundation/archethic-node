@@ -19,7 +19,7 @@ defmodule Archethic.SelfRepair.Notifier.Impl do
   @validation_errors Replication.TransactionValidator.list_errors()
 
   @doc """
-  Returns Registry Name used to store pid and genesis_address.
+  Returns Registry Name used to store pid and first_address.
   """
   def registry_name, do: @registry_name
 
@@ -39,9 +39,9 @@ defmodule Archethic.SelfRepair.Notifier.Impl do
   @doc """
   Return true if the Chain repair is OnGoing
   """
-  @spec repair_in_progress?(genesis_address :: binary()) :: false | pid()
-  def repair_in_progress?(genesis_address) do
-    case Registry.lookup(@registry_name, genesis_address) do
+  @spec repair_in_progress?(first_address :: binary()) :: false | pid()
+  def repair_in_progress?(first_address) do
+    case Registry.lookup(@registry_name, first_address) do
       [{pid, _}] ->
         pid
 
@@ -63,12 +63,12 @@ defmodule Archethic.SelfRepair.Notifier.Impl do
     :ok
   end
 
-  @spec repair_chain(address :: binary(), genesis_address :: binary()) ::
+  @spec repair_chain(address :: binary(), first_address :: binary()) ::
           {:continue, :success | :error | :crash}
   @doc """
   Fetches Last txn and repairs chain via validate_and_store_transaction_chain.A blocking code.
   """
-  def repair_chain(address, genesis_address) do
+  def repair_chain(address, first_address) do
     with false <-
            TransactionChain.transaction_exists?(address),
          {:ok, node_list} <-
@@ -77,52 +77,52 @@ defmodule Archethic.SelfRepair.Notifier.Impl do
            TransactionChain.fetch_transaction_remotely(address, node_list),
          :ok <-
            Replication.validate_and_store_transaction_chain(txn) do
-      log(:debug, "Successfull Repair", genesis_address, address, nil)
+      log(:debug, "Successfull Repair", first_address, address, nil)
       {:continue, :success}
     else
       {:error, e = :empty} ->
-        log(:debug, "Election returned empty set, Omitting", genesis_address, address, e)
+        log(:debug, "Election returned empty set, Omitting", first_address, address, e)
         {:continue, :error}
 
       {:error, e} when e in @validation_errors ->
-        log(:warning, "Replication returned Validation Error", genesis_address, address, e)
+        log(:warning, "Replication returned Validation Error", first_address, address, e)
         {:continue, :error}
 
       {:error, e}
       when e in [:transaction_not_exists, :transaction_invalid, :network_issue] ->
-        log(:warning, "Fetch Issue", genesis_address, address, e)
+        log(:warning, "Fetch Issue", first_address, address, e)
         {:continue, :error}
 
       {:error, e = :transaction_already_exists} ->
-        log(:debug, "", genesis_address, address, e)
+        log(:debug, "", first_address, address, e)
         {:continue, :error}
 
       e ->
-        log(:warning, "Unhandled error", genesis_address, address, e)
+        log(:warning, "Unhandled error", first_address, address, e)
         {:continue, :error}
     end
   rescue
     e ->
-      log(:warning, "Crash during Repair", genesis_address, address, e)
+      log(:warning, "Crash during Repair", first_address, address, e)
       {:continue, :crash}
   end
 
   @doc """
   Logger for Repair Process
   """
-  def log(type, msg, genesis_address, address, e) do
-    gen_addr = Base.encode16(genesis_address)
+  def log(type, msg, first_address, address, e) do
+    gen_addr = Base.encode16(first_address)
     last_addr = Base.encode16(address)
 
     case type do
       :debug ->
         Logger.debug(
-          "RepairWorker: Genesis_Address: #{gen_addr}, address: #{last_addr}.#{msg}, Error: #{e}"
+          "RepairWorker: first_address: #{gen_addr}, address: #{last_addr}.#{msg}, Error: #{e}"
         )
 
       :warning ->
         Logger.warning(
-          "RepairWorker: Genesis_Address: #{gen_addr}, address: #{last_addr}.#{msg}, Error: #{e}"
+          "RepairWorker: first_address: #{gen_addr}, address: #{last_addr}.#{msg}, Error: #{e}"
         )
     end
 

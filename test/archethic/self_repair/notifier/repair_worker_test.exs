@@ -21,9 +21,9 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
     end
 
     test "Expected behaviour Repair worker" do
-      gen_addr = "gen_addr"
+      first_address = "first_address"
       last_addr = "last_addr"
-      opts = %{genesis_address: gen_addr, last_address: last_addr}
+      opts = %{first_address: first_address, last_address: last_addr}
 
       MockDB
       |> stub(
@@ -37,35 +37,35 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
       {:ok, pid} = RepairWorker.start_link(opts)
 
       # first repair task deployed during init
-      assert {:idle, %{:addresses => [], :genesis_address => "gen_addr"}} = :sys.get_state(pid)
+      assert {:idle, %{:addresses => [], :first_address => "first_address"}} = :sys.get_state(pid)
 
-      assert [{^pid, _}] = Registry.lookup(@registry_name, gen_addr)
+      assert [{^pid, _}] = Registry.lookup(@registry_name, first_address)
 
       Enum.each(1..3, fn x ->
         NotifierImpl.update_worker(
-          %{genesis_address: gen_addr, last_address: "txn" <> "#{x}"},
+          %{first_address: first_address, last_address: "txn" <> "#{x}"},
           pid
         )
       end)
 
-      assert {:idle, %{:addresses => ["txn3", "txn2", "txn1"], :genesis_address => "gen_addr"}} =
+      assert {:idle, %{:addresses => ["txn3", "txn2", "txn1"], :first_address => "first_address"}} =
                :sys.get_state(pid)
 
       Process.sleep(200)
 
-      assert {:idle, %{:addresses => [], :genesis_address => "gen_addr"}} = :sys.get_state(pid)
+      assert {:idle, %{:addresses => [], :first_address => "first_address"}} = :sys.get_state(pid)
 
       Process.sleep(100)
-      assert [] = Registry.lookup(@registry_name, gen_addr)
+      assert [] = Registry.lookup(@registry_name, first_address)
     end
 
     test "should continue even if repair chain crashes" do
-      gen_addr = "aa"
+      first_address = "aa"
       last_addr = "bb"
-      opts = %{genesis_address: gen_addr, last_address: last_addr}
+      opts = %{first_address: first_address, last_address: last_addr}
 
       {:ok, pid} = RepairWorker.start_link(opts)
-      assert {:idle, %{:addresses => [], :genesis_address => "aa"}} = :sys.get_state(pid)
+      assert {:idle, %{:addresses => [], :first_address => "aa"}} = :sys.get_state(pid)
     end
   end
 
@@ -102,7 +102,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
       alias Archethic.P2P.Message.ShardRepair
 
       chain_list = build_chain("random seed", 3)
-      gen_addr = Map.get(chain_list, 0).address
+      first_address = Map.get(chain_list, 0).address
       addr1 = Map.get(chain_list, 1).address
       addr2 = Map.get(chain_list, 2).address
 
@@ -110,7 +110,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
         Enum.map(chain_list, fn
           {index, txn} ->
             %ShardRepair{
-              genesis_address: gen_addr,
+              first_address: first_address,
               last_address: txn.address
             }
         end)
@@ -119,12 +119,12 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
                %Message.Ok{}
              end) == Enum.map(msg_list, fn msg -> Message.process(msg) end)
 
-      assert [{pid, _}] = Registry.lookup(NotifierImpl.registry_name(), gen_addr)
+      assert [{pid, _}] = Registry.lookup(NotifierImpl.registry_name(), first_address)
 
       {:idle,
        %{
          addresses: [^addr2, ^addr1],
-         genesis_address: ^gen_addr
+         first_address: ^first_address
        }} = :sys.get_state(pid)
     end
 

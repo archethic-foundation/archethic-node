@@ -386,10 +386,16 @@ defmodule Archethic.DB.EmbeddedImpl do
   defdelegate get_inputs(ledger, address), to: InputsReader, as: :get_inputs
 
   @doc """
-  Stream Genesis Addresses from last index ETS Table
+  Stream first transactions address of a chain from genesis_address.
   """
-  @spec stream_genesis_addresses :: Enumerable.t()
-  def stream_genesis_addresses() do
+  @spec stream_first_addresses :: Enumerable.t()
+  def stream_first_addresses do
     ChainIndex.list_genesis_addresses()
+    |> Stream.map(fn gen_address ->
+      gen_address
+      |> list_chain_addresses()
+      |> Enum.at(0)
+      |> elem(0)
+    end)
   end
 end

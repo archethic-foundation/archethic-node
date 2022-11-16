@@ -13,13 +13,11 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
   end
 
   def init(args) do
-    Registry.register(Notifier.Impl.registry_name(), args.genesis_address, [])
-    Logger.debug("RepairWorker: Repair Started", address: args.genesis_address)
-
-    # IO.inspect(binding(), label: "0-> init")
+    Registry.register(Notifier.Impl.registry_name(), args.first_address, [])
+    Logger.debug("RepairWorker: Repair Started", address: args.first_address)
 
     data = %{
-      genesis_address: args.genesis_address,
+      first_address: args.first_address,
       addresses: [args.last_address]
     }
 
@@ -77,7 +75,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
     :keep_state_and_data
   end
 
-  def repair_task(data = %{addresses: address_list, genesis_address: genesis_address}) do
+  def repair_task(data = %{addresses: address_list, first_address: first_address}) do
     [repair_addr | new_address_list] = address_list
 
     %Task{
@@ -85,7 +83,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
     } =
       Task.async(fn ->
         # IO.inspect(binding(), label: "1: repair_task")
-        {:continue, _} = Notifier.Impl.repair_chain(repair_addr, genesis_address)
+        {:continue, _} = Notifier.Impl.repair_chain(repair_addr, first_address)
       end)
 
     data

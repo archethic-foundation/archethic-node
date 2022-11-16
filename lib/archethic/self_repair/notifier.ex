@@ -67,7 +67,7 @@ defmodule Archethic.SelfRepair.Notifier do
     with :lt <- DateTime.compare(authorization_date, now),
          nil <- Map.get(notified, node_key),
          false <- current_node_public_key == node_key do
-      repair_transactions(node_key, current_node_public_key)
+      repair_transactions(node_key)
       {:noreply, Map.update!(state, :notified, &Map.put(&1, node_key, %{}))}
     else
       _ ->
@@ -85,7 +85,7 @@ defmodule Archethic.SelfRepair.Notifier do
 
     with nil <- Map.get(notified, node_key),
          false <- current_node_public_key == node_key do
-      repair_transactions(node_key, current_node_public_key)
+      repair_transactions(node_key)
       {:noreply, Map.update!(state, :notified, &Map.put(&1, node_key, %{}))}
     else
       _ ->
@@ -110,8 +110,8 @@ defmodule Archethic.SelfRepair.Notifier do
   Determines whether a genesis address belongs to a network chain.
   """
   @spec network_chain?(binary()) :: boolean()
-  def network_chain?(genesis_address) do
-    case TransactionChain.get_transaction(genesis_address, [:type]) do
+  def network_chain?(first_address) do
+    case TransactionChain.get_transaction(first_address, [:type]) do
       {:ok, %Transaction{type: type}} when type in @network_type_transactions ->
         true
 
@@ -125,33 +125,33 @@ defmodule Archethic.SelfRepair.Notifier do
   chain, recompute shards , notifiy nodes. Network txns are excluded,
   dependent bootstrap operations.
   """
-  @spec repair_transactions(Crypto.key(), Crypto.key()) :: :ok
+  @spec repair_transactions(Crypto.key()) :: :ok
   @concurrent_limit 20
-  def repair_transactions(unavailable_node_key, current_node_public_key) do
+  def repair_transactions(unavailable_node_key) do
     Logger.debug("Trying to repair transactions due to a topology change",
       node: Base.encode16(unavailable_node_key)
     )
 
     # We fetch all the transactions existing and check if the disconnecting node was a storage node
 
-    TransactionChain.stream_genesis_addresses()
+    TransactionChain.stream_first_addresses()
     |> Stream.filter(&(network_chain?(&1) == false))
     |> Stream.chunk_every(@concurrent_limit)
     |> Stream.each(fn chunk ->
-      concurrent_txn_processing(chunk, unavailable_node_key, current_node_public_key)
+      concurrent_txn_processing(chunk, unavailable_node_key)
     end)
     |> Stream.run()
 
     :ok
   end
 
-  def concurrent_txn_processing(address_list, unavailable_node_key, current_node_public_key) do
+  def concurrent_txn_processing(address_list, unavailable_node_key) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       address_list,
       fn
-        genesis_address ->
-          sync_chain(genesis_address, unavailable_node_key, current_node_public_key)
+        first_address ->
+          sync_chain(first_address, unavailable_node_key)
       end,
       ordered: false,
       on_timeout: :kill_task
@@ -162,22 +162,21 @@ defmodule Archethic.SelfRepair.Notifier do
   @doc """
   Loads a Txn Chain by a genesis address, Allocate new shards for the txn went down with down node.
   """
-  @spec sync_chain(binary(), Crypto.key(), Crypto.key()) :: :ok
+  @spec sync_chain(binary(), Crypto.key()) :: :ok
   def sync_chain(
-        genesis_address,
-        unavailable_node_key,
-        current_node_public_key
+        first_address,
+        unavailable_node_key
       ) do
-    genesis_address
+    first_address
     |> TransactionChain.stream([:address, validation_stamp: [:timestamp]])
     |> Stream.map(&list_previous_shards(&1))
     |> Stream.filter(&with_down_shard?(&1, unavailable_node_key))
-    |> Stream.filter(&current_node_in_node_list?(&1, current_node_public_key))
+    # |> Stream.filter(&current_node_in_node_list?(&1, current_node_public_key))
     |> Stream.map(&new_storage_nodes(&1, unavailable_node_key))
     |> Stream.scan(%{}, &map_node_and_address(&1, _acc = &2))
     |> Stream.take(-1)
     |> Enum.take(1)
-    |> notify_nodes(genesis_address)
+    |> notify_nodes(first_address)
   end
 
   @doc """
@@ -219,14 +218,14 @@ defmodule Archethic.SelfRepair.Notifier do
     Enum.member?(node_list, unavailable_node_key)
   end
 
-  @doc """
-  Is current node key in the list of previous nodes/shards.
-  An Old storeage will only be able to notify the new storage Nodes.
-  """
-  @spec current_node_in_node_list?({binary(), list(Crypto.key())}, Crypto.key()) :: boolean()
-  def current_node_in_node_list?({_address, node_list}, current_node_key) do
-    Enum.member?(node_list, current_node_key)
-  end
+  # @doc """
+  # Is current node key in the list of previous nodes/shards.
+  # An Old storeage will only be able to notify the new storage Nodes.
+  # """
+  # @spec current_node_in_node_list?({binary(), list(Crypto.key())}, Crypto.key()) :: boolean()
+  # def current_node_in_node_list?({_address, node_list}, current_node_key) do
+  #   Enum.member?(node_list, current_node_key)
+  # end
 
   @doc """
   New election is carried out on the set of all authorized omiting unavailable_node.
@@ -263,14 +262,14 @@ defmodule Archethic.SelfRepair.Notifier do
   @spec notify_nodes([map()], binary()) :: :ok
   def notify_nodes([], _), do: :ok
 
-  def notify_nodes([acc], genesis_address) do
+  def notify_nodes([acc], first_address) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       acc,
       fn
         {node_key, address} ->
           P2P.send_message(node_key, %ShardRepair{
-            genesis_address: genesis_address,
+            first_address: first_address,
             last_address: address
           })
       end,

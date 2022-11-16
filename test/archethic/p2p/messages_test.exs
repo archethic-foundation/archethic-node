@@ -988,7 +988,7 @@ defmodule Archethic.P2P.MessageTest do
 
     test "%ShardRepair" do
       msg = %ShardRepair{
-        genesis_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        first_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         last_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 

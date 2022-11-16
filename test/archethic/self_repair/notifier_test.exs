@@ -112,21 +112,21 @@ defmodule Archethic.SelfRepair.NotifierTest do
       assert Notifier.with_down_shard?({"", [node0, node1, node2, node3]}, "node3")
     end
 
-    test "current_node_in_node_list?/2",
-         %{
-           node0: %Node{first_public_key: node0},
-           node1: %Node{first_public_key: node1},
-           node2: %Node{first_public_key: node2},
-           node3: %Node{first_public_key: node3}
-         } do
-      # prev shard must have unavailable node as to repair missing shard
-      refute Notifier.current_node_in_node_list?({"", [node0, node1, node2, node3]}, "node4")
+    # test "current_node_in_node_list?/2",
+    #      %{
+    #        node0: %Node{first_public_key: node0},
+    #        node1: %Node{first_public_key: node1},
+    #        node2: %Node{first_public_key: node2},
+    #        node3: %Node{first_public_key: node3}
+    #      } do
+    #   # prev shard must have unavailable node as to repair missing shard
+    #   refute Notifier.current_node_in_node_list?({"", [node0, node1, node2, node3]}, "node4")
 
-      assert Notifier.current_node_in_node_list?(
-               {"", [node0, node1, node2, node3]},
-               Crypto.first_node_public_key()
-             )
-    end
+    #   assert Notifier.current_node_in_node_list?(
+    #            {"", [node0, node1, node2, node3]},
+    #            Crypto.first_node_public_key()
+    #          )
+    # end
 
     test "new_storage_nodes/2", %{
       node0: %Node{first_public_key: node0},
@@ -176,7 +176,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
       node3: %Node{first_public_key: key3}
     } do
       me = self()
-      assert :ok = Notifier.notify_nodes([], "genesis_address")
+      assert :ok = Notifier.notify_nodes([], "first_address")
 
       MockClient
       |> expect(:send_message, 4, fn
@@ -203,7 +203,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
                      key3 => "txn01"
                    }
                  ],
-                 "genesis_address"
+                 "first_address"
                )
 
       Enum.each(1..4, fn _x ->
@@ -265,10 +265,10 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
       chain_a = build_chain("chain_a", 3)
       chain_b = build_chain("chain_b", 3)
-      gen_addr_a = Map.get(chain_a, 0).address
+      first_txn_address_a = Map.get(chain_a, 0).address
       last_addr_a = Map.get(chain_a, 2).address
       last_addr_b = Map.get(chain_b, 2).address
-      gen_addr_b = Map.get(chain_b, 0).address
+      first_txn_address_b = Map.get(chain_b, 0).address
 
       [net_txn0] = network_txns()
 
@@ -277,8 +277,8 @@ defmodule Archethic.SelfRepair.NotifierTest do
       %{
         chain_a: chain_a,
         chain_b: chain_b,
-        gen_addr_a: gen_addr_a,
-        gen_addr_b: gen_addr_b,
+        first_txn_address_a: first_txn_address_a,
+        first_txn_address_b: first_txn_address_b,
         net_chain_gen_addr: net_chain_gen_addr,
         net_txn0: net_txn0,
         last_addr_a: last_addr_a,
@@ -286,9 +286,9 @@ defmodule Archethic.SelfRepair.NotifierTest do
       }
     end
 
-    test "sync_chain/1 Manual piping asserts", %{
+    test "sync_chain/1 Manual piping Asserts", %{
       chain_a: chain_a,
-      gen_addr_a: gen_addr_a,
+      first_txn_address_a: first_txn_address_a,
       last_addr_a: last_addr_a
     } do
       P2P.add_and_connect_node(%Node{
@@ -315,7 +315,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
       MockDB
       |> stub(:get_transaction_chain, fn
-        ^gen_addr_a, [:address, validation_stamp: [:timestamp]], _ ->
+        ^first_txn_address_a, [:address, validation_stamp: [:timestamp]], _ ->
           {txn_chain_a, false, nil}
       end)
 
@@ -327,7 +327,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
         fn
           %Node{first_public_key: "node4"},
           %ShardRepair{
-            genesis_address: ^gen_addr_a,
+            first_address: ^first_txn_address_a,
             last_address: ^last_addr_a
           },
           _ ->
@@ -336,7 +336,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
           %Node{first_public_key: "node5"},
           %ShardRepair{
-            genesis_address: ^gen_addr_a,
+            first_address: ^first_txn_address_a,
             last_address: ^last_addr_a
           },
           _ ->
@@ -347,10 +347,10 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
       current_node_public_key = Crypto.first_node_public_key()
       unavailable_node_key = "node2"
-      genesis_address = gen_addr_a
+      first_address = first_txn_address_a
 
       result =
-        genesis_address
+        first_address
         |> TransactionChain.stream([:address, validation_stamp: [:timestamp]])
         |> Enum.to_list()
         |> tap(fn x ->
@@ -439,47 +439,6 @@ defmodule Archethic.SelfRepair.NotifierTest do
                       ]}
                    ]
         end)
-        |> Enum.filter(&Notifier.current_node_in_node_list?(&1, current_node_public_key))
-        |> tap(fn x ->
-          assert x == [
-                   {<<0, 0, 173, 101, 18, 205, 43, 59, 180, 93, 83, 18, 213, 205, 199, 213, 145,
-                      76, 251, 44, 60, 191, 122, 82, 118, 247, 170, 144, 49, 2, 31, 141, 191,
-                      67>>,
-                    [
-                      <<1, 1, 4, 77, 145, 160, 161, 167, 207, 6, 162, 144, 45, 56, 66, 248, 45,
-                        39, 145, 188, 191, 62, 230, 246, 220, 141, 224, 249, 14, 83, 233, 153, 28,
-                        60, 179, 54, 132, 183, 185, 230, 111, 38, 231, 201, 245, 48, 47, 115, 198,
-                        152, 151, 190, 95, 48, 29, 233, 166, 53, 33, 160, 138, 196, 239, 52, 193,
-                        135, 40>>,
-                      "node3",
-                      "node2"
-                    ]},
-                   {<<0, 0, 191, 175, 21, 41, 199, 29, 33, 216, 13, 129, 218, 110, 143, 148, 82,
-                      173, 188, 239, 203, 60, 186, 152, 111, 42, 234, 36, 68, 140, 34, 100, 13,
-                      89>>,
-                    [
-                      <<1, 1, 4, 77, 145, 160, 161, 167, 207, 6, 162, 144, 45, 56, 66, 248, 45,
-                        39, 145, 188, 191, 62, 230, 246, 220, 141, 224, 249, 14, 83, 233, 153, 28,
-                        60, 179, 54, 132, 183, 185, 230, 111, 38, 231, 201, 245, 48, 47, 115, 198,
-                        152, 151, 190, 95, 48, 29, 233, 166, 53, 33, 160, 138, 196, 239, 52, 193,
-                        135, 40>>,
-                      "node2",
-                      "node3"
-                    ]},
-                   {<<0, 0, 192, 250, 30, 251, 248, 152, 199, 106, 223, 237, 137, 176, 214, 135,
-                      207, 197, 158, 98, 51, 235, 230, 141, 47, 130, 95, 158, 173, 46, 124, 92,
-                      173, 199>>,
-                    [
-                      "node2",
-                      "node3",
-                      <<1, 1, 4, 77, 145, 160, 161, 167, 207, 6, 162, 144, 45, 56, 66, 248, 45,
-                        39, 145, 188, 191, 62, 230, 246, 220, 141, 224, 249, 14, 83, 233, 153, 28,
-                        60, 179, 54, 132, 183, 185, 230, 111, 38, 231, 201, 245, 48, 47, 115, 198,
-                        152, 151, 190, 95, 48, 29, 233, 166, 53, 33, 160, 138, 196, 239, 52, 193,
-                        135, 40>>
-                    ]}
-                 ]
-        end)
         |> Enum.map(&Notifier.new_storage_nodes(&1, unavailable_node_key))
         |> tap(fn x ->
           assert x == [
@@ -548,11 +507,11 @@ defmodule Archethic.SelfRepair.NotifierTest do
         end)
 
       assert result ==
-               genesis_address
+               first_address
                |> TransactionChain.stream([:address, validation_stamp: [:timestamp]])
                |> Stream.map(&Notifier.list_previous_shards(&1))
                |> Stream.filter(&Notifier.with_down_shard?(&1, unavailable_node_key))
-               |> Stream.filter(&Notifier.current_node_in_node_list?(&1, current_node_public_key))
+               #  |> Stream.filter(&Notifier.current_node_in_node_list?(&1, current_node_public_key))
                |> Stream.map(&Notifier.new_storage_nodes(&1, unavailable_node_key))
                |> Stream.scan(%{}, &Notifier.map_node_and_address(&1, _acc = &2))
                |> Stream.take(-1)
@@ -562,8 +521,8 @@ defmodule Archethic.SelfRepair.NotifierTest do
     test "Integeration Test", %{
       chain_a: chain_a,
       chain_b: chain_b,
-      gen_addr_a: gen_addr_a,
-      gen_addr_b: gen_addr_b,
+      first_txn_address_a: first_txn_address_a,
+      first_txn_address_b: first_txn_address_b,
       net_chain_gen_addr: net_chain_gen_addr,
       last_addr_a: last_addr_a,
       last_addr_b: last_addr_b,
@@ -584,23 +543,23 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
       MockDB
       |> stub(:get_transaction_chain, fn
-        ^gen_addr_a, [:address, validation_stamp: [:timestamp]], _ ->
+        ^first_txn_address_a, [:address, validation_stamp: [:timestamp]], _ ->
           {[Map.get(chain_a, 0), Map.get(chain_a, 1), Map.get(chain_a, 2)], false, nil}
 
-        ^gen_addr_b, [:address, validation_stamp: [:timestamp]], _ ->
+        ^first_txn_address_b, [:address, validation_stamp: [:timestamp]], _ ->
           {[Map.get(chain_b, 0), Map.get(chain_b, 1), Map.get(chain_b, 2)], false, nil}
       end)
-      |> stub(:stream_genesis_addresses, fn ->
-        [gen_addr_a, net_chain_gen_addr, gen_addr_b]
+      |> stub(:stream_first_addresses, fn ->
+        [first_txn_address_a, net_chain_gen_addr, first_txn_address_b]
       end)
       |> stub(:get_transaction, fn
         ^net_chain_gen_addr, [:type] ->
           {:ok, net_txn0}
 
-        ^gen_addr_a, [:type] ->
+        ^first_txn_address_a, [:type] ->
           {:ok, Map.get(chain_a, 0)}
 
-        ^gen_addr_b, [:type] ->
+        ^first_txn_address_b, [:type] ->
           {:ok, Map.get(chain_b, 0)}
       end)
 
@@ -612,7 +571,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
         fn
           %Node{first_public_key: "node4"},
           %ShardRepair{
-            genesis_address: ^gen_addr_a,
+            first_address: ^first_txn_address_a,
             last_address: ^last_addr_a
           },
           _ ->
@@ -621,7 +580,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
           %Node{first_public_key: "node4"},
           %ShardRepair{
-            genesis_address: ^gen_addr_b,
+            first_address: ^first_txn_address_b,
             last_address: ^last_addr_b
           },
           _ ->

@@ -112,12 +112,14 @@ defmodule Archethic.TransactionChain do
   defdelegate get_first_public_key(previous_public_key), to: DB, as: :get_first_public_key
 
   @doc """
-   Stream Genesis Addresses from heap to stack
+  Stream first transactions address of a chain from genesis_address.
+  The Genesis Addresses is not a transaction or the first transaction.
+  The first transaction is calulated by index = 0+1
   """
-  @spec stream_genesis_addresses() :: Enumerable.t()
-  defdelegate stream_genesis_addresses(),
+  @spec stream_first_addresses() :: Enumerable.t()
+  defdelegate stream_first_addresses(),
     to: DB,
-    as: :stream_genesis_addresses
+    as: :stream_first_addresses
 
   @doc """
   Get a transaction

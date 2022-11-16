@@ -1843,7 +1843,7 @@ defmodule Archethic.P2P.Message do
 
   def process(
         msg = %ShardRepair{
-          genesis_address: genesis_address,
+          first_address: first_address,
           last_address: last_address
         },
         _
@@ -1851,18 +1851,18 @@ defmodule Archethic.P2P.Message do
     alias Archethic.SelfRepair.Notifier.Impl, as: NotifierImpl
 
     with {:exists?, false} <- {:exists?, TransactionChain.transaction_exists?(last_address)},
-         {:worker?, false} <- {:worker?, NotifierImpl.repair_in_progress?(genesis_address)} do
+         {:worker?, false} <- {:worker?, NotifierImpl.repair_in_progress?(first_address)} do
       msg
       |> NotifierImpl.start_worker()
 
-      NotifierImpl.log(:debug, "Repair Started", genesis_address, last_address, "none")
+      NotifierImpl.log(:debug, "Repair Started", first_address, last_address, "none")
     else
       {:exists?, true} ->
         # corner case: check if the complete chain exists or not?
         NotifierImpl.log(
           :debug,
           "Message.Process Txn exists",
-          genesis_address,
+          first_address,
           last_address,
           "none"
         )
@@ -1876,7 +1876,7 @@ defmodule Archethic.P2P.Message do
         NotifierImpl.log(
           :debug,
           "New-Message: WorkerUpdated",
-          genesis_address,
+          first_address,
           last_address,
           "none"
         )
