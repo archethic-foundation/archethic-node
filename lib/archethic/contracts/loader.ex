@@ -18,6 +18,7 @@ defmodule Archethic.Contracts.Loader do
   require Logger
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts)

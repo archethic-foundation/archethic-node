@@ -26,6 +26,7 @@ defmodule Archethic.OracleChain.Scheduler do
   alias Crontab.CronExpression.Parser, as: CronParser
 
   use GenStateMachine, callback_mode: [:handle_event_function]
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

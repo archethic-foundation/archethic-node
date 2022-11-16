@@ -2,6 +2,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.Summary

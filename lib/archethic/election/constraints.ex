@@ -7,6 +7,7 @@ defmodule Archethic.Election.Constraints do
   """
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Election.StorageConstraints
   alias Archethic.Election.ValidationConstraints

@@ -1,6 +1,7 @@
 defmodule Archethic.Crypto.Ed25519.LibSodiumPort do
   @moduledoc false
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

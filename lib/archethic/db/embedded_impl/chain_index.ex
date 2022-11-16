@@ -4,6 +4,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   """
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
   alias Archethic.DB.EmbeddedImpl.ChainWriter

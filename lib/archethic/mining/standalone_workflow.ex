@@ -6,6 +6,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   The single node will auto validate the transaction
   """
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation

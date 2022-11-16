@@ -2,6 +2,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
   alias Archethic.Crypto.NodeKeystore.Origin

@@ -4,6 +4,7 @@ defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
   """
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
 

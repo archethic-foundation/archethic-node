@@ -2,6 +2,7 @@ defmodule Archethic.Account.MemTablesLoader do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger

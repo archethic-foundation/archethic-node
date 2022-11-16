@@ -2,6 +2,7 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
 
@@ -10,7 +11,7 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
   end
 
   @doc """
-  Register a new node view from the last self-repair cycle 
+  Register a new node view from the last self-repair cycle
   """
   @spec add_node_view(Crypto.key(), DateTime.t(), boolean(), float()) :: :ok
   def add_node_view(node_public_key, date = %DateTime{}, available?, avg_availability)

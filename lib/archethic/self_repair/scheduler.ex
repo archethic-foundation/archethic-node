@@ -4,6 +4,7 @@ defmodule Archethic.SelfRepair.Scheduler do
   by downloading the missing transactions and node updates
   """
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.P2P
   alias Archethic.P2P.Node

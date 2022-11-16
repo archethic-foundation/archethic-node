@@ -13,6 +13,7 @@ defmodule Archethic.P2P.MemTable do
   alias Archethic.PubSub
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

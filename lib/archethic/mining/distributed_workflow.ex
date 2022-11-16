@@ -47,6 +47,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
+  @vsn Mix.Project.config()[:version]
 
   @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
   @coordinator_timeout_supplement Application.compile_env!(:archethic, [

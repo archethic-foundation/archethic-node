@@ -33,6 +33,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.Utils
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

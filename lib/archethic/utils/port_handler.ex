@@ -2,6 +2,7 @@ defmodule Archethic.Utils.PortHandler do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   def start_link(args \\ [], opts \\ []) do
     GenServer.start_link(__MODULE__, args, opts)
