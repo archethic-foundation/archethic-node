@@ -331,59 +331,35 @@ defmodule Archethic.Replication do
   end
 
   @doc """
-  Notify the previous storage pool than a new transaction on the chain is present
+  Notify the previous storage nodes than a new transaction on the chain is present
   """
-  @spec acknowledge_previous_storage_nodes(
-          last_address :: binary(),
-          genesis_address :: binary(),
-          previous_address :: binary(),
-          tx_time :: DateTime.t()
-        ) :: :ok
-  def acknowledge_previous_storage_nodes(
-        last_address,
-        genesis_address,
-        previous_address,
-        timestamp = %DateTime{}
-      )
-      when is_binary(last_address) and is_binary(genesis_address) and is_binary(previous_address) do
-    storage_nodes =
-      Election.chain_storage_nodes(previous_address, P2P.authorized_and_available_nodes())
+  @spec acknowledge_previous_storage_nodes(address :: binary()) :: :ok
+  def acknowledge_previous_storage_nodes(address) when is_binary(address) do
+    case TransactionChain.get_genesis_address(address) do
+      ^address ->
+        # No transaction chain found as the DB request return the argument if not found.
+        :ok
 
-    # If the current is node was a previous storage nodes
-    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
-      TransactionChain.register_last_address(genesis_address, last_address, timestamp)
-      Contracts.stop_contract(previous_address)
+      genesis_address ->
+        last_storage_nodes =
+          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-      case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
-        {:ok, tx} ->
-          next_previous_address = Transaction.previous_address(tx)
+        {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} =
+          TransactionChain.get_transaction(address, validation_stamp: [:timestamp])
 
-          previous_storage_nodes =
-            Election.chain_storage_nodes(
-              next_previous_address,
-              P2P.authorized_and_available_nodes()
-            )
-
-          # Take only the nodes which were not in the previous shard but previously on the chain
-          diff_nodes = previous_storage_nodes -- storage_nodes
-
-          P2P.broadcast_message(diff_nodes, %NotifyLastTransactionAddress{
-            last_address: last_address,
-            genesis_address: genesis_address,
-            previous_address: next_previous_address,
-            timestamp: timestamp
-          })
-
-        _ ->
-          :ok
-      end
-    else
-      P2P.broadcast_message(storage_nodes, %NotifyLastTransactionAddress{
-        last_address: last_address,
-        genesis_address: genesis_address,
-        previous_address: previous_address,
-        timestamp: timestamp
-      })
+        # Send a message to all the previous storage nodes
+        address
+        |> TransactionChain.list_chain_addresses()
+        |> Stream.flat_map(fn {address, _} ->
+          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+        end)
+        |> Enum.uniq_by(& &1.first_public_key)
+        |> Enum.reject(&Utils.key_in_node_list?(last_storage_nodes, &1.first_public_key))
+        |> P2P.broadcast_message(%NotifyLastTransactionAddress{
+          last_address: address,
+          genesis_address: genesis_address,
+          timestamp: timestamp
+        })
     end
   end
 

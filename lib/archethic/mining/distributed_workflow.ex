@@ -30,12 +30,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Node
-
-  alias Archethic.Replication
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -749,29 +748,17 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :notify_previous_chain,
         :replication,
         _data = %{
-          context: %ValidationContext{
-            transaction: tx,
-            validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
-          }
+          context:
+            context = %ValidationContext{
+              transaction: tx
+            }
         }
       ) do
-    previous_address = Transaction.previous_address(tx)
-
-    genesis_address =
-      case TransactionChain.fetch_genesis_address_remotely(previous_address) do
-        {:ok, genesis_address} ->
-          genesis_address
-
-        _ ->
-          previous_address
-      end
-
-    Replication.acknowledge_previous_storage_nodes(
-      tx.address,
-      genesis_address,
-      previous_address,
-      tx_timestamp
-    )
+    unless Transaction.network_type?(tx.type) do
+      context
+      |> ValidationContext.get_confirmed_replication_nodes()
+      |> P2P.broadcast_message(%NotifyPreviousChain{address: tx.address})
+    end
 
     :stop
   end

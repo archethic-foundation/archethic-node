@@ -58,6 +58,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.NodeList
   alias __MODULE__.NotFound
   alias __MODULE__.NotifyEndOfNodeSync
+  alias __MODULE__.NotifyPreviousChain
   alias __MODULE__.NotifyLastTransactionAddress
   alias __MODULE__.Ok
   alias __MODULE__.P2PView
@@ -137,6 +138,7 @@ defmodule Archethic.P2P.Message do
           | ValidationError.t()
           | GetCurrentSummaries.t()
           | GetBeaconSummariesAggregate.t()
+          | NotifyPreviousChain.t()
 
   @type response ::
           Ok.t()
@@ -382,10 +384,9 @@ defmodule Archethic.P2P.Message do
   def encode(%NotifyLastTransactionAddress{
         last_address: last_address,
         genesis_address: genesis_address,
-        previous_address: previous_address,
         timestamp: timestamp
       }) do
-    <<22::8, last_address::binary, genesis_address::binary, previous_address::binary,
+    <<22::8, last_address::binary, genesis_address::binary,
       DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
@@ -428,6 +429,10 @@ defmodule Archethic.P2P.Message do
 
   def encode(%GetBeaconSummariesAggregate{date: date}) do
     <<33::8, DateTime.to_unix(date)::32>>
+  end
+
+  def encode(%NotifyPreviousChain{address: address}) do
+    <<34::8, address::binary>>
   end
 
   def encode(aggregate = %SummaryAggregate{}) do
@@ -883,13 +888,11 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<22::8, rest::bitstring>>) do
     {last_address, rest} = Utils.deserialize_address(rest)
-    {genesis_address, rest} = Utils.deserialize_address(rest)
-    {previous_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {genesis_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%NotifyLastTransactionAddress{
        last_address: last_address,
        genesis_address: genesis_address,
-       previous_address: previous_address,
        timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
   end
@@ -963,6 +966,11 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<33::8, timestamp::32, rest::bitstring>>) do
     {%GetBeaconSummariesAggregate{date: DateTime.from_unix!(timestamp)}, rest}
+  end
+
+  def decode(<<34::8, rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+    {%NotifyPreviousChain{address: address}, rest}
   end
 
   def decode(<<231::8, rest::bitstring>>) do
@@ -1630,15 +1638,17 @@ defmodule Archethic.P2P.Message do
   def process(%NotifyLastTransactionAddress{
         last_address: last_address,
         genesis_address: genesis_address,
-        previous_address: previous_address,
         timestamp: timestamp
       }) do
-    Replication.acknowledge_previous_storage_nodes(
-      last_address,
-      genesis_address,
-      previous_address,
-      timestamp
-    )
+    with {local_last_address, local_last_timestamp} <-
+           TransactionChain.get_last_address(genesis_address),
+         true <- local_last_address != last_address,
+         :gt <- DateTime.compare(timestamp, local_last_timestamp) do
+      TransactionChain.register_last_address(genesis_address, last_address, timestamp)
+
+      # Stop potential previous smart contract
+      Contracts.stop_contract(local_last_address)
+    end
 
     %Ok{}
   end
@@ -1755,5 +1765,10 @@ defmodule Archethic.P2P.Message do
       {:error, :not_exists} ->
         %NotFound{}
     end
+  end
+
+  def process(%NotifyPreviousChain{address: address}) do
+    Replication.acknowledge_previous_storage_nodes(address)
+    %Ok{}
   end
 end
