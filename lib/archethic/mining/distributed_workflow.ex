@@ -935,6 +935,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
     {:keep_state_and_data, :postpone}
   end
 
+  def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
+
   defp notify_transaction_context(
          %ValidationContext{
            transaction: %Transaction{address: tx_address, type: tx_type},
