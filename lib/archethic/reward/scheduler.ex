@@ -421,4 +421,6 @@ defmodule Archethic.Reward.Scheduler do
   def config_change(conf) do
     GenStateMachine.cast(__MODULE__, {:new_conf, conf})
   end
+
+  def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 end
