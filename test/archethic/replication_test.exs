@@ -235,66 +235,42 @@ defmodule Archethic.ReplicationTest do
     %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
   end
 
-  describe "acknowledge_previous_storage_nodes/2" do
-    test "should register new address on chain" do
-      MockDB
-      |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
-        :ok
-      end)
-      |> expect(:get_last_chain_address, fn _ -> {"@Alice2", DateTime.utc_now()} end)
-
-      assert :ok =
-               Replication.acknowledge_previous_storage_nodes(
-                 "@Alice2",
-                 "@Alice0",
-                 "@Alice1",
-                 DateTime.utc_now()
-               )
-
-      assert {"@Alice2", _} = TransactionChain.get_last_address("@Alice1")
-    end
-
-    test "should notify previous storage pool if transaction exists" do
-      MockDB
-      |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
-        :ok
-      end)
-      |> expect(:get_last_chain_address, fn _ -> {"@Alice2", DateTime.utc_now()} end)
-      |> stub(:get_transaction, fn _, _ ->
-        {:ok, %Transaction{previous_public_key: "Alice1"}}
-      end)
-
+  describe "acknowledge_previous_storage_nodes/1" do
+    test "should notify last transaction address for the previous storage nodes" do
       me = self()
 
+      Enum.each(0..50, fn i ->
+        P2P.add_and_connect_node(%Node{
+          first_public_key: "key-#{i}",
+          last_public_key: "key-#{i}",
+          geo_patch: "#{Integer.to_string(i, 16)}A",
+          available?: true,
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
+        })
+      end)
+
+      MockDB
+      |> expect(:get_first_chain_address, fn _ -> "@Alice0" end)
+      |> expect(:get_transaction, fn _, _ ->
+        {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}}}
+      end)
+      |> expect(:list_chain_addresses, fn _ -> [{"@Alice1", 0}] end)
+
       MockClient
-      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{last_address: _}, _ ->
-        send(me, :notification_sent)
+      |> stub(:send_message, fn _,
+                                %NotifyLastTransactionAddress{
+                                  last_address: last_address,
+                                  genesis_address: genesis_address
+                                },
+                                _ ->
+        send(me, {:last_address, last_address, genesis_address})
         {:ok, %Ok{}}
       end)
 
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: :crypto.strong_rand_bytes(32),
-        last_public_key: :crypto.strong_rand_bytes(32),
-        geo_patch: "AAA",
-        available?: true,
-        authorization_date: DateTime.utc_now(),
-        authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      })
+      assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2")
 
-      assert :ok =
-               Replication.acknowledge_previous_storage_nodes(
-                 "@Alice2",
-                 "@Alice0",
-                 "@Alice1",
-                 DateTime.utc_now()
-               )
-
-      assert {"@Alice2", _} = TransactionChain.get_last_address("@Alice1")
-
-      assert_receive :notification_sent, 500
+      assert_receive {:last_address, "@Alice2", "@Alice0"}
     end
   end
 end

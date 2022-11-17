@@ -34,6 +34,7 @@ defmodule Archethic.P2P.MessageTest do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
+  alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.P2PView
   alias Archethic.P2P.Message.Ping
@@ -862,8 +863,19 @@ defmodule Archethic.P2P.MessageTest do
       msg = %NotifyLastTransactionAddress{
         last_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         genesis_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "NotifyPreviousChain message" do
+      msg = %NotifyPreviousChain{
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==

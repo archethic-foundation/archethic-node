@@ -1224,6 +1224,19 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   @doc """
+  Return the list of nodes which confirmed the transaction replication
+  """
+  @spec get_confirmed_replication_nodes(t()) :: list(Node.t())
+  def get_confirmed_replication_nodes(%__MODULE__{
+        chain_storage_nodes: chain_storage_nodes,
+        storage_nodes_confirmations: storage_nodes_confirmations
+      }) do
+    Enum.map(storage_nodes_confirmations, fn {index, _} ->
+      Enum.at(chain_storage_nodes, index)
+    end)
+  end
+
+  @doc """
   Get the list of I/O replication nodes
   """
   @spec get_io_replication_nodes(t()) :: list(Node.t())
