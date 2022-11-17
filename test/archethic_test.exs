@@ -222,12 +222,28 @@ defmodule ArchethicTest do
         authorization_date: DateTime.utc_now()
       })
 
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "key2",
+        last_public_key: "key2",
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
       MockClient
-      |> expect(:send_message, fn _, %GetBalance{}, _ ->
-        {:ok, %Balance{uco: 1_000_000_000}}
+      |> expect(:send_message, 2, fn
+        "key2", %GetBalance{}, _ ->
+          {:ok, %Balance{uco: 2}}
+
+        _, %GetBalance{}, _ ->
+          {:ok, %Balance{uco: 1}}
       end)
 
-      assert {:ok, %{uco: 1_000_000_000}} = Archethic.get_balance("@Alice2")
+      assert {:ok, %{uco: 2}} = Archethic.get_balance("@Alice2")
     end
   end
 
