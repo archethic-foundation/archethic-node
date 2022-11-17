@@ -51,7 +51,7 @@ defmodule Archethic.TransactionChain do
   require Logger
 
   @doc """
-  List all the transaction chain stored
+  List all the transaction chain stored. Chronological order within a transaction chain
   """
   @spec list_all(fields :: list()) :: Enumerable.t()
   defdelegate list_all(fields \\ []), to: DB, as: :list_transactions
