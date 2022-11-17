@@ -323,8 +323,13 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp broadcast_beacon_slot(subset, next_time, slot) do
+    node_list =
+      next_time
+      |> P2P.authorized_nodes()
+      |> Enum.filter(& &1.available?)
+
     subset
-    |> Election.beacon_storage_nodes(next_time, P2P.authorized_and_available_nodes())
+    |> Election.beacon_storage_nodes(next_time, node_list)
     |> P2P.broadcast_message(%NewBeaconSlot{slot: slot})
   end
 
