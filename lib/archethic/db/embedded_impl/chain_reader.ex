@@ -222,7 +222,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   """
   @spec scan_chain(
           genesis_address :: binary(),
-          limit_address :: binary(),
+          limit_address :: nil | binary(),
           fields :: list(),
           paging_address :: nil | binary(),
           db_path :: binary()
@@ -284,7 +284,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   """
   @spec stream_scan_chain(
           genesis_address :: binary(),
-          limit_address :: binary(),
+          limit_address :: nil | binary(),
           fields :: list(),
           db_path :: binary()
         ) :: Enumerable.t()
