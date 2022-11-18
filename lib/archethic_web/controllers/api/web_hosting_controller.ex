@@ -15,6 +15,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   require Logger
 
   def web_hosting(conn, params = %{"url_path" => []}) do
+    # /web_hosting/:addr redirects to /web_hosting/:addr/
     if String.last(conn.request_path) != "/" do
       redirect(conn, to: conn.request_path <> "/")
     else
@@ -47,7 +48,7 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :is_a_directory} ->
         # FIXME: DIR_LISTING is doing the same I/O as GET_WEBSITE so it's not efficient
         {:ok, listing_html, encodage, mime_type, cached?, etag} =
-          dir_listing(params, get_cache_headers(conn))
+          dir_listing(conn.request_path, params, get_cache_headers(conn))
 
         send_response(conn, listing_html, encodage, mime_type, cached?, etag)
 
@@ -101,10 +102,10 @@ defmodule ArchethicWeb.API.WebHostingController do
     end
   end
 
-  @spec dir_listing(request_params :: map(), cached_headers :: list()) ::
+  @spec dir_listing(String.t(), request_params :: map(), cached_headers :: list()) ::
           {:ok, listing_html :: binary() | nil, encodage :: nil | binary(), mime_type :: binary(),
            cached? :: boolean(), etag :: binary()}
-  def dir_listing(params = %{"address" => address}, cache_headers) do
+  def dir_listing(request_path, params = %{"address" => address}, cache_headers) do
     url_path = Map.get(params, "url_path", [])
 
     with {:ok, address} <- Base.decode16(address, case: :mixed),
@@ -153,11 +154,11 @@ defmodule ArchethicWeb.API.WebHostingController do
         files_and_dirs
         |> Enum.reduce("", fn
           {:file, filename}, acc ->
-            anchor = "<li><a href='#{filename}'>#{filename}</a></li>"
+            anchor = "<li><a href='#{Path.join(request_path, filename)}'>#{filename}</a></li>"
             <<anchor::binary, acc::binary>>
 
           {:dir, dirname}, acc ->
-            anchor = "<li><a href='#{dirname}'>[DIR] #{dirname}</a></li>"
+            anchor = "<li><a href='#{Path.join(request_path, dirname)}'>[DIR] #{dirname}</a></li>"
             <<anchor::binary, acc::binary>>
         end)
 

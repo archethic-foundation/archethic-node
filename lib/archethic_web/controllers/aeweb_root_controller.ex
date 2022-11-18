@@ -17,7 +17,7 @@ defmodule ArchethicWeb.AEWebRootController do
       {:error, :is_a_directory} ->
         # FIXME: DIR_LISTING is doing the same I/O as GET_WEBSITE so it's not efficient
         {:ok, listing_html, encodage, mime_type, cached?, etag} =
-          WebHostingController.dir_listing(params, cache_headers)
+          WebHostingController.dir_listing(conn.request_path, params, cache_headers)
 
         WebHostingController.send_response(conn, listing_html, encodage, mime_type, cached?, etag)
 
