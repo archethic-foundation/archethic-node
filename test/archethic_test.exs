@@ -235,12 +235,13 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, 2, fn
-        "key2", %GetBalance{}, _ ->
-          {:ok, %Balance{uco: 2}}
-
+      |> expect(:send_message, 1, fn
         _, %GetBalance{}, _ ->
           {:ok, %Balance{uco: 1}}
+      end)
+      |> expect(:send_message, 1, fn
+        _, %GetBalance{}, _ ->
+          {:ok, %Balance{uco: 2}}
       end)
 
       assert {:ok, %{uco: 2}} = Archethic.get_balance("@Alice2")

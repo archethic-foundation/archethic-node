@@ -157,20 +157,12 @@ defmodule Archethic do
     P2P.quorum_read(nodes, %GetBalance{address: address}, fn balances ->
       {max_uco, max_token} =
         balances
-        |> Enum.reject(fn
-          {:error, _} -> true
-          {:ok, _} -> false
-        end)
         |> Enum.reduce({0, 0}, fn
-          {
-            :ok,
-            %Balance{uco: uco, token: token}
-          },
-          {uco_acc, token_acc} ->
+          %Balance{uco: uco, token: token}, {uco_acc, token_acc} ->
             {max(uco, uco_acc), max(token, token_acc)}
         end)
 
-      {:ok, %{uco: max_uco, token: max_token}}
+      %{uco: max_uco, token: max_token}
     end)
   end
 
