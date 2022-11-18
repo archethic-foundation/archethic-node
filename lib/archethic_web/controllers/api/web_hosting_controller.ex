@@ -150,20 +150,44 @@ defmodule ArchethicWeb.API.WebHostingController do
             false
         end)
 
-      listing_html =
+      {current_working_dir, parent_dir_href} =
+        case url_path do
+          [] ->
+            {"/", nil}
+
+          _ ->
+            {
+              Path.join(["/" | url_path]),
+              %{href: request_path |> Path.join("..") |> Path.expand()}
+            }
+        end
+
+      assigns =
         files_and_dirs
-        |> Enum.reduce("", fn
-          {:file, filename}, acc ->
-            anchor = "<li><a href='#{Path.join(request_path, filename)}'>#{filename}</a></li>"
-            <<anchor::binary, acc::binary>>
+        |> Enum.reduce(%{dirs: [], files: []}, fn
+          {file_or_dir, name}, %{dirs: dirs_acc, files: files_acc} ->
+            item = %{
+              href: %{href: Path.join(request_path, name)},
+              # FIXME: last_modified should be the storage transaction's timestamp
+              last_modified: DateTime.utc_now(),
+              name: name
+            }
 
-          {:dir, dirname}, acc ->
-            anchor = "<li><a href='#{Path.join(request_path, dirname)}'>[DIR] #{dirname}</a></li>"
-            <<anchor::binary, acc::binary>>
+            case file_or_dir do
+              :file ->
+                %{dirs: dirs_acc, files: [item | files_acc]}
+
+              :dir ->
+                %{files: files_acc, dirs: [item | dirs_acc]}
+            end
         end)
+        |> Enum.into(%{
+          cwd: current_working_dir,
+          parent_dir_href: parent_dir_href
+        })
 
-      {:ok, <<"<ul>"::binary, listing_html::binary, "</ul>"::binary>>, nil, "text/html", cached?,
-       etag}
+      {:ok, Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
+       nil, "text/html", cached?, etag}
     else
       error ->
         error
