@@ -38,11 +38,18 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :website_not_found} ->
         send_resp(conn, 404, "Cannot find website content")
 
-      {:error, :not_found} ->
+      {:error, :file_not_found} ->
         send_resp(conn, 404, "Cannot find file content")
 
       {:error, :invalid_encodage} ->
         send_resp(conn, 400, "Invalid file encodage")
+
+      {:error, :is_a_directory} ->
+        # FIXME: DIR_LISTING is doing the same I/O as GET_WEBSITE so it's not efficient
+        {:ok, listing_html, encodage, mime_type, cached?, etag} =
+          dir_listing(params, get_cache_headers(conn))
+
+        send_response(conn, listing_html, encodage, mime_type, cached?, etag)
 
       {:error, _} ->
         send_resp(conn, 404, "Not Found")
@@ -57,7 +64,8 @@ defmodule ArchethicWeb.API.WebHostingController do
            cached? :: boolean(), etag :: binary()}
           | {:error, :invalid_address}
           | {:error, :invalid_content}
-          | {:error, :not_found}
+          | {:error, :file_not_found}
+          | {:error, :is_a_directory}
           | {:error, :invalid_encodage}
           | {:error, any()}
   def get_website(params = %{"address" => address}, cache_headers) do
@@ -69,8 +77,7 @@ defmodule ArchethicWeb.API.WebHostingController do
            Archethic.get_last_transaction(address),
          {:ok, json_content} <- Jason.decode(content),
          {:ok, file, mime_type} <- get_file(json_content, url_path),
-         {cached?, etag} <-
-           get_cache(cache_headers, last_address, url_path),
+         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
          {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
       {:ok, file_content, encodage, mime_type, cached?, etag}
     else
@@ -83,15 +90,80 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
         {:error, :website_not_found}
 
-      {:file_not_found, _url} ->
-        {:error, :not_found}
-
       :encodage_error ->
         {:error, :invalid_encodage}
 
       :file_error ->
-        {:error, :not_found}
+        {:error, :file_not_found}
 
+      error ->
+        error
+    end
+  end
+
+  @spec dir_listing(request_params :: map(), cached_headers :: list()) ::
+          {:ok, listing_html :: binary() | nil, encodage :: nil | binary(), mime_type :: binary(),
+           cached? :: boolean(), etag :: binary()}
+  def dir_listing(params = %{"address" => address}, cache_headers) do
+    url_path = Map.get(params, "url_path", [])
+
+    with {:ok, address} <- Base.decode16(address, case: :mixed),
+         true <- Crypto.valid_address?(address),
+         {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
+           Archethic.get_last_transaction(address),
+         {:ok, json_content} <- Jason.decode(content),
+         {cached?, etag} <- get_cache(cache_headers, last_address, url_path) do
+      json_content_subset =
+        case url_path do
+          [] ->
+            json_content
+
+          _ ->
+            {:ok, subset} = Pathex.view(json_content, get_json_path(url_path))
+            subset
+        end
+
+      files_and_dirs =
+        Map.keys(json_content_subset)
+        |> Enum.map(fn key ->
+          case json_content_subset[key] do
+            %{"address" => _, "encodage" => _} ->
+              {:file, key}
+
+            _ ->
+              {:dir, key}
+          end
+        end)
+        # sort directory last, then DESC order (because we create the binary by the front)
+        |> Enum.sort(fn
+          {:file, a}, {:file, b} ->
+            a > b
+
+          {:dir, a}, {:dir, b} ->
+            a > b
+
+          {:file, _}, {:dir, _} ->
+            true
+
+          {:dir, _}, {:file, _} ->
+            false
+        end)
+
+      listing_html =
+        files_and_dirs
+        |> Enum.reduce("", fn
+          {:file, filename}, acc ->
+            anchor = "<li><a href='#{filename}'>#{filename}</a></li>"
+            <<anchor::binary, acc::binary>>
+
+          {:dir, dirname}, acc ->
+            anchor = "<li><a href='#{dirname}'>[DIR] #{dirname}</a></li>"
+            <<anchor::binary, acc::binary>>
+        end)
+
+      {:ok, <<"<ul>"::binary, listing_html::binary, "</ul>"::binary>>, nil, "text/html", cached?,
+       etag}
+    else
       error ->
         error
     end
@@ -145,33 +217,45 @@ defmodule ArchethicWeb.API.WebHostingController do
     end
   end
 
-  # API without path returns default index.html file
-  # or the only file if there is only one
-  defp get_file(json_content, url_path) do
-    {json_path, url} =
-      case Enum.count(url_path) do
-        0 ->
-          file_name = get_single_file_name(json_content)
-          json_path = path(file_name)
-          {json_path, file_name}
+  defp get_file(json_content, path), do: get_file(json_content, path, nil)
 
-        1 ->
-          file_name = Enum.at(url_path, 0)
-          json_path = path(file_name)
-          {json_path, file_name}
+  # case when we're parsing a reference tx
+  defp get_file(file = %{"address" => _, "encodage" => _}, [], previous_path_item) do
+    {:ok, file, MIME.from_path(previous_path_item)}
+  end
 
-        _ ->
-          json_path = get_json_path(url_path)
-          url = Path.join(url_path)
-          {json_path, url}
-      end
+  # case when we're parsing a storage tx
+  defp get_file(file, [], previous_path_item) when is_binary(file) do
+    {:ok, file, MIME.from_path(previous_path_item)}
+  end
 
-    case Pathex.view(json_content, json_path) do
-      {:ok, file} ->
-        {:ok, file, MIME.from_path(url)}
+  # case when we're on a directory
+  defp get_file(json_content, [], _previous_path_item) when is_map(json_content) do
+    case Map.keys(json_content) do
+      [single_key] ->
+        # if there is a single file in a dir, we return it
+        {:ok, Map.get(json_content, single_key), MIME.from_path(single_key)}
 
-      :error ->
-        {:file_not_found, url}
+      _ ->
+        case Map.get(json_content, "index.html") do
+          nil ->
+            {:error, :is_a_directory}
+
+          file ->
+            {:ok, file, "text/html"}
+        end
+    end
+  end
+
+  # recurse until we are on the end of path
+  defp get_file(json_content, [path_item | rest], _previous_path_item) do
+    case Map.get(json_content, path_item) do
+      nil ->
+        #
+        {:error, :file_not_found}
+
+      json_content_subset ->
+        get_file(json_content_subset, rest, path_item)
     end
   end
 
@@ -183,26 +267,6 @@ defmodule ArchethicWeb.API.WebHostingController do
         acc ~> path(value)
       end
     end)
-  end
-
-  defp get_single_file_name(json_content) do
-    keys = Map.keys(json_content)
-
-    case Enum.count(keys) do
-      1 ->
-        # Control if it is a file or a folder
-        file_name = Enum.at(keys, 0)
-        file_content = Map.get(json_content, file_name)
-
-        if !is_map(file_content) or Map.has_key?(file_content, "address") do
-          file_name
-        else
-          "index.html"
-        end
-
-      _ ->
-        "index.html"
-    end
   end
 
   defp get_cache(cache_headers, last_address, url_path) do
