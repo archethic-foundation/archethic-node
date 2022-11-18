@@ -5,13 +5,13 @@ defmodule Archethic.Utils.Regression do
   require Logger
 
   alias Archethic.Utils
-  alias Archethic.Utils.Regression.Benchmark.P2PMessage
 
   alias Archethic.Utils.Regression.Playbook.SmartContract
   alias Archethic.Utils.Regression.Playbook.UCO
 
   alias Archethic.Utils.WebClient
   alias Archethic.Utils.Regression.Benchmark.EndToEndValidation
+  alias Archethic.Utils.Regression.Benchmark.P2PMessage
 
   @playbooks [UCO, SmartContract]
   @benchmarks [P2PMessage, EndToEndValidation]

@@ -23,11 +23,18 @@ defmodule ArchethicWeb.SettingsLive do
 
   def mount(_params, %{"remote_ip" => remote_ip}, socket) do
     # Only authorized the page in the node's private network
-    private_ip? =
-      Regex.match?(
-        @ip_validate_regex,
-        :inet.ntoa(remote_ip) |> to_string()
-      )
+    ip =
+      case remote_ip do
+        {_, _, _, _} ->
+          :inet.ntoa(remote_ip) |> to_string()
+
+        _ ->
+          :inet.ipv4_mapped_ipv6_address(remote_ip)
+          |> :inet.ntoa()
+          |> to_string()
+      end
+
+    private_ip? = Regex.match?(@ip_validate_regex, ip)
 
     new_socket =
       socket

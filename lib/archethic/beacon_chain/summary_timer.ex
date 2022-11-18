@@ -4,6 +4,7 @@ defmodule Archethic.BeaconChain.SummaryTimer do
   """
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker

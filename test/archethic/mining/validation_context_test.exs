@@ -11,6 +11,8 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias Archethic.SharedSecrets
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
@@ -25,8 +27,24 @@ defmodule Archethic.Mining.ValidationContextTest do
   doctest ValidationContext
 
   describe "cross_validate/1" do
+    test "should validate with a valid validation stamp" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      validation_context = create_context(timestamp)
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      %ValidationContext{
+        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: []}]
+      } =
+        validation_context
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
+        |> ValidationContext.cross_validate()
+    end
+
     test "should get inconsistency when the validation stamp signature is invalid" do
       validation_context = create_context()
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       %ValidationContext{
         cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:signature]}]
@@ -42,6 +60,8 @@ defmodule Archethic.Mining.ValidationContextTest do
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
       validation_context = create_context(timestamp)
 
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
       %ValidationContext{
         cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
       } =
@@ -52,8 +72,21 @@ defmodule Archethic.Mining.ValidationContextTest do
         |> ValidationContext.cross_validate()
     end
 
+    test "should get inconsistency when the proof of work is not in authorized keys" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      validation_context = create_context(timestamp)
+
+      %ValidationContext{
+        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+      } =
+        validation_context
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
+        |> ValidationContext.cross_validate()
+    end
+
     test "should get inconsistency when the transaction fee is invalid" do
       validation_context = create_context()
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       %ValidationContext{
         cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:transaction_fee]}]
@@ -68,6 +101,8 @@ defmodule Archethic.Mining.ValidationContextTest do
     test "should get inconsistency when the transaction movements are invalid" do
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
       validation_context = create_context(timestamp)
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       %ValidationContext{
         cross_validation_stamps: [
@@ -84,6 +119,8 @@ defmodule Archethic.Mining.ValidationContextTest do
     test "should get inconsistency when the unspent outputs are invalid" do
       validation_context = create_context()
 
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
       %ValidationContext{
         cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:unspent_outputs]}]
       } =
@@ -96,6 +133,8 @@ defmodule Archethic.Mining.ValidationContextTest do
 
     test "should get inconsistency when the errors are invalid" do
       validation_context = create_context()
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
       %ValidationContext{
         cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:error]}]
@@ -229,6 +268,28 @@ defmodule Archethic.Mining.ValidationContextTest do
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      ledger_operations:
+        %LedgerOperations{
+          fee: Fee.calculate(tx, 0.07),
+          transaction_movements: Transaction.get_movements(tx)
+        }
+        |> LedgerOperations.from_transaction(tx, timestamp)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
+      protocol_version: ArchethicCase.current_protocol_version()
+    }
+    |> ValidationStamp.sign()
+  end
+
+  defp create_validation_stamp(%ValidationContext{
+         transaction: tx,
+         unspent_outputs: unspent_outputs,
+         validation_time: timestamp
+       }) do
+    %ValidationStamp{
+      timestamp: timestamp,
+      proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:

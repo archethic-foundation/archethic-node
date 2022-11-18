@@ -97,8 +97,6 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   end
 
   defp list_transactions_from_current_slots(date = %DateTime{} \\ DateTime.utc_now()) do
-    %Node{network_patch: patch} = P2P.get_node_info()
-
     authorized_nodes = P2P.authorized_and_available_nodes()
     ref_time = DateTime.truncate(date, :millisecond)
 
@@ -111,7 +109,7 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
       subset
       |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
       |> Enum.filter(&Node.locally_available?/1)
-      |> P2P.nearest_nodes(patch)
+      |> P2P.nearest_nodes()
       |> Enum.take(3)
       |> Enum.map(&{&1, subset})
     end)
@@ -121,9 +119,9 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
       # We aggregate the subsets for a given node
       Map.update(acc, node, [subset], &[subset | &1])
     end)
-    |> Flow.flat_map(fn {node, addresses} ->
+    |> Flow.flat_map(fn {node, subsets} ->
       # For this node we fetch the summaries
-      fetch_summaries(node, addresses)
+      fetch_summaries(node, subsets)
     end)
     |> Stream.uniq_by(& &1.address)
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})

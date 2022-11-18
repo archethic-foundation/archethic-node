@@ -47,7 +47,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     valid_attestations? =
       if check_attestation? do
         Enum.all?(transaction_attestations, fn attestation ->
-          ReplicationAttestation.validate(attestation) == :ok
+          ReplicationAttestation.validate(attestation, false) == :ok
         end)
       else
         true

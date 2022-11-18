@@ -28,6 +28,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   require Logger
 
   use GenStateMachine, callback_mode: :handle_event_function
+  @vsn Mix.Project.config()[:version]
 
   @doc """
   Start the node renewal scheduler process without starting the scheduler
@@ -340,4 +341,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     Application.get_env(:archethic, __MODULE__)
     |> Keyword.fetch!(:application_interval)
   end
+
+  def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 end

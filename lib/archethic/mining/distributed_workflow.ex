@@ -30,12 +30,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Node
-
-  alias Archethic.Replication
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -47,6 +46,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
+  @vsn Mix.Project.config()[:version]
 
   @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
   @coordinator_timeout_supplement Application.compile_env!(:archethic, [
@@ -749,17 +749,17 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :notify_previous_chain,
         :replication,
         _data = %{
-          context: %ValidationContext{
-            transaction: tx,
-            validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
-          }
+          context:
+            context = %ValidationContext{
+              transaction: tx
+            }
         }
       ) do
-    Replication.acknowledge_previous_storage_nodes(
-      tx.address,
-      Transaction.previous_address(tx),
-      tx_timestamp
-    )
+    unless Transaction.network_type?(tx.type) do
+      context
+      |> ValidationContext.get_confirmed_replication_nodes()
+      |> P2P.broadcast_message(%NotifyPreviousChain{address: tx.address})
+    end
 
     :stop
   end
@@ -921,6 +921,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     {:keep_state_and_data, :postpone}
   end
+
+  def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 
   defp notify_transaction_context(
          %ValidationContext{

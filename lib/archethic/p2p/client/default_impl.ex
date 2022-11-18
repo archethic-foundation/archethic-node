@@ -67,7 +67,7 @@ defmodule Archethic.P2P.Client.DefaultImpl do
       ) do
     if node_public_key == Crypto.first_node_public_key() do
       # if the node was itself just process the message
-      {:ok, Message.process(message)}
+      {:ok, Message.process(message, node_public_key)}
     else
       case Connection.send_message(node_public_key, message, timeout) do
         {:ok, data} ->

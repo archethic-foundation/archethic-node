@@ -84,14 +84,8 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
 
     Process.sleep(200)
 
-    nb_create_slot_messages =
-      self()
-      |> :erlang.process_info(:messages)
-      |> elem(1)
-      |> Enum.filter(&match?({:create_slot, _}, &1))
-      |> length()
-
-    assert nb_create_slot_messages == 256
+    for _ <- 1..256, do: assert_received({:create_slot, _})
+    refute_received {:create_slot, _}
   end
 
   test "next_slot/1 should get the slot time from a given date" do

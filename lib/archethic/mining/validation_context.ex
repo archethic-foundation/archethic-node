@@ -1024,7 +1024,8 @@ defmodule Archethic.Mining.ValidationContext do
         do_proof_of_work(tx) == ""
 
       _ ->
-        Transaction.verify_origin_signature?(tx, pow)
+        Transaction.verify_origin_signature?(tx, pow) and
+          pow in ProofOfWork.list_origin_public_keys_candidates(tx)
     end
   end
 
@@ -1220,6 +1221,19 @@ defmodule Archethic.Mining.ValidationContext do
     context
     |> get_chain_replication_nodes
     |> Enum.count() == nb_confirmed_replications
+  end
+
+  @doc """
+  Return the list of nodes which confirmed the transaction replication
+  """
+  @spec get_confirmed_replication_nodes(t()) :: list(Node.t())
+  def get_confirmed_replication_nodes(%__MODULE__{
+        chain_storage_nodes: chain_storage_nodes,
+        storage_nodes_confirmations: storage_nodes_confirmations
+      }) do
+    Enum.map(storage_nodes_confirmations, fn {index, _} ->
+      Enum.at(chain_storage_nodes, index)
+    end)
   end
 
   @doc """

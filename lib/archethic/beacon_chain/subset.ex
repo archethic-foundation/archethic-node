@@ -33,6 +33,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.Utils
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 
@@ -139,13 +140,16 @@ defmodule Archethic.BeaconChain.Subset do
       ) do
     nodes_availability_times =
       P2PSampling.list_nodes_to_sample(subset)
-      |> Task.async_stream(fn node ->
-        if node.first_public_key == Crypto.first_node_public_key() do
-          SlotTimer.get_time_interval()
-        else
-          Client.get_availability_timer(node.first_public_key, true)
-        end
-      end)
+      |> Task.async_stream(
+        fn node ->
+          if node.first_public_key == Crypto.first_node_public_key() do
+            SlotTimer.get_time_interval()
+          else
+            Client.get_availability_timer(node.first_public_key, true)
+          end
+        end,
+        on_timeout: :kill_task
+      )
       |> Enum.map(fn
         {:ok, res} -> res
         _ -> 0
@@ -319,8 +323,13 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp broadcast_beacon_slot(subset, next_time, slot) do
+    node_list =
+      next_time
+      |> P2P.authorized_nodes()
+      |> Enum.filter(& &1.available?)
+
     subset
-    |> Election.beacon_storage_nodes(next_time, P2P.authorized_and_available_nodes())
+    |> Election.beacon_storage_nodes(next_time, node_list)
     |> P2P.broadcast_message(%NewBeaconSlot{slot: slot})
   end
 

@@ -20,6 +20,7 @@ defmodule Archethic.SelfRepair.Notifier do
   """
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
 

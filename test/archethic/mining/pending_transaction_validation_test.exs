@@ -14,6 +14,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.GetFirstPublicKey
+  alias Archethic.P2P.Message.GetTransactionSummary
+  alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
@@ -28,8 +30,17 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   setup do
     P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.last_node_public_key(),
-      network_patch: "AAA"
+      network_patch: "AAA",
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now(),
+      geo_patch: "AAA"
     })
+
+    MockClient
+    |> stub(:send_message, fn _, %GetTransactionSummary{}, _ ->
+      {:ok, %NotFound{}}
+    end)
 
     on_exit(fn ->
       Application.put_env(:archethic, Archethic.Mining.PendingTransactionValidation,
@@ -409,8 +420,12 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       end)
 
       MockClient
-      |> expect(:send_message, fn _, %GetFirstPublicKey{}, _ ->
-        {:ok, %FirstPublicKey{public_key: tx.previous_public_key}}
+      |> stub(:send_message, fn
+        _, %GetFirstPublicKey{}, _ ->
+          {:ok, %FirstPublicKey{public_key: tx.previous_public_key}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       assert :ok = PendingTransactionValidation.validate(tx)
@@ -492,7 +507,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       send(pid, :node_up)
 
-      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
+      assert {:scheduled, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
@@ -533,7 +548,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       send(pid, :node_up)
 
-      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
+      assert {:scheduled, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 200_000_000 end)
@@ -573,7 +588,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       send(pid, :node_up)
 
-      assert {:idle, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
+      assert {:scheduled, %{interval: "0 * * * * *"}} = :sys.get_state(pid)
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)

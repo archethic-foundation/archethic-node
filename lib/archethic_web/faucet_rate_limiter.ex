@@ -2,6 +2,7 @@ defmodule ArchethicWeb.FaucetRateLimiter do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.TransactionChain
 

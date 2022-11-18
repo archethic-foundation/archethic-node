@@ -2,6 +2,7 @@ defmodule Archethic.P2P.MemTableLoader do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
 
@@ -82,7 +83,7 @@ defmodule Archethic.P2P.MemTableLoader do
     node_key = Crypto.first_node_public_key()
 
     case previously_available do
-      # Ensure the only single node is globally available after a delayed bootstrap 
+      # Ensure the only single node is globally available after a delayed bootstrap
       [{^node_key, {_, avg_availability}}] ->
         P2P.set_node_globally_synced(node_key)
         P2P.set_node_globally_available(node_key)
@@ -137,7 +138,8 @@ defmodule Archethic.P2P.MemTableLoader do
         transport: transport,
         last_address: address,
         reward_address: reward_address,
-        origin_public_key: origin_public_key
+        origin_public_key: origin_public_key,
+        last_update_date: timestamp
       }
 
       node
@@ -156,13 +158,15 @@ defmodule Archethic.P2P.MemTableLoader do
           transport: transport,
           last_address: address,
           reward_address: reward_address,
-          origin_public_key: origin_public_key
+          origin_public_key: origin_public_key,
+          last_update_date: timestamp
       })
     end
 
     Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
 
     if first_public_key != Crypto.first_node_public_key() do
+      {:ok, %Node{ip: ip, port: port, transport: transport}} = MemTable.get_node(first_public_key)
       {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key)
       :ok
     else

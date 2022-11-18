@@ -18,7 +18,6 @@ defmodule ArchethicWeb.API.TransactionController do
     NotFound
   }
 
-  alias Archethic.P2P.Node
   alias Archethic.Election
 
   alias Archethic.Mining
@@ -43,13 +42,8 @@ defmodule ArchethicWeb.API.TransactionController do
         storage_nodes =
           Election.chain_storage_nodes(tx_address, P2P.authorized_and_available_nodes())
 
-        nodes =
-          storage_nodes
-          |> P2P.nearest_nodes()
-          |> Enum.filter(&Node.locally_available?/1)
-
         case P2P.quorum_read(
-               nodes,
+               storage_nodes,
                %GetTransactionSummary{address: tx_address}
              ) do
           {:ok, %TransactionSummary{address: ^tx_address}} ->

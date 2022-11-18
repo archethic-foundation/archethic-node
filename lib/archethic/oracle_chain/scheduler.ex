@@ -26,6 +26,7 @@ defmodule Archethic.OracleChain.Scheduler do
   alias Crontab.CronExpression.Parser, as: CronParser
 
   use GenStateMachine, callback_mode: [:handle_event_function]
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 
@@ -780,4 +781,6 @@ defmodule Archethic.OracleChain.Scheduler do
     |> get_oracle_data()
     |> Services.fetch_new_data()
   end
+
+  def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 end

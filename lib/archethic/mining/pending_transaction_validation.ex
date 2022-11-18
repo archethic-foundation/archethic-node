@@ -14,6 +14,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     P2P,
     P2P.Message.FirstPublicKey,
     P2P.Message.GetFirstPublicKey,
+    P2P.Message.GetTransactionSummary,
+    P2P.Message.NotFound,
     P2P.Node,
     Reward,
     SharedSecrets.NodeRenewal,
@@ -26,7 +28,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     TransactionData,
     TransactionData.Ledger,
     TransactionData.Ownership,
-    TransactionData.TokenLedger
+    TransactionData.TokenLedger,
+    TransactionSummary
   }
 
   alias Archethic.Governance.Code.Proposal, as: CodeProposal
@@ -44,7 +47,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       ) do
     start = System.monotonic_time()
 
-    with true <- Transaction.verify_previous_signature?(tx),
+    with :ok <- valid_not_exists(tx),
+         :ok <- valid_previous_signature(tx),
          :ok <- validate_contract(tx),
          :ok <- validate_content_size(tx),
          :ok <- do_accept_transaction(tx, validation_time),
@@ -76,6 +80,32 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:error, reason} = e ->
         Logger.info(reason, transaction_address: Base.encode16(address), transaction_type: type)
         e
+    end
+  end
+
+  defp valid_not_exists(%Transaction{address: address}) do
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    case P2P.quorum_read(
+           storage_nodes,
+           %GetTransactionSummary{address: address}
+         ) do
+      {:ok, %TransactionSummary{address: ^address}} ->
+        {:error, "transaction already exists"}
+
+      {:ok, %NotFound{}} ->
+        :ok
+
+      {:error, _} = e ->
+        e
+    end
+  end
+
+  defp valid_previous_signature(tx = %Transaction{}) do
+    if Transaction.verify_previous_signature?(tx) do
+      :ok
+    else
+      {:error, "Invalid previous signature"}
     end
   end
 

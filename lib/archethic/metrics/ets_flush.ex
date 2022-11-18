@@ -2,12 +2,13 @@ defmodule Archethic.Metrics.ETSFlush do
   @moduledoc """
   This module is used to regularly flush ETS of any buffered distribution
   type metrics (see https://github.com/beam-telemetry/telemetry_metrics_prometheus_core/blob/main/lib/core.ex#L25-L28)
-  for more information. 
+  for more information.
   """
 
   alias TelemetryMetricsPrometheus.Core
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
