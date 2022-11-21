@@ -8,8 +8,6 @@ defmodule Archethic.BeaconChain.Slot do
 
   alias Archethic.BeaconChain.Subset.P2PSampling
 
-  alias Archethic.BeaconChain.SummaryTimer
-
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -598,21 +596,6 @@ defmodule Archethic.BeaconChain.Slot do
     Election.beacon_storage_nodes(
       subset,
       slot_time,
-      node_list,
-      Election.get_storage_constraints()
-    )
-  end
-
-  @doc """
-  Retrieve the nodes responsible to manage the summary holding of the given slot
-  """
-  @spec summary_storage_nodes(t()) :: list(Node.t())
-  def summary_storage_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
-    node_list = P2P.authorized_and_available_nodes(slot_time)
-
-    Election.beacon_storage_nodes(
-      subset,
-      SummaryTimer.next_summary(slot_time),
       node_list,
       Election.get_storage_constraints()
     )

@@ -110,7 +110,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             tx.type,
             P2P.authorized_and_available_nodes()
           ),
-          P2P.authorized_nodes()
+          P2P.authorized_and_available_nodes()
         )
 
       MockClient
@@ -185,7 +185,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes(),
+          P2P.authorized_and_available_nodes(),
           Election.chain_storage_nodes_with_type(
             tx.address,
             tx.type,
@@ -287,7 +287,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes(),
+          P2P.authorized_and_available_nodes(),
           Election.chain_storage_nodes_with_type(
             tx.address,
             tx.type,
@@ -410,7 +410,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes(),
+          P2P.authorized_and_available_nodes(),
           Election.chain_storage_nodes_with_type(
             tx.address,
             tx.type,
@@ -537,7 +537,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes(),
+          P2P.authorized_and_available_nodes(),
           Election.chain_storage_nodes_with_type(
             tx.address,
             tx.type,
@@ -653,7 +653,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       receive do
         {stamp = %ValidationStamp{},
          tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}} ->
-          nb_authorized_nodes = P2P.authorized_nodes() |> length()
+          nb_authorized_nodes = P2P.authorized_and_available_nodes() |> length()
           assert Enum.all?(chain_tree, &(bit_size(&1) == nb_authorized_nodes))
           nb_nodes = P2P.list_nodes() |> length()
           assert Enum.all?(io_tree, &(bit_size(&1) == nb_nodes))
@@ -724,7 +724,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes(),
+          P2P.authorized_and_available_nodes(),
           Election.chain_storage_nodes_with_type(
             tx.address,
             tx.type,
