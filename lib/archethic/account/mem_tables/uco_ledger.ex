@@ -185,7 +185,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         ]
       end)
 
-    # UCO inputs are either all spent or all unspent at a given address
+    # inputs are either all spent or all unspent at a given address
     case unspent_inputs do
       [] ->
         DB.get_inputs(:UCO, address)
