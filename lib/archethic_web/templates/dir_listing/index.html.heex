@@ -67,7 +67,7 @@
                         </table>
                     </td>
                     <td></td>
-                    <td><%= datetime_to_str(dir.last_modified) %></td>
+                    <td><%= format_date(dir.last_modified) %></td>
                 </tr>
             <% end %>
             <%= for file <- @files do %>
@@ -82,7 +82,7 @@
                         </table>
                     </td>
                     <td class="size">? KB</td>
-                    <td><%= datetime_to_str(file.last_modified) %></td>
+                    <td><%= format_date(file.last_modified) %></td>
                 </tr>
             <% end %>
 

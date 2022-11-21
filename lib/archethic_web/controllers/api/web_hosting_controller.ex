@@ -45,10 +45,10 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :invalid_encodage} ->
         send_resp(conn, 400, "Invalid file encodage")
 
-      {:error, :is_a_directory} ->
+      {:error, {:is_a_directory, transaction}} ->
         # FIXME: DIR_LISTING is doing the same I/O as GET_WEBSITE so it's not efficient
         {:ok, listing_html, encodage, mime_type, cached?, etag} =
-          dir_listing(conn.request_path, params, get_cache_headers(conn))
+          dir_listing(conn.request_path, params, transaction, get_cache_headers(conn))
 
         send_response(conn, listing_html, encodage, mime_type, cached?, etag)
 
@@ -74,46 +74,54 @@ defmodule ArchethicWeb.API.WebHostingController do
 
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
-         {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
-           Archethic.get_last_transaction(address),
-         {:ok, json_content} <- Jason.decode(content),
-         {:ok, file, mime_type} <- get_file(json_content, url_path),
-         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
-         {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
-      {:ok, file_content, encodage, mime_type, cached?, etag}
+         {:ok, transaction} <- Archethic.get_last_transaction(address) do
+      with {:ok, json_content} <- Jason.decode(transaction.data.content),
+           {:ok, file, mime_type} <- get_file(json_content, url_path),
+           {cached?, etag} <- get_cache(cache_headers, transaction.address, url_path),
+           {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
+        {:ok, file_content, encodage, mime_type, cached?, etag}
+      else
+        :encodage_error ->
+          {:error, :invalid_encodage}
+
+        :file_error ->
+          {:error, :file_not_found}
+
+        {:error, %Jason.DecodeError{}} ->
+          {:error, :invalid_content}
+
+        {:error, :file_not_found} ->
+          {:error, :file_not_found}
+
+        {:error, :is_a_directory} ->
+          # return the transaction so the dir_listing function do not need to do the I/O
+          {:error, {:is_a_directory, transaction}}
+      end
     else
       er when er in [:error, false] ->
         {:error, :invalid_address}
 
-      {:error, %Jason.DecodeError{}} ->
-        {:error, :invalid_content}
-
       {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
         {:error, :website_not_found}
-
-      :encodage_error ->
-        {:error, :invalid_encodage}
-
-      :file_error ->
-        {:error, :file_not_found}
 
       error ->
         error
     end
   end
 
-  @spec dir_listing(String.t(), request_params :: map(), cached_headers :: list()) ::
+  @spec dir_listing(
+          request_path :: String.t(),
+          params :: map(),
+          transaction :: Transaction.t(),
+          cached_headers :: list()
+        ) ::
           {:ok, listing_html :: binary() | nil, encodage :: nil | binary(), mime_type :: binary(),
            cached? :: boolean(), etag :: binary()}
-  def dir_listing(request_path, params = %{"address" => address}, cache_headers) do
+  def dir_listing(request_path, params, transaction, cache_headers) do
     url_path = Map.get(params, "url_path", [])
 
-    with {:ok, address} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_address?(address),
-         {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
-           Archethic.get_last_transaction(address),
-         {:ok, json_content} <- Jason.decode(content),
-         {cached?, etag} <- get_cache(cache_headers, last_address, url_path) do
+    with {:ok, json_content} <- Jason.decode(transaction.data.content),
+         {cached?, etag} <- get_cache(cache_headers, transaction.address, url_path) do
       json_content_subset =
         case url_path do
           [] ->
@@ -168,8 +176,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           {file_or_dir, name}, %{dirs: dirs_acc, files: files_acc} ->
             item = %{
               href: %{href: Path.join(request_path, name)},
-              # FIXME: last_modified should be the storage transaction's timestamp
-              last_modified: DateTime.utc_now(),
+              last_modified: get_transaction_timestamp(transaction),
               name: name
             }
 
@@ -345,4 +352,15 @@ defmodule ArchethicWeb.API.WebHostingController do
   end
 
   defp get_file_content(_, _, _), do: :file_error
+
+  defp get_transaction_timestamp(transaction) do
+    case transaction.validation_stamp do
+      nil ->
+        # should happen only in the tests
+        DateTime.utc_now()
+
+      validation_stamp ->
+        validation_stamp.timestamp
+    end
+  end
 end
