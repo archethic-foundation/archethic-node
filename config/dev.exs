@@ -109,7 +109,7 @@ config :archethic, Archethic.Reward.Scheduler,
 config :archethic, Archethic.SelfRepair.Scheduler,
   # Every minute at the 5th second
   interval: "5 * * * * * *",
-  # Availability application date 5 seconds after self repair
+  # Availability application date 5 seconds after beacon summary time
   availability_application: 10
 
 config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,

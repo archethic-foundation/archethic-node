@@ -202,7 +202,7 @@ config :archethic, Archethic.SelfRepair.Scheduler,
   # Every day at 00:05:00
   # To give time for the beacon chain to produce summary
   interval: System.get_env("ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *"),
-  # Availability application date 10 minutes after self repair
+  # Availability application date 15 minutes after beacon summary time
   availability_application: 900
 
 config :archethic, Archethic.P2P.Listener,

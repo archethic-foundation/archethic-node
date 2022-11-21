@@ -719,13 +719,10 @@ defmodule Archethic.P2P.MemTable do
     unless :ets.lookup_element(@discovery_table, first_public_key, availability_pos) do
       availability_update_pos = Keyword.fetch!(@discovery_index_position, :availability_update)
 
-      :ets.update_element(@discovery_table, first_public_key, {availability_pos, true})
-
-      :ets.update_element(
-        @discovery_table,
-        first_public_key,
+      :ets.update_element(@discovery_table, first_public_key, [
+        {availability_pos, true},
         {availability_update_pos, availability_update}
-      )
+      ])
 
       notify_node_update(first_public_key)
     end
