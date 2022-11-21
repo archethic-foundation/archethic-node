@@ -196,7 +196,8 @@ defmodule Archethic.DB.EmbeddedTest do
         node_average_availabilities: [1.0],
         node_availabilities: <<1::1>>,
         transaction_attestations: [],
-        version: 1
+        availability_adding_time: 10,
+        version: 2
       }
 
       :ok = EmbeddedImpl.write_beacon_summary(summary)
@@ -228,7 +229,7 @@ defmodule Archethic.DB.EmbeddedTest do
             end_of_node_synchronizations: []
           }
         },
-        availability_update: ~U[2020-09-01 00:15:00Z]
+        availability_adding_time: 900
       }
 
       :ok = EmbeddedImpl.write_beacon_summaries_aggregate(aggregate)
