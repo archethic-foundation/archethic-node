@@ -345,7 +345,8 @@ defmodule Archethic.SelfRepair.SyncTest do
                        timestamp: DateTime.utc_now(),
                        fee: 0
                      }
-                   ]
+                   ],
+                   availability_adding_time: 10
                  },
                  P2P.authorized_and_available_nodes()
                )

@@ -227,7 +227,7 @@ defmodule Archethic.SelfRepair.Sync do
           summary_time: summary_time,
           transaction_summaries: transaction_summaries,
           p2p_availabilities: p2p_availabilities,
-          availability_update: availability_update
+          availability_adding_time: availability_adding_time
         },
         download_nodes
       ) do
@@ -245,6 +245,8 @@ defmodule Archethic.SelfRepair.Sync do
       %{duration: System.monotonic_time() - start_time},
       %{nb_transactions: length(transactions_to_sync)}
     )
+
+    availability_update = DateTime.add(summary_time, availability_adding_time)
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
