@@ -5,7 +5,13 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   This will help the self-sepair to maintain an aggregated and ordered view of items to synchronize and to resolve
   """
 
-  defstruct [:summary_time, transaction_summaries: [], p2p_availabilities: %{}, version: 1]
+  defstruct [
+    :summary_time,
+    :availability_update,
+    version: 2,
+    transaction_summaries: [],
+    p2p_availabilities: %{}
+  ]
 
   alias Archethic.Crypto
 
@@ -20,6 +26,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           version: non_neg_integer(),
           summary_time: DateTime.t(),
           transaction_summaries: list(TransactionSummary.t()),
+          availability_update: DateTime.t(),
           p2p_availabilities: %{
             (subset :: binary()) => %{
               node_availabilities: bitstring(),
@@ -191,11 +198,12 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     ...>            211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>
     ...>       ]
     ...>     }
-    ...>   }
+    ...>   },
+    ...>   availability_update: ~U[2022-03-01 00:10:00Z]
     ...> } |> SummaryAggregate.serialize()
     <<
       # Version
-      1,
+      2,
       # Summary time
       98, 29, 98, 0,
       # Nb transaction summaries
@@ -225,7 +233,9 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       1, 1,
       # End of node synchronization
       0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 109, 252, 111, 87, 231, 170, 54,
-      211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242
+      211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242,
+      # Availability update date
+      98, 29, 100, 88
     >>
   """
   @spec serialize(t()) :: bitstring()
@@ -233,7 +243,8 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         version: version,
         summary_time: summary_time,
         transaction_summaries: transaction_summaries,
-        p2p_availabilities: p2p_availabilities
+        p2p_availabilities: p2p_availabilities,
+        availability_update: availability_update
       }) do
     nb_tx_summaries = Utils.VarInt.from_value(length(transaction_summaries))
 
@@ -268,7 +279,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
     <<version::8, DateTime.to_unix(summary_time)::32, nb_tx_summaries::binary,
       tx_summaries_bin::binary, map_size(p2p_availabilities)::8,
-      p2p_availabilities_bin::bitstring>>
+      p2p_availabilities_bin::bitstring, DateTime.to_unix(availability_update)::32>>
   end
 
   @doc """
@@ -276,11 +287,11 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   ## Examples
 
-  iex> SummaryAggregate.deserialize(<<1, 98, 29, 98, 0, 1, 1, 0, 0, 120, 123, 229, 13, 144, 130, 230, 
-  ...> 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69, 131, 97, 
-  ...> 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128, 1, 0, 1, 
-  ...> 0, 1, 3, 1::1, 0::1, 1::1, 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 
-  ...> 109, 252, 111, 87, 231, 170, 54, 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>)
+  iex> SummaryAggregate.deserialize(<<2, 98, 29, 98, 0, 1, 1, 0, 0, 120, 123, 229, 13, 144, 130, 230,
+  ...> 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69, 131, 97,
+  ...> 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128, 1, 0, 1,
+  ...> 0, 1, 3, 1::1, 0::1, 1::1, 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213,
+  ...> 109, 252, 111, 87, 231, 170, 54, 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242, 98, 29, 100, 88>>)
   {
     %SummaryAggregate{
       summary_time: ~U[2022-03-01 00:00:00Z],
@@ -302,8 +313,9 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
                211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>
           ]
         }
-      }
-    }, 
+      },
+      availability_update: ~U[2022-03-01 00:10:00Z]
+    },
     ""
   }
   """
@@ -321,7 +333,30 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         version: 1,
         summary_time: DateTime.from_unix!(timestamp),
         transaction_summaries: tx_summaries,
-        p2p_availabilities: p2p_availabilities
+        p2p_availabilities: p2p_availabilities,
+        availability_update: DateTime.from_unix!(timestamp)
+      },
+      rest
+    }
+  end
+
+  # TODO: remove version 2 before mainnet launch
+  def deserialize(<<2::8, timestamp::32, rest::bitstring>>) do
+    {nb_tx_summaries, rest} = Utils.VarInt.get_value(rest)
+
+    {tx_summaries, <<nb_p2p_availabilities::8, rest::bitstring>>} =
+      Utils.deserialize_transaction_summaries(rest, nb_tx_summaries, [])
+
+    {p2p_availabilities, <<availability_update::32, rest::bitstring>>} =
+      deserialize_p2p_availabilities(rest, nb_p2p_availabilities, %{})
+
+    {
+      %__MODULE__{
+        version: 2,
+        summary_time: DateTime.from_unix!(timestamp),
+        transaction_summaries: tx_summaries,
+        p2p_availabilities: p2p_availabilities,
+        availability_update: DateTime.from_unix!(availability_update)
       },
       rest
     }

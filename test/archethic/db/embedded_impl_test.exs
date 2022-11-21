@@ -227,7 +227,8 @@ defmodule Archethic.DB.EmbeddedTest do
             node_average_availabilities: [1.0],
             end_of_node_synchronizations: []
           }
-        }
+        },
+        availability_update: ~U[2020-09-01 00:15:00Z]
       }
 
       :ok = EmbeddedImpl.write_beacon_summaries_aggregate(aggregate)

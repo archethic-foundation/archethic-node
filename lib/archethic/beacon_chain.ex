@@ -37,6 +37,10 @@ defmodule Archethic.BeaconChain do
 
   require Logger
 
+  @availability_update_time :archethic
+                            |> Application.compile_env!(Archethic.SelfRepair.Scheduler)
+                            |> Keyword.fetch!(:availability_application)
+
   @doc """
   List of all transaction subsets (255 subsets for a byte capacity)
 
@@ -309,7 +313,12 @@ defmodule Archethic.BeaconChain do
     end)
     # We departition to build the final summarie aggregate
     |> Flow.departition(
-      fn -> %SummaryAggregate{summary_time: date} end,
+      fn ->
+        %SummaryAggregate{
+          summary_time: date,
+          availability_update: DateTime.add(date, @availability_update_time)
+        }
+      end,
       fn summaries, acc ->
         Enum.reduce(summaries, acc, &SummaryAggregate.add_summary(&2, &1))
       end,
