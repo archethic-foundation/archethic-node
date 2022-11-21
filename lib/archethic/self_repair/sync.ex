@@ -18,8 +18,6 @@ defmodule Archethic.SelfRepair.Sync do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message
 
-  alias Archethic.SelfRepair.Scheduler
-
   alias __MODULE__.TransactionHandler
 
   alias Archethic.TaskSupervisor
@@ -228,7 +226,8 @@ defmodule Archethic.SelfRepair.Sync do
         aggregate = %SummaryAggregate{
           summary_time: summary_time,
           transaction_summaries: transaction_summaries,
-          p2p_availabilities: p2p_availabilities
+          p2p_availabilities: p2p_availabilities,
+          availability_update: availability_update
         },
         download_nodes
       ) do
@@ -246,12 +245,6 @@ defmodule Archethic.SelfRepair.Sync do
       %{duration: System.monotonic_time() - start_time},
       %{nb_transactions: length(transactions_to_sync)}
     )
-
-    time_to_add =
-      Application.get_env(:archethic, Scheduler)
-      |> Keyword.fetch!(:availability_application)
-
-    availability_update = DateTime.add(summary_time, time_to_add)
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
