@@ -12,20 +12,14 @@ defmodule Archethic.DB.EmbeddedImpl.InputsReader do
   def get_inputs(ledger, address) do
     filename = InputsWriter.address_to_filename(ledger, address)
 
-    case File.open(filename, [:read, :binary]) do
+    case File.read(filename) do
       {:error, :enoent} ->
         []
 
-      {:ok, fd} ->
-        case IO.binread(fd, :eof) do
-          :eof ->
-            []
-
-          bin ->
-            bin
-            |> deserialize_inputs_file([])
-            |> Enum.reverse()
-        end
+      {:ok, bin} ->
+        bin
+        |> deserialize_inputs_file([])
+        |> Enum.reverse()
     end
   end
 
