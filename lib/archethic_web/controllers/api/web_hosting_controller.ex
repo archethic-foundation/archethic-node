@@ -128,7 +128,7 @@ defmodule ArchethicWeb.API.WebHostingController do
         Map.keys(json_content_subset)
         |> Enum.map(fn key ->
           case json_content_subset[key] do
-            %{"address" => _, "encodage" => _} ->
+            %{"address" => _} ->
               {:file, key}
 
             _ ->
@@ -245,7 +245,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   defp get_file(json_content, path), do: get_file(json_content, path, nil)
 
   # case when we're parsing a reference tx
-  defp get_file(file = %{"address" => _, "encodage" => _}, [], previous_path_item) do
+  defp get_file(file = %{"address" => _}, [], previous_path_item) do
     {:ok, file, MIME.from_path(previous_path_item)}
   end
 
