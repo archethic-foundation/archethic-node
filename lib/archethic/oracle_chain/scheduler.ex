@@ -297,7 +297,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
     new_oracle_data = get_new_oracle_data(summary_date, index)
 
-    authorized_nodes = P2P.authorized_and_available_nodes(summary_date)
+    authorized_nodes = P2P.authorized_and_available_nodes()
 
     storage_nodes =
       summary_date
@@ -360,7 +360,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
     tx_address = summary_date |> Crypto.derive_oracle_address(index + 1)
 
-    authorized_nodes = P2P.authorized_and_available_nodes(summary_date)
+    authorized_nodes = P2P.authorized_and_available_nodes()
     storage_nodes = tx_address |> Election.storage_nodes(authorized_nodes)
 
     watcher_pid =

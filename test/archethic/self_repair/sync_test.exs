@@ -181,7 +181,11 @@ defmodule Archethic.SelfRepair.SyncTest do
       }
 
       elected_storage_nodes =
-        Election.chain_storage_nodes_with_type(tx.address, :transfer, P2P.authorized_nodes())
+        Election.chain_storage_nodes_with_type(
+          tx.address,
+          :transfer,
+          P2P.authorized_and_available_nodes()
+        )
 
       welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
       storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)

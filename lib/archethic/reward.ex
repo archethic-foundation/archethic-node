@@ -123,7 +123,7 @@ defmodule Archethic.Reward do
     uco_amount = validation_nodes_reward()
 
     nodes =
-      P2P.authorized_and_available_nodes(DateTime.utc_now())
+      P2P.authorized_and_available_nodes()
       |> Enum.map(fn %Node{reward_address: reward_address} ->
         {reward_address, uco_amount}
       end)

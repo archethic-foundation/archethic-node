@@ -1465,7 +1465,12 @@ defmodule Archethic.P2P.Message do
 
   def process(
         %ReplicateTransactionChain{
-          transaction: tx = %Transaction{address: tx_address, type: tx_type},
+          transaction:
+            tx = %Transaction{
+              address: tx_address,
+              type: tx_type,
+              validation_stamp: %ValidationStamp{timestamp: timestamp}
+            },
           replying_node: replying_node_public_key
         },
         _
@@ -1480,7 +1485,7 @@ defmodule Archethic.P2P.Message do
         Election.chain_storage_nodes_with_type(
           tx_address,
           tx_type,
-          P2P.authorized_and_available_nodes()
+          P2P.authorized_and_available_nodes(timestamp)
         )
 
       # Replicate transaction chain only if the current node is one of the chain storage nodes
@@ -1508,7 +1513,7 @@ defmodule Archethic.P2P.Message do
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
         |> Enum.concat([LedgerOperations.burning_address()])
-        |> Election.io_storage_nodes(P2P.authorized_and_available_nodes())
+        |> Election.io_storage_nodes(P2P.authorized_and_available_nodes(validation_time))
       end
 
     # Replicate tx only if the current node is one of the I/O storage nodes
@@ -1743,7 +1748,7 @@ defmodule Archethic.P2P.Message do
 
   def process(%NewBeaconSlot{slot: slot = %Slot{subset: subset, slot_time: slot_time}}, _) do
     summary_time = BeaconChain.next_summary_date(slot_time)
-    node_list = P2P.authorized_nodes(summary_time)
+    node_list = P2P.authorized_and_available_nodes(summary_time)
 
     beacon_summary_nodes =
       Election.beacon_storage_nodes(
