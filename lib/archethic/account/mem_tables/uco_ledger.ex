@@ -162,14 +162,15 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   """
   @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_inputs(address) when is_binary(address) do
-    unspent_inputs =
-      @unspent_output_index_table
-      |> :ets.lookup(address)
-      |> Enum.reduce([], fn {_, from}, acc ->
-        [{_, amount, spent?, timestamp, reward?, protocol_version}] =
-          :ets.lookup(@ledger_table, {address, from})
+    case :ets.lookup(@unspent_output_index_table, address) do
+      [] ->
+        DB.get_inputs(:UCO, address)
 
-        [
+      inputs ->
+        Enum.map(inputs, fn {_, from} ->
+          [{_, amount, spent?, timestamp, reward?, protocol_version}] =
+            :ets.lookup(@ledger_table, {address, from})
+
           %VersionedTransactionInput{
             input: %TransactionInput{
               from: from,
@@ -181,17 +182,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
             },
             protocol_version: protocol_version
           }
-          | acc
-        ]
-      end)
-
-    # inputs are either all spent or all unspent at a given address
-    case unspent_inputs do
-      [] ->
-        DB.get_inputs(:UCO, address)
-
-      _ ->
-        unspent_inputs
+        end)
     end
   end
 end
