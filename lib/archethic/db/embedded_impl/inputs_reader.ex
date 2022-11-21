@@ -19,30 +19,16 @@ defmodule Archethic.DB.EmbeddedImpl.InputsReader do
       {:ok, bin} ->
         bin
         |> deserialize_inputs_file([])
-        |> Enum.reverse()
     end
   end
 
-  defp deserialize_inputs_file(<<>>, acc), do: acc
+  defp deserialize_inputs_file(<<>>, acc), do: Enum.reverse(acc)
 
   defp deserialize_inputs_file(bitstring, acc) do
     {input_bit_size, rest} = Utils.VarInt.get_value(bitstring)
+    <<input_bitstring::bitstring-size(input_bit_size), rest::bitstring>> = rest
 
-    # every serialization contains some padding to be a binary (multipe of 8bits)
-    {input_bitstring, rest} =
-      case rem(input_bit_size, 8) do
-        0 ->
-          <<input_bitstring::bitstring-size(input_bit_size), rest::bitstring>> = rest
-          {input_bitstring, rest}
-
-        remainder ->
-          <<input_bitstring::bitstring-size(input_bit_size),
-            _padding::bitstring-size(8 - remainder), rest::bitstring>> = rest
-
-          {input_bitstring, rest}
-      end
-
-    {input, <<>>} = VersionedTransactionInput.deserialize(input_bitstring)
+    {input, _padding} = VersionedTransactionInput.deserialize(input_bitstring)
     deserialize_inputs_file(rest, [input | acc])
   end
 end

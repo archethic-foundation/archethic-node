@@ -69,11 +69,9 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
   def handle_call({:append_input, input}, _from, state = %{fd: fd}) do
     # we need to pad the bitstring to be a binary
     # we also need to prefix with the number of bits to be able to ignore padding to deserialize
-    serialized_input = VersionedTransactionInput.serialize(input)
+    serialized_input = Utils.wrap_binary(VersionedTransactionInput.serialize(input))
     encoded_size = Utils.VarInt.from_value(bit_size(serialized_input))
-    wrapped_bin = Utils.wrap_binary(<<encoded_size::binary, serialized_input::bitstring>>)
-
-    IO.binwrite(fd, wrapped_bin)
+    IO.binwrite(fd, <<encoded_size::binary, serialized_input::binary>>)
     {:reply, :ok, state}
   end
 end
