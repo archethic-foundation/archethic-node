@@ -80,6 +80,10 @@ defmodule ArchethicCase do
     |> stub(:clear_beacon_summaries, fn -> :ok end)
     |> stub(:get_beacon_summary, fn _ -> {:error, :not_exists} end)
     |> stub(:get_last_chain_public_key, fn public_key, _ -> public_key end)
+    |> stub(:start_inputs_writer, fn _, _ -> {:ok, self()} end)
+    |> stub(:stop_inputs_writer, fn _ -> :ok end)
+    |> stub(:append_input, fn _, _ -> :ok end)
+    |> stub(:get_inputs, fn _, _ -> [] end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
