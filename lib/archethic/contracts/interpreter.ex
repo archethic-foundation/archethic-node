@@ -241,6 +241,9 @@ defmodule Archethic.Contracts.Interpreter do
     {{:error, :unexpected_token}, {{:atom, key}, _}} ->
       {:error, format_error_reason({[], "unexpected_token", key})}
 
+    {{:error, :unexpected_token}, {key, metadata, _}} ->
+      {:error, format_error_reason({metadata, "unexpected_token_after", key})}
+
     {:error, reason = {_metadata, _message, _cause}} ->
       {:error, format_error_reason(reason)}
   end
@@ -1171,7 +1174,7 @@ defmodule Archethic.Contracts.Interpreter do
       ...>                  [line: 3], [
       ...>                    {:&, [line: 3], [1]},
       ...>                    [
-      ...>                      {"to", "005220865F2237E3B62FFAA2AB72260A9FA711FBADF7F1DA391AB02B93D9E0D4A3"}, 
+      ...>                      {"to", "005220865F2237E3B62FFAA2AB72260A9FA711FBADF7F1DA391AB02B93D9E0D4A3"},
       ...>                      {"amount", 10.04}
       ...>                    ]
       ...>                  ]
