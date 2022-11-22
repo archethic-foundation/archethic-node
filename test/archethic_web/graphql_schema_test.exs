@@ -32,7 +32,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
-  alias alias Archethic.Mining
+  alias Archethic.Mining
 
   import Mox
   @transaction_chain_page_size 10
@@ -412,7 +412,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   end
 
   describe "query: version" do
-    test "should return the code, transaction and storage version", %{conn: conn} do
+    test "should return the code, transaction and protocol version", %{conn: conn} do
       conn =
         post(conn, "/api", %{
           "query" => "query { version { code, protocol, transaction } }"
