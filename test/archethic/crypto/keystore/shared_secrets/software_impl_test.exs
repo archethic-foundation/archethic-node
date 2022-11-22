@@ -141,7 +141,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
     assert pub == Keystore.network_pool_public_key(2)
   end
 
-  test ":archethic_shared_secrets_daily_keys should keep 2 most recent elements" do
+  test ":archethic_shared_secrets_daily_keys should keep only 2 most recent elements" do
     Keystore.start_link()
 
     timestamp_1 = ~U[2021-04-08 06:35:17Z]
