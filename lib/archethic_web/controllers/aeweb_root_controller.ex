@@ -15,7 +15,6 @@ defmodule ArchethicWeb.AEWebRootController do
         WebHostingController.send_response(conn, file_content, encodage, mime_type, cached?, etag)
 
       {:error, {:is_a_directory, transaction}} ->
-        # FIXME: DIR_LISTING is doing the same I/O as GET_WEBSITE so it's not efficient
         {:ok, listing_html, encodage, mime_type, cached?, etag} =
           WebHostingController.dir_listing(conn.request_path, params, transaction, cache_headers)
 
@@ -27,8 +26,11 @@ defmodule ArchethicWeb.AEWebRootController do
           [] ->
             send_resp(conn, 404, "Not Found")
 
+          ["index.html"] ->
+            send_resp(conn, 400, "Not Found")
+
           _path ->
-            params = Map.put(params, "url_path", [])
+            params = Map.put(params, "url_path", ["index.html"])
             index(conn, params)
         end
 

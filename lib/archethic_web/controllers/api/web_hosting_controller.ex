@@ -46,7 +46,6 @@ defmodule ArchethicWeb.API.WebHostingController do
         send_resp(conn, 400, "Invalid file encodage")
 
       {:error, {:is_a_directory, transaction}} ->
-        # FIXME: DIR_LISTING is doing the same I/O as GET_WEBSITE so it's not efficient
         {:ok, listing_html, encodage, mime_type, cached?, etag} =
           dir_listing(conn.request_path, params, transaction, get_cache_headers(conn))
 
@@ -263,19 +262,12 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   # case when we're on a directory
   defp get_file(json_content, [], _previous_path_item) when is_map(json_content) do
-    case Map.keys(json_content) do
-      [single_key] ->
-        # if there is a single file in a dir, we return it
-        {:ok, Map.get(json_content, single_key), MIME.from_path(single_key)}
+    case Map.get(json_content, "index.html") do
+      nil ->
+        {:error, :is_a_directory}
 
-      _ ->
-        case Map.get(json_content, "index.html") do
-          nil ->
-            {:error, :is_a_directory}
-
-          file ->
-            {:ok, file, "text/html"}
-        end
+      file ->
+        {:ok, file, "text/html"}
     end
   end
 
