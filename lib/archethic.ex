@@ -138,17 +138,28 @@ defmodule Archethic do
     |> get_balance(address)
   end
 
-  defp get_balance([node | rest], address) do
-    case P2P.send_message(node, %GetBalance{address: address}) do
-      {:ok, %Balance{uco: uco, token: token}} ->
-        {:ok, %{uco: uco, token: token}}
-
-      {:error, _} ->
-        get_balance(rest, address)
+  defp get_balance(nodes, address) do
+    case P2P.quorum_read(nodes, %GetBalance{address: address}, &balance_conflict_resolver/1) do
+      {:ok, %Balance{uco: uco, token: token}} -> {:ok, %{uco: uco, token: token}}
+      error -> error
     end
   end
 
-  defp get_balance([], _), do: {:error, :network_issue}
+  defp balance_conflict_resolver(balances) do
+    {max_uco, max_token} =
+      balances
+      |> Enum.reduce({0, %{}}, fn
+        %Balance{uco: uco, token: token}, {uco_acc, token_acc} ->
+          token_merger = fn _k, v1, v2 -> max(v1, v2) end
+
+          maximum_token = Map.merge(token, token_acc, token_merger)
+          maximum_uco = max(uco, uco_acc)
+
+          {maximum_uco, maximum_token}
+      end)
+
+    %{uco: max_uco, token: max_token}
+  end
 
   @doc """
   Request to fetch the inputs for a transaction address from the closest nodes
