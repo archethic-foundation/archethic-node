@@ -155,7 +155,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
     unix_timestamp_2 = DateTime.to_unix(timestamp_2)
     unix_timestamp_3 = DateTime.to_unix(timestamp_3)
 
-    assert [{unix_timestamp_2, _}, {unix_timestamp_3, _}] =
+    assert [{^unix_timestamp_2, _}, {^unix_timestamp_3, _}] =
              :ets.tab2list(:archethic_shared_secrets_daily_keys)
   end
 
