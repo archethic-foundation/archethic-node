@@ -131,32 +131,6 @@ defmodule ArchethicWeb.API.WebHostingController do
             subset
         end
 
-      files_and_dirs =
-        Map.keys(json_content_subset)
-        |> Enum.map(fn key ->
-          case json_content_subset[key] do
-            %{"address" => _} ->
-              {:file, key}
-
-            _ ->
-              {:dir, key}
-          end
-        end)
-        # sort directory last, then DESC order (because we create the binary by the front)
-        |> Enum.sort(fn
-          {:file, a}, {:file, b} ->
-            a > b
-
-          {:dir, a}, {:dir, b} ->
-            a > b
-
-          {:file, _}, {:dir, _} ->
-            true
-
-          {:dir, _}, {:file, _} ->
-            false
-        end)
-
       {current_working_dir, parent_dir_href} =
         case url_path do
           [] ->
@@ -170,26 +144,56 @@ defmodule ArchethicWeb.API.WebHostingController do
         end
 
       assigns =
-        files_and_dirs
+        Map.keys(json_content_subset)
+        |> Enum.map(fn key ->
+          case json_content_subset[key] do
+            %{"address" => address} ->
+              {:file, key, address}
+
+            _ ->
+              {:dir, key}
+          end
+        end)
+        # sort directory last, then DESC order (it will be accumulated in reverse order below)
+        |> Enum.sort(fn
+          {:file, a, _}, {:file, b, _} ->
+            a > b
+
+          {:dir, a}, {:dir, b} ->
+            a > b
+
+          {:file, _, _}, {:dir, _} ->
+            true
+
+          {:dir, _}, {:file, _, _} ->
+            false
+        end)
         |> Enum.reduce(%{dirs: [], files: []}, fn
-          {file_or_dir, name}, %{dirs: dirs_acc, files: files_acc} ->
+          {:file, name, addresses}, %{dirs: dirs_acc, files: files_acc} ->
+            item = %{
+              href: %{href: Path.join(request_path, name)},
+              last_modified: get_transaction_timestamp(transaction),
+              addresses: addresses,
+              name: name
+            }
+
+            %{dirs: dirs_acc, files: [item | files_acc]}
+
+          {:dir, name}, %{dirs: dirs_acc, files: files_acc} ->
             item = %{
               href: %{href: Path.join(request_path, name)},
               last_modified: get_transaction_timestamp(transaction),
               name: name
             }
 
-            case file_or_dir do
-              :file ->
-                %{dirs: dirs_acc, files: [item | files_acc]}
-
-              :dir ->
-                %{files: files_acc, dirs: [item | dirs_acc]}
-            end
+            %{files: files_acc, dirs: [item | dirs_acc]}
         end)
         |> Enum.into(%{
           cwd: current_working_dir,
-          parent_dir_href: parent_dir_href
+          parent_dir_href: parent_dir_href,
+          reference_transaction_href: %{
+            href: Path.join(["/", "explorer", "transaction", Base.encode16(transaction.address)])
+          }
         })
 
       {:ok, Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
