@@ -8,6 +8,7 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
   alias Archethic.Mining
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
   require Logger
 
   def start_link(address, max_retry, replaying_fn, timeout \\ @default_timeout) do

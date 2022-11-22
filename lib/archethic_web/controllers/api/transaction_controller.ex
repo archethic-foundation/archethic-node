@@ -18,7 +18,6 @@ defmodule ArchethicWeb.API.TransactionController do
     NotFound
   }
 
-  alias Archethic.P2P.Node
   alias Archethic.Election
 
   alias Archethic.Mining
@@ -43,13 +42,8 @@ defmodule ArchethicWeb.API.TransactionController do
         storage_nodes =
           Election.chain_storage_nodes(tx_address, P2P.authorized_and_available_nodes())
 
-        nodes =
-          storage_nodes
-          |> P2P.nearest_nodes()
-          |> Enum.filter(&Node.locally_available?/1)
-
         case P2P.quorum_read(
-               nodes,
+               storage_nodes,
                %GetTransactionSummary{address: tx_address}
              ) do
           {:ok, %TransactionSummary{address: ^tx_address}} ->
@@ -132,7 +126,9 @@ defmodule ArchethicWeb.API.TransactionController do
   def transaction_fee(conn, tx) do
     case TransactionPayload.changeset(tx) do
       changeset = %{valid?: true} ->
-        uco_price = OracleChain.get_uco_price(DateTime.utc_now())
+        timestamp = DateTime.utc_now()
+
+        uco_price = OracleChain.get_uco_price(timestamp)
         uco_eur = uco_price |> Keyword.fetch!(:eur)
         uco_usd = uco_price |> Keyword.fetch!(:usd)
 
@@ -140,7 +136,7 @@ defmodule ArchethicWeb.API.TransactionController do
           changeset
           |> TransactionPayload.to_map()
           |> Transaction.cast()
-          |> Mining.get_transaction_fee(uco_usd)
+          |> Mining.get_transaction_fee(uco_usd, timestamp)
 
         conn
         |> put_status(:ok)

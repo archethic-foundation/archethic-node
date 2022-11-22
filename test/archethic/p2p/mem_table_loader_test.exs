@@ -55,6 +55,14 @@ defmodule Archethic.P2P.MemTableLoaderTest do
 
   describe "start_link/1" do
     test "should fetch the all the node transactions and integrate them" do
+      MemTable.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        enrollment_date: DateTime.utc_now()
+      })
+
       node_tx = create_node_transaction()
 
       MockDB
@@ -65,8 +73,13 @@ defmodule Archethic.P2P.MemTableLoaderTest do
       |> expect(:get_first_public_key, fn pub -> pub end)
 
       assert {:ok, _} = MemTableLoader.start_link()
-      assert [@node_1_public_key] == MemTable.list_node_first_public_keys()
-      assert [%Node{ip: {127, 0, 0, 1}, port: 3003}] = MemTable.list_nodes()
+
+      assert [@node_1_public_key] ==
+               MemTable.list_node_first_public_keys()
+               |> Enum.filter(&(&1 == @node_1_public_key))
+
+      assert [%Node{ip: {127, 0, 0, 1}, port: 3003}] =
+               MemTable.list_nodes() |> Enum.filter(&(&1.first_public_key == @node_1_public_key))
     end
 
     test "should fetch all the node shared secret transactions and integrate them" do

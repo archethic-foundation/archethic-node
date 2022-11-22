@@ -2,6 +2,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.Summary
@@ -212,5 +213,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @spec base_beacon_aggregate_path(String.t()) :: String.t()
   def base_beacon_aggregate_path(db_path) do
     Path.join([db_path, "beacon_aggregate"])
+  end
+
+  @doc """
+  Return the migration file path
+  """
+  @spec migration_file_path(String.t()) :: String.t()
+  def migration_file_path(db_path) do
+    Path.join([db_path, "migration"])
   end
 end

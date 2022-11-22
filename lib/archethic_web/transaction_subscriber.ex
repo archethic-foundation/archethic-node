@@ -2,6 +2,7 @@ defmodule ArchethicWeb.TransactionSubscriber do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Absinthe.Subscription
 

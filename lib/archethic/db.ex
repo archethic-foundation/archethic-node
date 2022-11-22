@@ -9,6 +9,7 @@ defmodule Archethic.DB do
   alias __MODULE__.EmbeddedImpl
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   use Knigge, otp_app: :archethic, default: EmbeddedImpl
 
@@ -62,12 +63,7 @@ defmodule Archethic.DB do
 
   @callback transaction_exists?(binary()) :: boolean()
 
-  @callback register_p2p_summary(
-              node_public_key :: Crypto.key(),
-              date :: DateTime.t(),
-              available? :: boolean(),
-              average_availability :: float()
-            ) :: :ok
+  @callback register_p2p_summary(list({Crypto.key(), boolean(), float(), DateTime.t()})) :: :ok
 
   @callback get_last_p2p_summaries() :: %{
               (node_public_key :: Crypto.key()) =>
@@ -76,4 +72,11 @@ defmodule Archethic.DB do
 
   @callback get_bootstrap_info(key :: String.t()) :: String.t() | nil
   @callback set_bootstrap_info(key :: String.t(), value :: String.t()) :: :ok
+
+  @callback start_inputs_writer(ledger :: :UCO | :token, address :: binary()) :: {:ok, pid()}
+  @callback stop_inputs_writer(pid :: pid()) :: :ok
+  @callback append_input(pid :: pid(), VersionedTransactionInput.t()) ::
+              :ok
+  @callback get_inputs(ledger :: :UCO | :token, address :: binary()) ::
+              list(VersionedTransactionInput.t())
 end

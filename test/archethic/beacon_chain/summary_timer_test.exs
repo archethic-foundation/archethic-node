@@ -46,7 +46,7 @@ defmodule Archethic.BeaconChain.SummaryTimerTest do
 
   property "next_summaries/1 should retrieve the next summary times from a date" do
     {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
-    ref = DateTime.utc_now() |> DateTime.truncate(:second)
+    ref = DateTime.utc_now()
 
     check all(previous_seconds <- StreamData.positive_integer()) do
       next_summaries = SummaryTimer.next_summaries(DateTime.add(ref, -previous_seconds), ref)

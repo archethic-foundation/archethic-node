@@ -36,7 +36,8 @@ defmodule Archethic.P2P.Node do
     authorization_date: nil,
     transport: :tcp,
     origin_public_key: nil,
-    last_update_date: ~U[2019-07-14 00:00:00Z]
+    last_update_date: ~U[2019-07-14 00:00:00Z],
+    availability_update: ~U[2008-10-31 00:00:00Z]
   ]
 
   @doc """
@@ -182,7 +183,8 @@ defmodule Archethic.P2P.Node do
           enrollment_date: nil | DateTime.t(),
           authorization_date: nil | DateTime.t(),
           transport: P2P.supported_transport(),
-          last_update_date: DateTime.t()
+          last_update_date: DateTime.t(),
+          availability_update: DateTime.t()
         }
 
   @doc """
@@ -192,7 +194,8 @@ defmodule Archethic.P2P.Node do
   def cast(
         {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
          average_availability, availability_history, enrollment_date, transport, reward_address,
-         last_address, origin_public_key, synced?, last_update_date}
+         last_address, origin_public_key, synced?, last_update_date, available?,
+         availability_update}
       ) do
     %__MODULE__{
       ip: ip,
@@ -210,7 +213,9 @@ defmodule Archethic.P2P.Node do
       reward_address: reward_address,
       last_address: last_address,
       origin_public_key: origin_public_key,
-      last_update_date: last_update_date
+      last_update_date: last_update_date,
+      available?: available?,
+      availability_update: availability_update
     }
   end
 
@@ -231,20 +236,6 @@ defmodule Archethic.P2P.Node do
   @spec locally_available?(t()) :: boolean()
   def locally_available?(%__MODULE__{availability_history: <<1::1, _::bitstring>>}), do: true
   def locally_available?(%__MODULE__{availability_history: <<0::1, _::bitstring>>}), do: false
-
-  @doc """
-  Determine if the node is globally available
-  """
-  @spec globally_available?(__MODULE__.t()) :: boolean()
-  def globally_available?(%__MODULE__{available?: true}), do: true
-  def globally_available?(%__MODULE__{available?: _}), do: false
-
-  @doc """
-  Determine if the node is synced
-  """
-  @spec synced?(__MODULE__.t()) :: boolean()
-  def synced?(%__MODULE__{synced?: true}), do: true
-  def synced?(%__MODULE__{synced?: _}), do: false
 
   @doc """
   Mark the node as authorized by including the authorization date
@@ -276,38 +267,6 @@ defmodule Archethic.P2P.Node do
   @spec remove_authorization(__MODULE__.t()) :: __MODULE__.t()
   def remove_authorization(node = %__MODULE__{}) do
     %{node | authorized?: false, authorization_date: nil}
-  end
-
-  @doc """
-  Mark the node as globally available
-  """
-  @spec available(__MODULE__.t()) :: __MODULE__.t()
-  def available(node = %__MODULE__{}) do
-    %{node | available?: true}
-  end
-
-  @doc """
-  Mark the node as globally unavailable
-  """
-  @spec unavailable(__MODULE__.t()) :: __MODULE__.t()
-  def unavailable(node = %__MODULE__{}) do
-    %{node | available?: false}
-  end
-
-  @doc """
-  Mark the node as sync
-  """
-  @spec synced(__MODULE__.t()) :: __MODULE__.t()
-  def synced(node = %__MODULE__{}) do
-    %{node | synced?: true}
-  end
-
-  @doc """
-  Mark the node as unsync
-  """
-  @spec unsynced(__MODULE__.t()) :: __MODULE__.t()
-  def unsynced(node = %__MODULE__{}) do
-    %{node | synced?: false}
   end
 
   @doc """
@@ -375,6 +334,7 @@ defmodule Archethic.P2P.Node do
       ...>   enrollment_date: ~U[2020-06-26 08:36:11Z],
       ...>   authorization_date: ~U[2020-06-26 08:36:11Z],
       ...>   last_update_date: ~U[2020-06-26 08:36:11Z],
+      ...>   availability_update: ~U[2020-06-26 08:36:11Z],
       ...>   authorized?: true,
       ...>   reward_address: <<0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>    87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -424,6 +384,8 @@ defmodule Archethic.P2P.Node do
       0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
       210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169,
       # Last update date
+      94, 245, 179, 123,
+      # Availability update
       94, 245, 179, 123
       >>
   """
@@ -446,7 +408,8 @@ defmodule Archethic.P2P.Node do
         reward_address: reward_address,
         last_address: last_address,
         origin_public_key: origin_public_key,
-        last_update_date: last_update_date
+        last_update_date: last_update_date,
+        availability_update: availability_update
       }) do
     ip_bin = <<o1, o2, o3, o4>>
     available_bin = if available?, do: 1, else: 0
@@ -463,7 +426,7 @@ defmodule Archethic.P2P.Node do
       DateTime.to_unix(enrollment_date)::32, available_bin::1, synced_bin::1, authorized_bin::1,
       authorization_date::32, first_public_key::binary, last_public_key::binary,
       reward_address::binary, last_address::binary, origin_public_key::binary,
-      DateTime.to_unix(last_update_date)::32>>
+      DateTime.to_unix(last_update_date)::32, DateTime.to_unix(availability_update)::32>>
   end
 
   defp serialize_transport(MockTransport), do: 0
@@ -488,7 +451,7 @@ defmodule Archethic.P2P.Node do
       ...> 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112,
       ...> 0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
       ...> 210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169,
-      ...> 94, 245, 179, 123 >>)
+      ...> 94, 245, 179, 123, 94, 245, 179, 123 >>)
       {
         %Node{
             first_public_key: <<0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
@@ -507,6 +470,7 @@ defmodule Archethic.P2P.Node do
             enrollment_date: ~U[2020-06-26 08:36:11Z],
             authorization_date: ~U[2020-06-26 08:36:11Z],
             last_update_date: ~U[2020-06-26 08:36:11Z],
+            availability_update: ~U[2020-06-26 08:36:11Z],
             authorized?: true,
             reward_address: <<0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
               87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -538,7 +502,7 @@ defmodule Archethic.P2P.Node do
     {reward_address, rest} = Utils.deserialize_address(rest)
     {last_address, rest} = Utils.deserialize_address(rest)
 
-    {origin_public_key, <<last_update_date::32, rest::bitstring>>} =
+    {origin_public_key, <<last_update_date::32, availability_update::32, rest::bitstring>>} =
       Utils.deserialize_public_key(rest)
 
     {
@@ -560,7 +524,8 @@ defmodule Archethic.P2P.Node do
         reward_address: reward_address,
         last_address: last_address,
         origin_public_key: origin_public_key,
-        last_update_date: DateTime.from_unix!(last_update_date)
+        last_update_date: DateTime.from_unix!(last_update_date),
+        availability_update: DateTime.from_unix!(availability_update)
       },
       rest
     }

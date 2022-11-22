@@ -4,6 +4,7 @@ defmodule ArchethicWeb.TransactionCache do
   @default_time 5 * 60 * 1000
   @moduledoc false
   use GenServer
+  @vsn Mix.Project.config()[:version]
   require Logger
 
   def start_link(opts) do

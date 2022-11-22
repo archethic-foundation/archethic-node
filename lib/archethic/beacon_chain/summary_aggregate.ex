@@ -5,7 +5,13 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   This will help the self-sepair to maintain an aggregated and ordered view of items to synchronize and to resolve
   """
 
-  defstruct [:summary_time, transaction_summaries: [], p2p_availabilities: %{}, version: 1]
+  defstruct [
+    :summary_time,
+    availability_adding_time: [],
+    version: 2,
+    transaction_summaries: [],
+    p2p_availabilities: %{}
+  ]
 
   alias Archethic.Crypto
 
@@ -21,6 +27,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           # truncate to seconds
           summary_time: DateTime.t(),
           transaction_summaries: list(TransactionSummary.t()),
+          availability_adding_time: non_neg_integer() | list(non_neg_integer()),
           p2p_availabilities: %{
             (subset :: binary()) => %{
               node_availabilities: bitstring(),
@@ -41,14 +48,15 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           transaction_attestations: transaction_attestations,
           node_availabilities: node_availabilities,
           node_average_availabilities: node_average_availabilities,
-          end_of_node_synchronizations: end_of_node_synchronizations
+          end_of_node_synchronizations: end_of_node_synchronizations,
+          availability_adding_time: availability_adding_time
         },
         check_attestation? \\ true
       ) do
     valid_attestations? =
       if check_attestation? do
         Enum.all?(transaction_attestations, fn attestation ->
-          ReplicationAttestation.validate(attestation) == :ok
+          ReplicationAttestation.validate(attestation, false) == :ok
         end)
       else
         true
@@ -66,6 +74,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
             |> Enum.uniq_by(& &1.address)
           end
         )
+        |> Map.update!(:availability_adding_time, &[availability_adding_time | &1])
 
       if bit_size(node_availabilities) > 0 or length(node_average_availabilities) > 0 or
            length(end_of_node_synchronizations) > 0 do
@@ -114,6 +123,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       |> Enum.uniq_by(& &1.address)
       |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
     end)
+    |> Map.update!(:availability_adding_time, &(Utils.median(&1) |> trunc()))
     |> Map.update!(:p2p_availabilities, fn availabilities_by_subject ->
       availabilities_by_subject
       |> Enum.map(fn {subset, data} ->
@@ -192,11 +202,12 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     ...>            211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>
     ...>       ]
     ...>     }
-    ...>   }
+    ...>   },
+    ...>   availability_adding_time: 900
     ...> } |> SummaryAggregate.serialize()
     <<
       # Version
-      1,
+      2,
       # Summary time
       98, 29, 98, 0,
       # Nb transaction summaries
@@ -226,7 +237,9 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       1, 1,
       # End of node synchronization
       0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 109, 252, 111, 87, 231, 170, 54,
-      211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242
+      211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242,
+      # Availability adding time
+      3, 132
     >>
   """
   @spec serialize(t()) :: bitstring()
@@ -234,7 +247,8 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         version: version,
         summary_time: summary_time,
         transaction_summaries: transaction_summaries,
-        p2p_availabilities: p2p_availabilities
+        p2p_availabilities: p2p_availabilities,
+        availability_adding_time: availability_adding_time
       }) do
     nb_tx_summaries = Utils.VarInt.from_value(length(transaction_summaries))
 
@@ -269,7 +283,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
     <<version::8, DateTime.to_unix(summary_time)::32, nb_tx_summaries::binary,
       tx_summaries_bin::binary, map_size(p2p_availabilities)::8,
-      p2p_availabilities_bin::bitstring>>
+      p2p_availabilities_bin::bitstring, availability_adding_time::16>>
   end
 
   @doc """
@@ -322,7 +336,30 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         version: 1,
         summary_time: DateTime.from_unix!(timestamp),
         transaction_summaries: tx_summaries,
-        p2p_availabilities: p2p_availabilities
+        p2p_availabilities: p2p_availabilities,
+        availability_adding_time: 0
+      },
+      rest
+    }
+  end
+
+  # TODO: remove version 2 before mainnet launch
+  def deserialize(<<2::8, timestamp::32, rest::bitstring>>) do
+    {nb_tx_summaries, rest} = Utils.VarInt.get_value(rest)
+
+    {tx_summaries, <<nb_p2p_availabilities::8, rest::bitstring>>} =
+      Utils.deserialize_transaction_summaries(rest, nb_tx_summaries, [])
+
+    {p2p_availabilities, <<availability_adding_time::16, rest::bitstring>>} =
+      deserialize_p2p_availabilities(rest, nb_p2p_availabilities, %{})
+
+    {
+      %__MODULE__{
+        version: 2,
+        summary_time: DateTime.from_unix!(timestamp),
+        transaction_summaries: tx_summaries,
+        p2p_availabilities: p2p_availabilities,
+        availability_adding_time: availability_adding_time
       },
       rest
     }

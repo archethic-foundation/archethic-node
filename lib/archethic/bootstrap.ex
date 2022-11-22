@@ -178,7 +178,7 @@ defmodule Archethic.Bootstrap do
           reward_address
         )
 
-        post_bootstrap(patch: network_patch, sync?: true)
+        post_bootstrap(sync?: true)
       else
         if Sync.require_update?(ip, port, http_port, transport, last_sync_date) do
           Logger.info("Update node chain...")
@@ -193,9 +193,9 @@ defmodule Archethic.Bootstrap do
             reward_address
           )
 
-          post_bootstrap(patch: network_patch, sync?: true)
+          post_bootstrap(sync?: true)
         else
-          post_bootstrap(patch: network_patch, sync?: false)
+          post_bootstrap(sync?: false)
         end
       end
     end
@@ -203,10 +203,8 @@ defmodule Archethic.Bootstrap do
 
   defp post_bootstrap(opts) do
     if Keyword.get(opts, :sync?, true) do
-      patch = Keyword.fetch!(opts, :patch)
-
       Logger.info("Synchronization started")
-      :ok = SelfRepair.bootstrap_sync(SelfRepair.last_sync_date(), patch)
+      :ok = SelfRepair.bootstrap_sync(SelfRepair.last_sync_date())
       Logger.info("Synchronization finished")
     end
 
@@ -224,7 +222,7 @@ defmodule Archethic.Bootstrap do
   def resync_network_chain() do
     Logger.info("Enforced Resync: Started!")
 
-    if P2P.authorized_node?() && P2P.available_node?() do
+    if P2P.authorized_and_available_node?() do
       # evict this node
       nodes =
         Enum.reject(

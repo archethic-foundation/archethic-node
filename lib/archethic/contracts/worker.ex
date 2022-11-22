@@ -37,6 +37,7 @@ defmodule Archethic.Contracts.Worker do
   require Logger
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   def start_link(contract = %Contract{constants: %Constants{contract: constants}}) do
     GenServer.start_link(__MODULE__, contract, name: via_tuple(Map.get(constants, "address")))
@@ -442,15 +443,18 @@ defmodule Archethic.Contracts.Worker do
 
     %{uco: uco_balance, token: token_balances} = Account.get_balance(contract_address)
 
+    timestamp = DateTime.utc_now()
+
     uco_usd_price =
-      DateTime.utc_now()
+      timestamp
       |> OracleChain.get_uco_price()
       |> Keyword.get(:usd)
 
     tx_fee =
       Mining.get_transaction_fee(
         next_transaction,
-        uco_usd_price
+        uco_usd_price,
+        timestamp
       )
 
     with true <- uco_balance > uco_to_transfer + tx_fee,

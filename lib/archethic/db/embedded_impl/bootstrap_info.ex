@@ -2,6 +2,7 @@ defmodule Archethic.DB.EmbeddedImpl.BootstrapInfo do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)

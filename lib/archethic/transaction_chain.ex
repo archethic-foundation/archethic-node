@@ -51,7 +51,7 @@ defmodule Archethic.TransactionChain do
   require Logger
 
   @doc """
-  List all the transaction chain stored
+  List all the transaction chain stored. Chronological order within a transaction chain
   """
   @spec list_all(fields :: list()) :: Enumerable.t()
   defdelegate list_all(fields \\ []), to: DB, as: :list_transactions
@@ -554,11 +554,7 @@ defmodule Archethic.TransactionChain do
   @spec resolve_last_address(binary(), DateTime.t()) :: {:ok, binary()} | {:error, :network_issue}
   def resolve_last_address(address, timestamp = %DateTime{} \\ DateTime.utc_now())
       when is_binary(address) do
-    nodes =
-      address
-      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-      |> P2P.nearest_nodes()
-      |> Enum.filter(&Node.locally_available?/1)
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case fetch_last_address_remotely(address, nodes, timestamp) do
       {:ok, last_address} ->
@@ -930,11 +926,7 @@ defmodule Archethic.TransactionChain do
   @spec fetch_genesis_address_remotely(address :: binary()) ::
           {:ok, binary()} | {:error, :network_issue}
   def fetch_genesis_address_remotely(address) when is_binary(address) do
-    nodes =
-      address
-      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-      |> P2P.nearest_nodes()
-      |> Enum.filter(&Node.locally_available?/1)
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case P2P.quorum_read(nodes, %GetFirstAddress{address: address}) do
       {:ok, %FirstAddress{address: genesis_address}} ->

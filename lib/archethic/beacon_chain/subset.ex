@@ -33,6 +33,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.Utils
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 
@@ -139,13 +140,16 @@ defmodule Archethic.BeaconChain.Subset do
       ) do
     nodes_availability_times =
       P2PSampling.list_nodes_to_sample(subset)
-      |> Task.async_stream(fn node ->
-        if node.first_public_key == Crypto.first_node_public_key() do
-          SlotTimer.get_time_interval()
-        else
-          Client.get_availability_timer(node.first_public_key, true)
-        end
-      end)
+      |> Task.async_stream(
+        fn node ->
+          if node.first_public_key == Crypto.first_node_public_key() do
+            SlotTimer.get_time_interval()
+          else
+            Client.get_availability_timer(node.first_public_key, true)
+          end
+        end,
+        on_timeout: :kill_task
+      )
       |> Enum.map(fn
         {:ok, res} -> res
         _ -> 0
@@ -253,7 +257,7 @@ defmodule Archethic.BeaconChain.Subset do
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(address),
         BeaconChain.next_slot(timestamp),
-        P2P.authorized_nodes(timestamp)
+        P2P.authorized_and_available_nodes(timestamp)
       )
       |> Enum.map(& &1.first_public_key)
 
@@ -319,8 +323,15 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp broadcast_beacon_slot(subset, next_time, slot) do
+    # Remove the newly authorized nodes at this specific time
+    nodes =
+      case P2P.authorized_and_available_nodes(next_time) do
+        [node] -> [node]
+        nodes -> Enum.filter(nodes, &(DateTime.compare(&1.authorization_date, next_time) == :lt))
+      end
+
     subset
-    |> Election.beacon_storage_nodes(next_time, P2P.authorized_and_available_nodes())
+    |> Election.beacon_storage_nodes(next_time, nodes)
     |> P2P.broadcast_message(%NewBeaconSlot{slot: slot})
   end
 
@@ -356,7 +367,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp beacon_summary_node?(subset, summary_time, node_public_key) do
-    node_list = P2P.authorized_nodes(summary_time)
+    node_list = P2P.authorized_and_available_nodes(summary_time)
 
     Election.beacon_storage_nodes(
       subset,

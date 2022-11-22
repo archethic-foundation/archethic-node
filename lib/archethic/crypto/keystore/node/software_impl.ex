@@ -14,6 +14,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @behaviour NodeKeystore
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

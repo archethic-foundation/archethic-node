@@ -12,6 +12,7 @@ defmodule Archethic.P2P.Client.Connection do
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
+  @vsn Mix.Project.config()[:version]
 
   @doc """
   Starts a new connection
@@ -442,4 +443,6 @@ defmodule Archethic.P2P.Client.Connection do
         end
     end
   end
+
+  def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 end

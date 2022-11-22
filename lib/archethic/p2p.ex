@@ -80,14 +80,22 @@ defmodule Archethic.P2P do
   @doc """
   Add a node first public key to the list of nodes globally available.
   """
-  @spec set_node_globally_available(first_public_key :: Crypto.key()) :: :ok
-  defdelegate set_node_globally_available(first_public_key), to: MemTable, as: :set_node_available
+  @spec set_node_globally_available(
+          first_public_key :: Crypto.key(),
+          availability_update :: DateTime.t()
+        ) :: :ok
+  defdelegate set_node_globally_available(first_public_key, availability_update),
+    to: MemTable,
+    as: :set_node_available
 
   @doc """
   Remove a node first public key to the list of nodes globally available.
   """
-  @spec set_node_globally_unavailable(first_public_key :: Crypto.key()) :: :ok
-  defdelegate set_node_globally_unavailable(first_public_key),
+  @spec set_node_globally_unavailable(
+          first_public_key :: Crypto.key(),
+          availability_update :: DateTime.t()
+        ) :: :ok
+  defdelegate set_node_globally_unavailable(first_public_key, availability_update),
     to: MemTable,
     as: :set_node_unavailable
 
@@ -149,31 +157,64 @@ defmodule Archethic.P2P do
   end
 
   @doc """
-  List all the authorized nodes
+  Determine if the node public key is authorized and available
   """
-  @spec authorized_nodes() :: list(Node.t())
-  def authorized_nodes do
-    MemTable.authorized_nodes()
+  @spec authorized_and_available_node?(Crypto.key()) :: boolean()
+  def authorized_and_available_node?(node_public_key \\ Crypto.first_node_public_key()) do
+    Utils.key_in_node_list?(authorized_and_available_nodes(), node_public_key)
   end
 
   @doc """
   List the authorized nodes for the given datetime (default to now)
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
-  def authorized_nodes(date = %DateTime{}) do
-    Enum.filter(authorized_nodes(), fn %Node{
-                                         authorization_date: authorization_date
-                                       } ->
-      DateTime.diff(authorization_date, DateTime.truncate(date, :second)) < 0
-    end)
+  def authorized_nodes(date \\ DateTime.utc_now()) do
+    nodes =
+      MemTable.authorized_nodes()
+      |> Enum.filter(fn %Node{authorization_date: authorization_date} ->
+        DateTime.compare(authorization_date, date) != :gt
+      end)
+
+    case nodes do
+      [] ->
+        # Only happen during bootstrap
+        get_first_enrolled_node()
+
+      nodes ->
+        nodes
+    end
   end
 
   @doc """
   List the authorized and available nodes
   """
-  @spec authorized_and_available_nodes() :: list(Node.t())
-  def authorized_and_available_nodes() do
-    Enum.filter(authorized_nodes(), & &1.available?)
+  @spec authorized_and_available_nodes(DateTime.t()) :: list(Node.t())
+  def authorized_and_available_nodes(date \\ DateTime.utc_now()) do
+    nodes =
+      authorized_nodes(date)
+      |> Enum.filter(fn
+        %Node{available?: true, availability_update: availability_update} ->
+          DateTime.compare(date, availability_update) != :lt
+
+        %Node{available?: false, availability_update: availability_update} ->
+          DateTime.compare(date, availability_update) == :lt
+      end)
+
+    case nodes do
+      [] ->
+        # Only happen for init transactions so we take the first enrolled node
+        get_first_enrolled_node()
+
+      nodes ->
+        nodes
+    end
+  end
+
+  defp get_first_enrolled_node() do
+    list_nodes()
+    |> Enum.reject(&(&1.enrollment_date == nil))
+    |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime})
+    |> Enum.take(1)
   end
 
   @doc """
@@ -573,7 +614,11 @@ defmodule Archethic.P2P do
       )
 
   def quorum_read(nodes, message, conflict_resolver, timeout, consistency_level) do
-    do_quorum_read(nodes, message, conflict_resolver, timeout, consistency_level, nil)
+    nodes
+    |> Enum.filter(&Node.locally_available?/1)
+    |> nearest_nodes()
+    |> unprioritize_node(Crypto.first_node_public_key())
+    |> do_quorum_read(message, conflict_resolver, timeout, consistency_level, nil)
   end
 
   defp do_quorum_read([], _, _, _, _, nil), do: {:error, :network_issue}

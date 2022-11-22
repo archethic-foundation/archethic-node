@@ -181,7 +181,11 @@ defmodule Archethic.SelfRepair.SyncTest do
       }
 
       elected_storage_nodes =
-        Election.chain_storage_nodes_with_type(tx.address, :transfer, P2P.authorized_nodes())
+        Election.chain_storage_nodes_with_type(
+          tx.address,
+          :transfer,
+          P2P.authorized_and_available_nodes()
+        )
 
       welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
       storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
@@ -263,11 +267,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       MockDB
       |> stub(:register_stats, fn _, _, _, _ -> :ok end)
 
-      assert :ok =
-               Sync.load_missed_transactions(
-                 DateTime.utc_now() |> DateTime.add(-86_400),
-                 "AAA"
-               )
+      assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-86_400))
 
       assert_received :storage
     end
@@ -349,9 +349,10 @@ defmodule Archethic.SelfRepair.SyncTest do
                        timestamp: DateTime.utc_now(),
                        fee: 0
                      }
-                   ]
+                   ],
+                   availability_adding_time: 10
                  },
-                 "AAA"
+                 P2P.authorized_and_available_nodes()
                )
 
       assert_received :transaction_stored

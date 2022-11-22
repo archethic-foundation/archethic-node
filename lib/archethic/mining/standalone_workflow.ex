@@ -6,6 +6,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   The single node will auto validate the transaction
   """
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
@@ -20,6 +21,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.Mining.WorkflowRegistry
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ValidationError
@@ -53,7 +55,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
     current_node = P2P.get_node_info()
 
-    authorized_nodes = P2P.authorized_nodes(validation_time)
+    authorized_nodes = [current_node]
 
     chain_storage_nodes =
       Election.chain_storage_nodes_with_type(
@@ -277,6 +279,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp notify(%{context: context}) do
     notify_attestation(context)
     notify_io_nodes(context)
+    notify_previous_chain(context)
   end
 
   defp notify_attestation(
@@ -325,5 +328,17 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         },
         else: %ReplicateTransaction{transaction: validated_tx}
     )
+  end
+
+  defp notify_previous_chain(
+         context = %ValidationContext{
+           transaction: tx
+         }
+       ) do
+    unless Transaction.network_type?(tx.type) do
+      context
+      |> ValidationContext.get_confirmed_replication_nodes()
+      |> P2P.broadcast_message(%NotifyPreviousChain{address: tx.address})
+    end
   end
 end

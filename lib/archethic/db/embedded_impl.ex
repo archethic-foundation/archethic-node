@@ -13,10 +13,13 @@ defmodule Archethic.DB.EmbeddedImpl do
   alias __MODULE__.ChainIndex
   alias __MODULE__.ChainReader
   alias __MODULE__.ChainWriter
+  alias __MODULE__.InputsReader
+  alias __MODULE__.InputsWriter
   alias __MODULE__.P2PView
   alias __MODULE__.StatsInfo
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   alias Archethic.Utils
 
@@ -279,12 +282,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec list_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_transactions(fields \\ []) when is_list(fields) do
-    db_path()
-    |> ChainIndex.list_all_addresses()
-    |> Stream.map(fn address ->
-      {:ok, tx} = get_transaction(address, fields)
-      tx
-    end)
+    ChainIndex.list_genesis_addresses()
+    |> Stream.flat_map(&ChainReader.stream_scan_chain(&1, nil, fields, db_path()))
   end
 
   @doc """
@@ -337,15 +336,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Return the last node views from the last self-repair cycle
   """
-  @spec register_p2p_summary(
-          Crypto.key(),
-          DateTime.t(),
-          available? :: boolean(),
-          avg_availability :: float()
-        ) :: :ok
-  defdelegate register_p2p_summary(node_public_key, date, available?, avg_availability),
-    to: P2PView,
-    as: :add_node_view
+  @spec register_p2p_summary(list()) :: :ok
+  defdelegate register_p2p_summary(nodes_view), to: P2PView, as: :set_node_view
 
   @doc """
   Register a new node view from the last self-repair cycle
@@ -366,4 +358,30 @@ defmodule Archethic.DB.EmbeddedImpl do
   def scan_chain(genesis_address, limit_address, fields \\ [], paging_state \\ nil) do
     ChainReader.scan_chain(genesis_address, limit_address, fields, paging_state, db_path())
   end
+
+  @doc """
+  Start a process responsible to write the inputs
+  """
+  @spec start_inputs_writer(ledger :: :UCO | :token, address :: binary()) :: {:ok, pid()}
+  defdelegate start_inputs_writer(ledger, address), to: InputsWriter, as: :start_link
+
+  @doc """
+  Stop the process responsible to write the inputs
+  """
+  @spec stop_inputs_writer(pid :: pid()) :: :ok
+  defdelegate stop_inputs_writer(pid), to: InputsWriter, as: :stop
+
+  @doc """
+  Appends one input to existing inputs
+  """
+  @spec append_input(pid :: pid(), VersionedTransactionInput.t()) ::
+          :ok
+  defdelegate append_input(pid, input), to: InputsWriter, as: :append_input
+
+  @doc """
+  Read the list of inputs available at address
+  """
+  @spec get_inputs(ledger :: :UCO | :token, address :: binary()) ::
+          list(VersionedTransactionInput.t())
+  defdelegate get_inputs(ledger, address), to: InputsReader, as: :get_inputs
 end

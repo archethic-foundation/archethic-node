@@ -6,6 +6,7 @@ defmodule Archethic.Metrics.Poller do
   require Logger
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Metrics.Collector
 

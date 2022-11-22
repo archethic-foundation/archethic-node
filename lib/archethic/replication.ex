@@ -61,7 +61,8 @@ defmodule Archethic.Replication do
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        self_repair? \\ false
+        self_repair? \\ false,
+        download_nodes \\ P2P.authorized_and_available_nodes()
       ) do
     if TransactionChain.transaction_exists?(address) do
       Logger.warning("Transaction already exists",
@@ -83,7 +84,7 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {previous_tx, inputs} = fetch_context(tx, self_repair?)
+      {previous_tx, inputs} = fetch_context(tx, self_repair?, download_nodes)
 
       # Validate the transaction and check integrity from the previous transaction
       case TransactionValidator.validate(
@@ -103,7 +104,7 @@ defmodule Archethic.Replication do
 
           # Stream the insertion of the chain
           tx
-          |> stream_previous_chain()
+          |> stream_previous_chain(download_nodes)
           |> Stream.reject(&Enum.empty?/1)
           |> Stream.each(&TransactionChain.write/1)
           |> Stream.run()
@@ -207,15 +208,15 @@ defmodule Archethic.Replication do
     end
   end
 
-  defp fetch_context(tx = %Transaction{type: type}, self_repair?) do
+  defp fetch_context(tx = %Transaction{type: type}, self_repair?, download_nodes) do
     if Transaction.network_type?(type) do
-      fetch_context_for_network_transaction(tx, self_repair?)
+      fetch_context_for_network_transaction(tx, self_repair?, download_nodes)
     else
-      fetch_context_for_regular_transaction(tx, self_repair?)
+      fetch_context_for_regular_transaction(tx, self_repair?, download_nodes)
     end
   end
 
-  defp fetch_context_for_network_transaction(tx = %Transaction{}, self_repair?) do
+  defp fetch_context_for_network_transaction(tx = %Transaction{}, self_repair?, download_nodes) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -238,7 +239,7 @@ defmodule Archethic.Replication do
             transaction_type: tx.type
           )
 
-          TransactionContext.fetch_transaction(previous_address)
+          TransactionContext.fetch_transaction(previous_address, download_nodes)
       end
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
@@ -246,12 +247,12 @@ defmodule Archethic.Replication do
       transaction_type: tx.type
     )
 
-    inputs = if self_repair?, do: [], else: fetch_inputs(tx)
+    inputs = if self_repair?, do: [], else: fetch_inputs(tx, download_nodes)
 
     {previous_transaction, inputs}
   end
 
-  defp fetch_context_for_regular_transaction(tx = %Transaction{}, self_repair?) do
+  defp fetch_context_for_regular_transaction(tx = %Transaction{}, self_repair?, download_nodes) do
     previous_address = Transaction.previous_address(tx)
 
     t1 =
@@ -262,14 +263,14 @@ defmodule Archethic.Replication do
           transaction_type: tx.type
         )
 
-        TransactionContext.fetch_transaction(previous_address)
+        TransactionContext.fetch_transaction(previous_address, download_nodes)
       end)
 
     {previous_transaction, inputs} =
       if self_repair? do
         {Task.await(t1, Message.get_max_timeout()), []}
       else
-        t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx) end)
+        t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx, download_nodes) end)
         {Task.await(t1, Message.get_max_timeout()), Task.await(t2)}
       end
 
@@ -281,7 +282,10 @@ defmodule Archethic.Replication do
     {previous_transaction, inputs}
   end
 
-  defp fetch_inputs(tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}}) do
+  defp fetch_inputs(
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}},
+         download_nodes
+       ) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -291,7 +295,7 @@ defmodule Archethic.Replication do
     )
 
     previous_address
-    |> TransactionContext.fetch_transaction_inputs(tx_time)
+    |> TransactionContext.fetch_transaction_inputs(tx_time, download_nodes)
     |> tap(fn inputs ->
       Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
         transaction_address: Base.encode16(tx.address),
@@ -300,17 +304,17 @@ defmodule Archethic.Replication do
     end)
   end
 
-  defp stream_previous_chain(tx = %Transaction{type: type}) do
+  defp stream_previous_chain(tx = %Transaction{type: type}, download_nodes) do
     previous_address = Transaction.previous_address(tx)
 
     if Transaction.network_type?(type) do
-      stream_network_tx_chain(tx)
+      stream_network_tx_chain(tx, download_nodes)
     else
-      TransactionContext.stream_transaction_chain(previous_address)
+      TransactionContext.stream_transaction_chain(previous_address, download_nodes)
     end
   end
 
-  defp stream_network_tx_chain(tx = %Transaction{}) do
+  defp stream_network_tx_chain(tx = %Transaction{}, download_nodes) do
     previous_address = Transaction.previous_address(tx)
 
     if TransactionChain.transaction_exists?(previous_address) do
@@ -322,51 +326,40 @@ defmodule Archethic.Replication do
         transaction_type: tx.type
       )
 
-      TransactionContext.stream_transaction_chain(previous_address)
+      TransactionContext.stream_transaction_chain(previous_address, download_nodes)
     end
   end
 
   @doc """
-  Notify the previous storage pool than a new transaction on the chain is present
+  Notify the previous storage nodes than a new transaction on the chain is present
   """
-  @spec acknowledge_previous_storage_nodes(
-          tx_address :: binary(),
-          previous_address :: binary(),
-          tx_time :: DateTime.t()
-        ) :: :ok
-  def acknowledge_previous_storage_nodes(address, previous_address, timestamp)
-      when is_binary(address) and is_binary(previous_address) do
-    TransactionChain.register_last_address(previous_address, address, timestamp)
-    Contracts.stop_contract(previous_address)
+  @spec acknowledge_previous_storage_nodes(address :: binary()) :: :ok
+  def acknowledge_previous_storage_nodes(address) when is_binary(address) do
+    case TransactionChain.get_genesis_address(address) do
+      ^address ->
+        # No transaction chain found as the DB request return the argument if not found.
+        :ok
 
-    if previous_address != address do
-      case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
-        {:ok, tx} ->
-          next_previous_address = Transaction.previous_address(tx)
+      genesis_address ->
+        last_storage_nodes =
+          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-          if previous_address != next_previous_address do
-            previous_storage_nodes =
-              Election.chain_storage_nodes(
-                next_previous_address,
-                P2P.authorized_and_available_nodes()
-              )
+        {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} =
+          TransactionChain.get_transaction(address, validation_stamp: [:timestamp])
 
-            if Utils.key_in_node_list?(previous_storage_nodes, Crypto.first_node_public_key()) do
-              acknowledge_previous_storage_nodes(address, next_previous_address, timestamp)
-            else
-              P2P.broadcast_message(previous_storage_nodes, %NotifyLastTransactionAddress{
-                address: address,
-                previous_address: next_previous_address,
-                timestamp: timestamp
-              })
-            end
-          end
-
-        _ ->
-          :ok
-      end
-    else
-      :ok
+        # Send a message to all the previous storage nodes
+        address
+        |> TransactionChain.list_chain_addresses()
+        |> Stream.flat_map(fn {address, _} ->
+          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+        end)
+        |> Enum.uniq_by(& &1.first_public_key)
+        |> Enum.reject(&Utils.key_in_node_list?(last_storage_nodes, &1.first_public_key))
+        |> P2P.broadcast_message(%NotifyLastTransactionAddress{
+          last_address: address,
+          genesis_address: genesis_address,
+          timestamp: timestamp
+        })
     end
   end
 

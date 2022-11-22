@@ -32,6 +32,7 @@ defmodule Archethic.P2P.MessageTest do
     NodeList,
     NotFound,
     NotifyEndOfNodeSync,
+    NotifyPreviousChain,
     NotifyLastTransactionAddress,
     Ok,
     P2PView,
@@ -225,6 +226,55 @@ defmodule Archethic.P2P.MessageTest do
           chain: [<<1::1, 0::1, 1::1>>, <<0::1, 1::1, 0::1>>, <<1::1, 0::1, 0::1>>],
           beacon: [<<1::1, 0::1, 1::1>>, <<0::1, 1::1, 0::1>>, <<1::1, 0::1, 0::1>>],
           IO: [<<1::1, 0::1, 1::1>>, <<0::1, 1::1, 0::1>>, <<1::1, 0::1, 0::1>>]
+        },
+        confirmed_validation_nodes: <<1::1, 1::1>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "CrossValidate message with different replication trees" do
+      msg = %CrossValidate{
+        address:
+          <<0, 0, 227, 129, 244, 35, 48, 113, 14, 75, 1, 127, 107, 32, 29, 93, 232, 119, 254, 1,
+            65, 32, 47, 129, 164, 142, 240, 43, 22, 81, 188, 212, 56, 238>>,
+        validation_stamp: %ValidationStamp{
+          timestamp: ~U[2020-06-26 06:37:04.000Z],
+          proof_of_work:
+            <<0, 0, 206, 159, 122, 114, 106, 65, 116, 18, 224, 214, 2, 26, 213, 36, 82, 175, 176,
+              180, 191, 255, 46, 113, 134, 227, 253, 189, 81, 16, 97, 33, 114, 85>>,
+          proof_of_integrity:
+            <<0, 63, 70, 80, 109, 148, 124, 179, 105, 198, 92, 39, 212, 240, 48, 96, 69, 244, 213,
+              246, 75, 82, 83, 170, 121, 42, 105, 30, 23, 3, 231, 178, 153>>,
+          proof_of_election:
+            <<74, 224, 26, 42, 253, 85, 104, 246, 72, 244, 189, 182, 165, 94, 92, 20, 166, 149,
+              124, 246, 219, 170, 160, 168, 206, 214, 236, 215, 211, 121, 95, 149, 132, 136, 114,
+              244, 132, 44, 255, 222, 98, 76, 247, 125, 45, 170, 95, 51, 46, 229, 21, 32, 226, 99,
+              16, 5, 107, 207, 32, 240, 23, 85, 219, 247>>,
+          ledger_operations: %LedgerOperations{
+            fee: 1_000_000,
+            transaction_movements: [],
+            unspent_outputs: []
+          },
+          signature:
+            <<231, 4, 252, 234, 6, 126, 91, 87, 41, 70, 76, 220, 116, 238, 128, 189, 94, 124, 207,
+              90, 32, 143, 239, 153, 101, 148, 189, 125, 25, 235, 20, 207, 168, 10, 86, 59, 14,
+              249, 104, 144, 141, 151, 232, 149, 24, 189, 225, 56, 65, 208, 220, 202, 169, 166,
+              36, 248, 98, 108, 241, 114, 47, 102, 176, 212>>,
+          protocol_version: ArchethicCase.current_protocol_version()
+        },
+        replication_tree: %{
+          chain: [
+            <<1::1, 0::1, 1::1, 0::1>>,
+            <<0::1, 1::1, 0::1, 1::1>>,
+            <<1::1, 0::1, 0::1, 0::1>>
+          ],
+          beacon: [<<1::1, 0::1>>, <<0::1, 1::1>>, <<0::1, 0::1>>],
+          IO: [<<1::1, 0::1>>, <<0::1, 1::1>>, <<0::1, 0::1>>]
         },
         confirmed_validation_nodes: <<1::1, 1::1>>
       }
@@ -873,9 +923,21 @@ defmodule Archethic.P2P.MessageTest do
 
     test "NotifyLastTransactionAddress message" do
       msg = %NotifyLastTransactionAddress{
-        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        last_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        genesis_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "NotifyPreviousChain message" do
+      msg = %NotifyPreviousChain{
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==
@@ -888,18 +950,6 @@ defmodule Archethic.P2P.MessageTest do
     test "GetTransactionSummary message" do
       msg = %GetTransactionSummary{
         address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "NodeAvailability" do
-      msg = %NodeAvailability{
-        public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==

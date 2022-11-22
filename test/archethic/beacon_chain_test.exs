@@ -19,6 +19,7 @@ defmodule Archethic.BeaconChainTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetBeaconSummaries
+  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Node
 
@@ -217,10 +218,16 @@ defmodule Archethic.BeaconChainTest do
       |> stub(:send_message, fn
         _, %GetBeaconSummaries{}, _ ->
           {:ok, %BeaconSummaryList{summaries: [beacon_summary]}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, tx_summary}
       end)
 
       %SummaryAggregate{transaction_summaries: transaction_summaries} =
-        BeaconChain.fetch_and_aggregate_summaries(summary_time)
+        BeaconChain.fetch_and_aggregate_summaries(
+          summary_time,
+          P2P.authorized_and_available_nodes()
+        )
 
       assert [addr1] == Enum.map(transaction_summaries, & &1.address)
     end
@@ -311,10 +318,16 @@ defmodule Archethic.BeaconChainTest do
 
         ^node4, %GetBeaconSummaries{}, _ ->
           {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, tx_summary}
       end)
 
       %SummaryAggregate{transaction_summaries: transaction_summaries} =
-        BeaconChain.fetch_and_aggregate_summaries(summary_time)
+        BeaconChain.fetch_and_aggregate_summaries(
+          summary_time,
+          P2P.authorized_and_available_nodes()
+        )
 
       transaction_addresses = Enum.map(transaction_summaries, & &1.address)
 
@@ -400,7 +413,11 @@ defmodule Archethic.BeaconChainTest do
 
       assert %SummaryAggregate{
                p2p_availabilities: %{"A" => %{node_availabilities: node_availabilities}}
-             } = BeaconChain.fetch_and_aggregate_summaries(summary_time)
+             } =
+               BeaconChain.fetch_and_aggregate_summaries(
+                 summary_time,
+                 P2P.authorized_and_available_nodes()
+               )
 
       expected_availabilities =
         [summary_v1, summary_v2, summary_v3, summary_v4]
@@ -492,7 +509,11 @@ defmodule Archethic.BeaconChainTest do
                p2p_availabilities: %{
                  "A" => %{node_average_availabilities: node_average_availabilities}
                }
-             } = BeaconChain.fetch_and_aggregate_summaries(summary_time)
+             } =
+               BeaconChain.fetch_and_aggregate_summaries(
+                 summary_time,
+                 P2P.authorized_and_available_nodes()
+               )
 
       expected_average_availabilities =
         [summary_v1, summary_v2, summary_v3, summary_v4]

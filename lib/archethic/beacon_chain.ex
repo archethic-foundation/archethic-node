@@ -285,10 +285,10 @@ defmodule Archethic.BeaconChain do
        [ ]
   ```
   """
-  @spec fetch_and_aggregate_summaries(DateTime.t()) :: SummaryAggregate.t()
-  def fetch_and_aggregate_summaries(date = %DateTime{}) do
+  @spec fetch_and_aggregate_summaries(DateTime.t(), list(Node.t())) :: SummaryAggregate.t()
+  def fetch_and_aggregate_summaries(date = %DateTime{}, download_nodes) do
     authorized_nodes =
-      P2P.authorized_and_available_nodes()
+      download_nodes
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     list_subsets()
@@ -320,8 +320,12 @@ defmodule Archethic.BeaconChain do
   end
 
   defp get_summary_address_by_node(date, subset, authorized_nodes) do
+    # Remove the newly authorized nodes at this specific time
     filter_nodes =
-      Enum.filter(authorized_nodes, &(DateTime.compare(&1.authorization_date, date) == :lt))
+      case authorized_nodes do
+        [node] -> [node]
+        nodes -> Enum.filter(nodes, &(DateTime.compare(&1.authorization_date, date) == :lt))
+      end
 
     summary_address = Crypto.derive_beacon_chain_address(subset, date, true)
 
@@ -341,15 +345,18 @@ defmodule Archethic.BeaconChain do
 
     addresses
     |> Stream.chunk_every(10)
-    |> Task.async_stream(fn addresses ->
-      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
-        {:ok, %BeaconSummaryList{summaries: summaries}} ->
-          summaries
+    |> Task.async_stream(
+      fn addresses ->
+        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+          {:ok, %BeaconSummaryList{summaries: summaries}} ->
+            summaries
 
-        _ ->
-          []
-      end
-    end)
+          _ ->
+            []
+        end
+      end,
+      on_timeout: :kill_task
+    )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
@@ -380,13 +387,13 @@ defmodule Archethic.BeaconChain do
   @doc """
   Fetch a summaries aggregate for a given date
   """
-  @spec fetch_summaries_aggregate(DateTime.t()) ::
+  @spec fetch_summaries_aggregate(DateTime.t(), list(Node.t())) ::
           {:ok, SummaryAggregate.t()} | {:error, :not_exists} | {:error, :network_issue}
-  def fetch_summaries_aggregate(summary_time = %DateTime{}) do
+  def fetch_summaries_aggregate(summary_time = %DateTime{}, download_nodes) do
     storage_nodes =
       summary_time
       |> Crypto.derive_beacon_aggregate_address()
-      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+      |> Election.chain_storage_nodes(download_nodes)
 
     fetch_summaries_aggregate_from_nodes(summary_time, storage_nodes)
   end

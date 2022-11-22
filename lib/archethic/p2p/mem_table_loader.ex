@@ -2,6 +2,7 @@ defmodule Archethic.P2P.MemTableLoader do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
 
@@ -77,20 +78,20 @@ defmodule Archethic.P2P.MemTableLoader do
 
     p2p_summaries = DB.get_last_p2p_summaries()
 
-    previously_available = Enum.filter(p2p_summaries, &match?({_, {true, _}}, &1))
+    previously_available = Enum.filter(p2p_summaries, &match?({_, true, _, _}, &1))
 
     node_key = Crypto.first_node_public_key()
 
     case previously_available do
       # Ensure the only single node is globally available after a delayed bootstrap
-      [{^node_key, {_, avg_availability}}] ->
+      [{^node_key, _, avg_availability, availability_update}] ->
         P2P.set_node_globally_synced(node_key)
-        P2P.set_node_globally_available(node_key)
+        P2P.set_node_globally_available(node_key, availability_update)
         P2P.set_node_average_availability(node_key, avg_availability)
 
       [] ->
         P2P.set_node_globally_synced(node_key)
-        P2P.set_node_globally_available(node_key)
+        P2P.set_node_globally_available(node_key, last_repair_time)
         P2P.set_node_average_availability(node_key, 1.0)
 
       _ ->
@@ -203,12 +204,15 @@ defmodule Archethic.P2P.MemTableLoader do
   defp first_node_change?(first_key, previous_key) when first_key == previous_key, do: true
   defp first_node_change?(_, _), do: false
 
-  defp load_p2p_summary({node_public_key, {available?, avg_availability}}, is_same_slot?) do
+  defp load_p2p_summary(
+         {node_public_key, available?, avg_availability, availability_update},
+         is_same_slot?
+       ) do
     if available? do
       P2P.set_node_globally_synced(node_public_key)
 
       if is_same_slot? do
-        P2P.set_node_globally_available(node_public_key)
+        P2P.set_node_globally_available(node_public_key, availability_update)
       end
     end
 

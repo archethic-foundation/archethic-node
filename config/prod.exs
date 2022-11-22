@@ -16,52 +16,52 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
     [
       %{
         address:
-          Base.decode16!("00002CA95C90A4D75DEEC973D251F5B59CD8EBC787FEC265B9CAC1F6C56A8D9BFCCA",
+          Base.decode16!("00001847ce435fed8e0b280f9be54415b32488cb5057d623ead786737033d86cc6aa",
             case: :mixed
           ),
-        amount: 382_000_000_000
+        amount: 382_000_000 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("0000AD6EEC49FED0A936FEF4BD3301FF933FFFE9BA63BE2F6E948DFEC4C2D4543917",
+          Base.decode16!("00000ba09619268f8c821ee612408c383440ed9c6e2b7ffa96baf75cb02748406a8f",
             case: :mixed
           ),
-        amount: 236_000_000_000
+        amount: 236_000_000 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("0000D23C33B9B75A272B1E8BCA6F252179A144E0A66A396CCF989C4A6D353CFF3849",
+          Base.decode16!("0000782de47562bb18ae3f19a26744996fc43b01b5ef0d66243eb5ea78dcc120191d",
             case: :mixed
           ),
-        amount: 900_000_000
+        amount: 145_000_000 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00006FDE9B6EDF98E682561634B814A5FA2127B327D50AF38428AB06B447A4CF8345",
+          Base.decode16!("0000df4a467af8d5ff755c00b08a2f338cacffd54f3dfd1b95107b2538c92ab1db56",
             case: :mixed
           ),
-        amount: 560_000_000
+        amount: 90_000_000 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00000F1DFC550CB0492C7BEA2DCFABC6F2E2378A5D1D8AA8B5058FC2F30B62DD5DDC",
+          Base.decode16!("00008b0966702f4e1b99e44b7f3bc34a36dfbe41b54925454eada7c51358e516c4da",
             case: :mixed
           ),
-        amount: 340_000_000
+        amount: 55_700_000 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00006098E77BA4C675DA94F57091E73797BF2E11B3FAB20867101AB20FBE21ED862A",
+          Base.decode16!("00000690b958706f2f5f54a3c3487e9bb49009e9cf00a3e1ec547deadca0790d2363",
             case: :mixed
           ),
-        amount: 340_000_000
+        amount: 34_400_000 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00009BD34BB544A9A71536806E52E9E9F4F41FF81751848FD0B1E0E465D2FB95C36C",
+          Base.decode16!("00002b339e4cfcd9883303a57192bec6e78c064cfe8bf879ec185b7a23686d4d7da9",
             case: :mixed
           ),
-        amount: 220_000_000
+        amount: 21_300_000 * 100_000_000
       },
       if(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet",
         do: %{
@@ -78,9 +78,6 @@ config :archethic, Archethic.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold:
     System.get_env("ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "54000") |> String.to_integer()
-
-# TODO: provide the true addresses for the genesis UCO distribution
-# config :archethic, Archethic.Bootstrap.NetworkInit, genesis_pools: []
 
 config :archethic, Archethic.BeaconChain.SlotTimer,
   # Every 10 minutes
@@ -204,7 +201,9 @@ config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,
 config :archethic, Archethic.SelfRepair.Scheduler,
   # Every day at 00:05:00
   # To give time for the beacon chain to produce summary
-  interval: System.get_env("ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *")
+  interval: System.get_env("ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *"),
+  # Availability application date 15 minutes after beacon summary time
+  availability_application: 900
 
 config :archethic, Archethic.P2P.Listener,
   port: System.get_env("ARCHETHIC_P2P_PORT", "30002") |> String.to_integer()

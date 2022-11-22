@@ -58,7 +58,7 @@ defmodule Archethic.SelfRepair.Sync do
   end
 
   defp default_last_sync_date do
-    case P2P.authorized_nodes() do
+    case P2P.list_nodes() do
       [] ->
         nil
 
@@ -101,11 +101,9 @@ defmodule Archethic.SelfRepair.Sync do
 
   Once retrieved, the transactions are downloaded and stored if not exists locally
   """
-  @spec load_missed_transactions(
-          last_sync_date :: DateTime.t(),
-          patch :: binary()
-        ) :: :ok | {:error, :unreachable_nodes}
-  def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
+  @spec load_missed_transactions(last_sync_date :: DateTime.t()) ::
+          :ok | {:error, :unreachable_nodes}
+  def load_missed_transactions(last_sync_date = %DateTime{}) do
     last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     if DateTime.compare(last_summary_time, last_sync_date) == :gt do
@@ -113,7 +111,7 @@ defmodule Archethic.SelfRepair.Sync do
         "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
       )
 
-      do_load_missed_transactions(last_sync_date, last_summary_time, patch)
+      do_load_missed_transactions(last_sync_date, last_summary_time)
     else
       Logger.info("Already synchronized for #{DateTime.to_string(last_sync_date)}")
 
@@ -122,24 +120,28 @@ defmodule Archethic.SelfRepair.Sync do
     end
   end
 
-  defp do_load_missed_transactions(last_sync_date, last_summary_time, patch) do
+  defp do_load_missed_transactions(last_sync_date, last_summary_time) do
     start = System.monotonic_time()
 
-    summaries_aggregates = fetch_summaries_aggregates(last_sync_date, last_summary_time)
-    last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time)
+    download_nodes = P2P.authorized_and_available_nodes()
+
+    summaries_aggregates =
+      fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)
+
+    last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time, download_nodes)
     ensure_download_last_aggregate(last_aggregate)
 
     last_aggregate = aggregate_with_local_summaries(last_aggregate, last_summary_time)
 
     summaries_aggregates
     |> Stream.concat([last_aggregate])
-    |> Enum.each(&process_summary_aggregate(&1, patch))
+    |> Enum.each(&process_summary_aggregate(&1, download_nodes))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
   end
 
-  defp fetch_summaries_aggregates(last_sync_date, last_summary_time) do
+  defp fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes) do
     last_sync_date
     |> BeaconChain.next_summary_dates()
     # Take only the previous summaries before the last one
@@ -149,7 +151,7 @@ defmodule Archethic.SelfRepair.Sync do
     # Fetch the beacon summaries aggregate
     |> Task.async_stream(fn date ->
       Logger.debug("Fetch summary aggregate for #{date}")
-      BeaconChain.fetch_summaries_aggregate(date)
+      BeaconChain.fetch_summaries_aggregate(date, download_nodes)
     end)
     |> Stream.filter(fn
       {:ok, {:ok, %SummaryAggregate{}}} ->
@@ -171,9 +173,7 @@ defmodule Archethic.SelfRepair.Sync do
     # from remote nodes to avoid self-repair to be acknowledged if those
     # cannot be reached
 
-    nodes =
-      P2P.authorized_nodes(summary_time)
-      |> Enum.filter(& &1.available?)
+    nodes = P2P.authorized_and_available_nodes(summary_time)
 
     # If number of authorized node is <= 2 and current node is part of it
     # we accept the self repair as the other node may be unavailable and so
@@ -221,14 +221,15 @@ defmodule Archethic.SelfRepair.Sync do
 
   At the end of the execution, the summaries aggregate will persisted locally if the node is member of the shard of the summary
   """
-  @spec process_summary_aggregate(SummaryAggregate.t(), binary()) :: :ok
+  @spec process_summary_aggregate(SummaryAggregate.t(), list(Node.t())) :: :ok
   def process_summary_aggregate(
         aggregate = %SummaryAggregate{
           summary_time: summary_time,
           transaction_summaries: transaction_summaries,
-          p2p_availabilities: p2p_availabilities
+          p2p_availabilities: p2p_availabilities,
+          availability_adding_time: availability_adding_time
         },
-        node_patch
+        download_nodes
       ) do
     start_time = System.monotonic_time()
 
@@ -237,13 +238,15 @@ defmodule Archethic.SelfRepair.Sync do
       |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
       |> Enum.filter(&TransactionHandler.download_transaction?/1)
 
-    synchronize_transactions(transactions_to_sync, node_patch)
+    synchronize_transactions(transactions_to_sync, download_nodes)
 
     :telemetry.execute(
       [:archethic, :self_repair, :process_aggregate],
       %{duration: System.monotonic_time() - start_time},
       %{nb_transactions: length(transactions_to_sync)}
     )
+
+    availability_update = DateTime.add(summary_time, availability_adding_time)
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
@@ -263,30 +266,31 @@ defmodule Archethic.SelfRepair.Sync do
         acc
       )
     end)
-    |> Enum.each(&update_availabilities/1)
+    |> Enum.map(&update_availabilities(&1, availability_update))
+    |> DB.register_p2p_summary()
 
     update_statistics(summary_time, transaction_summaries)
 
     store_aggregate(aggregate)
   end
 
-  defp synchronize_transactions([], _node_patch), do: :ok
+  defp synchronize_transactions([], _), do: :ok
 
-  defp synchronize_transactions(transaction_summaries, node_patch) do
+  defp synchronize_transactions(transaction_summaries, download_nodes) do
     Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
     Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
 
     Task.Supervisor.async_stream(
       TaskSupervisor,
       transaction_summaries,
-      &TransactionHandler.download_transaction(&1, node_patch),
+      &TransactionHandler.download_transaction(&1, download_nodes),
       on_timeout: :kill_task,
       timeout: Message.get_max_timeout() + 2000,
       max_concurrency: 100
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.each(fn {:ok, tx} ->
-      :ok = TransactionHandler.process_transaction(tx)
+      :ok = TransactionHandler.process_transaction(tx, download_nodes)
     end)
     |> Stream.run()
   end
@@ -314,7 +318,7 @@ defmodule Archethic.SelfRepair.Sync do
       node = Enum.at(subset_node_list, index)
       avg_availability = Enum.at(node_average_availabilities, index)
 
-      if available_bit == 1 and Node.synced?(node) do
+      if available_bit == 1 and node.synced? do
         Map.put(acc, node, %{available?: true, average_availability: avg_availability})
       else
         Map.put(acc, node, %{available?: false, average_availability: avg_availability})
@@ -324,18 +328,21 @@ defmodule Archethic.SelfRepair.Sync do
 
   defp update_availabilities(
          {%Node{first_public_key: node_key},
-          %{available?: available?, average_availability: avg_availability}}
+          %{available?: available?, average_availability: avg_availability}},
+         availability_update
        ) do
-    DB.register_p2p_summary(node_key, DateTime.utc_now(), available?, avg_availability)
-
     if available? do
-      P2P.set_node_globally_available(node_key)
+      P2P.set_node_globally_available(node_key, availability_update)
     else
-      P2P.set_node_globally_unavailable(node_key)
+      P2P.set_node_globally_unavailable(node_key, availability_update)
       P2P.set_node_globally_unsynced(node_key)
     end
 
     P2P.set_node_average_availability(node_key, avg_availability)
+
+    %Node{availability_update: availability_update} = P2P.get_node_info!(node_key)
+
+    {node_key, available?, avg_availability, availability_update}
   end
 
   defp update_statistics(date, []) do

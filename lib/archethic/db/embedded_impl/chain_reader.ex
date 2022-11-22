@@ -222,8 +222,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   """
   @spec scan_chain(
           genesis_address :: binary(),
-          limit_address :: binary(),
-          list(),
+          limit_address :: nil | binary(),
+          fields :: list(),
           paging_address :: nil | binary(),
           db_path :: binary()
         ) ::
@@ -277,6 +277,33 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       :eof ->
         {Enum.reverse(acc), false, nil}
     end
+  end
+
+  @doc """
+  Stream chain tx from the beginning until a given limit address
+  """
+  @spec stream_scan_chain(
+          genesis_address :: binary(),
+          limit_address :: nil | binary(),
+          fields :: list(),
+          db_path :: binary()
+        ) :: Enumerable.t()
+  def stream_scan_chain(genesis_address, limit_address, fields, db_path) do
+    Stream.resource(
+      fn -> scan_chain(genesis_address, limit_address, fields, nil, db_path) end,
+      fn
+        {transactions, true, paging_state} ->
+          {transactions,
+           scan_chain(genesis_address, limit_address, fields, paging_state, db_path)}
+
+        {transactions, false, _} ->
+          {transactions, :eof}
+
+        :eof ->
+          {:halt, nil}
+      end,
+      fn _ -> :ok end
+    )
   end
 
   @doc """

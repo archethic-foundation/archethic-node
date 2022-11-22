@@ -2,6 +2,7 @@ defmodule Archethic.P2P.Listener do
   @moduledoc false
 
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.P2P.ListenerProtocol
 

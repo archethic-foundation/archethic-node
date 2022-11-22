@@ -52,7 +52,7 @@ defmodule Archethic.P2P.ListenerProtocol do
       )
 
       start_processing_time = System.monotonic_time()
-      response = Archethic.P2P.Message.process(message)
+      response = Archethic.P2P.Message.process(message, sender_public_key)
 
       :telemetry.execute(
         [:archethic, :p2p, :handle_message],
