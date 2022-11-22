@@ -141,6 +141,24 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
     assert pub == Keystore.network_pool_public_key(2)
   end
 
+  test ":archethic_shared_secrets_daily_keys should keep 2 most recent elements" do
+    Keystore.start_link()
+
+    timestamp_1 = ~U[2021-04-08 06:35:17Z]
+    timestamp_2 = ~U[2021-04-08 06:36:17Z]
+    timestamp_3 = ~U[2021-04-08 06:37:17Z]
+
+    load_secrets(timestamp_1)
+    load_secrets(timestamp_2)
+    load_secrets(timestamp_3)
+
+    unix_timestamp_2 = DateTime.to_unix(timestamp_2)
+    unix_timestamp_3 = DateTime.to_unix(timestamp_3)
+
+    assert [{unix_timestamp_2, _}, {unix_timestamp_3, _}] =
+             :ets.tab2list(:archethic_shared_secrets_daily_keys)
+  end
+
   defp load_secrets(timestamp = %DateTime{}) do
     public_key = Crypto.last_node_public_key()
 

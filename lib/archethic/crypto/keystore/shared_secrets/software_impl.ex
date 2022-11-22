@@ -125,7 +125,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   @impl SharedSecretsKeystore
   def sign_with_daily_nonce_key(data, timestamp) do
-    [{key, sign_fun}] =
+    [{_, sign_fun}] =
       case :ets.prev(@daily_keys, DateTime.to_unix(timestamp)) do
         :"$end_of_table" ->
           :ets.lookup(@daily_keys, DateTime.to_unix(timestamp))
@@ -134,14 +134,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
           :ets.lookup(@daily_keys, key)
       end
 
-    remove_older_daily_keys(key)
     sign_fun.(data)
-  end
-
-  defp remove_older_daily_keys(key) do
-    :ets.select_delete(@daily_keys, [
-      {{:"$1", :_}, [{:>, :"$1", key}], [true]}
-    ])
   end
 
   @impl SharedSecretsKeystore
@@ -251,6 +244,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
       end
 
       :ets.insert(@daily_keys, {DateTime.to_unix(timestamp), sign_daily_nonce_fun})
+      remove_older_daily_keys(DateTime.to_unix(timestamp))
 
       :ets.insert(@keystore_table, {:transaction_sign_fun, transaction_sign_fun})
       :ets.insert(@keystore_table, {:network_pool_sign_fun, network_pool_sign_fun})
@@ -260,6 +254,23 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
       :ets.insert(@keystore_table, {:network_pool_seed_wrap_fun, network_pool_seed_wrap_fun})
 
       :ok
+    end
+  end
+
+  defp remove_older_daily_keys(unix_timestamp) do
+    case :ets.prev(@daily_keys, unix_timestamp) do
+      :"$end_of_table" ->
+        :ok
+
+      prev_unix_timestamp ->
+        # generate match pattern
+        # :ets.fun2ms(fn {key, _sign_function} -> key < prev_unix_timestamp end)
+
+        match_pattern = [
+          {{:"$1", :_}, [{:<, :"$1", prev_unix_timestamp}], [true]}
+        ]
+
+        :ets.select_delete(@daily_keys, match_pattern)
     end
   end
 
