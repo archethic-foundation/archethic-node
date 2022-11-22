@@ -22,7 +22,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsReader do
     end
   end
 
-  defp deserialize_inputs_file(<<>>, acc), do: Enum.reverse(acc)
+  defp deserialize_inputs_file(<<>>, acc), do: acc
 
   defp deserialize_inputs_file(bitstring, acc) do
     {input_bit_size, rest} = Utils.VarInt.get_value(bitstring)

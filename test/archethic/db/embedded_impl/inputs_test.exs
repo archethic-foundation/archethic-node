@@ -77,7 +77,40 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
       {:ok, pid1} = InputsWriter.start_link(:UCO, address)
       Enum.each(inputs, &InputsWriter.append_input(pid1, &1))
 
-      assert ^inputs = InputsReader.get_inputs(:UCO, address)
+      result_inputs = InputsReader.get_inputs(:UCO, address)
+
+      assert Enum.any?(
+               result_inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     protocol_version: 1,
+                     input: %TransactionInput{
+                       amount: 1,
+                       type: :UCO,
+                       from: address2,
+                       reward?: true,
+                       spent?: true,
+                       timestamp: ~U[2022-11-14 14:54:12Z]
+                     }
+                   })
+             )
+
+      assert Enum.any?(
+               result_inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     protocol_version: 1,
+                     input: %TransactionInput{
+                       amount: 2,
+                       type: :UCO,
+                       from: address3,
+                       reward?: true,
+                       spent?: true,
+                       timestamp: ~U[2022-11-14 14:54:12Z]
+                     }
+                   })
+             )
+
       assert [] = InputsReader.get_inputs(:UCO, address2)
       assert [] = InputsReader.get_inputs(:UCO, address3)
     end
@@ -116,7 +149,40 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
       {:ok, pid1} = InputsWriter.start_link(:token, address)
       Enum.each(inputs, &InputsWriter.append_input(pid1, &1))
 
-      assert ^inputs = InputsReader.get_inputs(:token, address)
+      result_inputs = InputsReader.get_inputs(:token, address)
+
+      assert Enum.any?(
+               result_inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     protocol_version: 1,
+                     input: %TransactionInput{
+                       amount: 1,
+                       type: {:token, token_address, 0},
+                       from: address2,
+                       reward?: true,
+                       spent?: true,
+                       timestamp: ~U[2022-11-14 14:54:12Z]
+                     }
+                   })
+             )
+
+      assert Enum.any?(
+               result_inputs,
+               &(&1 ==
+                   %VersionedTransactionInput{
+                     protocol_version: 1,
+                     input: %TransactionInput{
+                       amount: 2,
+                       type: {:token, token_address, 0},
+                       from: address3,
+                       reward?: true,
+                       spent?: true,
+                       timestamp: ~U[2022-11-14 14:54:12Z]
+                     }
+                   })
+             )
+
       assert [] = InputsReader.get_inputs(:token, address2)
       assert [] = InputsReader.get_inputs(:token, address3)
     end
