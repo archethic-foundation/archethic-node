@@ -2,6 +2,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
   @moduledoc false
   use ArchethicCase
 
+  alias Plug.Crypto
   alias Archethic.SelfRepair.Notifier.Impl, as: NotifierImpl
   alias Archethic.SelfRepair.Notifier.RepairWorker
 
@@ -117,7 +118,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
 
       assert Enum.map(chain_list, fn _x ->
                %Message.Ok{}
-             end) == Enum.map(msg_list, fn msg -> Message.process(msg) end)
+             end) == Enum.map(msg_list, fn msg -> Message.process(msg, nil) end)
 
       assert [{pid, _}] = Registry.lookup(NotifierImpl.registry_name(), first_address)
 

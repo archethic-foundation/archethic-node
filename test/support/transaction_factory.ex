@@ -18,7 +18,6 @@ defmodule Archethic.TransactionFactory do
 
   alias Archethic.TransactionChain.TransactionData
 
-  # @deprecated "use_create_valid_chain/2 instead"
   def create_valid_transaction(
         inputs \\ [],
         opts \\ []
@@ -227,8 +226,7 @@ defmodule Archethic.TransactionFactory do
   end
 
   @doc """
-  Creates a valid Node Shared Secrets Tx with parameters index, timestamp, prev_txn.any()
-  requires valid_p2p_Context
+  Creates a valid Node Shared Secrets Tx with parameters index, timestamp, prev_txn
   """
   @spec create_network_tx(:node_shared_secrets, keyword) ::
           Archethic.TransactionChain.Transaction.t()
@@ -275,12 +273,12 @@ defmodule Archethic.TransactionFactory do
     }
   end
 
-  @spec create_valid_chain(input :: list(), opts :: list()) ::
-          Archethic.TransactionChain.Transaction.t()
   @doc """
   Creates a valid Txn Chain with parameters index, timestamp, prev_txn.
   required valid_p2p_Context
   """
+  @spec create_valid_chain(input :: list(), opts :: list()) ::
+          Archethic.TransactionChain.Transaction.t()
   def create_valid_chain(
         inputs \\ [],
         opts \\ []
@@ -296,7 +294,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(txn, 0.07),
+        fee: Fee.calculate(txn, 0.07, timestamp),
         transaction_movements: Transaction.get_movements(txn)
       }
       |> LedgerOperations.consume_inputs(txn.address, inputs, timestamp)

@@ -77,7 +77,6 @@ defmodule Archethic.P2P.Message do
     ListNodes,
     NewBeaconSlot,
     NewTransaction,
-    NodeAvailability,
     NodeList,
     NotFound,
     NotifyEndOfNodeSync,
@@ -1840,6 +1839,7 @@ defmodule Archethic.P2P.Message do
   def process(%NotifyPreviousChain{address: address}, _) do
     Replication.acknowledge_previous_storage_nodes(address)
     %Ok{}
+  end
 
   def process(
         msg = %ShardRepair{
@@ -1884,7 +1884,6 @@ defmodule Archethic.P2P.Message do
 
     %Ok{}
   end
-
 
   defp process_replication_chain(tx, replying_node_public_key) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
