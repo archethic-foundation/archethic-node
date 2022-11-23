@@ -13,7 +13,6 @@ defmodule Archethic.SelfRepair.Supervisor do
   def init(_arg) do
     children = [
       {Scheduler, Application.get_env(:archethic, Scheduler)},
-      Notifier,
       {DynamicSupervisor,
        strategy: :one_for_one, name: Archethic.SelfRepair.Notifier.RepairSupervisor},
       {Registry, name: Notifier.Impl.registry_name(), keys: :unique, partitions: 1}

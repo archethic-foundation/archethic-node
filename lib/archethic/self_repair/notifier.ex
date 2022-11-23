@@ -17,142 +17,63 @@ defmodule Archethic.SelfRepair.Notifier do
       H -->|Replicate Transaction| D[Node3]
   ```
   """
-  use GenServer
-  require Logger
-
-  #  Different nodes holding same chain, but with different length of txn chain
-  #  node       | node-A| node-B| node-C| node-D    | node-E
-  #  txn_chain  | 1     | 1 2   | 1 2 3 | 1 2 3 4 5| 1 2 3 4 5
-
-  #  Sharding on single txn results in holding that txn chain upto that txn
-  #  txn_chain => A -> B -> C -> D
-  #  A Sharded tranction replication mean tx from genesis addr to that txn.
 
   alias Archethic.{
     Crypto,
     Election,
     P2P,
     P2P.Message.ShardRepair,
-    P2P.Node,
-    PubSub,
     TransactionChain,
     TransactionChain.Transaction
   }
 
-  @network_type_transactions Transaction.list_network_type()
+  require Logger
+  use Task
 
-  @spec start_link(args :: list() | []) :: GenServer.on_start()
-  def start_link(args \\ []) do
-    GenServer.start_link(__MODULE__, args)
+  @spec start_link(args :: list(Crypto.key())) :: {:ok, pid()}
+  def start_link(unavailable_nodes) do
+    Task.start_link(__MODULE__, :run, [unavailable_nodes])
   end
 
-  def init(_) do
-    PubSub.register_to_node_update()
-    {:ok, %{notified: %{}}}
-  end
-
-  def handle_info(
-        {:node_update,
-         %Node{
-           available?: false,
-           authorized?: true,
-           first_public_key: node_key,
-           authorization_date: authorization_date
-         }},
-        state = %{notified: notified}
-      ) do
-    current_node_public_key = Crypto.first_node_public_key()
-    now = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-
-    with :lt <- DateTime.compare(authorization_date, now),
-         nil <- Map.get(notified, node_key),
-         false <- current_node_public_key == node_key do
-      repair_transactions(node_key)
-      {:noreply, Map.update!(state, :notified, &Map.put(&1, node_key, %{}))}
-    else
-      _ ->
-        {:noreply, state}
-    end
-  end
-
-  def handle_info(
-        {:node_update,
-         %Node{authorized?: false, authorization_date: date, first_public_key: node_key}},
-        state = %{notified: notified}
-      )
-      when date != nil do
-    current_node_public_key = Crypto.first_node_public_key()
-
-    with nil <- Map.get(notified, node_key),
-         false <- current_node_public_key == node_key do
-      repair_transactions(node_key)
-      {:noreply, Map.update!(state, :notified, &Map.put(&1, node_key, %{}))}
-    else
-      _ ->
-        {:noreply, state}
-    end
-  end
-
-  def handle_info(
-        {:node_update,
-         %Node{available?: true, first_public_key: node_key, authorization_date: date}},
-        state
-      )
-      when date != nil do
-    {:noreply, Map.update!(state, :notified, &Map.delete(&1, node_key))}
-  end
-
-  def handle_info(_, state) do
-    {:noreply, state}
+  def run(unavailable_nodes) do
+    repair_transactions(unavailable_nodes)
   end
 
   @doc """
-  Determines whether a genesis address belongs to a network chain.
+  For each txn chain in db. Load its genesis address, load its
+  chain, recompute shards , notifiy nodes. Network txns are excluded.
   """
-  @spec network_chain?(binary()) :: boolean()
-  def network_chain?(first_address) do
-    case TransactionChain.get_transaction(first_address, [:type]) do
-      {:ok, %Transaction{type: type}} when type in @network_type_transactions ->
-        true
+  @spec repair_transactions(list(Crypto.key())) :: :ok
+  def repair_transactions(unavailable_nodes) do
+    Logger.debug(
+      "Trying to repair transactions due to a topology change #{inspect(Enum.map(unavailable_nodes, &Base.encode16(&1)))}"
+    )
+
+    # We fetch all the transactions existing and check if the disconnected nodes were in storage nodes
+    TransactionChain.stream_first_addresses()
+    |> Stream.reject(&network_chain?(&1))
+    |> Stream.chunk_every(20)
+    |> Stream.each(fn chunk ->
+      concurrent_txn_processing(chunk, unavailable_nodes)
+    end)
+    |> Stream.run()
+  end
+
+  defp network_chain?(address) do
+    case TransactionChain.get_transaction(address, [:type]) do
+      {:ok, %Transaction{type: type}} ->
+        Transaction.network_type?(type)
 
       _ ->
         false
     end
   end
 
-  @doc """
-  For each txn chain in db. Load its genesis address, load its
-  chain, recompute shards , notifiy nodes. Network txns are excluded,
-  dependent bootstrap operations.
-  """
-  @spec repair_transactions(Crypto.key()) :: :ok
-  @concurrent_limit 20
-  def repair_transactions(unavailable_node_key) do
-    Logger.debug("Trying to repair transactions due to a topology change",
-      node: Base.encode16(unavailable_node_key)
-    )
-
-    # We fetch all the transactions existing and check if the disconnecting node was a storage node
-
-    TransactionChain.stream_first_addresses()
-    |> Stream.filter(&(network_chain?(&1) == false))
-    |> Stream.chunk_every(@concurrent_limit)
-    |> Stream.each(fn chunk ->
-      concurrent_txn_processing(chunk, unavailable_node_key)
-    end)
-    |> Stream.run()
-
-    :ok
-  end
-
-  def concurrent_txn_processing(address_list, unavailable_node_key) do
+  defp concurrent_txn_processing(addresses, unavailable_nodes) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
-      address_list,
-      fn
-        first_address ->
-          sync_chain(first_address, unavailable_node_key)
-      end,
+      addresses,
+      &sync_chain(&1, unavailable_nodes),
       ordered: false,
       on_timeout: :kill_task
     )
@@ -160,118 +81,79 @@ defmodule Archethic.SelfRepair.Notifier do
   end
 
   @doc """
-  Loads a Txn Chain by a genesis address, Allocate new shards for the txn went down with down node.
+  Loads a Txn Chain by it's first address, allocate new storage nodes for each transaction
+  where the disconnected nodes were storage nodes
   """
-  @spec sync_chain(binary(), Crypto.key()) :: :ok
-  def sync_chain(
-        first_address,
-        unavailable_node_key
-      ) do
-    first_address
-    |> TransactionChain.stream([:address, validation_stamp: [:timestamp]])
-    |> Stream.map(&list_previous_shards(&1))
-    |> Stream.filter(&with_down_shard?(&1, unavailable_node_key))
-    # |> Stream.filter(&current_node_in_node_list?(&1, current_node_public_key))
-    |> Stream.map(&new_storage_nodes(&1, unavailable_node_key))
-    |> Stream.scan(%{}, &map_node_and_address(&1, _acc = &2))
-    |> Stream.take(-1)
-    |> Enum.take(1)
-    |> notify_nodes(first_address)
+  @spec sync_chain(binary(), list(Crypto.key())) :: :ok
+  def sync_chain(address, unavailable_nodes) do
+    address
+    |> TransactionChain.stream([:address])
+    |> Stream.map(&get_previous_election(&1))
+    |> Stream.filter(&storage_node?(&1, unavailable_nodes))
+    |> Stream.filter(&notify?(&1))
+    |> Stream.map(&new_storage_nodes(&1, unavailable_nodes))
+    |> map_last_address_for_node()
+    |> notify_nodes(address)
   end
 
-  @doc """
-  Repair txns that was stored by currenltyy unavailable nodes
-  For re-election and repair.
-  """
-  @spec list_previous_shards(Transaction.t()) :: {binary(), list(Crypto.key())}
-  def list_previous_shards(txn) do
-    node_list = get_nodes_list(txn.validation_stamp.timestamp)
+  defp get_previous_election(%Transaction{address: address}) do
+    node_list = P2P.authorized_nodes()
 
     prev_storage_nodes =
-      Election.chain_storage_nodes(txn.address, node_list)
+      Election.chain_storage_nodes(address, node_list)
       |> Enum.map(& &1.first_public_key)
 
-    {txn.address, prev_storage_nodes}
+    {address, prev_storage_nodes}
   end
 
-  @doc """
-  Returns a node list that have been authorized before a given DateTime
-  """
-  @spec get_nodes_list(DateTime.t()) :: list(Crypto.key())
-  def get_nodes_list(timestamp) do
-    P2P.stream_nodes()
-    |> Stream.filter(fn
-      %P2P.Node{authorization_date: auth_date} when not is_nil(auth_date) ->
-        DateTime.compare(auth_date, timestamp) == :lt
-
-      _ ->
-        false
-    end)
-    |> Enum.to_list()
+  defp storage_node?({_address, nodes}, unavailable_nodes) do
+    Enum.any?(unavailable_nodes, &Enum.member?(nodes, &1))
   end
 
-  @doc """
-  Does the currently unavailable_node_key is in previously elected shards
-  """
-  @spec with_down_shard?({binary(), list(Crypto.key())}, Crypto.key()) :: boolean()
-  def with_down_shard?({_address, node_list}, unavailable_node_key) do
-    Enum.member?(node_list, unavailable_node_key)
+  defp notify?({_address, nodes}) do
+    Enum.member?(nodes, Crypto.first_node_public_key())
   end
-
-  # @doc """
-  # Is current node key in the list of previous nodes/shards.
-  # An Old storeage will only be able to notify the new storage Nodes.
-  # """
-  # @spec current_node_in_node_list?({binary(), list(Crypto.key())}, Crypto.key()) :: boolean()
-  # def current_node_in_node_list?({_address, node_list}, current_node_key) do
-  #   Enum.member?(node_list, current_node_key)
-  # end
 
   @doc """
   New election is carried out on the set of all authorized omiting unavailable_node.
   The set of previous storage nodes is subtracted from the set of new storage nodes.
   """
-  @spec new_storage_nodes({binary(), list(Crypto.key())}, Crypto.key()) ::
+  @spec new_storage_nodes({binary(), list(Crypto.key())}, list(Crypto.key())) ::
           {binary(), list(Crypto.key())}
-  def new_storage_nodes({address, prev_storage_node}, unavailable_node_key) do
+  def new_storage_nodes({address, prev_storage_nodes}, unavailable_nodes) do
+    new_authorized_nodes =
+      P2P.authorized_nodes()
+      |> Enum.reject(&Enum.member?(unavailable_nodes, &1.first_public_key))
+
     node_list =
-      Election.chain_storage_nodes(
-        address,
-        P2P.authorized_nodes()
-        |> Enum.reject(&(&1.first_public_key == unavailable_node_key))
-      )
-      |> Enum.reject(&(&1.first_public_key in prev_storage_node))
+      Election.chain_storage_nodes(address, new_authorized_nodes)
       |> Enum.map(& &1.first_public_key)
+      |> Enum.reject(&Enum.member?(prev_storage_nodes, &1))
 
     {address, node_list}
   end
 
   @doc """
-  Acc in map, node key to the last address it should hold for a transaction chain.
+  Create a map returning for each node the last transaction address it should replicate
   """
-  @spec map_node_and_address({binary(), list(Crypto.key())}, map()) :: map()
-  def map_node_and_address({address, node_list}, acc) do
-    Enum.reduce(node_list, acc, fn first_public_key, acc ->
-      Map.put(acc, first_public_key, address)
+  @spec map_last_address_for_node(Enumerable.t()) :: Enumerable.t()
+  def map_last_address_for_node(stream) do
+    Enum.reduce(stream, %{}, fn {address, nodes}, acc ->
+      Enum.reduce(nodes, acc, fn first_public_key, acc ->
+        Map.put(acc, first_public_key, address)
+      end)
     end)
   end
 
-  @doc """
-  Deploys the ShardRepair message to the intended nodes.
-  """
-  @spec notify_nodes([map()], binary()) :: :ok
-  def notify_nodes([], _), do: :ok
-
-  def notify_nodes([acc], first_address) do
+  defp notify_nodes(acc, first_address) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       acc,
-      fn
-        {node_key, address} ->
-          P2P.send_message(node_key, %ShardRepair{
-            first_address: first_address,
-            last_address: address
-          })
+      fn {node_key, address} ->
+        P2P.send_message(node_key, %ShardRepair{
+          first_address: first_address,
+          last_address: address
+        })
       end,
       ordered: false,
       on_timeout: :kill_task

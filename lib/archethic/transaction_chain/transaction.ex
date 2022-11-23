@@ -404,22 +404,6 @@ defmodule Archethic.TransactionChain.Transaction do
   def network_type?(_), do: false
 
   @doc """
-  List Network Type Transactions
-  """
-  def list_network_type(),
-    do: [
-      :node,
-      :node_shared_secrets,
-      :origin,
-      :code_proposal,
-      :code_approval,
-      :oracle,
-      :oracle_summary,
-      :node_rewards,
-      :mint_rewards
-    ]
-
-  @doc """
   Extract the pending transaction fields from a transaction
   """
   @spec to_pending(t()) :: t()

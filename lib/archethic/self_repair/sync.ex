@@ -25,6 +25,8 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.TransactionChain.TransactionSummary
 
+  alias Archethic.SelfRepair.Notifier
+
   alias Archethic.Utils
 
   require Logger
@@ -248,6 +250,10 @@ defmodule Archethic.SelfRepair.Sync do
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
 
+    previous_available_nodes =
+      P2P.available_nodes()
+      |> Enum.map(& &1.first_public_key)
+
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
                             %{
@@ -268,6 +274,17 @@ defmodule Archethic.SelfRepair.Sync do
     end)
     |> Enum.map(&update_availabilities(&1, availability_update))
     |> DB.register_p2p_summary()
+
+    if :persistent_term.get(:archethic_up, nil) == :up do
+      new_available_nodes =
+        P2P.available_nodes()
+        |> Enum.map(& &1.first_public_key)
+
+      case previous_available_nodes -- new_available_nodes do
+        [] -> :ok
+        nodes -> Notifier.start_link(nodes)
+      end
+    end
 
     update_statistics(summary_time, transaction_summaries)
 
