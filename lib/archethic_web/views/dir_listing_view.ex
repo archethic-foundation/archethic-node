@@ -15,6 +15,6 @@ defmodule ArchethicWeb.DirListingView do
 
   @spec shorten_address(String.t()) :: String.t()
   def shorten_address(address) do
-    String.slice(address, 4..13)
+    String.slice(address, 4..7)
   end
 end

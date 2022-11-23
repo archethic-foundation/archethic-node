@@ -4,7 +4,7 @@
     <title>Index of <%=@cwd %></title>
     <style>
     html {
-        background-color: #050510;
+        background-color: #f6f6f6;
         font-family: sans-serif;
     }
     body {
@@ -108,6 +108,8 @@
 
     <%= if @parent_dir_href do  %>
         <p><a {@parent_dir_href}><i class="up icon"></i> Up to higher level directory</a></p>
+    <% else  %>
+        <p>&nbsp;</p>
     <% end %>
 
     <table class="index">

@@ -92,6 +92,10 @@ defmodule ArchethicWeb.API.WebHostingController do
         {:error, :file_not_found} ->
           {:error, :file_not_found}
 
+        {:error, :malformed} ->
+          # malformed file will return 404 as described in test "should return Cannot find file content"
+          {:error, :file_not_found}
+
         {:error, :is_a_directory} ->
           # return the transaction so the dir_listing function do not need to do the I/O
           {:error, {:is_a_directory, transaction}}
@@ -268,7 +272,12 @@ defmodule ArchethicWeb.API.WebHostingController do
   defp get_file(json_content, [], _previous_path_item) when is_map(json_content) do
     case Map.get(json_content, "index.html") do
       nil ->
-        {:error, :is_a_directory}
+        # make sure it is a directory instead of a malformed file
+        if Enum.all?(Map.values(json_content), &is_map/1) do
+          {:error, :is_a_directory}
+        else
+          {:error, :malformed}
+        end
 
       file ->
         {:ok, file, "text/html"}
