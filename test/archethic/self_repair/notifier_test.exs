@@ -155,9 +155,10 @@ defmodule Archethic.SelfRepair.NotifierTest do
         {:ok, %Ok{}}
     end)
 
-    Notifier.repair_transactions(unavailable_nodes)
+    Notifier.repair_transactions(unavailable_nodes, nodes)
 
-    # expect to receive 2 new node for Alice2
+    # Expect to receive only 1 new node for Alice2
     assert_receive :new_node
+    refute_receive :new_node, 200
   end
 end

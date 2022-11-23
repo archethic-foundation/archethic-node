@@ -250,9 +250,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
 
-    previous_available_nodes =
-      P2P.available_nodes()
-      |> Enum.map(& &1.first_public_key)
+    previous_available_nodes = P2P.authorized_and_available_nodes()
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
@@ -276,13 +274,17 @@ defmodule Archethic.SelfRepair.Sync do
     |> DB.register_p2p_summary()
 
     if :persistent_term.get(:archethic_up, nil) == :up do
-      new_available_nodes =
-        P2P.available_nodes()
-        |> Enum.map(& &1.first_public_key)
+      new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
 
-      case previous_available_nodes -- new_available_nodes do
-        [] -> :ok
-        nodes -> Notifier.start_link(nodes)
+      diff_node = previous_available_nodes -- new_available_nodes
+
+      case diff_node do
+        [] ->
+          :ok
+
+        nodes ->
+          unavailable_nodes = Enum.map(nodes, & &1.first_public_key)
+          Notifier.start(unavailable_nodes, previous_available_nodes)
       end
     end
 

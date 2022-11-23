@@ -30,21 +30,21 @@ defmodule Archethic.SelfRepair.Notifier do
   require Logger
   use Task
 
-  @spec start_link(args :: list(Crypto.key())) :: {:ok, pid()}
-  def start_link(unavailable_nodes) do
-    Task.start_link(__MODULE__, :run, [unavailable_nodes])
+  @spec start(list(Crypto.key()), list(Node.t())) :: {:ok, pid()}
+  def start(unavailable_nodes, previous_available_nodes) do
+    Task.start(__MODULE__, :run, [unavailable_nodes, previous_available_nodes])
   end
 
-  def run(unavailable_nodes) do
-    repair_transactions(unavailable_nodes)
+  def run(unavailable_nodes, previous_available_nodes) do
+    repair_transactions(unavailable_nodes, previous_available_nodes)
   end
 
   @doc """
   For each txn chain in db. Load its genesis address, load its
   chain, recompute shards , notifiy nodes. Network txns are excluded.
   """
-  @spec repair_transactions(list(Crypto.key())) :: :ok
-  def repair_transactions(unavailable_nodes) do
+  @spec repair_transactions(list(Crypto.key()), list(Node.t())) :: :ok
+  def repair_transactions(unavailable_nodes, previous_available_nodes) do
     Logger.debug(
       "Trying to repair transactions due to a topology change #{inspect(Enum.map(unavailable_nodes, &Base.encode16(&1)))}"
     )
@@ -54,7 +54,7 @@ defmodule Archethic.SelfRepair.Notifier do
     |> Stream.reject(&network_chain?(&1))
     |> Stream.chunk_every(20)
     |> Stream.each(fn chunk ->
-      concurrent_txn_processing(chunk, unavailable_nodes)
+      concurrent_txn_processing(chunk, unavailable_nodes, previous_available_nodes)
     end)
     |> Stream.run()
   end
@@ -69,26 +69,21 @@ defmodule Archethic.SelfRepair.Notifier do
     end
   end
 
-  defp concurrent_txn_processing(addresses, unavailable_nodes) do
+  defp concurrent_txn_processing(addresses, unavailable_nodes, previous_available_nodes) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       addresses,
-      &sync_chain(&1, unavailable_nodes),
+      &sync_chain(&1, unavailable_nodes, previous_available_nodes),
       ordered: false,
       on_timeout: :kill_task
     )
     |> Stream.run()
   end
 
-  @doc """
-  Loads a Txn Chain by it's first address, allocate new storage nodes for each transaction
-  where the disconnected nodes were storage nodes
-  """
-  @spec sync_chain(binary(), list(Crypto.key())) :: :ok
-  def sync_chain(address, unavailable_nodes) do
+  defp sync_chain(address, unavailable_nodes, previous_available_nodes) do
     address
     |> TransactionChain.stream([:address])
-    |> Stream.map(&get_previous_election(&1))
+    |> Stream.map(&get_previous_election(&1, previous_available_nodes))
     |> Stream.filter(&storage_node?(&1, unavailable_nodes))
     |> Stream.filter(&notify?(&1))
     |> Stream.map(&new_storage_nodes(&1, unavailable_nodes))
@@ -96,11 +91,9 @@ defmodule Archethic.SelfRepair.Notifier do
     |> notify_nodes(address)
   end
 
-  defp get_previous_election(%Transaction{address: address}) do
-    node_list = P2P.authorized_nodes()
-
+  defp get_previous_election(%Transaction{address: address}, previous_available_nodes) do
     prev_storage_nodes =
-      Election.chain_storage_nodes(address, node_list)
+      Election.chain_storage_nodes(address, previous_available_nodes)
       |> Enum.map(& &1.first_public_key)
 
     {address, prev_storage_nodes}
