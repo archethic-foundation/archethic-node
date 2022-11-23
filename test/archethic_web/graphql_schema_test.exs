@@ -32,6 +32,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
+  alias Archethic.Mining
+
   import Mox
   @transaction_chain_page_size 10
 
@@ -406,6 +408,35 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
              } = json_response(conn, 200)
 
       assert storage_nonce == Crypto.storage_nonce_public_key() |> Base.encode16()
+    end
+  end
+
+  describe "query: version" do
+    test "should return the code, transaction and protocol version", %{conn: conn} do
+      conn =
+        post(conn, "/api", %{
+          "query" => "query { version { code, protocol, transaction } }"
+        })
+
+      code_version = Mix.Project.config()[:version]
+
+      transaction_version =
+        Transaction.version()
+        |> to_string()
+
+      protocol_version =
+        Mining.protocol_version()
+        |> to_string()
+
+      assert %{
+               "data" => %{
+                 "version" => %{
+                   "code" => ^code_version,
+                   "protocol" => ^protocol_version,
+                   "transaction" => ^transaction_version
+                 }
+               }
+             } = json_response(conn, 200)
     end
   end
 

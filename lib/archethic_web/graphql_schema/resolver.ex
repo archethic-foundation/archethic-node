@@ -12,6 +12,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
 
+  alias Archethic.Mining
+
   require Logger
 
   @limit_page 10
@@ -194,6 +196,14 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
         origin_public_key: &1.origin_public_key
       }
     )
+  end
+
+  def get_version do
+    %{
+      code: Mix.Project.config()[:version],
+      protocol: Mining.protocol_version(),
+      transaction: Transaction.version()
+    }
   end
 
   def nearest_endpoints(ip) do

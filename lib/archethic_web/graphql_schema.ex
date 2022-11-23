@@ -13,6 +13,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.TransactionAttestation
   alias __MODULE__.TransactionError
   alias __MODULE__.OracleData
+  alias __MODULE__.Version
 
   import_types(HexType)
   import_types(DateTimeType)
@@ -23,6 +24,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   import_types(TransactionError)
   import_types(IntegerType)
   import_types(OracleData)
+  import_types(Version)
 
   query do
     @desc """
@@ -166,6 +168,15 @@ defmodule ArchethicWeb.GraphQLSchema do
           {:error, :not_found} ->
             {:error, "Not data found at this date"}
         end
+      end)
+    end
+
+    @desc """
+    List protocol, transaction and code versions
+    """
+    field :version, :version do
+      resolve(fn _, _ ->
+        {:ok, Resolver.get_version()}
       end)
     end
   end
