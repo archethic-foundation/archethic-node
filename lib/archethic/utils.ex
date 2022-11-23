@@ -828,7 +828,7 @@ defmodule Archethic.Utils do
       iex> Utils.number_of_reward_occurences_per_month("0 */5 * * * * *", ~N[2022-11-01 00:00:00.000000])
       8640
   """
-  @spec number_of_reward_occurences_per_month(String.t(), NaiveDateTime.t()) :: Integer.t()
+  @spec number_of_reward_occurences_per_month(String.t(), NaiveDateTime.t()) :: non_neg_integer()
   def number_of_reward_occurences_per_month(
         interval \\ Application.get_env(:archethic, RewardScheduler)[:interval],
         current_datetime \\ NaiveDateTime.utc_now()
