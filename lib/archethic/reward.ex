@@ -34,6 +34,7 @@ defmodule Archethic.Reward do
   require Logger
 
   @unit_uco 100_000_000
+  @number_of_reward_occurences_per_month Utils.number_of_reward_occurences_per_month()
 
   @doc """
   Get rewards amount for validation nodes
@@ -47,8 +48,12 @@ defmodule Archethic.Reward do
       |> OracleChain.get_uco_price()
       |> Keyword.get(:usd)
 
-    trunc(50 / uco_usd_price / Calendar.ISO.days_in_month(date.year, date.month) * @unit_uco)
+    number_of_reward_occurences_per_month = number_of_reward_occurences_per_month()
+
+    trunc(50 / uco_usd_price / number_of_reward_occurences_per_month * @unit_uco)
   end
+
+  defp number_of_reward_occurences_per_month(), do: @number_of_reward_occurences_per_month
 
   @doc """
   Create a transaction for minting new rewards
