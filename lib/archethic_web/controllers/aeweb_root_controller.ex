@@ -8,8 +8,6 @@ defmodule ArchethicWeb.AEWebRootController do
   def index(conn, params = %{"url_path" => url_path}) do
     cache_headers = WebHostingController.get_cache_headers(conn)
 
-    # WHEN IS THIS CALLED ?
-
     case WebHostingController.get_website(params, cache_headers) do
       {:ok, file_content, encodage, mime_type, cached?, etag} ->
         WebHostingController.send_response(conn, file_content, encodage, mime_type, cached?, etag)

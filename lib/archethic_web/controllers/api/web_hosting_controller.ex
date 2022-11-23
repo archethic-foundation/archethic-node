@@ -196,7 +196,15 @@ defmodule ArchethicWeb.API.WebHostingController do
           cwd: current_working_dir,
           parent_dir_href: parent_dir_href,
           reference_transaction_href: %{
-            href: Path.join(["/", "explorer", "transaction", Base.encode16(transaction.address)])
+            href:
+              Path.join([
+                Keyword.fetch!(
+                  Application.get_env(:archethic, ArchethicWeb.Endpoint),
+                  :explorer_url
+                ),
+                "transaction",
+                Base.encode16(transaction.address)
+              ])
           }
         })
 

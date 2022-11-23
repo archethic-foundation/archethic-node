@@ -226,6 +226,12 @@ config :archethic, ArchethicWeb.FaucetController,
 # which you should run after static files are built and
 # before starting your production server.
 config :archethic, ArchethicWeb.Endpoint,
+  explorer_url:
+    Path.join([
+      "https://",
+      "#{System.get_env("ARCHETHIC_DOMAIN_NAME", "mainnet.archethic.net")}:#{System.get_env("ARCHETHIC_HTTPS_PORT", "50000")}",
+      "explorer"
+    ]),
   http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   url: [host: nil, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   cache_static_manifest: "priv/static/cache_manifest.json",
