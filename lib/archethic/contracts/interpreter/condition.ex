@@ -2,6 +2,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   @moduledoc false
 
   alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Utils, as: InterpreterUtils
   alias Archethic.SharedSecrets
@@ -107,7 +108,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
               ["transaction", "uco_transfers"]
             ]},
             {:%{}, [line: 3], [{
-              <<0, 0, 107, 54, 139, 228, 93, 172, 208, 203, 192, 236, 88, 147, 189, 193, 7, 148, 72, 24, 26, 168, 138, 44, 187, 132, 175, 147, 153, 18, 232, 88, 132, 62>>, 1000000000
+              "00006B368BE45DACD0CBC0EC5893BDC1079448181AA88A2CBB84AF939912E858843E", 1000000000
             }]}
           ]}
         }
@@ -454,17 +455,28 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   """
   @spec valid_conditions?(Conditions.t(), map()) :: boolean()
   def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
+    constants =
+      constants
+      |> Enum.map(fn {subset, constants} ->
+        {subset, Constants.stringify(constants)}
+      end)
+      |> Enum.into(%{})
+
     result =
       conditions
       |> Map.from_struct()
       |> Enum.all?(fn {field, condition} ->
+        field = Atom.to_string(field)
+
         case validate_condition({field, condition}, constants) do
           {_, true} ->
             true
 
           {_, false} ->
+            value = get_constant_value(constants, field)
+
             Logger.debug(
-              "Invalid condition for `#{field}` with the given value: `#{get_in(constants, ["next", field])}` - expected: #{inspect(condition)}"
+              "Invalid condition for `#{field}` with the given value: `#{value}` - condition: #{inspect(condition)}"
             )
 
             false
@@ -478,40 +490,53 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     end
   end
 
-  defp validate_condition({:origin_family, _}, _) do
+  defp get_constant_value(constants, field) do
+    case get_in(constants, [
+           Access.key("transaction", %{}),
+           Access.key(field, "")
+         ]) do
+      "" ->
+        get_in(constants, ["next", field])
+
+      value ->
+        value
+    end
+  end
+
+  defp validate_condition({"origin_family", _}, _) do
     # Skip the verification
     # The Proof of Work algorithm will use this condition to verify the transaction
-    {:origin_family, true}
+    {"origin_family", true}
   end
 
-  defp validate_condition({:address, nil}, _) do
+  defp validate_condition({"address", nil}, _) do
     # Skip the verification as the address changes for each transaction
-    {:address, true}
+    {"address", true}
   end
 
-  defp validate_condition({:previous_public_key, nil}, _) do
+  defp validate_condition({"previous_public_key", nil}, _) do
     # Skip the verification as the previous public key changes for each transaction
-    {:previous_public_key, true}
+    {"previous_public_key", true}
   end
 
-  defp validate_condition({:timestamp, nil}, _) do
+  defp validate_condition({"timestamp", nil}, _) do
     # Skip the verification as timestamp changes for each transaction
-    {:timestamp, true}
+    {"timestamp", true}
   end
 
-  defp validate_condition({:type, nil}, %{"next" => %{"type" => "transfer"}}) do
+  defp validate_condition({"type", nil}, %{"next" => %{"type" => "transfer"}}) do
     # Skip the verification when it's the default type
-    {:type, true}
+    {"type", true}
   end
 
-  defp validate_condition({:content, nil}, %{"next" => %{"content" => ""}}) do
+  defp validate_condition({"content", nil}, %{"next" => %{"content" => ""}}) do
     # Skip the verification when it's the default type
-    {:content, true}
+    {"content", true}
   end
 
   # Validation rules for inherit constraints
   defp validate_condition({field, nil}, %{"previous" => prev, "next" => next}) do
-    {field, Map.get(prev, Atom.to_string(field)) == Map.get(next, Atom.to_string(field))}
+    {field, Map.get(prev, field) == Map.get(next, field)}
   end
 
   defp validate_condition({field, condition}, constants = %{"next" => next}) do
@@ -520,7 +545,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     if is_boolean(result) do
       {field, result}
     else
-      {field, Map.get(next, Atom.to_string(field)) == result}
+      {field, Map.get(next, field) == result}
     end
   end
 
@@ -539,7 +564,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     if is_boolean(result) do
       {field, result}
     else
-      {field, Map.get(transaction, Atom.to_string(field)) == result}
+      {field, Map.get(transaction, field) == result}
     end
   end
 

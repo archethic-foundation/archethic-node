@@ -322,6 +322,20 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {{:%{}, meta, encoded_params}, acc}
   end
 
+  def postwalk(node, acc) when is_binary(node) do
+    if String.printable?(node) do
+      case Base.decode16(node, case: :mixed) do
+        {:ok, hex} ->
+          {Base.encode16(hex), acc}
+
+        _ ->
+          {node, acc}
+      end
+    else
+      {node, acc}
+    end
+  end
+
   def postwalk(node, acc), do: {node, acc}
 
   @doc """
@@ -350,11 +364,11 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   defp do_postwalk_execution({:=, metadata, [var_name, content]}, acc) do
     put_ast =
       {{:., metadata, [{:__aliases__, metadata, [:Map]}, :put]}, metadata,
-       [{:scope, metadata, nil}, var_name, parse_value(content)]}
+       [{:scope, metadata, nil}, var_name, content]}
 
     {
       {:=, metadata, [{:scope, metadata, nil}, put_ast]},
-      put_in(acc, [:bindings, var_name], parse_value(content))
+      put_in(acc, [:bindings, var_name], content)
     }
   end
 
@@ -432,7 +446,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   defp do_postwalk_execution({:., metadata, [parent, {{:atom, field}}]}, acc) do
     {
-      {:get_in, metadata, [{:scope, metadata, nil}, [parent, parse_value(field)]]},
+      {:get_in, metadata, [{:scope, metadata, nil}, [parent, field]]},
       acc
     }
   end
@@ -442,7 +456,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
          acc
        ) do
     {
-      {:get_in, metadata, [{:scope, metadata, nil}, access ++ [parse_value(field)]]},
+      {:get_in, metadata, [{:scope, metadata, nil}, access ++ [field]]},
       acc
     }
   end
@@ -452,7 +466,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
           [{:get_in, metadata, [{:scope, metadata, nil}, [parent]]}, {:atom, child}]},
          acc
        ) do
-    {{:get_in, metadata, [{:scope, metadata, nil}, [parent, parse_value(child)]]}, acc}
+    {{:get_in, metadata, [{:scope, metadata, nil}, [parent, child]]}, acc}
   end
 
   defp do_postwalk_execution({{:atom, atom}, val}, acc) do
@@ -476,22 +490,10 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   end
 
   defp do_postwalk_execution({node, _, _}, acc) when is_binary(node) do
-    {parse_value(node), acc}
+    {node, acc}
   end
 
-  defp do_postwalk_execution(node, acc), do: {parse_value(node), acc}
-
-  defp parse_value(val) when is_binary(val) do
-    case Base.decode16(val, case: :mixed) do
-      {:ok, bin} ->
-        bin
-
-      _ ->
-        val
-    end
-  end
-
-  defp parse_value(val), do: val
+  defp do_postwalk_execution(node, acc), do: {node, acc}
 
   @doc """
   Format an error message from the failing ast node
