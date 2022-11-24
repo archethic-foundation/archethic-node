@@ -65,4 +65,13 @@ defmodule Archethic.Contracts.TransactionLookup do
       {tx_address, tx_timestamp, protocol_version}
     end)
   end
+
+  @doc """
+  Remove the contract transactions
+  """
+  @spec clear_contract_transactions(binary()) :: :ok
+  def clear_contract_transactions(contract_address) when is_binary(contract_address) do
+    :ets.delete(@table_name, contract_address)
+    :ok
+  end
 end
