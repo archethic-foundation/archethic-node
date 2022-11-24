@@ -227,21 +227,19 @@ config :archethic, ArchethicWeb.FaucetController,
 # before starting your production server.
 config :archethic, ArchethicWeb.Endpoint,
   explorer_url:
-    (case(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet") do
-       true ->
-         Path.join([
-           "https://",
-           "#{System.get_env("ARCHETHIC_DOMAIN_NAME", "testnet.archethic.net")}:#{System.get_env("ARCHETHIC_HTTPS_PORT", "50000")}",
-           "explorer"
-         ])
+    URI.to_string(%URI{
+      scheme: "https",
+      host:
+        case(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet") do
+          true ->
+            System.get_env("ARCHETHIC_DOMAIN_NAME", "testnet.archethic.net")
 
-       false ->
-         Path.join([
-           "https://",
-           "#{System.get_env("ARCHETHIC_DOMAIN_NAME", "mainnet.archethic.net")}:#{System.get_env("ARCHETHIC_HTTPS_PORT", "50000")}",
-           "explorer"
-         ])
-     end),
+          false ->
+            System.get_env("ARCHETHIC_DOMAIN_NAME", "mainnet.archethic.net")
+        end,
+      port: System.get_env("ARCHETHIC_HTTPS_PORT", "50000") |> String.to_integer(),
+      path: "/explorer"
+    }),
   http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   url: [host: nil, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   cache_static_manifest: "priv/static/cache_manifest.json",

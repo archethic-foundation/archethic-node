@@ -128,11 +128,12 @@ config :archethic, ArchethicWeb.FaucetController, enabled: true
 # with webpack to recompile .js and .css sources.
 config :archethic, ArchethicWeb.Endpoint,
   explorer_url:
-    Path.join([
-      "https://",
-      "#{System.get_env("ARCHETHIC_DOMAIN_NAME", "localhost")}:#{System.get_env("ARCHETHIC_HTTPS_PORT", "5000")}",
-      "explorer"
-    ]),
+    URI.to_string(%URI{
+      scheme: "https",
+      host: System.get_env("ARCHETHIC_DOMAIN_NAME", "localhost"),
+      port: System.get_env("ARCHETHIC_HTTPS_PORT", "5000") |> String.to_integer(),
+      path: "/explorer"
+    }),
   http: [port: System.get_env("ARCHETHIC_HTTP_PORT", "4000") |> String.to_integer()],
   server: true,
   debug_errors: true,
