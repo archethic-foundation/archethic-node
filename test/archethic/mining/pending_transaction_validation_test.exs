@@ -186,6 +186,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         available?: true
       })
 
+      MockDB
+      |> expect(:get_latest_tps, fn -> 1000.0 end)
+
       tx =
         Transaction.new(
           :node_shared_secrets,
@@ -205,7 +208,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 secret: :crypto.strong_rand_bytes(32),
                 authorized_keys: %{
                   "node_key1" => "",
-                  "node_key2" => ""
+                  "node_key2" => "",
+                  # we started and connected this node in setup
+                  Crypto.last_node_public_key() => ""
                 }
               }
             ]

@@ -13,8 +13,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
 
-  alias Archethic.SharedSecrets.NodeRenewal
-
   import Mox
 
   test "new_node_shared_secrets_transaction/4 should create a new node shared secrets transaction" do
