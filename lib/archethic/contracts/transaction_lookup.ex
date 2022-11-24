@@ -29,11 +29,24 @@ defmodule Archethic.Contracts.TransactionLookup do
   @doc """
   Register a new transaction address towards a contract address
   """
-  @spec add_contract_transaction(binary(), binary(), DateTime.t()) :: :ok
-  def add_contract_transaction(contract_address, transaction_address, transaction_timestamp)
+  @spec add_contract_transaction(
+          contract_address :: binary(),
+          tx_address :: binary(),
+          tx_timestamp :: DateTime.t(),
+          protocol_version :: non_neg_integer()
+        ) :: :ok
+  def add_contract_transaction(
+        contract_address,
+        transaction_address,
+        transaction_timestamp,
+        protocol_version
+      )
       when is_binary(contract_address) and is_binary(transaction_address) do
     true =
-      :ets.insert(@table_name, {contract_address, transaction_address, transaction_timestamp})
+      :ets.insert(
+        @table_name,
+        {contract_address, transaction_address, transaction_timestamp, protocol_version}
+      )
 
     :ok
   end
@@ -41,10 +54,15 @@ defmodule Archethic.Contracts.TransactionLookup do
   @doc """
   Return the list transaction towards a contract address
   """
-  @spec list_contract_transactions(binary()) :: list({binary(), DateTime.t()})
+  @spec list_contract_transactions(binary()) ::
+          list(
+            {address :: binary(), timestamp :: DateTime.t(),
+             protocol_version :: non_neg_integer()}
+          )
   def list_contract_transactions(contract_address) when is_binary(contract_address) do
-    Enum.map(:ets.lookup(@table_name, contract_address), fn {_, tx_address, tx_timestamp} ->
-      {tx_address, tx_timestamp}
+    Enum.map(:ets.lookup(@table_name, contract_address), fn {_, tx_address, tx_timestamp,
+                                                             protocol_version} ->
+      {tx_address, tx_timestamp, protocol_version}
     end)
   end
 end

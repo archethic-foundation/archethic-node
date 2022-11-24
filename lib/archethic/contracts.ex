@@ -210,7 +210,11 @@ defmodule Archethic.Contracts do
   @doc """
   List the address of the transaction which has contacted a smart contract
   """
-  @spec list_contract_transactions(binary()) :: list({binary(), DateTime.t()})
+  @spec list_contract_transactions(contract_address :: binary()) ::
+          list(
+            {transaction_address :: binary(), transaction_timestamp :: DateTime.t(),
+             protocol_version :: non_neg_integer()}
+          )
   defdelegate list_contract_transactions(address),
     to: TransactionLookup,
     as: :list_contract_transactions

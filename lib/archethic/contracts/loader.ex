@@ -87,7 +87,11 @@ defmodule Archethic.Contracts.Loader do
         tx = %Transaction{
           address: tx_address,
           type: tx_type,
-          validation_stamp: %ValidationStamp{timestamp: tx_timestamp, recipients: recipients}
+          validation_stamp: %ValidationStamp{
+            timestamp: tx_timestamp,
+            recipients: recipients,
+            protocol_version: protocol_version
+          }
         },
         false
       )
@@ -100,7 +104,12 @@ defmodule Archethic.Contracts.Loader do
 
       case Worker.execute(contract_address, tx) do
         :ok ->
-          TransactionLookup.add_contract_transaction(contract_address, tx_address, tx_timestamp)
+          TransactionLookup.add_contract_transaction(
+            contract_address,
+            tx_address,
+            tx_timestamp,
+            protocol_version
+          )
 
           Logger.info("Transaction towards contract ingested",
             transaction_address: Base.encode16(tx_address),
@@ -117,12 +126,19 @@ defmodule Archethic.Contracts.Loader do
         %Transaction{
           address: address,
           type: type,
-          validation_stamp: %ValidationStamp{recipients: recipients, timestamp: timestamp}
+          validation_stamp: %ValidationStamp{
+            recipients: recipients,
+            timestamp: timestamp,
+            protocol_version: protocol_version
+          }
         },
         true
       )
       when recipients != [] do
-    Enum.each(recipients, &TransactionLookup.add_contract_transaction(&1, address, timestamp))
+    Enum.each(
+      recipients,
+      &TransactionLookup.add_contract_transaction(&1, address, timestamp, protocol_version)
+    )
 
     Logger.info("Transaction towards contract ingested",
       transaction_address: Base.encode16(address),
