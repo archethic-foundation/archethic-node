@@ -227,11 +227,21 @@ config :archethic, ArchethicWeb.FaucetController,
 # before starting your production server.
 config :archethic, ArchethicWeb.Endpoint,
   explorer_url:
-    Path.join([
-      "https://",
-      "#{System.get_env("ARCHETHIC_DOMAIN_NAME", "mainnet.archethic.net")}:#{System.get_env("ARCHETHIC_HTTPS_PORT", "50000")}",
-      "explorer"
-    ]),
+    (case(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet") do
+       true ->
+         Path.join([
+           "https://",
+           "#{System.get_env("ARCHETHIC_DOMAIN_NAME", "testnet.archethic.net")}:#{System.get_env("ARCHETHIC_HTTPS_PORT", "50000")}",
+           "explorer"
+         ])
+
+       false ->
+         Path.join([
+           "https://",
+           "#{System.get_env("ARCHETHIC_DOMAIN_NAME", "mainnet.archethic.net")}:#{System.get_env("ARCHETHIC_HTTPS_PORT", "50000")}",
+           "explorer"
+         ])
+     end),
   http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   url: [host: nil, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   cache_static_manifest: "priv/static/cache_manifest.json",
