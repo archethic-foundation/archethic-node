@@ -7,7 +7,7 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-
+  alias ArchethicWeb.API.WebHosting.CheckSum
   alias Archethic.Crypto
 
   use Pathex
@@ -68,10 +68,12 @@ defmodule ArchethicWeb.API.WebHostingController do
          {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
            Archethic.get_last_transaction(address),
          {:ok, json_content} <- Jason.decode(content),
-         {:ok, file, mime_type} <- get_file(json_content, url_path),
+         {:ok, file, mime_type} <-
+           get_file(json_content, url_path),
          {cached?, etag} <-
            get_cache(cache_headers, last_address, url_path),
-         {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
+         {:ok, file_content, encodage} <-
+           get_file_content(file, cached?, url_path) do
       {:ok, file_content, encodage, mime_type, cached?, etag}
     else
       er when er in [:error, false] ->
@@ -256,4 +258,18 @@ defmodule ArchethicWeb.API.WebHostingController do
   end
 
   defp get_file_content(_, _, _), do: :file_error
+
+  def checksum(conn, %{"ref_address" => ref_address}) do
+    with {:ok, addr_binary} <-
+           Base.decode16(ref_address, case: :mixed),
+         true <- Crypto.valid_address?(addr_binary),
+         {:data, file_hash} <- CheckSum.get_checksum(addr_binary) do
+      conn
+      |> put_status(200)
+      |> json(file_hash)
+    else
+      _e ->
+        send_resp(conn, 400, "error")
+    end
+  end
 end

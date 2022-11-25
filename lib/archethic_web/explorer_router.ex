@@ -74,6 +74,7 @@ defmodule ArchethicWeb.ExplorerRouter do
       :last_transaction_content
     )
 
+    get("/web_hosting_checksum/:ref_address", ArchethicWeb.API.WebHostingController, :checksum)
     get("/web_hosting/:address/*url_path", ArchethicWeb.API.WebHostingController, :web_hosting)
 
     post("/origin_key", ArchethicWeb.API.OriginKeyController, :origin_key)
