@@ -5,6 +5,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
   alias Archethic.Crypto
 
+  @publickey1 Crypto.generate_deterministic_keypair("seed2")
+  @publickey2 Crypto.generate_deterministic_keypair("seed3")
+
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
@@ -13,6 +16,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.Election
 
   alias Archethic.Mining.DistributedWorkflow, as: Workflow
+  alias Archethic.Mining.Fee
   alias Archethic.Mining.ValidationContext
 
   alias Archethic.P2P
@@ -20,17 +24,22 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Node
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -118,6 +127,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
 
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
+
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
@@ -197,6 +209,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -299,6 +314,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -422,6 +440,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -551,6 +572,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -783,6 +807,12 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       MockClient
       |> stub(:send_message, fn
+        _, %ValidationError{}, _ ->
+          {:ok, %Ok{}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
+
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
 
@@ -968,7 +998,277 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           end
 
           assert_receive :replication_done
+          refute_receive :validation_error
       end
     end
+
+    test "should not replicate if there is a validation error", %{tx: tx} do
+      validation_context = create_context(tx)
+
+      validation_stamp = create_validation_stamp(validation_context)
+      validation_stamp = %ValidationStamp{validation_stamp | error: :invalid_pending_transaction}
+
+      context =
+        validation_context
+        |> ValidationContext.add_validation_stamp(validation_stamp)
+
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
+
+        _, %ValidationError{}, _ ->
+          send(me, :validation_error)
+          {:ok, %Ok{}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %Transaction{}}
+      end)
+
+      {:ok, coordinator_pid} =
+        Workflow.start_link(
+          transaction: context.transaction,
+          welcome_node: context.welcome_node,
+          validation_nodes: [context.coordinator_node | context.cross_validation_nodes],
+          node_public_key: context.coordinator_node.last_public_key
+        )
+
+      :sys.replace_state(coordinator_pid, fn {:coordinator, %{context: _}} ->
+        {:wait_cross_validation_stamps, %{context: context}}
+      end)
+
+      Workflow.add_cross_validation_stamp(
+        coordinator_pid,
+        %CrossValidationStamp{
+          signature:
+            Crypto.sign(
+              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+              elem(@publickey1, 1)
+            ),
+          node_public_key: elem(@publickey1, 0),
+          inconsistencies: [:signature]
+        }
+      )
+
+      Workflow.add_cross_validation_stamp(
+        coordinator_pid,
+        %CrossValidationStamp{
+          signature:
+            Crypto.sign(
+              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+              elem(@publickey2, 1)
+            ),
+          node_public_key: elem(@publickey2, 0),
+          inconsistencies: [:signature]
+        }
+      )
+
+      assert_receive :validation_error
+      refute_receive :ack_replication
+      refute_receive :replication_done
+    end
+
+    test "should not replicate if there is a cross validation error", %{tx: tx} do
+      validation_context = create_context(tx)
+
+      context =
+        validation_context
+        |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
+
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
+
+        _, %ValidationError{}, _ ->
+          send(me, :validation_error)
+          {:ok, %Ok{}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %Transaction{}}
+      end)
+
+      {:ok, coordinator_pid} =
+        Workflow.start_link(
+          transaction: context.transaction,
+          welcome_node: context.welcome_node,
+          validation_nodes: [context.coordinator_node | context.cross_validation_nodes],
+          node_public_key: context.coordinator_node.last_public_key
+        )
+
+      :sys.replace_state(coordinator_pid, fn {:coordinator, %{context: _}} ->
+        {:wait_cross_validation_stamps, %{context: context}}
+      end)
+
+      Workflow.add_cross_validation_stamp(
+        coordinator_pid,
+        %CrossValidationStamp{
+          signature:
+            Crypto.sign(
+              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+              elem(@publickey1, 1)
+            ),
+          node_public_key: elem(@publickey1, 0),
+          inconsistencies: [:signature]
+        }
+      )
+
+      Workflow.add_cross_validation_stamp(
+        coordinator_pid,
+        %CrossValidationStamp{
+          signature:
+            Crypto.sign(
+              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+              elem(@publickey2, 1)
+            ),
+          node_public_key: elem(@publickey2, 0),
+          inconsistencies: [:signature]
+        }
+      )
+
+      assert_receive :validation_error
+      refute_receive :ack_replication
+      refute_receive :replication_done
+    end
+  end
+
+  defp create_context(
+         tx,
+         validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond)
+       ) do
+    {pub1, _} = Crypto.generate_deterministic_keypair("seed")
+
+    welcome_node = %Node{
+      last_public_key: pub1,
+      first_public_key: pub1,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      reward_address: :crypto.strong_rand_bytes(32),
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+    }
+
+    coordinator_node = %Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      reward_address: :crypto.strong_rand_bytes(32),
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+    }
+
+    cross_validation_nodes = [
+      %Node{
+        first_public_key: elem(@publickey1, 0),
+        last_public_key: elem(@publickey1, 0),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      },
+      %Node{
+        first_public_key: elem(@publickey2, 0),
+        last_public_key: elem(@publickey2, 0),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      }
+    ]
+
+    previous_storage_nodes = [
+      %Node{
+        last_public_key: "key2",
+        first_public_key: "key2",
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        available?: true,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      },
+      %Node{
+        last_public_key: "key3",
+        first_public_key: "key3",
+        geo_patch: "DEA",
+        network_patch: "DEA",
+        available?: true,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      }
+    ]
+
+    P2P.add_and_connect_node(welcome_node)
+    P2P.add_and_connect_node(coordinator_node)
+    Enum.each(cross_validation_nodes, &P2P.add_and_connect_node(&1))
+    Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
+
+    %ValidationContext{
+      transaction: tx,
+      previous_storage_nodes: previous_storage_nodes,
+      unspent_outputs: [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 204_000_000,
+          type: :UCO,
+          timestamp: validation_time
+        }
+      ],
+      welcome_node: welcome_node,
+      coordinator_node: coordinator_node,
+      cross_validation_nodes: cross_validation_nodes,
+      cross_validation_nodes_confirmation: <<1::1, 1::1>>,
+      valid_pending_transaction?: true,
+      validation_time: validation_time
+    }
+  end
+
+  defp create_validation_stamp(%ValidationContext{
+         transaction: tx,
+         unspent_outputs: unspent_outputs,
+         validation_time: timestamp
+       }) do
+    %ValidationStamp{
+      timestamp: timestamp,
+      proof_of_work: Crypto.origin_node_public_key(),
+      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+      ledger_operations:
+        %LedgerOperations{
+          fee: Fee.calculate(tx, 0.07, timestamp),
+          transaction_movements: Transaction.get_movements(tx)
+        }
+        |> LedgerOperations.from_transaction(tx, timestamp)
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp),
+      protocol_version: ArchethicCase.current_protocol_version()
+    }
   end
 end

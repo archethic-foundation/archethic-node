@@ -1261,4 +1261,25 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.map(&Enum.at(storage_nodes, &1))
     |> Enum.reject(&Utils.key_in_node_list?(chain_storage_nodes, &1.first_public_key))
   end
+
+  @spec get_error_as_atom(t()) :: atom()
+  def get_error_as_atom(ctx = %__MODULE__{}) do
+    case ctx.validation_stamp.error do
+      nil ->
+        inconsistencies =
+          ctx.cross_validation_stamps
+          |> Enum.flat_map(& &1.inconsistencies)
+
+        case inconsistencies do
+          [] ->
+            nil
+
+          _ ->
+            :invalid_cross_validation_stamp
+        end
+
+      _ ->
+        :invalid_validation_stamp
+    end
+  end
 end

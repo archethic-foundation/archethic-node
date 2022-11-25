@@ -502,11 +502,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        next_events = [
-          {:next_event, :internal, {:notify_error, :timeout}}
-        ]
-
-        {:keep_state_and_data, next_events}
+        notify_error(:timeout, data)
+        :stop
 
       _ ->
         new_context =
@@ -580,7 +577,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
         :wait_cross_validation_stamps,
         data = %{
-          context: context = %ValidationContext{transaction: tx}
+          context:
+            context = %ValidationContext{
+              validation_stamp: validation_stamp,
+              cross_validation_stamps: cross_validation_stamps,
+              transaction: tx
+            }
         }
       ) do
     Logger.info("Add cross validation stamp",
@@ -589,60 +591,42 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
+    new_data = %{data | context: new_context}
 
     if ValidationContext.enough_cross_validation_stamps?(new_context) do
       if ValidationContext.atomic_commitment?(new_context) do
-        {:next_state, :replication, %{data | context: new_context}}
+        {:next_state, :replication, new_data}
       else
-        next_events = [
-          {:next_event, :internal, {:notify_error, :consensus_not_reached}}
-        ]
+        Logger.debug("Validation stamp: #{inspect(validation_stamp, limit: :infinity)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
 
-        {:next_state, :consensus_not_reached, %{data | context: new_context}, next_events}
+        Logger.debug(
+          "Cross validation stamps: #{inspect(cross_validation_stamps, limit: :infinity)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        Logger.error("Consensus not reached",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        MaliciousDetection.start_link(context)
+        notify_error(:consensus_not_reached, new_data)
+        :stop
       end
     else
-      {:keep_state, %{data | context: new_context}}
+      {:keep_state, new_data}
     end
-  end
-
-  def handle_event(
-        :enter,
-        :wait_cross_validation_stamps,
-        :consensus_not_reached,
-        _data = %{
-          context:
-            context = %ValidationContext{
-              transaction: tx,
-              cross_validation_stamps: cross_validation_stamps,
-              validation_stamp: validation_stamp
-            }
-        }
-      ) do
-    Logger.debug("Validation stamp: #{inspect(validation_stamp, limit: :infinity)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    Logger.debug("Cross validation stamps: #{inspect(cross_validation_stamps, limit: :infinity)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    Logger.error("Consensus not reached",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    MaliciousDetection.start_link(context)
-
-    :keep_state_and_data
   end
 
   def handle_event(
         :enter,
         from_state,
         :replication,
-        _data = %{
+        data = %{
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: tx_address, type: type}
@@ -650,13 +634,22 @@ defmodule Archethic.Mining.DistributedWorkflow do
         }
       )
       when from_state in [:cross_validator, :wait_cross_validation_stamps] do
-    Logger.info("Start replication",
-      transaction_address: Base.encode16(tx_address),
-      transaction_type: type
-    )
+    case ValidationContext.get_error_as_atom(context) do
+      nil ->
+        Logger.info("Start replication",
+          transaction_address: Base.encode16(tx_address),
+          transaction_type: type
+        )
 
-    request_replication(context)
-    :keep_state_and_data
+        request_replication(context)
+        :keep_state_and_data
+
+      err ->
+        Logger.info("Skipped replication because validation failed", err: err)
+
+        notify_error(err, data)
+        :stop
+    end
   end
 
   def handle_event(
@@ -766,19 +759,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :info,
         {:replication_error, reason},
         :replication,
-        _data = %{context: %ValidationContext{transaction: tx}}
+        data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.error("Replication error - #{inspect(reason)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    next_events = [
-      {:next_event, :internal, {:notify_error, reason}}
-    ]
-
-    {:keep_state_and_data, next_events}
-    # :stop
+    notify_error(reason, data)
+    :stop
   end
 
   def handle_event(
@@ -803,13 +792,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        next_events = [
-          {:next_event, :internal, {:notify_error, :timeout}}
-        ]
-
-        {:keep_state_and_data, next_events}
-
-      # :stop
+        notify_error(:timeout, data)
+        :stop
 
       _ ->
         nb_cross_validation_nodes = length(next_cross_validation_nodes)
@@ -837,71 +821,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:timeout, :stop_timeout},
         :any,
         _state,
-        _data = %{context: %ValidationContext{transaction: tx}}
+        data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.warning("Timeout reached during mining",
       transaction_type: tx.type,
       transaction_address: Base.encode16(tx.address)
     )
 
-    next_events = [
-      {:next_event, :internal, {:notify_error, :timeout}}
-    ]
-
-    {:keep_state_and_data, next_events}
-  end
-
-  def handle_event(
-        :internal,
-        {:notify_error, reason},
-        _,
-        _data = %{
-          context:
-            _context = %ValidationContext{
-              welcome_node: welcome_node = %Node{},
-              transaction: %Transaction{address: tx_address},
-              pending_transaction_error_detail: pending_error_detail
-            }
-        }
-      ) do
-    {error_context, error_reason} =
-      case reason do
-        :invalid_pending_transaction ->
-          {:invalid_transaction, pending_error_detail}
-
-        :invalid_inherit_constraints ->
-          {:invalid_transaction, "Inherit constraints not respected"}
-
-        :insufficient_funds ->
-          {:invalid_transaction, "Insufficient funds"}
-
-        :invalid_proof_of_work ->
-          {:invalid_transaction, "Invalid origin signature"}
-
-        reason ->
-          {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
-      end
-
-    Logger.warning("Invalid transaction #{inspect(error_reason)}",
-      transaction_address: Base.encode16(tx_address)
-    )
-
-    Logger.debug("Notify error back to the welcome node",
-      transaction_address: Base.encode16(tx_address)
-    )
-
-    # Notify error to the welcome node
-    message = %ValidationError{context: error_context, reason: error_reason, address: tx_address}
-
-    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-      P2P.send_message(
-        welcome_node,
-        message
-      )
-
-      :ok
-    end)
-
+    notify_error(:timeout, data)
     :stop
   end
 
@@ -1023,5 +950,57 @@ defmodule Archethic.Mining.DistributedWorkflow do
     }
 
     P2P.broadcast_message(storage_nodes, message)
+  end
+
+  defp notify_error(reason, %{
+         context: %ValidationContext{
+           welcome_node: welcome_node = %Node{},
+           transaction: %Transaction{address: tx_address},
+           pending_transaction_error_detail: pending_error_detail
+         }
+       }) do
+    {error_context, error_reason} =
+      case reason do
+        :invalid_pending_transaction ->
+          {:invalid_transaction, pending_error_detail}
+
+        :invalid_inherit_constraints ->
+          {:invalid_transaction, "Inherit constraints not respected"}
+
+        :insufficient_funds ->
+          {:invalid_transaction, "Insufficient funds"}
+
+        :invalid_proof_of_work ->
+          {:invalid_transaction, "Invalid origin signature"}
+
+        :invalid_validation_stamp ->
+          {:network_issue, "Validation error"}
+
+        :invalid_cross_validation_stamp ->
+          {:network_issue, "Cross validation error"}
+
+        reason ->
+          {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
+      end
+
+    Logger.warning("Invalid transaction #{inspect(error_reason)}",
+      transaction_address: Base.encode16(tx_address)
+    )
+
+    Logger.debug("Notify error back to the welcome node",
+      transaction_address: Base.encode16(tx_address)
+    )
+
+    # Notify error to the welcome node
+    message = %ValidationError{context: error_context, reason: error_reason, address: tx_address}
+
+    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+      P2P.send_message(
+        welcome_node,
+        message
+      )
+
+      :ok
+    end)
   end
 end
