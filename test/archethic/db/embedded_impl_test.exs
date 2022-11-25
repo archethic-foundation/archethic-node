@@ -691,7 +691,7 @@ defmodule Archethic.DB.EmbeddedTest do
           seed: seed,
           index: 1,
           type: :transfer,
-          timestamp: ~U[2020-03-30 10:13:00Z]
+          timestamp: ~U[2020-03-30 10:14:00Z]
         )
 
       tx2 =
@@ -699,7 +699,7 @@ defmodule Archethic.DB.EmbeddedTest do
           seed: seed,
           index: 2,
           type: :transfer,
-          timestamp: ~U[2020-04-30 10:12:00Z]
+          timestamp: ~U[2020-04-30 10:15:00Z]
         )
 
       tx3 =
@@ -707,7 +707,7 @@ defmodule Archethic.DB.EmbeddedTest do
           seed: seed,
           index: 3,
           type: :transfer,
-          timestamp: ~U[2020-04-30 10:11:00Z]
+          timestamp: ~U[2020-04-30 10:16:00Z]
         )
 
       tx4 =
@@ -715,7 +715,7 @@ defmodule Archethic.DB.EmbeddedTest do
           seed: seed,
           index: 4,
           type: :transfer,
-          timestamp: ~U[2020-04-30 10:11:00Z]
+          timestamp: ~U[2020-04-30 10:17:00Z]
         )
 
       txn_list = [tx0, tx1, tx2, tx3, tx4]
