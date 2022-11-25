@@ -89,11 +89,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
       genesis_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       today = DateTime.utc_now()
-      yesterday = DateTime.add(today, -1, :day)
+      tomorrow = DateTime.add(today, 1, :day)
 
       ChainIndex.add_tx(tx_address_1, genesis_address, 100, db_path)
-      ChainIndex.set_last_chain_address(genesis_address, tx_address_1, yesterday, db_path)
-      ChainIndex.set_last_chain_address(genesis_address, tx_address_2, today, db_path)
+      ChainIndex.set_last_chain_address(genesis_address, tx_address_1, today, db_path)
+      ChainIndex.set_last_chain_address(genesis_address, tx_address_2, tomorrow, db_path)
 
       assert {^tx_address_2, _} = ChainIndex.get_last_chain_address(genesis_address, db_path)
     end
