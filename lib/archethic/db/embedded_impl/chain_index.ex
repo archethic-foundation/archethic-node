@@ -371,14 +371,36 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
     filename = chain_addresses_path(db_path, genesis_address)
 
-    case :ets.lookup(:archethic_db_last_index, genesis_address) do
-      [{_, ^new_address, _}] ->
-        :ok
+    write_last_chain_transaction? =
+      case :ets.lookup(:archethic_db_last_index, genesis_address) do
+        [{_, ^new_address, _}] -> false
+        [{_, _, chain_unix_time}] when unix_time < chain_unix_time -> false
+        _ -> true
+      end
 
-      _ ->
-        :ok = File.write!(filename, encoded_data, [:binary, :append])
-        true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time})
-        :ok
+    write_last_chain_transaction(
+      write_last_chain_transaction?,
+      filename,
+      encoded_data,
+      genesis_address,
+      new_address,
+      unix_time
+    )
+  end
+
+  defp write_last_chain_transaction(false, _, _, _, _, _), do: :ok
+
+  defp write_last_chain_transaction(
+         true,
+         filename,
+         encoded_data,
+         genesis_address,
+         new_address,
+         unix_time
+       ) do
+    with :ok <- File.write!(filename, encoded_data, [:binary, :append]),
+         true <- :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time}) do
+      :ok
     end
   end
 
