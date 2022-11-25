@@ -577,12 +577,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:add_cross_validation_stamp, cross_validation_stamp = %CrossValidationStamp{}},
         :wait_cross_validation_stamps,
         data = %{
-          context:
-            context = %ValidationContext{
-              validation_stamp: validation_stamp,
-              cross_validation_stamps: cross_validation_stamps,
-              transaction: tx
-            }
+          context: context = %ValidationContext{transaction: tx}
         }
       ) do
     Logger.info("Add cross validation stamp",
@@ -591,35 +586,50 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
-    new_data = %{data | context: new_context}
 
     if ValidationContext.enough_cross_validation_stamps?(new_context) do
       if ValidationContext.atomic_commitment?(new_context) do
-        {:next_state, :replication, new_data}
+        {:next_state, :replication, %{data | context: new_context}}
       else
-        Logger.debug("Validation stamp: #{inspect(validation_stamp, limit: :infinity)}",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: tx.type
-        )
-
-        Logger.debug(
-          "Cross validation stamps: #{inspect(cross_validation_stamps, limit: :infinity)}",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: tx.type
-        )
-
-        Logger.error("Consensus not reached",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: tx.type
-        )
-
-        MaliciousDetection.start_link(context)
-        notify_error(:consensus_not_reached, new_data)
-        :stop
+        {:next_state, :consensus_not_reached, %{data | context: new_context}}
       end
     else
-      {:keep_state, new_data}
+      {:keep_state, %{data | context: new_context}}
     end
+  end
+
+  def handle_event(
+        :enter,
+        :wait_cross_validation_stamps,
+        :consensus_not_reached,
+        data = %{
+          context:
+            context = %ValidationContext{
+              transaction: tx,
+              cross_validation_stamps: cross_validation_stamps,
+              validation_stamp: validation_stamp
+            }
+        }
+      ) do
+    Logger.debug("Validation stamp: #{inspect(validation_stamp, limit: :infinity)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    Logger.debug("Cross validation stamps: #{inspect(cross_validation_stamps, limit: :infinity)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    Logger.error("Consensus not reached",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    MaliciousDetection.start_link(context)
+
+    notify_error(:consensus_not_reached, data)
+    :keep_state_and_data
   end
 
   def handle_event(
