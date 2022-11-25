@@ -388,8 +388,9 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Start a process responsible to write the inputs
   """
-  @spec start_inputs_writer(ledger :: :UCO | :token, address :: binary()) :: {:ok, pid()}
-  defdelegate start_inputs_writer(ledger, address), to: InputsWriter, as: :start_link
+  @spec start_inputs_writer(input_type :: InputsWriter.input_type(), address :: binary()) ::
+          {:ok, pid()}
+  defdelegate start_inputs_writer(input_type, address), to: InputsWriter, as: :start_link
 
   @doc """
   Stop the process responsible to write the inputs
@@ -407,7 +408,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Read the list of inputs available at address
   """
-  @spec get_inputs(ledger :: :UCO | :token, address :: binary()) ::
+  @spec get_inputs(input_type :: InputsWriter.input_type(), address :: binary()) ::
           list(VersionedTransactionInput.t())
   defdelegate get_inputs(ledger, address), to: InputsReader, as: :get_inputs
 

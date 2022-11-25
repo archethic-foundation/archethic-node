@@ -32,29 +32,46 @@ defmodule Archethic.Contracts.InterpreterTest do
   end
 
   test "ICO contract parsing" do
-    {:ok, _} =
-      """
-      condition inherit: [
-      type: transfer,
-      uco_transfers: size() == 1
-      # TODO: to provide more security, we should check the destination address is within the previous transaction inputs
-      ]
+    assert {:ok, _} =
+             """
+             condition inherit: [
+             type: transfer,
+             uco_transfers: size() == 1
+             # TODO: to provide more security, we should check the destination address is within the previous transaction inputs
+             ]
 
 
-      actions triggered_by: transaction do
-        # Get the amount of uco send to this contract
-        amount_send = transaction.uco_transfers[contract.address]
+             actions triggered_by: transaction do
+               # Get the amount of uco send to this contract
+               amount_send = transaction.uco_transfers[contract.address]
 
-        if amount_send > 0 do
-          # Convert UCO to the number of tokens to credit. Each UCO worth 10000 token
-          token_to_credit = amount_send * 10000
+               if amount_send > 0 do
+                 # Convert UCO to the number of tokens to credit. Each UCO worth 10000 token
+                 token_to_credit = amount_send * 10000
 
-          # Send the new transaction
-          set_type transfer
-          add_token_transfer to: transaction.address, token_address: contract.address, amount: token_to_credit, token_id: token_id
-        end
-      end
-      """
-      |> Interpreter.parse()
+                 # Send the new transaction
+                 set_type transfer
+                 add_token_transfer to: transaction.address, token_address: contract.address, amount: token_to_credit, token_id: token_id
+               end
+             end
+             """
+             |> Interpreter.parse()
+  end
+
+  test "schedule transfers parsing" do
+    assert {:ok, _} =
+             """
+             condition inherit: [
+               type: transfer,
+               uco_transfers: 
+                  %{ "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC" => 100000000 }
+             ]
+
+             actions triggered_by: interval, at: "* * * * *" do
+               set_type transfer
+               add_uco_transfer to: "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC", amount: 100000000
+             end
+             """
+             |> Interpreter.parse()
   end
 end

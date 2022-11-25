@@ -9,9 +9,10 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.Utils
 
-  @type ledger :: :token | :UCO
+  @type input_type :: :UCO | :token | :call
 
-  @spec start_link(ledger :: ledger, address :: binary()) :: {:ok, pid()}
+  @spec start_link(type :: input_type(), address :: binary()) ::
+          {:ok, pid()}
   def start_link(ledger, address) do
     GenServer.start_link(__MODULE__, ledger: ledger, address: address)
   end
@@ -29,12 +30,14 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
     GenServer.call(pid, {:append_input, input})
   end
 
-  @spec address_to_filename(ledger :: ledger, address :: binary()) :: String.t()
+  @spec address_to_filename(type :: input_type(), address :: binary()) ::
+          String.t()
   def address_to_filename(ledger, address) do
     prefix =
       case ledger do
         :UCO -> "uco"
         :token -> "token"
+        :call -> "call"
       end
 
     Path.join([EmbeddedImpl.db_path(), "inputs", prefix, Base.encode16(address)])

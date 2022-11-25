@@ -185,6 +185,32 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     end
   end
 
+  defp prewalk(node = [{{:atom, "uco_transfers"}, value}], acc = {:ok, _}) do
+    case value do
+      {:%{}, _, _} ->
+        {node, acc}
+
+      {{:atom, _}, _, _} ->
+        {node, acc}
+
+      _ ->
+        {node, {:error, "must be a map"}}
+    end
+  end
+
+  defp prewalk(node = [{{:atom, "token_transfers"}, value}], acc = {:ok, _}) do
+    case value do
+      {:%{}, _, _} ->
+        {node, acc}
+
+      {{:atom, _}, _, _} ->
+        {node, acc}
+
+      _ ->
+        {node, {:error, "must be a map"}}
+    end
+  end
+
   # Whitelist the regex_match?/1 function in the condition
   defp prewalk(
          node = {{:atom, "regex_match?"}, _, [_search]},
@@ -476,7 +502,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
             value = get_constant_value(constants, field)
 
             Logger.debug(
-              "Invalid condition for `#{field}` with the given value: `#{value}` - condition: #{inspect(condition)}"
+              "Invalid condition for `#{inspect(field)}` with the given value: `#{inspect(value)}` - condition: #{inspect(condition)}"
             )
 
             false

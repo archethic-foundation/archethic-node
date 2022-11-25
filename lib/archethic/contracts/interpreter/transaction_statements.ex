@@ -201,14 +201,8 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   end
 
   defp decode_binary(bin) do
-    if String.printable?(bin) do
-      case Base.decode16(bin, case: :mixed) do
-        {:ok, hex} ->
-          hex
-
-        _ ->
-          bin
-      end
+    if String.match?(bin, ~r/^[[:xdigit:]]+$/) do
+      Base.decode16!(bin, case: :mixed)
     else
       bin
     end

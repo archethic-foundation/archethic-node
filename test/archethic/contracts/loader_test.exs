@@ -1,5 +1,5 @@
 defmodule Archethic.Contracts.LoaderTest do
-  use ExUnit.Case
+  use ArchethicCase
 
   alias Archethic.ContractRegistry
   alias Archethic.Contracts.Contract

@@ -11,6 +11,7 @@ defmodule Archethic.Contracts.Loader do
 
   alias Archethic.DB
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -157,6 +158,7 @@ defmodule Archethic.Contracts.Loader do
       [{pid, _}] ->
         DynamicSupervisor.terminate_child(ContractSupervisor, pid)
         TransactionLookup.clear_contract_transactions(address)
+        TransactionChain.clear_pending_transactions(address)
         Logger.info("Stop smart contract at #{Base.encode16(address)}")
 
       _ ->

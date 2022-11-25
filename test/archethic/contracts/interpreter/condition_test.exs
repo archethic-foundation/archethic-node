@@ -25,19 +25,16 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                       {:scope, _, nil},
                       ["next", "uco_transfers"]
                     ]},
-                   [
-                     {:%{}, _,
-                      [
-                        {"to",
-                         "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3"},
-                        {"amount", 1_040_000_000}
-                      ]}
-                   ]
+                   {:%{}, [line: 2],
+                    [
+                      {"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3",
+                       1_040_000_000}
+                    ]}
                  ]}
             }} =
              """
              condition inherit: [
-               uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }]
+               uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1040000000 }
              ]
              """
              |> Interpreter.sanitize_code()
@@ -104,40 +101,64 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
   end
 
   test "should accept conditional code within condition" do
-    {:ok, :inherit, %Conditions{}} =
-      ~S"""
-      condition inherit: [
-        content: if type == transfer do
-         regex_match?("hello")
-        else
-         regex_match?("hi")
-        end
-      ]
+    assert {:ok, :inherit, %Conditions{}} =
+             ~S"""
+             condition inherit: [
+               content: if type == transfer do
+                regex_match?("hello")
+               else
+                regex_match?("hi")
+               end
+             ]
 
-      """
-      |> Interpreter.sanitize_code()
-      |> elem(1)
-      |> ConditionInterpreter.parse()
+             """
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
   end
 
   test "should accept different type of transaction keyword references" do
-    {:ok, :inherit, %Conditions{}} =
-      ~S"""
-       condition inherit: [
-        content: if next.type == transfer do
-          "hi"
-        else
-          if previous.type == transfer do
-            "hi"
-          else
-            "hello"
-          end
-        end
-       ]
-      """
-      |> Interpreter.sanitize_code()
-      |> elem(1)
-      |> ConditionInterpreter.parse()
+    assert {:ok, :inherit, %Conditions{}} =
+             ~S"""
+              condition inherit: [
+               content: if next.type == transfer do
+                 "hi"
+               else
+                 if previous.type == transfer do
+                   "hi"
+                 else
+                   "hello"
+                 end
+               end
+              ]
+             """
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+  end
+
+  test "parse invalid uco transfers type definition" do
+    assert {:error, "must be a map - uco_transfers"} =
+             """
+             condition inherit: [
+               uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }]
+             ]
+             """
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+  end
+
+  test "parse invalid token transfers type definition" do
+    assert {:error, "must be a map - token_transfers"} =
+             """
+             condition inherit: [
+               token_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }]
+             ]
+             """
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
   end
 
   describe "valid_conditions?" do

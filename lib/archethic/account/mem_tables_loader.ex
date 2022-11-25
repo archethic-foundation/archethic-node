@@ -162,6 +162,10 @@ defmodule Archethic.Account.MemTablesLoader do
         }
       } ->
         TokenLedger.add_unspent_output(address, unspent_output)
+
+      _ ->
+        # Ignore smart contract calls
+        :ignore
     end)
   end
 

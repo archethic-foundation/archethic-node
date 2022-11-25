@@ -13,7 +13,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
 
   @type t() :: %__MODULE__{
           from: Crypto.versioned_hash(),
-          amount: pos_integer(),
+          amount: pos_integer() | nil,
           spent?: boolean(),
           type: TransactionMovementType.t() | :call,
           timestamp: DateTime.t(),
