@@ -629,7 +629,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     MaliciousDetection.start_link(context)
 
     notify_error(:consensus_not_reached, data)
-    :keep_state_and_data
+    :stop
   end
 
   def handle_event(
@@ -982,12 +982,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
         :invalid_proof_of_work ->
           {:invalid_transaction, "Invalid origin signature"}
-
-        :invalid_validation_stamp ->
-          {:network_issue, "Validation error"}
-
-        :invalid_cross_validation_stamp ->
-          {:network_issue, "Cross validation error"}
 
         reason ->
           {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}

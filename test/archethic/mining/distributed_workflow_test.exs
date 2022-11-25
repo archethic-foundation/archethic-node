@@ -1074,6 +1074,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       assert_receive :validation_error
       refute_receive :ack_replication
       refute_receive :replication_done
+      refute Process.alive?(coordinator_pid)
     end
 
     test "should not replicate if there is a cross validation error", %{tx: tx} do
@@ -1145,6 +1146,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       assert_receive :validation_error
       refute_receive :ack_replication
       refute_receive :replication_done
+      refute Process.alive?(coordinator_pid)
     end
   end
 

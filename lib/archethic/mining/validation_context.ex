@@ -1274,12 +1274,12 @@ defmodule Archethic.Mining.ValidationContext do
           [] ->
             nil
 
-          _ ->
-            :invalid_cross_validation_stamp
+          [first_error | _] ->
+            first_error
         end
 
-      _ ->
-        :invalid_validation_stamp
+      err ->
+        err
     end
   end
 end
