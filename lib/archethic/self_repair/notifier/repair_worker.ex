@@ -1,93 +1,181 @@
 defmodule Archethic.SelfRepair.Notifier.RepairWorker do
   @moduledoc false
-  use GenStateMachine, callback_mode: [:handle_event_function], restart: :temporary
 
   alias Archethic.{
-    SelfRepair.Notifier
+    BeaconChain,
+    Election,
+    P2P,
+    Replication,
+    TransactionChain
   }
+
+  alias Archethic.P2P.Message.ShardRepair
+
+  alias Archethic.SelfRepair.Notifier.{
+    RepairSupervisor,
+    RepairWorker,
+    RepairRegistry
+  }
+
+  use GenServer, restart: :transient
 
   require Logger
 
-  def start_link(opts) do
-    GenStateMachine.start_link(__MODULE__, opts, [])
-  end
+  @doc """
+  Return pid of a running RepairWorker for the first_address, or false
+  """
+  @spec repair_in_progress?(first_address :: binary()) :: false | pid()
+  def repair_in_progress?(first_address) do
+    case Registry.lookup(RepairRegistry, first_address) do
+      [{pid, _}] ->
+        pid
 
-  def init(args) do
-    Registry.register(Notifier.Impl.registry_name(), args.first_address, [])
-    Logger.debug("RepairWorker: Repair Started", address: args.first_address)
-
-    data = %{
-      first_address: args.first_address,
-      addresses: [args.last_address]
-    }
-
-    new_data = repair_task(data)
-
-    {:ok, :idle, new_data, []}
-  end
-
-  def handle_event(:info, {:DOWN, _ref, :process, pid, _normal}, :idle, data) do
-    # IO.inspect(binding(), label: "2 :down event -> :idle")
-
-    {_, data} = Map.pop(data, pid)
-
-    {:next_state, :ack_req, data, [{:next_event, :internal, :process_update_requests}]}
-  end
-
-  def handle_event(
-        :internal,
-        :process_update_requests,
-        :ack_req,
-        data = %{addresses: address_list}
-      ) do
-    case address_list do
-      [] ->
-        Logger.debug("Done processing Requests", server_data: data)
-        # IO.inspect(binding(), label: "4: terminateing")
-
-        :stop
-
-      x when is_list(x) ->
-        new_data = repair_task(data)
-        # IO.inspect(binding(), label: "3: :process_update_requests,:ack_req")
-        {:next_state, :idle, new_data, []}
+      _ ->
+        false
     end
   end
 
-  def handle_event(
-        :cast,
-        {:update_request,
-         %{
-           last_address: address
-         }},
-        _,
-        data = %{
-          addresses: address_list
-        }
-      ) do
-    # IO.inspect(binding(), label: "update request")
-
-    {:keep_state, %{data | addresses: [address | address_list]}, []}
+  @doc """
+  Start a new RepairWorker for the first_address
+  """
+  @spec start_worker(ShardRepair.t()) :: DynamicSupervisor.on_start_child()
+  def start_worker(msg) do
+    DynamicSupervisor.start_child(RepairSupervisor, {RepairWorker, msg})
   end
 
-  def handle_event(:info, {_, {:continue, _}}, _s, _data) do
-    # IO.inspect(label: "--- nil")
-    :keep_state_and_data
+  @doc """
+  Add a new address in the address list of the RepairWorker
+  """
+  @spec add_message(pid(), ShardRepair.t()) :: :ok
+  def add_message(pid, %ShardRepair{
+        storage_address: storage_address,
+        io_addresses: io_addresses
+      }) do
+    GenServer.cast(pid, {:add_address, storage_address, io_addresses})
   end
 
-  def repair_task(data = %{addresses: address_list, first_address: first_address}) do
-    [repair_addr | new_address_list] = address_list
+  def start_link(msg) do
+    GenServer.start_link(__MODULE__, msg, [])
+  end
 
-    %Task{
-      pid: pid
-    } =
-      Task.async(fn ->
-        # IO.inspect(binding(), label: "1: repair_task")
-        {:continue, _} = Notifier.Impl.repair_chain(repair_addr, first_address)
-      end)
+  def init(%ShardRepair{
+        first_address: first_address,
+        storage_address: storage_address,
+        io_addresses: io_addresses
+      }) do
+    Registry.register(RepairRegistry, first_address, [])
+
+    Logger.info(
+      "Notifier Repair Worker start with storage_address #{Base.encode16(storage_address)}, " <>
+        "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
+      address: Base.encode16(first_address)
+    )
+
+    authorized_nodes =
+      DateTime.utc_now()
+      |> BeaconChain.previous_summary_time()
+      |> P2P.authorized_and_available_nodes()
+
+    storage_addresses = if storage_address != nil, do: [storage_address], else: []
+
+    data = %{
+      storage_addresses: storage_addresses,
+      io_addresses: io_addresses,
+      authorized_nodes: authorized_nodes
+    }
+
+    {:ok, start_repair(data)}
+  end
+
+  def handle_cast({:add_address, storage_address, io_addresses}, data) do
+    new_data =
+      if storage_address != nil,
+        do: Map.update!(data, :storage_addresses, &([storage_address | &1] |> Enum.uniq())),
+        else: data
+
+    new_data =
+      if io_addresses != [],
+        do: Map.update!(new_data, :io_addresses, &((&1 ++ io_addresses) |> Enum.uniq())),
+        else: new_data
+
+    {:noreply, new_data}
+  end
+
+  def handle_info(
+        {:DOWN, _ref, :process, pid, _normal},
+        data = %{task: task_pid, storage_addresses: [], io_addresses: []}
+      )
+      when pid == task_pid do
+    {:stop, :normal, data}
+  end
+
+  def handle_info(
+        {:DOWN, _ref, :process, pid, _normal},
+        data = %{task: task_pid}
+      )
+      when pid == task_pid do
+    {:noreply, start_repair(data)}
+  end
+
+  def handle_info(_, data), do: {:noreply, data}
+
+  defp start_repair(
+         data = %{
+           storage_addresses: [],
+           io_addresses: [address | rest],
+           authorized_nodes: authorized_nodes
+         }
+       ) do
+    pid = repair_task(address, false, authorized_nodes)
 
     data
-    |> Map.put(:addresses, new_address_list)
-    |> Map.put(pid, nil)
+    |> Map.put(:io_addresses, rest)
+    |> Map.put(:task, pid)
+  end
+
+  defp start_repair(
+         data = %{
+           storage_addresses: [address | rest],
+           authorized_nodes: authorized_nodes
+         }
+       ) do
+    pid = repair_task(address, true, authorized_nodes)
+
+    data
+    |> Map.put(:storage_addresses, rest)
+    |> Map.put(:task, pid)
+  end
+
+  defp repair_task(address, storage?, authorized_nodes) do
+    %Task{pid: pid} =
+      Task.async(fn ->
+        replicate_transaction(address, storage?, authorized_nodes)
+      end)
+
+    pid
+  end
+
+  defp replicate_transaction(address, storage?, authorized_nodes) do
+    Logger.debug("Notifier RepairWorker start replication, storage? #{storage?}",
+      address: Base.encode16(address)
+    )
+
+    with false <- TransactionChain.transaction_exists?(address),
+         storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
+         {:ok, tx} <- TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
+      if storage?,
+        do: Replication.validate_and_store_transaction_chain(tx, true, authorized_nodes),
+        else: Replication.validate_and_store_transaction(tx, true)
+    else
+      true ->
+        Logger.debug("Notifier RepairWorker transaction already exists",
+          address: Base.encode16(address)
+        )
+
+      {:error, reason} ->
+        Logger.warning(
+          "Notifier RepairWorker failed to replicate transaction because of #{inspect(reason)}"
+        )
+    end
   end
 end

@@ -16,6 +16,10 @@ defmodule Archethic.SelfRepair.NotifierTest do
   alias Archethic.SelfRepair.Notifier
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   test "new_storage_nodes/2 should return new election" do
     node1 = %Node{
@@ -59,30 +63,33 @@ defmodule Archethic.SelfRepair.NotifierTest do
     P2P.add_and_connect_node(node3)
     P2P.add_and_connect_node(node4)
 
-    prev_storage_nodes = ["node1", "node2", "node3"]
-    unavailable_nodes = ["node2", "node3"]
+    prev_storage_nodes = ["node2", "node3"]
+    new_available_nodes = [node1, node2, node3, node4]
 
-    assert {"Alice1", ["node4"]} =
-             Notifier.new_storage_nodes({"Alice1", prev_storage_nodes}, unavailable_nodes)
+    assert {"Alice1", ["node4", "node1"], []} =
+             Notifier.new_storage_nodes(
+               {"Alice1", [], prev_storage_nodes, []},
+               new_available_nodes
+             )
   end
 
   test "map_last_address_for_node/1 should create a map with last address for each node" do
     tab = [
-      {"Alice1", ["node1", "node2"]},
-      {"Alice2", ["node1", "node3"]},
-      {"Alice3", ["node1"]},
-      {"Alice4", ["node4"]},
-      {"Alice5", ["node3"]}
+      {"Alice1", ["node1"], ["node3"]},
+      {"Alice2", [], ["node1"]},
+      {"Alice3", ["node1"], ["node3"]},
+      {"Alice4", ["node4"], ["node2"]},
+      {"Alice5", ["node3"], []}
     ]
 
     expected = %{
-      "node1" => "Alice3",
-      "node2" => "Alice1",
-      "node3" => "Alice5",
-      "node4" => "Alice4"
+      "node1" => %{last_address: "Alice3", io_addresses: ["Alice2"]},
+      "node2" => %{last_address: nil, io_addresses: ["Alice4"]},
+      "node3" => %{last_address: "Alice5", io_addresses: ["Alice3", "Alice1"]},
+      "node4" => %{last_address: "Alice4", io_addresses: []}
     }
 
-    assert ^expected = Notifier.map_last_address_for_node(tab)
+    assert ^expected = Notifier.map_last_addresses_for_node(tab)
   end
 
   test "repair_transactions/1 should send message to new storage nodes" do
@@ -97,8 +104,8 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     P2P.add_and_connect_node(node)
 
-    nodes =
-      Enum.reduce(1..50, [node], fn nb, acc ->
+    prev_available_nodes =
+      Enum.map(1..50, fn nb ->
         node = %Node{
           first_public_key: "node#{nb}",
           last_public_key: "node#{nb}",
@@ -110,35 +117,48 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
         P2P.add_and_connect_node(node)
 
-        [node | acc]
+        node
       end)
 
+    prev_available_nodes = [node | prev_available_nodes]
+
     # Take nodes in election of Alice2 but not in the one of Alice3
-    elec1 = Election.chain_storage_nodes("Alice2", nodes)
-    elec2 = Election.chain_storage_nodes("Alice3", nodes)
+    elec1 = Election.chain_storage_nodes("Alice2", prev_available_nodes)
+    elec2 = Election.chain_storage_nodes("Alice3", prev_available_nodes)
 
     diff_nodes = elec1 -- elec2
 
     unavailable_nodes = Enum.take(diff_nodes, 2) |> Enum.map(& &1.first_public_key)
 
+    new_available_nodes =
+      Enum.reject(prev_available_nodes, &(&1.first_public_key in unavailable_nodes))
+
     # New possible storage nodes for Alice2
-    new_possible_nodes = (nodes -- elec1) |> Enum.map(& &1.first_public_key)
+    new_possible_nodes = (prev_available_nodes -- elec1) |> Enum.map(& &1.first_public_key)
 
     MockDB
-    |> stub(:stream_first_addresses, fn -> ["Alice1", "Bob1"] end)
+    |> stub(:stream_first_addresses, fn -> ["Alice1"] end)
     |> stub(:get_transaction_chain, fn
       "Alice1", _, _ ->
         {[
-           %Transaction{address: "Alice1"},
-           %Transaction{address: "Alice2"},
-           %Transaction{address: "Alice3"}
-         ], false, nil}
-
-      "Bob1", _, _ ->
-        {[
-           %Transaction{address: "Bob1"},
-           %Transaction{address: "Bob2"},
-           %Transaction{address: "Bob3"}
+           %Transaction{
+             address: "Alice1",
+             validation_stamp: %ValidationStamp{
+               ledger_operations: %LedgerOperations{transaction_movements: []}
+             }
+           },
+           %Transaction{
+             address: "Alice2",
+             validation_stamp: %ValidationStamp{
+               ledger_operations: %LedgerOperations{transaction_movements: []}
+             }
+           },
+           %Transaction{
+             address: "Alice3",
+             validation_stamp: %ValidationStamp{
+               ledger_operations: %LedgerOperations{transaction_movements: []}
+             }
+           }
          ], false, nil}
     end)
 
@@ -146,7 +166,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     MockClient
     |> stub(:send_message, fn
-      node, %ShardRepair{first_address: "Alice1", last_address: "Alice2"}, _ ->
+      node, %ShardRepair{first_address: "Alice1", storage_address: "Alice2"}, _ ->
         if Enum.member?(new_possible_nodes, node.first_public_key) do
           send(me, :new_node)
         end
@@ -155,7 +175,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
         {:ok, %Ok{}}
     end)
 
-    Notifier.repair_transactions(unavailable_nodes, nodes)
+    Notifier.repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
 
     # Expect to receive only 1 new node for Alice2
     assert_receive :new_node

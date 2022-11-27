@@ -23,28 +23,51 @@ defmodule Archethic.SelfRepair.Notifier do
     Election,
     P2P,
     P2P.Message.ShardRepair,
+    TaskSupervisor,
     TransactionChain,
     TransactionChain.Transaction
   }
 
-  require Logger
-  use Task
+  alias Archethic.TransactionChain.Transaction.{
+    ValidationStamp,
+    ValidationStamp.LedgerOperations
+  }
 
-  @spec start(list(Crypto.key()), list(Node.t())) :: {:ok, pid()}
-  def start(unavailable_nodes, previous_available_nodes) do
-    Task.start(__MODULE__, :run, [unavailable_nodes, previous_available_nodes])
+  require Logger
+
+  @spec start(list(Node.t()), list(Node.t())) :: :ok
+  def start(prev_available_nodes, new_available_nodes) do
+    diff_node =
+      (prev_available_nodes -- new_available_nodes)
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+
+    case diff_node do
+      [] ->
+        :ok
+
+      nodes ->
+        unavailable_nodes = Enum.map(nodes, & &1.first_public_key)
+
+        Task.Supervisor.start_child(
+          TaskSupervisor,
+          fn -> run(unavailable_nodes, prev_available_nodes, new_available_nodes) end,
+          timeout: :infinity
+        )
+
+        :ok
+    end
   end
 
-  def run(unavailable_nodes, previous_available_nodes) do
-    repair_transactions(unavailable_nodes, previous_available_nodes)
+  def run(unavailable_nodes, prev_available_nodes, new_available_nodes) do
+    repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
   end
 
   @doc """
   For each txn chain in db. Load its genesis address, load its
   chain, recompute shards , notifiy nodes. Network txns are excluded.
   """
-  @spec repair_transactions(list(Crypto.key()), list(Node.t())) :: :ok
-  def repair_transactions(unavailable_nodes, previous_available_nodes) do
+  @spec repair_transactions(list(Crypto.key()), list(Node.t()), list(Node.t())) :: :ok
+  def repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes) do
     Logger.debug(
       "Trying to repair transactions due to a topology change #{inspect(Enum.map(unavailable_nodes, &Base.encode16(&1)))}"
     )
@@ -54,7 +77,12 @@ defmodule Archethic.SelfRepair.Notifier do
     |> Stream.reject(&network_chain?(&1))
     |> Stream.chunk_every(20)
     |> Stream.each(fn chunk ->
-      concurrent_txn_processing(chunk, unavailable_nodes, previous_available_nodes)
+      concurrent_txn_processing(
+        chunk,
+        unavailable_nodes,
+        prev_available_nodes,
+        new_available_nodes
+      )
     end)
     |> Stream.run()
   end
@@ -69,83 +97,147 @@ defmodule Archethic.SelfRepair.Notifier do
     end
   end
 
-  defp concurrent_txn_processing(addresses, unavailable_nodes, previous_available_nodes) do
+  defp concurrent_txn_processing(
+         addresses,
+         unavailable_nodes,
+         prev_available_nodes,
+         new_available_nodes
+       ) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       addresses,
-      &sync_chain(&1, unavailable_nodes, previous_available_nodes),
+      &sync_chain(&1, unavailable_nodes, prev_available_nodes, new_available_nodes),
       ordered: false,
       on_timeout: :kill_task
     )
     |> Stream.run()
   end
 
-  defp sync_chain(address, unavailable_nodes, previous_available_nodes) do
+  defp sync_chain(address, unavailable_nodes, prev_available_nodes, new_available_nodes) do
     address
-    |> TransactionChain.stream([:address])
-    |> Stream.map(&get_previous_election(&1, previous_available_nodes))
-    |> Stream.filter(&storage_node?(&1, unavailable_nodes))
+    |> TransactionChain.stream([
+      :address,
+      validation_stamp: [ledger_operations: [:transaction_movements]]
+    ])
+    |> Stream.map(&get_previous_election(&1, prev_available_nodes))
+    |> Stream.filter(&storage_or_io_node?(&1, unavailable_nodes))
     |> Stream.filter(&notify?(&1))
-    |> Stream.map(&new_storage_nodes(&1, unavailable_nodes))
-    |> map_last_address_for_node()
+    |> Stream.map(&new_storage_nodes(&1, new_available_nodes))
+    |> map_last_addresses_for_node()
     |> notify_nodes(address)
   end
 
-  defp get_previous_election(%Transaction{address: address}, previous_available_nodes) do
+  defp get_previous_election(
+         %Transaction{
+           address: address,
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+           }
+         },
+         prev_available_nodes
+       ) do
     prev_storage_nodes =
-      Election.chain_storage_nodes(address, previous_available_nodes)
+      Election.chain_storage_nodes(address, prev_available_nodes)
       |> Enum.map(& &1.first_public_key)
 
-    {address, prev_storage_nodes}
+    resolved_addresses =
+      transaction_movements
+      |> Enum.map(& &1.to)
+
+    prev_io_nodes =
+      resolved_addresses
+      |> Election.io_storage_nodes(prev_available_nodes)
+      |> Enum.map(& &1.first_public_key)
+
+    {address, resolved_addresses, prev_storage_nodes, prev_io_nodes -- prev_storage_nodes}
   end
 
-  defp storage_node?({_address, nodes}, unavailable_nodes) do
+  defp storage_or_io_node?({_, _, prev_storage_nodes, prev_io_nodes}, unavailable_nodes) do
+    nodes = prev_storage_nodes ++ prev_io_nodes
     Enum.any?(unavailable_nodes, &Enum.member?(nodes, &1))
   end
 
-  defp notify?({_address, nodes}) do
-    Enum.member?(nodes, Crypto.first_node_public_key())
+  # Notify only if the current node is part of the previous storage / io nodes
+  # to reduce number of messages
+  defp notify?({_, _, prev_storage_nodes, prev_io_nodes}) do
+    Enum.member?(prev_storage_nodes ++ prev_io_nodes, Crypto.first_node_public_key())
   end
 
   @doc """
   New election is carried out on the set of all authorized omiting unavailable_node.
   The set of previous storage nodes is subtracted from the set of new storage nodes.
   """
-  @spec new_storage_nodes({binary(), list(Crypto.key())}, list(Crypto.key())) ::
-          {binary(), list(Crypto.key())}
-  def new_storage_nodes({address, prev_storage_nodes}, unavailable_nodes) do
-    new_authorized_nodes =
-      P2P.authorized_nodes()
-      |> Enum.reject(&Enum.member?(unavailable_nodes, &1.first_public_key))
-
-    node_list =
-      Election.chain_storage_nodes(address, new_authorized_nodes)
+  @spec new_storage_nodes(
+          {binary(), list(Crypto.prepended_hash()), list(Crypto.key()), list(Crypto.key())},
+          list(Node.t())
+        ) ::
+          {binary(), list(Crypto.key()), list(Crypto.key())}
+  def new_storage_nodes(
+        {address, resolved_addresses, prev_storage_nodes, prev_io_nodes},
+        new_available_nodes
+      ) do
+    new_storage_nodes =
+      Election.chain_storage_nodes(address, new_available_nodes)
       |> Enum.map(& &1.first_public_key)
       |> Enum.reject(&Enum.member?(prev_storage_nodes, &1))
 
-    {address, node_list}
+    already_stored_nodes = prev_storage_nodes ++ prev_io_nodes ++ new_storage_nodes
+
+    new_io_nodes =
+      resolved_addresses
+      |> Election.io_storage_nodes(new_available_nodes)
+      |> Enum.map(& &1.first_public_key)
+      |> Enum.reject(&Enum.member?(already_stored_nodes, &1))
+
+    {address, new_storage_nodes, new_io_nodes}
   end
 
   @doc """
   Create a map returning for each node the last transaction address it should replicate
   """
-  @spec map_last_address_for_node(Enumerable.t()) :: Enumerable.t()
-  def map_last_address_for_node(stream) do
-    Enum.reduce(stream, %{}, fn {address, nodes}, acc ->
-      Enum.reduce(nodes, acc, fn first_public_key, acc ->
-        Map.put(acc, first_public_key, address)
-      end)
-    end)
+  @spec map_last_addresses_for_node(Enumerable.t()) :: Enumerable.t()
+  def map_last_addresses_for_node(stream) do
+    Enum.reduce(
+      stream,
+      %{},
+      fn {address, new_storage_nodes, new_io_nodes}, acc ->
+        acc =
+          Enum.reduce(new_storage_nodes, acc, fn first_public_key, acc ->
+            Map.update(
+              acc,
+              first_public_key,
+              %{last_address: address, io_addresses: []},
+              &Map.put(&1, :last_address, address)
+            )
+          end)
+
+        Enum.reduce(new_io_nodes, acc, fn first_public_key, acc ->
+          Map.update(
+            acc,
+            first_public_key,
+            %{last_address: nil, io_addresses: [address]},
+            &Map.update(&1, :io_addresses, [address], fn addresses -> [address | addresses] end)
+          )
+        end)
+      end
+    )
   end
 
   defp notify_nodes(acc, first_address) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       acc,
-      fn {node_key, address} ->
-        P2P.send_message(node_key, %ShardRepair{
+      fn {node_first_public_key, %{last_address: last_address, io_addresses: io_addresses}} ->
+        Logger.info(
+          "Send Shard Repair message to #{Base.encode16(node_first_public_key)} with storage_address #{Base.encode16(last_address)}, " <>
+            "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
+          address: Base.encode16(first_address)
+        )
+
+        P2P.send_message(node_first_public_key, %ShardRepair{
           first_address: first_address,
-          last_address: address
+          storage_address: last_address,
+          io_addresses: io_addresses
         })
       end,
       ordered: false,

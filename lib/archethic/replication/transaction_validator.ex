@@ -47,26 +47,6 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_inherit_constraints
 
   @doc """
-  Lists Validation errors
-  """
-  def list_errors(),
-    do: [
-      :invalid_atomic_commitment,
-      :invalid_node_election,
-      :invalid_proof_of_work,
-      :invalid_validation_stamp_signature,
-      :invalid_transaction_fee,
-      :invalid_transaction_movements,
-      :insufficient_funds,
-      :invalid_unspent_outputs,
-      :invalid_chain,
-      :invalid_transaction_with_inconsistencies,
-      :invalid_contract_acceptance,
-      :invalid_pending_transaction,
-      :invalid_inherit_constraints
-    ]
-
-  @doc """
   Validate transaction with context
 
   This function is called by the chain replication nodes

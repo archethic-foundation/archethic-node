@@ -2,159 +2,123 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
   @moduledoc false
   use ArchethicCase
 
-  alias Plug.Crypto
-  alias Archethic.SelfRepair.Notifier.Impl, as: NotifierImpl
+  alias Archethic.BeaconChain.SummaryTimer
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.ShardRepair
+
   alias Archethic.SelfRepair.Notifier.RepairWorker
 
   import Mox
-  @registry_name Archethic.SelfRepair.Notifier.Impl.registry_name()
-  describe "RepairWorker FSM Behaviour" do
-    setup do
-      case Process.whereis(@registry_name) do
-        nil ->
-          start_supervised!({Registry, name: @registry_name, keys: :unique, partitions: 1})
 
-        pid when is_pid(pid) ->
-          :ok
-      end
+  setup do
+    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
 
-      :ok
-    end
-
-    test "Expected behaviour Repair worker" do
-      first_address = "first_address"
-      last_addr = "last_addr"
-      opts = %{first_address: first_address, last_address: last_addr}
-
-      MockDB
-      |> stub(
-        :transaction_exists?,
-        fn _ ->
-          Process.sleep(50)
-          true
-        end
-      )
-
-      {:ok, pid} = RepairWorker.start_link(opts)
-
-      # first repair task deployed during init
-      assert {:idle, %{:addresses => [], :first_address => "first_address"}} = :sys.get_state(pid)
-
-      assert [{^pid, _}] = Registry.lookup(@registry_name, first_address)
-
-      Enum.each(1..3, fn x ->
-        NotifierImpl.update_worker(
-          %{first_address: first_address, last_address: "txn" <> "#{x}"},
-          pid
-        )
-      end)
-
-      assert {:idle, %{:addresses => ["txn3", "txn2", "txn1"], :first_address => "first_address"}} =
-               :sys.get_state(pid)
-
-      Process.sleep(200)
-
-      assert {:idle, %{:addresses => [], :first_address => "first_address"}} = :sys.get_state(pid)
-
-      Process.sleep(100)
-      assert [] = Registry.lookup(@registry_name, first_address)
-    end
-
-    test "should continue even if repair chain crashes" do
-      first_address = "aa"
-      last_addr = "bb"
-      opts = %{first_address: first_address, last_address: last_addr}
-
-      {:ok, pid} = RepairWorker.start_link(opts)
-      assert {:idle, %{:addresses => [], :first_address => "aa"}} = :sys.get_state(pid)
-    end
+    :ok
   end
 
-  describe "RepairWorker flow from Message.Process" do
-    setup do
-      alias Archethic.TransactionFactory
+  test "start_link/1 should start a new worker and create a task to replicate transaction" do
+    {:ok, pid} =
+      RepairWorker.start_link(%ShardRepair{
+        first_address: "Alice1",
+        storage_address: "Alice2",
+        io_addresses: ["Bob1"]
+      })
 
-      :ok = TransactionFactory.build_valid_p2p_view()
+    assert %{storage_addresses: [], io_addresses: ["Bob1"], task: _task_pid} = :sys.get_state(pid)
+  end
 
-      case Process.whereis(@registry_name) do
-        nil ->
-          start_supervised!({Registry, name: @registry_name, keys: :unique, partitions: 1})
+  test "repair_task/3 replicate a transaction if it does not already exists" do
+    P2P.add_and_connect_node(%Node{
+      first_public_key: "node1",
+      last_public_key: "node1",
+      geo_patch: "AAA",
+      authorized?: true,
+      authorization_date: ~U[2022-11-27 00:00:00Z],
+      available?: true
+    })
 
-        pid when is_pid(pid) ->
-          :ok
-      end
+    {:ok, pid} =
+      RepairWorker.start_link(%ShardRepair{
+        first_address: "Alice1",
+        storage_address: "Alice2",
+        io_addresses: ["Bob1", "Bob2"]
+      })
 
-      case Process.whereis(Archethic.SelfRepair.Notifier.RepairSupervisor) do
-        nil ->
-          start_supervised!(
-            {DynamicSupervisor,
-             strategy: :one_for_one, name: Archethic.SelfRepair.Notifier.RepairSupervisor}
-          )
+    me = self()
 
-        pid when is_pid(pid) ->
-          :ok
-      end
+    MockDB
+    |> stub(:transaction_exists?, fn
+      "Bob2" ->
+        send(me, :exists_bob3)
+        true
 
-      :ok
-    end
+      _ ->
+        false
+    end)
 
-    test "RepairWorker flow from ShardRepair" do
-      alias Archethic.P2P.Message
-      alias Archethic.P2P.Message.ShardRepair
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransaction{address: "Alice2"}, _ ->
+        send(me, :get_tx_alice2)
 
-      chain_list = build_chain("random seed", 3)
-      first_address = Map.get(chain_list, 0).address
-      addr1 = Map.get(chain_list, 1).address
-      addr2 = Map.get(chain_list, 2).address
+      _, %GetTransaction{address: "Bob1"}, _ ->
+        send(me, :get_tx_bob1)
 
-      msg_list =
-        Enum.map(chain_list, fn
-          {index, txn} ->
-            %ShardRepair{
-              first_address: first_address,
-              last_address: txn.address
-            }
-        end)
+      _, %GetTransaction{address: "Bob2"}, _ ->
+        send(me, :get_tx_bob2)
+    end)
 
-      assert Enum.map(chain_list, fn _x ->
-               %Message.Ok{}
-             end) == Enum.map(msg_list, fn msg -> Message.process(msg, nil) end)
+    assert_receive :get_tx_alice2
+    assert_receive :get_tx_bob1
 
-      assert [{pid, _}] = Registry.lookup(NotifierImpl.registry_name(), first_address)
+    assert_receive :exists_bob3
+    refute_receive :get_tx_bob2
 
-      {:idle,
-       %{
-         addresses: [^addr2, ^addr1],
-         first_address: ^first_address
-       }} = :sys.get_state(pid)
-    end
+    assert not Process.alive?(pid)
+  end
 
-    def build_chain(seed, length \\ 1) when length > 0 do
-      alias Archethic.TransactionFactory
+  test "add_message/1 should add new addresses in GenServer state" do
+    MockDB
+    |> stub(:transaction_exists?, fn _ -> Process.sleep(100) end)
 
-      time = DateTime.utc_now() |> DateTime.add(-5000 * length)
+    {:ok, pid} =
+      RepairWorker.start_link(%ShardRepair{
+        first_address: "Alice1",
+        storage_address: "Alice2",
+        io_addresses: ["Bob1", "Bob2"]
+      })
 
-      Enum.reduce(0..(length - 1), _acc = {_map = %{}, _prev_tx = []}, fn
-        index, {map, prev_tx} ->
-          # put input un mock client
-          txn =
-            TransactionFactory.create_valid_chain(
-              [],
-              seed: seed,
-              index: index,
-              prev_txn: prev_tx,
-              timestamp: time |> DateTime.add(5000 * index)
-            )
+    assert %{
+             storage_addresses: [],
+             io_addresses: ["Bob1", "Bob2"],
+             task: _task_pid
+           } = :sys.get_state(pid)
 
-          {
-            Map.put(map, index, txn),
-            [txn]
-          }
-      end)
-      |> elem(0)
-    end
+    RepairWorker.add_message(pid, %ShardRepair{
+      first_address: "Alice1",
+      storage_address: "Alice4",
+      io_addresses: ["Bob2", "Bob3"]
+    })
 
-    # test "Stress Test RepairWorker" do
-    # end
+    RepairWorker.add_message(pid, %ShardRepair{
+      first_address: "Alice1",
+      storage_address: "Alice3",
+      io_addresses: []
+    })
+
+    RepairWorker.add_message(pid, %ShardRepair{
+      first_address: "Alice1",
+      storage_address: nil,
+      io_addresses: ["Bob4"]
+    })
+
+    assert %{
+             storage_addresses: ["Alice3", "Alice4"],
+             io_addresses: ["Bob1", "Bob2", "Bob3", "Bob4"],
+             task: _task_pid
+           } = :sys.get_state(pid)
   end
 end

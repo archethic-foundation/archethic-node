@@ -276,16 +276,7 @@ defmodule Archethic.SelfRepair.Sync do
     if :persistent_term.get(:archethic_up, nil) == :up do
       new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
 
-      diff_node = previous_available_nodes -- new_available_nodes
-
-      case diff_node do
-        [] ->
-          :ok
-
-        nodes ->
-          unavailable_nodes = Enum.map(nodes, & &1.first_public_key)
-          Notifier.start(unavailable_nodes, previous_available_nodes)
-      end
+      Notifier.start(previous_available_nodes, new_available_nodes)
     end
 
     update_statistics(summary_time, transaction_summaries)

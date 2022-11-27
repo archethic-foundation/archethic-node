@@ -20,8 +20,6 @@ defmodule Archethic.P2P.Message do
     Utils.VarInt
   }
 
-  alias ArchethicWeb.TransactionSubscriber
-
   alias Archethic.BeaconChain.{
     ReplicationAttestation,
     Summary,
@@ -30,6 +28,8 @@ defmodule Archethic.P2P.Message do
     Subset,
     Slot
   }
+
+  alias Archethic.SelfRepair.Notifier.RepairWorker
 
   alias Archethic.TransactionChain.{
     Transaction,
@@ -98,6 +98,8 @@ defmodule Archethic.P2P.Message do
     UnspentOutputList,
     ValidationError
   }
+
+  alias ArchethicWeb.TransactionSubscriber
 
   require Logger
 
@@ -1842,44 +1844,12 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(
-        msg = %ShardRepair{
-          first_address: first_address,
-          last_address: last_address
-        },
+        msg = %ShardRepair{first_address: first_address},
         _
       ) do
-    alias Archethic.SelfRepair.Notifier.Impl, as: NotifierImpl
-
-    with {:exists?, false} <- {:exists?, TransactionChain.transaction_exists?(last_address)},
-         {:worker?, false} <- {:worker?, NotifierImpl.repair_in_progress?(first_address)} do
-      msg
-      |> NotifierImpl.start_worker()
-
-      NotifierImpl.log(:debug, "Repair Started", first_address, last_address, "none")
-    else
-      {:exists?, true} ->
-        # corner case: check if the complete chain exists or not?
-        NotifierImpl.log(
-          :debug,
-          "Message.Process Txn exists",
-          first_address,
-          last_address,
-          "none"
-        )
-
-        :ok
-
-      {:worker?, pid} when is_pid(pid) ->
-        msg
-        |> NotifierImpl.update_worker(pid)
-
-        NotifierImpl.log(
-          :debug,
-          "New-Message: WorkerUpdated",
-          first_address,
-          last_address,
-          "none"
-        )
+    case RepairWorker.repair_in_progress?(first_address) do
+      false -> RepairWorker.start_worker(msg)
+      pid -> RepairWorker.add_message(pid, msg)
     end
 
     %Ok{}
