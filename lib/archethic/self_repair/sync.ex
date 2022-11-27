@@ -125,13 +125,13 @@ defmodule Archethic.SelfRepair.Sync do
   defp do_load_missed_transactions(last_sync_date, last_summary_time) do
     start = System.monotonic_time()
 
-    download_nodes = P2P.authorized_and_available_nodes()
+    download_nodes = P2P.authorized_and_available_nodes(last_summary_time, true)
 
     summaries_aggregates =
       fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)
 
     last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time, download_nodes)
-    ensure_download_last_aggregate(last_aggregate)
+    ensure_download_last_aggregate(last_aggregate, download_nodes)
 
     last_aggregate = aggregate_with_local_summaries(last_aggregate, last_summary_time)
 
@@ -168,20 +168,15 @@ defmodule Archethic.SelfRepair.Sync do
     |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
   end
 
-  defp ensure_download_last_aggregate(
-         last_aggregate = %SummaryAggregate{summary_time: summary_time}
-       ) do
+  defp ensure_download_last_aggregate(last_aggregate, download_nodes) do
     # Make sure the last beacon aggregate have been synchronized
     # from remote nodes to avoid self-repair to be acknowledged if those
     # cannot be reached
-
-    nodes = P2P.authorized_and_available_nodes(summary_time)
-
     # If number of authorized node is <= 2 and current node is part of it
     # we accept the self repair as the other node may be unavailable and so
     # we need to do the self even if no other node respond
     with true <- P2P.authorized_node?(),
-         true <- length(nodes) <= 2 do
+         true <- length(download_nodes) <= 2 do
       :ok
     else
       _ ->

@@ -165,14 +165,16 @@ defmodule Archethic.P2P do
   end
 
   @doc """
-  List the authorized nodes for the given datetime (default to now)
+  List the authorized nodes for the given datetime (default to now) or before if needed
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
-  def authorized_nodes(date \\ DateTime.utc_now()) do
+  def authorized_nodes(date \\ DateTime.utc_now(), before? \\ false) do
     nodes =
       MemTable.authorized_nodes()
       |> Enum.filter(fn %Node{authorization_date: authorization_date} ->
-        DateTime.compare(authorization_date, date) != :gt
+        if before?,
+          do: DateTime.compare(authorization_date, date) == :lt,
+          else: DateTime.compare(authorization_date, date) != :gt
       end)
 
     case nodes do
@@ -187,17 +189,23 @@ defmodule Archethic.P2P do
 
   @doc """
   List the authorized and available nodes
+  before? is used in for self repair to not take in account the newly
+  authorized nodes
   """
-  @spec authorized_and_available_nodes(DateTime.t()) :: list(Node.t())
-  def authorized_and_available_nodes(date \\ DateTime.utc_now()) do
+  @spec authorized_and_available_nodes(DateTime.t(), boolean()) :: list(Node.t())
+  def authorized_and_available_nodes(date \\ DateTime.utc_now(), before? \\ false) do
     nodes =
-      authorized_nodes(date)
+      authorized_nodes(date, before?)
       |> Enum.filter(fn
         %Node{available?: true, availability_update: availability_update} ->
-          DateTime.compare(date, availability_update) != :lt
+          if before?,
+            do: DateTime.compare(date, availability_update) == :gt,
+            else: DateTime.compare(date, availability_update) != :lt
 
         %Node{available?: false, availability_update: availability_update} ->
-          DateTime.compare(date, availability_update) == :lt
+          if before?,
+            do: DateTime.compare(date, availability_update) != :gt,
+            else: DateTime.compare(date, availability_update) == :lt
       end)
 
     case nodes do

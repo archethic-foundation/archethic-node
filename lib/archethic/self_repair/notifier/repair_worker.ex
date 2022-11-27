@@ -74,7 +74,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
     authorized_nodes =
       DateTime.utc_now()
       |> BeaconChain.previous_summary_time()
-      |> P2P.authorized_and_available_nodes()
+      |> P2P.authorized_and_available_nodes(true)
 
     storage_addresses = if storage_address != nil, do: [storage_address], else: []
 
