@@ -848,13 +848,11 @@ defmodule Archethic.Utils do
       current_datetime
       |> Date.beginning_of_month()
       |> date_to_datetime_converter.(true)
-      |> IO.inspect(label: "start")
 
     end_of_month_datetime =
       current_datetime
       |> Date.end_of_month()
       |> date_to_datetime_converter.(false)
-      |> IO.inspect(label: "end")
 
     interval
     |> CronParser.parse!(true)
