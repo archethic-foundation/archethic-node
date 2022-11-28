@@ -841,24 +841,18 @@ defmodule Archethic.Utils do
     date_to_datetime_converter = fn date, start_of_month? ->
       time = time.(start_of_month?)
 
-      date
-      |> to_string()
-      |> Kernel.<>(time)
-      |> NaiveDateTime.from_iso8601!()
+      NaiveDateTime.from_iso8601!("#{date}#{time}")
     end
 
-    {start_of_month_datetime, end_of_month_datetime} =
+    start_of_month_datetime =
       current_datetime
-      |> then(
-        &{
-          &1
-          |> Date.beginning_of_month()
-          |> date_to_datetime_converter.(true),
-          &1
-          |> Date.end_of_month()
-          |> date_to_datetime_converter.(false)
-        }
-      )
+      |> Date.beginning_of_month()
+      |> date_to_datetime_converter.(true)
+
+    end_of_month_datetime =
+      current_datetime
+      |> Date.beginning_of_month()
+      |> date_to_datetime_converter.(false)
 
     interval
     |> CronParser.parse!(true)
