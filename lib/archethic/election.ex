@@ -107,8 +107,7 @@ defmodule Archethic.Election do
       [
         %Node{last_public_key: "node6", geo_patch: "ECA"},
         %Node{last_public_key: "node5", geo_patch: "F10"},
-        %Node{last_public_key: "node3", geo_patch: "AA0"},
-        %Node{last_public_key: "node2", geo_patch: "DEF"}
+        %Node{last_public_key: "node3", geo_patch: "AA0"}
       ]
   """
   @spec validation_nodes(
@@ -132,7 +131,10 @@ defmodule Archethic.Election do
     start = System.monotonic_time()
 
     # Evaluate validation constraints
-    nb_validations = validation_number_fun.(tx, length(authorized_nodes))
+    # Ensure there is never more validation nodes than storage nodes
+    nb_validations =
+      min(length(storage_nodes), validation_number_fun.(tx, length(authorized_nodes)))
+
     min_geo_patch = min_geo_patch_fun.()
 
     nodes =
@@ -154,7 +156,7 @@ defmodule Archethic.Election do
       %{
         duration: System.monotonic_time() - start
       },
-      %{nb_nodes: length(authorized_nodes)}
+      %{nb_nodes: length(nodes)}
     )
 
     nodes
@@ -217,7 +219,7 @@ defmodule Archethic.Election do
   end
 
   defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
-    MapSet.size(zones) > min_geo_patch and nb_nodes > nb_validations
+    MapSet.size(zones) >= min_geo_patch and nb_nodes >= nb_validations
   end
 
   defp refine_necessary_nodes(selected_nodes, authorized_nodes, nb_validations) do
