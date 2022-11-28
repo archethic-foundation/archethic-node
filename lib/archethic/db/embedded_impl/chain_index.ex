@@ -378,30 +378,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         _ -> true
       end
 
-    write_last_chain_transaction(
-      write_last_chain_transaction?,
-      filename,
-      encoded_data,
-      genesis_address,
-      new_address,
-      unix_time
-    )
-  end
-
-  defp write_last_chain_transaction(false, _, _, _, _, _), do: :ok
-
-  defp write_last_chain_transaction(
-         true,
-         filename,
-         encoded_data,
-         genesis_address,
-         new_address,
-         unix_time
-       ) do
-    with :ok <- File.write!(filename, encoded_data, [:binary, :append]),
-         true <- :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time}) do
-      :ok
+    if write_last_chain_transaction? do
+      :ok = File.write!(filename, encoded_data, [:binary, :append])
+      true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address, unix_time})
     end
+
+    :ok
   end
 
   @doc """
