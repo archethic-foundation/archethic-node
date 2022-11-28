@@ -33,7 +33,6 @@ defmodule Archethic.P2P.MessageTest do
     LastTransactionAddress,
     ListNodes,
     NewTransaction,
-    NodeAvailability,
     NodeList,
     NotFound,
     NotifyEndOfNodeSync,
