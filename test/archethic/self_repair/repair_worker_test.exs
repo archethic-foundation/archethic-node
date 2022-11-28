@@ -1,4 +1,4 @@
-defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
+defmodule Archethic.SelfRepair.RepairWorkerTest do
   @moduledoc false
   use ArchethicCase
 
@@ -9,7 +9,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.ShardRepair
 
-  alias Archethic.SelfRepair.Notifier.RepairWorker
+  alias Archethic.SelfRepair.RepairWorker
 
   import Mox
 

@@ -1,4 +1,4 @@
-defmodule Archethic.SelfRepair.Notifier.RepairWorker do
+defmodule Archethic.SelfRepair.RepairWorker do
   @moduledoc false
 
   alias Archethic.{
@@ -11,7 +11,7 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
 
   alias Archethic.P2P.Message.ShardRepair
 
-  alias Archethic.SelfRepair.Notifier.RepairRegistry
+  alias Archethic.SelfRepair.RepairRegistry
 
   use GenServer, restart: :transient
 

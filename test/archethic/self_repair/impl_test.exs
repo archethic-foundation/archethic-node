@@ -1,4 +1,4 @@
-defmodule Archethic.SelfRepair.Notifier.ImplTest do
+defmodule Archethic.SelfRepair.NotifierTest do
   @moduledoc false
   use ArchethicCase
 
@@ -13,7 +13,7 @@ defmodule Archethic.SelfRepair.Notifier.ImplTest do
   alias Archethic.P2P.Message.ShardRepair
   alias Archethic.P2P.Node
 
-  alias Archethic.SelfRepair.Notifier.Impl
+  alias Archethic.SelfRepair.Notifier
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -67,7 +67,7 @@ defmodule Archethic.SelfRepair.Notifier.ImplTest do
     new_available_nodes = [node1, node2, node3, node4]
 
     assert {"Alice1", ["node4", "node1"], []} =
-             Impl.new_storage_nodes(
+             Notifier.new_storage_nodes(
                {"Alice1", [], prev_storage_nodes, []},
                new_available_nodes
              )
@@ -89,7 +89,7 @@ defmodule Archethic.SelfRepair.Notifier.ImplTest do
       "node4" => %{last_address: "Alice4", io_addresses: []}
     }
 
-    assert ^expected = Impl.map_last_addresses_for_node(tab)
+    assert ^expected = Notifier.map_last_addresses_for_node(tab)
   end
 
   test "repair_transactions/1 should send message to new storage nodes" do
@@ -175,7 +175,7 @@ defmodule Archethic.SelfRepair.Notifier.ImplTest do
         {:ok, %Ok{}}
     end)
 
-    Impl.repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
+    Notifier.repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
 
     # Expect to receive only 1 new node for Alice2
     assert_receive :new_node

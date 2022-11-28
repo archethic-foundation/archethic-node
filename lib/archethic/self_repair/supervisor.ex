@@ -14,7 +14,7 @@ defmodule Archethic.SelfRepair.Supervisor do
     children = [
       {Scheduler, Application.get_env(:archethic, Scheduler)},
       {DynamicSupervisor, strategy: :one_for_one, name: Archethic.SelfRepair.NotifierSupervisor},
-      {Registry, name: Archethic.SelfRepair.Notifier.RepairRegistry, keys: :unique, partitions: 1}
+      {Registry, name: Archethic.SelfRepair.RepairRegistry, keys: :unique, partitions: 1}
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)

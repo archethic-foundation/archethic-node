@@ -29,7 +29,7 @@ defmodule Archethic.P2P.Message do
     Slot
   }
 
-  alias Archethic.SelfRepair.Notifier
+  alias Archethic.SelfRepair
 
   alias Archethic.TransactionChain.{
     Transaction,
@@ -1857,9 +1857,9 @@ defmodule Archethic.P2P.Message do
     public_key = Crypto.first_node_public_key()
 
     if Enum.all?(addresses, &(Election.storage_nodes(&1, nodes) |> Enum.member?(public_key))) do
-      case Notifier.repair_in_progress?(first_address) do
-        false -> Notifier.start_worker(msg)
-        pid -> Notifier.add_message(pid, msg)
+      case SelfRepair.repair_in_progress?(first_address) do
+        false -> SelfRepair.start_worker(msg)
+        pid -> SelfRepair.add_message(pid, msg)
       end
     end
 

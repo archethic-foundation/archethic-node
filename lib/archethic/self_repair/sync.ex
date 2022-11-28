@@ -25,7 +25,7 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.TransactionChain.TransactionSummary
 
-  alias Archethic.SelfRepair.Notifier
+  alias Archethic.SelfRepair
 
   alias Archethic.Utils
 
@@ -271,7 +271,11 @@ defmodule Archethic.SelfRepair.Sync do
     if :persistent_term.get(:archethic_up, nil) == :up do
       new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
 
-      Notifier.start_notifier(previous_available_nodes, new_available_nodes, availability_update)
+      SelfRepair.start_notifier(
+        previous_available_nodes,
+        new_available_nodes,
+        availability_update
+      )
     end
 
     update_statistics(summary_time, transaction_summaries)
