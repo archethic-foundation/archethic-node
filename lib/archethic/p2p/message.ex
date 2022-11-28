@@ -1756,7 +1756,7 @@ defmodule Archethic.P2P.Message do
 
   def process(%NewBeaconSlot{slot: slot = %Slot{subset: subset, slot_time: slot_time}}, _) do
     summary_time = BeaconChain.next_summary_date(slot_time)
-    node_list = P2P.authorized_and_available_nodes(summary_time)
+    node_list = P2P.authorized_and_available_nodes(summary_time, true)
 
     beacon_summary_nodes =
       Election.beacon_storage_nodes(
@@ -1844,12 +1844,23 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(
-        msg = %ShardRepair{first_address: first_address},
+        msg = %ShardRepair{
+          first_address: first_address,
+          storage_address: storage_address,
+          io_addresses: io_addresses
+        },
         _
       ) do
-    case Notifier.repair_in_progress?(first_address) do
-      false -> Notifier.start_worker(msg)
-      pid -> Notifier.add_message(pid, msg)
+    # Ensure all addresses are expected to be replicated
+    nodes = P2P.authorized_and_available_nodes()
+    addresses = [storage_address | io_addresses]
+    public_key = Crypto.first_node_public_key()
+
+    if Enum.all?(addresses, &(Election.storage_nodes(&1, nodes) |> Enum.member?(public_key))) do
+      case Notifier.repair_in_progress?(first_address) do
+        false -> Notifier.start_worker(msg)
+        pid -> Notifier.add_message(pid, msg)
+      end
     end
 
     %Ok{}
