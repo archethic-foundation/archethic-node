@@ -20,7 +20,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
