@@ -45,6 +45,36 @@ defmodule Archethic.P2P.Client.ConnectionTest do
               }} = :sys.get_state(pid)
     end
 
+    test "should get an error, :closed when trying to reach an unreachable node" do
+      defmodule MockTransportUnreachable do
+        alias Archethic.P2P.Client.Transport
+
+        @behaviour Transport
+
+        def handle_connect(_ip, _port) do
+          {:error, :timeout}
+        end
+
+        def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+
+        def handle_message({_, _, _}), do: {:error, :closed}
+      end
+
+      {:ok, pid} =
+        Connection.start_link(
+          transport: MockTransportUnreachable,
+          ip: {127, 0, 0, 2},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      assert {:error, :closed} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+               )
+    end
+
     test "should get an error when the timeout is reached" do
       {:ok, pid} =
         Connection.start_link(

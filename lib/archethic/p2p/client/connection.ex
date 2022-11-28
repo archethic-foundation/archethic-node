@@ -77,8 +77,20 @@ defmodule Archethic.P2P.Client.Connection do
       availability_timer: {nil, 0}
     }
 
-    actions = [{:next_event, :internal, :connect}]
-    {:ok, :disconnected, data, actions}
+    # First connection attempt is synchronous (to deal with the `start_link` followed by a `send_message`)
+    # We call ourselves the `state_enter` because `GenStateMachine` will not do it from init
+    # `handle_connect` might take a long time
+    case transport.handle_connect(ip, port) do
+      {:ok, socket} ->
+        {_, new_data} = handle_event(:enter, :disconnected, {:connected, socket}, data)
+        {:ok, {:connected, socket}, new_data}
+
+      {:error, _} ->
+        {_, new_data, actions} =
+          handle_event(:enter, {:connected, make_ref()}, :disconnected, data)
+
+        {:ok, :disconnected, new_data, actions}
+    end
   end
 
   def handle_event(
@@ -186,20 +198,21 @@ defmodule Archethic.P2P.Client.Connection do
         :internal,
         :connect,
         :disconnected,
-        data = %{
+        _data = %{
           ip: ip,
           port: port,
           transport: transport
         }
       ) do
-    case transport.handle_connect(ip, port) do
-      {:ok, socket} ->
-        {:next_state, {:connected, socket}, data}
+    me = self()
 
-      {:error, _} ->
-        actions = [{{:timeout, :reconnect}, 500, nil}]
-        {:keep_state_and_data, actions}
-    end
+    # try to connect asynchronously so it does not block the messages coming in
+    Task.start_link(fn ->
+      # handle_connect might take a long time
+      send(me, {:connect_result, transport.handle_connect(ip, port)})
+    end)
+
+    :keep_state_and_data
   end
 
   def handle_event({:timeout, :reconnect}, _event_data, :disconnected, _data) do
@@ -361,6 +374,17 @@ defmodule Archethic.P2P.Client.Connection do
           end
 
         {:next_state, :disconnected, new_data}
+    end
+  end
+
+  def handle_event(:info, {:connect_result, result}, _state, data) do
+    case result do
+      {:ok, socket} ->
+        {:next_state, {:connected, socket}, data}
+
+      {:error, _} ->
+        actions = [{{:timeout, :reconnect}, 500, nil}]
+        {:keep_state_and_data, actions}
     end
   end
 
