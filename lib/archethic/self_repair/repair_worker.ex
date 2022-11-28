@@ -9,23 +9,21 @@ defmodule Archethic.SelfRepair.RepairWorker do
     TransactionChain
   }
 
-  alias Archethic.P2P.Message.ShardRepair
-
   alias Archethic.SelfRepair.RepairRegistry
 
   use GenServer, restart: :transient
 
   require Logger
 
-  def start_link(msg) do
-    GenServer.start_link(__MODULE__, msg, [])
+  def start_link(args) do
+    GenServer.start_link(__MODULE__, args, [])
   end
 
-  def init(%ShardRepair{
-        first_address: first_address,
-        storage_address: storage_address,
-        io_addresses: io_addresses
-      }) do
+  def init(args) do
+    first_address = Keyword.fetch!(args, :first_address)
+    storage_address = Keyword.fetch!(args, :storage_address)
+    io_addresses = Keyword.fetch!(args, :io_addresses)
+
     Registry.register(RepairRegistry, first_address, [])
 
     Logger.info(

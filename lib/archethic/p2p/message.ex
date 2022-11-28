@@ -1844,7 +1844,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(
-        msg = %ShardRepair{
+        %ShardRepair{
           first_address: first_address,
           storage_address: storage_address,
           io_addresses: io_addresses
@@ -1858,8 +1858,15 @@ defmodule Archethic.P2P.Message do
 
     if Enum.all?(addresses, &(Election.storage_nodes(&1, nodes) |> Enum.member?(public_key))) do
       case SelfRepair.repair_in_progress?(first_address) do
-        false -> SelfRepair.start_worker(msg)
-        pid -> SelfRepair.add_message(pid, msg)
+        false ->
+          SelfRepair.start_worker(
+            first_address: first_address,
+            storage_address: storage_address,
+            io_addresses: io_addresses
+          )
+
+        pid ->
+          SelfRepair.add_repair_addresses(pid, storage_address, io_addresses)
       end
     end
 

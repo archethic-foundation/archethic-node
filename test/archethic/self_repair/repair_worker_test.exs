@@ -7,7 +7,6 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.ShardRepair
 
   alias Archethic.SelfRepair.RepairWorker
 
@@ -21,11 +20,11 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
 
   test "start_link/1 should start a new worker and create a task to replicate transaction" do
     {:ok, pid} =
-      RepairWorker.start_link(%ShardRepair{
+      RepairWorker.start_link(
         first_address: "Alice1",
         storage_address: "Alice2",
         io_addresses: ["Bob1"]
-      })
+      )
 
     assert %{storage_addresses: [], io_addresses: ["Bob1"], task: _task_pid} = :sys.get_state(pid)
   end
@@ -41,11 +40,11 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
     })
 
     {:ok, pid} =
-      RepairWorker.start_link(%ShardRepair{
+      RepairWorker.start_link(
         first_address: "Alice1",
         storage_address: "Alice2",
         io_addresses: ["Bob1", "Bob2"]
-      })
+      )
 
     me = self()
 
@@ -85,11 +84,11 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
     |> stub(:transaction_exists?, fn _ -> Process.sleep(100) end)
 
     {:ok, pid} =
-      RepairWorker.start_link(%ShardRepair{
+      RepairWorker.start_link(
         first_address: "Alice1",
         storage_address: "Alice2",
         io_addresses: ["Bob1", "Bob2"]
-      })
+      )
 
     assert %{
              storage_addresses: [],

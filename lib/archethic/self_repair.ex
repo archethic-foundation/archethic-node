@@ -4,17 +4,17 @@ defmodule Archethic.SelfRepair do
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
 
-  alias __MODULE__.Scheduler
-  alias __MODULE__.Sync
+  alias __MODULE__.Notifier
   alias __MODULE__.NotifierSupervisor
   alias __MODULE__.RepairRegistry
   alias __MODULE__.RepairWorker
+  alias __MODULE__.Scheduler
+  alias __MODULE__.Sync
 
   alias Archethic.BeaconChain
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P.Message.ShardRepair
   alias Archethic.P2P.Node
 
   alias Crontab.CronExpression.Parser, as: CronParser
@@ -75,12 +75,6 @@ defmodule Archethic.SelfRepair do
   @spec put_last_sync_date(DateTime.t()) :: :ok
   defdelegate put_last_sync_date(datetime), to: Sync, as: :store_last_sync_date
 
-  def config_change(changed_conf) do
-    changed_conf
-    |> Keyword.get(Scheduler)
-    |> Scheduler.config_change()
-  end
-
   @doc """
   Return the previous scheduler time from a given date
   """
@@ -92,6 +86,9 @@ defmodule Archethic.SelfRepair do
     |> DateTime.from_naive!("Etc/UTC")
   end
 
+  @doc """
+  Start a new notifier process if there is new unavailable nodes after the self repair
+  """
   @spec start_notifier(list(Node.t()), list(Node.t()), DateTime.t()) :: :ok
   def start_notifier(prev_available_nodes, new_available_nodes, availability_update) do
     diff_node =
@@ -107,7 +104,7 @@ defmodule Archethic.SelfRepair do
 
         DynamicSupervisor.start_child(
           NotifierSupervisor,
-          {Impl,
+          {Notifier,
            unavailable_nodes: unavailable_nodes,
            prev_available_nodes: prev_available_nodes,
            new_available_nodes: new_available_nodes,
@@ -135,19 +132,26 @@ defmodule Archethic.SelfRepair do
   @doc """
   Start a new RepairWorker for the first_address
   """
-  @spec start_worker(ShardRepair.t()) :: DynamicSupervisor.on_start_child()
-  def start_worker(msg) do
-    DynamicSupervisor.start_child(NotifierSupervisor, {RepairWorker, msg})
+  @spec start_worker(list()) :: DynamicSupervisor.on_start_child()
+  def start_worker(args) do
+    DynamicSupervisor.start_child(NotifierSupervisor, {RepairWorker, args})
   end
 
   @doc """
   Add a new address in the address list of the RepairWorker
   """
-  @spec add_message(pid(), ShardRepair.t()) :: :ok
-  def add_message(pid, %ShardRepair{
-        storage_address: storage_address,
-        io_addresses: io_addresses
-      }) do
+  @spec add_repair_addresses(
+          pid(),
+          Crypto.prepended_hash() | nil,
+          list(Crypto.prepended_hash())
+        ) :: :ok
+  def add_repair_addresses(pid, storage_address, io_addresses) do
     GenServer.cast(pid, {:add_address, storage_address, io_addresses})
+  end
+
+  def config_change(changed_conf) do
+    changed_conf
+    |> Keyword.get(Scheduler)
+    |> Scheduler.config_change()
   end
 end
