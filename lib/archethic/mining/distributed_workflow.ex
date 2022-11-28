@@ -193,7 +193,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
-    [coordinator_node | cross_validation_nodes] = validation_nodes
+    # ensure there is never more validation than storage nodes
+    [coordinator_node | cross_validation_nodes] =
+      Enum.take(validation_nodes, length(chain_storage_nodes))
 
     context =
       ValidationContext.new(

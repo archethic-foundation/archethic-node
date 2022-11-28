@@ -271,7 +271,6 @@ defmodule Archethic.Election do
 
     storage_nodes =
       nodes
-      |> Enum.sort_by(&Map.get(&1, :authorized?), :desc)
       |> sort_storage_nodes_by_key_rotation(address, storage_nonce)
       |> Enum.reduce_while(
         %{
