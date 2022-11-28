@@ -1,42 +1,18 @@
 defmodule Archethic.SelfRepair.Notifier do
-  @moduledoc """
-  Process to handle repair in case of topology change by trying to replicate transactions to new shard composition.
+  @moduledoc false
+  alias Archethic.Crypto
 
-  When a node receive a topology change due to the unavailability of a node,
-  we compute the new election for the already stored transactions.
+  alias Archethic.P2P.Message.ShardRepair
+  alias Archethic.P2P.Node
 
-  Hence, a new shard might me formed as we notify the new transactions to the
-  new storage nodes
+  alias Archethic.SelfRepair.NotifierSupervisor
 
-  ```mermaid
-  flowchart TD
-      A[Node 4] --x|Topology change notification| B[Node1]
-      B --> | List transactions| B
-      B -->|Elect new nodes| H[Transaction replication]
-      H -->|Replicate Transaction| C[Node2]
-      H -->|Replicate Transaction| D[Node3]
-  ```
-  """
+  alias __MODULE__.Impl
+  alias __MODULE__.RepairWorker
+  alias __MODULE__.RepairRegistry
 
-  alias Archethic.{
-    Crypto,
-    Election,
-    P2P,
-    P2P.Message.ShardRepair,
-    TaskSupervisor,
-    TransactionChain,
-    TransactionChain.Transaction
-  }
-
-  alias Archethic.TransactionChain.Transaction.{
-    ValidationStamp,
-    ValidationStamp.LedgerOperations
-  }
-
-  require Logger
-
-  @spec start(list(Node.t()), list(Node.t())) :: :ok
-  def start(prev_available_nodes, new_available_nodes) do
+  @spec start_notifier(list(Node.t()), list(Node.t()), DateTime.t()) :: :ok
+  def start_notifier(prev_available_nodes, new_available_nodes, availability_update) do
     diff_node =
       (prev_available_nodes -- new_available_nodes)
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
@@ -48,201 +24,49 @@ defmodule Archethic.SelfRepair.Notifier do
       nodes ->
         unavailable_nodes = Enum.map(nodes, & &1.first_public_key)
 
-        Task.Supervisor.start_child(
-          TaskSupervisor,
-          fn -> run(unavailable_nodes, prev_available_nodes, new_available_nodes) end,
-          timeout: :infinity
+        DynamicSupervisor.start_child(
+          NotifierSupervisor,
+          {Impl,
+           unavailable_nodes: unavailable_nodes,
+           prev_available_nodes: prev_available_nodes,
+           new_available_nodes: new_available_nodes,
+           availability_update: availability_update}
         )
 
         :ok
     end
   end
 
-  def run(unavailable_nodes, prev_available_nodes, new_available_nodes) do
-    repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
-  end
-
   @doc """
-  For each txn chain in db. Load its genesis address, load its
-  chain, recompute shards , notifiy nodes. Network txns are excluded.
+  Return pid of a running RepairWorker for the first_address, or false
   """
-  @spec repair_transactions(list(Crypto.key()), list(Node.t()), list(Node.t())) :: :ok
-  def repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes) do
-    Logger.debug(
-      "Trying to repair transactions due to a topology change #{inspect(Enum.map(unavailable_nodes, &Base.encode16(&1)))}"
-    )
-
-    # We fetch all the transactions existing and check if the disconnected nodes were in storage nodes
-    TransactionChain.stream_first_addresses()
-    |> Stream.reject(&network_chain?(&1))
-    |> Stream.chunk_every(20)
-    |> Stream.each(fn chunk ->
-      concurrent_txn_processing(
-        chunk,
-        unavailable_nodes,
-        prev_available_nodes,
-        new_available_nodes
-      )
-    end)
-    |> Stream.run()
-  end
-
-  defp network_chain?(address) do
-    case TransactionChain.get_transaction(address, [:type]) do
-      {:ok, %Transaction{type: type}} ->
-        Transaction.network_type?(type)
+  @spec repair_in_progress?(first_address :: binary()) :: false | pid()
+  def repair_in_progress?(first_address) do
+    case Registry.lookup(RepairRegistry, first_address) do
+      [{pid, _}] ->
+        pid
 
       _ ->
         false
     end
   end
 
-  defp concurrent_txn_processing(
-         addresses,
-         unavailable_nodes,
-         prev_available_nodes,
-         new_available_nodes
-       ) do
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      addresses,
-      &sync_chain(&1, unavailable_nodes, prev_available_nodes, new_available_nodes),
-      ordered: false,
-      on_timeout: :kill_task
-    )
-    |> Stream.run()
-  end
-
-  defp sync_chain(address, unavailable_nodes, prev_available_nodes, new_available_nodes) do
-    address
-    |> TransactionChain.stream([
-      :address,
-      validation_stamp: [ledger_operations: [:transaction_movements]]
-    ])
-    |> Stream.map(&get_previous_election(&1, prev_available_nodes))
-    |> Stream.filter(&storage_or_io_node?(&1, unavailable_nodes))
-    |> Stream.filter(&notify?(&1))
-    |> Stream.map(&new_storage_nodes(&1, new_available_nodes))
-    |> map_last_addresses_for_node()
-    |> notify_nodes(address)
-  end
-
-  defp get_previous_election(
-         %Transaction{
-           address: address,
-           validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
-           }
-         },
-         prev_available_nodes
-       ) do
-    prev_storage_nodes =
-      Election.chain_storage_nodes(address, prev_available_nodes)
-      |> Enum.map(& &1.first_public_key)
-
-    resolved_addresses =
-      transaction_movements
-      |> Enum.map(& &1.to)
-
-    prev_io_nodes =
-      resolved_addresses
-      |> Election.io_storage_nodes(prev_available_nodes)
-      |> Enum.map(& &1.first_public_key)
-
-    {address, resolved_addresses, prev_storage_nodes, prev_io_nodes -- prev_storage_nodes}
-  end
-
-  defp storage_or_io_node?({_, _, prev_storage_nodes, prev_io_nodes}, unavailable_nodes) do
-    nodes = prev_storage_nodes ++ prev_io_nodes
-    Enum.any?(unavailable_nodes, &Enum.member?(nodes, &1))
-  end
-
-  # Notify only if the current node is part of the previous storage / io nodes
-  # to reduce number of messages
-  defp notify?({_, _, prev_storage_nodes, prev_io_nodes}) do
-    Enum.member?(prev_storage_nodes ++ prev_io_nodes, Crypto.first_node_public_key())
+  @doc """
+  Start a new RepairWorker for the first_address
+  """
+  @spec start_worker(ShardRepair.t()) :: DynamicSupervisor.on_start_child()
+  def start_worker(msg) do
+    DynamicSupervisor.start_child(NotifierSupervisor, {RepairWorker, msg})
   end
 
   @doc """
-  New election is carried out on the set of all authorized omiting unavailable_node.
-  The set of previous storage nodes is subtracted from the set of new storage nodes.
+  Add a new address in the address list of the RepairWorker
   """
-  @spec new_storage_nodes(
-          {binary(), list(Crypto.prepended_hash()), list(Crypto.key()), list(Crypto.key())},
-          list(Node.t())
-        ) ::
-          {binary(), list(Crypto.key()), list(Crypto.key())}
-  def new_storage_nodes(
-        {address, resolved_addresses, prev_storage_nodes, prev_io_nodes},
-        new_available_nodes
-      ) do
-    new_storage_nodes =
-      Election.chain_storage_nodes(address, new_available_nodes)
-      |> Enum.map(& &1.first_public_key)
-      |> Enum.reject(&Enum.member?(prev_storage_nodes, &1))
-
-    already_stored_nodes = prev_storage_nodes ++ prev_io_nodes ++ new_storage_nodes
-
-    new_io_nodes =
-      resolved_addresses
-      |> Election.io_storage_nodes(new_available_nodes)
-      |> Enum.map(& &1.first_public_key)
-      |> Enum.reject(&Enum.member?(already_stored_nodes, &1))
-
-    {address, new_storage_nodes, new_io_nodes}
-  end
-
-  @doc """
-  Create a map returning for each node the last transaction address it should replicate
-  """
-  @spec map_last_addresses_for_node(Enumerable.t()) :: Enumerable.t()
-  def map_last_addresses_for_node(stream) do
-    Enum.reduce(
-      stream,
-      %{},
-      fn {address, new_storage_nodes, new_io_nodes}, acc ->
-        acc =
-          Enum.reduce(new_storage_nodes, acc, fn first_public_key, acc ->
-            Map.update(
-              acc,
-              first_public_key,
-              %{last_address: address, io_addresses: []},
-              &Map.put(&1, :last_address, address)
-            )
-          end)
-
-        Enum.reduce(new_io_nodes, acc, fn first_public_key, acc ->
-          Map.update(
-            acc,
-            first_public_key,
-            %{last_address: nil, io_addresses: [address]},
-            &Map.update(&1, :io_addresses, [address], fn addresses -> [address | addresses] end)
-          )
-        end)
-      end
-    )
-  end
-
-  defp notify_nodes(acc, first_address) do
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      acc,
-      fn {node_first_public_key, %{last_address: last_address, io_addresses: io_addresses}} ->
-        Logger.info(
-          "Send Shard Repair message to #{Base.encode16(node_first_public_key)} with storage_address #{Base.encode16(last_address)}, " <>
-            "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
-          address: Base.encode16(first_address)
-        )
-
-        P2P.send_message(node_first_public_key, %ShardRepair{
-          first_address: first_address,
-          storage_address: last_address,
-          io_addresses: io_addresses
-        })
-      end,
-      ordered: false,
-      on_timeout: :kill_task
-    )
-    |> Stream.run()
+  @spec add_message(pid(), ShardRepair.t()) :: :ok
+  def add_message(pid, %ShardRepair{
+        storage_address: storage_address,
+        io_addresses: io_addresses
+      }) do
+    GenServer.cast(pid, {:add_address, storage_address, io_addresses})
   end
 end

@@ -29,7 +29,7 @@ defmodule Archethic.P2P.Message do
     Slot
   }
 
-  alias Archethic.SelfRepair.Notifier.RepairWorker
+  alias Archethic.SelfRepair.Notifier
 
   alias Archethic.TransactionChain.{
     Transaction,
@@ -1847,9 +1847,9 @@ defmodule Archethic.P2P.Message do
         msg = %ShardRepair{first_address: first_address},
         _
       ) do
-    case RepairWorker.repair_in_progress?(first_address) do
-      false -> RepairWorker.start_worker(msg)
-      pid -> RepairWorker.add_message(pid, msg)
+    case Notifier.repair_in_progress?(first_address) do
+      false -> Notifier.start_worker(msg)
+      pid -> Notifier.add_message(pid, msg)
     end
 
     %Ok{}

@@ -97,23 +97,9 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorkerTest do
              task: _task_pid
            } = :sys.get_state(pid)
 
-    RepairWorker.add_message(pid, %ShardRepair{
-      first_address: "Alice1",
-      storage_address: "Alice4",
-      io_addresses: ["Bob2", "Bob3"]
-    })
-
-    RepairWorker.add_message(pid, %ShardRepair{
-      first_address: "Alice1",
-      storage_address: "Alice3",
-      io_addresses: []
-    })
-
-    RepairWorker.add_message(pid, %ShardRepair{
-      first_address: "Alice1",
-      storage_address: nil,
-      io_addresses: ["Bob4"]
-    })
+    GenServer.cast(pid, {:add_address, "Alice4", ["Bob2", "Bob3"]})
+    GenServer.cast(pid, {:add_address, "Alice3", []})
+    GenServer.cast(pid, {:add_address, nil, ["Bob4"]})
 
     assert %{
              storage_addresses: ["Alice3", "Alice4"],

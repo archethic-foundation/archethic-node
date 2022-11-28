@@ -11,48 +11,11 @@ defmodule Archethic.SelfRepair.Notifier.RepairWorker do
 
   alias Archethic.P2P.Message.ShardRepair
 
-  alias Archethic.SelfRepair.Notifier.{
-    RepairSupervisor,
-    RepairWorker,
-    RepairRegistry
-  }
+  alias Archethic.SelfRepair.Notifier.RepairRegistry
 
   use GenServer, restart: :transient
 
   require Logger
-
-  @doc """
-  Return pid of a running RepairWorker for the first_address, or false
-  """
-  @spec repair_in_progress?(first_address :: binary()) :: false | pid()
-  def repair_in_progress?(first_address) do
-    case Registry.lookup(RepairRegistry, first_address) do
-      [{pid, _}] ->
-        pid
-
-      _ ->
-        false
-    end
-  end
-
-  @doc """
-  Start a new RepairWorker for the first_address
-  """
-  @spec start_worker(ShardRepair.t()) :: DynamicSupervisor.on_start_child()
-  def start_worker(msg) do
-    DynamicSupervisor.start_child(RepairSupervisor, {RepairWorker, msg})
-  end
-
-  @doc """
-  Add a new address in the address list of the RepairWorker
-  """
-  @spec add_message(pid(), ShardRepair.t()) :: :ok
-  def add_message(pid, %ShardRepair{
-        storage_address: storage_address,
-        io_addresses: io_addresses
-      }) do
-    GenServer.cast(pid, {:add_address, storage_address, io_addresses})
-  end
 
   def start_link(msg) do
     GenServer.start_link(__MODULE__, msg, [])
