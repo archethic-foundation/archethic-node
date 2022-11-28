@@ -644,7 +644,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         }
       )
       when from_state in [:cross_validator, :wait_cross_validation_stamps] do
-    case ValidationContext.get_error_as_atom(context) do
+    case ValidationContext.get_first_error(context) do
       nil ->
         Logger.info("Start replication",
           transaction_address: Base.encode16(tx_address),

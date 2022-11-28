@@ -1262,8 +1262,11 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.reject(&Utils.key_in_node_list?(chain_storage_nodes, &1.first_public_key))
   end
 
-  @spec get_error_as_atom(t()) :: atom()
-  def get_error_as_atom(ctx = %__MODULE__{}) do
+  @doc """
+  Get the first available error or nil
+  """
+  @spec get_first_error(t()) :: atom()
+  def get_first_error(ctx = %__MODULE__{}) do
     case ctx.validation_stamp.error do
       nil ->
         inconsistencies =

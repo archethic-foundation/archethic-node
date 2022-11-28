@@ -1050,11 +1050,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         %CrossValidationStamp{
           signature:
             Crypto.sign(
-              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+              [ValidationStamp.serialize(context.validation_stamp), <<>>],
               elem(@publickey1, 1)
             ),
           node_public_key: elem(@publickey1, 0),
-          inconsistencies: [:signature]
+          inconsistencies: []
         }
       )
 
@@ -1063,11 +1063,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         %CrossValidationStamp{
           signature:
             Crypto.sign(
-              [ValidationStamp.serialize(context.validation_stamp), <<1>>],
+              [ValidationStamp.serialize(context.validation_stamp), <<>>],
               elem(@publickey2, 1)
             ),
           node_public_key: elem(@publickey2, 0),
-          inconsistencies: [:signature]
+          inconsistencies: []
         }
       )
 
