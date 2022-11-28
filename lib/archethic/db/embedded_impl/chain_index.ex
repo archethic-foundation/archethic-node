@@ -304,7 +304,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   Stream all the transaction addresses from genesis_address-address.
   """
   @spec list_chain_addresses(binary(), String.t()) ::
-          Enumerable.t() | list({binary(), non_neg_integer()})
+          Enumerable.t() | list({binary(), DateTime.t()})
   def list_chain_addresses(address, db_path) when is_binary(address) do
     filepath = chain_addresses_path(db_path, address)
 
@@ -321,7 +321,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
                {:ok, hash} <- :file.read(fd, hash_size) do
             address = <<curve_id::8, hash_id::8, hash::binary>>
             # return tuple of address and timestamp
-            {[{address, timestamp}], {:ok, fd}}
+            {[{address, DateTime.from_unix!(timestamp, :millisecond)}], {:ok, fd}}
           else
             :eof ->
               :file.close(fd)

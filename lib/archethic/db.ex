@@ -42,7 +42,7 @@ defmodule Archethic.DB do
   @callback list_addresses_by_type(Transaction.transaction_type()) ::
               Enumerable.t() | list(binary())
   @callback list_chain_addresses(binary()) ::
-              Enumerable.t() | list({binary(), non_neg_integer()})
+              Enumerable.t() | list({binary(), DateTime.t()})
 
   @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
   @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}

@@ -216,7 +216,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   Stream all the addresses from the Genesis address(following it).
   """
   @spec list_chain_addresses(binary()) ::
-          Enumerable.t() | list({binary(), non_neg_integer()})
+          Enumerable.t() | list({binary(), DateTime.t()})
   def list_chain_addresses(address) when is_binary(address) do
     ChainIndex.list_chain_addresses(address, db_path())
   end
@@ -249,16 +249,16 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Reference a last address from a previous address
+  Reference a last address from a genesis address
   """
   @spec add_last_transaction_address(
-          previous_address :: binary(),
+          genesis_address :: binary(),
           address :: binary(),
           tx_time :: DateTime.t()
         ) :: :ok
-  def add_last_transaction_address(previous_address, address, date = %DateTime{})
-      when is_binary(previous_address) and is_binary(address) do
-    ChainIndex.set_last_chain_address(previous_address, address, date, db_path())
+  def add_last_transaction_address(genesis_address, address, date = %DateTime{})
+      when is_binary(genesis_address) and is_binary(address) do
+    ChainIndex.set_last_chain_address(genesis_address, address, date, db_path())
   end
 
   @doc """

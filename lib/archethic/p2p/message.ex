@@ -45,6 +45,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.{
     AcknowledgeStorage,
     AddMiningContext,
+    AddressList,
     Balance,
     BeaconSummaryList,
     BeaconUpdate,
@@ -65,6 +66,7 @@ defmodule Archethic.P2P.Message do
     GetFirstPublicKey,
     GetLastTransaction,
     GetLastTransactionAddress,
+    GetNextAddresses,
     GetP2PView,
     GetStorageNonce,
     GetTransaction,
@@ -141,6 +143,7 @@ defmodule Archethic.P2P.Message do
           | GetBeaconSummariesAggregate.t()
           | NotifyPreviousChain.t()
           | ShardRepair.t()
+          | GetNextAddresses.t()
 
   @type response ::
           Ok.t()
@@ -165,6 +168,7 @@ defmodule Archethic.P2P.Message do
           | FirstAddress.t()
           | ReplicationError.t()
           | SummaryAggregate.t()
+          | AddressList.t()
 
   @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
@@ -432,6 +436,14 @@ defmodule Archethic.P2P.Message do
 
   def encode(%NotifyPreviousChain{address: address}) do
     <<34::8, address::binary>>
+  end
+
+  def encode(msg = %GetNextAddresses{}) do
+    <<35::8, GetNextAddresses.serialize(msg)::bitstring>>
+  end
+
+  def encode(msg = %AddressList{}) do
+    <<229::8, AddressList.serialize(msg)::bitstring>>
   end
 
   def encode(msg = %ShardRepair{}) do
@@ -970,6 +982,14 @@ defmodule Archethic.P2P.Message do
   def decode(<<34::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
     {%NotifyPreviousChain{address: address}, rest}
+  end
+
+  def decode(<<35::8, rest::bitstring>>) do
+    GetNextAddresses.deserialize(rest)
+  end
+
+  def decode(<<229::8, rest::bitstring>>) do
+    AddressList.deserialize(rest)
   end
 
   def decode(<<230::8, rest::bitstring>>) do
@@ -1871,6 +1891,23 @@ defmodule Archethic.P2P.Message do
     end
 
     %Ok{}
+  end
+
+  def process(%GetNextAddresses{address: address}, _) do
+    case TransactionChain.get_transaction(address, validation_stamp: [:timestamp]) do
+      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: address_timestamp}}} ->
+        addresses =
+          TransactionChain.get_genesis_address(address)
+          |> TransactionChain.list_chain_addresses()
+          |> Enum.filter(fn {_address, timestamp} ->
+            DateTime.compare(timestamp, address_timestamp) == :gt
+          end)
+
+        %AddressList{addresses: addresses}
+
+      _ ->
+        %AddressList{addresses: []}
+    end
   end
 
   defp process_replication_chain(tx, replying_node_public_key) do
