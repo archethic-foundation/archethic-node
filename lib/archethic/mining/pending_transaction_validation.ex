@@ -402,17 +402,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     {last_address, _} = DB.get_last_chain_address(genesis_address)
 
+    sorted_authorized_keys =
+      authorized_keys
+      |> Map.keys()
+      |> Enum.sort()
+
+    sorted_node_renewal_authorized_keys =
+      NodeRenewal.next_authorized_node_public_keys()
+      |> Enum.sort()
+
     with {^last_address, _} <- DB.get_last_chain_address(genesis_address, last_scheduling_date),
          {:ok, _, _} <- NodeRenewal.decode_transaction_content(content),
-         true <-
-           authorized_keys
-           |> Map.keys()
-           |> Enum.sort()
-           |> then(
-             &(NodeRenewal.next_authorized_node_public_keys()
-               |> Enum.sort()
-               |> Kernel.==(&1))
-           ) do
+         true <- sorted_authorized_keys == sorted_node_renewal_authorized_keys do
       :ok
     else
       :error ->
