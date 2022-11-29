@@ -142,20 +142,25 @@ defmodule ArchethicWeb.OracleChainLive do
 
   def handle_info(
         {:new_transaction, address, :oracle_summary, timestamp},
-        socket
+        socket = %{assigns: %{current_date_page: current_page}}
       ) do
-    new_assign =
-      socket
-      |> update(:dates, &[OracleChain.next_summary_date(timestamp) | &1])
-      |> update(
-        :transactions,
-        &[
-          %{address: address, type: :oracle_summary, timestamp: timestamp} | &1
-        ]
-      )
-      |> assign(:summary_passed?, true)
+    if current_page == 1 do
+      # Only update the oracle summary when you are on the first page
+      new_assign =
+        socket
+        |> update(:dates, &[OracleChain.next_summary_date(timestamp) | &1])
+        |> update(
+          :transactions,
+          &[
+            %{address: address, type: :oracle_summary, timestamp: timestamp} | &1
+          ]
+        )
+        |> assign(:summary_passed?, true)
 
-    {:noreply, new_assign}
+      {:noreply, new_assign}
+    else
+      {:noreply, socket}
+    end
   end
 
   defp get_oracle_dates do
