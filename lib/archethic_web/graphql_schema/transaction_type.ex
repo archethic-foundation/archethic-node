@@ -243,6 +243,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - decimals: Number of decimals of the token
   - properties: Properties of the token (if any)
   - collection: List of properties for a collection (if any)
+  - ownerships: authorization/delegations containing list of secrets and their authorized public keys to proof the ownership
   - id: Unique identification of the token on the chain
   """
   object :token do
@@ -253,6 +254,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:type, :string)
     field(:properties, :token_properties)
     field(:collection, list_of(:token_properties))
+    field(:ownerships, list_of(:ownership))
     field(:decimals, :integer)
     field(:id, :string)
   end
