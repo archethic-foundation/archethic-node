@@ -151,7 +151,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   end
 
   describe "query: token" do
-    test "should retrieve the first page of transaction stored locally", %{conn: conn} do
+    test "should return the ownerships", %{conn: conn} do
       token_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
