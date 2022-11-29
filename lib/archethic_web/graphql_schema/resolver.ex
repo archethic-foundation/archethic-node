@@ -46,6 +46,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
          {:ok,
           {:ok,
            definition = %{
+             "ownerships" => ownerships,
              "supply" => supply,
              "type" => type
            }}} <- Task.yield(t2) do
@@ -75,6 +76,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
          decimals: decimals,
          properties: properties,
          collection: collection,
+         ownerships: ownerships,
          id: token_id
        }}
     else
@@ -99,11 +101,15 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   defp get_transaction_content(address) do
     case Archethic.search_transaction(address) do
-      {:ok, %Transaction{data: %TransactionData{content: content}, type: type}}
+      {:ok,
+       %Transaction{data: %TransactionData{content: content, ownerships: ownerships}, type: type}}
       when type in [:token, :mint_rewards] ->
         case Jason.decode(content) do
-          {:ok, map} -> {:ok, map}
-          _ -> {:error, :decode_error}
+          {:ok, map} ->
+            {:ok, map |> Map.put("ownerships", ownerships)}
+
+          _ ->
+            {:error, :decode_error}
         end
 
       _ ->
