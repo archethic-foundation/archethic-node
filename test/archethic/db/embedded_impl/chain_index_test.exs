@@ -62,4 +62,40 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
       assert false == ChainIndex.transaction_exists?(:crypto.strong_rand_bytes(32), db_path)
     end
   end
+
+  describe "set_last_chain_address/4" do
+    test "should not update last transaction only if timestamp is lesser", %{db_path: db_path} do
+      {:ok, _pid} = ChainIndex.start_link(path: db_path)
+
+      tx_address_1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      tx_address_2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      genesis_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      today = DateTime.utc_now()
+      yesterday = DateTime.add(today, -1, :day)
+
+      ChainIndex.add_tx(tx_address_1, genesis_address, 100, db_path)
+      ChainIndex.set_last_chain_address(genesis_address, tx_address_1, today, db_path)
+      ChainIndex.set_last_chain_address(genesis_address, tx_address_2, yesterday, db_path)
+
+      assert {^tx_address_1, _} = ChainIndex.get_last_chain_address(genesis_address, db_path)
+    end
+
+    test "should update last transaction if timestamp is greater", %{db_path: db_path} do
+      {:ok, _pid} = ChainIndex.start_link(path: db_path)
+
+      tx_address_1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      tx_address_2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      genesis_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      today = DateTime.utc_now()
+      tomorrow = DateTime.add(today, 1, :day)
+
+      ChainIndex.add_tx(tx_address_1, genesis_address, 100, db_path)
+      ChainIndex.set_last_chain_address(genesis_address, tx_address_1, today, db_path)
+      ChainIndex.set_last_chain_address(genesis_address, tx_address_2, tomorrow, db_path)
+
+      assert {^tx_address_2, _} = ChainIndex.get_last_chain_address(genesis_address, db_path)
+    end
+  end
 end

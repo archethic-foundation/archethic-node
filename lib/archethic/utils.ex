@@ -12,6 +12,8 @@ defmodule Archethic.Utils do
 
   alias Archethic.P2P.Node
 
+  alias Archethic.Reward.Scheduler, as: RewardScheduler
+
   import Bitwise
 
   @doc """
@@ -783,10 +785,10 @@ defmodule Archethic.Utils do
 
       iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10Z])
       ~U[2022-10-01 01:00:00Z]
-      
+
       iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:10.100Z])
       ~U[2022-10-01 01:00:10Z]
-      
+
       iex> Utils.previous_date(%Crontab.CronExpression{second: [{:/, :*, 30}], extended: true}, ~U[2022-10-26 07:38:30.569648Z])
       ~U[2022-10-26 07:38:30Z]
   """
@@ -810,5 +812,52 @@ defmodule Archethic.Utils do
       |> Crontab.Scheduler.get_previous_run_date!(naive_date_from)
       |> DateTime.from_naive!("Etc/UTC")
     end
+  end
+
+  @doc """
+  Return the number of occurences for the cron job over the month
+
+  ## Examples
+
+      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-11-01 00:00:00.000000])
+      30
+
+      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-12-01 00:00:00.000000])
+      31
+
+      iex> Utils.number_of_reward_occurences_per_month("0 */5 * * * * *", ~N[2022-11-01 00:00:00.000000])
+      8640
+  """
+  @spec number_of_reward_occurences_per_month(String.t(), NaiveDateTime.t()) :: non_neg_integer()
+  def number_of_reward_occurences_per_month(
+        interval \\ Application.get_env(:archethic, RewardScheduler)[:interval],
+        current_datetime \\ NaiveDateTime.utc_now()
+      ) do
+    time = fn
+      true -> " 00:00:00Z"
+      false -> " 23:59:59Z"
+    end
+
+    date_to_datetime_converter = fn date, start_of_month? ->
+      time = time.(start_of_month?)
+
+      NaiveDateTime.from_iso8601!("#{date}#{time}")
+    end
+
+    start_of_month_datetime =
+      current_datetime
+      |> Date.beginning_of_month()
+      |> date_to_datetime_converter.(true)
+
+    end_of_month_datetime =
+      current_datetime
+      |> Date.end_of_month()
+      |> date_to_datetime_converter.(false)
+
+    interval
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_dates(start_of_month_datetime)
+    |> Stream.take_while(&(NaiveDateTime.compare(&1, end_of_month_datetime) in [:lt]))
+    |> Enum.count()
   end
 end
