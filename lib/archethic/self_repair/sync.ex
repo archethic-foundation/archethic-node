@@ -268,9 +268,9 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.map(&update_availabilities(&1, availability_update))
     |> DB.register_p2p_summary()
 
-    if :persistent_term.get(:archethic_up, nil) == :up do
-      new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
+    new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
 
+    if :persistent_term.get(:archethic_up, nil) == :up do
       SelfRepair.start_notifier(
         previous_available_nodes,
         new_available_nodes,
@@ -280,7 +280,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     update_statistics(summary_time, transaction_summaries)
 
-    store_aggregate(aggregate)
+    store_aggregate(aggregate, new_available_nodes)
   end
 
   defp synchronize_transactions([], _), do: :ok
@@ -387,9 +387,11 @@ defmodule Archethic.SelfRepair.Sync do
     PubSub.notify_new_tps(tps, nb_transactions)
   end
 
-  defp store_aggregate(aggregate = %SummaryAggregate{summary_time: summary_time}) do
-    node_list =
-      [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
+  defp store_aggregate(
+         aggregate = %SummaryAggregate{summary_time: summary_time},
+         new_available_nodes
+       ) do
+    node_list = [P2P.get_node_info() | new_available_nodes] |> P2P.distinct_nodes()
 
     should_store? =
       summary_time

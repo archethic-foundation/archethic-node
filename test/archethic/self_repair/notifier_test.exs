@@ -4,11 +4,15 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
   import Mox
 
+  alias Archethic.BeaconChain.SummaryAggregate
+  alias Archethic.BeaconChain.SummaryTimer
+
   alias Archethic.Crypto
 
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.ShardRepair
   alias Archethic.P2P.Node
@@ -92,7 +96,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
     assert ^expected = Notifier.map_last_addresses_for_node(tab)
   end
 
-  test "repair_transactions/1 should send message to new storage nodes" do
+  test "repair_transactions/3 should send message to new storage nodes" do
     node = %Node{
       first_public_key: Crypto.first_node_public_key(),
       last_public_key: Crypto.last_node_public_key(),
@@ -180,5 +184,76 @@ defmodule Archethic.SelfRepair.NotifierTest do
     # Expect to receive only 1 new node for Alice2
     assert_receive :new_node
     refute_receive :new_node, 200
+  end
+
+  test "repair_summaries_aggregate/2 should store beacon aggregate" do
+    enrollment_date = DateTime.utc_now() |> DateTime.add(-10, :minute)
+
+    node = %Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-11, :minute),
+      available?: true,
+      enrollment_date: enrollment_date,
+      availability_history: <<1::1>>
+    }
+
+    P2P.add_and_connect_node(node)
+
+    nodes =
+      Enum.map(1..9, fn nb ->
+        %Node{
+          first_public_key: "node#{nb}",
+          last_public_key: "node#{nb}",
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          available?: true,
+          availability_history: <<1::1>>
+        }
+      end)
+
+    nodes = [node | nodes]
+
+    start_supervised!({SummaryTimer, interval: "0 * * * *"})
+
+    [first_date | rest] = SummaryTimer.next_summaries(enrollment_date) |> Enum.to_list()
+    random_date = Enum.random(rest)
+
+    me = self()
+
+    MockDB
+    |> stub(:get_beacon_summaries_aggregate, fn
+      summary_time when summary_time in [first_date, random_date] ->
+        {:error, :not_exists}
+
+      summary_time ->
+        {:ok, %SummaryAggregate{summary_time: summary_time}}
+    end)
+    |> expect(:write_beacon_summaries_aggregate, 2, fn
+      %SummaryAggregate{summary_time: summary_time} when summary_time == first_date ->
+        send(me, :write_first_date)
+
+      %SummaryAggregate{summary_time: summary_time} when summary_time == random_date ->
+        send(me, :write_random_date)
+
+      _ ->
+        send(me, :unexpected)
+    end)
+
+    MockClient
+    |> stub(:send_message, fn _, %GetBeaconSummariesAggregate{date: summary_time}, _ ->
+      {:ok, %SummaryAggregate{summary_time: summary_time}}
+    end)
+
+    Notifier.repair_summaries_aggregate(nodes, nodes)
+
+    assert_receive :write_first_date
+    assert_receive :write_random_date
+    refute_receive :unexpected
   end
 end

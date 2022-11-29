@@ -19,12 +19,15 @@ defmodule Archethic.SelfRepair.Notifier do
   """
 
   alias Archethic.{
+    BeaconChain,
     Crypto,
     Election,
     P2P,
+    P2P.Node,
     P2P.Message.ShardRepair,
     TransactionChain,
-    TransactionChain.Transaction
+    TransactionChain.Transaction,
+    Utils
   }
 
   alias Archethic.TransactionChain.Transaction.{
@@ -59,7 +62,12 @@ defmodule Archethic.SelfRepair.Notifier do
     prev_available_nodes = Keyword.fetch!(data, :prev_available_nodes)
     new_available_nodes = Keyword.fetch!(data, :new_available_nodes)
 
+    Logger.info(
+      "Start Notifier due to a topology change #{inspect(Enum.map(unavailable_nodes, &Base.encode16(&1)))}"
+    )
+
     repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes)
+    repair_summaries_aggregate(prev_available_nodes, new_available_nodes)
 
     {:stop, :normal, data}
   end
@@ -70,10 +78,6 @@ defmodule Archethic.SelfRepair.Notifier do
   """
   @spec repair_transactions(list(Crypto.key()), list(Node.t()), list(Node.t())) :: :ok
   def repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes) do
-    Logger.debug(
-      "Trying to repair transactions due to a topology change #{inspect(Enum.map(unavailable_nodes, &Base.encode16(&1)))}"
-    )
-
     # We fetch all the transactions existing and check if the disconnected nodes were in storage nodes
     TransactionChain.stream_first_addresses()
     |> Stream.reject(&network_chain?(&1))
@@ -231,7 +235,8 @@ defmodule Archethic.SelfRepair.Notifier do
       acc,
       fn {node_first_public_key, %{last_address: last_address, io_addresses: io_addresses}} ->
         Logger.info(
-          "Send Shard Repair message to #{Base.encode16(node_first_public_key)} with storage_address #{Base.encode16(last_address)}, " <>
+          "Send Shard Repair message to #{Base.encode16(node_first_public_key)}" <>
+            "with storage_address #{if last_address, do: Base.encode16(last_address), else: nil}, " <>
             "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
           address: Base.encode16(first_address)
         )
@@ -246,5 +251,60 @@ defmodule Archethic.SelfRepair.Notifier do
       on_timeout: :kill_task
     )
     |> Stream.run()
+  end
+
+  @doc """
+  For each beacon aggregate, calculate the new election and store it if the node needs to
+  """
+  @spec repair_summaries_aggregate(list(Node.t()), list(Node.t())) :: :ok
+  def repair_summaries_aggregate(prev_available_nodes, new_available_nodes) do
+    %Node{enrollment_date: first_enrollment_date} = P2P.get_first_enrolled_node()
+
+    first_enrollment_date
+    |> BeaconChain.next_summary_dates()
+    |> Stream.filter(&download?(&1, new_available_nodes))
+    |> Stream.chunk_every(20)
+    |> Stream.each(fn summary_times ->
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        summary_times,
+        &download_and_store_summary(&1, prev_available_nodes),
+        ordered: false,
+        on_timeout: :kill_task
+      )
+      |> Stream.run()
+    end)
+    |> Stream.run()
+  end
+
+  defp download?(summary_time, new_available_nodes) do
+    in_new_election? =
+      summary_time
+      |> Crypto.derive_beacon_aggregate_address()
+      |> Election.chain_storage_nodes(new_available_nodes)
+      |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+
+    if in_new_election? do
+      case BeaconChain.get_summaries_aggregate(summary_time) do
+        {:ok, _} -> false
+        {:error, _} -> true
+      end
+    else
+      false
+    end
+  end
+
+  defp download_and_store_summary(summary_time, prev_available_nodes) do
+    case BeaconChain.fetch_summaries_aggregate(summary_time, prev_available_nodes) do
+      {:ok, aggregate} ->
+        Logger.debug("Notifier store beacon aggregate for #{summary_time}")
+        BeaconChain.write_summaries_aggregate(aggregate)
+
+      error ->
+        Logger.warning(
+          "Notifier cannot fetch summary aggregate for date #{summary_time} " <>
+            "because of #{inspect(error)}"
+        )
+    end
   end
 end

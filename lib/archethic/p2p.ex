@@ -180,7 +180,10 @@ defmodule Archethic.P2P do
     case nodes do
       [] ->
         # Only happen during bootstrap
-        get_first_enrolled_node()
+        case get_first_enrolled_node() do
+          nil -> []
+          node -> [node]
+        end
 
       nodes ->
         nodes
@@ -211,18 +214,25 @@ defmodule Archethic.P2P do
     case nodes do
       [] ->
         # Only happen for init transactions so we take the first enrolled node
-        get_first_enrolled_node()
+        case get_first_enrolled_node() do
+          nil -> []
+          node -> [node]
+        end
 
       nodes ->
         nodes
     end
   end
 
-  defp get_first_enrolled_node() do
+  @doc """
+  Return the first enrolled node
+  """
+  @spec get_first_enrolled_node() :: Node.t() | nil
+  def get_first_enrolled_node() do
     list_nodes()
     |> Enum.reject(&(&1.enrollment_date == nil))
     |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime})
-    |> Enum.take(1)
+    |> List.first()
   end
 
   @doc """

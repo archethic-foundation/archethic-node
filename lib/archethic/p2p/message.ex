@@ -1873,10 +1873,16 @@ defmodule Archethic.P2P.Message do
       ) do
     # Ensure all addresses are expected to be replicated
     nodes = P2P.authorized_and_available_nodes()
-    addresses = [storage_address | io_addresses]
+
+    addresses =
+      if storage_address != nil, do: [storage_address | io_addresses], else: io_addresses
+
     public_key = Crypto.first_node_public_key()
 
-    if Enum.all?(addresses, &(Election.storage_nodes(&1, nodes) |> Enum.member?(public_key))) do
+    if Enum.all?(
+         addresses,
+         &(Election.storage_nodes(&1, nodes) |> Utils.key_in_node_list?(public_key))
+       ) do
       case SelfRepair.repair_in_progress?(first_address) do
         false ->
           SelfRepair.start_worker(
