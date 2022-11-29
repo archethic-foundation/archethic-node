@@ -12,6 +12,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.Balance
+  alias Archethic.P2P.Message.FirstAddress
   alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
@@ -28,6 +29,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
@@ -145,6 +147,75 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         })
 
       assert %{"errors" => [%{"message" => "transaction_not_exists"}]} = json_response(conn, 200)
+    end
+  end
+
+  describe "query: token" do
+    test "should retrieve the first page of transaction stored locally", %{conn: conn} do
+      token_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %FirstAddress{address: token_addr}}
+
+        _, %GetTransaction{}, _ ->
+          aes_key = :crypto.strong_rand_bytes(32)
+          transaction_seed = :crypto.strong_rand_bytes(32)
+          storage_nonce_public_key = Crypto.storage_nonce_public_key()
+          secret = Crypto.aes_encrypt(transaction_seed, aes_key)
+
+          {:ok,
+           %Transaction{
+             type: :token,
+             address: token_addr,
+             data: %TransactionData{
+               content: "{\"supply\": 1000000000, \"type\": \"fungible\" }",
+               ownerships: [
+                 %Ownership{
+                   secret: secret,
+                   authorized_keys: %{
+                     storage_nonce_public_key =>
+                       Crypto.ec_encrypt(aes_key, storage_nonce_public_key)
+                   }
+                 }
+               ]
+             }
+           }}
+      end)
+
+      conn =
+        post(conn, "/api", %{
+          "query" => "query {
+            token(address: \"#{Base.encode16(token_addr)}\") {
+              ownerships {
+                secret
+                authorizedPublicKeys {
+                  encryptedSecretKey
+                  publicKey
+                }
+              }
+            }
+           }"
+        })
+
+      assert %{
+               "data" => %{
+                 "token" => %{
+                   "ownerships" => [
+                     %{
+                       "authorizedPublicKeys" => [
+                         %{
+                           "encryptedSecretKey" => _,
+                           "publicKey" => _
+                         }
+                       ],
+                       "secret" => _
+                     }
+                   ]
+                 }
+               }
+             } = json_response(conn, 200)
     end
   end
 
