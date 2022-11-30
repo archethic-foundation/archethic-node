@@ -73,10 +73,15 @@ defmodule ArchethicWeb.API.WebHostingController do
 
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
-         {:ok, transaction} <- Archethic.get_last_transaction(address) do
-      with {:ok, json_content} <- Jason.decode(transaction.data.content),
+         {:ok,
+          transaction = %Transaction{
+            address: last_address,
+            data: %TransactionData{content: content}
+          }} <-
+           Archethic.get_last_transaction(address) do
+      with {:ok, json_content} <- Jason.decode(content),
            {:ok, file, mime_type} <- get_file(json_content, url_path),
-           {cached?, etag} <- get_cache(cache_headers, transaction.address, url_path),
+           {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
            {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
         {:ok, file_content, encodage, mime_type, cached?, etag}
       else
