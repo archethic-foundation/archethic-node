@@ -12,14 +12,23 @@ defmodule ArchethicWeb.AEWebRootController do
       {:ok, file_content, encodage, mime_type, cached?, etag} ->
         WebHostingController.send_response(conn, file_content, encodage, mime_type, cached?, etag)
 
-      {:error, :not_found} ->
+      {:error, {:is_a_directory, transaction}} ->
+        {:ok, listing_html, encodage, mime_type, cached?, etag} =
+          WebHostingController.dir_listing(conn.request_path, params, transaction, cache_headers)
+
+        WebHostingController.send_response(conn, listing_html, encodage, mime_type, cached?, etag)
+
+      {:error, :file_not_found} ->
         # If file is not found, returning default file (url can be handled by index file)
         case url_path do
           [] ->
             send_resp(conn, 404, "Not Found")
 
+          ["index.html"] ->
+            send_resp(conn, 400, "Not Found")
+
           _path ->
-            params = Map.put(params, "url_path", [])
+            params = Map.put(params, "url_path", ["index.html"])
             index(conn, params)
         end
 
