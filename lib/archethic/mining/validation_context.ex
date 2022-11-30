@@ -1266,23 +1266,16 @@ defmodule Archethic.Mining.ValidationContext do
   Get the first available error or nil
   """
   @spec get_first_error(t()) :: atom()
-  def get_first_error(ctx = %__MODULE__{}) do
-    case ctx.validation_stamp.error do
-      nil ->
-        inconsistencies =
-          ctx.cross_validation_stamps
-          |> Enum.flat_map(& &1.inconsistencies)
-
-        case inconsistencies do
-          [] ->
-            nil
-
-          [first_error | _] ->
-            first_error
-        end
-
-      err ->
-        err
-    end
+  def get_first_error(%__MODULE__{
+        validation_stamp: %ValidationStamp{error: nil},
+        cross_validation_stamps: cross_validation_stamps
+      }) do
+    cross_validation_stamps
+    |> Enum.reduce_while(nil, fn
+      %CrossValidationStamp{inconsistencies: []}, nil -> {:cont, nil}
+      %CrossValidationStamp{inconsistencies: [first_error | _rest]}, nil -> {:halt, first_error}
+    end)
   end
+
+  def get_first_error(%__MODULE__{validation_stamp: %ValidationStamp{error: error}}), do: error
 end
