@@ -209,8 +209,9 @@ defmodule ArchethicWeb.API.WebHostingController do
         %{dirs: dirs_acc, files: [item | files_acc]}
 
       {:dir, name}, %{dirs: dirs_acc, files: files_acc} ->
+        # directories url end with a slash for relative url in website to work
         item = %{
-          href: %{href: Path.join(request_path, name)},
+          href: %{href: Path.join([request_path, name]) <> "/"},
           last_modified: timestamp,
           name: name
         }
