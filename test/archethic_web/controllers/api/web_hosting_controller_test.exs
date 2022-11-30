@@ -12,6 +12,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   alias Archethic.P2P.Message.LastTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   import Mox
@@ -365,6 +366,111 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       assert ["text/xml; charset=utf-8"] = get_resp_header(conn2, "content-type")
       assert ["text/javascript; charset=utf-8"] = get_resp_header(conn3, "content-type")
       assert ["image/png; charset=utf-8"] = get_resp_header(conn4, "content-type")
+    end
+  end
+
+  describe "should return a directory listing if there is no index.html file and more than 1 file" do
+    setup do
+      content = """
+      {
+        "dir1": {
+          "file10.txt":{
+            "encodage":"gzip",
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
+          },
+          "file11.txt":{
+            "encodage":"gzip",
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
+          }
+        },
+        "dir2": {
+          "hello.txt":{
+            "encodage":"gzip",
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
+          }
+        },
+        "dir3": {
+          "index.html":{
+            "encodage":"gzip",
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
+          }
+        },
+        "file1.txt":{
+          "encodage":"gzip",
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        },
+        "file2.txt":{
+          "encodage":"gzip",
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        },
+        "file3.txt":{
+          "encodage":"gzip",
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        }
+      }
+      """
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{address: address}, _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             data: %TransactionData{content: content},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
+           }}
+      end)
+
+      :ok
+    end
+
+    test "should return a directory listing", %{conn: conn} do
+      # directory listing at root
+      conn1 =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
+        )
+
+      # directory listing in a sub folder with trailing /
+      conn2 =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/dir1/"
+        )
+
+      # directory listing in a sub folder w/o trailing /
+      conn3 =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/dir1"
+        )
+
+      html1 = response(conn1, 200)
+      html2 = response(conn2, 200)
+      html3 = response(conn3, 200)
+      assert String.contains?(html1, "Index of")
+      assert String.contains?(html2, "Index of")
+      assert String.contains?(html3, "Index of")
     end
   end
 
