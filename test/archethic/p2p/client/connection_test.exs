@@ -60,7 +60,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         def handle_message({_, _, _}), do: {:error, :closed}
       end
 
-      {:ok, pid} =
+      {:ok, _} =
         Connection.start_link(
           transport: MockTransportUnreachable,
           ip: {127, 0, 0, 2},
@@ -73,6 +73,92 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                  Crypto.first_node_public_key(),
                  %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
                )
+    end
+
+    test "reconnection should be asynchronous" do
+      defmodule MockTransportConnectionTimeout do
+        alias Archethic.P2P.Client.Transport
+
+        @behaviour Transport
+
+        def handle_connect({127, 0, 0, 1}, _port) do
+          {:error, :timeout}
+        end
+
+        def handle_connect({127, 0, 0, 2}, _port) do
+          Process.sleep(100_000)
+          {:error, :timeout}
+        end
+
+        def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+
+        def handle_message({_, _, _}), do: {:error, :closed}
+      end
+
+      {:ok, pid} =
+        Connection.start_link(
+          transport: MockTransportConnectionTimeout,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      :sys.replace_state(pid, fn {state, data} ->
+        {state, Map.put(data, :ip, {127, 0, 0, 2})}
+      end)
+
+      # 500ms to wait for the 1st reconnect attempt
+      Process.sleep(550)
+
+      time = System.monotonic_time(:millisecond)
+
+      assert {:error, :closed} =
+               Connection.send_message(
+                 Crypto.first_node_public_key(),
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 200
+               )
+
+      # ensure there was no delay
+      time2 = System.monotonic_time(:millisecond)
+      assert time2 - time < 100
+    end
+
+    test "should be in :connected state after reconnection" do
+      defmodule MockTransportReconnectionSuccess do
+        alias Archethic.P2P.Client.Transport
+
+        @behaviour Transport
+
+        def handle_connect({127, 0, 0, 1}, _port) do
+          {:error, :timeout}
+        end
+
+        def handle_connect({127, 0, 0, 2}, _port) do
+          {:ok, make_ref()}
+        end
+
+        def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+
+        def handle_message({_, _, _}), do: {:error, :closed}
+      end
+
+      {:ok, pid} =
+        Connection.start_link(
+          transport: MockTransportReconnectionSuccess,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      :sys.replace_state(pid, fn {state, data} ->
+        {state, Map.put(data, :ip, {127, 0, 0, 2})}
+      end)
+
+      # 500ms to wait for the 1st reconnect attempt
+      Process.sleep(550)
+
+      assert {{:connected, _socket}, _} = :sys.get_state(pid)
     end
 
     test "should get an error when the timeout is reached" do

@@ -86,10 +86,8 @@ defmodule Archethic.P2P.Client.Connection do
         {:ok, {:connected, socket}, new_data}
 
       {:error, _} ->
-        {_, new_data, actions} =
-          handle_event(:enter, {:connected, make_ref()}, :disconnected, data)
-
-        {:ok, :disconnected, new_data, actions}
+        actions = [{{:timeout, :reconnect}, 500, nil}]
+        {:ok, :disconnected, data, actions}
     end
   end
 
@@ -204,12 +202,10 @@ defmodule Archethic.P2P.Client.Connection do
           transport: transport
         }
       ) do
-    me = self()
-
     # try to connect asynchronously so it does not block the messages coming in
-    Task.start_link(fn ->
-      # handle_connect might take a long time
-      send(me, {:connect_result, transport.handle_connect(ip, port)})
+    # Task.async/1 will send a {:info, {ref, result}} message to the connection process
+    Task.async(fn ->
+      transport.handle_connect(ip, port)
     end)
 
     :keep_state_and_data
@@ -377,22 +373,18 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
-  def handle_event(:info, {:connect_result, result}, _state, data) do
-    case result do
-      {:ok, socket} ->
-        {:next_state, {:connected, socket}, data}
-
-      {:error, _} ->
-        actions = [{{:timeout, :reconnect}, 500, nil}]
-        {:keep_state_and_data, actions}
-    end
-  end
-
   def handle_event(:info, {:DOWN, _ref, :process, _pid, :normal}, _, _data) do
     :keep_state_and_data
   end
 
-  def handle_event(:info, _event, :disconnected, _data), do: :keep_state_and_data
+  def handle_event(:info, {_ref, {:ok, socket}}, :disconnected, data) do
+    {:next_state, {:connected, socket}, data}
+  end
+
+  def handle_event(:info, {_ref, {:error, _reason}}, :disconnected, _data) do
+    actions = [{{:timeout, :reconnect}, 500, nil}]
+    {:keep_state_and_date, actions}
+  end
 
   def handle_event(
         :info,
@@ -466,6 +458,11 @@ defmodule Archethic.P2P.Client.Connection do
             :keep_state_and_data
         end
     end
+  end
+
+  def handle_event(:info, _, _, _data) do
+    # Unhandled message received
+    :keep_state_and_data
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
