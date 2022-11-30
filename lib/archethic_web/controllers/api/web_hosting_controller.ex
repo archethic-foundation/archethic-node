@@ -6,6 +6,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   alias Archethic
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Crypto
@@ -125,11 +126,20 @@ defmodule ArchethicWeb.API.WebHostingController do
         ) ::
           {:ok, listing_html :: binary() | nil, encodage :: nil | binary(), mime_type :: binary(),
            cached? :: boolean(), etag :: binary()}
-  def dir_listing(request_path, params, transaction, cache_headers) do
+  def dir_listing(
+        request_path,
+        params,
+        %Transaction{
+          address: last_address,
+          data: %TransactionData{content: content},
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        },
+        cache_headers
+      ) do
     url_path = Map.get(params, "url_path", [])
 
-    with {:ok, json_content} <- Jason.decode(transaction.data.content),
-         {cached?, etag} <- get_cache(cache_headers, transaction.address, url_path) do
+    with {:ok, json_content} <- Jason.decode(content),
+         {cached?, etag} <- get_cache(cache_headers, last_address, url_path) do
       json_content_subset =
         case url_path do
           [] ->
@@ -181,7 +191,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           {:file, name, addresses}, %{dirs: dirs_acc, files: files_acc} ->
             item = %{
               href: %{href: Path.join(request_path, name)},
-              last_modified: get_transaction_timestamp(transaction),
+              last_modified: timestamp,
               addresses: addresses,
               name: name
             }
@@ -191,7 +201,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           {:dir, name}, %{dirs: dirs_acc, files: files_acc} ->
             item = %{
               href: %{href: Path.join(request_path, name)},
-              last_modified: get_transaction_timestamp(transaction),
+              last_modified: timestamp,
               name: name
             }
 
@@ -208,7 +218,7 @@ defmodule ArchethicWeb.API.WebHostingController do
                   :explorer_url
                 ),
                 "transaction",
-                Base.encode16(transaction.address)
+                Base.encode16(last_address)
               ])
           }
         })
@@ -370,15 +380,4 @@ defmodule ArchethicWeb.API.WebHostingController do
   end
 
   defp get_file_content(_, _, _), do: :file_error
-
-  defp get_transaction_timestamp(transaction) do
-    case transaction.validation_stamp do
-      nil ->
-        # should happen only in the tests
-        DateTime.utc_now()
-
-      validation_stamp ->
-        validation_stamp.timestamp
-    end
-  end
 end

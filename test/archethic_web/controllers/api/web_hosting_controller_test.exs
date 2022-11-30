@@ -12,6 +12,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   alias Archethic.P2P.Message.LastTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   import Mox
@@ -423,53 +424,19 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       }
       """
 
-      content2 = """
-      {
-        "dir1": {
-          "file10.txt": "H4sIAAAAAAAAA0vLzElVMDTgAgALt2T5CAAAAA",
-          "file11.txt": "H4sIAAAAAAAAA0vLzElVMDTkAgBKhn_gCAAAAA"
-        },
-        "dir2": {
-          "hello.txt": "H4sIAAAAAAAAA_NIzcnJ1yupKFHQyM_LqVRIy8xJVcjMU0jJLDLS5AIAt5R0vB4AAAA"
-        },
-        "dir3": {
-          "index.html": "H4sIAAAAAAAAA7PJMLRz8QwyVsjMS0mt0Msoyc2x0QeKcQEAL-DoARkAAAA"
-        },
-        "file1.txt": "H4sIAAAAAAAAA0vLzElVMFTgAgBapaazCAAAAA",
-        "file2.txt": "H4sIAAAAAAAAA0vLzElVMOICAMGeIz8HAAAA",
-        "file3.txt": "H4sIAAAAAAAAA0vLzElVMOYCAICvOCYHAAAA"
-      }
-      """
-
       MockClient
       |> stub(:send_message, fn
         _, %GetLastTransactionAddress{address: address}, _ ->
           {:ok, %LastTransactionAddress{address: address}}
 
-        _,
-        %GetTransaction{
-          address:
-            address =
-                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
-        },
-        _ ->
+        _, %GetTransaction{address: address}, _ ->
           {:ok,
            %Transaction{
              address: address,
-             data: %TransactionData{content: content}
-           }}
-
-        _,
-        %GetTransaction{
-          address:
-            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
-              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
-        },
-        _ ->
-          {:ok,
-           %Transaction{
-             data: %TransactionData{content: content2}
+             data: %TransactionData{content: content},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
       end)
 
