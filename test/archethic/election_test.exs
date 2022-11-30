@@ -135,7 +135,6 @@ defmodule Archethic.ElectionTest do
                Enum.map(second_election, & &1.last_public_key)
     end
 
-    @tag :toto
     test "should never return more validation nodes than storages nodes" do
       authorized_nodes = [
         %Node{
