@@ -163,15 +163,13 @@ defmodule ArchethicWeb.API.WebHostingController do
         end
 
       assigns =
-        Map.keys(json_content_subset)
-        |> Enum.map(fn key ->
-          case json_content_subset[key] do
-            %{"address" => address} ->
-              {:file, key, address}
+        json_content_subset
+        |> Enum.map(fn
+          {key, %{"address" => address}} ->
+            {:file, key, address}
 
-            _ ->
-              {:dir, key}
-          end
+          {key, _} ->
+            {:dir, key}
         end)
         # sort directory last, then DESC order (it will be accumulated in reverse order below)
         |> Enum.sort(fn
