@@ -237,7 +237,6 @@ config :archethic, ArchethicWeb.Endpoint,
           false ->
             System.get_env("ARCHETHIC_DOMAIN_NAME", "mainnet.archethic.net")
         end,
-      port: System.get_env("ARCHETHIC_HTTPS_PORT", "50000") |> String.to_integer(),
       path: "/explorer"
     }),
   http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
