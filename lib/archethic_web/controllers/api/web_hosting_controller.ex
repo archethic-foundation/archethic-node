@@ -137,94 +137,101 @@ defmodule ArchethicWeb.API.WebHostingController do
         cache_headers
       ) do
     url_path = Map.get(params, "url_path", [])
+    mime_type = "text/html"
 
-    with {:ok, json_content} <- Jason.decode(content) do
-      case get_cache(cache_headers, last_address, url_path) do
-        {true, etag} ->
-          {:ok, nil, nil, "text/html", true, etag}
+    case get_cache(cache_headers, last_address, url_path) do
+      {cached? = true, etag} ->
+        {:ok, nil, nil, mime_type, cached?, etag}
 
-        {false, etag} ->
-          {json_content_subset, current_working_dir, parent_dir_href} =
-            case url_path do
-              [] ->
-                {json_content, "/", nil}
+      {cached? = false, etag} ->
+        case Jason.decode(content) do
+          {:error, err = %Jason.DecodeError{}} ->
+            {:error, err}
 
-              _ ->
-                {:ok, subset} = Pathex.view(json_content, get_json_path(url_path))
+          {:ok, json_content} ->
+            assigns =
+              do_dir_listing(request_path, url_path, json_content, timestamp, last_address)
 
-                {
-                  subset,
-                  Path.join(["/" | url_path]),
-                  %{href: request_path |> Path.join("..") |> Path.expand()}
-                }
-            end
-
-          assigns =
-            json_content_subset
-            |> Enum.map(fn
-              {key, %{"address" => address}} ->
-                {:file, key, address}
-
-              {key, _} ->
-                {:dir, key}
-            end)
-            # sort directory last, then DESC order (it will be accumulated in reverse order below)
-            |> Enum.sort(fn
-              {:file, a, _}, {:file, b, _} ->
-                a > b
-
-              {:dir, a}, {:dir, b} ->
-                a > b
-
-              {:file, _, _}, {:dir, _} ->
-                true
-
-              {:dir, _}, {:file, _, _} ->
-                false
-            end)
-            |> Enum.reduce(%{dirs: [], files: []}, fn
-              {:file, name, addresses}, %{dirs: dirs_acc, files: files_acc} ->
-                item = %{
-                  href: %{href: Path.join(request_path, name)},
-                  last_modified: timestamp,
-                  addresses: addresses,
-                  name: name
-                }
-
-                %{dirs: dirs_acc, files: [item | files_acc]}
-
-              {:dir, name}, %{dirs: dirs_acc, files: files_acc} ->
-                item = %{
-                  href: %{href: Path.join(request_path, name)},
-                  last_modified: timestamp,
-                  name: name
-                }
-
-                %{files: files_acc, dirs: [item | dirs_acc]}
-            end)
-            |> Enum.into(%{
-              cwd: current_working_dir,
-              parent_dir_href: parent_dir_href,
-              reference_transaction_href: %{
-                href:
-                  Path.join([
-                    Keyword.fetch!(
-                      Application.get_env(:archethic, ArchethicWeb.Endpoint),
-                      :explorer_url
-                    ),
-                    "transaction",
-                    Base.encode16(last_address)
-                  ])
-              }
-            })
-
-          {:ok, Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
-           nil, "text/html", false, etag}
-      end
-    else
-      error ->
-        error
+            {:ok,
+             Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
+             nil, mime_type, cached?, etag}
+        end
     end
+  end
+
+  defp do_dir_listing(request_path, url_path, json_content, timestamp, last_address) do
+    {json_content_subset, current_working_dir, parent_dir_href} =
+      case url_path do
+        [] ->
+          {json_content, "/", nil}
+
+        _ ->
+          {:ok, subset} = Pathex.view(json_content, get_json_path(url_path))
+
+          {
+            subset,
+            Path.join(["/" | url_path]),
+            %{href: request_path |> Path.join("..") |> Path.expand()}
+          }
+      end
+
+    json_content_subset
+    |> Enum.map(fn
+      {key, %{"address" => address}} ->
+        {:file, key, address}
+
+      {key, _} ->
+        {:dir, key}
+    end)
+    # sort directory last, then DESC order (it will be accumulated in reverse order below)
+    |> Enum.sort(fn
+      {:file, a, _}, {:file, b, _} ->
+        a > b
+
+      {:dir, a}, {:dir, b} ->
+        a > b
+
+      {:file, _, _}, {:dir, _} ->
+        true
+
+      {:dir, _}, {:file, _, _} ->
+        false
+    end)
+    |> Enum.reduce(%{dirs: [], files: []}, fn
+      {:file, name, addresses}, %{dirs: dirs_acc, files: files_acc} ->
+        item = %{
+          href: %{href: Path.join(request_path, name)},
+          last_modified: timestamp,
+          addresses: addresses,
+          name: name
+        }
+
+        %{dirs: dirs_acc, files: [item | files_acc]}
+
+      {:dir, name}, %{dirs: dirs_acc, files: files_acc} ->
+        item = %{
+          href: %{href: Path.join(request_path, name)},
+          last_modified: timestamp,
+          name: name
+        }
+
+        %{files: files_acc, dirs: [item | dirs_acc]}
+    end)
+    |> Enum.into(%{
+      cwd: current_working_dir,
+      parent_dir_href: parent_dir_href,
+      reference_transaction_href: %{
+        href:
+          Path.join([
+            Keyword.fetch!(
+              Application.get_env(:archethic, ArchethicWeb.Endpoint),
+              :explorer_url
+            ),
+            "transaction",
+            Base.encode16(last_address)
+          ])
+      }
+    })
   end
 
   @doc """
