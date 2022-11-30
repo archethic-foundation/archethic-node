@@ -186,6 +186,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         available?: true
       })
 
+      MockDB
+      |> expect(:get_latest_tps, fn -> 1000.0 end)
+
       tx =
         Transaction.new(
           :node_shared_secrets,
@@ -205,7 +208,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 secret: :crypto.strong_rand_bytes(32),
                 authorized_keys: %{
                   "node_key1" => "",
-                  "node_key2" => ""
+                  "node_key2" => "",
+                  # we started and connected this node in setup
+                  Crypto.last_node_public_key() => ""
                 }
               }
             ]
@@ -215,6 +220,53 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       :persistent_term.put(:node_shared_secrets_gen_addr, Transaction.previous_address(tx))
       :persistent_term.put(:node_shared_secrets_gen_addr, Transaction.previous_address(tx))
       assert :ok = PendingTransactionValidation.validate(tx)
+      :persistent_term.put(:node_shared_secrets_gen_addr, nil)
+    end
+
+    test "should return error when authorized nodes are not the same as the candidates" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node_key1",
+        last_public_key: "node_key1",
+        available?: true
+      })
+
+      MockDB
+      |> expect(:get_latest_tps, fn -> 1000.0 end)
+
+      tx =
+        Transaction.new(
+          :node_shared_secrets,
+          %TransactionData{
+            content:
+              <<0, 0, 219, 82, 144, 35, 140, 59, 161, 231, 225, 145, 111, 203, 173, 197, 200, 150,
+                213, 145, 87, 209, 98, 25, 28, 148, 198, 77, 174, 48, 16, 117, 253, 15, 0, 0, 105,
+                113, 238, 128, 201, 90, 172, 230, 46, 99, 215, 130, 104, 26, 196, 222, 157, 89,
+                101, 74, 248, 245, 118, 36, 194, 213, 108, 141, 175, 248, 6, 120>>,
+            code: """
+            condition inherit: [
+              type: node_shared_secrets
+            ]
+            """,
+            ownerships: [
+              %Ownership{
+                secret: :crypto.strong_rand_bytes(32),
+                authorized_keys: %{
+                  # we started and connected this node in setup
+                  Crypto.last_node_public_key() => ""
+                }
+              }
+            ]
+          }
+        )
+
+      :persistent_term.put(:node_shared_secrets_gen_addr, Transaction.previous_address(tx))
+
+      assert {:error, "Invalid node shared secrets transaction authorized nodes"} =
+               PendingTransactionValidation.validate(tx)
+
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
     end
 
