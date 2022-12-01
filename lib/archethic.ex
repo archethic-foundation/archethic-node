@@ -286,10 +286,10 @@ defmodule Archethic do
 
       remote_chain =
         if paging_address != address do
-          address
-          |> TransactionChain.stream_remotely(nodes, paging_address)
-          |> Enum.to_list()
-          |> List.flatten()
+          case TransactionChain.fetch_transaction_chain(nodes, address, paging_address) do
+            {:ok, transactions} -> transactions
+            {:error, _} -> []
+          end
         else
           []
         end
