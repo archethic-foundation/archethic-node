@@ -4,7 +4,7 @@ defmodule Archethic.OracleChain.Scheduler do
   """
 
   alias Archethic.Crypto
-  alias Archethic.DB
+
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -307,7 +307,7 @@ defmodule Archethic.OracleChain.Scheduler do
     tx = build_oracle_transaction(summary_date, index, new_oracle_data)
 
     with {:empty, false} <- {:empty, Enum.empty?(new_oracle_data)},
-         {:exists, false} <- {:exists, DB.transaction_exists?(tx.address)},
+         {:exists, false} <- {:exists, TransactionChain.transaction_exists?(tx.address)},
          {:trigger, true} <- {:trigger, trigger_node?(storage_nodes)} do
       send_polling_transaction(tx)
       :keep_state_and_data
@@ -364,7 +364,7 @@ defmodule Archethic.OracleChain.Scheduler do
     storage_nodes = tx_address |> Election.storage_nodes(authorized_nodes)
 
     watcher_pid =
-      with {:exists, false} <- {:exists, DB.transaction_exists?(tx_address)},
+      with {:exists, false} <- {:exists, TransactionChain.transaction_exists?(tx_address)},
            {:trigger, true} <- {:trigger, trigger_node?(storage_nodes)} do
         Logger.debug("Oracle transaction summary sending",
           transaction_address: Base.encode16(tx_address),
@@ -699,7 +699,7 @@ defmodule Archethic.OracleChain.Scheduler do
         next_pub
       )
 
-    if DB.transaction_exists?(tx.address) do
+    if TransactionChain.transaction_exists?(tx.address) do
       Logger.debug(
         "Transaction Already Exists:oracle summary transaction - aggregation: #{inspect(aggregated_content)}",
         transaction_address: Base.encode16(tx.address),

@@ -158,7 +158,7 @@ defmodule Archethic.Replication do
         },
         self_repair? \\ false
       ) do
-    if TransactionChain.transaction_exists?(address) do
+    if TransactionChain.transaction_exists?(address, :io) do
       Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
         transaction_type: type
@@ -175,7 +175,7 @@ defmodule Archethic.Replication do
 
       case TransactionValidator.validate(tx, self_repair?) do
         :ok ->
-          :ok = TransactionChain.write_transaction(tx)
+          :ok = TransactionChain.write_transaction(tx, :io)
           ingest_transaction(tx)
 
           Logger.info("Replication finished",

@@ -122,18 +122,71 @@ defmodule Archethic.DB.EmbeddedTest do
                 genesis_address: ^genesis_address
               }} = ChainIndex.get_tx_entry(tx2.address, db_path)
     end
+
+    test "should write transaction in io storage", %{db_path: db_path} do
+      tx1 = TransactionFactory.create_valid_transaction()
+      :ok = EmbeddedImpl.write_transaction(tx1, :io)
+
+      filename = ChainWriter.io_path(db_path, tx1.address)
+
+      assert File.exists?(filename)
+
+      contents = File.read!(filename)
+
+      assert contents == Encoding.encode(tx1)
+    end
+
+    test "should delete transaction in io storage after writing it in chain storage", %{
+      db_path: db_path
+    } do
+      tx1 = TransactionFactory.create_valid_transaction()
+      :ok = EmbeddedImpl.write_transaction(tx1, :io)
+
+      filename_io = ChainWriter.io_path(db_path, tx1.address)
+
+      assert File.exists?(filename_io)
+
+      :ok = EmbeddedImpl.write_transaction(tx1)
+
+      genesis_address = Transaction.previous_address(tx1)
+      filename_chain = ChainWriter.chain_path(db_path, genesis_address)
+
+      assert File.exists?(filename_chain)
+      assert !File.exists?(filename_io)
+    end
   end
 
-  describe "transaction_exists?/1" do
-    test "should return true when the transaction is present" do
+  describe "transaction_exists?/2" do
+    test "should return true when the transaction is present in chain storage" do
       tx1 = TransactionFactory.create_valid_transaction()
       :ok = EmbeddedImpl.write_transaction_chain([tx1])
 
-      assert EmbeddedImpl.transaction_exists?(tx1.address)
+      assert EmbeddedImpl.transaction_exists?(tx1.address, :chain)
     end
 
     test "should return false when the transaction is present" do
-      assert !EmbeddedImpl.transaction_exists?(:crypto.strong_rand_bytes(32))
+      assert !EmbeddedImpl.transaction_exists?(:crypto.strong_rand_bytes(32), :chain)
+    end
+
+    test "should return false when the transaction is not present in chain storage but in io storage" do
+      tx1 = TransactionFactory.create_valid_transaction()
+      :ok = EmbeddedImpl.write_transaction(tx1, :io)
+
+      assert !EmbeddedImpl.transaction_exists?(tx1.address, :chain)
+    end
+
+    test "should return true when the transaction is present in io storage" do
+      tx1 = TransactionFactory.create_valid_transaction()
+      :ok = EmbeddedImpl.write_transaction(tx1, :io)
+
+      assert EmbeddedImpl.transaction_exists?(tx1.address, :io)
+    end
+
+    test "should return true when the transaction is present in chain storage and asking for io storage" do
+      tx1 = TransactionFactory.create_valid_transaction()
+      :ok = EmbeddedImpl.write_transaction(tx1)
+
+      assert EmbeddedImpl.transaction_exists?(tx1.address, :io)
     end
   end
 

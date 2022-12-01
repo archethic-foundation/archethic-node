@@ -172,14 +172,15 @@ defmodule Archethic.TransactionChain do
   @doc """
   Persist only one transaction
   """
-  @spec write_transaction(Transaction.t()) :: :ok
+  @spec write_transaction(Transaction.t(), DB.storage_type()) :: :ok
   def write_transaction(
         tx = %Transaction{
           address: address,
           type: type
-        }
+        },
+        storage_type \\ :chain
       ) do
-    DB.write_transaction(tx)
+    DB.write_transaction(tx, storage_type)
     KOLedger.remove_transaction(address)
 
     Logger.info("Transaction stored",
@@ -247,8 +248,8 @@ defmodule Archethic.TransactionChain do
   @doc """
   Determine if the transaction exists
   """
-  @spec transaction_exists?(binary()) :: boolean()
-  defdelegate transaction_exists?(address), to: DB
+  @spec transaction_exists?(binary(), DB.storage_type()) :: boolean()
+  defdelegate transaction_exists?(address, storage_type \\ :chain), to: DB
 
   @doc """
   Return the size of transaction chain
