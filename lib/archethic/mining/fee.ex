@@ -6,6 +6,9 @@ defmodule Archethic.Mining.Fee do
 
   alias Archethic.Election
 
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
+
   alias Archethic.P2P
 
   alias Archethic.TransactionChain.Transaction
@@ -52,8 +55,6 @@ defmodule Archethic.Mining.Fee do
         nb_bytes = get_transaction_size(tx)
         nb_storage_nodes = get_number_replicas(tx, timestamp)
 
-        # TODO: determine the fee for smart contract execution
-
         storage_cost =
           fee_for_storage(
             uco_price_in_usd,
@@ -65,7 +66,7 @@ defmodule Archethic.Mining.Fee do
 
         fee =
           minimum_fee(uco_price_in_usd) + storage_cost + replication_cost +
-            get_additional_fee(tx, uco_price_in_usd)
+            get_additional_fee(tx, uco_price_in_usd) + contract_fee(tx, uco_price_in_usd)
 
         trunc(fee * @unit_uco)
     end
@@ -144,4 +145,97 @@ defmodule Archethic.Mining.Fee do
   defp cost_per_recipients(nb_recipients, uco_price_in_usd) do
     nb_recipients * (0.1 / uco_price_in_usd)
   end
+
+  defp contract_fee(%Transaction{data: %TransactionData{code: code}}, uco_price_in_usd)
+       when code != "" do
+    case Contracts.parse(code) do
+      {:ok, %Contract{triggers: triggers}} ->
+        trigger_price = Enum.count(triggers) * (0.1 * uco_price_in_usd)
+
+        operation_price =
+          Enum.reduce(triggers, 0, fn {_, ast}, acc -> acc + trigger_action_fee(ast) end) *
+            uco_price_in_usd
+
+        trigger_price + operation_price
+
+      _ ->
+        0
+    end
+  end
+
+  defp contract_fee(_, _), do: 0
+
+  defp trigger_action_fee(ast) do
+    Macro.prewalk(ast, 0, fn node, acc ->
+      acc + op_cost(node)
+    end) * 0.0001
+  end
+
+  defp op_cost({:+, _, _}), do: 1
+  defp op_cost({:-, _, _}), do: 1
+  defp op_cost({:/, _, _}), do: 3
+  defp op_cost({:*, _, _}), do: 3
+  defp op_cost({:<=, _, _}), do: 1
+  defp op_cost({:<, _, _}), do: 1
+  defp op_cost({:>=, _, _}), do: 1
+  defp op_cost({:>, _, _}), do: 1
+  defp op_cost({:or, _, _}), do: 1
+  defp op_cost({:and, _, _}), do: 1
+  defp op_cost({:==, _, _}), do: 1
+  defp op_cost({:if, _, _}), do: 10
+  defp op_cost({:else, _, _}), do: 10
+  defp op_cost(op) when is_boolean(op), do: 1
+  defp op_cost(op) when is_number(op), do: 1
+  defp op_cost(op) when is_binary(op), do: byte_size(op)
+
+  # String interpolation
+  defp op_cost({:<<>>, _, _}), do: 1
+  defp op_cost({:"::", _, _}), do: 1
+  defp op_cost({:., _, [Kernel, :to_string]}), do: 1
+
+  # Library functions
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :hash], _, _}), do: 20
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :regex_match?], _, _}), do: 15
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :regex_extract], _, _}), do: 15
+
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :json_path_match?], _, _}),
+    do: 15
+
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :size], _, _}), do: 50
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :in?], _, _}), do: 50
+
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :get_genesis_address], _, _}),
+    do: 100
+
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :get_genesis_public_key], _, _}),
+    do: 100
+
+  defp op_cost({:., _, [{:__aliases__, _, [:Library]}, _, :timestamp], _, _}), do: 3
+
+  defp op_cost({:., _, [{:__aliases__, _, [:TransactionStatement]}, _, :set_content], _, _}),
+    do: 10
+
+  defp op_cost({:., _, [{:__aliases__, _, [:TransactionStatement]}, _, :set_code], _, _}),
+    do: 10
+
+  defp op_cost({:., _, [{:__aliases__, _, [:TransactionStatement]}, _, :add_uco_transfer], _, _}),
+    do: 30
+
+  defp op_cost(
+         {:., _, [{:__aliases__, _, [:TransactionStatement]}, _, :add_token_transfer], _, _}
+       ),
+       do: 30
+
+  defp op_cost({:., _, [{:__aliases__, _, [:TransactionStatement]}, _, :add_recipient], _, _}),
+    do: 20
+
+  defp op_cost({:., _, [{:__aliases__, _, [:TransactionStatement]}, _, :add_ownership], _, _}),
+    do: 30
+
+  # Skip the transaction assignation
+  defp op_cost({:=, _, [{:scope, _, _}, {:update_in, _, _}]}), do: 0
+  defp op_cost({:update_in, _, _}), do: 0
+  defp op_cost({:&, _, _}), do: 0
+
+  defp op_cost(_), do: 1
 end
