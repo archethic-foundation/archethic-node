@@ -705,7 +705,7 @@ defmodule Archethic.TransactionChain do
   end
 
   defp do_stream_chain(nodes, address, paging_state, size) do
-    case fetch_transaction_chain(nodes, address, paging_state) do
+    case do_fetch_transaction_chain(nodes, address, paging_state) do
       {transactions, false, _} ->
         {[transactions], {:end, size + length(transactions)}}
 
@@ -714,11 +714,19 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  defp fetch_transaction_chain(
-         nodes,
-         address,
-         paging_state
-       ) do
+  @doc """
+  Get 10 transactions in a chain after a paging address
+  """
+  @spec fetch_transaction_chain(list(Node.t()), binary(), binary()) ::
+          {:ok, list(Transaction.t())} | {:error, :network_issue}
+  def fetch_transaction_chain(nodes, address, paging_address) do
+    case do_fetch_transaction_chain(nodes, address, paging_address) do
+      {transactions, _more?, _paging_state} -> {:ok, transactions}
+      error -> error
+    end
+  end
+
+  defp do_fetch_transaction_chain(nodes, address, paging_state) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
@@ -740,8 +748,8 @@ defmodule Archethic.TransactionChain do
        %TransactionList{transactions: transactions, more?: more?, paging_state: paging_state}} ->
         {transactions, more?, paging_state}
 
-      {:error, :network_issue} ->
-        raise "Cannot fetch transaction chain"
+      error ->
+        error
     end
   end
 
