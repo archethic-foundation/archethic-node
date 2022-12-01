@@ -19,7 +19,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.OracleChain
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.StartMining
   alias Archethic.P2P.Node
 
   alias Archethic.PubSub
@@ -242,8 +241,8 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, state}
   end
 
-  def handle_info({:EXIT, _pid, _}, _state) do
-    :keep_state_and_data
+  def handle_info({:EXIT, _pid, _}, state) do
+    {:noreply, state}
   end
 
   defp via_tuple(address) do
@@ -286,11 +285,7 @@ defmodule Archethic.Contracts.Worker do
 
     # The first storage node of the contract initiate the sending of the new transaction
     if trigger_node?(validation_nodes) do
-      P2P.broadcast_message(validation_nodes, %StartMining{
-        transaction: next_transaction,
-        validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-        welcome_node_public_key: Crypto.last_node_public_key()
-      })
+      Archethic.send_new_transaction(next_transaction)
     else
       DetectNodeResponsiveness.start_link(
         next_transaction.address,
@@ -299,11 +294,7 @@ defmodule Archethic.Contracts.Worker do
           Logger.info("contract transaction ...attempt #{count}")
 
           if trigger_node?(validation_nodes, count) do
-            P2P.broadcast_message(validation_nodes, %StartMining{
-              transaction: next_transaction,
-              validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-              welcome_node_public_key: Crypto.last_node_public_key()
-            })
+            Archethic.send_new_transaction(next_transaction)
           end
         end
       )
