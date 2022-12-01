@@ -170,6 +170,9 @@ defmodule Archethic.Contracts.Interpreter do
          {:ok, contract} <- parse_contract(ast, %Contract{}) do
       {:ok, contract}
     else
+      {:error, {meta, {_, info}, token}} ->
+        {:error, InterpreterUtils.format_error_reason({token, meta, []}, info)}
+
       {:error, {meta, info, token}} ->
         {:error, InterpreterUtils.format_error_reason({token, meta, []}, info)}
 

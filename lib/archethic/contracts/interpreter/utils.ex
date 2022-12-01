@@ -500,7 +500,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   It returns message with metadata if possible to indicate the line of the error
   """
-  @spec format_error_reason(Macro.t(), String.t()) :: String.t()
+  @spec format_error_reason(any(), String.t()) :: String.t()
   def format_error_reason({:atom, _key}, reason) do
     do_format_error_reason(reason, "", [])
   end

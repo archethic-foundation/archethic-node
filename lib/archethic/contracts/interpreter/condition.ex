@@ -25,7 +25,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
 
   ## Examples
 
-      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1], 
+      iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
       ...> [
       ...>  [
       ...>    {{:atom, "transaction"}, [
@@ -36,7 +36,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       {:ok, :transaction, %Conditions{
         content: {:==, [], [
           {:get_in, [], [
-            {:scope, [], nil}, 
+            {:scope, [], nil},
             ["transaction", "content"]
           ]},
           "hello"
@@ -68,16 +68,16 @@ defmodule Archethic.Contracts.ConditionInterpreter do
         :ok, :transaction, %Conditions{
           content:  {:==, [line: 2], [
              {:get_in, [line: 2], [
-               {:scope, [line: 2], nil}, 
+               {:scope, [line: 2], nil},
                ["transaction", "content"]
              ]},
              {
                {:., [line: 2], [
-                 {:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]}, 
+                 {:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]},
                  :hash
                ]}, [line: 2], [
                  {:get_in, [line: 2], [
-                   {:scope, [line: 2], nil}, 
+                   {:scope, [line: 2], nil},
                    ["contract", "code"]
                  ]}
                ]
@@ -104,7 +104,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       {:ok, :transaction, %Conditions{
           content: {:==, [], [{:get_in, [], [{:scope, [], nil}, ["transaction", "content"]]}, "hello"]},
           uco_transfers:  {:==, [], [
-            {:get_in, [], [{:scope, [], nil}, 
+            {:get_in, [], [{:scope, [], nil},
               ["transaction", "uco_transfers"]
             ]},
             {:%{}, [line: 3], [{
@@ -115,7 +115,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       }
 
     Usage with origin_family condition
-    
+
       iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
       ...> [
       ...>   [
@@ -128,7 +128,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       {:error, "invalid origin family - L2"}
 
   """
-  @spec parse(Macro.t()) ::
+  @spec parse(any()) ::
           {:ok, condition_type(), Conditions.t()} | {:error, reason :: String.t()}
   def parse(ast) do
     case Macro.traverse(

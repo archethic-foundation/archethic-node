@@ -57,7 +57,7 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Add a trigger to the contract
   """
-  @spec add_trigger(t(), trigger_type(), Macro.t()) :: t()
+  @spec add_trigger(map(), trigger_type(), Macro.t()) :: t()
   def add_trigger(
         contract = %__MODULE__{},
         type,
@@ -69,7 +69,7 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Add a condition to the contract
   """
-  @spec add_condition(t(), condition(), Conditions.t()) :: t()
+  @spec add_condition(map(), condition(), Conditions.t()) :: t()
   def add_condition(
         contract = %__MODULE__{},
         condition_name,

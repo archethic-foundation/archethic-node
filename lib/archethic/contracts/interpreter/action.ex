@@ -70,7 +70,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
       {:error, "unexpected term - System - L2"}
 
   """
-  @spec parse(Macro.t()) :: {:ok, trigger(), Macro.t()}
+  @spec parse(any()) :: {:ok, trigger(), Macro.t()} | {:error, String.t()}
   def parse(ast) do
     case Macro.traverse(
            ast,
