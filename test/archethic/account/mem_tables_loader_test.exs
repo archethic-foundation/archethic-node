@@ -107,7 +107,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       })
 
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      assert :ok = MemTablesLoader.load_transaction(create_transaction(timestamp))
+
+      assert :ok =
+               MemTablesLoader.load_transaction(create_transaction(timestamp, "@Charlie3"), false)
 
       assert [
                %VersionedUnspentOutput{
@@ -166,8 +168,11 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
       MockDB
+      |> stub(:list_io_transactions, fn _fields ->
+        [create_transaction(timestamp, "@Charlie4")]
+      end)
       |> stub(:list_transactions, fn _fields ->
-        [create_transaction(timestamp)]
+        [create_transaction(timestamp, "@Charlie3")]
       end)
 
       %{timestamp: timestamp}
@@ -203,6 +208,14 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                    type: :UCO,
                    timestamp: ^timestamp
                  }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie4",
+                   amount: 3_400_000_000,
+                   type: :UCO,
+                   timestamp: ^timestamp
+                 }
                }
              ] = UCOLedger.get_unspent_outputs("@Tom4")
 
@@ -214,14 +227,22 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                    type: {:token, "@CharlieToken", 0},
                    timestamp: ^timestamp
                  }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie4",
+                   amount: 1_000_000_000,
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ^timestamp
+                 }
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
   end
 
-  defp create_transaction(timestamp) do
+  defp create_transaction(timestamp, address) do
     %Transaction{
-      address: "@Charlie3",
+      address: address,
       previous_public_key: "Charlie2",
       validation_stamp: %ValidationStamp{
         protocol_version: ArchethicCase.current_protocol_version(),
@@ -263,9 +284,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         DateTime.utc_now() |> DateTime.add(-86_400) |> DateTime.truncate(:millisecond)
 
       assert :ok =
-               MemTablesLoader.load_transaction(
-                 create_reward_transaction(timestamp, validation_time)
-               )
+               create_reward_transaction(timestamp, validation_time)
+               |> MemTablesLoader.load_transaction(false)
 
       # uco ledger
       assert [

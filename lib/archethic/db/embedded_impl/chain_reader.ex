@@ -139,6 +139,60 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  @doc """
+  List all the transactions in io storage
+  """
+  @spec list_io_transactions(fields :: list(), db_path :: String.t()) ::
+          Enumerable.t() | list(Transaction.t())
+  def list_io_transactions(fields, db_path) do
+    io_transactions_path =
+      ChainWriter.base_io_path(db_path)
+      |> Path.join("*")
+      |> Path.wildcard()
+
+    Stream.resource(
+      fn -> io_transactions_path end,
+      fn
+        [filepath | rest] -> {[read_io_transaction(filepath, fields)], rest}
+        [] -> {:halt, nil}
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  defp read_io_transaction(filepath, fields) do
+    # Open the file as the position from the transaction in the chain file
+    fd = File.open!(filepath, [:binary, :read])
+
+    {:ok, <<size::32, version::32>>} = :file.read(fd, 8)
+    column_names = fields_to_column_names(fields)
+
+    # Ensure the validation stamp's protocol version is retrieved if we fetch validation stamp fields
+    has_validation_stamp_fields? =
+      Enum.any?(column_names, &String.starts_with?(&1, "validation_stamp."))
+
+    has_validation_stamp_protocol_field? =
+      Enum.any?(column_names, &(&1 == "validation_stamp.protocol_version"))
+
+    column_names =
+      if has_validation_stamp_fields? and !has_validation_stamp_protocol_field? do
+        ["validation_stamp.protocol_version" | column_names]
+      else
+        column_names
+      end
+
+    # Read the transaction and extract requested columns from the fields arg
+    tx =
+      fd
+      |> read_transaction(column_names, size, 0)
+      |> Enum.into(%{})
+      |> decode_transaction_columns(version)
+
+    :file.close(fd)
+
+    tx
+  end
+
   defp process_get_chain(fd, address, fields, opts, db_path) do
     # Set the file cursor position to the paging state
     case Keyword.get(opts, :paging_state) do

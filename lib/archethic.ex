@@ -11,8 +11,6 @@ defmodule Archethic do
   alias __MODULE__.P2P
   alias __MODULE__.P2P.Node
 
-  alias __MODULE__.DB
-
   alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
   alias __MODULE__.P2P.Message.NewTransaction
@@ -275,7 +273,7 @@ defmodule Archethic do
     try do
       {local_chain, paging_address} =
         with true <- paging_address != nil,
-             true <- DB.transaction_exists?(paging_address),
+             true <- TransactionChain.transaction_exists?(paging_address),
              last_address when last_address != nil <-
                TransactionChain.get_last_local_address(address),
              true <- last_address != paging_address do

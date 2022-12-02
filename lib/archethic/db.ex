@@ -13,6 +13,8 @@ defmodule Archethic.DB do
 
   use Knigge, otp_app: :archethic, default: EmbeddedImpl
 
+  @type storage_type() :: :chain | :io
+
   @callback get_transaction(address :: binary(), fields :: list()) ::
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   @callback get_beacon_summary(summary_address :: binary()) ::
@@ -24,12 +26,13 @@ defmodule Archethic.DB do
               fields :: list(),
               opts :: [paging_state: nil | binary(), after: DateTime.t()]
             ) :: Enumerable.t()
-  @callback write_transaction(Transaction.t()) :: :ok
+  @callback write_transaction(Transaction.t(), storage_type()) :: :ok
   @callback write_beacon_summary(Summary.t()) :: :ok
   @callback clear_beacon_summaries() :: :ok
   @callback write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
+  @callback list_io_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   @callback list_last_transaction_addresses() :: Enumerable.t()
 
@@ -61,7 +64,7 @@ defmodule Archethic.DB do
   @callback get_latest_burned_fees() :: non_neg_integer()
   @callback get_nb_transactions() :: non_neg_integer()
 
-  @callback transaction_exists?(binary()) :: boolean()
+  @callback transaction_exists?(binary(), storage_type()) :: boolean()
 
   @callback register_p2p_summary(list({Crypto.key(), boolean(), float(), DateTime.t()})) :: :ok
 
