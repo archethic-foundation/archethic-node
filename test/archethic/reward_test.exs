@@ -138,7 +138,7 @@ defmodule Archethic.RewardTest do
     end
 
     test "Balance Should be updated with UCO ,for reward movements " do
-      Enum.each(get_reward_transactions(), &AccountTablesLoader.load_transaction(&1))
+      Enum.each(get_reward_transactions(), &AccountTablesLoader.load_transaction(&1, false))
 
       # @Ada1
       # from alen2: 2uco, dan2: 19uco, rewardtoken1: 50, rewardtoken2: 50
@@ -365,7 +365,7 @@ defmodule Archethic.RewardTest do
     end
 
     test "Node Rewards Should not be minted" do
-      AccountTablesLoader.load_transaction(get_node_reward_txns())
+      AccountTablesLoader.load_transaction(get_node_reward_txns(), false)
 
       assert %{
                uco: 0,
