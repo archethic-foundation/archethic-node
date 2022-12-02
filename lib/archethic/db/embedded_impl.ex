@@ -115,7 +115,7 @@ defmodule Archethic.DB.EmbeddedImpl do
     if ChainIndex.transaction_exists?(tx.address, :io, db_path()) do
       {:error, :transaction_already_exists}
     else
-      ChainWriter.write_io_transaction(tx)
+      ChainWriter.write_io_transaction(tx, db_path())
     end
   end
 

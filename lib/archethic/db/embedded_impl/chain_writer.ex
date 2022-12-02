@@ -34,11 +34,23 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @doc """
   write an io transaction in a file name by it's address
   """
-  @spec write_io_transaction(Transaction.t()) :: :ok
-  def write_io_transaction(tx = %Transaction{address: address}) do
-    partition = :erlang.phash2(address, 20)
-    [{_, pid}] = :ets.lookup(:archethic_db_chain_writers, partition)
-    GenServer.call(pid, {:write_io_transaction, tx})
+  @spec write_io_transaction(Transaction.t(), String.t()) :: :ok
+  def write_io_transaction(tx = %Transaction{address: address}, db_path) do
+    start = System.monotonic_time()
+
+    filename = io_path(db_path, address)
+
+    data = Encoding.encode(tx)
+
+    File.write!(
+      filename,
+      data,
+      [:exclusive, :binary]
+    )
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "write_io_transaction"
+    })
   end
 
   @doc """
@@ -185,24 +197,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "index_transaction"
-    })
-  end
-
-  defp write_io_transaction(tx = %Transaction{address: address}, db_path) do
-    start = System.monotonic_time()
-
-    filename = io_path(db_path, address)
-
-    data = Encoding.encode(tx)
-
-    File.write!(
-      filename,
-      data,
-      [:append, :binary]
-    )
-
-    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-      query: "write_io_transaction"
     })
   end
 
