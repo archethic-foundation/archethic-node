@@ -717,6 +717,46 @@ defmodule Archethic.Mining.ValidationContext do
           resolved_addresses: resolved_addresses
         }
       ) do
+    resolved_recipients =
+      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
+        if to in recipients do
+          [resolved | acc]
+        else
+          acc
+        end
+      end)
+
+    ledger_operations = get_ledger_operations(context)
+
+    validation_stamp =
+      %ValidationStamp{
+        protocol_version: Mining.protocol_version(),
+        timestamp: validation_time,
+        proof_of_work: do_proof_of_work(tx),
+        proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
+        ledger_operations: ledger_operations,
+        recipients: resolved_recipients,
+        error:
+          get_validation_error(
+            prev_tx,
+            tx,
+            ledger_operations,
+            unspent_outputs,
+            valid_pending_transaction?
+          )
+      }
+      |> ValidationStamp.sign()
+
+    %{context | validation_stamp: validation_stamp}
+  end
+
+  defp get_ledger_operations(%__MODULE__{
+         transaction: tx,
+         unspent_outputs: unspent_outputs,
+         validation_time: validation_time,
+         resolved_addresses: resolved_addresses
+       }) do
     usd_price =
       validation_time
       |> OracleChain.get_uco_price()
@@ -750,51 +790,49 @@ defmodule Archethic.Mining.ValidationContext do
           acc
       end)
 
-    resolved_recipients =
-      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
-        if to in recipients do
-          [resolved | acc]
-        else
-          acc
-        end
-      end)
+    %LedgerOperations{
+      fee: fee,
+      transaction_movements: resolved_movements
+    }
+    |> LedgerOperations.from_transaction(tx, validation_time)
+    |> LedgerOperations.consume_inputs(
+      tx.address,
+      unspent_outputs,
+      validation_time |> DateTime.truncate(:millisecond)
+    )
+  end
 
-    error =
-      cond do
-        chain_error?(prev_tx, tx) ->
-          :invalid_inherit_constraints
+  @spec get_validation_error(
+          nil | Transaction.t(),
+          Transaction.t(),
+          LedgerOperations.t(),
+          list(UnspentOutput.t()),
+          boolean()
+        ) :: nil | ValidationStamp.error()
+  defp get_validation_error(
+         prev_tx,
+         tx,
+         ledger_operations,
+         unspent_outputs,
+         valid_pending_transaction?
+       ) do
+    cond do
+      chain_error?(prev_tx, tx) ->
+        :invalid_inherit_constraints
 
-        valid_pending_transaction? ->
-          nil
+      has_insufficient_funds?(ledger_operations, unspent_outputs) ->
+        :insufficient_funds
 
-        true ->
-          :invalid_pending_transaction
-      end
+      not valid_pending_transaction? ->
+        :invalid_pending_transaction
 
-    validation_stamp =
-      %ValidationStamp{
-        protocol_version: Mining.protocol_version(),
-        timestamp: validation_time,
-        proof_of_work: do_proof_of_work(tx),
-        proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
-        ledger_operations:
-          %LedgerOperations{
-            fee: fee,
-            transaction_movements: resolved_movements
-          }
-          |> LedgerOperations.from_transaction(tx, validation_time)
-          |> LedgerOperations.consume_inputs(
-            tx.address,
-            unspent_outputs,
-            validation_time |> DateTime.truncate(:millisecond)
-          ),
-        recipients: resolved_recipients,
-        error: error
-      }
-      |> ValidationStamp.sign()
+      true ->
+        nil
+    end
+  end
 
-    %{context | validation_stamp: validation_stamp}
+  defp has_insufficient_funds?(ledger_ops, inputs) do
+    not LedgerOperations.sufficient_funds?(ledger_ops, inputs)
   end
 
   defp chain_error?(nil, _tx = %Transaction{}), do: false
@@ -1055,24 +1093,25 @@ defmodule Archethic.Mining.ValidationContext do
     ) == fee
   end
 
-  defp valid_stamp_error?(stamp = %ValidationStamp{error: error}, %__MODULE__{
-         transaction: tx,
-         previous_transaction: prev_tx,
-         valid_pending_transaction?: valid_pending_transaction?
-       }) do
-    validated_tx = %{tx | validation_stamp: stamp}
+  defp valid_stamp_error?(
+         stamp = %ValidationStamp{error: error},
+         context = %__MODULE__{
+           transaction: tx,
+           previous_transaction: prev_tx,
+           valid_pending_transaction?: valid_pending_transaction?,
+           unspent_outputs: unspent_outputs
+         }
+       ) do
+    validated_context = %{context | transaction: %{tx | validation_stamp: stamp}}
 
     expected_error =
-      cond do
-        chain_error?(prev_tx, validated_tx) ->
-          :invalid_inherit_constraints
-
-        valid_pending_transaction? ->
-          nil
-
-        true ->
-          :invalid_pending_transaction
-      end
+      get_validation_error(
+        prev_tx,
+        tx,
+        get_ledger_operations(validated_context),
+        unspent_outputs,
+        valid_pending_transaction?
+      )
 
     error == expected_error
   end
@@ -1261,4 +1300,21 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.map(&Enum.at(storage_nodes, &1))
     |> Enum.reject(&Utils.key_in_node_list?(chain_storage_nodes, &1.first_public_key))
   end
+
+  @doc """
+  Get the first available error or nil
+  """
+  @spec get_first_error(t()) :: atom()
+  def get_first_error(%__MODULE__{
+        validation_stamp: %ValidationStamp{error: nil},
+        cross_validation_stamps: cross_validation_stamps
+      }) do
+    cross_validation_stamps
+    |> Enum.reduce_while(nil, fn
+      %CrossValidationStamp{inconsistencies: []}, nil -> {:cont, nil}
+      %CrossValidationStamp{inconsistencies: [first_error | _rest]}, nil -> {:halt, first_error}
+    end)
+  end
+
+  def get_first_error(%__MODULE__{validation_stamp: %ValidationStamp{error: error}}), do: error
 end
