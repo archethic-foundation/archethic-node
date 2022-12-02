@@ -21,7 +21,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     error: nil
   ]
 
-  @type error :: :invalid_pending_transaction | :invalid_inherit_constraints
+  @type error :: :invalid_pending_transaction | :invalid_inherit_constraints | :insufficient_funds
 
   @typedoc """
   Validation performed by a coordinator:
@@ -426,8 +426,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   defp serialize_error(nil), do: 0
   defp serialize_error(:invalid_pending_transaction), do: 1
   defp serialize_error(:invalid_inherit_constraints), do: 2
+  defp serialize_error(:insufficient_funds), do: 3
 
   defp deserialize_error(0), do: nil
   defp deserialize_error(1), do: :invalid_pending_transaction
   defp deserialize_error(2), do: :invalid_inherit_constraints
+  defp deserialize_error(3), do: :insufficient_funds
 end
