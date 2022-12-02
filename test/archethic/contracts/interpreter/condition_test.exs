@@ -138,10 +138,11 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
   end
 
   test "parse invalid uco transfers type definition" do
-    assert {:error, "must be a map - uco_transfers"} =
+    assert {:error,
+            "must be a map or a code instruction starting by an comparator - uco_transfers"} =
              """
              condition inherit: [
-               uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }]
+               uco_transfers: [%{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1040000000 }]
              ]
              """
              |> Interpreter.sanitize_code()
@@ -150,10 +151,11 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
   end
 
   test "parse invalid token transfers type definition" do
-    assert {:error, "must be a map - token_transfers"} =
+    assert {:error,
+            "must be a map or a code instruction starting by an comparator - token_transfers"} =
              """
              condition inherit: [
-               token_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }]
+               token_transfers: [%{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1040000000 }]
              ]
              """
              |> Interpreter.sanitize_code()

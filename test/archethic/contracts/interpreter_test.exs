@@ -35,24 +35,24 @@ defmodule Archethic.Contracts.InterpreterTest do
     assert {:ok, _} =
              """
              condition inherit: [
-             type: transfer,
-             uco_transfers: size() == 1
-             # TODO: to provide more security, we should check the destination address is within the previous transaction inputs
+                token_transfers: size() == 1
              ]
 
+             condition transaction: [
+                 uco_transfers: size() > 0,
+                 timestamp: transaction.timestamp < 1665750161
+             ]
 
              actions triggered_by: transaction do
-               # Get the amount of uco send to this contract
-               amount_send = transaction.uco_transfers[contract.address]
+                # Get the amount of uco send to this contract
+                  amount_send = transaction.uco_transfers[contract.address]
+                  if amount_send > 0 do
+                    # Convert UCO to the number of tokens to credit. Each UCO worth 10 token
+                    token_to_credit = amount_send * 10
 
-               if amount_send > 0 do
-                 # Convert UCO to the number of tokens to credit. Each UCO worth 10000 token
-                 token_to_credit = amount_send * 10000
-
-                 # Send the new transaction
-                 set_type transfer
-                 add_token_transfer to: transaction.address, token_address: contract.address, amount: token_to_credit, token_id: token_id
-               end
+                    # Send the new transaction
+                    add_token_transfer to: transaction.address, token_address: contract.address, amount: token_to_credit
+                 end
              end
              """
              |> Interpreter.parse()

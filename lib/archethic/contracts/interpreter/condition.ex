@@ -190,11 +190,11 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       {:%{}, _, _} ->
         {node, acc}
 
-      {{:atom, _}, _, _} ->
+      {op, _, _} when op in [:==, :<, :>, :<=, :>=, :if] ->
         {node, acc}
 
       _ ->
-        {node, {:error, "must be a map"}}
+        {node, {:error, "must be a map or a code instruction starting by an comparator"}}
     end
   end
 
@@ -203,11 +203,11 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       {:%{}, _, _} ->
         {node, acc}
 
-      {{:atom, _}, _, _} ->
+      {op, _, _} when op in [:==, :<, :>, :<=, :>=, :if] ->
         {node, acc}
 
       _ ->
-        {node, {:error, "must be a map"}}
+        {node, {:error, "must be a map or a code instruction starting by an comparator"}}
     end
   end
 
@@ -271,7 +271,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     {node, acc}
   end
 
-  # Whitelist usage of maps in the field of a condition
+  # Whitelist usage of taps in the field of a condition
   defp prewalk(node = {{:atom, _key}, _val}, acc = {:ok, %{scope: {:condition, _, _}}}) do
     {node, acc}
   end
