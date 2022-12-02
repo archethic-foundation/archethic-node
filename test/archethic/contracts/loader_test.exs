@@ -1,10 +1,9 @@
 defmodule Archethic.Contracts.LoaderTest do
-  use ExUnit.Case
+  use ArchethicCase
 
   alias Archethic.ContractRegistry
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.Constants
-  alias Archethic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Loader
   alias Archethic.Contracts.Worker
   alias Archethic.ContractSupervisor
@@ -55,7 +54,7 @@ defmodule Archethic.Contracts.LoaderTest do
 
       assert %{
                contract: %Contract{
-                 triggers: [%Trigger{type: :transaction}],
+                 triggers: %{transaction: _},
                  constants: %Constants{contract: %{"address" => ^contract_address}}
                }
              } = :sys.get_state(pid)
@@ -164,7 +163,7 @@ defmodule Archethic.Contracts.LoaderTest do
 
     assert %{
              contract: %Contract{
-               triggers: [%Trigger{type: :transaction}],
+               triggers: %{transaction: _},
                constants: %Constants{contract: %{"address" => ^contract_address}}
              }
            } = :sys.get_state(pid)

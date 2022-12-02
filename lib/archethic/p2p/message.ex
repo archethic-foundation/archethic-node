@@ -1633,8 +1633,11 @@ defmodule Archethic.P2P.Message do
     contract_inputs =
       address
       |> Contracts.list_contract_transactions()
-      |> Enum.map(fn {address, timestamp} ->
-        %TransactionInput{from: address, type: :call, timestamp: timestamp}
+      |> Enum.map(fn {address, timestamp, protocol_version} ->
+        %VersionedTransactionInput{
+          input: %TransactionInput{from: address, type: :call, timestamp: timestamp},
+          protocol_version: protocol_version
+        }
       end)
 
     inputs = Account.get_inputs(address) ++ contract_inputs

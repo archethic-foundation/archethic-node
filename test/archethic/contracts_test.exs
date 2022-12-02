@@ -4,9 +4,8 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.Conditions
-  alias Archethic.Contracts.Contract.Constants
-  alias Archethic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -222,7 +221,7 @@ defmodule Archethic.ContractsTest do
         uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 1000000000}
       ]
 
-      actions triggered_by: interval, at: "0 * * * * *" do
+      actions triggered_by: interval, at: "0 * * * *" do
         add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 1000000000
       end
       """
@@ -232,8 +231,6 @@ defmodule Archethic.ContractsTest do
           code: code
         }
       }
-
-      {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:20], "Etc/UTC")
 
       next_tx = %Transaction{
         data: %TransactionData{
@@ -253,7 +250,8 @@ defmodule Archethic.ContractsTest do
         }
       }
 
-      assert false == Contracts.accept_new_contract?(previous_tx, next_tx, time)
+      assert false ==
+               Contracts.accept_new_contract?(previous_tx, next_tx, ~U[2016-05-24 13:26:20Z])
     end
 
     test "should return false when the transaction have been triggered by interval and the timestamp does match " do
@@ -262,7 +260,7 @@ defmodule Archethic.ContractsTest do
         uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" =>  1000000000}
       ]
 
-      actions triggered_by: interval, at: "0 * * * * *" do
+      actions triggered_by: interval, at: "0 * * * *" do
         add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 1000000000
       end
       """
@@ -272,8 +270,6 @@ defmodule Archethic.ContractsTest do
           code: code
         }
       }
-
-      {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:00.000999], "Etc/UTC")
 
       next_tx = %Transaction{
         data: %TransactionData{
@@ -293,7 +289,8 @@ defmodule Archethic.ContractsTest do
         }
       }
 
-      assert true == Contracts.accept_new_contract?(previous_tx, next_tx, time)
+      assert true ==
+               Contracts.accept_new_contract?(previous_tx, next_tx, ~U[2016-05-24 13:00:00Z])
     end
 
     test "should return true when the inherit constraint match and when no trigger is specified" do

@@ -6,6 +6,10 @@ defmodule Archethic.Contracts.TransactionLookup do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
+  alias Archethic.DB
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
+
   require Logger
 
   @doc """
@@ -29,11 +33,24 @@ defmodule Archethic.Contracts.TransactionLookup do
   @doc """
   Register a new transaction address towards a contract address
   """
-  @spec add_contract_transaction(binary(), binary(), DateTime.t()) :: :ok
-  def add_contract_transaction(contract_address, transaction_address, transaction_timestamp)
+  @spec add_contract_transaction(
+          contract_address :: binary(),
+          tx_address :: binary(),
+          tx_timestamp :: DateTime.t(),
+          protocol_version :: pos_integer()
+        ) :: :ok
+  def add_contract_transaction(
+        contract_address,
+        transaction_address,
+        transaction_timestamp,
+        protocol_version
+      )
       when is_binary(contract_address) and is_binary(transaction_address) do
     true =
-      :ets.insert(@table_name, {contract_address, transaction_address, transaction_timestamp})
+      :ets.insert(
+        @table_name,
+        {contract_address, transaction_address, transaction_timestamp, protocol_version}
+      )
 
     :ok
   end
@@ -41,10 +58,53 @@ defmodule Archethic.Contracts.TransactionLookup do
   @doc """
   Return the list transaction towards a contract address
   """
-  @spec list_contract_transactions(binary()) :: list({binary(), DateTime.t()})
+  @spec list_contract_transactions(binary()) ::
+          list(
+            {address :: binary(), timestamp :: DateTime.t(), protocol_version :: pos_integer()}
+          )
   def list_contract_transactions(contract_address) when is_binary(contract_address) do
-    Enum.map(:ets.lookup(@table_name, contract_address), fn {_, tx_address, tx_timestamp} ->
-      {tx_address, tx_timestamp}
+    case :ets.lookup(@table_name, contract_address) do
+      [] ->
+        DB.get_inputs(:call, contract_address)
+        |> Enum.map(fn %VersionedTransactionInput{
+                         input: %TransactionInput{from: from, timestamp: timestamp},
+                         protocol_version: protocol_version
+                       } ->
+          {from, timestamp, protocol_version}
+        end)
+
+      inputs ->
+        Enum.map(inputs, fn {_, tx_address, tx_timestamp, protocol_version} ->
+          {tx_address, tx_timestamp, protocol_version}
+        end)
+    end
+  end
+
+  @doc """
+  Remove the contract transactions
+  """
+  @spec clear_contract_transactions(binary()) :: :ok
+  def clear_contract_transactions(contract_address) when is_binary(contract_address) do
+    {:ok, pid} = DB.start_inputs_writer(:call, contract_address)
+
+    contract_address
+    |> list_contract_transactions()
+    |> Enum.each(fn {tx_address, tx_timestamp, protocol_version} ->
+      input = %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: tx_address,
+          timestamp: tx_timestamp,
+          type: :call
+        },
+        protocol_version: protocol_version
+      }
+
+      DB.append_input(pid, input)
     end)
+
+    DB.stop_inputs_writer(pid)
+
+    :ets.delete(@table_name, contract_address)
+    :ok
   end
 end

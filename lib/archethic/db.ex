@@ -7,6 +7,7 @@ defmodule Archethic.DB do
   alias Archethic.Crypto
 
   alias __MODULE__.EmbeddedImpl
+  alias __MODULE__.EmbeddedImpl.InputsWriter
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.VersionedTransactionInput
@@ -76,11 +77,12 @@ defmodule Archethic.DB do
   @callback get_bootstrap_info(key :: String.t()) :: String.t() | nil
   @callback set_bootstrap_info(key :: String.t(), value :: String.t()) :: :ok
 
-  @callback start_inputs_writer(ledger :: :UCO | :token, address :: binary()) :: {:ok, pid()}
+  @callback start_inputs_writer(input_type :: InputsWriter.input_type(), address :: binary()) ::
+              {:ok, pid()}
   @callback stop_inputs_writer(pid :: pid()) :: :ok
   @callback append_input(pid :: pid(), VersionedTransactionInput.t()) ::
               :ok
-  @callback get_inputs(ledger :: :UCO | :token, address :: binary()) ::
+  @callback get_inputs(input_type :: InputsWriter.input_type(), address :: binary()) ::
               list(VersionedTransactionInput.t())
 
   @callback stream_first_addresses() :: Enumerable.t()
