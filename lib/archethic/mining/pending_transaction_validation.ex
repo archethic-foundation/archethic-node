@@ -28,6 +28,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     TransactionData,
     TransactionData.Ledger,
     TransactionData.Ownership,
+    TransactionData.UCOLedger,
     TransactionData.TokenLedger,
     TransactionSummary
   }
@@ -253,6 +254,47 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:error, reason} ->
         {:error, "Smart contract invalid #{inspect(reason)}"}
+    end
+  end
+
+  defp do_accept_transaction(
+         %Transaction{
+           type: :transfer,
+           data: %TransactionData{
+             ledger: %Ledger{
+               uco: %UCOLedger{transfers: uco_transfers},
+               token: %TokenLedger{transfers: token_transfers}
+             },
+             recipients: recipients
+           }
+         },
+         _
+       ) do
+    if length(uco_transfers) > 0 or length(token_transfers) > 0 or length(recipients) > 0 do
+      :ok
+    else
+      {:error,
+       "Transfer's transaction requires some recipients for ledger or smart contract calls"}
+    end
+  end
+
+  defp do_accept_transaction(
+         %Transaction{
+           type: :hosting,
+           data: %TransactionData{content: content}
+         },
+         _
+       ) do
+    with {:ok, json} <- Jason.decode(content),
+         :ok <- check_aeweb_format(json) do
+      :ok
+    else
+      :error ->
+        {:error, "Invalid AEWeb transaction"}
+
+      {:error, reason} ->
+        Logger.debug("Invalid AEWeb format #{inspect(reason)}")
+        {:error, "Invalid AEWeb transaction"}
     end
   end
 
@@ -779,6 +821,39 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:error, :invalid_ip} ->
         {:error, :invalid_ip}
+    end
+  end
+
+  defp check_aeweb_format(json) do
+    ref_schema =
+      :archethic
+      |> Application.app_dir("priv/json-schemas/aeweb_ref.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> ExJsonSchema.Schema.resolve()
+
+    file_schema =
+      :archethic
+      |> Application.app_dir("priv/json-schemas/aeweb_file.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> ExJsonSchema.Schema.resolve()
+
+    case ExJsonSchema.Validator.validate(ref_schema, json) do
+      :ok ->
+        :ok
+
+      {:error, [{"Required properties aewebVersion, metadata were not present.", _}]} ->
+        case ExJsonSchema.Validator.validate(file_schema, json) do
+          :ok ->
+            :ok
+
+          {:error, error_file} ->
+            {:error, error_file}
+        end
+
+      {:error, error_ref} ->
+        {:error, error_ref}
     end
   end
 end

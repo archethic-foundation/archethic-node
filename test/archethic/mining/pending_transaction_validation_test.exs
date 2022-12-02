@@ -20,6 +20,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
   alias Archethic.TransactionChain.TransactionData.Ownership
 
   alias Archethic.SharedSecrets
@@ -494,6 +497,13 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         Transaction.new(
           :transfer,
           %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{to: :crypto.strong_rand_bytes(32), amount: 100_000}
+                ]
+              }
+            },
             code: """
             condition inherit: [
               content: "hello"
@@ -727,6 +737,41 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       assert {:error, "Invalid node rewards trigger time"} =
                PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
+    end
+
+    test "should return :ok when we deploy a aeweb ref transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "aewebVersion" => 1,
+              "metadata" => %{
+                "index.html" => %{
+                  "encoding" => "gzip",
+                  "addresses" => [
+                    Crypto.derive_keypair("seed", 0)
+                    |> elem(0)
+                    |> Crypto.derive_address()
+                    |> Base.encode16()
+                  ]
+                }
+              }
+            })
+        })
+
+      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :ok when we deploy a aeweb file transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "index.html" => Base.url_encode64(:crypto.strong_rand_bytes(1000))
+            })
+        })
+
+      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
     end
   end
 end
