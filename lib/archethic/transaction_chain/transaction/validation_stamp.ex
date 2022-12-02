@@ -9,7 +9,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   alias Archethic.Utils.VarInt
 
   alias __MODULE__.LedgerOperations
-  alias __MODULE__.LedgerOperations.UnspentOutput
 
   defstruct [
     :protocol_version,
@@ -51,21 +50,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         }
 
   @spec sign(__MODULE__.t()) :: __MODULE__.t()
-  def sign(stamp = %__MODULE__{protocol_version: version}) do
-    # TODO: remove version control before mainnet launch
+  def sign(stamp = %__MODULE__{}) do
     raw_stamp =
       stamp
       |> extract_for_signature()
       |> serialize()
-
-    # TODO: remove control on version before mainnet launch
-    raw_stamp =
-      if version == 1 do
-        <<_version::32, rest::binary>> = raw_stamp
-        rest
-      else
-        raw_stamp
-      end
 
     sig = Crypto.sign_with_last_node_key(raw_stamp)
 
@@ -311,22 +300,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature),
       error: Map.get(stamp, :error),
-      # TODO: remove default version before mainnet launch (reason migration)
-      protocol_version: Map.get(stamp, :protocol_version, 1)
+      protocol_version: Map.get(stamp, :protocol_version)
     }
-    # TODO: remove before mainnet launch (reason migration)
-    |> Map.update!(:ledger_operations, fn ops = %LedgerOperations{unspent_outputs: utxos} ->
-      new_utxos =
-        Enum.map(utxos, fn
-          utxo = %UnspentOutput{timestamp: nil} ->
-            %{utxo | timestamp: Map.get(stamp, :validation_stamp)}
-
-          utxo ->
-            utxo
-        end)
-
-      %{ops | unspent_outputs: new_utxos}
-    end)
   end
 
   def cast(nil), do: nil
@@ -342,18 +317,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         signature: signature,
         error: error
       }) do
-    ops =
-      ledger_operations
-      |> LedgerOperations.to_map()
-      # TODO: remove this function before mainnet(reason: migration)
-      |> fill_utxos_with_timestamp(timestamp)
-
     %{
       timestamp: timestamp,
       proof_of_work: pow,
       proof_of_integrity: poi,
       proof_of_election: poe,
-      ledger_operations: ops,
+      ledger_operations: LedgerOperations.to_map(ledger_operations),
       recipients: recipients,
       signature: signature,
       error: error
@@ -362,21 +331,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
   def to_map(nil), do: nil
 
-  defp fill_utxos_with_timestamp(ops = %{unspent_outputs: utxos}, timestamp) do
-    new_utxos =
-      Enum.map(utxos, fn utxo ->
-        case Map.get(utxo, :timestamp) do
-          nil ->
-            Map.put(utxo, :timestamp, timestamp)
-
-          utxo ->
-            utxo
-        end
-      end)
-
-    %{ops | unspent_outputs: new_utxos}
-  end
-
   @doc """
   Determine if the validation stamp signature is valid
   """
@@ -384,7 +338,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   def valid_signature?(%__MODULE__{signature: nil}, _public_key), do: false
 
   def valid_signature?(
-        stamp = %__MODULE__{signature: signature, protocol_version: version},
+        stamp = %__MODULE__{signature: signature},
         public_key
       )
       when is_binary(signature) do
@@ -392,15 +346,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       stamp
       |> extract_for_signature
       |> serialize
-
-    # TODO: remove control on version before mainnet launch
-    raw_stamp =
-      if version == 1 do
-        <<_version::32, rest::binary>> = raw_stamp
-        rest
-      else
-        raw_stamp
-      end
 
     Crypto.verify?(signature, raw_stamp, public_key)
   end

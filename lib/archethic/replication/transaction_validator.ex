@@ -11,7 +11,6 @@ defmodule Archethic.Replication.TransactionValidator do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
-  alias Archethic.P2P.MemTable
 
   alias Archethic.Mining
 
@@ -194,32 +193,12 @@ defmodule Archethic.Replication.TransactionValidator do
            validation_stamp:
              validation_stamp = %ValidationStamp{
                timestamp: tx_timestamp,
-               proof_of_election: proof_of_election,
-               protocol_version: protocol_version
+               proof_of_election: proof_of_election
              },
            cross_validation_stamps: cross_validation_stamps
          }
        ) do
-    # TODO remove before mainnet launch
-    authorized_nodes =
-      if protocol_version <= 3 do
-        authorized_nodes =
-          Enum.filter(MemTable.authorized_nodes(), fn
-            %Node{authorization_date: authorization_date} ->
-              DateTime.diff(authorization_date, DateTime.truncate(tx_timestamp, :second)) < 0
-          end)
-
-        case authorized_nodes do
-          [] ->
-            # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
-            P2P.authorized_and_available_nodes(tx_timestamp)
-
-          nodes ->
-            nodes
-        end
-      else
-        P2P.authorized_and_available_nodes(tx_timestamp)
-      end
+    authorized_nodes = P2P.authorized_and_available_nodes(tx_timestamp)
 
     daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(tx_timestamp)
 
