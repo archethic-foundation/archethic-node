@@ -18,6 +18,9 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   import Mox
 
   setup do
+    # clear cache on every test because most tests use the same address
+    :ok = :lru.purge(:cache_lru_tx)
+
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,

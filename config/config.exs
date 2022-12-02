@@ -151,6 +151,9 @@ config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
 
 # -----End-of-Networking-configs ------
 
+config :archethic_web,
+  tx_cache_bytes: 100 * 1024 * 1024
+
 config :esbuild,
   version: "0.12.18",
   default: [

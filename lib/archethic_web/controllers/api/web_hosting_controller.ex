@@ -84,6 +84,7 @@ defmodule ArchethicWeb.API.WebHostingController do
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
            Resources.load(txn, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
+
     else
       er when er in [:error, false] ->
         {:error, :invalid_address}
@@ -141,6 +142,24 @@ defmodule ArchethicWeb.API.WebHostingController do
       if encoding == "gzip",
         do: {conn, :zlib.gunzip(file_content)},
         else: {conn, file_content}
+    end
+  end
+
+  @spec search_transaction(binary()) :: {:ok, Transaction.t()} | {:error, atom()}
+  defp search_transaction(address) do
+    case :lru.get(:cache_lru_tx, address) do
+      :undefined ->
+        case Archethic.search_transaction(address) do
+          {:ok, tx} ->
+            :lru.add(:cache_lru_tx, address, tx)
+            {:ok, tx}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      tx ->
+        {:ok, tx}
     end
   end
 end

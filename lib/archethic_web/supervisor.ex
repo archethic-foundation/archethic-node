@@ -29,7 +29,8 @@ defmodule ArchethicWeb.Supervisor do
         {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
         Endpoint,
         {Absinthe.Subscription, Endpoint},
-        TransactionSubscriber
+        TransactionSubscriber,
+        cache_child_spec()
       ]
       |> add_faucet_rate_limit_child()
 
@@ -52,5 +53,17 @@ defmodule ArchethicWeb.Supervisor do
     else
       children
     end
+  end
+
+  defp cache_child_spec() do
+    %{
+      id: :cache_lru_tx,
+      start:
+        {:lru, :start_link,
+         [
+           {:local, :cache_lru_tx},
+           [max_size: Application.fetch_env!(:archethic_web, :tx_cache_bytes)]
+         ]}
+    }
   end
 end
