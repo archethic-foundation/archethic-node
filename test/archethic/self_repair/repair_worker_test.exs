@@ -57,11 +57,11 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
 
     MockDB
     |> stub(:transaction_exists?, fn
-      "Bob2" ->
+      "Bob2", _ ->
         send(me, :exists_bob3)
         true
 
-      _ ->
+      _, _ ->
         false
     end)
 
@@ -88,7 +88,7 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
 
   test "add_message/1 should add new addresses in GenServer state" do
     MockDB
-    |> stub(:transaction_exists?, fn _ -> Process.sleep(100) end)
+    |> stub(:transaction_exists?, fn _, _ -> Process.sleep(100) end)
 
     {:ok, pid} =
       RepairWorker.start_link(
