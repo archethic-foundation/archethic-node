@@ -153,7 +153,7 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
           display_data(
             addr,
             nb_authorized_nodes,
-            DateTime.from_unix(timestamp, :millisecond) |> elem(1)
+            timestamp
           )
         end)
         |> Enum.reverse()

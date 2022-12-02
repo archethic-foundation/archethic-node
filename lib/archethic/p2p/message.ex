@@ -2,107 +2,108 @@ defmodule Archethic.P2P.Message do
   @moduledoc """
   Provide functions to encode and decode P2P messages using a custom binary protocol
   """
-  alias Archethic.Account
 
-  alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.BeaconChain.Summary
-  alias Archethic.BeaconChain.SummaryAggregate
-  alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.Subset
-  alias Archethic.BeaconChain.Slot
+  alias Archethic.{
+    Account,
+    BeaconChain,
+    Contracts,
+    Crypto,
+    Election,
+    Mining,
+    P2P,
+    P2P.Node,
+    PubSub,
+    Replication,
+    TransactionChain,
+    TaskSupervisor,
+    Utils,
+    Utils.VarInt
+  }
 
-  alias Archethic.Contracts
+  alias Archethic.BeaconChain.{
+    ReplicationAttestation,
+    Summary,
+    SummaryAggregate,
+    Slot,
+    Subset,
+    Slot
+  }
 
-  alias Archethic.Crypto
+  alias Archethic.SelfRepair
 
-  alias Archethic.Election
+  alias Archethic.TransactionChain.{
+    Transaction,
+    Transaction.CrossValidationStamp,
+    Transaction.ValidationStamp,
+    TransactionInput,
+    TransactionSummary,
+    VersionedTransactionInput,
+    Transaction.ValidationStamp.LedgerOperations,
+    Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+  }
 
-  alias Archethic.Mining
-
-  alias Archethic.P2P
-
-  alias __MODULE__.AcknowledgeStorage
-  alias __MODULE__.AddMiningContext
-  alias __MODULE__.Balance
-  alias __MODULE__.BeaconSummaryList
-  alias __MODULE__.BeaconUpdate
-  alias __MODULE__.BootstrappingNodes
-  alias __MODULE__.CrossValidate
-  alias __MODULE__.CrossValidationDone
-  alias __MODULE__.EncryptedStorageNonce
-  alias __MODULE__.Error
-  alias __MODULE__.FirstPublicKey
-  alias __MODULE__.FirstAddress
-  alias __MODULE__.GetFirstAddress
-  alias __MODULE__.GetBalance
-  alias __MODULE__.GetBeaconSummaries
-  alias __MODULE__.GetBeaconSummary
-  alias __MODULE__.GetBeaconSummariesAggregate
-  alias __MODULE__.GetBootstrappingNodes
-  alias __MODULE__.GetCurrentSummaries
-  alias __MODULE__.GetFirstPublicKey
-  alias __MODULE__.GetLastTransaction
-  alias __MODULE__.GetLastTransactionAddress
-  alias __MODULE__.GetP2PView
-  alias __MODULE__.GetStorageNonce
-  alias __MODULE__.GetTransaction
-  alias __MODULE__.GetTransactionChain
-  alias __MODULE__.GetTransactionChainLength
-  alias __MODULE__.GetTransactionInputs
-  alias __MODULE__.GetTransactionSummary
-  alias __MODULE__.GetUnspentOutputs
-  alias __MODULE__.LastTransactionAddress
-  alias __MODULE__.ListNodes
-  alias __MODULE__.NewBeaconSlot
-  alias __MODULE__.NewTransaction
-  alias __MODULE__.NodeList
-  alias __MODULE__.NotFound
-  alias __MODULE__.NotifyEndOfNodeSync
-  alias __MODULE__.NotifyPreviousChain
-  alias __MODULE__.NotifyLastTransactionAddress
-  alias __MODULE__.Ok
-  alias __MODULE__.P2PView
-  alias __MODULE__.Ping
-  alias __MODULE__.RegisterBeaconUpdates
-  alias __MODULE__.ReplicateTransaction
-  alias __MODULE__.ReplicateTransactionChain
-  alias __MODULE__.ReplicationError
-  alias __MODULE__.StartMining
-  alias __MODULE__.TransactionChainLength
-  alias __MODULE__.TransactionInputList
-  alias __MODULE__.TransactionSummaryList
-  alias __MODULE__.TransactionList
-  alias __MODULE__.UnspentOutputList
-  alias __MODULE__.ValidationError
-
-  alias Archethic.P2P.Node
-
-  alias Archethic.PubSub
-
-  alias Archethic.Replication
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
-  alias Archethic.TransactionChain.TransactionSummary
-
-  alias Archethic.TaskSupervisor
-
-  alias Archethic.Utils
-  alias Archethic.Utils.VarInt
-
-  require Logger
+  alias __MODULE__.{
+    AcknowledgeStorage,
+    AddMiningContext,
+    AddressList,
+    Balance,
+    BeaconSummaryList,
+    BeaconUpdate,
+    BootstrappingNodes,
+    CrossValidate,
+    CrossValidationDone,
+    EncryptedStorageNonce,
+    Error,
+    FirstPublicKey,
+    FirstAddress,
+    GetFirstAddress,
+    GetBalance,
+    GetBeaconSummaries,
+    GetBeaconSummary,
+    GetBeaconSummariesAggregate,
+    GetBootstrappingNodes,
+    GetCurrentSummaries,
+    GetFirstPublicKey,
+    GetLastTransaction,
+    GetLastTransactionAddress,
+    GetNextAddresses,
+    GetP2PView,
+    GetStorageNonce,
+    GetTransaction,
+    GetTransactionChain,
+    GetTransactionChainLength,
+    GetTransactionInputs,
+    GetTransactionSummary,
+    GetUnspentOutputs,
+    LastTransactionAddress,
+    ListNodes,
+    NewBeaconSlot,
+    NewTransaction,
+    NodeList,
+    NotFound,
+    NotifyEndOfNodeSync,
+    NotifyLastTransactionAddress,
+    NotifyPreviousChain,
+    Ok,
+    P2PView,
+    Ping,
+    RegisterBeaconUpdates,
+    ReplicateTransaction,
+    ReplicateTransactionChain,
+    ReplicationError,
+    ShardRepair,
+    StartMining,
+    TransactionChainLength,
+    TransactionInputList,
+    TransactionSummaryList,
+    TransactionList,
+    UnspentOutputList,
+    ValidationError
+  }
 
   alias ArchethicWeb.TransactionSubscriber
+
+  require Logger
 
   @type t :: request() | response()
 
@@ -141,6 +142,8 @@ defmodule Archethic.P2P.Message do
           | GetCurrentSummaries.t()
           | GetBeaconSummariesAggregate.t()
           | NotifyPreviousChain.t()
+          | ShardRepair.t()
+          | GetNextAddresses.t()
 
   @type response ::
           Ok.t()
@@ -165,6 +168,7 @@ defmodule Archethic.P2P.Message do
           | FirstAddress.t()
           | ReplicationError.t()
           | SummaryAggregate.t()
+          | AddressList.t()
 
   @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
@@ -432,6 +436,18 @@ defmodule Archethic.P2P.Message do
 
   def encode(%NotifyPreviousChain{address: address}) do
     <<34::8, address::binary>>
+  end
+
+  def encode(msg = %GetNextAddresses{}) do
+    <<35::8, GetNextAddresses.serialize(msg)::bitstring>>
+  end
+
+  def encode(msg = %AddressList{}) do
+    <<229::8, AddressList.serialize(msg)::bitstring>>
+  end
+
+  def encode(msg = %ShardRepair{}) do
+    <<230::8, ShardRepair.serialize(msg)::bitstring>>
   end
 
   def encode(aggregate = %SummaryAggregate{}) do
@@ -966,6 +982,18 @@ defmodule Archethic.P2P.Message do
   def decode(<<34::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
     {%NotifyPreviousChain{address: address}, rest}
+  end
+
+  def decode(<<35::8, rest::bitstring>>) do
+    GetNextAddresses.deserialize(rest)
+  end
+
+  def decode(<<229::8, rest::bitstring>>) do
+    AddressList.deserialize(rest)
+  end
+
+  def decode(<<230::8, rest::bitstring>>) do
+    ShardRepair.deserialize(rest)
   end
 
   def decode(<<231::8, rest::bitstring>>) do
@@ -1748,7 +1776,7 @@ defmodule Archethic.P2P.Message do
 
   def process(%NewBeaconSlot{slot: slot = %Slot{subset: subset, slot_time: slot_time}}, _) do
     summary_time = BeaconChain.next_summary_date(slot_time)
-    node_list = P2P.authorized_and_available_nodes(summary_time)
+    node_list = P2P.authorized_and_available_nodes(summary_time, true)
 
     beacon_summary_nodes =
       Election.beacon_storage_nodes(
@@ -1833,6 +1861,59 @@ defmodule Archethic.P2P.Message do
   def process(%NotifyPreviousChain{address: address}, _) do
     Replication.acknowledge_previous_storage_nodes(address)
     %Ok{}
+  end
+
+  def process(
+        %ShardRepair{
+          first_address: first_address,
+          storage_address: storage_address,
+          io_addresses: io_addresses
+        },
+        _
+      ) do
+    # Ensure all addresses are expected to be replicated
+    nodes = P2P.authorized_and_available_nodes()
+
+    addresses =
+      if storage_address != nil, do: [storage_address | io_addresses], else: io_addresses
+
+    public_key = Crypto.first_node_public_key()
+
+    if Enum.all?(
+         addresses,
+         &(Election.storage_nodes(&1, nodes) |> Utils.key_in_node_list?(public_key))
+       ) do
+      case SelfRepair.repair_in_progress?(first_address) do
+        false ->
+          SelfRepair.start_worker(
+            first_address: first_address,
+            storage_address: storage_address,
+            io_addresses: io_addresses
+          )
+
+        pid ->
+          SelfRepair.add_repair_addresses(pid, storage_address, io_addresses)
+      end
+    end
+
+    %Ok{}
+  end
+
+  def process(%GetNextAddresses{address: address}, _) do
+    case TransactionChain.get_transaction(address, validation_stamp: [:timestamp]) do
+      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: address_timestamp}}} ->
+        addresses =
+          TransactionChain.get_genesis_address(address)
+          |> TransactionChain.list_chain_addresses()
+          |> Enum.filter(fn {_address, timestamp} ->
+            DateTime.compare(timestamp, address_timestamp) == :gt
+          end)
+
+        %AddressList{addresses: addresses}
+
+      _ ->
+        %AddressList{addresses: []}
+    end
   end
 
   defp process_replication_chain(tx, replying_node_public_key) do

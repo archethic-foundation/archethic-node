@@ -10,25 +10,27 @@ defmodule Archethic.TransactionChain do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Node
   alias Archethic.P2P.Message
+  alias Archethic.P2P.Node
 
   alias Archethic.P2P.Message.{
+    AddressList,
     Error,
-    NotFound,
-    TransactionList,
-    UnspentOutputList,
-    TransactionInputList,
-    TransactionChainLength,
-    LastTransactionAddress,
     FirstAddress,
-    GetTransaction,
     GetFirstAddress,
-    GetUnspentOutputs,
-    GetTransactionChain,
-    GetTransactionInputs,
     GetLastTransactionAddress,
-    GetTransactionChainLength
+    GetNextAddresses,
+    GetTransaction,
+    GetTransactionChain,
+    GetTransactionChainLength,
+    GetTransactionInputs,
+    GetUnspentOutputs,
+    LastTransactionAddress,
+    NotFound,
+    TransactionChainLength,
+    TransactionInputList,
+    TransactionList,
+    UnspentOutputList
   }
 
   alias __MODULE__.MemTables.KOLedger
@@ -78,7 +80,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Stream all the addresses in chronological belonging to a genesis address
   """
-  @spec list_chain_addresses(binary()) :: Enumerable.t() | list({binary(), non_neg_integer()})
+  @spec list_chain_addresses(binary()) :: Enumerable.t() | list({binary(), DateTime.t()})
   defdelegate list_chain_addresses(genesis_address), to: DB
 
   @doc """
@@ -98,10 +100,10 @@ defmodule Archethic.TransactionChain do
     as: :get_last_chain_address
 
   @doc """
-  Register a last address from a previous address at a given date
+  Register a last address from a genesis address at a given date
   """
   @spec register_last_address(binary(), binary(), DateTime.t()) :: :ok
-  defdelegate register_last_address(previous_address, next_address, timestamp),
+  defdelegate register_last_address(genesis_address, next_address, timestamp),
     to: DB,
     as: :add_last_transaction_address
 
@@ -110,6 +112,16 @@ defmodule Archethic.TransactionChain do
   """
   @spec get_first_public_key(Crypto.key()) :: Crypto.key()
   defdelegate get_first_public_key(previous_public_key), to: DB, as: :get_first_public_key
+
+  @doc """
+  Stream first transactions address of a chain from genesis_address.
+  The Genesis Addresses is not a transaction or the first transaction.
+  The first transaction is calulated by index = 0+1
+  """
+  @spec stream_first_addresses() :: Enumerable.t()
+  defdelegate stream_first_addresses(),
+    to: DB,
+    as: :stream_first_addresses
 
   @doc """
   Get a transaction
@@ -583,6 +595,29 @@ defmodule Archethic.TransactionChain do
          ) do
       {:ok, %LastTransactionAddress{address: last_address}} ->
         {:ok, last_address}
+
+      {:error, :network_issue} = e ->
+        e
+    end
+  end
+
+  @doc """
+  Request the chain addresses from paging address to last chain address
+  """
+  @spec fetch_next_chain_addresses_remotely(Crypto.prepended_hash(), list(Node.t())) ::
+          {:ok, list(Crypto.prepended_hash())} | {:error, :network_issue}
+  def fetch_next_chain_addresses_remotely(address, nodes) do
+    conflict_resolver = fn results ->
+      Enum.sort_by(results, &length(&1.addresses), :desc) |> List.first()
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetNextAddresses{address: address},
+           conflict_resolver
+         ) do
+      {:ok, %AddressList{addresses: addresses}} ->
+        {:ok, addresses}
 
       {:error, :network_issue} = e ->
         e

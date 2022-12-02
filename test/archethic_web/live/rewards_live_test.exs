@@ -37,7 +37,6 @@ defmodule ArchethicWeb.RewardsLiveTest do
         time =
           DateTime.utc_now()
           |> DateTime.add(3600 * index, :second)
-          |> DateTime.to_unix()
 
         {address, time}
       end)

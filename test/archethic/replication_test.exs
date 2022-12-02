@@ -255,7 +255,7 @@ defmodule Archethic.ReplicationTest do
       |> expect(:get_transaction, fn _, _ ->
         {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}}}
       end)
-      |> expect(:list_chain_addresses, fn _ -> [{"@Alice1", 0}] end)
+      |> expect(:list_chain_addresses, fn _ -> [{"@Alice1", DateTime.utc_now()}] end)
 
       MockClient
       |> stub(:send_message, fn _,

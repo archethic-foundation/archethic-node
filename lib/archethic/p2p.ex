@@ -165,20 +165,25 @@ defmodule Archethic.P2P do
   end
 
   @doc """
-  List the authorized nodes for the given datetime (default to now)
+  List the authorized nodes for the given datetime (default to now) or before if needed
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
-  def authorized_nodes(date \\ DateTime.utc_now()) do
+  def authorized_nodes(date \\ DateTime.utc_now(), before? \\ false) do
     nodes =
       MemTable.authorized_nodes()
       |> Enum.filter(fn %Node{authorization_date: authorization_date} ->
-        DateTime.compare(authorization_date, date) != :gt
+        if before?,
+          do: DateTime.compare(authorization_date, date) == :lt,
+          else: DateTime.compare(authorization_date, date) != :gt
       end)
 
     case nodes do
       [] ->
         # Only happen during bootstrap
-        get_first_enrolled_node()
+        case get_first_enrolled_node() do
+          nil -> []
+          node -> [node]
+        end
 
       nodes ->
         nodes
@@ -187,34 +192,47 @@ defmodule Archethic.P2P do
 
   @doc """
   List the authorized and available nodes
+  before? is used in for self repair to not take in account the newly
+  authorized nodes
   """
-  @spec authorized_and_available_nodes(DateTime.t()) :: list(Node.t())
-  def authorized_and_available_nodes(date \\ DateTime.utc_now()) do
+  @spec authorized_and_available_nodes(DateTime.t(), boolean()) :: list(Node.t())
+  def authorized_and_available_nodes(date \\ DateTime.utc_now(), before? \\ false) do
     nodes =
-      authorized_nodes(date)
+      authorized_nodes(date, before?)
       |> Enum.filter(fn
         %Node{available?: true, availability_update: availability_update} ->
-          DateTime.compare(date, availability_update) != :lt
+          if before?,
+            do: DateTime.compare(date, availability_update) == :gt,
+            else: DateTime.compare(date, availability_update) != :lt
 
         %Node{available?: false, availability_update: availability_update} ->
-          DateTime.compare(date, availability_update) == :lt
+          if before?,
+            do: DateTime.compare(date, availability_update) != :gt,
+            else: DateTime.compare(date, availability_update) == :lt
       end)
 
     case nodes do
       [] ->
         # Only happen for init transactions so we take the first enrolled node
-        get_first_enrolled_node()
+        case get_first_enrolled_node() do
+          nil -> []
+          node -> [node]
+        end
 
       nodes ->
         nodes
     end
   end
 
-  defp get_first_enrolled_node() do
+  @doc """
+  Return the first enrolled node
+  """
+  @spec get_first_enrolled_node() :: Node.t() | nil
+  def get_first_enrolled_node() do
     list_nodes()
     |> Enum.reject(&(&1.enrollment_date == nil))
     |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime})
-    |> Enum.take(1)
+    |> List.first()
   end
 
   @doc """
