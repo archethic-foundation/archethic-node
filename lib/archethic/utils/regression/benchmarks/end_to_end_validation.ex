@@ -16,7 +16,6 @@ defmodule Archethic.Utils.Regression.Benchmark.EndToEndValidation do
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   @behaviour Benchmark
-
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
 

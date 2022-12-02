@@ -323,12 +323,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp broadcast_beacon_slot(subset, next_time, slot) do
-    # Remove the newly authorized nodes at this specific time
-    nodes =
-      case P2P.authorized_and_available_nodes(next_time) do
-        [node] -> [node]
-        nodes -> Enum.filter(nodes, &(DateTime.compare(&1.authorization_date, next_time) == :lt))
-      end
+    nodes = P2P.authorized_and_available_nodes(next_time, true)
 
     subset
     |> Election.beacon_storage_nodes(next_time, nodes)
