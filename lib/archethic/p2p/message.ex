@@ -1691,10 +1691,9 @@ defmodule Archethic.P2P.Message do
         },
         _
       ) do
-    with {local_last_address, local_last_timestamp} <-
+    with {local_last_address, _} <-
            TransactionChain.get_last_address(genesis_address),
-         true <- local_last_address != last_address,
-         :gt <- DateTime.compare(timestamp, local_last_timestamp) do
+         true <- local_last_address != last_address do
       TransactionChain.register_last_address(genesis_address, last_address, timestamp)
 
       # Stop potential previous smart contract

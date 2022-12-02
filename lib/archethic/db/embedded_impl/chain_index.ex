@@ -402,7 +402,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
             unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
 
             search_last_address_until(genesis_address, unix_time, db_path) ||
-              {address, DateTime.utc_now()}
+              {address, DateTime.from_unix!(0, :millisecond)}
 
           [{_, last_address, last_time}] ->
             {last_address, DateTime.from_unix!(last_time, :millisecond)}
@@ -416,7 +416,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
             unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
 
             search_last_address_until(address, unix_time, db_path) ||
-              {address, DateTime.utc_now()}
+              {address, DateTime.from_unix!(0, :millisecond)}
 
           [{_, last_address, last_time}] ->
             {last_address, DateTime.from_unix!(last_time, :millisecond)}
