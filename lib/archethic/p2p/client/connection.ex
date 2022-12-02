@@ -1,5 +1,13 @@
 defmodule Archethic.P2P.Client.Connection do
-  @moduledoc false
+  @moduledoc """
+
+  3 states:
+    :initializing
+    {:connected, socket}
+    :disconnected
+
+  we use the :initializing state to be able to postpone calls and casts until after the 1 connect attempt
+  """
 
   alias Archethic.Crypto
 
@@ -77,18 +85,17 @@ defmodule Archethic.P2P.Client.Connection do
       availability_timer: {nil, 0}
     }
 
-    # First connection attempt is synchronous (to deal with the `start_link` followed by a `send_message`)
-    # We call ourselves the `state_enter` because `GenStateMachine` will not do it from init
-    # `handle_connect` might take a long time
-    case transport.handle_connect(ip, port) do
-      {:ok, socket} ->
-        {_, new_data} = handle_event(:enter, :disconnected, {:connected, socket}, data)
-        {:ok, {:connected, socket}, new_data}
+    {:ok, :initializing, data, [{:next_event, :internal, :connect}]}
+  end
 
-      {:error, _} ->
-        actions = [{{:timeout, :reconnect}, 500, nil}]
-        {:ok, :disconnected, data, actions}
-    end
+  # every messages sent while inializing will wait until state changes
+  def handle_event({:call, _}, _action, :initializing, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  # every messages sent while inializing will wait until state changes
+  def handle_event(:cast, _action, :initializing, _data) do
+    {:keep_state_and_data, :postpone}
   end
 
   def handle_event(
@@ -131,8 +138,6 @@ defmodule Archethic.P2P.Client.Connection do
      end)}
   end
 
-  def handle_event(:enter, :disconnected, :disconnected, _data), do: :keep_state_and_data
-
   def handle_event(
         :enter,
         {:connected, _socket},
@@ -171,7 +176,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   def handle_event(
         :enter,
-        :disconnected,
+        _,
         {:connected, _socket},
         data = %{node_public_key: node_public_key}
       ) do
@@ -190,12 +195,15 @@ defmodule Archethic.P2P.Client.Connection do
     {:keep_state, new_data}
   end
 
+  def handle_event(:enter, _old_state, :initializing, _data), do: :keep_state_and_data
+  def handle_event(:enter, _old_state, :disconnected, _data), do: :keep_state_and_data
   def handle_event(:enter, _old_state, {:connected, _socket}, _data), do: :keep_state_and_data
 
+  # called from the :disconnected or :initializing state
   def handle_event(
         :internal,
         :connect,
-        :disconnected,
+        _state,
         _data = %{
           ip: ip,
           port: port,
@@ -211,13 +219,15 @@ defmodule Archethic.P2P.Client.Connection do
     :keep_state_and_data
   end
 
-  def handle_event({:timeout, :reconnect}, _event_data, :disconnected, _data) do
-    actions = [{:next_event, :internal, :connect}]
-    {:keep_state_and_data, actions}
-  end
-
+  # this message is used to delay next connection attempt
   def handle_event({:timeout, :reconnect}, _event_data, {:connected, _socket}, _data) do
     :keep_state_and_data
+  end
+
+  # this message is used to delay next connection attempt
+  def handle_event({:timeout, :reconnect}, _event_data, _state, _data) do
+    actions = [{:next_event, :internal, :connect}]
+    {:keep_state_and_data, actions}
   end
 
   def handle_event(
@@ -373,17 +383,20 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
+  # Task.async tells us the process ended successfully
   def handle_event(:info, {:DOWN, _ref, :process, _pid, :normal}, _, _data) do
     :keep_state_and_data
   end
 
-  def handle_event(:info, {_ref, {:ok, socket}}, :disconnected, data) do
+  # Task.async sending us the result of the handle_connect
+  def handle_event(:info, {_ref, {:ok, socket}}, _, data) do
     {:next_state, {:connected, socket}, data}
   end
 
-  def handle_event(:info, {_ref, {:error, _reason}}, :disconnected, _data) do
+  # Task.async sending us the result of the handle_connect
+  def handle_event(:info, {_ref, {:error, _reason}}, _, data) do
     actions = [{{:timeout, :reconnect}, 500, nil}]
-    {:keep_state_and_date, actions}
+    {:next_state, :disconnected, data, actions}
   end
 
   def handle_event(

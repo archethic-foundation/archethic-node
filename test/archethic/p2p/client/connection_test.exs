@@ -17,6 +17,10 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         node_public_key: "key1"
       )
 
+    assert {:initializing, _} = :sys.get_state(pid)
+
+    Process.sleep(10)
+
     assert {{:connected, _socket}, %{request_id: 0, messages: %{}}} = :sys.get_state(pid)
   end
 
@@ -350,6 +354,9 @@ defmodule Archethic.P2P.Client.ConnectionTest do
           node_public_key: "key1"
         )
 
+      assert {:initializing, _} = :sys.get_state(pid)
+      Process.sleep(10)
+
       assert {{:connected, _socket}, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
       assert start != nil
     end
@@ -414,6 +421,9 @@ defmodule Archethic.P2P.Client.ConnectionTest do
           port: 3000,
           node_public_key: Crypto.first_node_public_key()
         )
+
+      assert {:initializing, _} = :sys.get_state(pid)
+      Process.sleep(10)
 
       assert {{:connected, _socket}, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
       assert start != nil
