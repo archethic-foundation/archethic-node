@@ -66,6 +66,12 @@ defmodule Archethic.Contracts.TransactionLookup do
     case :ets.lookup(@table_name, contract_address) do
       [] ->
         DB.get_inputs(:call, contract_address)
+        |> Enum.map(fn %VersionedTransactionInput{
+                         input: %TransactionInput{from: from, timestamp: timestamp},
+                         protocol_version: protocol_version
+                       } ->
+          {from, timestamp, protocol_version}
+        end)
 
       inputs ->
         Enum.map(inputs, fn {_, tx_address, tx_timestamp, protocol_version} ->
