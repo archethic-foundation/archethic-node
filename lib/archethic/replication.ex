@@ -350,6 +350,7 @@ defmodule Archethic.Replication do
         # Send a message to all the previous storage nodes
         address
         |> TransactionChain.list_chain_addresses()
+        |> Stream.concat([{genesis_address, nil}])
         |> Stream.flat_map(fn {address, _} ->
           Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
         end)
