@@ -39,16 +39,9 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   @spec sign(t(), ValidationStamp.t()) :: t()
   def sign(
         cross_stamp = %__MODULE__{inconsistencies: inconsistencies},
-        validation_stamp = %ValidationStamp{protocol_version: version}
+        validation_stamp = %ValidationStamp{}
       ) do
-    # TODO: remove version control before mainnet launch
-    raw_stamp =
-      if version == 1 do
-        <<_version::32, rest::binary>> = ValidationStamp.serialize(validation_stamp)
-        rest
-      else
-        ValidationStamp.serialize(validation_stamp)
-      end
+    raw_stamp = ValidationStamp.serialize(validation_stamp)
 
     signature =
       [raw_stamp, marshal_inconsistencies(inconsistencies)]
@@ -70,16 +63,9 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
           inconsistencies: inconsistencies,
           node_public_key: node_public_key
         },
-        stamp = %ValidationStamp{protocol_version: version}
+        stamp = %ValidationStamp{}
       ) do
-    # TODO: remove version control before mainnet launch
-    raw_stamp =
-      if version == 1 do
-        <<_version::32, rest::binary>> = ValidationStamp.serialize(stamp)
-        rest
-      else
-        ValidationStamp.serialize(stamp)
-      end
+    raw_stamp = ValidationStamp.serialize(stamp)
 
     data = [raw_stamp, marshal_inconsistencies(inconsistencies)]
     Crypto.verify?(signature, data, node_public_key)

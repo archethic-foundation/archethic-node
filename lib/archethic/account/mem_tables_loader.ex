@@ -126,8 +126,7 @@ defmodule Archethic.Account.MemTablesLoader do
         protocol_version
       )
 
-    # TODO: Remove timestamp argument before mainnet (reason: migration)
-    :ok = set_unspent_outputs(address, unspent_outputs, timestamp, protocol_version)
+    :ok = set_unspent_outputs(address, unspent_outputs, protocol_version)
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
@@ -135,22 +134,14 @@ defmodule Archethic.Account.MemTablesLoader do
     )
   end
 
-  defp set_unspent_outputs(address, unspent_outputs, validation_timestamp, protocol_version) do
+  defp set_unspent_outputs(address, unspent_outputs, protocol_version) do
     unspent_outputs
     |> Enum.filter(&(&1.amount > 0))
-    |> Enum.map(fn
-      # TODO: Remove before mainnet (reason: migration)
-      unspent_output = %UnspentOutput{timestamp: nil} ->
-        %VersionedUnspentOutput{
-          unspent_output: %{unspent_output | timestamp: validation_timestamp},
-          protocol_version: protocol_version
-        }
-
-      unspent_output ->
-        %VersionedUnspentOutput{
-          unspent_output: unspent_output,
-          protocol_version: protocol_version
-        }
+    |> Enum.map(fn unspent_output ->
+      %VersionedUnspentOutput{
+        unspent_output: unspent_output,
+        protocol_version: protocol_version
+      }
     end)
     |> Enum.each(fn
       unspent_output = %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO}} ->
