@@ -40,7 +40,7 @@ defmodule ArchethicCase do
 
     MockDB
     |> stub(:list_transactions, fn _ -> [] end)
-    |> stub(:write_transaction, fn _ -> :ok end)
+    |> stub(:write_transaction, fn _, _ -> :ok end)
     |> stub(:write_transaction_chain, fn _ -> :ok end)
     |> stub(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
     |> stub(:get_transaction_chain, fn _, _, _ -> {[], false, nil} end)
@@ -56,7 +56,7 @@ defmodule ArchethicCase do
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
     |> stub(:list_addresses_by_type, fn _ -> [] end)
     |> stub(:list_transactions, fn _ -> [] end)
-    |> stub(:transaction_exists?, fn _ -> false end)
+    |> stub(:transaction_exists?, fn _, _ -> false end)
     |> stub(:register_p2p_summary, fn _ -> :ok end)
     |> stub(:get_last_p2p_summaries, fn -> [] end)
     |> stub(:get_latest_tps, fn -> 0.0 end)

@@ -9,6 +9,8 @@ defmodule Archethic.DB.EmbeddedImpl do
 
   alias Archethic.Crypto
 
+  alias Archethic.DB
+
   alias __MODULE__.BootstrapInfo
   alias __MODULE__.ChainIndex
   alias __MODULE__.ChainReader
@@ -74,6 +76,9 @@ defmodule Archethic.DB.EmbeddedImpl do
     Enum.each(sorted_chain, fn tx ->
       unless ChainIndex.transaction_exists?(tx.address, db_path()) do
         ChainWriter.append_transaction(genesis_address, tx)
+
+        # Delete IO transaction if it exists as it is now stored as a chain
+        delete_io_transaction(tx.address)
       end
     end)
   end
@@ -81,29 +86,42 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Write a single transaction and append it to its chain
   """
-  @spec write_transaction(Transaction.t()) :: :ok
-  def write_transaction(tx = %Transaction{}) do
+  @spec write_transaction(Transaction.t(), DB.storage_type()) :: :ok
+  def write_transaction(tx, storage_type \\ :chain)
+
+  def write_transaction(tx = %Transaction{}, :chain) do
     if ChainIndex.transaction_exists?(tx.address, db_path()) do
       {:error, :transaction_already_exists}
     else
       previous_address = Transaction.previous_address(tx)
 
-      case ChainIndex.get_tx_entry(previous_address, db_path()) do
-        {:ok, %{genesis_address: genesis_address}} ->
-          do_write_transaction(genesis_address, tx)
+      genesis_address =
+        case ChainIndex.get_tx_entry(previous_address, db_path()) do
+          {:ok, %{genesis_address: genesis_address}} ->
+            genesis_address
 
-        {:error, :not_exists} ->
-          ChainWriter.append_transaction(previous_address, tx)
-      end
+          {:error, :not_exists} ->
+            previous_address
+        end
+
+      ChainWriter.append_transaction(genesis_address, tx)
+
+      # Delete IO transaction if it exists as it is now stored as a chain
+      delete_io_transaction(tx.address)
     end
   end
 
-  defp do_write_transaction(genesis_address, tx) do
-    if ChainIndex.transaction_exists?(tx.address, db_path()) do
+  def write_transaction(tx = %Transaction{}, :io) do
+    if ChainIndex.transaction_exists?(tx.address, :io, db_path()) do
       {:error, :transaction_already_exists}
     else
-      ChainWriter.append_transaction(genesis_address, tx)
+      ChainWriter.write_io_transaction(tx, db_path())
     end
+  end
+
+  defp delete_io_transaction(address) do
+    ChainWriter.io_path(db_path(), address) |> File.rm()
+    :ok
   end
 
   @doc """
@@ -137,9 +155,9 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Determine if the transaction exists or not
   """
-  @spec transaction_exists?(address :: binary()) :: boolean()
-  def transaction_exists?(address) when is_binary(address) do
-    ChainIndex.transaction_exists?(address, db_path())
+  @spec transaction_exists?(address :: binary(), storage_type :: DB.storage_type()) :: boolean()
+  def transaction_exists?(address, storage_type) when is_binary(address) do
+    ChainIndex.transaction_exists?(address, storage_type, db_path())
   end
 
   @doc """
@@ -278,12 +296,20 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  List all the transactions
+  List all the transactions in chain storage
   """
   @spec list_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_transactions(fields \\ []) when is_list(fields) do
     ChainIndex.list_genesis_addresses()
     |> Stream.flat_map(&ChainReader.stream_scan_chain(&1, nil, fields, db_path()))
+  end
+
+  @doc """
+  List all the transactions in io storage
+  """
+  @spec list_io_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
+  def list_io_transactions(fields \\ []) do
+    ChainReader.list_io_transactions(fields, db_path())
   end
 
   @doc """

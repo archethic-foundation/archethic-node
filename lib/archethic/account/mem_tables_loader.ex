@@ -56,9 +56,13 @@ defmodule Archethic.Account.MemTablesLoader do
 
   @spec init(args :: list()) :: {:ok, []}
   def init(_args) do
+    TransactionChain.list_io_transactions(@query_fields)
+    |> Stream.each(&load_transaction(&1, true))
+    |> Stream.run()
+
     TransactionChain.list_all(@query_fields)
     |> Stream.reject(&(&1.type in @excluded_types))
-    |> Stream.each(&load_transaction/1)
+    |> Stream.each(&load_transaction(&1, false))
     |> Stream.run()
 
     {:ok, []}
@@ -67,25 +71,30 @@ defmodule Archethic.Account.MemTablesLoader do
   @doc """
   Load the transaction into the memory tables
   """
-  @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(%Transaction{
-        address: address,
-        type: tx_type,
-        previous_public_key: previous_public_key,
-        validation_stamp: %ValidationStamp{
-          timestamp: timestamp,
-          protocol_version: protocol_version,
-          ledger_operations: %LedgerOperations{
-            fee: fee,
-            unspent_outputs: unspent_outputs,
-            transaction_movements: transaction_movements
+  @spec load_transaction(Transaction.t(), boolean()) :: :ok
+  def load_transaction(
+        %Transaction{
+          address: address,
+          type: tx_type,
+          previous_public_key: previous_public_key,
+          validation_stamp: %ValidationStamp{
+            timestamp: timestamp,
+            protocol_version: protocol_version,
+            ledger_operations: %LedgerOperations{
+              fee: fee,
+              unspent_outputs: unspent_outputs,
+              transaction_movements: transaction_movements
+            }
           }
-        }
-      }) do
-    previous_address = Crypto.derive_address(previous_public_key)
+        },
+        io_transaction?
+      ) do
+    unless io_transaction? do
+      previous_address = Crypto.derive_address(previous_public_key)
 
-    UCOLedger.spend_all_unspent_outputs(previous_address)
-    TokenLedger.spend_all_unspent_outputs(previous_address)
+      UCOLedger.spend_all_unspent_outputs(previous_address)
+      TokenLedger.spend_all_unspent_outputs(previous_address)
+    end
 
     burn_storage_nodes =
       Election.storage_nodes(

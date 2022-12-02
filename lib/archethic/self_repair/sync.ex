@@ -232,7 +232,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     transactions_to_sync =
       transaction_summaries
-      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
+      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address, :io))
       |> Enum.filter(&TransactionHandler.download_transaction?/1)
 
     synchronize_transactions(transactions_to_sync, download_nodes)

@@ -27,17 +27,19 @@ defmodule Archethic.Contracts.Loader do
   def init(_opts) do
     DB.list_last_transaction_addresses()
     |> Stream.map(fn address ->
-      {:ok, tx} =
-        DB.get_transaction(address, [
-          :address,
-          :previous_public_key,
-          :data,
-          validation_stamp: [:timestamp]
-        ])
-
-      tx
+      DB.get_transaction(address, [
+        :address,
+        :previous_public_key,
+        :data,
+        validation_stamp: [:timestamp]
+      ])
     end)
-    |> Stream.filter(&(&1.data.code != ""))
+    |> Stream.filter(fn
+      {:ok, %Transaction{data: %TransactionData{code: ""}}} -> false
+      {:error, _} -> false
+      _ -> true
+    end)
+    |> Stream.map(fn {:ok, tx} -> tx end)
     |> Stream.each(&load_transaction(&1, true))
     |> Stream.run()
 

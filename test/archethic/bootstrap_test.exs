@@ -263,7 +263,7 @@ defmodule Archethic.BootstrapTest do
 
           validated_tx = %{tx | validation_stamp: stamp}
           :ok = TransactionChain.write([validated_tx])
-          :ok = Replication.ingest_transaction(validated_tx)
+          :ok = Replication.ingest_transaction(validated_tx, false)
 
           {:ok, %Ok{}}
 
@@ -549,9 +549,9 @@ defmodule Archethic.BootstrapTest do
         ^addr0 -> {addr2, DateTime.utc_now()}
       end)
       |> stub(:transaction_exists?, fn
-        ^addr4 -> false
-        ^addr3 -> false
-        ^addr2 -> true
+        ^addr4, _ -> false
+        ^addr3, _ -> false
+        ^addr2, _ -> true
       end)
       |> expect(:get_transaction, fn ^addr3, _ ->
         {:error, :transaction_not_exists}
@@ -562,7 +562,7 @@ defmodule Archethic.BootstrapTest do
           send(me, {:write_transaction_chain, txn_list})
           :ok
       end)
-      |> expect(:write_transaction, fn _tx ->
+      |> expect(:write_transaction, fn _tx, _ ->
         :ok
       end)
 

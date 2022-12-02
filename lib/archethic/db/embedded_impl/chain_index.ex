@@ -7,6 +7,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.Crypto
+  alias Archethic.DB
   alias Archethic.DB.EmbeddedImpl.ChainWriter
   alias Archethic.TransactionChain.Transaction
 
@@ -196,14 +197,18 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @doc """
   Determine if a transaction exists
   """
-  @spec transaction_exists?(binary(), String.t()) :: boolean()
-  def transaction_exists?(address = <<_::8, _::8, _subset::8, _digest::binary>>, db_path) do
+  @spec transaction_exists?(binary(), DB.storage_type(), String.t()) :: boolean()
+  def transaction_exists?(address, storage_type \\ :chain, db_path)
+
+  def transaction_exists?(address, storage_type, db_path) do
     case get_tx_entry(address, db_path) do
       {:ok, _} ->
         true
 
       {:error, :not_exists} ->
-        false
+        if storage_type == :io,
+          do: ChainWriter.io_path(db_path, address) |> File.exists?(),
+          else: false
     end
   end
 
