@@ -78,10 +78,15 @@ defmodule Archethic.Election.ValidationConstraints do
         @default_min_validations +
           (:math.log10(total_transfers / 100_000_000) |> trunc())
 
-      if validation_number > nb_authorized_nodes do
-        nb_authorized_nodes
-      else
-        validation_number
+      cond do
+        validation_number > nb_authorized_nodes ->
+          nb_authorized_nodes
+
+        validation_number < @default_min_validations ->
+          min_validation_nodes(nb_authorized_nodes)
+
+        true ->
+          validation_number
       end
     else
       min_validation_nodes(nb_authorized_nodes)
