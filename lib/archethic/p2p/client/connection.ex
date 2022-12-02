@@ -213,8 +213,9 @@ defmodule Archethic.P2P.Client.Connection do
     # try to connect asynchronously so it does not block the messages coming in
     # Task.async/1 will send a {:info, {ref, result}} message to the connection process
     me = self()
+
     Task.async(fn ->
-      case transport.handle_connect(ip, port)  do
+      case transport.handle_connect(ip, port) do
         {:ok, socket} when is_port(socket) ->
           :gen_tcp.controlling_process(socket, me)
           {:ok, socket}
@@ -222,6 +223,7 @@ defmodule Archethic.P2P.Client.Connection do
         # only used for tests (make_ref())
         {:ok, socket} ->
           {:ok, socket}
+
         {:error, _} = e ->
           e
       end
