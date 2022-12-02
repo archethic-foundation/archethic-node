@@ -111,7 +111,7 @@ defmodule Archethic.Replication do
 
           TransactionChain.write_transaction(tx)
 
-          :ok = ingest_transaction(tx)
+          :ok = ingest_transaction(tx, false)
 
           Logger.info("Replication finished",
             transaction_address: Base.encode16(address),
@@ -176,7 +176,7 @@ defmodule Archethic.Replication do
       case TransactionValidator.validate(tx, self_repair?) do
         :ok ->
           :ok = TransactionChain.write_transaction(tx, :io)
-          ingest_transaction(tx)
+          ingest_transaction(tx, true)
 
           Logger.info("Replication finished",
             transaction_address: Base.encode16(address),
@@ -524,13 +524,13 @@ defmodule Archethic.Replication do
   - Transactions with smart contract deploy instances of them or can put in pending state waiting approval signatures
   - Code approval transactions may trigger the TestNets deployments or hot-reloads
   """
-  @spec ingest_transaction(Transaction.t()) :: :ok
-  def ingest_transaction(tx = %Transaction{}) do
+  @spec ingest_transaction(Transaction.t(), boolean()) :: :ok
+  def ingest_transaction(tx = %Transaction{}, io_transaction?) do
     TransactionChain.load_transaction(tx)
     Crypto.load_transaction(tx)
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
-    Account.load_transaction(tx)
+    Account.load_transaction(tx, io_transaction?)
     Contracts.load_transaction(tx)
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)

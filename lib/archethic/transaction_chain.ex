@@ -59,6 +59,12 @@ defmodule Archethic.TransactionChain do
   defdelegate list_all(fields \\ []), to: DB, as: :list_transactions
 
   @doc """
+  List all the io transactions stored
+  """
+  @spec list_io_transactions(fields :: list()) :: Enumerable.t()
+  defdelegate list_io_transactions(fields \\ []), to: DB
+
+  @doc """
   List all the transaction for a given transaction type sorted by timestamp in descent order
   """
   @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::

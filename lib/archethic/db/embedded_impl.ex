@@ -296,12 +296,20 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  List all the transactions
+  List all the transactions in chain storage
   """
   @spec list_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_transactions(fields \\ []) when is_list(fields) do
     ChainIndex.list_genesis_addresses()
     |> Stream.flat_map(&ChainReader.stream_scan_chain(&1, nil, fields, db_path()))
+  end
+
+  @doc """
+  List all the transactions in io storage
+  """
+  @spec list_io_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
+  def list_io_transactions(fields \\ []) do
+    ChainReader.list_io_transactions(fields, db_path())
   end
 
   @doc """

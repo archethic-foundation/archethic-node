@@ -32,6 +32,7 @@ defmodule Archethic.DB do
   @callback write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
+  @callback list_io_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   @callback list_last_transaction_addresses() :: Enumerable.t()
 
