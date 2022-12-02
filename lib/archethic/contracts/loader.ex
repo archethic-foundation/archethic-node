@@ -11,6 +11,7 @@ defmodule Archethic.Contracts.Loader do
 
   alias Archethic.DB
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -63,27 +64,23 @@ defmodule Archethic.Contracts.Loader do
       when code != "" do
     stop_contract(Transaction.previous_address(tx))
 
-    case Contracts.parse!(code) do
-      # Only load smart contract which are expecting interactions
-      %Contract{triggers: triggers = [_ | _]} ->
-        triggers = Enum.reject(triggers, &(&1.actions == {:__block__, [], []}))
+    %Contract{triggers: triggers} = Contracts.parse!(code)
+    triggers = Enum.reject(triggers, fn {_, actions} -> actions == {:__block__, [], []} end)
 
-        # Avoid to load empty smart contract
-        if length(triggers) > 0 do
-          {:ok, _} =
-            DynamicSupervisor.start_child(
-              ContractSupervisor,
-              {Worker, Contract.from_transaction!(tx)}
-            )
+    # Create worker only load smart contract which are expecting interactions and where the actions are not empty
+    if length(triggers) > 0 do
+      {:ok, _} =
+        DynamicSupervisor.start_child(
+          ContractSupervisor,
+          {Worker, Contract.from_transaction!(tx)}
+        )
 
-          Logger.info("Smart contract loaded",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
-        end
-
-      _ ->
-        :ok
+      Logger.info("Smart contract loaded",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+    else
+      :ok
     end
   end
 
@@ -91,7 +88,11 @@ defmodule Archethic.Contracts.Loader do
         tx = %Transaction{
           address: tx_address,
           type: tx_type,
-          validation_stamp: %ValidationStamp{timestamp: tx_timestamp, recipients: recipients}
+          validation_stamp: %ValidationStamp{
+            timestamp: tx_timestamp,
+            recipients: recipients,
+            protocol_version: protocol_version
+          }
         },
         false
       )
@@ -104,7 +105,12 @@ defmodule Archethic.Contracts.Loader do
 
       case Worker.execute(contract_address, tx) do
         :ok ->
-          TransactionLookup.add_contract_transaction(contract_address, tx_address, tx_timestamp)
+          TransactionLookup.add_contract_transaction(
+            contract_address,
+            tx_address,
+            tx_timestamp,
+            protocol_version
+          )
 
           Logger.info("Transaction towards contract ingested",
             transaction_address: Base.encode16(tx_address),
@@ -121,12 +127,19 @@ defmodule Archethic.Contracts.Loader do
         %Transaction{
           address: address,
           type: type,
-          validation_stamp: %ValidationStamp{recipients: recipients, timestamp: timestamp}
+          validation_stamp: %ValidationStamp{
+            recipients: recipients,
+            timestamp: timestamp,
+            protocol_version: protocol_version
+          }
         },
         true
       )
       when recipients != [] do
-    Enum.each(recipients, &TransactionLookup.add_contract_transaction(&1, address, timestamp))
+    Enum.each(
+      recipients,
+      &TransactionLookup.add_contract_transaction(&1, address, timestamp, protocol_version)
+    )
 
     Logger.info("Transaction towards contract ingested",
       transaction_address: Base.encode16(address),
@@ -144,6 +157,8 @@ defmodule Archethic.Contracts.Loader do
     case Registry.lookup(ContractRegistry, address) do
       [{pid, _}] ->
         DynamicSupervisor.terminate_child(ContractSupervisor, pid)
+        TransactionLookup.clear_contract_transactions(address)
+        TransactionChain.clear_pending_transactions(address)
         Logger.info("Stop smart contract at #{Base.encode16(address)}")
 
       _ ->

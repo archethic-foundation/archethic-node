@@ -252,6 +252,12 @@ defmodule Archethic.TransactionChain do
   defdelegate pending_transaction_signed_by?(to, from), to: PendingLedger, as: :already_signed?
 
   @doc """
+  Clear the transactions stored as pending
+  """
+  @spec clear_pending_transactions(binary()) :: :ok
+  defdelegate clear_pending_transactions(address), to: PendingLedger, as: :remove_address
+
+  @doc """
   Determine if the transaction exists
   """
   @spec transaction_exists?(binary(), DB.storage_type()) :: boolean()

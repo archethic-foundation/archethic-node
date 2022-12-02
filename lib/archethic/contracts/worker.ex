@@ -5,10 +5,10 @@ defmodule Archethic.Contracts.Worker do
 
   alias Archethic.ContractRegistry
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.Conditions
-  alias Archethic.Contracts.Contract.Constants
-  alias Archethic.Contracts.Contract.Trigger
-  alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Archethic.Contracts.ActionInterpreter
+  alias Archethic.Contracts.ConditionInterpreter
 
   alias Archethic.Crypto
 
@@ -19,7 +19,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.OracleChain
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.StartMining
   alias Archethic.P2P.Node
 
   alias Archethic.PubSub
@@ -62,10 +61,10 @@ defmodule Archethic.Contracts.Worker do
 
   def handle_continue(:start_schedulers, state = %{contract: %Contract{triggers: triggers}}) do
     new_state =
-      Enum.reduce(triggers, state, fn trigger = %Trigger{type: type}, acc ->
-        case schedule_trigger(trigger) do
+      Enum.reduce(triggers, state, fn {trigger_type, _}, acc ->
+        case schedule_trigger(trigger_type) do
           timer when is_reference(timer) ->
-            Map.update(acc, :timers, %{type => timer}, &Map.put(&1, type, timer))
+            Map.update(acc, :timers, %{trigger_type => timer}, &Map.put(&1, trigger_type, timer))
 
           _ ->
             acc
@@ -79,14 +78,13 @@ defmodule Archethic.Contracts.Worker do
         {:execute, incoming_tx = %Transaction{}},
         _from,
         state = %{
-          contract:
-            contract = %Contract{
-              triggers: triggers,
-              constants: %Constants{
-                contract: contract_constants = %{"address" => contract_address}
-              },
-              conditions: %{transaction: transaction_condition}
-            }
+          contract: %Contract{
+            triggers: triggers,
+            constants: %Constants{
+              contract: contract_constants = %{"address" => contract_address}
+            },
+            conditions: %{transaction: transaction_condition}
+          }
         }
       ) do
     Logger.info("Execute contract transaction actions",
@@ -95,7 +93,7 @@ defmodule Archethic.Contracts.Worker do
       contract: Base.encode16(contract_address)
     )
 
-    if Enum.any?(triggers, &(&1.type == :transaction)) do
+    if Map.has_key?(triggers, :transaction) do
       constants = %{
         "contract" => contract_constants,
         "transaction" => Constants.from_transaction(incoming_tx)
@@ -103,8 +101,8 @@ defmodule Archethic.Contracts.Worker do
 
       contract_transaction = Constants.to_transaction(contract_constants)
 
-      with true <- Interpreter.valid_conditions?(transaction_condition, constants),
-           next_tx <- Interpreter.execute_actions(contract, :transaction, constants),
+      with true <- ConditionInterpreter.valid_conditions?(transaction_condition, constants),
+           next_tx <- ActionInterpreter.execute(Map.fetch!(triggers, :transaction), constants),
            {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction) do
         handle_new_transaction(next_tx)
         {:reply, :ok, state}
@@ -133,13 +131,12 @@ defmodule Archethic.Contracts.Worker do
   end
 
   def handle_info(
-        %Trigger{type: :datetime},
+        {:trigger, {:datetime, timestamp}},
         state = %{
-          contract:
-            contract = %Contract{
-              constants: %Constants{contract: contract_constants = %{"address" => address}}
-            },
-          timers: %{datetime: timer}
+          contract: %Contract{
+            triggers: triggers,
+            constants: %Constants{contract: contract_constants = %{"address" => address}}
+          }
         }
       ) do
     Logger.info("Execute contract datetime trigger actions",
@@ -152,24 +149,24 @@ defmodule Archethic.Contracts.Worker do
 
     contract_tx = Constants.to_transaction(contract_constants)
 
-    with next_tx <- Interpreter.execute_actions(contract, :datetime, constants),
+    with next_tx <-
+           ActionInterpreter.execute(Map.fetch!(triggers, {:datetime, timestamp}), constants),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx) do
       handle_new_transaction(next_tx)
     end
 
-    Process.cancel_timer(timer)
-    {:noreply, Map.update!(state, :timers, &Map.delete(&1, :datetime))}
+    {:noreply, Map.update!(state, :timers, &Map.delete(&1, {:datetime, timestamp}))}
   end
 
   def handle_info(
-        trigger = %Trigger{type: :interval},
+        {:trigger, {:interval, interval}},
         state = %{
-          contract:
-            contract = %Contract{
-              constants: %Constants{
-                contract: contract_constants = %{"address" => address}
-              }
+          contract: %Contract{
+            triggers: triggers,
+            constants: %Constants{
+              contract: contract_constants = %{"address" => address}
             }
+          }
         }
       ) do
     Logger.info("Execute contract interval trigger actions",
@@ -177,7 +174,7 @@ defmodule Archethic.Contracts.Worker do
     )
 
     # Schedule the next interval trigger
-    interval_timer = schedule_trigger(trigger)
+    interval_timer = schedule_trigger({:interval, interval})
 
     constants = %{
       "contract" => contract_constants
@@ -186,7 +183,8 @@ defmodule Archethic.Contracts.Worker do
     contract_transaction = Constants.to_transaction(contract_constants)
 
     with true <- enough_funds?(address),
-         next_tx <- Interpreter.execute_actions(contract, :interval, constants),
+         next_tx <-
+           ActionInterpreter.execute(Map.fetch!(triggers, {:interval, interval}), constants),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
          :ok <- ensure_enough_funds(next_tx, address) do
       handle_new_transaction(next_tx)
@@ -198,18 +196,17 @@ defmodule Archethic.Contracts.Worker do
   def handle_info(
         {:new_transaction, tx_address, :oracle, _timestamp},
         state = %{
-          contract:
-            contract = %Contract{
-              triggers: triggers,
-              constants: %Constants{contract: contract_constants = %{"address" => address}},
-              conditions: %{oracle: oracle_condition}
-            }
+          contract: %Contract{
+            triggers: triggers,
+            constants: %Constants{contract: contract_constants = %{"address" => address}},
+            conditions: %{oracle: oracle_condition}
+          }
         }
       ) do
     Logger.info("Execute contract oracle trigger actions", contract: Base.encode16(address))
 
     with true <- enough_funds?(address),
-         true <- Enum.any?(triggers, &(&1.type == :oracle)) do
+         true <- Map.has_key?(triggers, :oracle) do
       {:ok, tx} = TransactionChain.get_transaction(tx_address)
 
       constants = %{
@@ -220,14 +217,14 @@ defmodule Archethic.Contracts.Worker do
       contract_transaction = Constants.to_transaction(contract_constants)
 
       if Conditions.empty?(oracle_condition) do
-        with next_tx <- Interpreter.execute_actions(contract, :oracle, constants),
+        with next_tx <- ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
              {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
              :ok <- ensure_enough_funds(next_tx, address) do
           handle_new_transaction(next_tx)
         end
       else
-        with true <- Interpreter.valid_conditions?(oracle_condition, constants),
-             next_tx <- Interpreter.execute_actions(contract, :oracle, constants),
+        with true <- ConditionInterpreter.valid_conditions?(oracle_condition, constants),
+             next_tx <- ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
              {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
              :ok <- ensure_enough_funds(next_tx, address) do
           handle_new_transaction(next_tx)
@@ -244,39 +241,40 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, state}
   end
 
-  def handle_info({:EXIT, _pid, _}, _state) do
-    :keep_state_and_data
+  def handle_info({:EXIT, _pid, _}, state) do
+    {:noreply, state}
   end
 
   defp via_tuple(address) do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  defp schedule_trigger(
-         trigger = %Trigger{
-           type: :interval,
-           opts: opts
-         }
-       ) do
-    interval = Keyword.fetch!(opts, :at)
-    enable_seconds? = Keyword.get(opts, :enable_seconds, false)
-
+  # Only used for testing
+  defp schedule_trigger(trigger = {:interval, {interval, :second}}) do
     Process.send_after(
       self(),
-      trigger,
-      Utils.time_offset(interval, DateTime.utc_now(), enable_seconds?) * 1000
+      {:trigger, trigger},
+      Utils.time_offset(interval, DateTime.utc_now(), true) * 1000
     )
   end
 
-  defp schedule_trigger(trigger = %Trigger{type: :datetime, opts: [at: datetime = %DateTime{}]}) do
+  defp schedule_trigger(trigger = {:interval, interval}) do
+    Process.send_after(
+      self(),
+      {:trigger, trigger},
+      Utils.time_offset(interval, DateTime.utc_now()) * 1000
+    )
+  end
+
+  defp schedule_trigger(trigger = {:datetime, datetime = %DateTime{}}) do
     seconds = DateTime.diff(datetime, DateTime.utc_now())
 
     if seconds > 0 do
-      Process.send_after(self(), trigger, seconds * 1000)
+      Process.send_after(self(), {:trigger, trigger}, seconds * 1000)
     end
   end
 
-  defp schedule_trigger(%Trigger{type: :oracle}) do
+  defp schedule_trigger(:oracle) do
     PubSub.register_to_new_transaction_by_type(:oracle)
   end
 
@@ -287,11 +285,7 @@ defmodule Archethic.Contracts.Worker do
 
     # The first storage node of the contract initiate the sending of the new transaction
     if trigger_node?(validation_nodes) do
-      P2P.broadcast_message(validation_nodes, %StartMining{
-        transaction: next_transaction,
-        validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-        welcome_node_public_key: Crypto.last_node_public_key()
-      })
+      Archethic.send_new_transaction(next_transaction)
     else
       DetectNodeResponsiveness.start_link(
         next_transaction.address,
@@ -300,11 +294,7 @@ defmodule Archethic.Contracts.Worker do
           Logger.info("contract transaction ...attempt #{count}")
 
           if trigger_node?(validation_nodes, count) do
-            P2P.broadcast_message(validation_nodes, %StartMining{
-              transaction: next_transaction,
-              validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-              welcome_node_public_key: Crypto.last_node_public_key()
-            })
+            Archethic.send_new_transaction(next_transaction)
           end
         end
       )

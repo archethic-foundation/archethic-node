@@ -4,6 +4,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   """
 
   alias Archethic.Crypto
+
+  alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
   alias __MODULE__.LedgerOperations
@@ -275,7 +277,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     {recipients_length, rest} = rest |> VarInt.get_value()
 
     {recipients, <<error_byte::8, rest::bitstring>>} =
-      deserialize_list_of_recipients_addresses(rest, recipients_length, [])
+      Utils.deserialize_addresses(rest, recipients_length, [])
 
     error = deserialize_error(error_byte)
 
@@ -401,26 +403,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       end
 
     Crypto.verify?(signature, raw_stamp, public_key)
-  end
-
-  defp deserialize_list_of_recipients_addresses(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_list_of_recipients_addresses(rest, nb_recipients, acc)
-       when length(acc) == nb_recipients do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_list_of_recipients_addresses(
-         <<hash_id::8, rest::bitstring>>,
-         nb_recipients,
-         acc
-       ) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<hash::binary-size(hash_size), rest::bitstring>> = rest
-
-    deserialize_list_of_recipients_addresses(rest, nb_recipients, [
-      <<hash_id::8, hash::binary>> | acc
-    ])
   end
 
   defp serialize_error(nil), do: 0
