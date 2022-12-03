@@ -17,6 +17,8 @@ defmodule Archethic.SelfRepair do
 
   alias Archethic.P2P.Node
 
+  alias Archethic.Utils
+
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
@@ -92,7 +94,8 @@ defmodule Archethic.SelfRepair do
   @spec start_notifier(list(Node.t()), list(Node.t()), DateTime.t()) :: :ok
   def start_notifier(prev_available_nodes, new_available_nodes, availability_update) do
     diff_node =
-      (prev_available_nodes -- new_available_nodes)
+      prev_available_nodes
+      |> Enum.reject(&Utils.key_in_node_list?(new_available_nodes, &1.first_public_key))
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     case diff_node do
