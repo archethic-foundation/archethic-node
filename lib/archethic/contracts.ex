@@ -21,6 +21,8 @@ defmodule Archethic.Contracts do
 
   require Logger
 
+  @extended_mode? Mix.env() != :prod
+
   @doc ~S"""
   Parse a smart contract code and return its representation
 
@@ -201,7 +203,7 @@ defmodule Archethic.Contracts do
          validation_date = %DateTime{}
        ) do
     interval
-    |> CronParser.parse!()
+    |> CronParser.parse!(@extended_mode?)
     |> CronDateChecker.matches_date?(DateTime.to_naive(validation_date))
   end
 
