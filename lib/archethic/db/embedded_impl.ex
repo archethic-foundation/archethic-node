@@ -69,7 +69,7 @@ defmodule Archethic.DB.EmbeddedImpl do
           previous_address
       end
 
-    do_write_transaction_chain(genesis_address, chain)
+    do_write_transaction_chain(genesis_address, sorted_chain)
   end
 
   defp do_write_transaction_chain(genesis_address, sorted_chain) do
