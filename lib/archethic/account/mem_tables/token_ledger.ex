@@ -136,31 +136,35 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
-    {:ok, pid} = DB.start_inputs_writer(:token, address)
+    case :ets.lookup(@unspent_output_index_table, address) do
+      [] ->
+        :ok
 
-    @unspent_output_index_table
-    |> :ets.lookup(address)
-    |> Enum.each(fn {to, from, token_address, token_id} ->
-      [{_, amount, _, timestamp, protocol_version}] =
-        :ets.lookup(@ledger_table, {to, from, token_address, token_id})
+      utxos ->
+        {:ok, pid} = DB.start_inputs_writer(:token, address)
 
-      DB.append_input(pid, %VersionedTransactionInput{
-        protocol_version: protocol_version,
-        input: %TransactionInput{
-          from: from,
-          amount: amount,
-          spent?: true,
-          timestamp: timestamp,
-          type: {:token, token_address, token_id}
-        }
-      })
+        Enum.each(utxos, fn {to, from, token_address, token_id} ->
+          [{_, amount, _, timestamp, protocol_version}] =
+            :ets.lookup(@ledger_table, {to, from, token_address, token_id})
 
-      :ets.delete(@ledger_table, {address, from, token_address, token_id})
-    end)
+          DB.append_input(pid, %VersionedTransactionInput{
+            protocol_version: protocol_version,
+            input: %TransactionInput{
+              from: from,
+              amount: amount,
+              spent?: true,
+              timestamp: timestamp,
+              type: {:token, token_address, token_id}
+            }
+          })
 
-    :ets.delete(@unspent_output_index_table, address)
+          :ets.delete(@ledger_table, {address, from, token_address, token_id})
+        end)
 
-    DB.stop_inputs_writer(pid)
+        :ets.delete(@unspent_output_index_table, address)
+
+        DB.stop_inputs_writer(pid)
+    end
   end
 
   @doc """
