@@ -246,13 +246,6 @@ defmodule Archethic do
         address
         |> TransactionChain.stream_remotely(nodes, last_local_address)
         |> Stream.flat_map(& &1)
-        |> Stream.transform(nil, fn
-          _tx, ^address ->
-            {:halt, address}
-
-          tx, _ ->
-            {[tx], tx.address}
-        end)
         |> Enum.to_list()
       else
         []

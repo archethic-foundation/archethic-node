@@ -537,8 +537,7 @@ defmodule ArchethicTest do
            %TransactionList{
              transactions: [
                %Transaction{address: "@Alice5"},
-               %Transaction{address: "@Alice6"},
-               %Transaction{address: "@Alice7"}
+               %Transaction{address: "@Alice6"}
              ]
            }}
       end)
