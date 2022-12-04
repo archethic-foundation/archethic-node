@@ -130,32 +130,36 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   """
   @spec spend_all_unspent_outputs(binary()) :: :ok
   def spend_all_unspent_outputs(address) do
-    {:ok, pid} = DB.start_inputs_writer(:UCO, address)
+    case :ets.lookup(@unspent_output_index_table, address) do
+      [] ->
+        :ok
 
-    @unspent_output_index_table
-    |> :ets.lookup(address)
-    |> Enum.each(fn {to, from} ->
-      [{_, amount, _, timestamp, reward?, protocol_version}] =
-        :ets.lookup(@ledger_table, {to, from})
+      utxos ->
+        {:ok, pid} = DB.start_inputs_writer(:UCO, address)
 
-      DB.append_input(pid, %VersionedTransactionInput{
-        protocol_version: protocol_version,
-        input: %TransactionInput{
-          from: from,
-          amount: amount,
-          spent?: true,
-          reward?: reward?,
-          timestamp: timestamp,
-          type: :UCO
-        }
-      })
+        Enum.each(utxos, fn {to, from} ->
+          [{_, amount, _, timestamp, reward?, protocol_version}] =
+            :ets.lookup(@ledger_table, {to, from})
 
-      :ets.delete(@ledger_table, {to, from})
-    end)
+          DB.append_input(pid, %VersionedTransactionInput{
+            protocol_version: protocol_version,
+            input: %TransactionInput{
+              from: from,
+              amount: amount,
+              spent?: true,
+              reward?: reward?,
+              timestamp: timestamp,
+              type: :UCO
+            }
+          })
 
-    :ets.delete(@unspent_output_index_table, address)
+          :ets.delete(@ledger_table, {to, from})
+        end)
 
-    DB.stop_inputs_writer(pid)
+        :ets.delete(@unspent_output_index_table, address)
+
+        DB.stop_inputs_writer(pid)
+    end
   end
 
   @doc """
