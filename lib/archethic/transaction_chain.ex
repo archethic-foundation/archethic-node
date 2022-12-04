@@ -965,10 +965,13 @@ defmodule Archethic.TransactionChain do
   def get_last_local_address(address) when is_binary(address) do
     case fetch_genesis_address_remotely(address) do
       {:ok, genesis_address} ->
-        case get_last_address(genesis_address) do
-          {^genesis_address, _} -> nil
-          {last_address, _} -> last_address
-        end
+        last_stored_address =
+          list_chain_addresses(genesis_address)
+          |> Enum.reduce_while(genesis_address, fn {address, _}, acc ->
+            if transaction_exists?(address), do: {:cont, address}, else: {:halt, acc}
+          end)
+
+        if last_stored_address == genesis_address, do: nil, else: last_stored_address
 
       _ ->
         nil
