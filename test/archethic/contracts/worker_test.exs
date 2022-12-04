@@ -193,7 +193,7 @@ defmodule Archethic.Contracts.WorkerTest do
         }
         |> Map.update!(:triggers, fn triggers ->
           Enum.map(triggers, fn {{:interval, interval}, code} ->
-            {{:interval, {interval, :second}}, code}
+            {{:interval, interval}, code}
           end)
           |> Enum.into(%{})
         end)
