@@ -33,6 +33,8 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
 
+  @extended_mode? Mix.env() != :prod
+
   require Logger
 
   use GenServer
@@ -249,20 +251,11 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  # Only used for testing
-  defp schedule_trigger(trigger = {:interval, {interval, :second}}) do
-    Process.send_after(
-      self(),
-      {:trigger, trigger},
-      Utils.time_offset(interval, DateTime.utc_now(), true) * 1000
-    )
-  end
-
   defp schedule_trigger(trigger = {:interval, interval}) do
     Process.send_after(
       self(),
       {:trigger, trigger},
-      Utils.time_offset(interval, DateTime.utc_now()) * 1000
+      Utils.time_offset(interval, DateTime.utc_now(), @extended_mode?) * 1000
     )
   end
 
