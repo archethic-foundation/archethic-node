@@ -348,7 +348,7 @@ defmodule Archethic.Replication do
           TransactionChain.get_transaction(address, validation_stamp: [:timestamp])
 
         # Send a message to all the previous storage nodes
-        address
+        genesis_address
         |> TransactionChain.list_chain_addresses()
         |> Stream.concat([{genesis_address, nil}])
         |> Stream.flat_map(fn {address, _} ->
