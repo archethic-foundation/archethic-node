@@ -281,6 +281,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       send(me, {:transaction, tx})
       :ok
     end)
+    |> stub(:list_chain_addresses, fn _ -> [] end)
 
     MockCrypto
     |> stub(:unwrap_secrets, fn _, _, _ ->
