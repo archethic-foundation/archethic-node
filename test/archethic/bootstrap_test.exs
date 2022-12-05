@@ -538,20 +538,24 @@ defmodule Archethic.BootstrapTest do
       # node1 =>  addr0 -> addr1 -> addr2
       # node2 => addr0 -> addr1 -> addr2 -> addr3  -> addr4
       addr0 = nss_chain.txn0.address
+      addr1 = nss_chain.txn1.address
       addr2 = nss_chain.txn2.address
       addr3 = nss_chain.txn3.address
       addr4 = nss_chain.txn4.address
 
       me = self()
 
+      now = DateTime.utc_now()
+
       MockDB
-      |> stub(:get_last_chain_address, fn
-        ^addr0 -> {addr2, DateTime.utc_now()}
+      |> stub(:list_chain_addresses, fn
+        ^addr0 -> [{addr1, now}, {addr2, now}, {addr3, now}, {addr4, now}]
       end)
       |> stub(:transaction_exists?, fn
         ^addr4, _ -> false
         ^addr3, _ -> false
         ^addr2, _ -> true
+        ^addr1, _ -> true
       end)
       |> expect(:get_transaction, fn ^addr3, _ ->
         {:error, :transaction_not_exists}
