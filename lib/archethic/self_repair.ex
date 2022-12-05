@@ -95,8 +95,10 @@ defmodule Archethic.SelfRepair do
   def start_notifier(prev_available_nodes, new_available_nodes, availability_update) do
     diff_node =
       prev_available_nodes
-      |> Enum.reject(&Utils.key_in_node_list?(new_available_nodes, &1.first_public_key))
-      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+      |> Enum.reject(
+        &(Utils.key_in_node_list?(new_available_nodes, &1.first_public_key) or
+            &1.first_public_key == Crypto.first_node_public_key())
+      )
 
     case diff_node do
       [] ->
