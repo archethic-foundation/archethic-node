@@ -3,7 +3,19 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   use ArchethicWeb, :controller
 
+<<<<<<< HEAD
   alias Archethic.{Crypto, TransactionChain.Transaction}
+=======
+  alias Archethic
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+
+  alias ArchethicCache.LRU
+
+  use Pathex
+>>>>>>> a774b69b (Create a new LRU cache because of licensing issue with previous package)
 
   require Logger
 
@@ -147,11 +159,12 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   @spec search_transaction(binary()) :: {:ok, Transaction.t()} | {:error, atom()}
   defp search_transaction(address) do
-    case :lru.get(:cache_lru_tx, address) do
-      :undefined ->
+    # :cache_tx is started by the ArchethicWeb.Supervisor
+    case LRU.get(:cache_tx, address) do
+      nil ->
         case Archethic.search_transaction(address) do
           {:ok, tx} ->
-            :lru.add(:cache_lru_tx, address, tx)
+            LRU.put(:cache_tx, address, tx)
             {:ok, tx}
 
           {:error, reason} ->

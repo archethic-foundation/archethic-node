@@ -5,6 +5,7 @@ defmodule ArchethicWeb.Supervisor do
 
   alias Archethic.Networking
 
+  alias ArchethicCache.LRU
   alias ArchethicWeb.Endpoint
   alias ArchethicWeb.{FaucetRateLimiter, TransactionSubscriber, TransactionCache}
   alias ArchethicWeb.ExplorerLive.TopTransactionsCache
@@ -30,7 +31,8 @@ defmodule ArchethicWeb.Supervisor do
         Endpoint,
         {Absinthe.Subscription, Endpoint},
         TransactionSubscriber,
-        cache_child_spec()
+        cache_tx(),
+        cache_file()
       ]
       |> add_faucet_rate_limit_child()
 
@@ -55,14 +57,26 @@ defmodule ArchethicWeb.Supervisor do
     end
   end
 
-  defp cache_child_spec() do
+  defp cache_tx() do
     %{
-      id: :cache_lru_tx,
+      id: :cache_tx,
       start:
-        {:lru, :start_link,
+        {LRU, :start_link,
          [
-           {:local, :cache_lru_tx},
-           [max_size: Application.fetch_env!(:archethic_web, :tx_cache_bytes)]
+           :cache_tx,
+           Application.fetch_env!(:archethic_web, :tx_cache_bytes)
+         ]}
+    }
+  end
+
+  defp cache_file() do
+    %{
+      id: :cache_file,
+      start:
+        {LRU, :start_link,
+         [
+           :cache_file,
+           Application.fetch_env!(:archethic_web, :file_cache_bytes)
          ]}
     }
   end

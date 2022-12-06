@@ -1,5 +1,5 @@
 defmodule ArchethicWeb.API.WebHostingControllerTest do
-  use ArchethicCase
+  use ArchethicCase, async: false
   use ArchethicWeb.ConnCase
 
   alias Archethic.P2P
@@ -15,11 +15,13 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
+  alias ArchethicCache.LRU
+
   import Mox
 
   setup do
     # clear cache on every test because most tests use the same address
-    :ok = :lru.purge(:cache_lru_tx)
+    :ok = LRU.purge(:cache_tx)
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
