@@ -3,19 +3,7 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   use ArchethicWeb, :controller
 
-<<<<<<< HEAD
   alias Archethic.{Crypto, TransactionChain.Transaction}
-=======
-  alias Archethic
-  alias Archethic.Crypto
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
-
-  alias ArchethicCache.LRU
-
-  use Pathex
->>>>>>> a774b69b (Create a new LRU cache because of licensing issue with previous package)
 
   require Logger
 
@@ -96,7 +84,6 @@ defmodule ArchethicWeb.API.WebHostingController do
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
            Resources.load(txn, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
-
     else
       er when er in [:error, false] ->
         {:error, :invalid_address}
