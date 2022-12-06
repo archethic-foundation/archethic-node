@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Archethic.Migrate do
       if File.exists?(file_path) do
         file_path |> File.read!() |> String.split(";") |> Enum.member?(version)
       else
-        File.touch!(file_path)
+        File.write(file_path, "#{version};", [:append])
         true
       end
 
