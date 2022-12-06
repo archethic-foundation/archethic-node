@@ -80,25 +80,6 @@ defmodule ArchethicCache.LRU do
     {:reply, :ok, %{state | keys: [], bytes_used: 0}}
   end
 
-  defp evict_until(state, predicate) do
-    if predicate.(state) do
-      state
-    else
-      oldest_key = List.last(state.keys)
-      [{_, oldest_value}] = :ets.take(state.table, oldest_key)
-      bytes_evicted = state.evict_fn.(oldest_key, oldest_value)
-
-      evict_until(
-        %{
-          state
-          | bytes_used: state.bytes_used - bytes_evicted,
-            keys: List.delete(state.keys, oldest_key)
-        },
-        predicate
-      )
-    end
-  end
-
   def handle_cast({:put, key, value}, state) do
     size = :erlang.external_size(value)
 
@@ -139,6 +120,30 @@ defmodule ArchethicCache.LRU do
           }
 
           {:noreply, new_state}
+      end
+    end
+  end
+
+  defp evict_until(state, predicate) do
+    if predicate.(state) do
+      state
+    else
+      case List.last(state.keys) do
+        nil ->
+          state
+
+        oldest_key ->
+          [{_, oldest_value}] = :ets.take(state.table, oldest_key)
+          bytes_evicted = state.evict_fn.(oldest_key, oldest_value)
+
+          evict_until(
+            %{
+              state
+              | bytes_used: state.bytes_used - bytes_evicted,
+                keys: List.delete(state.keys, oldest_key)
+            },
+            predicate
+          )
       end
     end
   end
