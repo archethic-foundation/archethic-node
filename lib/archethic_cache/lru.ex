@@ -14,9 +14,9 @@ defmodule ArchethicCache.LRU do
     GenServer.start_link(__MODULE__, [name, max_bytes, opts], name: name)
   end
 
-  @spec put(GenServer.server(), term(), term()) :: boolean()
+  @spec put(GenServer.server(), term(), term()) :: :ok
   def put(pid, key, value) do
-    GenServer.call(pid, {:put, key, value})
+    GenServer.cast(pid, {:put, key, value})
   end
 
   @spec get(GenServer.server(), term()) :: nil | term()
@@ -69,50 +69,6 @@ defmodule ArchethicCache.LRU do
     {:reply, reply, new_state}
   end
 
-  def handle_call({:put, key, value}, _from, state) do
-    size = :erlang.external_size(value)
-
-    if size > state.bytes_max do
-      {:reply, false, state}
-    else
-      # maybe evict some keys to make space
-      state =
-        evict_until(state, fn state ->
-          state.bytes_used + size <= state.bytes_max
-        end)
-
-      case :ets.lookup(state.table, key) do
-        [] ->
-          {value_to_store, size_to_store} = state.put_fn.(key, value)
-
-          :ets.insert(state.table, {key, value_to_store})
-
-          new_state = %{
-            state
-            | keys: [key | state.keys],
-              bytes_used: state.bytes_used + size_to_store
-          }
-
-          {:reply, true, new_state}
-
-        [{^key, old_value}] ->
-          # this is a replacement, we need to evict to update the bytes_used
-          bytes_evicted = state.evict_fn.(key, old_value)
-          {value_to_store, size_to_store} = state.put_fn.(key, value)
-
-          :ets.insert(state.table, {key, value_to_store})
-
-          new_state = %{
-            state
-            | keys: state.keys |> move_front(key),
-              bytes_used: state.bytes_used + size_to_store - bytes_evicted
-          }
-
-          {:reply, true, new_state}
-      end
-    end
-  end
-
   def handle_call(:purge, _from, state) do
     # we call the evict_fn to be able to clean effects (ex: file written to disk)
     :ets.tab2list(state.table)
@@ -140,6 +96,50 @@ defmodule ArchethicCache.LRU do
         },
         predicate
       )
+    end
+  end
+
+  def handle_cast({:put, key, value}, state) do
+    size = :erlang.external_size(value)
+
+    if size > state.bytes_max do
+      {:noreply, state}
+    else
+      # maybe evict some keys to make space
+      state =
+        evict_until(state, fn state ->
+          state.bytes_used + size <= state.bytes_max
+        end)
+
+      case :ets.lookup(state.table, key) do
+        [] ->
+          {value_to_store, size_to_store} = state.put_fn.(key, value)
+
+          :ets.insert(state.table, {key, value_to_store})
+
+          new_state = %{
+            state
+            | keys: [key | state.keys],
+              bytes_used: state.bytes_used + size_to_store
+          }
+
+          {:noreply, new_state}
+
+        [{^key, old_value}] ->
+          # this is a replacement, we need to evict to update the bytes_used
+          bytes_evicted = state.evict_fn.(key, old_value)
+          {value_to_store, size_to_store} = state.put_fn.(key, value)
+
+          :ets.insert(state.table, {key, value_to_store})
+
+          new_state = %{
+            state
+            | keys: state.keys |> move_front(key),
+              bytes_used: state.bytes_used + size_to_store - bytes_evicted
+          }
+
+          {:noreply, new_state}
+      end
     end
   end
 

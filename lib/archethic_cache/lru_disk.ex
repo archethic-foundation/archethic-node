@@ -51,7 +51,7 @@ defmodule ArchethicCache.LRUDisk do
     )
   end
 
-  @spec put(GenServer.server(), term(), binary()) :: boolean()
+  @spec put(GenServer.server(), term(), binary()) :: :ok
   defdelegate put(pid, key, value), to: LRU, as: :put
 
   @spec get(GenServer.server(), term()) :: nil | binary()

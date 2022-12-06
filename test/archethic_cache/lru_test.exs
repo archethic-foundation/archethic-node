@@ -69,7 +69,7 @@ defmodule ArchethicCache.LRUTest do
 
       {:ok, pid} = LRU.start_link(:my_cache, 200)
 
-      assert false == LRU.put(pid, :key1, binary)
+      assert :ok == LRU.put(pid, :key1, binary)
       assert nil == LRU.get(pid, :key1)
     end
 

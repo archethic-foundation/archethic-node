@@ -73,7 +73,7 @@ defmodule ArchethicCache.LRUDiskTest do
 
       {:ok, pid} = LRUDisk.start_link(:my_cache, 200, @cache_dir)
 
-      assert false == LRUDisk.put(pid, :key1, binary)
+      assert :ok == LRUDisk.put(pid, :key1, binary)
       assert nil == LRUDisk.get(pid, :key1)
       assert Enum.empty?(File.ls!(cache_dir_for_ls(:my_cache)))
     end
