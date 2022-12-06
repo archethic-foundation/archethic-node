@@ -213,6 +213,35 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     }
   end
 
+  def beacon_chain_summary(datetime) do
+    previous_summary_time =
+      DateTime.utc_now()
+      |> Archethic.BeaconChain.previous_summary_time()
+
+    authorized_nodes = Archethic.P2P.authorized_and_available_nodes()
+
+    case DateTime.compare(datetime, previous_summary_time) do
+      :gt ->
+        {
+          :error,
+          "No data found at this date"
+        }
+
+      :eq ->
+        {:ok,
+         Archethic.BeaconChain.fetch_and_aggregate_summaries(
+           datetime,
+           authorized_nodes
+         )}
+
+      :lt ->
+        Archethic.BeaconChain.fetch_summaries_aggregate(
+          datetime,
+          authorized_nodes
+        )
+    end
+  end
+
   def nearest_endpoints(ip) do
     geo_patch = P2P.get_geo_patch(ip)
     nearest_nodes = P2P.nearest_nodes(P2P.authorized_and_available_nodes(), geo_patch)
