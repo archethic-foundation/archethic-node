@@ -4,8 +4,10 @@ defmodule ArchethicWeb.Supervisor do
   use Supervisor
 
   alias Archethic.Networking
+  alias Archethic.Utils
 
   alias ArchethicCache.LRU
+  alias ArchethicCache.LRUDisk
   alias ArchethicWeb.Endpoint
   alias ArchethicWeb.{FaucetRateLimiter, TransactionSubscriber, TransactionCache}
   alias ArchethicWeb.ExplorerLive.TopTransactionsCache
@@ -73,10 +75,11 @@ defmodule ArchethicWeb.Supervisor do
     %{
       id: :cache_file,
       start:
-        {LRU, :start_link,
+        {LRUDisk, :start_link,
          [
            :cache_file,
-           Application.fetch_env!(:archethic_web, :file_cache_bytes)
+           Application.fetch_env!(:archethic_web, :file_cache_bytes),
+           Path.join(Utils.mut_dir(), "aeweb")
          ]}
     }
   end
