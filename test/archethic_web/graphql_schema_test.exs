@@ -440,6 +440,21 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
     end
   end
 
+  describe "query: beacon_chain_summary" do
+    test "a", %{conn: conn} do
+      timestamp =
+        DateTime.utc_now()
+        |> DateTime.to_unix()
+
+      conn =
+        post(conn, "/api", %{
+          "query" => "query { beacon_chain_summary(timestamp: #{timestamp}) {version} }"
+        })
+
+      assert %{} == json_response(conn, 200)
+    end
+  end
+
   describe "subscription: transaction_confirmed" do
     test "should be notified when the welcome node get acknowledgment of the transaction stored" do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
