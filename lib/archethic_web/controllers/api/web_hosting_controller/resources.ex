@@ -14,6 +14,8 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   @addresses_key "addresses"
   @metadata_key "metaData"
   @aewebversion_key "aewebVersion"
+  @path_seperator "/"
+
   def load(
         txn = %Transaction{
           address: last_address,
@@ -53,126 +55,108 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     {:ok, metadata, aewebversion}
   end
 
-  def load_resources(
-        %{"index.html" => %{@addresses_key => addresses}},
-        cache_headers,
-        [],
-        last_address,
-        _aeweb_version = 1
-      ) do
-    # IO.inspect(aeweb_version, label: "load_resources")
-
-    # IO.inspect(addresses, label: "addresses")
-
-    content =
-      Enum.reduce(addresses, %{}, fn address, _acc_map ->
-        Base.decode16!(address, case: :mixed)
-        |> tap(fn x -> IO.inspect(x) end)
-        |> Archethic.search_transaction()
-        |> elem(1)
-        |> get_in([Access.key(:data), Access.key(:content)])
-        |> Jason.decode()
-        |> elem(1)
-        |> tap(fn x -> IO.inspect(x) end)
-        |> Map.get("index.html")
-        |> Base.url_decode64!(padding: false)
-        |> tap(fn x -> IO.inspect(x) end)
-      end)
-
+  def load_resources(metadata, cache_headers, _path = [], last_address, _version = 1) do
     {cached?, etag} = get_cache(cache_headers, last_address, [])
-    {:ok, content, "gzip", MIME.from_path("index.html"), cached?, etag}
-  rescue
-    _e ->
-      {:error, :is_a_directory}
+
+    index_resource =
+      case access(metadata, "index.html") do
+        :file_not_found ->
+          {:error, :is_a_directory}
+
+        _ ->
+          fetch_resource(metadata, "index.html")
+      end
+
+    {:ok, index_resource, "gzip", MIME.from_path("index.html"), cached?, etag}
   end
 
-  def load_resources(
-        metadata,
-        cache_headers,
-        url_path,
-        last_address,
-        _aeweb_version = 1
-      ) do
-    file_path = Enum.join(url_path, "/")
-    # IO.inspect(aeweb_version, label: "load_resources")
-    # IO.inspect(url_path, label: "url_path load resource")
-    # IO.inspect(file_path, label: "file_path load resource")
-
-    content =
-      metadata
-      |> Map.get(file_path)
-      |> Map.get(@addresses_key)
-      |> Enum.reduce("", fn address, acc_map ->
-        content =
-          Base.decode16!(address, case: :mixed)
-          |> Archethic.search_transaction()
-          |> elem(1)
-          |> get_in([Access.key(:data), Access.key(:content)])
-          |> Jason.decode()
-          |> elem(1)
-          |> tap(fn x -> IO.inspect(x, limit: :infinity) end)
-          |> Map.get(file_path)
-          |> tap(fn x -> IO.inspect(x) end)
-          |> Base.url_decode64!(padding: false)
-
-        acc_map <> content
-      end)
+  def load_resources(metadata, cache_headers, url_path, last_address, _version = 1) do
 
     {cached?, etag} = get_cache(cache_headers, last_address, url_path)
-    {:ok, content, "gzip", MIME.from_path(file_path), cached?, etag}
-  rescue
-    _e ->
-      {:error, :is_a_directory}
+    resource_path = Enum.join(url_path, @path_seperator)
+    resource = fetch_resource(metadata, resource_path)
+    encoding = access(metadata, "encoding")
+    {:ok, resource, encoding, MIME.from_path(resource_path), cached?, etag}
   end
 
-  def load_resources(metadata, cache_headers, url_path, last_address, _aeweb_version = 2) do
-    with {:ok, file, mime_type} <- get_file(metadata, url_path),
-         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
-         {:ok, file_content, encoding} <- get_file_content(file, cached?, url_path) do
-      {:ok, file_content, encoding, mime_type, cached?, etag}
+  def fetch_resource(resource_path, metadata, _cached? = false) do
+    with {:ok, file_metadata} <- access(metadata, resource_path),
+         {:ok, addresses} <- access(file_metadata, @addresses_key) do
     else
-      e ->
-        e
+      :file_not_found ->
+        :file_not_found
     end
+  rescue
+    :file_not_found ->
+      :file_not_found
+
+    _e ->
+      :file_error
   end
 
-  defp get_file(json_content, path), do: get_file(json_content, path, nil)
-
-  # case when we're parsing a reference tx
-  defp get_file(file = %{@addresses_key => _}, [], previous_path_item) do
-    {:ok, file, MIME.from_path(previous_path_item)}
-  end
-
-  # case when we're parsing a storage tx
-  defp get_file(file, [], previous_path_item) when is_binary(file) do
-    {:ok, file, MIME.from_path(previous_path_item)}
-  end
-
-  # case when we're on a directory
-  defp get_file(json_content, [], _previous_path_item) when is_map(json_content) do
-    case Map.get(json_content, "index.html") do
-      nil ->
-        # make sure it is a directory instead of a malformed file
-        if Enum.all?(Map.values(json_content), &is_map/1) do
-          {:error, :is_a_directory}
+  def fetch_resource_content(addressses, resource_path) do
+    Enum.reduce(addressses, "", fn address, acc_map ->
+      file_content =
+        with {:ok, address_bin} <- Base.decode16(address, case: :mixed),
+             {:ok, %Transaction{} = txn} <- Archethic.search_transaction(),
+             content <- access_txn_content(),
+             {:ok, txn_content} <- decode_content(),
+             {:ok, res_content} <- access(resource_path),
+             {:ok, file_content} <- Base.url_decode64(padding: false) do
+          acc_map <> file_content
         else
-          {:error, :malformed}
-        end
+          :error ->
+            raise_error(address, resource_path, "Bad Address in Addresses || Bad Base64 encoding")
 
-      file ->
-        {:ok, file, "text/html"}
-    end
+          e
+          when e in [
+                 {:error, :transaction_not_exists},
+                 {:error, :transaction_invalid},
+                 {:error, :network_issue}
+               ] ->
+            raise_error(address, resource_path, "Transaction error")
+
+          nil ->
+            raise_error(address, resource_path, "nil transaction")
+
+          {:error, :json_decode_error} ->
+            raise_error(address, resource_path, "json decode error")
+
+          {:error, :file_not_found} ->
+            raise_error(address, resource_path, "file not found")
+        end
+    end)
+  rescue
+    e when is_bitstring(e) -> {}:e
+    e -> " Unknown Error in Rebuilding file content"
   end
 
-  # recurse until we are on the end of path
-  defp get_file(json_content, [path_item | rest], _previous_path_item) do
-    case Map.get(json_content, path_item) do
-      nil ->
-        #
+  def raise_error(address, resource_path, error_string) do
+    raise "Error: #{error_string}, FileTxn: #{address}, Resource: #{resource_path}"
+  end
+
+  def access(map, key) do
+    case Map.get(map, key, :file_not_found) do
+      :file_not_found ->
         {:error, :file_not_found}
 
-      json_content_subset ->
-        get_file(json_content_subset, rest, path_item)
+      data ->
+        {:ok, data}
+    end
+  end
+
+  def access_txn_content({:ok, txn}) do
+    %Transaction{data: %TransactionData{content: content}} = txn
+    content
+  end
+
+  def decode_content(content) do
+    case Jason.decode(content) do
+      {:error, _} ->
+        {:error, :json_decode_error}
+
+      {:ok, decoded_content} ->
+        {:ok, decoded_content}
     end
   end
 
@@ -197,34 +181,4 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
     {cached?, etag}
   end
-
-  # All file are encoded in base64 in JSON content
-  defp get_file_content(_file, _cached? = true, _url_path), do: {:ok, nil, nil}
-
-  defp get_file_content(file = %{@addresses_key => address_list}, _cached? = false, url_path) do
-    try do
-      content =
-        Enum.map_join(address_list, fn tx_address ->
-          {:ok, %Transaction{data: %TransactionData{content: content}}} =
-            Base.decode16!(tx_address, case: :mixed) |> Archethic.search_transaction()
-
-          {:ok, json_content} = Jason.decode(content)
-          {:ok, nested_file_content, _} = get_file(json_content, url_path)
-
-          nested_file_content
-        end)
-
-      file_content = Base.url_decode64!(content, padding: false)
-      encoding = Map.get(file, "encoding")
-      {:ok, file_content, encoding}
-    rescue
-      ArgumentError ->
-        :encoding_error
-
-      error ->
-        error
-    end
-  end
-
-  defp get_file_content(_, _, _), do: :file_error
 end
