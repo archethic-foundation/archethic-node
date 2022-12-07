@@ -31,6 +31,9 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
          {:ok, file_content, encoding} <- get_file_content(file, cached?, url_path) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
+      {:error, %Jason.DecodeError{}} ->
+        {:error, :invalid_content}
+
       {:error, :file_not_found} ->
         {:error, :file_not_found}
 
@@ -69,9 +72,13 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   def get_file(metadata, url_path) do
     resource_path = Enum.join(url_path, @path_seperator)
 
-    case Map.get(metadata, resource_path, :error) do
-      :error ->
-        {:error, :file_not_found}
+    case Map.get(metadata, resource_path) do
+      nil ->
+        if is_a_directory(metadata, resource_path) do
+          {:error, :is_a_directory}
+        else
+          {:error, :file_not_found}
+        end
 
       value ->
         {:ok, value, MIME.from_path(resource_path)}
@@ -101,24 +108,28 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
           {:ok, res_content} = access(decoded_content, resource_path)
 
-          {:ok, file_content} = Base.url_decode64(res_content, padding: false)
-
-          acc_map <> file_content
+          acc_map <> res_content
         end)
 
-      {:ok, encoding} = access(file_metadata, "encoding")
+      {:ok, file_content} = Base.url_decode64(file_content, padding: false)
+      {:ok, encoding} = access(file_metadata, "encoding", nil)
       {:ok, file_content, encoding}
     rescue
+      MatchError ->
+        {:error, :invalid_encoding}
+
       ArgumentError ->
-        :encoding_error
+        {:error, :encoding_error}
 
       error ->
         error
     end
   end
 
-  def access(map, key) do
-    case Map.get(map, key, :file_not_found) do
+  def get_file_content(_, false, _), do: {:error, :file_not_found}
+
+  def access(map, key, default \\ :file_not_found) do
+    case Map.get(map, key, default) do
       :file_not_found ->
         {:error, :file_not_found}
 
@@ -147,5 +158,19 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
       end
 
     {cached?, etag}
+  end
+
+  defp is_a_directory(_metadata, ""), do: true
+
+  defp is_a_directory(metadata, file_path) do
+    # dir1/file1.txt
+    # => dir1       should match
+    # => file1.txt  should not match
+    # => di         should not match
+    file_path = file_path <> "/"
+
+    Enum.any?(Map.keys(metadata), fn key ->
+      String.starts_with?(key, file_path)
+    end)
   end
 end
