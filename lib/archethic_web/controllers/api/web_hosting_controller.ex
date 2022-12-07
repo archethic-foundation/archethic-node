@@ -60,8 +60,10 @@ defmodule ArchethicWeb.API.WebHostingController do
 
         send_response(conn, listing_html, encoding, mime_type, cached?, etag)
 
-      {:error, e} ->
-        Logger.warning(e)
+      {:error, _e} ->
+        send_resp(conn, 404, "Not Found")
+
+      _ ->
         send_resp(conn, 404, "Not Found")
     end
   end

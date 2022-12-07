@@ -31,14 +31,17 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
          {:ok, file_content, encoding} <- get_file_content(file, cached?, url_path) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
-      {:error, e} when is_bitstring(e) ->
-        {:error, e}
+      {:error, :file_not_found} ->
+        {:error, :file_not_found}
 
       {:error, :get_metadata} ->
         {:error, "Error: Cant access metadata and aewebversion, RefTxn: #{last_address}"}
 
       {:error, :is_a_directory} ->
         {:error, {:is_a_directory, txn}}
+
+      error ->
+        error
     end
   end
 
@@ -78,74 +81,40 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   def get_file_content(_, true, _),
     do: {:ok, nil, nil}
 
-  def get_file_content(file_metadata, _cached? = false, url_path) do
+  def get_file_content(
+        file_metadata = %{@addresses_key => address_list},
+        _cached? = false,
+        url_path
+      ) do
     resource_path = Enum.join(url_path, @path_seperator)
-
     resource_path = if resource_path == "", do: "index.html", else: resource_path
 
-    with {:ok, encoding} <- access(file_metadata, "encoding"),
-         {:ok, addresses} <- access(file_metadata, @addresses_key),
-         {:ok, file_content} <-
-           do_get_file_content(addresses, resource_path) do
-      {:ok, file_content, encoding}
-    else
-      e when is_bitstring(e) ->
-        {:error, e}
-
-      e ->
-        e
-    end
-  end
-
-  def do_get_file_content(addressses, resource_path) do
     try do
-      {:ok,
-       Enum.reduce(addressses, "", fn address, acc_map ->
-         with {:ok, address_bin} <- Base.decode16(address, case: :mixed),
-              {:ok, %Transaction{} = txn} <- Archethic.search_transaction(address_bin),
-              %Transaction{data: %TransactionData{content: txn_content}} <- txn,
-              {:ok, decoded_content} <- Jason.decode(txn_content),
-              {:ok, res_content} <- access(decoded_content, resource_path),
-              {:ok, file_content} <- Base.url_decode64(res_content, padding: false) do
-           acc_map <> file_content
-         else
-           :error ->
-             raise_error(
-               address,
-               resource_path,
-               "Bad Address in Addresses || Bad Base64 encoding"
-             )
+      file_content =
+        Enum.reduce(address_list, "", fn address, acc_map ->
+          {:ok, address_bin} = Base.decode16(address, case: :mixed)
 
-           er
-           when er in [
-                  {:error, :transaction_not_exists},
-                  {:error, :transaction_invalid},
-                  {:error, :network_issue}
-                ] ->
-             raise_error(address, resource_path, "Transaction error")
+          {:ok, %Transaction{data: %TransactionData{content: txn_content}}} =
+            Archethic.search_transaction(address_bin)
 
-           nil ->
-             raise_error(address, resource_path, "nil transaction")
+          {:ok, decoded_content} = Jason.decode(txn_content)
 
-           {:error, %Jason.DecodeError{} = _e} ->
-             raise_error(address, resource_path, "json decode error")
+          {:ok, res_content} = access(decoded_content, resource_path)
 
-           {:error, :file_not_found} ->
-             raise_error(address, resource_path, "file not found")
-         end
-       end)}
+          {:ok, file_content} = Base.url_decode64(res_content, padding: false)
+
+          acc_map <> file_content
+        end)
+
+      {:ok, encoding} = access(file_metadata, "encoding")
+      {:ok, file_content, encoding}
     rescue
-      e ->
-        Logger.debug(e)
-        {:error, "Unknown Error in Rebuilding file content"}
-    catch
-      e when is_bitstring(e) ->
-        {:error, e}
-    end
-  end
+      ArgumentError ->
+        :encoding_error
 
-  def raise_error(address, resource_path, error_string) do
-    throw("Error: #{error_string}, FileTxn: #{address}, Resource: #{resource_path}")
+      error ->
+        error
+    end
   end
 
   def access(map, key) do
