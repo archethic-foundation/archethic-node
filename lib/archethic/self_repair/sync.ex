@@ -25,6 +25,8 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.TransactionChain.TransactionSummary
 
+  alias Archethic.SelfRepair
+
   alias Archethic.Utils
 
   require Logger
@@ -123,13 +125,13 @@ defmodule Archethic.SelfRepair.Sync do
   defp do_load_missed_transactions(last_sync_date, last_summary_time) do
     start = System.monotonic_time()
 
-    download_nodes = P2P.authorized_and_available_nodes()
+    download_nodes = P2P.authorized_and_available_nodes(last_summary_time, true)
 
     summaries_aggregates =
       fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)
 
     last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time, download_nodes)
-    ensure_download_last_aggregate(last_aggregate)
+    ensure_download_last_aggregate(last_aggregate, download_nodes)
 
     last_aggregate = aggregate_with_local_summaries(last_aggregate, last_summary_time)
 
@@ -166,20 +168,15 @@ defmodule Archethic.SelfRepair.Sync do
     |> Stream.map(fn {:ok, {:ok, aggregate}} -> aggregate end)
   end
 
-  defp ensure_download_last_aggregate(
-         last_aggregate = %SummaryAggregate{summary_time: summary_time}
-       ) do
+  defp ensure_download_last_aggregate(last_aggregate, download_nodes) do
     # Make sure the last beacon aggregate have been synchronized
     # from remote nodes to avoid self-repair to be acknowledged if those
     # cannot be reached
-
-    nodes = P2P.authorized_and_available_nodes(summary_time)
-
     # If number of authorized node is <= 2 and current node is part of it
     # we accept the self repair as the other node may be unavailable and so
     # we need to do the self even if no other node respond
     with true <- P2P.authorized_node?(),
-         true <- length(nodes) <= 2 do
+         true <- length(download_nodes) <= 2 do
       :ok
     else
       _ ->
@@ -235,7 +232,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     transactions_to_sync =
       transaction_summaries
-      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
+      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address, :io))
       |> Enum.filter(&TransactionHandler.download_transaction?/1)
 
     synchronize_transactions(transactions_to_sync, download_nodes)
@@ -247,6 +244,8 @@ defmodule Archethic.SelfRepair.Sync do
     )
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
+
+    previous_available_nodes = P2P.authorized_and_available_nodes()
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
@@ -269,9 +268,19 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.map(&update_availabilities(&1, availability_update))
     |> DB.register_p2p_summary()
 
+    new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
+
+    if :persistent_term.get(:archethic_up, nil) == :up do
+      SelfRepair.start_notifier(
+        previous_available_nodes,
+        new_available_nodes,
+        availability_update
+      )
+    end
+
     update_statistics(summary_time, transaction_summaries)
 
-    store_aggregate(aggregate)
+    store_aggregate(aggregate, new_available_nodes)
   end
 
   defp synchronize_transactions([], _), do: :ok
@@ -378,9 +387,11 @@ defmodule Archethic.SelfRepair.Sync do
     PubSub.notify_new_tps(tps, nb_transactions)
   end
 
-  defp store_aggregate(aggregate = %SummaryAggregate{summary_time: summary_time}) do
-    node_list =
-      [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
+  defp store_aggregate(
+         aggregate = %SummaryAggregate{summary_time: summary_time},
+         new_available_nodes
+       ) do
+    node_list = [P2P.get_node_info() | new_available_nodes] |> P2P.distinct_nodes()
 
     should_store? =
       summary_time

@@ -4,8 +4,10 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
   """
   @default_timeout Application.compile_env(:archethic, __MODULE__, [])
                    |> Keyword.get(:timeout, 5_000)
-  alias Archethic.DB
+
   alias Archethic.Mining
+
+  alias Archethic.TransactionChain
 
   use GenServer
   @vsn Mix.Project.config()[:version]
@@ -43,7 +45,7 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
           timeout: timeout
         }
       ) do
-    with {:exists, false} <- {:exists, DB.transaction_exists?(address)},
+    with {:exists, false} <- {:exists, TransactionChain.transaction_exists?(address)},
          {:mining, false} <- {:mining, Mining.processing?(address)},
          {:remaining, true} <- {:remaining, count < max_retry} do
       Logger.info("calling replay fn with count=#{count}",

@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Contract.Constants do
+defmodule Archethic.Contracts.ContractConstants do
   @moduledoc """
   Represents the smart contract constants and bindings
   """
@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.Contract.Constants do
   defstruct [:contract, :transaction]
 
   @type t :: %__MODULE__{
-          contract: map(),
+          contract: map() | nil,
           transaction: map() | nil
         }
 
@@ -152,5 +152,68 @@ defmodule Archethic.Contracts.Contract.Constants do
       },
       previous_public_key: Map.get(constants, "previous_public_key")
     }
+  end
+
+  @doc """
+  Stringify binary transaction values
+  """
+  @spec stringify(map()) :: map()
+  def stringify(constants = %{}) do
+    %{
+      "address" => apply_not_nil(constants, "address", &Base.encode16/1),
+      "type" => Map.get(constants, "type"),
+      "content" => Map.get(constants, "content"),
+      "code" => Map.get(constants, "code"),
+      "authorized_keys" =>
+        apply_not_nil(constants, "authorized_keys", fn authorized_keys ->
+          authorized_keys
+          |> Enum.map(fn {public_key, encrypted_secret_key} ->
+            {Base.encode16(public_key), Base.encode16(encrypted_secret_key)}
+          end)
+          |> Enum.into(%{})
+        end),
+      "authorized_public_keys" =>
+        apply_not_nil(constants, "authorized_public_keys", fn public_keys ->
+          Enum.map(public_keys, &Base.encode16/1)
+        end),
+      "secrets" =>
+        apply_not_nil(constants, "secrets", fn secrets ->
+          Enum.map(secrets, &Base.encode16/1)
+        end),
+      "previous_public_key" => apply_not_nil(constants, "previous_public_key", &Base.encode16/1),
+      "recipients" =>
+        apply_not_nil(constants, "recipients", fn recipients ->
+          Enum.map(recipients, &Base.encode16/1)
+        end),
+      "uco_transfers" =>
+        apply_not_nil(constants, "uco_transfers", fn transfers ->
+          transfers
+          |> Enum.map(fn {to, amount} ->
+            {Base.encode16(to), amount}
+          end)
+          |> Enum.into(%{})
+        end),
+      "token_transfers" =>
+        apply_not_nil(constants, "token_transfers", fn transfers ->
+          transfers
+          |> Enum.map(fn {to, transfers} ->
+            {Base.encode16(to),
+             Enum.map(transfers, fn transfer ->
+               Map.update!(transfer, "token_address", &Base.encode16/1)
+             end)}
+          end)
+        end),
+      "timestamp" => Map.get(constants, "timestamp")
+    }
+  end
+
+  defp apply_not_nil(map, key, fun) do
+    case Map.get(map, key) do
+      nil ->
+        nil
+
+      val ->
+        fun.(val)
+    end
   end
 end

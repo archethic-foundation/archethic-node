@@ -1,9 +1,10 @@
-defmodule Archethic.Contracts.Contract.Conditions do
+defmodule Archethic.Contracts.ContractConditions do
   @moduledoc """
   Represents the smart contract conditions
   """
 
   defstruct [
+    :address,
     :type,
     :content,
     :code,
@@ -20,6 +21,7 @@ defmodule Archethic.Contracts.Contract.Conditions do
   alias Archethic.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
+          address: binary() | Macro.t() | nil,
           type: Transaction.transaction_type() | nil,
           content: binary() | Macro.t() | nil,
           code: binary() | Macro.t() | nil,
@@ -33,6 +35,7 @@ defmodule Archethic.Contracts.Contract.Conditions do
         }
 
   def empty?(%__MODULE__{
+        address: nil,
         type: nil,
         content: nil,
         code: nil,

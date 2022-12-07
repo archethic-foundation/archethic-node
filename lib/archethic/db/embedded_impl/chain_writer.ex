@@ -32,6 +32,28 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   end
 
   @doc """
+  write an io transaction in a file name by it's address
+  """
+  @spec write_io_transaction(Transaction.t(), String.t()) :: :ok
+  def write_io_transaction(tx = %Transaction{address: address}, db_path) do
+    start = System.monotonic_time()
+
+    filename = io_path(db_path, address)
+
+    data = Encoding.encode(tx)
+
+    File.write!(
+      filename,
+      data,
+      [:exclusive, :binary]
+    )
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "write_io_transaction"
+    })
+  end
+
+  @doc """
   Write a beacon summary in a new file
   """
   @spec write_beacon_summary(Summary.t(), binary()) :: :ok
@@ -100,6 +122,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     |> File.mkdir_p!()
 
     path
+    |> base_io_path()
+    |> File.mkdir_p!()
+
+    path
     |> base_beacon_path()
     |> File.mkdir_p!()
 
@@ -114,6 +140,15 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
         state = %{db_path: db_path}
       ) do
     write_transaction(genesis_address, tx, db_path)
+    {:reply, :ok, state}
+  end
+
+  def handle_call(
+        {:write_io_transaction, tx},
+        _from,
+        state = %{db_path: db_path}
+      ) do
+    write_io_transaction(tx, db_path)
     {:reply, :ok, state}
   end
 
@@ -175,11 +210,28 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   end
 
   @doc """
+  Return the path of the io storage location
+  """
+  @spec io_path(String.t(), binary()) :: String.t()
+  def io_path(db_path, address)
+      when is_binary(address) and is_binary(db_path) do
+    Path.join([base_io_path(db_path), Base.encode16(address)])
+  end
+
+  @doc """
   Return the chain base path
   """
   @spec base_chain_path(String.t()) :: String.t()
   def base_chain_path(db_path) do
     Path.join([db_path, "chains"])
+  end
+
+  @doc """
+  Return the io base path
+  """
+  @spec base_io_path(String.t()) :: String.t()
+  def base_io_path(db_path) do
+    Path.join([db_path, "io"])
   end
 
   @doc """

@@ -156,5 +156,6 @@ config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 1_000
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :archethic, ArchethicWeb.Endpoint,
+  explorer_url: "",
   http: [port: 4002],
   server: false

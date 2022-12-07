@@ -5,7 +5,7 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.Conditions
+  alias Archethic.Contracts.ContractConditions
 
   alias Archethic.DB
 
@@ -70,7 +70,7 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
     %Contract{conditions: %{transaction: transaction_conditions}} = Contract.from_transaction!(tx)
 
     # TODO: improve the criteria of pending detection
-    if Conditions.empty?(transaction_conditions) do
+    if ContractConditions.empty?(transaction_conditions) do
       :ok
     else
       PendingLedger.add_address(address)

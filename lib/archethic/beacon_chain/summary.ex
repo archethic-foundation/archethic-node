@@ -30,7 +30,7 @@ defmodule Archethic.BeaconChain.Summary do
     node_availabilities: <<>>,
     node_average_availabilities: [],
     end_of_node_synchronizations: [],
-    version: 2
+    version: 1
   ]
 
   @type t :: %__MODULE__{
@@ -378,7 +378,7 @@ defmodule Archethic.BeaconChain.Summary do
       ...> |> Summary.serialize()
       <<
       # Version
-      2,
+      1,
       # Subset
       0,
       # Summary time
@@ -467,7 +467,7 @@ defmodule Archethic.BeaconChain.Summary do
 
   ## Examples
 
-      iex> <<2, 0, 96, 7, 114, 128, 1, 1, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246,
+      iex> <<1, 0, 96, 7, 114, 128, 1, 1, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246,
       ...> 27, 130, 162, 205, 249, 65, 232, 166, 99, 207, 133, 252, 112, 223, 41, 12,
       ...> 206, 162, 233, 28, 49, 204, 255, 12, 0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0,
       ...> 0, 0, 0, 152, 150, 128, 1, 0, 1, 0, 64, 255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
@@ -508,36 +508,6 @@ defmodule Archethic.BeaconChain.Summary do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<1::8, subset::8, summary_timestamp::32, rest::bitstring>>) do
-    {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
-
-    {transaction_attestations, rest} =
-      Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
-
-    <<nb_availabilities::16, availabilities::bitstring-size(nb_availabilities), rest::bitstring>> =
-      rest
-
-    <<node_average_availabilities_bin::binary-size(nb_availabilities), rest::bitstring>> = rest
-
-    {nb_end_of_sync, rest} = rest |> VarInt.get_value()
-
-    {end_of_node_synchronizations, rest} =
-      Utils.deserialize_public_key_list(rest, nb_end_of_sync, [])
-
-    node_average_availabilities = for <<avg::8 <- node_average_availabilities_bin>>, do: avg / 100
-
-    {%__MODULE__{
-       subset: <<subset>>,
-       summary_time: DateTime.from_unix!(summary_timestamp),
-       availability_adding_time: 0,
-       transaction_attestations: transaction_attestations,
-       node_availabilities: availabilities,
-       node_average_availabilities: node_average_availabilities,
-       end_of_node_synchronizations: end_of_node_synchronizations
-     }, rest}
-  end
-
-  # TODO: remove version 2 before mainnet launch
-  def deserialize(<<2::8, subset::8, summary_timestamp::32, rest::bitstring>>) do
     {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
 
     {transaction_attestations, rest} =

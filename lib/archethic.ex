@@ -11,8 +11,6 @@ defmodule Archethic do
   alias __MODULE__.P2P
   alias __MODULE__.P2P.Node
 
-  alias __MODULE__.DB
-
   alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
   alias __MODULE__.P2P.Message.NewTransaction
@@ -248,13 +246,6 @@ defmodule Archethic do
         address
         |> TransactionChain.stream_remotely(nodes, last_local_address)
         |> Stream.flat_map(& &1)
-        |> Stream.transform(nil, fn
-          _tx, ^address ->
-            {:halt, address}
-
-          tx, _ ->
-            {[tx], tx.address}
-        end)
         |> Enum.to_list()
       else
         []
@@ -275,7 +266,7 @@ defmodule Archethic do
     try do
       {local_chain, paging_address} =
         with true <- paging_address != nil,
-             true <- DB.transaction_exists?(paging_address),
+             true <- TransactionChain.transaction_exists?(paging_address),
              last_address when last_address != nil <-
                TransactionChain.get_last_local_address(address),
              true <- last_address != paging_address do
@@ -286,10 +277,10 @@ defmodule Archethic do
 
       remote_chain =
         if paging_address != address do
-          address
-          |> TransactionChain.stream_remotely(nodes, paging_address)
-          |> Enum.to_list()
-          |> List.flatten()
+          case TransactionChain.fetch_transaction_chain(nodes, address, paging_address) do
+            {:ok, transactions} -> transactions
+            {:error, _} -> []
+          end
         else
           []
         end

@@ -132,7 +132,7 @@ defmodule ArchethicWeb.RewardChainLive do
           display_data(
             addr,
             (TransactionChain.get_transaction(addr, [:type]) |> elem(1)).type,
-            DateTime.from_unix(timestamp, :millisecond) |> elem(1)
+            timestamp
           )
         end)
         |> Enum.reverse()

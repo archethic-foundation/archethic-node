@@ -225,7 +225,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          data: %TransactionData{code: code, ownerships: ownerships}
        }) do
     case Contracts.parse(code) do
-      {:ok, %Contract{triggers: [_ | _]}} ->
+      {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
         if Enum.any?(
              ownerships,
              &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
@@ -394,8 +394,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          validation_time
        )
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do
-    nodes = P2P.authorized_nodes() ++ NodeRenewal.candidates()
-
     last_scheduling_date = SharedSecrets.get_last_scheduling_date(validation_time)
 
     genesis_address =
@@ -404,14 +402,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     {last_address, _} = DB.get_last_chain_address(genesis_address)
 
+    sorted_authorized_keys =
+      authorized_keys
+      |> Map.keys()
+      |> Enum.sort()
+
+    sorted_node_renewal_authorized_keys =
+      NodeRenewal.next_authorized_node_public_keys()
+      |> Enum.sort()
+
     with {^last_address, _} <- DB.get_last_chain_address(genesis_address, last_scheduling_date),
-         {:ok, _, _} <-
-           NodeRenewal.decode_transaction_content(content),
-         true <-
-           Enum.all?(
-             Map.keys(authorized_keys),
-             &Utils.key_in_node_list?(nodes, &1)
-           ) do
+         {:ok, _, _} <- NodeRenewal.decode_transaction_content(content),
+         true <- sorted_authorized_keys == sorted_node_renewal_authorized_keys do
       :ok
     else
       :error ->

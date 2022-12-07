@@ -165,9 +165,9 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
 
     ownership =
       Ownership.new(
-        secret,
-        secret_key,
-        Enum.map(authorized_public_keys, &Base.decode16!(&1, case: :mixed))
+        decode_binary(secret),
+        decode_binary(secret_key),
+        Enum.map(authorized_public_keys, &decode_binary(&1))
       )
 
     update_in(
@@ -201,14 +201,8 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   end
 
   defp decode_binary(bin) do
-    if String.printable?(bin) do
-      case Base.decode16(bin, case: :mixed) do
-        {:ok, hex} ->
-          hex
-
-        _ ->
-          bin
-      end
+    if String.match?(bin, ~r/^[[:xdigit:]]+$/) do
+      Base.decode16!(bin, case: :mixed)
     else
       bin
     end

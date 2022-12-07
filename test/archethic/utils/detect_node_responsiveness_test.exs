@@ -110,7 +110,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     Process.monitor(pid)
 
     MockDB
-    |> stub(:transaction_exists?, fn ^address ->
+    |> stub(:transaction_exists?, fn ^address, _ ->
       false
     end)
 
@@ -170,7 +170,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
-    |> stub(:transaction_exists?, fn ^address ->
+    |> stub(:transaction_exists?, fn ^address, _ ->
       Process.send_after(me, :transaction_stored, 50)
       true
     end)
@@ -221,10 +221,10 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
-    |> expect(:transaction_exists?, fn ^address ->
+    |> expect(:transaction_exists?, fn ^address, _ ->
       false
     end)
-    |> expect(:transaction_exists?, fn ^address ->
+    |> expect(:transaction_exists?, fn ^address, _ ->
       Process.send_after(me, :transaction_stored, 50)
       true
     end)
@@ -276,7 +276,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
-    |> stub(:transaction_exists?, fn ^address ->
+    |> stub(:transaction_exists?, fn ^address, _ ->
       false
     end)
 
@@ -327,7 +327,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     {:ok, pid} = DetectNodeResponsiveness.start_link(address, 2, replaying_fn, @timeout)
 
     MockDB
-    |> stub(:transaction_exists?, fn ^address ->
+    |> stub(:transaction_exists?, fn ^address, _ ->
       false
     end)
 

@@ -228,7 +228,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> stub(:write_transaction, fn ^tx ->
+    |> stub(:write_transaction, fn ^tx, _ ->
       send(me, :write_transaction)
       :ok
     end)
@@ -277,10 +277,11 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> expect(:write_transaction, fn tx ->
+    |> expect(:write_transaction, fn tx, _ ->
       send(me, {:transaction, tx})
       :ok
     end)
+    |> stub(:list_chain_addresses, fn _ -> [] end)
 
     MockCrypto
     |> stub(:unwrap_secrets, fn _, _, _ ->
@@ -429,7 +430,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> expect(:write_transaction, fn tx ->
+    |> expect(:write_transaction, fn tx, _ ->
       send(me, {:transaction, tx})
       :ok
     end)

@@ -4,7 +4,7 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.Account
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.Constants
+  alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.Contracts.Interpreter
 
@@ -141,7 +141,7 @@ defmodule Archethic.Contracts.WorkerTest do
     } do
       code = """
       condition inherit: [
-        uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1_040_000_000}]
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: datetime, at: #{DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()} do
@@ -175,7 +175,7 @@ defmodule Archethic.Contracts.WorkerTest do
     } do
       code = """
       condition inherit: [
-        uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1_040_000_000}]
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: interval, at: "* * * * * *" do
@@ -192,9 +192,10 @@ defmodule Archethic.Contracts.WorkerTest do
           | constants: %Constants{contract: Map.put(constants, "code", code)}
         }
         |> Map.update!(:triggers, fn triggers ->
-          Enum.map(triggers, fn trigger ->
-            %{trigger | opts: Keyword.put(trigger.opts, :enable_seconds, true)}
+          Enum.map(triggers, fn {{:interval, interval}, code} ->
+            {{:interval, interval}, code}
           end)
+          |> Enum.into(%{})
         end)
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -241,7 +242,7 @@ defmodule Archethic.Contracts.WorkerTest do
     } do
       code = """
       condition inherit: [
-        uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1_040_000_000}]
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
@@ -288,7 +289,7 @@ defmodule Archethic.Contracts.WorkerTest do
       ]
 
       condition inherit: [
-        uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1_040_000_000}]
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
@@ -343,7 +344,7 @@ defmodule Archethic.Contracts.WorkerTest do
       ]
 
       condition inherit: [
-        uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1_040_000_000}]
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
@@ -355,7 +356,7 @@ defmodule Archethic.Contracts.WorkerTest do
           ]
 
           condition inherit: [
-            uco_transfers: [%{ to: \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\", amount: 9_200_000_000}]
+            uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\" => 9_200_000_000}
           ]
 
           actions triggered_by: transaction do
@@ -391,7 +392,7 @@ defmodule Archethic.Contracts.WorkerTest do
     ]
 
     condition inherit: [
-      uco_transfers: [%{ to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 9_200_000_000}]
+      uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\" => 9_200_000_000}
     ]
 
     actions triggered_by: transaction do

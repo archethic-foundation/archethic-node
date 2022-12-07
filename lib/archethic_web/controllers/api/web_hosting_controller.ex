@@ -6,6 +6,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   alias Archethic
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Crypto
@@ -18,6 +19,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   @addresses_key "addresses"
 
   def web_hosting(conn, params = %{"url_path" => []}) do
+    # /web_hosting/:addr redirects to /web_hosting/:addr/
     IO.inspect(params)
     IO.inspect("==")
 
@@ -45,11 +47,17 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :website_not_found} ->
         send_resp(conn, 404, "Cannot find website content")
 
-      {:error, :not_found} ->
+      {:error, :file_not_found} ->
         send_resp(conn, 404, "Cannot find file content")
 
       {:error, :invalid_encodage} ->
         send_resp(conn, 400, "Invalid file encodage")
+
+      {:error, {:is_a_directory, transaction}} ->
+        {:ok, listing_html, encodage, mime_type, cached?, etag} =
+          dir_listing(conn.request_path, params, transaction, get_cache_headers(conn))
+
+        send_response(conn, listing_html, encodage, mime_type, cached?, etag)
 
       {:error, _} ->
         send_resp(conn, 404, "Not Found")
@@ -64,7 +72,8 @@ defmodule ArchethicWeb.API.WebHostingController do
            cached? :: boolean(), etag :: binary()}
           | {:error, :invalid_address}
           | {:error, :invalid_content}
-          | {:error, :not_found}
+          | {:error, :file_not_found}
+          | {:error, :is_a_directory}
           | {:error, :invalid_encodage}
           | {:error, any()}
   def get_website(params = %{"address" => address}, cache_headers) do
@@ -83,20 +92,8 @@ defmodule ArchethicWeb.API.WebHostingController do
       er when er in [:error, false] ->
         {:error, :invalid_address}
 
-      {:error, %Jason.DecodeError{}} ->
-        {:error, :invalid_content}
-
       {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
         {:error, :website_not_found}
-
-      {:file_not_found, _url} ->
-        {:error, :not_found}
-
-      :encodage_error ->
-        {:error, :invalid_encodage}
-
-      :file_error ->
-        {:error, :not_found}
 
       error ->
         error
@@ -236,33 +233,43 @@ defmodule ArchethicWeb.API.WebHostingController do
     end
   end
 
-  # API without path returns default index.html file
-  # or the only file if there is only one
-  defp get_file(json_content, url_path) do
-    {json_path, url} =
-      case Enum.count(url_path) do
-        0 ->
-          file_name = get_single_file_name(json_content)
-          json_path = path(file_name)
-          {json_path, file_name}
+  defp get_file(json_content, path), do: get_file(json_content, path, nil)
 
-        1 ->
-          file_name = Enum.at(url_path, 0)
-          json_path = path(file_name)
-          {json_path, file_name}
+  # case when we're parsing a reference tx
+  defp get_file(file = %{"address" => _}, [], previous_path_item) do
+    {:ok, file, MIME.from_path(previous_path_item)}
+  end
 
-        _ ->
-          json_path = get_json_path(url_path)
-          url = Path.join(url_path)
-          {json_path, url}
-      end
+  # case when we're parsing a storage tx
+  defp get_file(file, [], previous_path_item) when is_binary(file) do
+    {:ok, file, MIME.from_path(previous_path_item)}
+  end
 
-    case Pathex.view(json_content, json_path) do
-      {:ok, file} ->
-        {:ok, file, MIME.from_path(url)}
+  # case when we're on a directory
+  defp get_file(json_content, [], _previous_path_item) when is_map(json_content) do
+    case Map.get(json_content, "index.html") do
+      nil ->
+        # make sure it is a directory instead of a malformed file
+        if Enum.all?(Map.values(json_content), &is_map/1) do
+          {:error, :is_a_directory}
+        else
+          {:error, :malformed}
+        end
 
-      :error ->
-        {:file_not_found, url}
+      file ->
+        {:ok, file, "text/html"}
+    end
+  end
+
+  # recurse until we are on the end of path
+  defp get_file(json_content, [path_item | rest], _previous_path_item) do
+    case Map.get(json_content, path_item) do
+      nil ->
+        #
+        {:error, :file_not_found}
+
+      json_content_subset ->
+        get_file(json_content_subset, rest, path_item)
     end
   end
 
@@ -285,7 +292,7 @@ defmodule ArchethicWeb.API.WebHostingController do
         file_name = Enum.at(keys, 0)
         file_content = Map.get(json_content, file_name)
 
-        if !is_map(file_content) or Map.has_key?(file_content, @addresses_key) do
+        if !is_map(file_content) or Map.has_key?(file_content, "address") do
           file_name
         else
           "index.html"

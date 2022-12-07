@@ -4,10 +4,20 @@ defmodule Archethic.SelfRepair do
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
 
+  alias __MODULE__.Notifier
+  alias __MODULE__.NotifierSupervisor
+  alias __MODULE__.RepairRegistry
+  alias __MODULE__.RepairWorker
   alias __MODULE__.Scheduler
   alias __MODULE__.Sync
 
   alias Archethic.BeaconChain
+
+  alias Archethic.Crypto
+
+  alias Archethic.P2P.Node
+
+  alias Archethic.Utils
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -67,12 +77,6 @@ defmodule Archethic.SelfRepair do
   @spec put_last_sync_date(DateTime.t()) :: :ok
   defdelegate put_last_sync_date(datetime), to: Sync, as: :store_last_sync_date
 
-  def config_change(changed_conf) do
-    changed_conf
-    |> Keyword.get(Scheduler)
-    |> Scheduler.config_change()
-  end
-
   @doc """
   Return the previous scheduler time from a given date
   """
@@ -82,5 +86,77 @@ defmodule Archethic.SelfRepair do
     |> CronParser.parse!(true)
     |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
     |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  @doc """
+  Start a new notifier process if there is new unavailable nodes after the self repair
+  """
+  @spec start_notifier(list(Node.t()), list(Node.t()), DateTime.t()) :: :ok
+  def start_notifier(prev_available_nodes, new_available_nodes, availability_update) do
+    diff_node =
+      prev_available_nodes
+      |> Enum.reject(
+        &(Utils.key_in_node_list?(new_available_nodes, &1.first_public_key) or
+            &1.first_public_key == Crypto.first_node_public_key())
+      )
+
+    case diff_node do
+      [] ->
+        :ok
+
+      nodes ->
+        unavailable_nodes = Enum.map(nodes, & &1.first_public_key)
+
+        DynamicSupervisor.start_child(
+          NotifierSupervisor,
+          {Notifier,
+           unavailable_nodes: unavailable_nodes,
+           prev_available_nodes: prev_available_nodes,
+           new_available_nodes: new_available_nodes,
+           availability_update: availability_update}
+        )
+
+        :ok
+    end
+  end
+
+  @doc """
+  Return pid of a running RepairWorker for the first_address, or false
+  """
+  @spec repair_in_progress?(first_address :: binary()) :: false | pid()
+  def repair_in_progress?(first_address) do
+    case Registry.lookup(RepairRegistry, first_address) do
+      [{pid, _}] ->
+        pid
+
+      _ ->
+        false
+    end
+  end
+
+  @doc """
+  Start a new RepairWorker for the first_address
+  """
+  @spec start_worker(list()) :: DynamicSupervisor.on_start_child()
+  def start_worker(args) do
+    DynamicSupervisor.start_child(NotifierSupervisor, {RepairWorker, args})
+  end
+
+  @doc """
+  Add a new address in the address list of the RepairWorker
+  """
+  @spec add_repair_addresses(
+          pid(),
+          Crypto.prepended_hash() | nil,
+          list(Crypto.prepended_hash())
+        ) :: :ok
+  def add_repair_addresses(pid, storage_address, io_addresses) do
+    GenServer.cast(pid, {:add_address, storage_address, io_addresses})
+  end
+
+  def config_change(changed_conf) do
+    changed_conf
+    |> Keyword.get(Scheduler)
+    |> Scheduler.config_change()
   end
 end

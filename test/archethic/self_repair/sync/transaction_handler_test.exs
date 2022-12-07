@@ -173,7 +173,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     end)
 
     MockDB
-    |> stub(:write_transaction, fn ^tx ->
+    |> stub(:write_transaction, fn ^tx, _ ->
       send(me, :transaction_replicated)
       :ok
     end)

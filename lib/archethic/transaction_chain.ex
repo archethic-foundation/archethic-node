@@ -10,25 +10,27 @@ defmodule Archethic.TransactionChain do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Node
   alias Archethic.P2P.Message
+  alias Archethic.P2P.Node
 
   alias Archethic.P2P.Message.{
+    AddressList,
     Error,
-    NotFound,
-    TransactionList,
-    UnspentOutputList,
-    TransactionInputList,
-    TransactionChainLength,
-    LastTransactionAddress,
     FirstAddress,
-    GetTransaction,
     GetFirstAddress,
-    GetUnspentOutputs,
-    GetTransactionChain,
-    GetTransactionInputs,
     GetLastTransactionAddress,
-    GetTransactionChainLength
+    GetNextAddresses,
+    GetTransaction,
+    GetTransactionChain,
+    GetTransactionChainLength,
+    GetTransactionInputs,
+    GetUnspentOutputs,
+    LastTransactionAddress,
+    NotFound,
+    TransactionChainLength,
+    TransactionInputList,
+    TransactionList,
+    UnspentOutputList
   }
 
   alias __MODULE__.MemTables.KOLedger
@@ -57,6 +59,12 @@ defmodule Archethic.TransactionChain do
   defdelegate list_all(fields \\ []), to: DB, as: :list_transactions
 
   @doc """
+  List all the io transactions stored
+  """
+  @spec list_io_transactions(fields :: list()) :: Enumerable.t()
+  defdelegate list_io_transactions(fields \\ []), to: DB
+
+  @doc """
   List all the transaction for a given transaction type sorted by timestamp in descent order
   """
   @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
@@ -78,7 +86,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Stream all the addresses in chronological belonging to a genesis address
   """
-  @spec list_chain_addresses(binary()) :: Enumerable.t() | list({binary(), non_neg_integer()})
+  @spec list_chain_addresses(binary()) :: Enumerable.t() | list({binary(), DateTime.t()})
   defdelegate list_chain_addresses(genesis_address), to: DB
 
   @doc """
@@ -98,10 +106,10 @@ defmodule Archethic.TransactionChain do
     as: :get_last_chain_address
 
   @doc """
-  Register a last address from a previous address at a given date
+  Register a last address from a genesis address at a given date
   """
   @spec register_last_address(binary(), binary(), DateTime.t()) :: :ok
-  defdelegate register_last_address(previous_address, next_address, timestamp),
+  defdelegate register_last_address(genesis_address, next_address, timestamp),
     to: DB,
     as: :add_last_transaction_address
 
@@ -110,6 +118,16 @@ defmodule Archethic.TransactionChain do
   """
   @spec get_first_public_key(Crypto.key()) :: Crypto.key()
   defdelegate get_first_public_key(previous_public_key), to: DB, as: :get_first_public_key
+
+  @doc """
+  Stream first transactions address of a chain from genesis_address.
+  The Genesis Addresses is not a transaction or the first transaction.
+  The first transaction is calulated by index = 0+1
+  """
+  @spec stream_first_addresses() :: Enumerable.t()
+  defdelegate stream_first_addresses(),
+    to: DB,
+    as: :stream_first_addresses
 
   @doc """
   Get a transaction
@@ -160,14 +178,15 @@ defmodule Archethic.TransactionChain do
   @doc """
   Persist only one transaction
   """
-  @spec write_transaction(Transaction.t()) :: :ok
+  @spec write_transaction(Transaction.t(), DB.storage_type()) :: :ok
   def write_transaction(
         tx = %Transaction{
           address: address,
           type: type
-        }
+        },
+        storage_type \\ :chain
       ) do
-    DB.write_transaction(tx)
+    DB.write_transaction(tx, storage_type)
     KOLedger.remove_transaction(address)
 
     Logger.info("Transaction stored",
@@ -233,10 +252,16 @@ defmodule Archethic.TransactionChain do
   defdelegate pending_transaction_signed_by?(to, from), to: PendingLedger, as: :already_signed?
 
   @doc """
+  Clear the transactions stored as pending
+  """
+  @spec clear_pending_transactions(binary()) :: :ok
+  defdelegate clear_pending_transactions(address), to: PendingLedger, as: :remove_address
+
+  @doc """
   Determine if the transaction exists
   """
-  @spec transaction_exists?(binary()) :: boolean()
-  defdelegate transaction_exists?(address), to: DB
+  @spec transaction_exists?(binary(), DB.storage_type()) :: boolean()
+  defdelegate transaction_exists?(address, storage_type \\ :chain), to: DB
 
   @doc """
   Return the size of transaction chain
@@ -590,6 +615,29 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Request the chain addresses from paging address to last chain address
+  """
+  @spec fetch_next_chain_addresses_remotely(Crypto.prepended_hash(), list(Node.t())) ::
+          {:ok, list(Crypto.prepended_hash())} | {:error, :network_issue}
+  def fetch_next_chain_addresses_remotely(address, nodes) do
+    conflict_resolver = fn results ->
+      Enum.sort_by(results, &length(&1.addresses), :desc) |> List.first()
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetNextAddresses{address: address},
+           conflict_resolver
+         ) do
+      {:ok, %AddressList{addresses: addresses}} ->
+        {:ok, addresses}
+
+      {:error, :network_issue} = e ->
+        e
+    end
+  end
+
+  @doc """
   Get a transaction summary from a transaction address
   """
   @spec get_transaction_summary(binary()) :: {:ok, TransactionSummary.t()} | {:error, :not_found}
@@ -705,7 +753,7 @@ defmodule Archethic.TransactionChain do
   end
 
   defp do_stream_chain(nodes, address, paging_state, size) do
-    case fetch_transaction_chain(nodes, address, paging_state) do
+    case do_fetch_transaction_chain(nodes, address, paging_state) do
       {transactions, false, _} ->
         {[transactions], {:end, size + length(transactions)}}
 
@@ -714,11 +762,19 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  defp fetch_transaction_chain(
-         nodes,
-         address,
-         paging_state
-       ) do
+  @doc """
+  Get 10 transactions in a chain after a paging address
+  """
+  @spec fetch_transaction_chain(list(Node.t()), binary(), binary()) ::
+          {:ok, list(Transaction.t())} | {:error, :network_issue}
+  def fetch_transaction_chain(nodes, address, paging_address) do
+    case do_fetch_transaction_chain(nodes, address, paging_address) do
+      {transactions, _more?, _paging_state} -> {:ok, transactions}
+      error -> error
+    end
+  end
+
+  defp do_fetch_transaction_chain(nodes, address, paging_state) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
@@ -740,8 +796,8 @@ defmodule Archethic.TransactionChain do
        %TransactionList{transactions: transactions, more?: more?, paging_state: paging_state}} ->
         {transactions, more?, paging_state}
 
-      {:error, :network_issue} ->
-        raise "Cannot fetch transaction chain"
+      error ->
+        error
     end
   end
 
@@ -909,14 +965,20 @@ defmodule Archethic.TransactionChain do
   def get_last_local_address(address) when is_binary(address) do
     case fetch_genesis_address_remotely(address) do
       {:ok, genesis_address} ->
-        case get_last_address(genesis_address) do
-          {^genesis_address, _} -> nil
-          {last_address, _} -> last_address
-        end
+        last_stored_address = get_last_stored_address(genesis_address)
+
+        if last_stored_address == genesis_address, do: nil, else: last_stored_address
 
       _ ->
         nil
     end
+  end
+
+  defp get_last_stored_address(genesis_address) do
+    list_chain_addresses(genesis_address)
+    |> Enum.reduce_while(genesis_address, fn {address, _}, acc ->
+      if transaction_exists?(address), do: {:cont, address}, else: {:halt, acc}
+    end)
   end
 
   @doc """

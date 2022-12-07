@@ -269,7 +269,6 @@ defmodule ArchethicTest do
   end
 
   describe "get_transaction_inputs/1" do
-    @tag :toto1
     test "should request the storages nodes to fetch the inputs remotely, this is latest tx" do
       address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -538,8 +537,7 @@ defmodule ArchethicTest do
            %TransactionList{
              transactions: [
                %Transaction{address: "@Alice5"},
-               %Transaction{address: "@Alice6"},
-               %Transaction{address: "@Alice7"}
+               %Transaction{address: "@Alice6"}
              ]
            }}
       end)

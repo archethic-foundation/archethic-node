@@ -60,6 +60,6 @@ defmodule Archethic.Account do
   @doc """
   Load the transaction into the Account context filling the memory tables for ledgers
   """
-  @spec load_transaction(Transaction.t()) :: :ok
-  defdelegate load_transaction(transaction), to: MemTablesLoader
+  @spec load_transaction(Transaction.t(), boolean()) :: :ok
+  defdelegate load_transaction(transaction, io_transaction?), to: MemTablesLoader
 end

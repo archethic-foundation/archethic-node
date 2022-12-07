@@ -83,7 +83,7 @@ defmodule Archethic.ReplicationTest do
     #  send(me, :replicated)
     #  :ok
     # end)
-    |> expect(:write_transaction, fn ^tx ->
+    |> expect(:write_transaction, fn ^tx, _ ->
       send(me, :replicated)
       :ok
     end)
@@ -145,7 +145,7 @@ defmodule Archethic.ReplicationTest do
     tx = create_valid_transaction(unspent_outputs)
 
     MockDB
-    |> expect(:write_transaction, fn _ ->
+    |> expect(:write_transaction, fn _, _ ->
       send(me, :replicated)
       :ok
     end)
@@ -255,7 +255,7 @@ defmodule Archethic.ReplicationTest do
       |> expect(:get_transaction, fn _, _ ->
         {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}}}
       end)
-      |> expect(:list_chain_addresses, fn _ -> [{"@Alice1", 0}] end)
+      |> expect(:list_chain_addresses, fn _ -> [{"@Alice1", DateTime.utc_now()}] end)
 
       MockClient
       |> stub(:send_message, fn _,

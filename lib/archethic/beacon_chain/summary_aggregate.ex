@@ -8,7 +8,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   defstruct [
     :summary_time,
     availability_adding_time: [],
-    version: 2,
+    version: 1,
     transaction_summaries: [],
     p2p_availabilities: %{}
   ]
@@ -206,7 +206,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     ...> } |> SummaryAggregate.serialize()
     <<
       # Version
-      2,
+      1,
       # Summary time
       98, 29, 98, 0,
       # Nb transaction summaries
@@ -290,7 +290,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   ## Examples
 
-  iex> SummaryAggregate.deserialize(<<2, 98, 29, 98, 0, 1, 1, 0, 0, 120, 123, 229, 13, 144, 130, 230,
+  iex> SummaryAggregate.deserialize(<<1, 98, 29, 98, 0, 1, 1, 0, 0, 120, 123, 229, 13, 144, 130, 230,
   ...> 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69, 131, 97,
   ...> 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128, 1, 0, 1,
   ...> 0, 1, 3, 1::1, 0::1, 1::1, 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213,
@@ -329,33 +329,12 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     {tx_summaries, <<nb_p2p_availabilities::8, rest::bitstring>>} =
       Utils.deserialize_transaction_summaries(rest, nb_tx_summaries, [])
 
-    {p2p_availabilities, rest} = deserialize_p2p_availabilities(rest, nb_p2p_availabilities, %{})
-
-    {
-      %__MODULE__{
-        version: 1,
-        summary_time: DateTime.from_unix!(timestamp),
-        transaction_summaries: tx_summaries,
-        p2p_availabilities: p2p_availabilities,
-        availability_adding_time: 0
-      },
-      rest
-    }
-  end
-
-  # TODO: remove version 2 before mainnet launch
-  def deserialize(<<2::8, timestamp::32, rest::bitstring>>) do
-    {nb_tx_summaries, rest} = Utils.VarInt.get_value(rest)
-
-    {tx_summaries, <<nb_p2p_availabilities::8, rest::bitstring>>} =
-      Utils.deserialize_transaction_summaries(rest, nb_tx_summaries, [])
-
     {p2p_availabilities, <<availability_adding_time::16, rest::bitstring>>} =
       deserialize_p2p_availabilities(rest, nb_p2p_availabilities, %{})
 
     {
       %__MODULE__{
-        version: 2,
+        version: 1,
         summary_time: DateTime.from_unix!(timestamp),
         transaction_summaries: tx_summaries,
         p2p_availabilities: p2p_availabilities,

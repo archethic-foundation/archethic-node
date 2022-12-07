@@ -7,7 +7,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsReader do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.Utils
 
-  @spec get_inputs(ledger :: InputsWriter.ledger(), address :: binary()) ::
+  @spec get_inputs(input_type :: InputsWriter.input_type(), address :: binary()) ::
           list(VersionedTransactionInput.t())
   def get_inputs(ledger, address) do
     filename = InputsWriter.address_to_filename(ledger, address)
