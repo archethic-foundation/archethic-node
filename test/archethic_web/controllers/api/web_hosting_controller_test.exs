@@ -80,21 +80,24 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   describe "get_file/2" do
     setup do
       content = """
-      {
+      {"aewebVersion": 1,
+      "hashFunction": "sha-1",
+      "metaData":{
         "index.html":{
-          "encodage":"base64",
-          "address":[
+          "encoding":"base64",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "folder":{
           "hello_world.html":{
-            "encodage":"base64",
-            "address":[
+            "encoding":"base64",
+            "addresses":[
               "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
             ]
           }
         }
+      }
       }
       """
 
@@ -181,26 +184,29 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     setup do
       content = """
       {
+        "aewebVersion": 1,
+      "hashFunction": "sha-1",
+      "metaData":{
         "error.html":{
-          "encodage":"gzip",
-          "address":[
+          "encoding":"gzip",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "gzip.js":{
-          "encodage":"base64",
-          "address":[
+          "encoding":"base64",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "unsupported.xml":{
-          "encodage":"unsupported",
-          "address":[
+          "encoding":"unsupported",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "raw.html":{
-          "address":[
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
@@ -208,16 +214,17 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "unsupported":"unsupported"
         },
         "image.png":{
-          "address":[
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "ungzip.png":{
-          "encodage":"gzip",
-          "address":[
+          "encoding":"gzip",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         }
+      }
       }
       """
 
@@ -268,14 +275,14 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       :ok
     end
 
-    test "should return Invalid file encodage", %{conn: conn} do
+    test "should return Invalid file encoding", %{conn: conn} do
       conn =
         get(
           conn,
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/error.html"
         )
 
-      assert "Invalid file encodage" = response(conn, 400)
+      assert "Invalid file encoding" = response(conn, 400)
     end
 
     test "should return Cannot find file content", %{conn: conn} do
@@ -373,54 +380,58 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     setup do
       content = """
       {
+        "aewebVersion": 1,
+      "hashFunction": "sha-1",
+      "metaData":{
         "dir1": {
           "file10.txt":{
-            "encodage":"gzip",
-            "address":[
+            "encoding":"gzip",
+            "addresses":[
               "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
             ]
           },
           "file11.txt":{
-            "encodage":"gzip",
-            "address":[
+            "encoding":"gzip",
+            "addresses":[
               "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
             ]
           }
         },
         "dir2": {
           "hello.txt":{
-            "encodage":"gzip",
-            "address":[
+            "encoding":"gzip",
+            "addresses":[
               "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
             ]
           }
         },
         "dir3": {
           "index.html":{
-            "encodage":"gzip",
-            "address":[
+            "encoding":"gzip",
+            "addresses":[
               "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
             ]
           }
         },
         "file1.txt":{
-          "encodage":"gzip",
-          "address":[
+          "encoding":"gzip",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "file2.txt":{
-          "encodage":"gzip",
-          "address":[
+          "encoding":"gzip",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "file3.txt":{
-          "encodage":"gzip",
-          "address":[
+          "encoding":"gzip",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         }
+      }
       }
       """
 
@@ -477,20 +488,23 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   describe "get_file_content/3 with address_content" do
     setup do
       content = """
-      {
+      {"aewebVersion": 1,
+      "hashFunction": "sha-1",
+      "metaData":{
         "address_content.png":{
-          "encodage":"gzip",
-          "address":[
+          "encoding":"gzip",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "concat_content.png":{
-          "encodage":"gzip",
-          "address":[
+          "encoding":"gzip",
+          "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de",
             "0000e363f156fc5185217433d986f59d9fe245226287c2dd94b1ac57ffb6df7928aa"
           ]
         }
+      }
       }
       """
 
@@ -576,15 +590,18 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   describe "get_cache/3" do
     test "should return 304 status if file is cached in browser", %{conn: conn} do
       content = """
-      {
+      {"aewebVersion": 1,
+      "hashFunction": "sha-1",
+      "metaData":{
         "folder":{
           "hello_world.html":{
-            "encodage":"base64",
-            "address":[
+            "encoding":"base64",
+            "addresses":[
               "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
             ]
           }
         }
+      }
       }
       """
 
