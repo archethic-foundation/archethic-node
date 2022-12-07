@@ -49,6 +49,7 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :file_not_found} ->
         send_resp(conn, 404, "Cannot find file content")
 
+      {:error, :invalid_encoding} ->
         send_resp(conn, 400, "Invalid file encoding")
 
       {:error, :is_a_directory, txn} ->
