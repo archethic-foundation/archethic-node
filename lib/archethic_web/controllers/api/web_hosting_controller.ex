@@ -60,25 +60,9 @@ defmodule ArchethicWeb.API.WebHostingController do
 
         send_response(conn, listing_html, encoding, mime_type, cached?, etag)
 
-      {:error, _} ->
+      {:error, e} ->
+        Logger.warning(e)
         send_resp(conn, 404, "Not Found")
-    end
-  end
-
-  def get_txn(address) do
-    with {:ok, address} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_address?(address),
-         {:ok, txn = %Transaction{}} <- Archethic.get_last_transaction(address) do
-      {:ok, txn}
-    else
-      er when er in [:error, false] ->
-        {:error, :invalid_address}
-
-      {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
-        {:error, :website_not_found}
-
-      error ->
-        error
     end
   end
 
@@ -99,11 +83,19 @@ defmodule ArchethicWeb.API.WebHostingController do
   def get_website(params = %{"address" => address}, cache_headers) do
     url_path = Map.get(params, "url_path", [])
 
-    with {:ok, txn} <- get_txn(address),
+    with {:ok, address} <- Base.decode16(address, case: :mixed),
+         true <- Crypto.valid_address?(address),
+         {:ok, txn = %Transaction{}} <- Archethic.get_last_transaction(address),
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
            Resources.load(txn, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
+      er when er in [:error, false] ->
+        {:error, :invalid_address}
+
+      {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
+        {:error, :website_not_found}
+
       error ->
         error
     end
