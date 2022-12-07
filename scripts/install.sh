@@ -23,34 +23,15 @@ sudo apt-get install -y \
   zlib1g-dev \
   libgmp-dev \
   net-tools \
-  libncurses5-dev
+  libncurses5-dev \
+  openssl \
+  unzip
 
 sudo locale-gen en_US.UTF-8
 
 function version_to_int {
   echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }';
 }
-
-echo "Install OpenSSL"
-
-OPENSSL_VERSION=$(openssl version | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
-if [[ $(version_to_int $OPENSSL_VERSION) -lt $(version_to_int "1.1.1") ]]; then
-    cd /usr/local/src/
-    sudo wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz 
-    sudo tar -xf openssl-1.1.1q.tar.gz 
-    cd openssl-1.1.1q 
-    sudo ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared zlib
-    sudo make
-    sudo make install
-    sudo bash -c 'echo "/usr/local/ssl/lib" >> /etc/ld.so.conf.d/openssl-1.1.1q.conf'
-    sudo ldconfig
-    sudo bash -c 'echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/local/ssl/bin" >> /etc/environment'
-    sudo bash -c 'source /etc/environment'
-    sudo ln -s /etc/ssl/certs/*.* /usr/local/ssl/certs/
-    cd ~
-else
-  echo "OpenSSL up to date"
-fi
 
 echo "Install Erlang & Elixir"
 
@@ -133,9 +114,9 @@ sudo apt -y install \
   acl
 
 cd $INSTALL_DIR
-wget  https://github.com/tpm2-software/tpm2-tss/releases/download/3.1.0/tpm2-tss-3.1.0.tar.gz
-tar -xf tpm2-tss-3.1.0.tar.gz --one-top-level=tpm2-tss --strip-components 1
-rm tpm2-tss-3.1.0.tar.gz && cd tpm2-tss
+wget https://github.com/tpm2-software/tpm2-tss/releases/download/3.2.1-rc2/tpm2-tss-3.2.1-rc2.tar.gz
+tar -xf tpm2-tss-3.2.1-rc2.tar.gz --one-top-level=tpm2-tss --strip-components 1
+rm tpm2-tss-3.2.1-rc2.tar.gz && cd tpm2-tss
 ./configure --with-udevrulesdir=/etc/udev/rules.d
 make -j$(nproc)
 
