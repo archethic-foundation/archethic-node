@@ -7,6 +7,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   alias Archethic.P2P
 
+  alias Archethic.BeaconChain
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -214,31 +216,33 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   end
 
   def beacon_chain_summary(datetime) do
-    previous_summary_time =
-      DateTime.utc_now()
-      |> Archethic.BeaconChain.previous_summary_time()
+    current_datetime = DateTime.utc_now()
 
-    authorized_nodes = Archethic.P2P.authorized_and_available_nodes()
+    next_datetime_summary_time =
+      datetime
+      |> BeaconChain.next_summary_date()
 
-    case DateTime.compare(datetime, previous_summary_time) do
-      :gt ->
+    previous_current_date_summary_time =
+      current_datetime
+      |> BeaconChain.next_summary_date()
+
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    cond do
+      DateTime.compare(next_datetime_summary_time, previous_current_date_summary_time) == :gt ->
         {
           :error,
           "No data found at this date"
         }
 
-      :eq ->
-        {:ok,
-         Archethic.BeaconChain.fetch_and_aggregate_summaries(
-           datetime,
-           authorized_nodes
-         )}
+      DateTime.compare(next_datetime_summary_time, previous_current_date_summary_time) == :eq ->
+        {
+          :ok,
+          BeaconChain.fetch_and_aggregate_summaries(datetime, authorized_nodes)
+        }
 
-      :lt ->
-        Archethic.BeaconChain.fetch_summaries_aggregate(
-          datetime,
-          authorized_nodes
-        )
+      DateTime.compare(next_datetime_summary_time, previous_current_date_summary_time) == :lt ->
+        BeaconChain.fetch_summaries_aggregate(datetime, authorized_nodes)
     end
   end
 

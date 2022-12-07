@@ -8,7 +8,7 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
   [Beacon Chain Summary] represents the beacon chain aggregate for a certain date
   """
 
-  @default_limit 10
+  @default_limit 100
 
   object :beacon_chain_summary do
     field(:version, :integer)
@@ -31,8 +31,7 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
 
         result =
           transaction_summaries
-          |> Enum.split(paging_offset)
-          |> then(fn {_, offset_tx_summaries} -> offset_tx_summaries end)
+          |> Enum.drop(paging_offset)
           |> Enum.take(limit)
 
         {:ok, result}

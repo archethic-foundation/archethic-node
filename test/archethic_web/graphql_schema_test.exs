@@ -26,6 +26,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.GetFirstAddress
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
+  alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Node
 
   alias Archethic.PubSub
@@ -565,7 +566,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   end
 
   describe "query: beacon_chain_summary" do
-    test "should return error when date is greater than previous summary time", %{conn: conn} do
+    test "should return error when next summary of timestamp is greater than next current time summary time",
+         %{conn: conn} do
       timestamp =
         DateTime.utc_now()
         |> DateTime.add(1, :day)
@@ -589,7 +591,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert String.contains?(message, "No data found at this date")
     end
 
-    test "should call fetch_summaries_aggregate when date is less than previous summary time",
+    test "should call fetch_summaries_aggregate when next summary of timestamp is less than next current time summary time",
          %{
            conn: conn
          } do
@@ -638,15 +640,15 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
             "query { beaconChainSummary(timestamp: #{timestamp}) {summaryTime, p2pAvailabilities, availabilityAddingTime} }"
         })
 
-      %{
-        "data" => %{
-          "beaconChainSummary" => %{
-            "summaryTime" => ^str_today,
-            "p2pAvailabilities" => ^str_p2p_availabilities,
-            "availabilityAddingTime" => ^availability_adding_time
-          }
-        }
-      } = json_response(conn, 200)
+      assert %{
+               "data" => %{
+                 "beaconChainSummary" => %{
+                   "summaryTime" => ^str_today,
+                   "p2pAvailabilities" => ^str_p2p_availabilities,
+                   "availabilityAddingTime" => ^availability_adding_time
+                 }
+               }
+             } = json_response(conn, 200)
     end
 
     test "should take into account limit and offset when sending transaction_summaries", %{
@@ -728,41 +730,44 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert str_filtered_transaction_summaries == json_response(conn, 200)
     end
 
-    # test "should call fetch_and_aggregate_summaries when date is equal to previous summary time",
-    #      %{
-    #        conn: conn
-    #      } do
-    #   {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+    test "should call fetch_and_aggregate_summaries when next summary of timestamp is equal to next current time summary time",
+         %{
+           conn: conn
+         } do
+      {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
 
-    #   previous_summary_time =
-    #     DateTime.utc_now()
-    #     |> BeaconChain.previous_summary_time()
+      today = DateTime.utc_now()
 
-    #   timestamp =
-    #     previous_summary_time
-    #     |> DateTime.to_unix()
+      timestamp =
+        today
+        |> DateTime.to_unix()
 
-    #   version = 1
+      version = 1
 
-    #   MockClient
-    #   |> expect(:send_message, fn
-    #     _, %GetBeaconSummaries{}, [^timestamp, _] ->
-    #       %SummaryAggregate{version: version}
-    #   end)
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetBeaconSummaries{}, _ ->
+          {:ok,
+           %SummaryAggregate{
+             version: version
+           }}
+      end)
 
-    #   conn =
-    #     post(conn, "/api", %{
-    #       "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {version} }"
-    #     })
+      conn =
+        post(conn, "/api", %{
+          "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {version} }"
+        })
 
-    #   assert %{
-    #            "data" => %{
-    #              "beaconChainSummary" => %{
-    #                "version" => ^version
-    #              }
-    #            }
-    #          } = json_response(conn, 200)
-    # end
+      %{
+        "data" => %{
+          "beaconChainSummary" => %{
+            "version" => ^version
+          }
+        }
+      } = json_response(conn, 200)
+
+      assert zizou == version
+    end
   end
 
   describe "subscription: transaction_confirmed" do
