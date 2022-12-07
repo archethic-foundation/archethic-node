@@ -49,7 +49,7 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :invalid_encoding} ->
         send_resp(conn, 400, "Invalid file encoding")
 
-      {:error, :is_a_directory, txn} ->
+      {:error, {:is_a_directory, txn}} ->
         {:ok, listing_html, encoding, mime_type, cached?, etag} =
           DirectoryListing.list(
             conn.request_path,
@@ -93,6 +93,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           | {:error, :file_not_found}
           | {:error, :is_a_directory}
           | {:error, :invalid_encoding}
+          | {:error, {:is_a_directory, any()}}
           | {:error, any()}
 
   def get_website(params = %{"address" => address}, cache_headers) do

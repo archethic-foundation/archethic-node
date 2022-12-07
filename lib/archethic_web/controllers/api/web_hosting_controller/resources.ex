@@ -44,7 +44,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         {:error, :file_not_found}
 
       {:error, :is_a_directory} ->
-        {:error, :is_a_directory, txn}
+        {:error, {:is_a_directory, txn}}
     end
   end
 
