@@ -6,14 +6,15 @@ defmodule ArchethicWeb.API.WebHostingController do
   alias Archethic
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Crypto
 
   use Pathex
 
   require Logger
+
+  alias ArchethicWeb.API.WebHostingController.Resources
+  alias ArchethicWeb.API.WebHostingController.DirectoryListing
 
   def web_hosting(conn, params = %{"url_path" => []}) do
     # /web_hosting/:addr redirects to /web_hosting/:addr/
@@ -27,9 +28,11 @@ defmodule ArchethicWeb.API.WebHostingController do
   def web_hosting(conn, params), do: do_web_hosting(conn, params)
 
   defp do_web_hosting(conn, params) do
-    case get_website(params, get_cache_headers(conn)) do
-      {:ok, file_content, encodage, mime_type, cached?, etag} ->
-        send_response(conn, file_content, encodage, mime_type, cached?, etag)
+    cache_headers = get_cache_headers(conn)
+
+    case get_website(params, cache_headers) do
+      {:ok, file_content, encoding, mime_type, cached?, etag} ->
+        send_response(conn, file_content, encoding, mime_type, cached?, etag)
 
       {:error, :invalid_address} ->
         send_resp(conn, 400, "Invalid address")
@@ -43,69 +46,29 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :file_not_found} ->
         send_resp(conn, 404, "Cannot find file content")
 
-      {:error, :invalid_encodage} ->
-        send_resp(conn, 400, "Invalid file encodage")
+        send_resp(conn, 400, "Invalid file encoding")
 
-      {:error, {:is_a_directory, transaction}} ->
-        {:ok, listing_html, encodage, mime_type, cached?, etag} =
-          dir_listing(conn.request_path, params, transaction, get_cache_headers(conn))
+      {:error, :is_a_directory, txn} ->
+        {:ok, listing_html, encoding, mime_type, cached?, etag} =
+          DirectoryListing.list(
+            conn.request_path,
+            params,
+            txn,
+            cache_headers
+          )
 
-        send_response(conn, listing_html, encodage, mime_type, cached?, etag)
+        send_response(conn, listing_html, encoding, mime_type, cached?, etag)
 
       {:error, _} ->
         send_resp(conn, 404, "Not Found")
     end
   end
 
-  @doc """
-  Fetch the website file content
-  """
-  @spec get_website(request_params :: map(), cached_headers :: list()) ::
-          {:ok, file_content :: binary() | nil, encodage :: binary() | nil, mime_type :: binary(),
-           cached? :: boolean(), etag :: binary()}
-          | {:error, :invalid_address}
-          | {:error, :invalid_content}
-          | {:error, :file_not_found}
-          | {:error, :is_a_directory}
-          | {:error, :invalid_encodage}
-          | {:error, any()}
-  def get_website(params = %{"address" => address}, cache_headers) do
-    url_path = Map.get(params, "url_path", [])
-
+  def get_txn(address) do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
-         {:ok,
-          transaction = %Transaction{
-            address: last_address,
-            data: %TransactionData{content: content}
-          }} <-
-           Archethic.get_last_transaction(address) do
-      with {:ok, json_content} <- Jason.decode(content),
-           {:ok, file, mime_type} <- get_file(json_content, url_path),
-           {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
-           {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
-        {:ok, file_content, encodage, mime_type, cached?, etag}
-      else
-        :encodage_error ->
-          {:error, :invalid_encodage}
-
-        :file_error ->
-          {:error, :file_not_found}
-
-        {:error, %Jason.DecodeError{}} ->
-          {:error, :invalid_content}
-
-        {:error, :file_not_found} ->
-          {:error, :file_not_found}
-
-        {:error, :malformed} ->
-          # malformed file will return 404 as described in test "should return Cannot find file content"
-          {:error, :file_not_found}
-
-        {:error, :is_a_directory} ->
-          # return the transaction so the dir_listing function do not need to do the I/O
-          {:error, {:is_a_directory, transaction}}
-      end
+         {:ok, txn = %Transaction{}} <- Archethic.get_last_transaction(address) do
+      {:ok, txn}
     else
       er when er in [:error, false] ->
         {:error, :invalid_address}
@@ -118,121 +81,30 @@ defmodule ArchethicWeb.API.WebHostingController do
     end
   end
 
-  @spec dir_listing(
-          request_path :: String.t(),
-          params :: map(),
-          transaction :: Transaction.t(),
-          cached_headers :: list()
-        ) ::
-          {:ok, listing_html :: binary() | nil, encodage :: nil | binary(), mime_type :: binary(),
+  @doc """
+  Fetch the website file content
+  """
+  @spec get_website(request_params :: map(), cached_headers :: list()) ::
+          {:ok, file_content :: binary() | nil, encoding :: binary() | nil, mime_type :: binary(),
            cached? :: boolean(), etag :: binary()}
-  def dir_listing(
-        request_path,
-        params,
-        %Transaction{
-          address: last_address,
-          data: %TransactionData{content: content},
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        },
-        cache_headers
-      ) do
+          | {:error, :invalid_address}
+          | {:error, :invalid_content}
+          | {:error, :file_not_found}
+          | {:error, :is_a_directory}
+          | {:error, :invalid_encoding}
+          | {:error, any()}
+
+  def get_website(params = %{"address" => address}, cache_headers) do
     url_path = Map.get(params, "url_path", [])
-    mime_type = "text/html"
 
-    case get_cache(cache_headers, last_address, url_path) do
-      {cached? = true, etag} ->
-        {:ok, nil, nil, mime_type, cached?, etag}
-
-      {cached? = false, etag} ->
-        case Jason.decode(content) do
-          {:error, err = %Jason.DecodeError{}} ->
-            {:error, err}
-
-          {:ok, json_content} ->
-            assigns =
-              do_dir_listing(request_path, url_path, json_content, timestamp, last_address)
-
-            {:ok,
-             Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
-             nil, mime_type, cached?, etag}
-        end
+    with {:ok, txn} <- get_txn(address),
+         {:ok, file_content, encoding, mime_type, cached?, etag} <-
+           Resources.load(txn, url_path, cache_headers) do
+      {:ok, file_content, encoding, mime_type, cached?, etag}
+    else
+      error ->
+        error
     end
-  end
-
-  defp do_dir_listing(request_path, url_path, json_content, timestamp, last_address) do
-    {json_content_subset, current_working_dir, parent_dir_href} =
-      case url_path do
-        [] ->
-          {json_content, "/", nil}
-
-        _ ->
-          {:ok, subset} = Pathex.view(json_content, get_json_path(url_path))
-
-          {
-            subset,
-            Path.join(["/" | url_path]),
-            %{href: request_path |> Path.join("..") |> Path.expand()}
-          }
-      end
-
-    json_content_subset
-    |> Enum.map(fn
-      {key, %{"address" => address}} ->
-        {:file, key, address}
-
-      {key, _} ->
-        {:dir, key}
-    end)
-    # sort directory last, then DESC order (it will be accumulated in reverse order below)
-    |> Enum.sort(fn
-      {:file, a, _}, {:file, b, _} ->
-        a > b
-
-      {:dir, a}, {:dir, b} ->
-        a > b
-
-      {:file, _, _}, {:dir, _} ->
-        true
-
-      {:dir, _}, {:file, _, _} ->
-        false
-    end)
-    |> Enum.reduce(%{dirs: [], files: []}, fn
-      {:file, name, addresses}, %{dirs: dirs_acc, files: files_acc} ->
-        item = %{
-          href: %{href: Path.join(request_path, name)},
-          last_modified: timestamp,
-          addresses: addresses,
-          name: name
-        }
-
-        %{dirs: dirs_acc, files: [item | files_acc]}
-
-      {:dir, name}, %{dirs: dirs_acc, files: files_acc} ->
-        # directories url end with a slash for relative url in website to work
-        item = %{
-          href: %{href: Path.join([request_path, name]) <> "/"},
-          last_modified: timestamp,
-          name: name
-        }
-
-        %{files: files_acc, dirs: [item | dirs_acc]}
-    end)
-    |> Enum.into(%{
-      cwd: current_working_dir,
-      parent_dir_href: parent_dir_href,
-      reference_transaction_href: %{
-        href:
-          Path.join([
-            Keyword.fetch!(
-              Application.get_env(:archethic, ArchethicWeb.Endpoint),
-              :explorer_url
-            ),
-            "transaction",
-            Base.encode16(last_address)
-          ])
-      }
-    })
   end
 
   @doc """
@@ -247,13 +119,13 @@ defmodule ArchethicWeb.API.WebHostingController do
   @spec send_response(
           Plug.Conn.t(),
           file_content :: binary() | nil,
-          encodage :: binary() | nil,
+          encoding :: binary() | nil,
           mime_type :: binary(),
           cached? :: boolean(),
           etag :: binary()
         ) ::
           Plug.Conn.t()
-  def send_response(conn, file_content, encodage, mime_type, cached?, etag) do
+  def send_response(conn, file_content, encoding, mime_type, cached?, etag) do
     conn =
       conn
       |> put_resp_content_type(mime_type, "utf-8")
@@ -263,125 +135,23 @@ defmodule ArchethicWeb.API.WebHostingController do
     if cached? do
       send_resp(conn, 304, "")
     else
-      {conn, response_content} = encode_res(conn, file_content, encodage)
+      {conn, response_content} = encode_res(conn, file_content, encoding)
 
       send_resp(conn, 200, response_content)
     end
   end
 
-  defp encode_res(conn, file_content, encodage) do
+  defp encode_res(conn, file_content, encoding) do
     if Enum.any?(get_req_header(conn, "accept-encoding"), &String.contains?(&1, "gzip")) do
       res_conn = put_resp_header(conn, "content-encoding", "gzip")
 
-      if encodage == "gzip",
+      if encoding == "gzip",
         do: {res_conn, file_content},
         else: {res_conn, :zlib.gzip(file_content)}
     else
-      if encodage == "gzip",
+      if encoding == "gzip",
         do: {conn, :zlib.gunzip(file_content)},
         else: {conn, file_content}
     end
   end
-
-  defp get_file(json_content, path), do: get_file(json_content, path, nil)
-
-  # case when we're parsing a reference tx
-  defp get_file(file = %{"address" => _}, [], previous_path_item) do
-    {:ok, file, MIME.from_path(previous_path_item)}
-  end
-
-  # case when we're parsing a storage tx
-  defp get_file(file, [], previous_path_item) when is_binary(file) do
-    {:ok, file, MIME.from_path(previous_path_item)}
-  end
-
-  # case when we're on a directory
-  defp get_file(json_content, [], _previous_path_item) when is_map(json_content) do
-    case Map.get(json_content, "index.html") do
-      nil ->
-        # make sure it is a directory instead of a malformed file
-        if Enum.all?(Map.values(json_content), &is_map/1) do
-          {:error, :is_a_directory}
-        else
-          {:error, :malformed}
-        end
-
-      file ->
-        {:ok, file, "text/html"}
-    end
-  end
-
-  # recurse until we are on the end of path
-  defp get_file(json_content, [path_item | rest], _previous_path_item) do
-    case Map.get(json_content, path_item) do
-      nil ->
-        #
-        {:error, :file_not_found}
-
-      json_content_subset ->
-        get_file(json_content_subset, rest, path_item)
-    end
-  end
-
-  defp get_json_path(url_path) do
-    Enum.reduce(url_path, nil, fn value, acc ->
-      if acc == nil do
-        path(value)
-      else
-        acc ~> path(value)
-      end
-    end)
-  end
-
-  defp get_cache(cache_headers, last_address, url_path) do
-    etag =
-      case Enum.empty?(url_path) do
-        true ->
-          Base.encode16(last_address, case: :lower)
-
-        false ->
-          Base.encode16(last_address, case: :lower) <> Path.join(url_path)
-      end
-
-    cached? =
-      case List.first(cache_headers) do
-        got_etag when got_etag == etag ->
-          true
-
-        _ ->
-          false
-      end
-
-    {cached?, etag}
-  end
-
-  # All file are encoded in base64 in JSON content
-  defp get_file_content(_file, _cached? = true, _url_path), do: {:ok, nil, nil}
-
-  defp get_file_content(file = %{"address" => address_list}, _cached? = false, url_path) do
-    try do
-      content =
-        Enum.map_join(address_list, fn tx_address ->
-          {:ok, %Transaction{data: %TransactionData{content: content}}} =
-            Base.decode16!(tx_address, case: :mixed) |> Archethic.search_transaction()
-
-          {:ok, json_content} = Jason.decode(content)
-          {:ok, nested_file_content, _} = get_file(json_content, url_path)
-
-          nested_file_content
-        end)
-
-      file_content = Base.url_decode64!(content, padding: false)
-      encodage = Map.get(file, "encodage")
-      {:ok, file_content, encodage}
-    rescue
-      ArgumentError ->
-        :encodage_error
-
-      error ->
-        error
-    end
-  end
-
-  defp get_file_content(_, _, _), do: :file_error
 end
