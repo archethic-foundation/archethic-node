@@ -12,6 +12,8 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
   require Logger
   @addresses_key "addresses"
+  @metadata_key "metaData"
+  @aewebversion_key "aewebVersion"
   def load(
         txn = %Transaction{
           address: last_address,
@@ -21,10 +23,9 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         cache_headers
       ) do
     with {:ok, json_content} <- Jason.decode(content),
-         {:ok, metadata, _aeweb_version} <- get_metadata(json_content),
-         {:ok, file, mime_type} <- get_file(metadata, url_path),
-         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
-         {:ok, file_content, encoding} <- get_file_content(file, cached?, url_path) do
+         {:ok, metadata, aeweb_version} <- get_metadata(json_content),
+         {:ok, file_content, encoding, mime_type, cached?, etag} <-
+           load_resources(metadata, cache_headers, url_path, last_address, aeweb_version) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
       :encoding_error ->
@@ -48,8 +49,91 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     end
   end
 
-  def get_metadata(%{"metaData" => metadata, "aewebVersion" => aewebversion}) do
+  def get_metadata(%{@metadata_key => metadata, @aewebversion_key => aewebversion}) do
     {:ok, metadata, aewebversion}
+  end
+
+  def load_resources(
+        %{"index.html" => %{@addresses_key => addresses}},
+        cache_headers,
+        [],
+        last_address,
+        _aeweb_version = 1
+      ) do
+    # IO.inspect(aeweb_version, label: "load_resources")
+
+    # IO.inspect(addresses, label: "addresses")
+
+    content =
+      Enum.reduce(addresses, %{}, fn address, _acc_map ->
+        Base.decode16!(address, case: :mixed)
+        |> tap(fn x -> IO.inspect(x) end)
+        |> Archethic.search_transaction()
+        |> elem(1)
+        |> get_in([Access.key(:data), Access.key(:content)])
+        |> Jason.decode()
+        |> elem(1)
+        |> tap(fn x -> IO.inspect(x) end)
+        |> Map.get("index.html")
+        |> Base.url_decode64!(padding: false)
+        |> tap(fn x -> IO.inspect(x) end)
+      end)
+
+    {cached?, etag} = get_cache(cache_headers, last_address, [])
+    {:ok, content, "gzip", MIME.from_path("index.html"), cached?, etag}
+  rescue
+    _e ->
+      {:error, :is_a_directory}
+  end
+
+  def load_resources(
+        metadata,
+        cache_headers,
+        url_path,
+        last_address,
+        _aeweb_version = 1
+      ) do
+    file_path = Enum.join(url_path, "/")
+    # IO.inspect(aeweb_version, label: "load_resources")
+    # IO.inspect(url_path, label: "url_path load resource")
+    # IO.inspect(file_path, label: "file_path load resource")
+
+    content =
+      metadata
+      |> Map.get(file_path)
+      |> Map.get(@addresses_key)
+      |> Enum.reduce("", fn address, acc_map ->
+        content =
+          Base.decode16!(address, case: :mixed)
+          |> Archethic.search_transaction()
+          |> elem(1)
+          |> get_in([Access.key(:data), Access.key(:content)])
+          |> Jason.decode()
+          |> elem(1)
+          |> tap(fn x -> IO.inspect(x, limit: :infinity) end)
+          |> Map.get(file_path)
+          |> tap(fn x -> IO.inspect(x) end)
+          |> Base.url_decode64!(padding: false)
+
+        acc_map <> content
+      end)
+
+    {cached?, etag} = get_cache(cache_headers, last_address, url_path)
+    {:ok, content, "gzip", MIME.from_path(file_path), cached?, etag}
+  rescue
+    _e ->
+      {:error, :is_a_directory}
+  end
+
+  def load_resources(metadata, cache_headers, url_path, last_address, _aeweb_version = 2) do
+    with {:ok, file, mime_type} <- get_file(metadata, url_path),
+         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
+         {:ok, file_content, encoding} <- get_file_content(file, cached?, url_path) do
+      {:ok, file_content, encoding, mime_type, cached?, etag}
+    else
+      e ->
+        e
+    end
   end
 
   defp get_file(json_content, path), do: get_file(json_content, path, nil)
