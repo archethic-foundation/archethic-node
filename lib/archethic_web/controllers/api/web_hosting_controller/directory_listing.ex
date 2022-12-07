@@ -72,7 +72,19 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
           {json_content, "/", nil}
 
         _ ->
-          {:ok, subset} = Pathex.view(json_content, get_json_path(url_path))
+          path = Path.join(url_path)
+
+          subset =
+            json_content
+            |> Enum.reduce(%{}, fn {key, value}, acc ->
+              if String.contains?(key, path) do
+                # dir1/file1.txt => file1.txt
+                key_relative = key |> String.trim(path <> "/")
+                Map.put(acc, key_relative, value)
+              else
+                acc
+              end
+            end)
 
           {
             subset,
@@ -84,11 +96,15 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
     json_content_subset
     |> Enum.map(fn
       {key, %{@addresses_key => address}} ->
-        {:file, key, address}
+        case Path.split(key) do
+          [^key] ->
+            {:file, key, address}
 
-      {key, _} ->
-        {:dir, key}
+          [dir | _] ->
+            {:dir, dir}
+        end
     end)
+    |> Enum.uniq()
     # sort directory last, then DESC order (it will be accumulated in reverse order below)
     |> Enum.sort(fn
       {:file, a, _}, {:file, b, _} ->
@@ -139,16 +155,6 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
           ])
       }
     })
-  end
-
-  defp get_json_path(url_path) do
-    Enum.reduce(url_path, nil, fn value, acc ->
-      if acc == nil do
-        path(value)
-      else
-        acc ~> path(value)
-      end
-    end)
   end
 
   defp get_cache(cache_headers, last_address, url_path) do
