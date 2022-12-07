@@ -83,9 +83,9 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
       end
 
     case file_content do
-      {:ok, content, mime} ->
+      {:ok, content, encoding, mime} ->
         {cached?, etag} = get_cache(cache_headers, last_address, url_path)
-        {:ok, content, "gzip", mime, cached?, etag}
+        {:ok, content, encoding, mime, cached?, etag}
 
       {:error, reason} ->
         {:error, reason}
@@ -93,6 +93,8 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   end
 
   defp get_file_content(file, file_path) do
+    encoding = Map.get(file, :encoding)
+
     content =
       Map.get(file, @addresses_key)
       |> Enum.reduce("", fn address, acc_map ->
@@ -109,7 +111,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         acc_map <> content
       end)
 
-    {:ok, content, MIME.from_path(file_path)}
+    {:ok, content, encoding, MIME.from_path(file_path)}
   rescue
     error ->
       Logger.warn("Impossible to read file's content at #{file_path}",
