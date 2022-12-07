@@ -62,9 +62,6 @@ defmodule ArchethicWeb.API.WebHostingController do
 
       {:error, _e} ->
         send_resp(conn, 404, "Not Found")
-
-      _ ->
-        send_resp(conn, 404, "Not Found")
     end
   end
 

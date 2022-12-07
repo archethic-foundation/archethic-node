@@ -73,18 +73,7 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
 
         _ ->
           path = Path.join(url_path)
-
-          subset =
-            json_content
-            |> Enum.reduce(%{}, fn {key, value}, acc ->
-              if String.contains?(key, path) do
-                # dir1/file1.txt => file1.txt
-                key_relative = key |> String.trim(path <> "/")
-                Map.put(acc, key_relative, value)
-              else
-                acc
-              end
-            end)
+          subset = get_json_subset(json_content, path)
 
           {
             subset,
@@ -177,5 +166,17 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
       end
 
     {cached?, etag}
+  end
+
+  defp get_json_subset(json_content, path) do
+    Enum.reduce(json_content, %{}, fn {key, value}, acc ->
+      if String.contains?(key, path) do
+        # dir1/file1.txt => file1.txt
+        key_relative = key |> String.trim(path <> "/")
+        Map.put(acc, key_relative, value)
+      else
+        acc
+      end
+    end)
   end
 end
