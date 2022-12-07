@@ -18,9 +18,6 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   def web_hosting(conn, params = %{"url_path" => []}) do
     # /web_hosting/:addr redirects to /web_hosting/:addr/
-    IO.inspect(params)
-    IO.inspect("==")
-
     if String.last(conn.request_path) != "/" do
       redirect(conn, to: conn.request_path <> "/")
     else
