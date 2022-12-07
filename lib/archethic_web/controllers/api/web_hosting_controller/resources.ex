@@ -65,16 +65,14 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     file_content =
       case Map.get(metadata, file_path) do
         nil ->
-          if Enum.any?(Map.keys(metadata), &String.starts_with?(&1, file_path)) do
-            # it is a directory
-
+          if is_a_directory(metadata, file_path) do
             # if there is an index.html serve it
             case Map.get(metadata, Path.join(file_path, "index.html")) do
               nil ->
                 {:error, :is_a_directory}
 
               file ->
-                get_file_content(file, file_path)
+                get_file_content(file, Path.join(file_path, "index.html"))
             end
           else
             {:error, :file_not_found}
@@ -85,9 +83,9 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
       end
 
     case file_content do
-      {:ok, content} ->
+      {:ok, content, mime} ->
         {cached?, etag} = get_cache(cache_headers, last_address, url_path)
-        {:ok, content, "gzip", MIME.from_path(file_path), cached?, etag}
+        {:ok, content, "gzip", mime, cached?, etag}
 
       {:error, reason} ->
         {:error, reason}
@@ -111,7 +109,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         acc_map <> content
       end)
 
-    {:ok, content}
+    {:ok, content, MIME.from_path(file_path)}
   rescue
     error ->
       Logger.warn("Impossible to read file's content at #{file_path}",
@@ -142,5 +140,19 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
       end
 
     {cached?, etag}
+  end
+
+  defp is_a_directory(_metadata, ""), do: true
+
+  defp is_a_directory(metadata, file_path) do
+    # dir1/file1.txt
+    # => dir1       should match
+    # => file1.txt  should not match
+    # => di         should not match
+    file_path = file_path <> "/"
+
+    Enum.any?(Map.keys(metadata), fn key ->
+      String.starts_with?(key, file_path)
+    end)
   end
 end
