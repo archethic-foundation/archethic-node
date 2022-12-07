@@ -89,13 +89,11 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
-        "folder":{
-          "hello_world.html":{
-            "encoding":"base64",
-            "addresses":[
-              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
-            ]
-          }
+        "folder/hello_world.html":{
+          "encoding":"base64",
+          "addresses":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         }
       }
       }
@@ -104,9 +102,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       content2 = """
       {
         "index.html":"PGgxPkFyY2hldGhpYzwvaDE-",
-        "folder":{
-          "hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
-        }
+        "folder/hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
       }
       """
 
@@ -376,42 +372,36 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
   end
 
-  describe "should return a directory listing if there is no index.html file and more than 1 file" do
+  describe "should return a directory listing if there is no index.html file" do
     setup do
       content = """
       {
         "aewebVersion": 1,
       "hashFunction": "sha-1",
       "metaData":{
-        "dir1": {
-          "file10.txt":{
-            "encoding":"gzip",
-            "addresses":[
-              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
-            ]
-          },
-          "file11.txt":{
-            "encoding":"gzip",
-            "addresses":[
-              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
-            ]
-          }
+        "dir1/file10.txt":{
+          "encoding":"gzip",
+          "addresses":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
-        "dir2": {
-          "hello.txt":{
-            "encoding":"gzip",
-            "addresses":[
-              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
-            ]
-          }
+        "dir1/file11.txt":{
+          "encoding":"gzip",
+          "addresses":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
-        "dir3": {
-          "index.html":{
-            "encoding":"gzip",
-            "addresses":[
-              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
-            ]
-          }
+        "dir2/hello.txt":{
+          "encoding":"gzip",
+          "addresses":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        },
+        "dir3/index.html":{
+          "encoding":"gzip",
+          "addresses":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "file1.txt":{
           "encoding":"gzip",
@@ -593,23 +583,20 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       {"aewebVersion": 1,
       "hashFunction": "sha-1",
       "metaData":{
-        "folder":{
-          "hello_world.html":{
-            "encoding":"base64",
-            "addresses":[
-              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
-            ]
-          }
+        "folder/hello_world.html":{
+          "encoding":"base64",
+          "addresses":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         }
+
       }
       }
       """
 
       content2 = """
       {
-        "folder":{
-          "hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
-        }
+        "folder/hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
       }
       """
 
