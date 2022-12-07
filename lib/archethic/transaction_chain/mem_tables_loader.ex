@@ -55,7 +55,7 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
     :ok = handle_transaction_recipients(tx)
 
     Logger.info("Loaded into in memory transactionchain tables",
-      transaction_address: Base.encode16(tx_address),
+      transaction_address: tx_address == nil || Base.encode16(tx_address),
       transaction_type: tx_type
     )
   end

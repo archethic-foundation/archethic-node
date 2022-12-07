@@ -14,7 +14,13 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   require Logger
 
+  # json keys in aeweb json struct
+  @addresses_key "addresses"
+
   def web_hosting(conn, params = %{"url_path" => []}) do
+    IO.inspect(params)
+    IO.inspect("==")
+
     if String.last(conn.request_path) != "/" do
       redirect(conn, to: conn.request_path <> "/")
     else
@@ -27,6 +33,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   defp do_web_hosting(conn, params) do
     case get_website(params, get_cache_headers(conn)) do
       {:ok, file_content, encodage, mime_type, cached?, etag} ->
+        # IO.inspect({encodage, mime_type, cached?, etag}, label: "====", limit: :infinity)
         send_response(conn, file_content, encodage, mime_type, cached?, etag)
 
       {:error, :invalid_address} ->
@@ -68,10 +75,9 @@ defmodule ArchethicWeb.API.WebHostingController do
          {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
            Archethic.get_last_transaction(address),
          {:ok, json_content} <- Jason.decode(content),
-         {:ok, file, mime_type} <- get_file(json_content, url_path),
-         {cached?, etag} <-
-           get_cache(cache_headers, last_address, url_path),
-         {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
+         {:ok, metadata, aeweb_version} <- get_metadata(json_content),
+         {:ok, file_content, encodage, mime_type, cached?, etag} <-
+           load_resources(metadata, cache_headers, url_path, last_address, aeweb_version) do
       {:ok, file_content, encodage, mime_type, cached?, etag}
     else
       er when er in [:error, false] ->
@@ -94,6 +100,89 @@ defmodule ArchethicWeb.API.WebHostingController do
 
       error ->
         error
+    end
+  end
+
+  # TO DO : protocol version wise processing
+  def get_metadata(%{"metaData" => metadata, "aewebVersion" => aewebversion}) do
+    IO.inspect(aewebversion, label: "==")
+    {:ok, metadata, aewebversion}
+  end
+
+  def load_resources(
+        %{"index.html" => %{"addresses" => addresses}},
+        cache_headers,
+        [],
+        last_address,
+        aeweb_version = 1
+      ) do
+    IO.inspect(aeweb_version, label: "load_resources")
+
+    IO.inspect(addresses, label: "addresses")
+
+    content =
+      Enum.reduce(addresses, %{}, fn address, _acc_map ->
+        Base.decode16!(address, case: :mixed)
+        |> tap(fn x -> IO.inspect(x) end)
+        |> Archethic.search_transaction()
+        |> elem(1)
+        |> get_in([Access.key(:data), Access.key(:content)])
+        |> Jason.decode()
+        |> elem(1)
+        |> tap(fn x -> IO.inspect(x) end)
+        |> Map.get("index.html")
+        |> Base.url_decode64!(padding: false)
+        |> tap(fn x -> IO.inspect(x) end)
+      end)
+
+    {cached?, etag} = get_cache(cache_headers, last_address, [])
+    {:ok, content, "gzip", MIME.from_path("index.html"), cached?, etag}
+  end
+
+  def load_resources(
+        metadata,
+        cache_headers,
+        url_path,
+        last_address,
+        aeweb_version = 1
+      ) do
+    IO.inspect(aeweb_version, label: "load_resources")
+    IO.inspect(url_path, label: "url_path load resource")
+    file_path = Enum.join(url_path, "/")
+    IO.inspect(file_path, label: "file_path load resource")
+
+    content =
+      metadata
+      |> Map.get(file_path)
+      |> Map.get("addresses")
+      |> Enum.reduce("", fn address, acc_map ->
+        content =
+          Base.decode16!(address, case: :mixed)
+          |> Archethic.search_transaction()
+          |> elem(1)
+          |> get_in([Access.key(:data), Access.key(:content)])
+          |> Jason.decode()
+          |> elem(1)
+          |> tap(fn x -> IO.inspect(x, limit: :infinity) end)
+          |> Map.get(file_path)
+          |> tap(fn x -> IO.inspect(x) end)
+          |> Base.url_decode64!(padding: false)
+
+        acc_map <> content
+      end)
+
+    {cached?, etag} = get_cache(cache_headers, last_address, url_path)
+    {:ok, content, "gzip", MIME.from_path(file_path), cached?, etag}
+  end
+
+  def load_resources(metadata, cache_headers, url_path, last_address, _aeweb_version = 2) do
+    with {:ok, file, mime_type} <- get_file(metadata, url_path),
+         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
+         {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
+      {:ok, file_content, encodage, mime_type, cached?, etag}
+    else
+      e ->
+        e
     end
   end
 
@@ -138,6 +227,8 @@ defmodule ArchethicWeb.API.WebHostingController do
       if encodage == "gzip",
         do: {res_conn, file_content},
         else: {res_conn, :zlib.gzip(file_content)}
+
+      # learn lru
     else
       if encodage == "gzip",
         do: {conn, :zlib.gunzip(file_content)},
@@ -194,7 +285,7 @@ defmodule ArchethicWeb.API.WebHostingController do
         file_name = Enum.at(keys, 0)
         file_content = Map.get(json_content, file_name)
 
-        if !is_map(file_content) or Map.has_key?(file_content, "address") do
+        if !is_map(file_content) or Map.has_key?(file_content, @addresses_key) do
           file_name
         else
           "index.html"
@@ -230,7 +321,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   # All file are encoded in base64 in JSON content
   defp get_file_content(_file, _cached? = true, _url_path), do: {:ok, nil, nil}
 
-  defp get_file_content(file = %{"address" => address_list}, _cached? = false, url_path) do
+  defp get_file_content(file = %{@addresses_key => address_list}, _cached? = false, url_path) do
     try do
       content =
         Enum.map_join(address_list, fn tx_address ->
