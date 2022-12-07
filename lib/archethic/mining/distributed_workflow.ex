@@ -189,7 +189,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
       else
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
-        |> Enum.concat([LedgerOperations.burning_address()])
+        |> maybe_add_burning_address(
+          LedgerOperations.burning_address(),
+          tx.validation_stamp.ledger_operations.transaction_movements
+        )
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
@@ -1006,5 +1009,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
       :ok
     end)
+  end
+
+  defp maybe_add_burning_address(resolved_addresses, burning_node, tx_mvts) do
+    case Enum.any?(tx_mvts, fn tx_mvt -> tx_mvt.to == burning_node end) do
+      true ->
+        Enum.concat(resolved_addresses, [LedgerOperations.burning_address()])
+      _ ->
+        resolved_addresses
+    end
   end
 end
