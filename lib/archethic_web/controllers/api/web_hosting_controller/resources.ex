@@ -26,9 +26,9 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
       ) do
     with {:ok, json_content} <- Jason.decode(content),
          {:ok, metadata, _aeweb_version} <- get_metadata(json_content),
-         {:ok, file, mime_type} <- get_file(metadata, url_path),
+         {:ok, file, mime_type, resource_path} <- get_file(metadata, url_path),
          {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
-         {:ok, file_content, encoding} <- get_file_content(file, cached?, url_path) do
+         {:ok, file_content, encoding} <- get_file_content(file, cached?, resource_path) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
       {:error, %Jason.DecodeError{}} ->
@@ -65,23 +65,27 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         {:error, :is_a_directory}
 
       value ->
-        {:ok, value, MIME.from_path("index.html")}
+        {:ok, value, MIME.from_path("index.html"), "index.html"}
     end
   end
 
   def get_file(metadata, url_path) do
     resource_path = Enum.join(url_path, @path_seperator)
 
-    case Map.get(metadata, resource_path) do
-      nil ->
-        if is_a_directory(metadata, resource_path) do
-          {:error, :is_a_directory}
-        else
-          {:error, :file_not_found}
-        end
+    with nil <- Map.get(metadata, resource_path),
+         false <- is_a_directory(metadata, resource_path),
+         list when list != [] <- url_path,
+         [_first | rest] <- url_path do
+      get_file(metadata, rest)
+    else
+      [] ->
+        {:error, :file_not_found}
+
+      true ->
+        {:error, :is_a_directory}
 
       value ->
-        {:ok, value, MIME.from_path(resource_path)}
+        {:ok, value, MIME.from_path(resource_path), resource_path}
     end
   end
 
@@ -91,9 +95,8 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   def get_file_content(
         file_metadata = %{@addresses_key => address_list},
         _cached? = false,
-        url_path
+        resource_path
       ) do
-    resource_path = Enum.join(url_path, @path_seperator)
     resource_path = if resource_path == "", do: "index.html", else: resource_path
 
     try do
