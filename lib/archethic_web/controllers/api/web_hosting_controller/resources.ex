@@ -72,20 +72,16 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   def get_file(metadata, url_path) do
     resource_path = Enum.join(url_path, @path_seperator)
 
-    with nil <- Map.get(metadata, resource_path),
-         false <- is_a_directory(metadata, resource_path),
-         list when list != [] <- url_path,
-         [_first | rest] <- url_path do
-      get_file(metadata, rest)
-    else
-      [] ->
-        {:error, :file_not_found}
+    case Map.get(metadata, resource_path) do
+      nil ->
+        if is_a_directory(metadata, resource_path) do
+          {:error, :is_a_directory}
+        else
+          {:error, :file_not_found}
+        end
 
-      true ->
-        {:error, :is_a_directory}
-
-      value ->
-        {:ok, value, MIME.from_path(resource_path), resource_path}
+      file ->
+        {:ok, file, MIME.from_path(resource_path), resource_path}
     end
   end
 
