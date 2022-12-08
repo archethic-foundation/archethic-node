@@ -25,7 +25,10 @@ sudo apt-get install -y \
   net-tools \
   libncurses5-dev \
   openssl \
-  unzip
+  unzip \
+  automake \
+  libssl-dev \
+  autoconf \
 
 sudo locale-gen en_US.UTF-8
 
@@ -103,10 +106,7 @@ sudo apt -y install \
   pkg-config \
   gcc \
   libtool \
-  automake \
-  libssl-dev \
   uthash-dev \
-  autoconf \
   doxygen \
   libjson-c-dev \
   libini-config-dev \
