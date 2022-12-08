@@ -89,18 +89,22 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
 
 config :archethic, Archethic.Crypto,
   root_ca_public_keys: [
-    software:
-      System.get_env(
-        "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY",
-        "3059301306072a8648ce3d020106082a8648ce3d03010703420004f0fe701a03ce375a6e57adbe0255808812036571c1424db2779c77e8b4a9ba80a15b118e8e7465ee2e94094e59c4b3f7177e99063af1b19bfcc4d7e1ac3f89dd"
-      )
-      |> Base.decode16!(case: :mixed),
-    tpm:
-      System.get_env(
-        "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY",
-        "3059301306072a8648ce3d020106082a8648ce3d03010703420004f0fe701a03ce375a6e57adbe0255808812036571c1424db2779c77e8b4a9ba80a15b118e8e7465ee2e94094e59c4b3f7177e99063af1b19bfcc4d7e1ac3f89dd"
-      )
-      |> Base.decode16!(case: :mixed)
+    software: [
+      secp256r1:
+        System.get_env(
+          "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY",
+          "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
+        )
+        |> Base.decode16!(case: :mixed)
+    ],
+    tpm: [
+      secp256r1:
+        System.get_env(
+          "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY",
+          "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
+        )
+        |> Base.decode16!(case: :mixed)
+    ]
   ],
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 

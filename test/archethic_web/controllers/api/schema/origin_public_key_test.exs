@@ -5,13 +5,7 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
   use Ecto.Schema
 
   alias ArchethicWeb.API.Schema.OriginPublicKey
-  alias Archethic.{Crypto, P2P, P2P.Node, SharedSecrets, SharedSecrets.MemTables.OriginKeyLookup}
-
-  @ecdsa_certification_public_keys Application.compile_env(
-                                     :archethic,
-                                     [Archethic.Crypto],
-                                     []
-                                   )
+  alias Archethic.{P2P, P2P.Node, SharedSecrets, SharedSecrets.MemTables.OriginKeyLookup}
 
   describe "OriginPublicKey Schema Test" do
     setup do
@@ -115,34 +109,6 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
       params = parameters(_origin_public_key = public_key, _certificate = "")
 
       assert [] = OriginPublicKey.changeset(params).errors
-    end
-
-    test "should Accept Certificate,(ECDSA,TPM)" do
-      <<_::208, ca_public_key::binary>> =
-        @ecdsa_certification_public_keys
-        |> Keyword.get(:root_ca_public_keys)
-        |> Keyword.get(:software)
-
-      <<_::208, ca_private_key::binary>> =
-        @ecdsa_certification_public_keys
-        |> Keyword.get(:software_root_ca_key)
-
-      {pbk = <<_curve_id::8, _origin_id::8, public_key_bin::binary>>, _} =
-        Crypto.derive_keypair("random-test-key", 0, :secp256r1)
-
-      refute SharedSecrets.has_origin_public_key?(public_key_bin)
-
-      signature = Crypto.ECDSA.sign(:secp256r1, ca_private_key, public_key_bin)
-      # :secp256r1, root_ca_key, key, certificate)
-      assert Crypto.ECDSA.verify?(:secp256r1, ca_public_key, public_key_bin, signature)
-
-      params =
-        parameters(
-          _origin_public_key = Base.encode16(pbk),
-          _certificate = Base.encode16(signature)
-        )
-
-      assert OriginPublicKey.changeset(params).valid?
     end
   end
 
