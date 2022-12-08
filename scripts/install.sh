@@ -11,6 +11,9 @@ echo "Install required system dependencies"
 # Prevent the node to sleep
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
+# Prevent upgrade to prompt service restart
+sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+
 sudo apt-get update
 
 sudo apt-get install -y \
@@ -87,7 +90,7 @@ echo "Install docker"
 
 curl -fsSL  https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
-sudo add-apt-repository \
+sudo add-apt-repository -y \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
    $(lsb_release -cs) \
    stable"
@@ -127,7 +130,7 @@ sudo make install
 sudo sed -i "s/tss/$(whoami)/gi" /etc/udev/rules.d/tpm-udev.rules
 sudo udevadm control --reload-rules && sudo udevadm trigger
 sudo ldconfig
-sudo apt install tpm2-tools
+sudo apt install tpm2-tools -y
 
 cd $SCRIPT_DIR/..
 make
