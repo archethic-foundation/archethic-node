@@ -32,7 +32,11 @@ defmodule Archethic.P2P.GeoPatch do
     |> List.to_string()
   end
 
-  defp compute_patch(lat, lon) do
+  @doc """
+  Compute a geo patch by the coordinates
+  """
+  @spec compute_patch(integer(), integer()) :: binary()
+  def compute_patch(lat, lon) do
     # convert 90 and 180 to -90 and -180 to not get an out of bound index
     lat = if(lat == 90, do: -90) || lat
     lon = if(lon == 180, do: -180) || lon
