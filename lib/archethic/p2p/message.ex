@@ -1715,14 +1715,10 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(
-        %NotifyLastTransactionAddress{
-          last_address: _last_address,
-          genesis_address: _genesis_address,
-          timestamp: _timestamp
-        } = notify_last_transaction_address_msg,
+        notify_last_tx_address_msg = %NotifyLastTransactionAddress{},
         _
       ) do
-    process_notify_last_transaction_address(notify_last_transaction_address_msg)
+    process_notify_last_transaction_address(notify_last_tx_address_msg)
     %Ok{}
   end
 
