@@ -322,7 +322,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
             Crypto.verify_key_certificate?(
               origin_public_key,
               key_certificate,
-              root_ca_public_key
+              root_ca_public_key,
+              true
             )},
          {:conn, :ok} <-
            {:conn, valid_connection(ip, port, previous_public_key)},
@@ -369,7 +370,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          root_ca_public_key <-
            Crypto.get_root_ca_public_key(origin_public_key),
          true <-
-           Crypto.verify_key_certificate?(origin_public_key, key_certificate, root_ca_public_key) do
+           Crypto.verify_key_certificate?(
+             origin_public_key,
+             key_certificate,
+             root_ca_public_key,
+             false
+           ) do
       :ok
     else
       false ->
