@@ -19,49 +19,49 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
           Base.decode16!("0000e0ef0c5a8242d7f743e452e3089b7acac43763a3f18c8f5dd38d22299b61ce0e",
             case: :mixed
           ),
-        amount: 382_000_000 * 100_000_000
+        amount: 381_966_011 * 100_000_000
       },
       %{
         address:
           Base.decode16!("000047c827e93c4f1106906d3f43546eb09176f03dff15275759d47bf33d9b0d168a",
             case: :mixed
           ),
-        amount: 236_000_000 * 100_000_000
+        amount: 236_067_977 * 100_000_000
       },
       %{
         address:
           Base.decode16!("000012023d76d65f4a20e563682522576963e36789897312cb6623fdf7914b60ecef",
             case: :mixed
           ),
-        amount: 145_000_000 * 100_000_000
+        amount: 145_898_033 * 100_000_000
       },
       %{
         address:
           Base.decode16!("00004769c94199bca872ffafa7ce912f6de4dd8b2b1f4a41985cd25f3c4a190c72bb",
             case: :mixed
           ),
-        amount: 90_000_000 * 100_000_000
+        amount: 90_169_943 * 100_000_000
       },
       %{
         address:
           Base.decode16!("0000dbe5d04070411325ba8254bc0ce005df30ebfdfeefadbc6659fa3d5fa3263dfd",
             case: :mixed
           ),
-        amount: 55_700_000 * 100_000_000
+        amount: 55_728_090 * 100_000_000
       },
       %{
         address:
           Base.decode16!("0000bb90e7ec3051bf7be8d2bf766da8bed88afa696d282acf5ff8479ce787397e16",
             case: :mixed
           ),
-        amount: 34_400_000 * 100_000_000
+        amount: 34_441_857 * 100_000_000
       },
       %{
         address:
           Base.decode16!("000050ceee9ceeb411fa027f1fb9247fe04297ff00358d87de4b7b8f2a7051df47f7",
             case: :mixed
           ),
-        amount: 21_300_000 * 100_000_000
+        amount: 21_286_236 * 100_000_000
       },
       if(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet",
         do: %{
