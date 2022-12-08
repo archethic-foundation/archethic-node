@@ -36,7 +36,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
       File.mkdir_p!(Utils.mut_dir("crypto"))
     end
 
-    origin_keypair = Crypto.generate_deterministic_keypair(read_origin_seed())
+    origin_keypair = Crypto.generate_deterministic_keypair(read_origin_seed(), :secp256r1)
     node_seed = provision_node_seed()
 
     {:ok,

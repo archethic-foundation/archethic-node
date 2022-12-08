@@ -53,8 +53,12 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   describe "validate_pending_transaction/1" do
     test "should return :ok when a node transaction data content contains node endpoint information" do
-      {public_key, _} = Crypto.derive_keypair("seed", 0)
-      certificate = Crypto.get_key_certificate(public_key)
+      {origin_public_key, _} =
+        Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
+
+      {_, ca_pv} = :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")
+      <<_::8, _::8, origin_key::binary>> = origin_public_key
+      certificate = Crypto.ECDSA.sign(:secp256r1, ca_pv, origin_key)
 
       tx =
         Transaction.new(
@@ -68,7 +72,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 :tcp,
                 <<0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128, 241, 110, 118,
                   139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>,
-                <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                origin_public_key,
                 certificate
               )
           },

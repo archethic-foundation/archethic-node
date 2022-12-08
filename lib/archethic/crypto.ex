@@ -96,11 +96,11 @@ defmodule Archethic.Crypto do
   """
   @type aes_cipher :: <<_::384, _::_*8>>
 
-  @ecdsa_certification_public_keys Application.compile_env(
-                                     :archethic,
-                                     [__MODULE__, :root_ca_public_keys],
-                                     []
-                                   )
+  @certification_public_keys Application.compile_env(
+                               :archethic,
+                               [__MODULE__, :root_ca_public_keys],
+                               []
+                             )
 
   @doc """
   Derive a new keypair from a seed (retrieved from the local keystore
@@ -1126,17 +1126,7 @@ defmodule Archethic.Crypto do
   defdelegate origin_node_public_key, to: NodeKeystore, as: :origin_public_key
 
   @spec get_key_certificate(key()) :: binary()
-  def get_key_certificate(<<_::8, origin_id::8, key::binary>>) do
-    origin_id
-    |> ID.to_origin()
-    |> do_get_key_certificate(key)
-  end
-
-  defp do_get_key_certificate(:software, _) do
-    ""
-  end
-
-  defp do_get_key_certificate(:tpm, key) do
+  def get_key_certificate(<<_::8, _::8, key::binary>>) do
     key_digest = :crypto.hash(:sha256, key) |> Base.encode16(case: :lower)
 
     cert_path =
@@ -1160,23 +1150,25 @@ defmodule Archethic.Crypto do
   Return the Root CA public key for the given versioned public key
   """
   @spec get_root_ca_public_key(key()) :: binary()
-
-  def get_root_ca_public_key(<<curve::8, origin_id::8, _::binary>>) when curve in [1, 2] do
-    # :secp256 r1 & k1
-    case Keyword.get(@ecdsa_certification_public_keys, ID.to_origin(origin_id)) do
+  def get_root_ca_public_key(<<curve::8, origin_id::8, _::binary>>) do
+    case Keyword.get(@certification_public_keys, ID.to_origin(origin_id)) do
       nil ->
+        "no_key"
+
+      # Only for dev
+      [] ->
         ""
 
-      "" ->
-        ""
+      curves when is_list(curves) ->
+        case Keyword.get(curves, ID.to_curve(curve)) do
+          nil ->
+            "no_key"
 
-      <<_::binary-size(26), public_key::binary>> ->
-        public_key
+          public_key ->
+            public_key
+        end
     end
   end
-
-  def get_root_ca_public_key(_), do: ""
-  # :ed25519
 
   @doc """
   Determine if the public key if authorized from the given certificate
