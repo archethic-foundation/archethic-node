@@ -1719,7 +1719,8 @@ defmodule Archethic.P2P.Message do
           last_address: _last_address,
           genesis_address: _genesis_address,
           timestamp: _timestamp
-        } = notify_last_transaction_address_msg
+        } = notify_last_transaction_address_msg,
+        _
       ) do
     process_notify_last_transaction_address(notify_last_transaction_address_msg)
     %Ok{}
@@ -1941,21 +1942,20 @@ defmodule Archethic.P2P.Message do
          genesis_address: genesis_address,
          timestamp: timestamp
        }) do
-    {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
+    with {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
+         true <- local_last_address != last_address do
+      {:ok, tx} = TransactionChain.get_transaction(last_address)
+      previous_address = Transaction.previous_address(tx)
 
-    {:ok, tx} = TransactionChain.get_transaction(last_address)
-    previous_address = Transaction.previous_address(tx)
-
-    if local_last_address != last_address do
       if local_last_address == previous_address do
         TransactionChain.register_last_address(genesis_address, last_address, timestamp)
       else
         authorized_nodes = P2P.authorized_and_available_nodes()
         SelfRepair.update_last_address(local_last_address, authorized_nodes)
       end
-    end
 
-    # Stop potential previous smart contract
-    Contracts.stop_contract(local_last_address)
+      # Stop potential previous smart contract
+      Contracts.stop_contract(local_last_address)
+    end
   end
 end
