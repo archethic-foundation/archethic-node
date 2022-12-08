@@ -66,7 +66,7 @@ NODEJS_VERSION=$(asdf current nodejs 2>&1 | grep -oP '\d\S+')
 
 asdf global elixir $ELIXIR_VERSION
 asdf global erlang $ERLANG_VERSION
-asdf global erlang $NODEJS_VERSION
+asdf global nodejs $NODEJS_VERSION
 
 echo "Install Libsodium"
 

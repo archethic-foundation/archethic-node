@@ -56,7 +56,7 @@ then
 
   asdf global elixir $ELIXIR_VERSION
   asdf global erlang $ERLANG_VERSION
-  asdf global erlang $NODEJS_VERSION
+  asdf global nodejs $NODEJS_VERSION
 fi
 
 # Install updated versions of hex/rebar
