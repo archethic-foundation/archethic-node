@@ -99,7 +99,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
     [genesis_origin_public_key | _rest] = @genesis_origin_public_keys
 
     origin_cert =
-      "3044022063c64fbf5df43655246aa1ada1ebdde9433b8134e4a2149a9166062a032a4a2402207beb350265a3d2af0eb25c5b0ab3488abce55eb307566fa706ac6c87a56e2ffd"
+      "3044022002596a4b72bc8204e331d37c98a2a6765d5ca886585d70ff0c2b60774d0489e2022028c556e3520b4ea814faa4fbf80760fd7fa56f68f531aa91561280805cd5764a"
       |> Base.decode16!(case: :mixed)
 
     Transaction.new(
