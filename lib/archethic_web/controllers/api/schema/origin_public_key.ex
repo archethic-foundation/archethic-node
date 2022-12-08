@@ -86,7 +86,12 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKey do
     with root_ca_public_key <-
            Crypto.get_root_ca_public_key(origin_public_key),
          true <-
-           Crypto.verify_key_certificate?(origin_public_key, certificate, root_ca_public_key) do
+           Crypto.verify_key_certificate?(
+             origin_public_key,
+             certificate,
+             root_ca_public_key,
+             false
+           ) do
       {:ok, :valid}
     else
       _ -> :error
