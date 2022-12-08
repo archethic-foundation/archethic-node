@@ -1716,28 +1716,12 @@ defmodule Archethic.P2P.Message do
 
   def process(
         %NotifyLastTransactionAddress{
-          last_address: last_address,
-          genesis_address: genesis_address,
-          timestamp: timestamp
-        },
-        _
+          last_address: _last_address,
+          genesis_address: _genesis_address,
+          timestamp: _timestamp
+        } = notify_last_transaction_address_msg
       ) do
-    with {local_last_address, _} <-
-           TransactionChain.get_last_address(genesis_address),
-         {:ok, tx} <- TransactionChain.get_transaction(last_address),
-         previous_address <- Transaction.previous_address(tx),
-         true <- local_last_address != last_address do
-      if local_last_address == previous_address do
-        TransactionChain.register_last_address(genesis_address, last_address, timestamp)
-      else
-        authorized_nodes = P2P.authorized_and_available_nodes()
-        SelfRepair.update_last_address(local_last_address, authorized_nodes)
-      end
-
-      # Stop potential previous smart contract
-      Contracts.stop_contract(local_last_address)
-    end
-
+    process_notify_last_transaction_address(notify_last_transaction_address_msg)
     %Ok{}
   end
 
@@ -1950,5 +1934,28 @@ defmodule Archethic.P2P.Message do
         P2P.send_message(replying_node_public_key, response)
       end
     end)
+  end
+
+  defp process_notify_last_transaction_address(%NotifyLastTransactionAddress{
+         last_address: last_address,
+         genesis_address: genesis_address,
+         timestamp: timestamp
+       }) do
+    {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
+
+    {:ok, tx} = TransactionChain.get_transaction(last_address)
+    previous_address = Transaction.previous_address(tx)
+
+    if local_last_address != last_address do
+      if local_last_address == previous_address do
+        TransactionChain.register_last_address(genesis_address, last_address, timestamp)
+      else
+        authorized_nodes = P2P.authorized_and_available_nodes()
+        SelfRepair.update_last_address(local_last_address, authorized_nodes)
+      end
+    end
+
+    # Stop potential previous smart contract
+    Contracts.stop_contract(local_last_address)
   end
 end
