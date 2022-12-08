@@ -54,6 +54,7 @@ asdf update
 
 asdf plugin add erlang || :
 asdf plugin add elixir || :
+asdf plugin add nodejs || :
 
 cd $SCRIPT_DIR/..
 
@@ -61,9 +62,11 @@ asdf install
 
 ELIXIR_VERSION=$(asdf current elixir 2>&1 | grep -oP '\d\S+')
 ERLANG_VERSION=$(asdf current erlang 2>&1 | grep -oP '\d\S+')
+NODEJS_VERSION=$(asdf current nodejs 2>&1 | grep -oP '\d\S+')
 
 asdf global elixir $ELIXIR_VERSION
 asdf global erlang $ERLANG_VERSION
+asdf global erlang $NODEJS_VERSION
 
 echo "Install Libsodium"
 
