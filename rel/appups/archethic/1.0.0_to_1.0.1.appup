@@ -1,0 +1,6 @@
+{"1.0.1",
+ [{"1.0.0",
+   [{load_module,'Elixir.Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY', []}]}],
+ [{"1.0.0",
+   [{load_module,'Elixir.Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY', []}]}]
+}
