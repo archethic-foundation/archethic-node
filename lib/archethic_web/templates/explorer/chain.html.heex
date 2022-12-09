@@ -6,7 +6,7 @@
     </div>
     <div class="columns">
         <div class="column">
-            <form action={Routes.explorer_path(@conn, :chain)}>
+            <form action={Routes.live_path(@socket, ArchethicWeb.TransactionChainLive)}>
                 <div class="field is-horizontal">
                     <div class="field-label">
                         <label class="label" for="address">Transaction address</label>
@@ -16,23 +16,9 @@
                             <div class="control">
                                 <input id="address" name="address" class="input" type="text" placeholder="Enter transaction address" required value={Base.encode16(@address)} />
                             </div>
-                            <%= if assigns[:error] != nil and @error == :invalid_address do %>
-                                <p class="help is-danger">Invalid address</p>
+                            <%= if assigns[:error] != nil do %>
+                                <p class="help is-danger"><%= @error %></p>
                             <% end %>
-                        </div>
-                    </div>
-                </div>
-                <div class="field is-horizontal">
-                    <div class="field-label">
-                        <label class="label" for="last">Find the last ?</label>
-                    </div>
-                    <div class="field-body">
-                        <div class="field is-narrow">
-                            <div class="control">
-                                <label class="checkbox" for="last">
-                                    <input id="last" type="checkbox" name="last" checked={@last_checked?} />
-                                </label>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -97,7 +83,7 @@
       <%= for tx <- Enum.reverse(@transaction_chain) do %>
           <div class="columns">
               <div class="column is-half-desktop">
-                  <%= link to: Routes.live_path(@conn, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+                  <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
                       <span class="is-hidden-mobile"><%= Base.encode16(tx.address) %></span>
                       <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(tx.address, 0, 13)) %>...</span>
                   <% end %>
