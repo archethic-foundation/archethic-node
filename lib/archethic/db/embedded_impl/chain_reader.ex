@@ -13,6 +13,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
   @page_size 10
 
+  # sobelow_skip ["Traversal.FileModule"]
   @spec get_transaction(address :: binary(), fields :: list(), db_path :: String.t()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields, db_path) do
@@ -63,6 +64,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Get a beacon summary from a given summary address
   """
@@ -86,6 +88,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Get a beacon summaries aggregate from a given date
   """
@@ -109,6 +112,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @spec get_transaction_chain(
           address :: binary(),
           fields :: list(),
@@ -160,6 +164,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     )
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp read_io_transaction(filepath, fields) do
     # Open the file as the position from the transaction in the chain file
     fd = File.open!(filepath, [:binary, :read])
@@ -271,6 +276,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Read chain from the beginning until a given limit address
   """

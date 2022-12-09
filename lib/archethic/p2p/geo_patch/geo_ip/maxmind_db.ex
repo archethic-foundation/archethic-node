@@ -16,6 +16,7 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
   end
 
   @impl GenServer
+  # sobelow_skip ["Traversal.FileModule"]
   def init(_) do
     Logger.info("Initialize InMemory MaxMindDB metadata...")
 

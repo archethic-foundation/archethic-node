@@ -12,13 +12,15 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
 
   use GenServer
   @vsn Mix.Project.config()[:version]
-
   @table_name :archethic_summary_cache
+  @slot_backup "slot_backup"
 
-  def start_link(arg \\ []) do
+  @spec start_link(arg :: list()) :: GenServer.on_start()
+  def(start_link(arg \\ [])) do
     GenServer.start_link(__MODULE__, arg)
   end
 
+  @spec init(any()) :: {:ok, map()}
   def init(_) do
     :ets.new(@table_name, [
       :bag,
@@ -56,6 +58,9 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {slot, :ets.select(continuation)}
   end
 
+  def recover_path, do: Utils.mut_dir(@slot_backup)
+
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Extract all the entries in the cache
   """
@@ -78,8 +83,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     backup_slot(slot)
   end
 
-  defp recover_path(), do: Utils.mut_dir("slot_backup")
-
+  # sobelow_skip ["Traversal.FileModule"]
   defp backup_slot(slot) do
     content = serialize(slot)
 
@@ -87,7 +91,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     |> File.write!(content, [:append, :binary])
   end
 
-  defp recover_slots() do
+  # sobelow_skip ["Traversal.FileModule"]
+  defp recover_slots do
     if File.exists?(recover_path()) do
       next_summary_time = DateTime.utc_now() |> SummaryTimer.next_summary() |> DateTime.to_unix()
 

@@ -149,7 +149,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     %{
       address: address,
       timestamp: timestamp,
-      type: Atom.to_string(type),
+      type: type,
       movements_addresses: movements_addresses,
       fee: fee
     }
@@ -166,7 +166,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     %__MODULE__{
       address: address,
       timestamp: timestamp,
-      type: String.to_atom(type),
+      type: type,
       movements_addresses: movements_addresses,
       fee: fee
     }

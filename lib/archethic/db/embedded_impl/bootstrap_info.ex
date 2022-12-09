@@ -23,6 +23,7 @@ defmodule Archethic.DB.EmbeddedImpl.BootstrapInfo do
     {:ok, %{data: %{}, filepath: filepath}, {:continue, :load_data}}
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   def handle_continue(:load_data, state = %{filepath: filepath}) do
     if File.exists?(filepath) do
       {:noreply, %{state | data: load_data(filepath)}}
@@ -41,10 +42,12 @@ defmodule Archethic.DB.EmbeddedImpl.BootstrapInfo do
     {:noreply, %{state | data: new_data}}
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp store_on_disk(filepath, data) do
     File.write!(filepath, :erlang.term_to_binary(data))
   end
 
+  # sobelow_skip ["Traversal.FileModule","Misc.BinToTerm"]
   defp load_data(filepath) do
     data = File.read!(filepath)
     :erlang.binary_to_term(data, [:safe])

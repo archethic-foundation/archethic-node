@@ -40,6 +40,7 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
     {:ok, %{filepath: filepath, views: []}, {:continue, :load_from_file}}
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   def handle_continue(:load_from_file, state = %{filepath: filepath}) do
     if File.exists?(filepath) do
       data = File.read!(filepath)
@@ -55,6 +56,7 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
     {:reply, views, state}
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   def handle_cast(
         {:set_node_view, nodes_view},
         state = %{filepath: filepath}

@@ -45,6 +45,7 @@ defmodule ArchethicWeb.Domain do
 
   This make possible to load dynamically the SSL certificates and delivery multiple secure websites over HTTPS
   """
+  # sobelow_skip ["Traversal.FileModule"]
   def sni(domain) do
     domain = to_string(domain)
 

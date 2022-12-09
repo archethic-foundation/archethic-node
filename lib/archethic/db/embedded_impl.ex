@@ -44,6 +44,7 @@ defmodule Archethic.DB.EmbeddedImpl do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Write the transaction chain through the a chain writer which will
   append the transactions to the chain's file
@@ -119,6 +120,7 @@ defmodule Archethic.DB.EmbeddedImpl do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp delete_io_transaction(address) do
     ChainWriter.io_path(db_path(), address) |> File.rm()
     :ok
@@ -132,6 +134,7 @@ defmodule Archethic.DB.EmbeddedImpl do
     ChainWriter.write_beacon_summary(summary, db_path())
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Remove the beacon summaries files
   """

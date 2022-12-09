@@ -1,4 +1,5 @@
 defmodule Archethic.MixProject do
+  @moduledoc false
   use Mix.Project
 
   def project do
@@ -49,6 +50,7 @@ defmodule Archethic.MixProject do
       {:phoenix_live_view, "~> 0.18"},
       {:phoenix_pubsub, "~> 2.1"},
       {:jason, "~> 1.0"},
+      {:plug, "~> 1.13"},
       {:plug_cowboy, "~> 2.3"},
       {:absinthe, "~> 1.7"},
       {:absinthe_plug, "~> 1.5"},
@@ -114,13 +116,12 @@ defmodule Archethic.MixProject do
 
   defp aliases do
     [
-      # Intial developer Setup
-      "dev.setup": ["deps.get", "cmd npm install --prefix assets"],
-      # When Changes are not registered by compiler | any()
+      "dev.setup": ["deps.get", "cmd npm install --prefix assets", "git_hooks.install"],
+      "dev.sobelow": [
+        " sobelow --exit Medium --ignore-files lib/archethic_web/controllers/api/web_hosting_controller.ex,lib/archethic_web/aeweb_router.ex  --skip -i Config.HSTS "
+      ],
       "dev.clean": ["cmd make clean", "clean", "format", "compile"],
-      # run single node
       "dev.run": ["deps.get", "cmd mix dev.clean", "cmd iex -S mix"],
-      # Must be run before git push --no-verify | any(dialyzer issue)
       "dev.checks": [
         "clean",
         "format",

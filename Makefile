@@ -25,6 +25,7 @@ clean:
 	rm -f priv/c_dist/*
 	mix archethic.clean_db
 	mix clean
+	mix git_hooks.install
 
 docker-clean: clean
 	docker container stop $$(docker ps -a --filter=name=utn* -q)

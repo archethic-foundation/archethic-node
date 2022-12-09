@@ -139,6 +139,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   @impl GenServer
+  # sobelow_skip ["Traversal.FileModule"]
   def init(_arg \\ []) do
     :ets.new(@keystore_table, [:set, :named_table, :protected, read_concurrency: true])
     node_seed = Origin.retrieve_node_seed()
@@ -196,6 +197,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     :ets.insert(@keystore_table, {:next_index, index + 1})
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp read_index do
     case File.read(index_filepath()) do
       {:ok, ""} ->
@@ -210,6 +212,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_index(index) when is_integer(index) and index >= 0 do
     File.write!(index_filepath(), to_string(index))
   end
@@ -237,6 +240,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   @impl GenServer
+  # sobelow_skip ["Traversal.FileModule"]
   def handle_call({:set_index, index}, _from, state) do
     store_node_key_indexes(index)
     {:reply, :ok, state}

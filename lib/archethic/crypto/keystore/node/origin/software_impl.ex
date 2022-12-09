@@ -31,6 +31,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
   end
 
   @impl GenServer
+  # sobelow_skip ["Traversal.FileModule"]
   def init(_arg \\ []) do
     unless File.exists?(Utils.mut_dir("crypto")) do
       File.mkdir_p!(Utils.mut_dir("crypto"))
@@ -80,6 +81,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp read_origin_seed do
     case File.read(origin_seed_filename()) do
       {:ok, seed} ->
@@ -94,6 +96,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
 
   defp origin_seed_filename, do: Utils.mut_dir("crypto/origin_seed")
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp read_node_seed do
     case File.read(node_seed_filepath()) do
       {:ok, seed} ->
@@ -109,6 +112,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_node_seed(seed) when is_binary(seed) do
     File.write!(node_seed_filepath(), seed)
   end

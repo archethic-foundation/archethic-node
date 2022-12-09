@@ -381,6 +381,7 @@ defmodule Archethic.Utils.Testnet do
   Creates files and folder required to run testnet.
   """
   @spec create!(testnet(), Path.t()) :: :ok
+  # sobelow_skip ["Traversal.FileModule"]
   def create!(testnet, path) do
     File.mkdir_p!(path)
 

@@ -195,7 +195,11 @@ defmodule Archethic.Utils.WebSocket.SocketHandler do
     {command, queries} = Map.pop(queries, msg_ref)
     state = Map.put(state, :queries, queries)
 
-    status = payload["status"] |> String.to_atom()
+    status =
+      case payload["status"] do
+        "ok" -> :ok
+        _ -> :error
+      end
 
     state =
       case command do

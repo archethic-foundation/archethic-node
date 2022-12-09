@@ -186,7 +186,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   defp atom_encoder(atom, _) do
     if atom in ["if"] do
-      {:ok, String.to_atom(atom)}
+      {:ok, :if}
     else
       {:ok, {:atom, atom}}
     end

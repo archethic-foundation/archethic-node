@@ -12,7 +12,7 @@ config :git_hooks,
         {:cmd, "mix format --check-formatted"},
         {:cmd, "mix compile --warnings-as-errors"},
         {:cmd, "mix credo"},
-        {:cmd, "mix sobelow"},
+        {:cmd, "mix dev.sobelow"},
         {:cmd, "mix knigge.verify"},
         {:cmd, "mix test --trace"},
         {:cmd, "mix dialyzer"}
@@ -62,7 +62,7 @@ config :archethic, :transaction_data_content_max_size, 3_145_728
 
 # size represents in bytes binary
 # 24KB Max
-config :archethic, :transaction_data_code_max_size, 24576
+config :archethic, :transaction_data_code_max_size, 24_576
 
 config :archethic, Archethic.Crypto,
   supported_curves: [

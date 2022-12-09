@@ -43,6 +43,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     fill_type_stats(db_path)
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp scan_summary_table(filename) do
     case File.open(filename, [:binary, :read]) do
       {:ok, fd} ->
@@ -53,6 +54,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp do_scan_summary_table(fd) do
     with {:ok, <<current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
          hash_size <- Crypto.hash_size(current_hash_type),
@@ -101,6 +103,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end)
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp fill_type_stats(db_path) do
     Enum.each(Transaction.types(), fn type ->
       case File.open(type_path(db_path, type), [:read, :binary]) do
@@ -126,6 +129,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Add transaction indexing inserting lookup back on file and on memory for fast lookup by genesis
   """
@@ -228,6 +232,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp search_tx_entry(search_address = <<_::8, _::8, digest::binary>>, db_path) do
     <<subset::8, _::binary>> = digest
 
@@ -274,6 +279,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Stream all the transaction addresses for a given type
   """
@@ -305,6 +311,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     )
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Stream all the transaction addresses from genesis_address-address.
   """
@@ -340,6 +347,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     )
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Return the number of transactions for a given type
   """
@@ -354,6 +362,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Insert transaction's address for a given transaction's type in its corresponding file
   """
@@ -365,6 +374,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     :ok
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Reference a new transaction address for the genesis address at the transaction time
   """
@@ -454,6 +464,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp search_last_address_until(genesis_address, until, db_path) do
     filepath = chain_addresses_path(db_path, genesis_address)
 
@@ -505,6 +516,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Reference a new public key for the given genesis address
   """
@@ -519,6 +531,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     )
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Return the first public key of a chain by reading the genesis index file and capturing the first key
 
@@ -553,6 +566,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Return the last public key of a chain until a date
 
@@ -633,6 +647,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp scan_chain(genesis_address, db_path) do
     filepath = chain_addresses_path(db_path, genesis_address)
     fd = File.open!(filepath, [:binary, :read])

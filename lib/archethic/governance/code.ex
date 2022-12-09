@@ -81,6 +81,7 @@ defmodule Archethic.Governance.Code do
   Ensure the code proposal is an applicable on the current branch.
   """
   @spec applicable_proposal?(Proposal.t()) :: boolean()
+  # sobelow_skip ["Traversal.FileModule"]
   def applicable_proposal?(
         %Proposal{changes: changes, address: address},
         src_dir \\ @src_dir

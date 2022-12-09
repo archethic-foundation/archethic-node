@@ -43,6 +43,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
     Path.join([EmbeddedImpl.db_path(), "inputs", prefix, Base.encode16(address)])
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   def init(opts) do
     ledger = Keyword.get(opts, :ledger)
     address = Keyword.get(opts, :address)

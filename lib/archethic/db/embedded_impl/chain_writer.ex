@@ -31,6 +31,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     GenServer.call(pid, {:append_tx, genesis_address, tx})
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   write an io transaction in a file name by it's address
   """
@@ -53,6 +54,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     })
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Write a beacon summary in a new file
   """
@@ -80,6 +82,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     })
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   @doc """
   Write a beacon summaries aggregate in a new file
   """
@@ -116,6 +119,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     {:ok, %{db_path: db_path, partition: partition}}
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp setup_folders(path) do
     path
     |> base_chain_path()
@@ -157,6 +161,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     :ignore
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_transaction(genesis_address, tx, db_path) do
     start = System.monotonic_time()
 

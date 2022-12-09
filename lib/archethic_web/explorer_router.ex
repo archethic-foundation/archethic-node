@@ -4,12 +4,18 @@ defmodule ArchethicWeb.ExplorerRouter do
   use ArchethicWeb, :router
   import Phoenix.LiveDashboard.Router
 
+  alias ArchethicWeb.WebUtils
+
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_live_flash)
     plug(:protect_from_forgery)
-    plug(:put_secure_browser_headers)
+
+    plug(:put_secure_browser_headers, %{
+      "content-security-policy" => WebUtils.content_security_policy()
+    })
+
     plug(:put_root_layout, {ArchethicWeb.LayoutView, :root})
   end
 

@@ -594,6 +594,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     end
   end
 
+  # sobelow_skip ["RCE.CodeModule"]
   defp execute_condition_code(quoted_code, constants) do
     {res, _} = Code.eval_quoted(quoted_code, scope: constants)
     res

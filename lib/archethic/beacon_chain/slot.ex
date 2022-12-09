@@ -589,7 +589,7 @@ defmodule Archethic.BeaconChain.Slot do
   @doc """
   Retrieve the nodes responsible to manage the slot processing
   """
-  @spec involved_nodes(t()) :: list(Node.t())
+  @spec involved_nodes(%__MODULE__{}) :: list(Node.t())
   def involved_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
     node_list = P2P.authorized_and_available_nodes(slot_time)
 

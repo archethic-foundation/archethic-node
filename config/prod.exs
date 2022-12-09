@@ -257,6 +257,14 @@ config :archethic, ArchethicWeb.Endpoint,
   server: true,
   root: ".",
   version: Application.spec(:archethic, :vsn),
+  #  Config.HSTS Sobelow
+  #  After configuration, update mix dev.sobelow which ignores HSTS policies
+  #  Dictate this policy what seems best in production w.r.t mainnet.(proxy,domain)
+  #  force_ssl: [
+  #   hsts: true,
+  #   host: nil,
+  #   rewrite_on: [:x_forwarded_host, :x_forwarded_port, :x_forwarded_proto]
+  # ],
   check_origin: false,
   https: [
     cipher_suite: :strong,

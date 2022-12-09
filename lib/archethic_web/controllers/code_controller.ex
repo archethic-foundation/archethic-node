@@ -24,15 +24,14 @@ defmodule ArchethicWeb.CodeController do
   #   # end
   # end
 
+  @archive_file "/tmp/archethic_node.zip"
   def download(conn, _) do
-    archive_file = "/tmp/archethic_node.zip"
-
-    case System.cmd("git", ["archive", "-o", archive_file, "master"], cd: @src_dir) do
+    case System.cmd("git", ["archive", "-o", @archive_file, "master"], cd: @src_dir) do
       {"", 0} ->
         conn
         |> put_resp_content_type("application/zip, application/octet-stream")
         |> put_resp_header("Content-disposition", "attachment; filename=\"archethic_node.zip\"")
-        |> send_file(200, archive_file)
+        |> send_file(200, @archive_file)
 
       {reason, status} ->
         conn

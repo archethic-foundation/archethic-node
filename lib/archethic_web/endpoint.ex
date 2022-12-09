@@ -51,4 +51,18 @@ defmodule ArchethicWeb.Endpoint do
   plug(Plug.Session, @session_options)
   plug(CORSPlug, origin: "*")
   plug(ArchethicWeb.RouterDispatch)
+
+  #  Config.HSTS Sobelow
+  #  Plug.ssl, probe polcies to what seem best for mainnet(after proxy)
+  # case(Mix.env()) do
+  #   :prod ->
+  # hit and trial based setup on mainnet
+  #     plug(Plug.SSL,
+  #       rewrite_on: [:x_forwarded_host, :x_forwarded_port, :x_forwarded_proto],
+  #       hsts: true
+  #     )
+
+  #   _ ->
+  #     nil
+  # end
 end

@@ -15,6 +15,7 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   def init(_arg) do
     path = Archethic.DB.EmbeddedImpl.db_path()
     Logger.info("Load database at #{path}")

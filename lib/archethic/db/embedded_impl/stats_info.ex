@@ -65,6 +65,7 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
     GenServer.call(__MODULE__, :get_p2p_summaries)
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   def init(opts) do
     db_path = Keyword.get(opts, :path)
     filepath = Path.join(db_path, "stats")
@@ -74,6 +75,7 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
      {:continue, :load_from_file}}
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   def handle_continue(:load_from_file, state = %{filepath: filepath, fd: fd}) do
     if File.exists?(filepath) do
       {tps, nb_transactions, burned_fees} = load_from_file(fd)

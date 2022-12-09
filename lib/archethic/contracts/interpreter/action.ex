@@ -320,6 +320,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
     InterpreterUtils.postwalk(node, acc)
   end
 
+  # sobelow_skip [RCE.CodeModule]
   @doc """
   Execute actions code and returns a transaction as result
   """

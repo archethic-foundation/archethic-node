@@ -1125,6 +1125,7 @@ defmodule Archethic.Crypto do
   @spec origin_node_public_key() :: key()
   defdelegate origin_node_public_key, to: NodeKeystore, as: :origin_public_key
 
+  # sobelow_skip ["Traversal.FileModule"]
   @spec get_key_certificate(key()) :: binary()
   def get_key_certificate(<<_::8, _::8, key::binary>>) do
     key_digest = :crypto.hash(:sha256, key) |> Base.encode16(case: :lower)

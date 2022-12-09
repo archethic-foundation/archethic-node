@@ -30,4 +30,20 @@ defmodule ArchethicWeb.WebUtils do
   def keep_remote_ip(conn) do
     %{"remote_ip" => conn.remote_ip}
   end
+
+  # TO DO:
+  # Dictate this policy what seems best in production w.r.t mainnet proxy and url
+  def content_security_policy do
+    case(Mix.env()) do
+      :prod ->
+        ""
+
+      _ ->
+        ""
+        # "default-src 'self' 'unsafe-eval' 'unsafe-inline' ;" <>
+        #   "font-src https://fonts.googleapis.com;" <>
+        #   "https://fonts.gstatic.com/s/montserrat/v25/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw2aXpsog.woff2;'" <>
+        #   "style-src-ele https://fonts.googleapis.com/css2?family=Montserrat&display=swap;"
+    end
+  end
 end

@@ -493,6 +493,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     {:error, "Invalid Keychain transaction"}
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp do_accept_transaction(
          %Transaction{
            type: :keychain,
@@ -660,6 +661,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp do_accept_transaction(_, _), do: :ok
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp verify_token_creation(content) do
     schema =
       :archethic

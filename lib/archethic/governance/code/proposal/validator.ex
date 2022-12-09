@@ -11,6 +11,7 @@ defmodule Archethic.Governance.Code.Proposal.Validator do
 
   @marker Application.compile_env(:archethic, :marker)
 
+  # sobelow_skip ["Traversal.FileModule"]
   def run(nodes) do
     start = System.monotonic_time(:second)
 

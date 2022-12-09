@@ -7,6 +7,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsReader do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.Utils
 
+  # sobelow_skip ["Traversal.FileModule"]
   @spec get_inputs(input_type :: InputsWriter.input_type(), address :: binary()) ::
           list(VersionedTransactionInput.t())
   def get_inputs(ledger, address) do

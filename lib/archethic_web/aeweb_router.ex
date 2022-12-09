@@ -3,11 +3,18 @@ defmodule ArchethicWeb.AEWebRouter do
 
   use ArchethicWeb, :router
 
+  # sobelow_skip ["Config.CSRF","Config.CSP"]
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_live_flash)
-    plug(:put_secure_browser_headers)
+
+    # this both can be leveraged
+    # plug(:protect_from_forgery)
+    # plug(
+    #   :put_secure_browser_headers,
+    #   %{"content-security-policy" => "default-src 'self'"}
+    # )
   end
 
   scope "/", ArchethicWeb do

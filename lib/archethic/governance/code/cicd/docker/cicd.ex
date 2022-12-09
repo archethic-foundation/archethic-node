@@ -158,6 +158,7 @@ defmodule Archethic.Governance.Code.CICD.Docker do
   @releases "/opt/code/_build/dev/rel/archethic_node/releases"
   @release "archethic_node.tar.gz"
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp testnet_prepare(dir, address, version) do
     ci = container_name(address)
 
