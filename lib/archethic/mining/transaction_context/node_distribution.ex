@@ -33,9 +33,12 @@ defmodule Archethic.Mining.TransactionContext.NodeDistribution do
       ...>   %Node{first_public_key: "key4"}
       ...> ], 3, 3)
       [
-        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key4"}, %Node{first_public_key: "key3"}],
-        [%Node{first_public_key: "key2"}, %Node{first_public_key: "key1"}, %Node{first_public_key: "key4"}],
-        [%Node{first_public_key: "key3"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key1"}]
+        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key4"}, %Node{first_public_key: "key3"},
+        %Node{first_public_key: "key2"}],
+        [%Node{first_public_key: "key2"}, %Node{first_public_key: "key1"}, %Node{first_public_key: "key4"},
+        %Node{first_public_key: "key3"}],
+        [%Node{first_public_key: "key3"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key1"},
+      %Node{first_public_key: "key4"}]
       ]
 
       iex> NodeDistribution.split_storage_nodes([
@@ -56,7 +59,8 @@ defmodule Archethic.Mining.TransactionContext.NodeDistribution do
       ...>   %Node{first_public_key: "key4"}
       ...> ], 5, 3)
       [
-        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}],
+        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key3"},
+        %Node{first_public_key: "key4"}],
         [%Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}, %Node{first_public_key: "key4"}],
         [%Node{first_public_key: "key3"}, %Node{first_public_key: "key4"}, %Node{first_public_key: "key1"}],
         [%Node{first_public_key: "key4"}, %Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}],
@@ -79,17 +83,13 @@ defmodule Archethic.Mining.TransactionContext.NodeDistribution do
   defp do_split(storage_nodes, nb_sublist, sample_size, sub_lists) do
     split =
       storage_nodes
-      |> Enum.reduce_while(sub_lists, fn node, acc ->
-        if length(acc) == nb_sublist and Enum.all?(acc, &(length(&1) == sample_size)) do
-          {:halt, acc}
-        else
-          smallest_sub_list = Enum.min_by(acc, &length/1)
-          sub_list_index_to_add = Enum.find_index(acc, &(&1 == smallest_sub_list))
-          {:cont, List.update_at(acc, sub_list_index_to_add, &[node | &1])}
-        end
+      |> Enum.reduce(sub_lists, fn node, acc ->
+        smallest_sub_list = Enum.min_by(acc, &length/1)
+        sub_list_index_to_add = Enum.find_index(acc, &(&1 == smallest_sub_list))
+        List.update_at(acc, sub_list_index_to_add, &[node | &1])
       end)
 
-    if Enum.all?(split, &(length(&1) == sample_size)) do
+    if Enum.all?(split, &(length(&1) >= sample_size)) do
       Enum.map(split, fn list ->
         list
         |> Enum.reverse()
