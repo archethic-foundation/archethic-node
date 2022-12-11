@@ -99,15 +99,19 @@ defmodule Archethic.Mining.TransactionContext do
   end
 
   defp request_previous_tx(previous_address, nodes) do
-    Task.Supervisor.async(TaskSupervisor, fn ->
-      case TransactionChain.fetch_transaction_remotely(previous_address, nodes) do
-        {:ok, tx} ->
-          tx
+    Task.Supervisor.async(
+      TaskSupervisor,
+      fn ->
+        case TransactionChain.fetch_transaction_remotely(previous_address, nodes) do
+          {:ok, tx} ->
+            tx
 
-        {:error, :transaction_not_exists} ->
-          nil
-      end
-    end)
+          {:error, :transaction_not_exists} ->
+            nil
+        end
+      end,
+      timeout: Message.get_max_timeout()
+    )
   end
 
   defp request_nodes_view(node_public_keys) do
