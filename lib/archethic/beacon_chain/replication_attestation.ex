@@ -173,7 +173,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
             },
           confirmations: confirmations
         },
-        check_summary_consistency? \\ true
+        check_summary_consistency? \\ false
       ) do
     tx_summary_payload = TransactionSummary.serialize(tx_summary)
 
