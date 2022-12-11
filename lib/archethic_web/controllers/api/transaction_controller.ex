@@ -42,9 +42,22 @@ defmodule ArchethicWeb.API.TransactionController do
         storage_nodes =
           Election.chain_storage_nodes(tx_address, P2P.authorized_and_available_nodes())
 
+        conflict_resolver = fn results ->
+          # Prioritize transactions results over not found
+          case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
+            [] ->
+              %NotFound{}
+
+            res ->
+              Enum.sort_by(res, & &1.timestamp, {:desc, DateTime})
+              |> List.first()
+          end
+        end
+
         case P2P.quorum_read(
                storage_nodes,
-               %GetTransactionSummary{address: tx_address}
+               %GetTransactionSummary{address: tx_address},
+               conflict_resolver
              ) do
           {:ok, %TransactionSummary{address: ^tx_address}} ->
             conn |> put_status(422) |> json(%{status: "error - transaction already exists!"})
