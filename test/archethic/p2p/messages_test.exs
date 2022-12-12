@@ -915,6 +915,7 @@ defmodule Archethic.P2P.MessageTest do
       msg = %NotifyLastTransactionAddress{
         last_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         genesis_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
       }
 
