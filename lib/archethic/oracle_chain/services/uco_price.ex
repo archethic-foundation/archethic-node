@@ -13,12 +13,24 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
   @impl Impl
   @spec fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
-  def fetch, do: provider().fetch(@pairs)
+  def fetch do
+      prices =
+        Enum.map(providers(), fn provider ->
+        provider.fetch(@pairs)
+      end)
+      |> Enum.filter(fn {:ok, _} -> true
+                        {:error, _} -> false end)
+
+      |> split_prices()
+      |> median_prices()
+
+    {:ok, prices}
+  end
 
   @impl Impl
   @spec verify?(%{required(String.t()) => any()}) :: boolean
   def verify?(prices_prior = %{}) do
-    case provider().fetch(@pairs) do
+    case fetch() do
       {:ok, prices_now} ->
         Enum.all?(@pairs, fn pair ->
           compare_price(Map.fetch!(prices_prior, pair), Map.fetch!(prices_now, pair))
@@ -62,6 +74,20 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     mean(xs, t + x, l + 1)
   end
 
+  defp median_prices({list_of_euro_prices, list_of_usd_prices}) do
+    %{"eur" => median(list_of_euro_prices), "usd" => median(list_of_usd_prices)}
+  end
+
+  defp median(prices) do
+    sorted = Enum.sort(prices)
+    length_list = Enum.count(sorted)
+
+    case rem(length_list, 2) do
+      1 -> Enum.at(sorted, div(length_list, 2) + 1)
+      0 -> Enum.slice(sorted, div(length_list, 2), 2) |> Enum.sum() |> Kernel./(2)
+    end
+  end
+
   @impl Impl
   @spec parse_data(map()) :: {:ok, map()} | :error
   def parse_data(service_data) when is_map(service_data) do
@@ -79,7 +105,22 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
   def parse_data(_), do: {:error, :invalid_data}
 
-  defp provider do
-    Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:provider)
+  defp providers do
+    Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:providers)
+  end
+
+  defp split_prices(list_of_map_of_prices) do
+    split_prices(list_of_map_of_prices, {[], []})
+  end
+
+  defp split_prices([], acc) do
+    acc
+  end
+
+  defp split_prices(
+         [%{"eur" => euro_price, "usd" => usd_price} | other_prices],
+         {euro_prices, usd_prices}
+       ) do
+    split_prices(other_prices, {euro_prices ++ [euro_price], usd_prices ++ [usd_price]})
   end
 end
