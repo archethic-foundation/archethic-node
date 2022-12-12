@@ -139,6 +139,73 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  @spec get_transaction_chain_desc(
+          address :: binary(),
+          fields :: list(),
+          opts :: list(),
+          db_path :: String.t()
+        ) ::
+          {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
+           paging_state :: nil | binary()}
+  def get_transaction_chain_desc(address, fields, opts, db_path) do
+    start = System.monotonic_time()
+
+    # Always return transaction address
+    fields = if Enum.empty?(fields), do: fields, else: Enum.uniq([:address | fields])
+    column_names = fields_to_column_names(fields)
+
+    case ChainIndex.get_tx_entry(address, db_path) do
+      {:error, :not_exists} ->
+        {[], false, ""}
+
+      {:ok, %{genesis_address: genesis_address}} ->
+        filepath = ChainWriter.chain_path(db_path, genesis_address)
+        fd = File.open!(filepath, [:binary, :read])
+
+        all_addresses = ChainIndex.list_chain_addresses(genesis_address, db_path)
+
+        next_addresses =
+          case Keyword.get(opts, :paging_state) do
+            nil ->
+              all_addresses
+              |> Enum.to_list()
+              |> Enum.reverse()
+
+            paging_state ->
+              all_addresses
+              |> Enum.to_list()
+              |> Enum.reverse()
+              |> Enum.drop_while(fn {addr, _} -> addr != paging_state end)
+              |> Enum.drop(1)
+          end
+
+        next_addresses_limited =
+          Enum.take(next_addresses, Keyword.get(opts, :transactions_per_page, 10))
+
+        more? = length(next_addresses_limited) < length(next_addresses)
+        paging_state = List.last(next_addresses_limited, "")
+
+        transactions =
+          next_addresses_limited
+          |> Enum.map(fn {addr, _timestamp} ->
+            {:ok, %{offset: offset}} = ChainIndex.get_tx_entry(addr, db_path)
+
+            :file.position(fd, offset)
+            {:ok, <<size::32, version::32>>} = :file.read(fd, 8)
+
+            fd
+            |> read_transaction(column_names, size, 0)
+            |> decode_transaction_columns(version)
+          end)
+
+        :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+          query: "get_transaction_chain_desc"
+        })
+
+        {transactions, more?, paging_state}
+    end
+  end
+
   @doc """
   List all the transactions in io storage
   """

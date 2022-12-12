@@ -1360,13 +1360,21 @@ defmodule Archethic.P2P.Message do
   def process(
         %GetTransactionChain{
           address: tx_address,
-          paging_state: paging_state
+          paging_state: paging_state,
+          order: order
         },
         _
       ) do
     {chain, more?, paging_state} =
-      tx_address
-      |> TransactionChain.get([], paging_state: paging_state)
+      case order do
+        :asc ->
+          tx_address
+          |> TransactionChain.get([], paging_state: paging_state)
+
+        :desc ->
+          tx_address
+          |> TransactionChain.get_desc([], paging_state: paging_state)
+      end
 
     # empty list for fields/cols to be processed
     # new_page_state contains binary offset for the next page

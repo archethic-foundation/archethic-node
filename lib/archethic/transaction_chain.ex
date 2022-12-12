@@ -176,6 +176,14 @@ defmodule Archethic.TransactionChain do
   defdelegate get(address, fields \\ [], opts \\ []), to: DB, as: :get_transaction_chain
 
   @doc """
+  Retrieve an entire chain from the last transaction
+  The returned list is ordered anti-chronologically.
+  """
+  @spec get_desc(binary(), list()) ::
+          Enumerable.t() | {list(Transaction.t()), boolean(), binary()}
+  defdelegate get_desc(address, fields \\ [], opts \\ []), to: DB, as: :get_transaction_chain_desc
+
+  @doc """
   Persist only one transaction
   """
   @spec write_transaction(Transaction.t(), DB.storage_type()) :: :ok
@@ -763,7 +771,7 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Get 10 transactions in a chain after a paging address
+  Get 10 transactions in a chain after a paging address - chronological order
   """
   @spec fetch_transaction_chain(list(Node.t()), binary(), binary()) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
@@ -774,7 +782,19 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  defp do_fetch_transaction_chain(nodes, address, paging_state) do
+  @doc """
+  Get 10 transactions in a chain before a paging address - anti-chronological order
+  """
+  @spec fetch_transaction_chain_desc(list(Node.t()), binary(), nil | binary()) ::
+          {:ok, list(Transaction.t())} | {:error, :network_issue}
+  def fetch_transaction_chain_desc(nodes, address, paging_address) do
+    case do_fetch_transaction_chain(nodes, address, paging_address, order: :desc) do
+      {transactions, _more?, _paging_state} -> {:ok, transactions}
+      error -> error
+    end
+  end
+
+  defp do_fetch_transaction_chain(nodes, address, paging_state, opts \\ []) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
@@ -783,12 +803,14 @@ defmodule Archethic.TransactionChain do
       |> List.first()
     end
 
+    order = Keyword.get(opts, :order, :asc)
+
     # We got transactions by batch of 10 transactions
     timeout = Message.get_max_timeout() + Message.get_max_timeout() * 10
 
     case P2P.quorum_read(
            nodes,
-           %GetTransactionChain{address: address, paging_state: paging_state},
+           %GetTransactionChain{address: address, paging_state: paging_state, order: order},
            conflict_resolver,
            timeout
          ) do
