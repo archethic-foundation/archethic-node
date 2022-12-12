@@ -495,7 +495,7 @@ defmodule Archethic.BootstrapTest do
 
       assert :ok =
                Bootstrap.do_resync_network_chain(
-                 [:node_shared_secrets],
+                 :node_shared_secrets,
                  _nodes = P2P.authorized_and_available_nodes()
                )
     end
@@ -523,7 +523,7 @@ defmodule Archethic.BootstrapTest do
 
       assert :ok =
                Bootstrap.do_resync_network_chain(
-                 [:node_shared_secrets],
+                 :node_shared_secrets,
                  _nodes = P2P.authorized_and_available_nodes()
                )
 
@@ -598,7 +598,7 @@ defmodule Archethic.BootstrapTest do
 
       assert :ok =
                Bootstrap.do_resync_network_chain(
-                 [:node_shared_secrets],
+                 :node_shared_secrets,
                  _nodes = P2P.authorized_and_available_nodes()
                )
 

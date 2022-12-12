@@ -687,14 +687,21 @@ defmodule Archethic.TransactionChain do
 
   If no nodes are available to answer the request, `{:error, :network_issue}` is returned.
   """
-  @spec fetch_transaction_remotely(address :: Crypto.versioned_hash(), list(Node.t())) ::
+  @spec fetch_transaction_remotely(
+          address :: Crypto.versioned_hash(),
+          list(Node.t()),
+          non_neg_integer()
+        ) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
-  def fetch_transaction_remotely(_, []), do: {:error, :transaction_not_exists}
+  def fetch_transaction_remotely(address, nodes, timeout \\ Message.get_max_timeout())
 
-  def fetch_transaction_remotely(address, nodes) when is_binary(address) and is_list(nodes) do
+  def fetch_transaction_remotely(_, [], _), do: {:error, :transaction_not_exists}
+
+  def fetch_transaction_remotely(address, nodes, timeout)
+      when is_binary(address) and is_list(nodes) do
     conflict_resolver = fn results ->
       # Prioritize transactions results over not found
       with nil <- Enum.find(results, &match?(%Transaction{}, &1)),
@@ -709,7 +716,8 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetTransaction{address: address},
-           conflict_resolver
+           conflict_resolver,
+           timeout
          ) do
       {:ok, %NotFound{}} ->
         {:error, :transaction_not_exists}

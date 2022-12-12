@@ -268,10 +268,10 @@ defmodule Archethic.Replication do
 
     {previous_transaction, inputs} =
       if self_repair? do
-        {Task.await(t1, Message.get_max_timeout()), []}
+        {Task.await(t1, Message.get_max_timeout() + 1000), []}
       else
-        t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx, download_nodes) end)
-        {Task.await(t1, Message.get_max_timeout()), Task.await(t2)}
+        inputs = fetch_inputs(tx, download_nodes)
+        {Task.await(t1, Message.get_max_timeout() + 1000), inputs}
       end
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
