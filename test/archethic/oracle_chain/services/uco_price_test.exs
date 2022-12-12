@@ -101,19 +101,23 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     end
 
     test "should return the average of median values when a even number of providers queried" do
-
       ## Define a fourth mock to have even number of mocks
-      Mox.defmock(MockUCOPriceProvider4, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
+      Mox.defmock(MockUCOPriceProvider4,
+        for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl
+      )
 
       ## Backup old environment variable, and update it with fourth provider
       old_env = Application.get_env(:archethic, Archethic.OracleChain.Services.UCOPrice)
-      new_uco_env = old_env
-      |> Keyword.replace(:providers, [
-        MockUCOPriceProvider1,
-        MockUCOPriceProvider2,
-        MockUCOPriceProvider3,
-        MockUCOPriceProvider4
-      ])
+
+      new_uco_env =
+        old_env
+        |> Keyword.replace(:providers, [
+          MockUCOPriceProvider1,
+          MockUCOPriceProvider2,
+          MockUCOPriceProvider3,
+          MockUCOPriceProvider4
+        ])
+
       Application.put_env(:archethic, Archethic.OracleChain.Services.UCOPrice, new_uco_env)
 
       ## Define mocks expectations

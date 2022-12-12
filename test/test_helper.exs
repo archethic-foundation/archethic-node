@@ -23,7 +23,6 @@ Mox.defmock(MockUCOPriceProvider1, for: Archethic.OracleChain.Services.UCOPrice.
 Mox.defmock(MockUCOPriceProvider2, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
 Mox.defmock(MockUCOPriceProvider3, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
 
-
 Mox.defmock(MockMetricsCollector, for: Archethic.Metrics.Collector)
 
 # -----Start-of-Networking-Mocks-----

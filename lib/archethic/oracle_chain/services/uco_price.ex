@@ -14,13 +14,14 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @impl Impl
   @spec fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch do
-      prices =
-        Enum.map(providers(), fn provider ->
+    prices =
+      Enum.map(providers(), fn provider ->
         provider.fetch(@pairs)
       end)
-      |> Enum.filter(fn {:ok, _} -> true
-                        {:error, _} -> false end)
-
+      |> Enum.filter(fn
+        {:ok, _} -> true
+        {:error, _} -> false
+      end)
       |> split_prices()
       |> median_prices()
 
