@@ -76,7 +76,6 @@ defmodule Archethic.MixProject do
       # Test
       {:mox, "~> 1.0", only: [:test]},
       {:stream_data, "~> 0.5", only: [:test], runtime: false},
-      {:floki, "~> 0.33", only: :test},
 
       # P2P
       {:ranch, "~> 2.1", override: true},
@@ -108,7 +107,8 @@ defmodule Archethic.MixProject do
       {:ex_json_schema, "~> 0.9", override: true},
       {:pathex, "~> 2.4"},
       {:easy_ssl, "~> 1.3"},
-      {:castore, "~> 0.1"}
+      {:castore, "~> 0.1"},
+      {:floki, "~> 0.33"}
     ]
   end
 
