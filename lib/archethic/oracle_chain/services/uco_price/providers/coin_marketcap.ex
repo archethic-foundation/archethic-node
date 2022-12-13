@@ -62,7 +62,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
           _, acc -> acc
         end)
 
-      {:erorr, errors}
+      {:error, errors}
     else
       {:ok, Enum.into(returned_prices, %{})}
     end
