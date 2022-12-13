@@ -33,6 +33,7 @@ defmodule ArchethicWeb.Supervisor do
         Endpoint,
         {Absinthe.Subscription, Endpoint},
         TransactionSubscriber,
+        {PlugAttack.Storage.Ets, name: ArchethicWeb.PlugAttack.Storage, clean_period: 60_000}
         web_hosting_cache_ref_tx(),
         web_hosting_cache_file()
       ]
