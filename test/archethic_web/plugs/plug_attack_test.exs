@@ -5,7 +5,8 @@ defmodule ArchethicWeb.PlugAttackTest do
 
   @tag ratelimit: true
   describe "plug attack should: " do
-    test "return 403 Forbidden if the user makes more than 10 requests per second", %{conn: conn} do
+    test "return 403 Forbidden if the user makes more than the authorized number of requests within timeframe",
+         %{conn: conn} do
       is_rate_limited? =
         Task.async_stream(1..1_000, fn _ ->
           conn = get(conn, "/up")
