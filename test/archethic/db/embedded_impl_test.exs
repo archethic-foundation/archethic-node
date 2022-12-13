@@ -362,6 +362,65 @@ defmodule Archethic.DB.EmbeddedTest do
     end
   end
 
+  describe "get_transaction_chain_desc/4" do
+    test "should return empty when there is no transactions" do
+      {pub_key, _} = Crypto.generate_deterministic_keypair("SEED")
+      address = Crypto.derive_address(pub_key)
+
+      assert {[], false, ""} == EmbeddedImpl.get_transaction_chain_desc(address)
+    end
+
+    test "should return all transactions if there are less than one page (10)" do
+      transactions =
+        Enum.map(1..9, fn i ->
+          TransactionFactory.create_valid_transaction([],
+            index: i,
+            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+          )
+        end)
+
+      EmbeddedImpl.write_transaction_chain(transactions)
+
+      {page, false, ""} = EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address)
+      assert length(page) == 9
+      assert page == Enum.reverse(transactions)
+    end
+
+    test "should return transactions paginated if there are more than one page (10)" do
+      transactions =
+        Enum.map(1..28, fn i ->
+          TransactionFactory.create_valid_transaction([],
+            index: i,
+            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+          )
+        end)
+
+      EmbeddedImpl.write_transaction_chain(transactions)
+
+      {page1, true, paging_state1} =
+        EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address)
+
+      assert length(page1) == 10
+      assert paging_state1 == List.last(page1).address
+
+      {page2, true, paging_state2} =
+        EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address, [],
+          paging_state: paging_state1
+        )
+
+      assert length(page2) == 10
+      assert paging_state2 == List.last(page2).address
+
+      {page3, false, ""} =
+        EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address, [],
+          paging_state: paging_state2
+        )
+
+      assert length(page3) == 8
+      assert page1 ++ page2 ++ page3 == Enum.reverse(transactions)
+    end
+  end
+
   describe "scan_chain/4" do
     test "should return the list of all the transactions until the one given" do
       transactions =

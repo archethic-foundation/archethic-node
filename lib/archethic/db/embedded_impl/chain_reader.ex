@@ -158,21 +158,22 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         filepath = ChainWriter.chain_path(db_path, genesis_address)
         fd = File.open!(filepath, [:binary, :read])
 
+        # TODO: MAYBE THIS ALL SHOULD LIVE IN THE PROCESS_GET_CHAIN WITH A ORDER PARAMETER
         all_addresses_asc =
           ChainIndex.list_chain_addresses(genesis_address, db_path)
           |> Enum.map(&elem(&1, 0))
 
         # in order to read the file sequentially in DESC (faster than random access)
         # we have to determine the good paging_state and limit_address
-        {limit_address, paging_state} =
+        {limit_address, paging_state, more?} =
           case Keyword.get(opts, :paging_state) do
             nil ->
               chain_length = Enum.count(all_addresses_asc)
 
               if chain_length <= @page_size do
-                {nil, nil}
+                {nil, nil, false}
               else
-                {nil, all_addresses_asc |> Enum.at(chain_length - 1 - @page_size)}
+                {nil, all_addresses_asc |> Enum.at(chain_length - 1 - @page_size), true}
               end
 
             paging_state ->
@@ -183,20 +184,33 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
               limit_address = Enum.at(all_addresses_asc, paging_state_idx - 1)
 
               if paging_state_idx < @page_size do
-                {limit_address, nil}
+                {limit_address, nil, false}
               else
-                {limit_address, all_addresses_asc |> Enum.at(paging_state_idx - @page_size)}
+                {limit_address, all_addresses_asc |> Enum.at(paging_state_idx - 1 - @page_size),
+                 true}
               end
           end
 
-        {transactions, more?, paging_state} =
+        # we cannot use the more? and paging_state from here because they only work
+        # with ASC order
+        {transactions, _more?, _paging_state} =
           process_get_chain(fd, limit_address, fields, [paging_state: paging_state], db_path)
 
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
           query: "get_transaction_chain_desc"
         })
 
-        {Enum.reverse(transactions), more?, paging_state}
+        new_paging_state =
+          if more? do
+            case List.first(transactions) do
+              nil -> ""
+              tx -> tx.address
+            end
+          else
+            ""
+          end
+
+        {Enum.reverse(transactions), more?, new_paging_state}
     end
   end
 
