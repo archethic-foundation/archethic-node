@@ -54,10 +54,12 @@ defmodule ArchethicWeb.TransactionChainLive do
     %{
       transaction_chain: transaction_chain,
       last_address: last_address,
+      chain_size: size,
       page: page
     } = socket.assigns
 
-    with %Transaction{address: paging_address} <- List.last(transaction_chain),
+    with false <- length(transaction_chain) == size,
+         %Transaction{address: paging_address} <- List.last(transaction_chain),
          {:ok, last_address} <- Base.decode16(last_address, case: :mixed),
          {:ok, next_transactions} <- paginate_chain(last_address, paging_address) do
       {:noreply,

@@ -150,10 +150,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   def get_transaction_chain_desc(address, fields, opts, db_path) do
     start = System.monotonic_time()
 
-    # Always return transaction address
-    fields = if Enum.empty?(fields), do: fields, else: Enum.uniq([:address | fields])
-    column_names = fields_to_column_names(fields)
-
     case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
         {[], false, ""}
@@ -162,47 +158,54 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         filepath = ChainWriter.chain_path(db_path, genesis_address)
         fd = File.open!(filepath, [:binary, :read])
 
-        all_addresses = ChainIndex.list_chain_addresses(genesis_address, db_path)
+        all_addresses_desc =
+          ChainIndex.list_chain_addresses(genesis_address, db_path)
+          |> Enum.map(&elem(&1, 0))
+          |> Enum.to_list()
+          |> Enum.reverse()
 
-        next_addresses =
+        # we could read from the file by moving cursor and reading bytes for every addresses
+        # but that would be slower than to sequentially read
+        # here we determine the limit and offset for the sequential read
+        # then we reverse the order of transactions
+        {limit_address, paging_state} =
           case Keyword.get(opts, :paging_state) do
             nil ->
-              all_addresses
-              |> Enum.to_list()
-              |> Enum.reverse()
+              {nil,
+               if length(all_addresses_desc) <= @page_size do
+                 nil
+               else
+                 all_addresses_desc
+                 |> Enum.take(@page_size + 1)
+                 |> List.last(nil)
+               end}
 
             paging_state ->
-              all_addresses
-              |> Enum.to_list()
-              |> Enum.reverse()
-              |> Enum.drop_while(fn {addr, _} -> addr != paging_state end)
-              |> Enum.drop(1)
+              next_addresses =
+                all_addresses_desc
+                |> Enum.drop_while(&(&1 != paging_state))
+                |> Enum.drop(1)
+
+              limit_address = List.first(next_addresses, nil)
+
+              {limit_address,
+               if length(next_addresses) <= @page_size do
+                 nil
+               else
+                 next_addresses
+                 |> Enum.take(@page_size + 1)
+                 |> List.last(nil)
+               end}
           end
 
-        next_addresses_limited =
-          Enum.take(next_addresses, Keyword.get(opts, :transactions_per_page, 10))
-
-        more? = length(next_addresses_limited) < length(next_addresses)
-        paging_state = List.last(next_addresses_limited, "")
-
-        transactions =
-          next_addresses_limited
-          |> Enum.map(fn {addr, _timestamp} ->
-            {:ok, %{offset: offset}} = ChainIndex.get_tx_entry(addr, db_path)
-
-            :file.position(fd, offset)
-            {:ok, <<size::32, version::32>>} = :file.read(fd, 8)
-
-            fd
-            |> read_transaction(column_names, size, 0)
-            |> decode_transaction_columns(version)
-          end)
+        {transactions, more?, paging_state} =
+          process_get_chain(fd, limit_address, fields, [paging_state: paging_state], db_path)
 
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
           query: "get_transaction_chain_desc"
         })
 
-        {transactions, more?, paging_state}
+        {Enum.reverse(transactions), more?, paging_state}
     end
   end
 
