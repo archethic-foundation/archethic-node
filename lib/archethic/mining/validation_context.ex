@@ -1087,9 +1087,15 @@ defmodule Archethic.Mining.ValidationContext do
          %ValidationStamp{timestamp: timestamp, ledger_operations: %LedgerOperations{fee: fee}},
          %__MODULE__{transaction: tx}
        ) do
+    previous_usd_price =
+      timestamp
+      |> OracleChain.get_last_scheduling_date()
+      |> OracleChain.get_uco_price()
+      |> Keyword.fetch!(:usd)
+
     Fee.calculate(
       tx,
-      OracleChain.get_uco_price(timestamp) |> Keyword.fetch!(:usd),
+      previous_usd_price,
       timestamp
     ) == fee
   end
