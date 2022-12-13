@@ -17,7 +17,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
       timeout: 2000
     ]
 
-    prices =
+    returned_prices =
       Enum.map(pairs, fn pair ->
         headers = [
           {'user-agent',
@@ -29,22 +29,42 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
           {'Cookie', 'currency=#{pair}'}
         ]
 
-        {:ok, {{_, 200, 'OK'}, _headers, body}} =
-          :httpc.request(:get, {query, headers}, httpc_options, [])
+        with {:ok, {{_, 200, 'OK'}, _headers, body}} <-
+               :httpc.request(:get, {query, headers}, httpc_options, []),
+             {:ok, document} <- Floki.parse_document(body) do
+          price =
+            Floki.find(document, "div.priceTitle > div.priceValue > span")
+            |> Floki.text()
+            |> String.graphemes()
+            |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
+            |> Enum.into("")
+            |> String.to_float()
 
-        {:ok, document} = Floki.parse_document(body)
+          {pair, [price]}
+        else
+          :error ->
+            {:error, "invalid content"}
 
-        price =
-          Floki.find(document, "div.priceTitle > div.priceValue > span")
-          |> Floki.text()
-          |> String.graphemes()
-          |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
-          |> Enum.into("")
-
-        {pair, [price]}
+          {:error, _} = e ->
+            e
+        end
       end)
-      |> Enum.into(%{})
 
-    {:ok, prices}
+    if(
+      Enum.any?(returned_prices, fn
+        {:error, _error} -> true
+        _ -> false
+      end)
+    ) do
+      errors =
+        Enum.reduce(returned_prices, [], fn
+          {:error, error}, acc -> [error | acc]
+          _, acc -> acc
+        end)
+
+      {:erorr, errors}
+    else
+      {:ok, Enum.into(returned_prices, %{})}
+    end
   end
 end
