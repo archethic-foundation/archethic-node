@@ -50,12 +50,13 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
         end
       end)
 
-    if(
+    errors? =
       Enum.any?(returned_prices, fn
         {:error, _error} -> true
         _ -> false
       end)
-    ) do
+
+    if errors? do
       errors =
         Enum.reduce(returned_prices, [], fn
           {:error, error}, acc -> [error | acc]
