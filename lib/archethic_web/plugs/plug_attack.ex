@@ -1,4 +1,5 @@
 defmodule ArchethicWeb.PlugAttack do
+  @moduledoc false
   use PlugAttack
 
   rule "throttle by ip", conn do
