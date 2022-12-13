@@ -155,6 +155,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
           Logger.warning(
             "No or Unexpected value : #{inspect(other)} while aggregating service result"
           )
+
           acc
       end)
 
