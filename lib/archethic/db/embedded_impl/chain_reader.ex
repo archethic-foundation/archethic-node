@@ -158,44 +158,35 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         filepath = ChainWriter.chain_path(db_path, genesis_address)
         fd = File.open!(filepath, [:binary, :read])
 
-        all_addresses_desc =
+        all_addresses_asc =
           ChainIndex.list_chain_addresses(genesis_address, db_path)
           |> Enum.map(&elem(&1, 0))
-          |> Enum.to_list()
-          |> Enum.reverse()
 
-        # we could read from the file by moving cursor and reading bytes for every addresses
-        # but that would be slower than to sequentially read
-        # here we determine the limit and offset for the sequential read
-        # then we reverse the order of transactions
+        # in order to read the file sequentially in DESC (faster than random access)
+        # we have to determine the good paging_state and limit_address
         {limit_address, paging_state} =
           case Keyword.get(opts, :paging_state) do
             nil ->
-              {nil,
-               if length(all_addresses_desc) <= @page_size do
-                 nil
-               else
-                 all_addresses_desc
-                 |> Enum.take(@page_size + 1)
-                 |> List.last(nil)
-               end}
+              chain_length = Enum.count(all_addresses_asc)
+
+              if chain_length <= @page_size do
+                {nil, nil}
+              else
+                {nil, all_addresses_asc |> Enum.at(chain_length - 1 - @page_size)}
+              end
 
             paging_state ->
-              next_addresses =
-                all_addresses_desc
-                |> Enum.drop_while(&(&1 != paging_state))
-                |> Enum.drop(1)
+              paging_state_idx =
+                all_addresses_asc
+                |> Enum.find_index(&(&1 == paging_state))
 
-              limit_address = List.first(next_addresses, nil)
+              limit_address = Enum.at(all_addresses_asc, paging_state_idx - 1)
 
-              {limit_address,
-               if length(next_addresses) <= @page_size do
-                 nil
-               else
-                 next_addresses
-                 |> Enum.take(@page_size + 1)
-                 |> List.last(nil)
-               end}
+              if paging_state_idx < @page_size do
+                {limit_address, nil}
+              else
+                {limit_address, all_addresses_asc |> Enum.at(paging_state_idx - @page_size)}
+              end
           end
 
         {transactions, more?, paging_state} =
