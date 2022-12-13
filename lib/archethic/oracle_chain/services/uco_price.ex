@@ -19,15 +19,24 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         fn provider ->
           ## Filter resuts from services marked as :error
           case provider.fetch(@pairs) do
-            {:ok, prices} -> {true, prices}
-            {:error, _} -> false
+            {:ok, prices} ->
+              {true, prices}
+
+            {:error, reason} ->
+              Logger.warning(
+                "Service : #{inspect(__MODULE__)} : Cannot fetch values from
+                provider: #{inspect(provider)} with reason : #{inspect(reason)}. Discarding entry."
+              )
+
+              false
           end
         end,
         providers()
       )
-      ## split prices in a list per currency
+      ## split prices in a list per currency. If a service returned a list of prices of a currency,
+      ## they will be meaned before being added to list
       |> split_prices()
-      ## compute media per currency list
+      ## compute median per currency list
       |> median_prices()
 
     {:ok, prices}
@@ -37,14 +46,14 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @spec verify?(%{required(String.t()) => any()}) :: boolean
   def verify?(prices_prior = %{}) do
     case fetch() do
+      {:ok, prices_now} when prices_now == %{} ->
+        Logger.warning("Cannot fetch UCO price - reason: no data from any service.")
+        false
+
       {:ok, prices_now} ->
         Enum.all?(@pairs, fn pair ->
           compare_price(Map.fetch!(prices_prior, pair), Map.fetch!(prices_now, pair))
         end)
-
-      {:error, reason} ->
-        Logger.warning("Cannot fetch UCO price - reason: #{inspect(reason)}")
-        false
     end
   end
 
@@ -80,8 +89,15 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     mean(xs, t + x, l + 1)
   end
 
-  defp median_prices({list_of_euro_prices, list_of_usd_prices}) do
-    %{"eur" => median(list_of_euro_prices), "usd" => median(list_of_usd_prices)}
+  defp median_prices(%{} = map_prices) do
+    Enum.reduce(map_prices, %{}, fn {currency, values}, acc ->
+      Map.put(acc, currency, median(values))
+    end)
+  end
+
+  ## To avoid all calculation from general clause to follow
+  defp median([price]) do
+    price
   end
 
   defp median(prices) do
@@ -115,8 +131,8 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:providers)
   end
 
-  defp split_prices(list_of_map_of_prices) do
-    split_prices(list_of_map_of_prices, {[], []})
+  defp split_prices(list_of_maps_of_prices) do
+    split_prices(list_of_maps_of_prices, %{})
   end
 
   defp split_prices([], acc) do
@@ -124,9 +140,24 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   end
 
   defp split_prices(
-         [%{"eur" => euro_price, "usd" => usd_price} | other_prices],
-         {euro_prices, usd_prices}
+         [%{} = prices | other_prices],
+         aggregated_data
        ) do
-    split_prices(other_prices, {euro_prices ++ [euro_price], usd_prices ++ [usd_price]})
+    new_aggregated_data =
+      Enum.reduce(prices, aggregated_data, fn
+        ## Assert we have at least one value for the currency
+        {currency, [_ | _] = values}, acc ->
+          Map.update(acc, currency, [median(values)], fn previous_values ->
+            previous_values ++ [mean(values)]
+          end)
+
+        other, acc ->
+          Logger.warning(
+            "No or Unexpected value : #{inspect(other)} while aggregating service result"
+          )
+          acc
+      end)
+
+    split_prices(other_prices, new_aggregated_data)
   end
 end

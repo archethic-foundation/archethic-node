@@ -10,7 +10,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     |> expect(:fetch, fn pairs ->
       res =
         Enum.map(pairs, fn pair ->
-          {pair, :rand.uniform_real()}
+          {pair, [:rand.uniform_real()]}
         end)
         |> Enum.into(%{})
 
@@ -21,7 +21,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     |> expect(:fetch, fn pairs ->
       res =
         Enum.map(pairs, fn pair ->
-          {pair, :rand.uniform_real()}
+          {pair, [:rand.uniform_real()]}
         end)
         |> Enum.into(%{})
 
@@ -32,7 +32,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     |> expect(:fetch, fn pairs ->
       res =
         Enum.map(pairs, fn pair ->
-          {pair, :rand.uniform_real()}
+          {pair, [:rand.uniform_real()]}
         end)
         |> Enum.into(%{})
 
@@ -46,17 +46,17 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     test "should return true if the prices are the good one" do
       MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider2
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       assert true == UCOPrice.verify?(%{"eur" => 0.20, "usd" => 0.12})
@@ -65,17 +65,17 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     test "should return false if the prices are not the good one" do
       MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider2
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       assert false == UCOPrice.verify?(%{"eur" => 0.10, "usd" => 0.14})
@@ -84,17 +84,17 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     test "should return the median value when multiple providers queried" do
       MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider2
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.30, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.30, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.40, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.40, "usd" => 0.12}]}
       end)
 
       assert false == UCOPrice.verify?(%{"eur" => 0.30, "usd" => 0.12})
@@ -123,22 +123,22 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       ## Define mocks expectations
       MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.20, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider2
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.30, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.30, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.40, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.40, "usd" => 0.12}]}
       end)
 
       MockUCOPriceProvider4
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => 0.50, "usd" => 0.12}}
+        {:ok, [%{"eur" => 0.50, "usd" => 0.12}]}
       end)
 
       ## Restore original environment
