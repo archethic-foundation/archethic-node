@@ -3,9 +3,11 @@ defmodule ArchethicWeb.PlugAttack do
   use PlugAttack
 
   rule "throttle by ip", conn do
+    [period: period, limit: limit] = Application.get_env(:archethic, :throttle)
+
     throttle(conn.remote_ip,
-      period: 1_000,
-      limit: 10,
+      period: period,
+      limit: limit,
       storage: {PlugAttack.Storage.Ets, ArchethicWeb.PlugAttack.Storage}
     )
   end

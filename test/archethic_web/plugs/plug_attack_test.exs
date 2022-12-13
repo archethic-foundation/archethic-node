@@ -1,17 +1,22 @@
 defmodule ArchethicWeb.PlugAttackTest do
   use ArchethicWeb.ConnCase
 
+  use ArchethicCase, async: false
+
+  @tag ratelimit: true
   describe "plug attack should: " do
     test "return 403 Forbidden if the user makes more than 10 requests per second", %{conn: conn} do
-      Enum.each(1..10, fn
-        _ ->
-          conn
-          |> get("/up")
-          |> response(503)
-      end)
+      is_rate_limited? =
+        Task.async_stream(1..1_000, fn _ ->
+          conn = get(conn, "/up")
+          conn.status
+        end)
+        |> Enum.reduce_while(false, fn
+          {:ok, 403}, _acc -> {:halt, true}
+          _, acc -> {:cont, acc}
+        end)
 
-      conn = get(conn, "/up")
-      assert response(conn, 403) =~ "Forbidden"
+      assert is_rate_limited?
     end
   end
 end

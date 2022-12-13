@@ -64,6 +64,10 @@ config :archethic, :transaction_data_content_max_size, 3_145_728
 # 24KB Max
 config :archethic, :transaction_data_code_max_size, 24576
 
+config :archethic, :throttle,
+  period: 1000,
+  limit: 10
+
 config :archethic, Archethic.Crypto,
   supported_curves: [
     :ed25519,
