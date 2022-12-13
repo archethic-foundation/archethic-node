@@ -15,13 +15,16 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @spec fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch do
     prices =
-      :lists.filtermap(fn provider ->
-        ## Filter resuts from services marked as :error
-        case provider.fetch(@pairs) do
-          {:ok, prices} -> {true, prices}
-          {:error, _} -> false
-        end
-      end, providers())
+      :lists.filtermap(
+        fn provider ->
+          ## Filter resuts from services marked as :error
+          case provider.fetch(@pairs) do
+            {:ok, prices} -> {true, prices}
+            {:error, _} -> false
+          end
+        end,
+        providers()
+      )
       ## split prices in a list per currency
       |> split_prices()
       ## compute media per currency list
