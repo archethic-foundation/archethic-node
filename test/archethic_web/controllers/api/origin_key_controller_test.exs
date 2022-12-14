@@ -11,11 +11,6 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
     P2P.Message.Ok
   }
 
-  @ecdsa_certification_public_keys Application.compile_env(
-                                     :archethic,
-                                     [Archethic.Crypto],
-                                     []
-                                   )
   import Mox
 
   setup do
@@ -240,43 +235,13 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
              } = json_response(conn, 400)
     end
 
-    test "Should Accept Valid Certificate, With ECDSA CERT & KEY", %{conn: conn} do
-      MockClient
-      |> stub(:send_message, fn _, _, _ ->
-        %Ok{}
-      end)
-
-      public_key =
-        "010104F6DD320C52D3706545FE6DE978AF5D90CC4A665D5D81F10DE63613A5E7975C5F745C89AE9D42A9FB7D8EA7D49B1AF117D8163E152B86BE2405D51AA30AD0C160"
-
-      cert =
-        "3045022029572470D4EFF1A2209EAA65BA658B7B3763A8815E51C9C4D15A8D185121D4EE022100902C06251F27E6662D82337B2425B1499F9AF90E9F544428C66DEC0AAB84A055"
-
-      conn =
-        post(conn, "/api/origin_key", %{
-          origin_public_key: public_key,
-          certificate: cert
-        })
-
-      assert %{
-               "status" => "pending"
-             } = json_response(conn, 201)
-    end
-
     test "Should get InValid Certificate, With ed25519", %{conn: conn} do
       MockClient
       |> stub(:send_message, fn _, _, _ ->
         %Ok{}
       end)
 
-      <<_::208, ca_public_key::binary>> =
-        @ecdsa_certification_public_keys
-        |> Keyword.get(:root_ca_public_keys)
-        |> Keyword.get(:software)
-
-      <<_::208, ca_private_key::binary>> =
-        @ecdsa_certification_public_keys
-        |> Keyword.get(:software_root_ca_key)
+      {ca_public_key, ca_private_key} = :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")
 
       {pbk = <<_curve_id::8, _origin_id::8, public_key_bin::binary>>, _} =
         Crypto.derive_keypair("random-test-key", 0)

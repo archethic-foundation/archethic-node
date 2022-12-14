@@ -81,7 +81,12 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
-    certificate = Crypto.get_key_certificate(Crypto.first_node_public_key())
+    {origin_public_key, _} =
+      Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
+
+    {_, ca_pv} = :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")
+    <<_::8, _::8, origin_key::binary>> = origin_public_key
+    certificate = Crypto.ECDSA.sign(:secp256r1, ca_pv, origin_key)
 
     tx =
       Transaction.new(:node, %TransactionData{
@@ -93,7 +98,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             MockTransport,
             <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209, 6,
               234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
-            <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+            origin_public_key,
             certificate
           )
       })

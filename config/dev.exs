@@ -59,6 +59,8 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
       "127.0.0.1:3002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
     )
 
+config :archethic, Archethic.Crypto, root_ca_public_keys: [software: [], tpm: []]
+
 config :archethic, Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl,
   node_seed: System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")
 

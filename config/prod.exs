@@ -16,52 +16,52 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
     [
       %{
         address:
-          Base.decode16!("00001847ce435fed8e0b280f9be54415b32488cb5057d623ead786737033d86cc6aa",
+          Base.decode16!("0000e0ef0c5a8242d7f743e452e3089b7acac43763a3f18c8f5dd38d22299b61ce0e",
             case: :mixed
           ),
-        amount: 382_000_000 * 100_000_000
+        amount: 381_966_011 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00000ba09619268f8c821ee612408c383440ed9c6e2b7ffa96baf75cb02748406a8f",
+          Base.decode16!("000047c827e93c4f1106906d3f43546eb09176f03dff15275759d47bf33d9b0d168a",
             case: :mixed
           ),
-        amount: 236_000_000 * 100_000_000
+        amount: 236_067_977 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("0000782de47562bb18ae3f19a26744996fc43b01b5ef0d66243eb5ea78dcc120191d",
+          Base.decode16!("000012023d76d65f4a20e563682522576963e36789897312cb6623fdf7914b60ecef",
             case: :mixed
           ),
-        amount: 145_000_000 * 100_000_000
+        amount: 145_898_033 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("0000df4a467af8d5ff755c00b08a2f338cacffd54f3dfd1b95107b2538c92ab1db56",
+          Base.decode16!("00004769c94199bca872ffafa7ce912f6de4dd8b2b1f4a41985cd25f3c4a190c72bb",
             case: :mixed
           ),
-        amount: 90_000_000 * 100_000_000
+        amount: 90_169_943 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00008b0966702f4e1b99e44b7f3bc34a36dfbe41b54925454eada7c51358e516c4da",
+          Base.decode16!("0000dbe5d04070411325ba8254bc0ce005df30ebfdfeefadbc6659fa3d5fa3263dfd",
             case: :mixed
           ),
-        amount: 55_700_000 * 100_000_000
+        amount: 55_728_090 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00000690b958706f2f5f54a3c3487e9bb49009e9cf00a3e1ec547deadca0790d2363",
+          Base.decode16!("0000bb90e7ec3051bf7be8d2bf766da8bed88afa696d282acf5ff8479ce787397e16",
             case: :mixed
           ),
-        amount: 34_400_000 * 100_000_000
+        amount: 34_441_857 * 100_000_000
       },
       %{
         address:
-          Base.decode16!("00002b339e4cfcd9883303a57192bec6e78c064cfe8bf879ec185b7a23686d4d7da9",
+          Base.decode16!("000050ceee9ceeb411fa027f1fb9247fe04297ff00358d87de4b7b8f2a7051df47f7",
             case: :mixed
           ),
-        amount: 21_300_000 * 100_000_000
+        amount: 21_286_236 * 100_000_000
       },
       if(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet",
         do: %{
@@ -89,12 +89,22 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
 
 config :archethic, Archethic.Crypto,
   root_ca_public_keys: [
-    tpm:
-      System.get_env(
-        "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY",
-        "3059301306072a8648ce3d020106082a8648ce3d03010703420004f0fe701a03ce375a6e57adbe0255808812036571c1424db2779c77e8b4a9ba80a15b118e8e7465ee2e94094e59c4b3f7177e99063af1b19bfcc4d7e1ac3f89dd"
-      )
-      |> Base.decode16!(case: :mixed)
+    software: [
+      secp256r1:
+        System.get_env(
+          "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY",
+          "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
+        )
+        |> Base.decode16!(case: :mixed)
+    ],
+    tpm: [
+      secp256r1:
+        System.get_env(
+          "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY",
+          "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
+        )
+        |> Base.decode16!(case: :mixed)
+    ]
   ],
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
@@ -128,7 +138,7 @@ config :archethic, Archethic.Governance.Pools,
 
 config :archethic, Archethic.Mining.PendingTransactionValidation,
   allowed_node_key_origins:
-    System.get_env("ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS", "tpm")
+    System.get_env("ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS", "tpm;software")
     |> String.upcase()
     |> String.split(";", trim: true)
     |> Enum.map(fn

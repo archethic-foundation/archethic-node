@@ -96,11 +96,11 @@ defmodule Archethic.Crypto do
   """
   @type aes_cipher :: <<_::384, _::_*8>>
 
-  @ecdsa_certification_public_keys Application.compile_env(
-                                     :archethic,
-                                     [__MODULE__, :root_ca_public_keys],
-                                     []
-                                   )
+  @certification_public_keys Application.compile_env(
+                               :archethic,
+                               [__MODULE__, :root_ca_public_keys],
+                               []
+                             )
 
   @doc """
   Derive a new keypair from a seed (retrieved from the local keystore
@@ -1126,17 +1126,7 @@ defmodule Archethic.Crypto do
   defdelegate origin_node_public_key, to: NodeKeystore, as: :origin_public_key
 
   @spec get_key_certificate(key()) :: binary()
-  def get_key_certificate(<<_::8, origin_id::8, key::binary>>) do
-    origin_id
-    |> ID.to_origin()
-    |> do_get_key_certificate(key)
-  end
-
-  defp do_get_key_certificate(:software, _) do
-    ""
-  end
-
-  defp do_get_key_certificate(:tpm, key) do
+  def get_key_certificate(<<_::8, _::8, key::binary>>) do
     key_digest = :crypto.hash(:sha256, key) |> Base.encode16(case: :lower)
 
     cert_path =
@@ -1160,23 +1150,25 @@ defmodule Archethic.Crypto do
   Return the Root CA public key for the given versioned public key
   """
   @spec get_root_ca_public_key(key()) :: binary()
-
-  def get_root_ca_public_key(<<curve::8, origin_id::8, _::binary>>) when curve in [1, 2] do
-    # :secp256 r1 & k1
-    case Keyword.get(@ecdsa_certification_public_keys, ID.to_origin(origin_id)) do
+  def get_root_ca_public_key(<<curve::8, origin_id::8, _::binary>>) do
+    case Keyword.get(@certification_public_keys, ID.to_origin(origin_id)) do
       nil ->
+        "no_key"
+
+      # Only for dev
+      [] ->
         ""
 
-      "" ->
-        ""
+      curves when is_list(curves) ->
+        case Keyword.get(curves, ID.to_curve(curve)) do
+          nil ->
+            "no_key"
 
-      <<_::binary-size(26), public_key::binary>> ->
-        public_key
+          public_key ->
+            public_key
+        end
     end
   end
-
-  def get_root_ca_public_key(_), do: ""
-  # :ed25519
 
   @doc """
   Determine if the public key if authorized from the given certificate
@@ -1196,7 +1188,7 @@ defmodule Archethic.Crypto do
       ...> <<4, 210, 136, 107, 189, 140, 118, 86, 124, 217, 244, 69, 111, 61, 56, 224, 56, 150, 230,
       ...>  194, 203, 81, 213, 212, 220, 19, 1, 180, 114, 44, 230, 149, 21, 125, 69, 206, 32, 173,
       ...>  186, 81, 243, 58, 13, 198, 129, 169, 33, 179, 201, 50, 49, 67, 38, 156, 38, 199, 97, 59,
-      ...>  70, 95, 28, 35, 233, 21, 230>>)
+      ...>  70, 95, 28, 35, 233, 21, 230>>, false)
       true
 
       # Should return true with origin :onchain_wallet/:software & empty certificate
@@ -1204,13 +1196,13 @@ defmodule Archethic.Crypto do
       iex> Crypto.verify_key_certificate?(
       ...> <<0,0, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
       ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
-      ...>  _cerificate = "" ,_root_ca_public_key= <<4>>)
+      ...>  _cerificate = "" ,_root_ca_public_key= <<4>>, _for_node=false)
       true
 
       iex> Crypto.verify_key_certificate?(
       ...> <<0,1, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
       ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
-      ...>  _cerificate = "" ,_root_ca_public_key= <<6>>)
+      ...>  _cerificate = "" ,_root_ca_public_key= <<6>>, _for_node=false)
       true
 
       # Should return false with origin :all & Any certificate & Empty Root_CA_Public_Key
@@ -1222,7 +1214,7 @@ defmodule Archethic.Crypto do
       ...>  241, 104, 124, 212, 13, 10, 30, 80, 2, 170, 174, 8, 129, 205, 30, 40, 7, 196,
       ...>  2, 32, 27, 21, 21, 174, 186, 126, 63, 184, 50, 195, 46, 118, 188, 2, 112, 214,
       ...>  196, 121, 250, 48, 223, 110, 152, 189, 231, 137, 152, 25, 78, 29, 76, 191>> ,
-      ...>  _root_ca_public_key= "")
+      ...>  _root_ca_public_key= "", _for_node=false)
       false
 
       iex> Crypto.verify_key_certificate?(
@@ -1232,24 +1224,28 @@ defmodule Archethic.Crypto do
       ...>  241, 104, 124, 212, 13, 10, 30, 80, 2, 170, 174, 8, 129, 205, 30, 40, 7, 196,
       ...>  2, 32, 27, 21, 21, 174, 186, 126, 63, 184, 50, 195, 46, 118, 188, 2, 112, 214,
       ...>  196, 121, 250, 48, 223, 110, 152, 189, 231, 137, 152, 25, 78, 29, 76, 191>> ,
-      ...>  _root_ca_public_key= "")
+      ...>  _root_ca_public_key= "", _for_node=false)
       false
   """
   @spec verify_key_certificate?(
           public_key :: key(),
           certificate :: binary(),
-          root_ca_key :: binary()
+          root_ca_key :: binary(),
+          for_node? :: boolean()
         ) ::
           boolean()
+  def verify_key_certificate?(_, "", "", true), do: true
+  def verify_key_certificate?(_, "", _, true), do: false
 
-  def verify_key_certificate?(<<_::8, 0::8, _::binary>>, "", _), do: true
-  def verify_key_certificate?(<<_::8, 1::8, _::binary>>, "", _), do: true
-  def verify_key_certificate?(_, _, ""), do: false
+  def verify_key_certificate?(<<_::8, 0::8, _::binary>>, "", _, false), do: true
+  def verify_key_certificate?(<<_::8, 1::8, _::binary>>, "", _, false), do: true
+  def verify_key_certificate?(_, _, "", false), do: false
 
   def verify_key_certificate?(
         <<curve_id::8, origin_id::8, client_key::binary>>,
         certificate,
-        root_ca_key
+        root_ca_key,
+        _
       )
       when is_binary(certificate) and is_binary(root_ca_key) do
     try do

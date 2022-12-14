@@ -8,7 +8,8 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY do
   @behaviour Impl
 
   @impl Impl
-  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :not_recognizable_ip}
+  @spec get_node_ip() ::
+          {:ok, :inet.ip_address()} | {:error, :not_recognizable_ip} | {:error, any()}
   def get_node_ip() do
     with {:ok, {_, _, inet_addr}} <- :httpc.request('http://api.ipify.org'),
          {:ok, ip} <- :inet.parse_address(inet_addr) do
@@ -18,8 +19,10 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY do
         {:error, :not_recognizable_ip}
 
       {:error, :einval} ->
-        :inets.stop()
         {:error, :not_recognizable_ip}
+
+      {:error, _} = e ->
+        e
     end
   end
 end

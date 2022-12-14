@@ -11,6 +11,9 @@ echo "Install required system dependencies"
 # Prevent the node to sleep
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
+# Prevent upgrade to prompt service restart
+sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+
 sudo apt-get update
 
 sudo apt-get install -y \
@@ -23,34 +26,18 @@ sudo apt-get install -y \
   zlib1g-dev \
   libgmp-dev \
   net-tools \
-  libncurses5-dev
+  libncurses5-dev \
+  openssl \
+  unzip \
+  automake \
+  libssl-dev \
+  autoconf \
 
 sudo locale-gen en_US.UTF-8
 
 function version_to_int {
   echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }';
 }
-
-echo "Install OpenSSL"
-
-OPENSSL_VERSION=$(openssl version | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
-if [[ $(version_to_int $OPENSSL_VERSION) -lt $(version_to_int "1.1.1") ]]; then
-    cd /usr/local/src/
-    sudo wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz 
-    sudo tar -xf openssl-1.1.1q.tar.gz 
-    cd openssl-1.1.1q 
-    sudo ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared zlib
-    sudo make
-    sudo make install
-    sudo bash -c 'echo "/usr/local/ssl/lib" >> /etc/ld.so.conf.d/openssl-1.1.1q.conf'
-    sudo ldconfig
-    sudo bash -c 'echo "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/local/ssl/bin" >> /etc/environment'
-    sudo bash -c 'source /etc/environment'
-    sudo ln -s /etc/ssl/certs/*.* /usr/local/ssl/certs/
-    cd ~
-else
-  echo "OpenSSL up to date"
-fi
 
 echo "Install Erlang & Elixir"
 
@@ -70,6 +57,7 @@ asdf update
 
 asdf plugin add erlang || :
 asdf plugin add elixir || :
+asdf plugin add nodejs || :
 
 cd $SCRIPT_DIR/..
 
@@ -77,9 +65,11 @@ asdf install
 
 ELIXIR_VERSION=$(asdf current elixir 2>&1 | grep -oP '\d\S+')
 ERLANG_VERSION=$(asdf current erlang 2>&1 | grep -oP '\d\S+')
+NODEJS_VERSION=$(asdf current nodejs 2>&1 | grep -oP '\d\S+')
 
 asdf global elixir $ELIXIR_VERSION
 asdf global erlang $ERLANG_VERSION
+asdf global nodejs $NODEJS_VERSION
 
 echo "Install Libsodium"
 
@@ -100,7 +90,7 @@ echo "Install docker"
 
 curl -fsSL  https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
-sudo add-apt-repository \
+sudo add-apt-repository -y \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
    $(lsb_release -cs) \
    stable"
@@ -122,10 +112,7 @@ sudo apt -y install \
   pkg-config \
   gcc \
   libtool \
-  automake \
-  libssl-dev \
   uthash-dev \
-  autoconf \
   doxygen \
   libjson-c-dev \
   libini-config-dev \
@@ -133,9 +120,9 @@ sudo apt -y install \
   acl
 
 cd $INSTALL_DIR
-wget  https://github.com/tpm2-software/tpm2-tss/releases/download/3.1.0/tpm2-tss-3.1.0.tar.gz
-tar -xf tpm2-tss-3.1.0.tar.gz --one-top-level=tpm2-tss --strip-components 1
-rm tpm2-tss-3.1.0.tar.gz && cd tpm2-tss
+wget https://github.com/tpm2-software/tpm2-tss/releases/download/3.2.1-rc2/tpm2-tss-3.2.1-rc2.tar.gz
+tar -xf tpm2-tss-3.2.1-rc2.tar.gz --one-top-level=tpm2-tss --strip-components 1
+rm tpm2-tss-3.2.1-rc2.tar.gz && cd tpm2-tss
 ./configure --with-udevrulesdir=/etc/udev/rules.d
 make -j$(nproc)
 
@@ -143,7 +130,7 @@ sudo make install
 sudo sed -i "s/tss/$(whoami)/gi" /etc/udev/rules.d/tpm-udev.rules
 sudo udevadm control --reload-rules && sudo udevadm trigger
 sudo ldconfig
-sudo apt install tpm2-tools
+sudo apt install tpm2-tools -y
 
 cd $SCRIPT_DIR/..
 make

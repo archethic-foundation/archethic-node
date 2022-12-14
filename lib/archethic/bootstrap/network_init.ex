@@ -98,6 +98,10 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
     [genesis_origin_public_key | _rest] = @genesis_origin_public_keys
 
+    origin_cert =
+      "3044022002596a4b72bc8204e331d37c98a2a6765d5ca886585d70ff0c2b60774d0489e2022028c556e3520b4ea814faa4fbf80760fd7fa56f68f531aa91561280805cd5764a"
+      |> Base.decode16!(case: :mixed)
+
     Transaction.new(
       :origin,
       %TransactionData{
@@ -109,7 +113,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
             content: true
           ]
         """,
-        content: <<genesis_origin_public_key::binary, 0::16>>
+        content:
+          <<genesis_origin_public_key::binary, byte_size(origin_cert)::16, origin_cert::binary>>
       },
       signing_seed,
       0

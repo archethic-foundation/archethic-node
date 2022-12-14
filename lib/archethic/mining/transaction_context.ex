@@ -10,7 +10,6 @@ defmodule Archethic.Mining.TransactionContext do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
@@ -61,7 +60,7 @@ defmodule Archethic.Mining.TransactionContext do
     prev_tx_task = request_previous_tx(previous_address, prev_tx_nodes_split)
     nodes_view_task = request_nodes_view(node_public_keys)
 
-    prev_tx = Task.await(prev_tx_task, Message.get_max_timeout())
+    prev_tx = Task.await(prev_tx_task)
     nodes_view = Task.await(nodes_view_task)
 
     %{
@@ -99,15 +98,20 @@ defmodule Archethic.Mining.TransactionContext do
   end
 
   defp request_previous_tx(previous_address, nodes) do
-    Task.Supervisor.async(TaskSupervisor, fn ->
-      case TransactionChain.fetch_transaction_remotely(previous_address, nodes) do
-        {:ok, tx} ->
-          tx
+    Task.Supervisor.async(
+      TaskSupervisor,
+      fn ->
+        # Timeout of 4 sec because the coordinator node wait 5 sec to get the context
+        # from the cross validation nodes
+        case TransactionChain.fetch_transaction_remotely(previous_address, nodes, 4000) do
+          {:ok, tx} ->
+            tx
 
-        {:error, :transaction_not_exists} ->
-          nil
+          {:error, _} ->
+            nil
+        end
       end
-    end)
+    )
   end
 
   defp request_nodes_view(node_public_keys) do

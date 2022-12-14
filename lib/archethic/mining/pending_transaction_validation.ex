@@ -86,9 +86,22 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp valid_not_exists(%Transaction{address: address}) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
+    conflict_resolver = fn results ->
+      # Prioritize transactions results over not found
+      case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
+        [] ->
+          %NotFound{}
+
+        res ->
+          Enum.sort_by(res, & &1.timestamp, {:desc, DateTime})
+          |> List.first()
+      end
+    end
+
     case P2P.quorum_read(
            storage_nodes,
-           %GetTransactionSummary{address: address}
+           %GetTransactionSummary{address: address},
+           conflict_resolver
          ) do
       {:ok, %TransactionSummary{address: ^address}} ->
         {:error, "transaction already exists"}
@@ -322,7 +335,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
             Crypto.verify_key_certificate?(
               origin_public_key,
               key_certificate,
-              root_ca_public_key
+              root_ca_public_key,
+              true
             )},
          {:conn, :ok} <-
            {:conn, valid_connection(ip, port, previous_public_key)},
@@ -369,7 +383,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          root_ca_public_key <-
            Crypto.get_root_ca_public_key(origin_public_key),
          true <-
-           Crypto.verify_key_certificate?(origin_public_key, key_certificate, root_ca_public_key) do
+           Crypto.verify_key_certificate?(
+             origin_public_key,
+             key_certificate,
+             root_ca_public_key,
+             false
+           ) do
       :ok
     else
       false ->

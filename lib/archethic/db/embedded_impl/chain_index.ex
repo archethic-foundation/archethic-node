@@ -445,12 +445,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     # We get the genesis address of this given transaction address
     case get_tx_entry(address, db_path) do
       {:ok, %{genesis_address: genesis_address}} ->
-        search_last_address_until(genesis_address, unix_time, db_path) || {address, datetime}
+        search_last_address_until(genesis_address, unix_time, db_path) ||
+          {address, DateTime.from_unix!(0, :millisecond)}
 
       {:error, :not_exists} ->
         # We try to search with given address as genesis address
         # Then `address` acts the genesis address
-        search_last_address_until(address, unix_time, db_path) || {address, datetime}
+        search_last_address_until(address, unix_time, db_path) ||
+          {address, DateTime.from_unix!(0, :millisecond)}
     end
   end
 

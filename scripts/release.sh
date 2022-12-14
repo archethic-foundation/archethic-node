@@ -52,9 +52,11 @@ then
 
   ELIXIR_VERSION=$(asdf current elixir 2>&1 | grep -oP '\d\S+')
   ERLANG_VERSION=$(asdf current erlang 2>&1 | grep -oP '\d\S+')
+  NODEJS_VERSION=$(asdf current nodejs 2>&1 | grep -oP '\d\S+')
 
   asdf global elixir $ELIXIR_VERSION
   asdf global erlang $ERLANG_VERSION
+  asdf global nodejs $NODEJS_VERSION
 fi
 
 # Install updated versions of hex/rebar
@@ -67,6 +69,9 @@ export MIX_ENV=prod
 mix deps.get
 
 # Builds WEB assets in production mode
+cd assets
+npm ci
+cd ..
 mix assets.saas
 mix assets.deploy
 

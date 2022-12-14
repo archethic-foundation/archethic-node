@@ -519,14 +519,10 @@ defmodule Archethic.DB.EmbeddedTest do
 
   describe "get_last_chain_address/2" do
     test "should return the same given address if not previous chain" do
-      now = DateTime.utc_now()
       address = :crypto.strong_rand_bytes(32)
       assert {^address, last_time} = EmbeddedImpl.get_last_chain_address(address)
 
-      assert DateTime.compare(
-               now |> DateTime.truncate(:millisecond),
-               last_time |> DateTime.truncate(:millisecond)
-             ) == :eq
+      assert ^last_time = DateTime.from_unix!(0, :millisecond)
     end
 
     test "should get the last address of a chain before given date" do

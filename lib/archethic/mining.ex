@@ -162,7 +162,7 @@ defmodule Archethic.Mining do
         ) ::
           :ok
   def confirm_replication(tx_address, signature, node_public_key) do
-    pid = get_mining_process!(tx_address)
+    pid = get_mining_process!(tx_address, 1000)
     if pid, do: send(pid, {:ack_replication, signature, node_public_key})
     :ok
   end
