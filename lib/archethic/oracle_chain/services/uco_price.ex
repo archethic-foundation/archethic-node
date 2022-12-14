@@ -22,10 +22,8 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
             result
 
           {:error, reason} ->
-            Logger.warning(
-              "Service : #{inspect(__MODULE__)} : Cannot fetch values from
-                provider: #{inspect(provider)} with reason : #{inspect(reason)}. Discarding entry."
-            )
+            Logger.warning("Service : #{inspect(__MODULE__)} : Cannot fetch values from
+                provider: #{inspect(provider)} with reason : #{inspect(reason)}.")
 
             {false, provider}
         end
@@ -37,7 +35,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
       |> List.flatten()
 
       ## split prices in a list per currency. If a service returned a list of prices of a currency,
-      ## they will be meaned before being added to list
+      ## they will be medianed first before being added to list
       |> split_prices()
       ## compute median per currency list
       |> median_prices()
@@ -92,7 +90,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     mean(xs, t + x, l + 1)
   end
 
-  defp median_prices(%{} = map_prices) do
+  defp median_prices(map_prices = %{}) do
     Enum.reduce(map_prices, %{}, fn {currency, values}, acc ->
       Map.put(acc, currency, median(values))
     end)
