@@ -2,6 +2,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
   use ArchethicCase
   use ArchethicWeb.ConnCase
 
+  alias Archethic.OracleChain
   alias Archethic.OracleChain.MemTable
   alias Archethic.P2P
   alias Archethic.P2P.Node
@@ -25,7 +26,12 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
 
   describe "transaction_fee/2" do
     test "should send ok response and return fee for valid transaction body", %{conn: conn} do
-      MemTable.add_oracle_data("uco", %{"eur" => 0.2, "usd" => 0.2}, DateTime.utc_now())
+      previous_oracle_time =
+        DateTime.utc_now()
+        |> OracleChain.get_last_scheduling_date()
+        |> OracleChain.get_last_scheduling_date()
+
+      MemTable.add_oracle_data("uco", %{"eur" => 0.2, "usd" => 0.2}, previous_oracle_time)
 
       conn =
         post(conn, "/api/transaction_fee", %{
