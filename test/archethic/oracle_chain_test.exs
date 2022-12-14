@@ -12,7 +12,7 @@ defmodule Archethic.OracleChainTest do
   test "valid_services_content?/1 should verify the oracle transaction's content correctness" do
     MockUCOPriceProvider
     |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
     end)
 
     content =

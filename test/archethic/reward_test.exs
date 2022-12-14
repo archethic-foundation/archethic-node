@@ -59,7 +59,7 @@ defmodule Archethic.RewardTest do
   test "get_transfers should create transfer transaction" do
     MockUCOPriceProvider
     |> stub(:fetch, fn _pairs ->
-      {:ok, [%{"eur" => 0.10, "usd" => 0.10}]}
+      {:ok, %{"eur" => [0.10], "usd" => [0.10]}}
     end)
 
     address = :crypto.strong_rand_bytes(32)
