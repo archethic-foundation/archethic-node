@@ -14,6 +14,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @impl Impl
   @spec fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch do
+    ## retrieve prices from configured providers and filter results marked as errors
     prices =
       providers()
       |> Task.async_stream(fn provider ->
@@ -29,8 +30,18 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         end
       end)
       |> Enum.map(fn
-        {:ok, {:ok, result}} -> result
-        {:ok, {false, _provider}} -> []
+        {:ok, {:ok, result}} ->
+          result
+
+        {:ok, {false, _provider}} ->
+          []
+
+        other ->
+          Logger.warning(
+            "Service : #{inspect(__MODULE__)} : Unexpected answer while querying provider : #{inspect(other)}"
+          )
+
+          []
       end)
       |> List.flatten()
 
