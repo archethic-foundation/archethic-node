@@ -1,9 +1,9 @@
-defmodule ArchethicWeb.PlugAttack do
+defmodule ArchethicWeb.PlugThrottleByIP do
   @moduledoc false
   use PlugAttack
 
-  rule "throttle by ip", conn do
-    [period: period, limit: limit] = Application.get_env(:archethic, :throttle)
+  rule "Throttle by IP", conn do
+    [period: period, limit: limit] = Application.get_env(:archethic, :throttle)[:by_ip]
 
     throttle(conn.remote_ip,
       period: period,

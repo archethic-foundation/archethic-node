@@ -35,10 +35,6 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
     }
   ]
 
-config :archethic, :throttle,
-  period: 5000,
-  limit: 1000
-
 config :archethic, Archethic.Contracts.Loader, enabled: false
 
 config :archethic, Archethic.Crypto,

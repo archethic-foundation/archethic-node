@@ -55,10 +55,11 @@ defmodule ArchethicWeb.Endpoint do
   plug(Plug.MethodOverride)
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
+  plug(ArchethicWeb.PlugThrottleByIP)
+  plug(ArchethicWeb.PlugThrottleByIPandPath)
   plug(CORSPlug, origin: "*")
   plug(ArchethicWeb.RouterDispatch)
   plug(ArchethicWeb.PlugAttack)
-
   # don't serve anything before the node is bootstraped
   #
   # ps: this handle only HTTP(S) requests
