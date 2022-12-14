@@ -134,7 +134,11 @@ config :archethic, Archethic.OracleChain,
   ]
 
 config :archethic, Archethic.OracleChain.Services.UCOPrice,
-  providers: [Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko]
+  providers: [
+    Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+    Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+    Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika
+  ]
 
 config :archethic, ArchethicWeb.FaucetController,
   seed:
