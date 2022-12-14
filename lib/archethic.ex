@@ -4,6 +4,7 @@ defmodule Archethic do
   """
 
   alias __MODULE__.Account
+  alias __MODULE__.BeaconChain
   alias __MODULE__.Crypto
 
   alias __MODULE__.Election
@@ -320,5 +321,34 @@ defmodule Archethic do
   def get_transaction_chain_length(address) when is_binary(address) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
     TransactionChain.fetch_size_remotely(address, nodes)
+  end
+
+  @doc """
+  Fetch a summaries aggregate for a given date.
+  If node is a storage node, it will skip I/O and fetch from local DB
+  """
+  @spec fetch_summaries_aggregate(DateTime.t()) ::
+          {:ok, BeaconChain.SummaryAggregate.t()} | {:error, atom()}
+  def fetch_summaries_aggregate(date) do
+    nodes = P2P.authorized_and_available_nodes()
+
+    is_a_beacon_storage_node? =
+      date
+      |> Crypto.derive_beacon_aggregate_address()
+      |> Election.beacon_storage_node?(date, Crypto.first_node_public_key(), nodes)
+
+    if is_a_beacon_storage_node? do
+      BeaconChain.get_summaries_aggregate(date)
+    else
+      BeaconChain.fetch_summaries_aggregate(date, nodes)
+    end
+  end
+
+  @doc """
+  Request from the beacon chains all the summaries for the given dates and aggregate them
+  """
+  @spec fetch_and_aggregate_summaries(DateTime.t()) :: BeaconChain.SummaryAggregate.t()
+  def fetch_and_aggregate_summaries(date) do
+    BeaconChain.fetch_and_aggregate_summaries(date, P2P.authorized_and_available_nodes())
   end
 end
