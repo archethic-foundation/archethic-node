@@ -15,24 +15,27 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @spec fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch do
     prices =
-      :lists.filtermap(
-        fn provider ->
-          ## Filter resuts from services marked as :error
-          case provider.fetch(@pairs) do
-            {:ok, prices} ->
-              {true, prices}
+      providers()
+      |> Task.async_stream(fn provider ->
+        case provider.fetch(@pairs) do
+          {:ok, _prices} = result ->
+            result
 
-            {:error, reason} ->
-              Logger.warning(
-                "Service : #{inspect(__MODULE__)} : Cannot fetch values from
+          {:error, reason} ->
+            Logger.warning(
+              "Service : #{inspect(__MODULE__)} : Cannot fetch values from
                 provider: #{inspect(provider)} with reason : #{inspect(reason)}. Discarding entry."
-              )
+            )
 
-              false
-          end
-        end,
-        providers()
-      )
+            {false, provider}
+        end
+      end)
+      |> Enum.map(fn
+        {:ok, {:ok, result}} -> result
+        {:ok, {false, _provider}} -> []
+      end)
+      |> List.flatten()
+
       ## split prices in a list per currency. If a service returned a list of prices of a currency,
       ## they will be meaned before being added to list
       |> split_prices()
