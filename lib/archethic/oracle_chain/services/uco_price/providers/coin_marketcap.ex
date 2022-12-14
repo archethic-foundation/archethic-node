@@ -18,7 +18,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
     ]
 
     returned_prices =
-      Enum.map(pairs, fn pair ->
+      Task.async_stream(pairs, fn pair ->
         headers = [
           {'user-agent',
            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'},
@@ -49,6 +49,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
             e
         end
       end)
+      |> Enum.map(fn {:ok, val} -> val end)
 
     errors? =
       Enum.any?(returned_prices, fn
