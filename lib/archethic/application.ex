@@ -56,7 +56,7 @@ defmodule Archethic.Application do
     web_endpoint_conf = Application.get_env(:archethic, ArchethicWeb.Endpoint)
 
     port = Keyword.fetch!(p2p_endpoint_conf, :port)
-    port = Networking.try_open_port(port, true)
+    {:ok, port} = Networking.try_open_port(port, true)
     http = Keyword.fetch!(web_endpoint_conf, :http)
     http_port = Keyword.fetch!(http, :port)
 
