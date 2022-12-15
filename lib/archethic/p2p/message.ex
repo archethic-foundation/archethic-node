@@ -1648,40 +1648,41 @@ defmodule Archethic.P2P.Message do
       |> Enum.sort_by(& &1.input.timestamp, {:desc, DateTime})
       |> Enum.with_index()
       |> Enum.drop(offset)
-      |> Enum.reduce_while(%{inputs: [], offset: 0, more?: false}, fn {versioned_input, index},
-                                                                      acc ->
-        acc_size =
-          acc.inputs
-          |> Enum.map(&VersionedTransactionInput.serialize/1)
-          |> :erlang.list_to_bitstring()
-          |> byte_size()
+      |> Enum.reduce_while(
+        %{inputs: [], offset: 0, more?: false},
+        fn {versioned_input, index}, acc = %{inputs: inputs, offset: offset, more?: more?} ->
+          acc_size = Map.get(acc, :acc_size, 0)
+          acc_length = Map.get(acc, :acc_length, 0)
 
-        input_size =
-          versioned_input
-          |> VersionedTransactionInput.serialize()
-          |> byte_size
+          input_size =
+            versioned_input
+            |> VersionedTransactionInput.serialize()
+            |> byte_size
 
-        size_capacity? = acc_size + input_size < 3_000_000
+          size_capacity? = acc_size + input_size < 3_000_000
 
-        should_take_more? =
-          if limit > 0 do
-            length(acc.inputs) < limit and size_capacity?
+          should_take_more? =
+            if limit > 0 do
+              acc_length < limit and size_capacity?
+            else
+              size_capacity?
+            end
+
+          if should_take_more? do
+            new_acc =
+              acc
+              |> Map.update!(:inputs, &[versioned_input | &1])
+              |> Map.update(:acc_size, input_size, &(&1 + input_size))
+              |> Map.update(:acc_length, 1, &(&1 + 1))
+              |> Map.put(:offset, index + 1)
+              |> Map.put(:more?, index + 1 < inputs_length)
+
+            {:cont, new_acc}
           else
-            size_capacity?
+            {:halt, %{inputs: inputs, offset: offset, more?: more?}}
           end
-
-        if should_take_more? do
-          new_acc =
-            acc
-            |> Map.update!(:inputs, &[versioned_input | &1])
-            |> Map.put(:offset, index + 1)
-            |> Map.put(:more?, index + 1 < inputs_length)
-
-          {:cont, new_acc}
-        else
-          {:halt, acc}
         end
-      end)
+      )
 
     %TransactionInputList{
       inputs: Enum.reverse(inputs),
