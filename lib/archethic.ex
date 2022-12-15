@@ -332,12 +332,7 @@ defmodule Archethic do
   def fetch_summaries_aggregate(date) do
     nodes = P2P.authorized_and_available_nodes()
 
-    is_a_beacon_storage_node? =
-      date
-      |> Crypto.derive_beacon_aggregate_address()
-      |> Election.beacon_storage_node?(date, Crypto.first_node_public_key(), nodes)
-
-    if is_a_beacon_storage_node? do
+    if is_a_beacon_storage_node?(date, nodes) do
       BeaconChain.get_summaries_aggregate(date)
     else
       BeaconChain.fetch_summaries_aggregate(date, nodes)
@@ -350,5 +345,13 @@ defmodule Archethic do
   @spec fetch_and_aggregate_summaries(DateTime.t()) :: BeaconChain.SummaryAggregate.t()
   def fetch_and_aggregate_summaries(date) do
     BeaconChain.fetch_and_aggregate_summaries(date, P2P.authorized_and_available_nodes())
+  end
+
+  defp is_a_beacon_storage_node?(date, nodes) do
+    Election.beacon_storage_node?(
+      date,
+      Crypto.first_node_public_key(),
+      nodes || P2P.authorized_and_available_nodes()
+    )
   end
 end
