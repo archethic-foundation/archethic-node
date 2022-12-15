@@ -19,18 +19,18 @@ defmodule ArchethicCache.LRU do
   end
 
   @spec put(GenServer.server(), term(), term()) :: :ok
-  def put(pid, key, value) do
-    GenServer.cast(pid, {:put, key, value})
+  def put(server, key, value) do
+    GenServer.cast(server, {:put, key, value})
   end
 
   @spec get(GenServer.server(), term()) :: nil | term()
-  def get(pid, key) do
-    GenServer.call(pid, {:get, key})
+  def get(server, key) do
+    GenServer.call(server, {:get, key})
   end
 
   @spec purge(GenServer.server()) :: :ok
-  def purge(pid) do
-    GenServer.call(pid, :purge)
+  def purge(server) do
+    GenServer.call(server, :purge)
   end
 
   def init([name, max_bytes, opts]) do

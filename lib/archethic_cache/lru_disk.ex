@@ -47,13 +47,13 @@ defmodule ArchethicCache.LRUDisk do
   end
 
   @spec put(GenServer.server(), term(), binary()) :: :ok
-  defdelegate put(pid, key, value), to: LRU, as: :put
+  defdelegate put(server, key, value), to: LRU, as: :put
 
   @spec get(GenServer.server(), term()) :: nil | binary()
-  defdelegate get(pid, key), to: LRU, as: :get
+  defdelegate get(server, key), to: LRU, as: :get
 
   @spec purge(GenServer.server()) :: :ok
-  defdelegate purge(pid), to: LRU, as: :purge
+  defdelegate purge(server), to: LRU, as: :purge
 
   defp reset_directory(dir) do
     File.rm_rf!(dir)
