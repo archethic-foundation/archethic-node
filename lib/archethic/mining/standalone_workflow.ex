@@ -29,7 +29,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
@@ -79,10 +78,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       else
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
-        |> maybe_add_burning_address(
-          LedgerOperations.burning_address(),
-          tx.validation_stamp.ledger_operations.transaction_movements
-        )
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
@@ -342,16 +337,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       context
       |> ValidationContext.get_confirmed_replication_nodes()
       |> P2P.broadcast_message(%NotifyPreviousChain{address: tx.address})
-    end
-  end
-
-  defp maybe_add_burning_address(resolved_addresses, burning_node, tx_mvts) do
-    case Enum.any?(tx_mvts, fn tx_mvt -> tx_mvt.to == burning_node end) do
-      true ->
-        Enum.concat(resolved_addresses, [LedgerOperations.burning_address()])
-
-      _ ->
-        resolved_addresses
     end
   end
 end

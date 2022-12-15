@@ -1011,10 +1011,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
     end)
   end
 
-  defp maybe_add_burning_address(resolved_addresses, burning_node, tx_mvts) do
-    case Enum.any?(tx_mvts, fn tx_mvt -> tx_mvt.to == burning_node end) do
+  defp maybe_add_burning_address(resolved_addresses, burning_address, tx_mvts) do
+    case Enum.any?(tx_mvts, fn tx_mvt -> tx_mvt.to == burning_address end) do
       true ->
-        Enum.concat(resolved_addresses, [LedgerOperations.burning_address()])
+        Enum.concat(resolved_addresses, [burning_address])
+
       _ ->
         resolved_addresses
     end
