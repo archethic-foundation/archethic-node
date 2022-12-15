@@ -32,21 +32,18 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         end,
         on_timeout: :kill_task
       )
-      |> Enum.map(fn
-        {:ok, {:ok, result}} ->
-          result
-
-        {:ok, {false, _provider}} ->
-          []
+      |> Stream.filter(fn
+        {:ok, {:ok, _result}} ->
+          true
 
         other ->
           Logger.warning(
             "Service : #{inspect(__MODULE__)} : Unexpected answer while querying provider : #{inspect(other)}"
           )
 
-          []
+          false
       end)
-      |> List.flatten()
+      |> Enum.map(fn {_, {_, result}} -> result end)
 
       ## split prices in a list per currency. If a service returned a list of prices of a currency,
       ## they will be medianed first before being added to list
