@@ -17,18 +17,21 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     ## retrieve prices from configured providers and filter results marked as errors
     prices =
       providers()
-      |> Task.async_stream(fn provider ->
-        case provider.fetch(@pairs) do
-          {:ok, _prices} = result ->
-            result
+      |> Task.async_stream(
+        fn provider ->
+          case provider.fetch(@pairs) do
+            {:ok, _prices} = result ->
+              result
 
-          {:error, reason} ->
-            Logger.warning("Service : #{inspect(__MODULE__)} : Cannot fetch values from
+            {:error, reason} ->
+              Logger.warning("Service : #{inspect(__MODULE__)} : Cannot fetch values from
                 provider: #{inspect(provider)} with reason : #{inspect(reason)}.")
 
-            {false, provider}
-        end
-      end)
+              {false, provider}
+          end
+        end,
+        on_timeout: :kill_task
+      )
       |> Enum.map(fn
         {:ok, {:ok, result}} ->
           result
