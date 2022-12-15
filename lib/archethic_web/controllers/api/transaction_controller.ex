@@ -7,18 +7,8 @@ defmodule ArchethicWeb.API.TransactionController do
 
   alias Archethic.TransactionChain.{
     Transaction,
-    TransactionData,
-    TransactionSummary
+    TransactionData
   }
-
-  alias Archethic.P2P
-
-  alias Archethic.P2P.Message.{
-    GetTransactionSummary,
-    NotFound
-  }
-
-  alias Archethic.Election
 
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -39,23 +29,14 @@ defmodule ArchethicWeb.API.TransactionController do
 
         tx_address = tx.address
 
-        storage_nodes =
-          Election.chain_storage_nodes(tx_address, P2P.authorized_and_available_nodes())
-
-        conflict_resolver = summary_conflict_resolver()
-
-        case P2P.quorum_read(
-               storage_nodes,
-               %GetTransactionSummary{address: tx_address},
-               conflict_resolver
-             ) do
-          {:ok, %TransactionSummary{address: ^tx_address}} ->
+        try do
+          if Archethic.transaction_exists?(tx_address) do
             conn |> put_status(422) |> json(%{status: "error - transaction already exists!"})
-
-          {:ok, %NotFound{}} ->
+          else
             send_transaction(conn, tx)
-
-          {:error, e} ->
+          end
+        catch
+          e ->
             Logger.error("Cannot get transaction summary - #{inspect(e)}")
             conn |> put_status(504) |> json(%{status: "error - networking error"})
         end
@@ -69,20 +50,6 @@ defmodule ArchethicWeb.API.TransactionController do
         |> put_status(400)
         |> put_view(ErrorView)
         |> render("400.json", changeset: changeset)
-    end
-  end
-
-  defp summary_conflict_resolver() do
-    fn results ->
-      # Prioritize transactions results over not found
-      case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
-        [] ->
-          %NotFound{}
-
-        res ->
-          Enum.sort_by(res, & &1.timestamp, {:desc, DateTime})
-          |> List.first()
-      end
     end
   end
 

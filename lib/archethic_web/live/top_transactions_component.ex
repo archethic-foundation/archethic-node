@@ -5,15 +5,6 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
 
   use ArchethicWeb, :live_component
 
-  alias Archethic.BeaconChain
-
-  alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetCurrentSummaries
-  alias Archethic.P2P.Message.TransactionSummaryList
-
   alias ArchethicWeb.ExplorerLive.TopTransactionsCache
 
   def mount(socket) do
@@ -92,55 +83,7 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
   end
 
   defp fetch_last_transactions(n \\ 5) do
-    list_transactions_from_current_slots()
+    Archethic.list_transactions_summaries_from_current_slot()
     |> Enum.take(n)
-  end
-
-  defp list_transactions_from_current_slots(date = %DateTime{} \\ DateTime.utc_now()) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
-    ref_time = DateTime.truncate(date, :millisecond)
-
-    next_summary_date = BeaconChain.next_summary_date(ref_time)
-
-    BeaconChain.list_subsets()
-    |> Flow.from_enumerable(stages: 256)
-    |> Flow.flat_map(fn subset ->
-      # Foreach subset and date we compute concurrently the node election
-      subset
-      |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
-      |> Enum.filter(&Node.locally_available?/1)
-      |> P2P.nearest_nodes()
-      |> Enum.take(3)
-      |> Enum.map(&{&1, subset})
-    end)
-    # We partition by node
-    |> Flow.partition(key: {:elem, 0})
-    |> Flow.reduce(fn -> %{} end, fn {node, subset}, acc ->
-      # We aggregate the subsets for a given node
-      Map.update(acc, node, [subset], &[subset | &1])
-    end)
-    |> Flow.flat_map(fn {node, subsets} ->
-      # For this node we fetch the summaries
-      fetch_summaries(node, subsets)
-    end)
-    |> Stream.uniq_by(& &1.address)
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-  end
-
-  defp fetch_summaries(node, subsets) do
-    subsets
-    |> Stream.chunk_every(10)
-    |> Task.async_stream(fn subsets ->
-      case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
-        {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
-          transaction_summaries
-
-        _ ->
-          []
-      end
-    end)
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.flat_map(&elem(&1, 1))
-    |> Enum.to_list()
   end
 end

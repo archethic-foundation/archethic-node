@@ -6,21 +6,23 @@ defmodule Archethic do
   alias __MODULE__.Account
   alias __MODULE__.BeaconChain
   alias __MODULE__.Crypto
-
   alias __MODULE__.Election
-
   alias __MODULE__.P2P
   alias __MODULE__.P2P.Node
-
   alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
+  alias __MODULE__.P2P.Message.GetCurrentSummaries
+  alias __MODULE__.P2P.Message.GetTransactionSummary
   alias __MODULE__.P2P.Message.NewTransaction
+  alias __MODULE__.P2P.Message.NotFound
   alias __MODULE__.P2P.Message.Ok
   alias __MODULE__.P2P.Message.StartMining
+  alias __MODULE__.P2P.Message.TransactionSummaryList
 
   alias __MODULE__.TransactionChain
   alias __MODULE__.TransactionChain.Transaction
   alias __MODULE__.TransactionChain.TransactionInput
+  alias __MODULE__.TransactionChain.TransactionSummary
 
   require Logger
 
@@ -347,11 +349,114 @@ defmodule Archethic do
     BeaconChain.fetch_and_aggregate_summaries(date, P2P.authorized_and_available_nodes())
   end
 
+  @doc """
+  Retrieve the genesis address locally or remotely
+  """
+  def fetch_genesis_address_remotely(address) do
+    case TransactionChain.get_genesis_address(address) do
+      ^address ->
+        # if returned address is same as given, it means the DB does not contain the value
+        TransactionChain.fetch_genesis_address_remotely(address)
+
+      genesis_address ->
+        genesis_address
+    end
+  end
+
+  @doc """
+  Slots which are already has been added
+  Real time transaction can be get from pubsub
+  """
+  @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
+          list(TransactionSummary.t())
+  def list_transactions_summaries_from_current_slot(date = %DateTime{} \\ DateTime.utc_now()) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    ref_time = DateTime.truncate(date, :millisecond)
+
+    next_summary_date = BeaconChain.next_summary_date(ref_time)
+
+    BeaconChain.list_subsets()
+    |> Flow.from_enumerable(stages: 256)
+    |> Flow.flat_map(fn subset ->
+      # Foreach subset and date we compute concurrently the node election
+      subset
+      |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
+      |> Enum.filter(&Node.locally_available?/1)
+      |> P2P.nearest_nodes()
+      |> Enum.take(3)
+      |> Enum.map(&{&1, subset})
+    end)
+    # We partition by node
+    |> Flow.partition(key: {:elem, 0})
+    |> Flow.reduce(fn -> %{} end, fn {node, subset}, acc ->
+      # We aggregate the subsets for a given node
+      Map.update(acc, node, [subset], &[subset | &1])
+    end)
+    |> Flow.flat_map(fn {node, subsets} ->
+      # For this node we fetch the summaries
+      fetch_summaries(node, subsets)
+    end)
+    |> Stream.uniq_by(& &1.address)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  @doc """
+  Check if a transaction exists at address
+  """
+  @spec transaction_exists?(binary()) :: boolean()
+  def transaction_exists?(address) do
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    conflict_resolver = fn results ->
+      # Prioritize transactions results over not found
+      case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
+        [] ->
+          %NotFound{}
+
+        [first | _] ->
+          first
+      end
+    end
+
+    case P2P.quorum_read(
+           storage_nodes,
+           %GetTransactionSummary{address: address},
+           conflict_resolver
+         ) do
+      {:ok, %TransactionSummary{address: ^address}} ->
+        true
+
+      {:ok, %NotFound{}} ->
+        false
+
+      {:error, e} ->
+        raise e
+    end
+  end
+
+  defp fetch_summaries(node, subsets) do
+    subsets
+    |> Stream.chunk_every(10)
+    |> Task.async_stream(fn subsets ->
+      case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
+        {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
+          transaction_summaries
+
+        _ ->
+          []
+      end
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(&elem(&1, 1))
+    |> Enum.to_list()
+  end
+
   defp is_a_beacon_storage_node?(date, nodes) do
     Election.beacon_storage_node?(
       date,
       Crypto.first_node_public_key(),
-      nodes || P2P.authorized_and_available_nodes()
+      nodes
     )
   end
 end
