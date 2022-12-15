@@ -309,8 +309,10 @@ defmodule Archethic.Replication do
         last_storage_nodes =
           Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-        {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} =
+        {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} =
           TransactionChain.get_transaction(address, validation_stamp: [:timestamp])
+
+        previous_address = Transaction.previous_address(tx)
 
         # Send a message to all the previous storage nodes
         genesis_address
@@ -324,7 +326,8 @@ defmodule Archethic.Replication do
         |> P2P.broadcast_message(%NotifyLastTransactionAddress{
           last_address: address,
           genesis_address: genesis_address,
-          timestamp: timestamp
+          timestamp: timestamp,
+          previous_address: previous_address
         })
     end
   end
