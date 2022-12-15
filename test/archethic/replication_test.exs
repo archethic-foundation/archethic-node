@@ -50,6 +50,66 @@ defmodule Archethic.ReplicationTest do
     :ok
   end
 
+  test "validate_transaction" do
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      authorized?: true,
+      last_public_key: Crypto.last_node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
+      available?: true,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now(),
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    })
+
+    unspent_outputs = [
+      %UnspentOutput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+    ]
+
+    p2p_context()
+    tx = create_valid_transaction(unspent_outputs)
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransactionInputs{}, _ ->
+        {:ok,
+         %TransactionInputList{
+           inputs:
+             Enum.map(unspent_outputs, fn utxo ->
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: utxo.from,
+                   amount: utxo.amount,
+                   type: utxo.type,
+                   timestamp:
+                     DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
+                 },
+                 protocol_version: 1
+               }
+             end)
+         }}
+
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetTransactionChainLength{}, _ ->
+        %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
+    end)
+
+    assert :ok = Replication.validate_transaction(tx)
+  end
+
   test "validate_and_store_transaction_chain/2" do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
