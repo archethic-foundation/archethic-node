@@ -391,9 +391,10 @@ defmodule Archethic.P2P.Message do
   def encode(%NotifyLastTransactionAddress{
         last_address: last_address,
         genesis_address: genesis_address,
+        previous_address: previous_address,
         timestamp: timestamp
       }) do
-    <<22::8, last_address::binary, genesis_address::binary,
+    <<22::8, last_address::binary, genesis_address::binary, previous_address::binary,
       DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
@@ -904,11 +905,13 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<22::8, rest::bitstring>>) do
     {last_address, rest} = Utils.deserialize_address(rest)
-    {genesis_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {genesis_address, rest} = Utils.deserialize_address(rest)
+    {previous_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%NotifyLastTransactionAddress{
        last_address: last_address,
        genesis_address: genesis_address,
+       previous_address: previous_address,
        timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
   end
@@ -1717,19 +1720,24 @@ defmodule Archethic.P2P.Message do
 
   def process(
         %NotifyLastTransactionAddress{
-          last_address: last_address,
           genesis_address: genesis_address,
+          last_address: last_address,
+          previous_address: previous_address,
           timestamp: timestamp
         },
         _
       ) do
-    with {local_last_address, _} <-
-           TransactionChain.get_last_address(genesis_address),
+    with {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
          true <- local_last_address != last_address do
-      TransactionChain.register_last_address(genesis_address, last_address, timestamp)
+      if local_last_address == previous_address do
+        TransactionChain.register_last_address(genesis_address, last_address, timestamp)
 
-      # Stop potential previous smart contract
-      Contracts.stop_contract(local_last_address)
+        # Stop potential previous smart contract
+        Contracts.stop_contract(local_last_address)
+      else
+        authorized_nodes = P2P.authorized_and_available_nodes()
+        SelfRepair.update_last_address(local_last_address, authorized_nodes)
+      end
     end
 
     %Ok{}
