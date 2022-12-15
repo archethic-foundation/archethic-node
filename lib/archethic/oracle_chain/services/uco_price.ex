@@ -161,7 +161,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         ## Assert we have at least one value for the currency
         {currency, [_ | _] = values}, acc ->
           Map.update(acc, currency, [median(values)], fn previous_values ->
-            previous_values ++ [mean(values)]
+            previous_values ++ [median(values)]
           end)
 
         other, acc ->
