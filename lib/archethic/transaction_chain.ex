@@ -545,7 +545,7 @@ defmodule Archethic.TransactionChain do
       tx
       |> Transaction.get_movements()
       |> Enum.map(&{&1.to, &1.type})
-      |> Enum.filter(&(&1.to != LedgerOperations.burning_address()))
+      |> Enum.filter(fn {to, _} -> to != LedgerOperations.burning_address() end)
       |> Enum.concat(recipients)
 
     Task.Supervisor.async_stream_nolink(
