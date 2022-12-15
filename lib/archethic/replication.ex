@@ -32,6 +32,7 @@ defmodule Archethic.Replication do
   alias Archethic.Reward
 
   alias __MODULE__.TransactionContext
+  alias __MODULE__.TransactionPool
   alias __MODULE__.TransactionValidator
 
   alias Archethic.TaskSupervisor
@@ -45,22 +46,18 @@ defmodule Archethic.Replication do
   require Logger
 
   @doc """
-  Process a new transaction replication for a new chain handling.
+  Validate the transaction before to replicate as chain storage nodes
 
-  It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
-  and update the internal ledger and views
+  It will download the transaction chain and unspents to validate the new transaction and store the new transaction in the pool awaiting commitment
   """
-  @spec validate_and_store_transaction_chain(
-          validated_tx :: Transaction.t(),
-          self_repair? :: boolean()
+  @spec validate_transaction(
+          tx :: Transaction.t(),
+          self_repair? :: boolean(),
+          download_nodes :: list(Node.t())
         ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_and_store_transaction_chain(
-        tx = %Transaction{
-          address: address,
-          type: type,
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        },
+  def validate_transaction(
+        tx = %Transaction{address: address, type: type},
         self_repair? \\ false,
         download_nodes \\ P2P.authorized_and_available_nodes()
       ) do
@@ -72,20 +69,14 @@ defmodule Archethic.Replication do
 
       {:error, :transaction_already_exists}
     else
-      Logger.info("Replication chain started",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
-
       start_time = System.monotonic_time()
 
-      Logger.debug("Retrieve chain and unspent outputs...",
+      Logger.info("Replication validation started",
         transaction_address: Base.encode16(address),
         transaction_type: type
       )
 
       {previous_tx, inputs} = fetch_context(tx, self_repair?, download_nodes)
-
       # Validate the transaction and check integrity from the previous transaction
       case TransactionValidator.validate(
              tx,
@@ -94,48 +85,13 @@ defmodule Archethic.Replication do
              self_repair?
            ) do
         :ok ->
-          :telemetry.execute(
-            [:archethic, :replication, :validation],
-            %{
-              duration: System.monotonic_time() - start_time
-            },
-            %{role: :chain}
-          )
-
-          # Stream the insertion of the chain
-          tx
-          |> stream_previous_chain(download_nodes)
-          |> Stream.reject(&Enum.empty?/1)
-          |> Stream.flat_map(& &1)
-          |> Stream.each(fn tx = %Transaction{address: address} ->
-            TransactionChain.write_transaction(tx)
-
-            # There is some case where a transaction is not replicated while it should
-            # because of some latency or network issue. So when we replicate a past chain
-            # we also ingest the transaction if we are storage node of it
-
-            storage_node? =
-              address
-              |> Election.chain_storage_nodes(download_nodes)
-              |> Utils.key_in_node_list?(Crypto.first_node_public_key())
-
-            if storage_node?, do: ingest_transaction(tx, false)
-          end)
-          |> Stream.run()
-
-          TransactionChain.write_transaction(tx)
-
-          :ok = ingest_transaction(tx, false)
-
-          Logger.info("Replication finished",
+          Logger.info("Replication validation finished",
             transaction_address: Base.encode16(address),
             transaction_type: type
           )
 
-          PubSub.notify_new_transaction(address, type, timestamp)
-
           :telemetry.execute(
-            [:archethic, :replication, :full_write],
+            [:archethic, :replication, :validation],
             %{
               duration: System.monotonic_time() - start_time
             },
@@ -154,6 +110,109 @@ defmodule Archethic.Replication do
 
           {:error, reason}
       end
+    end
+  end
+
+  @doc """
+  Push a new transaction in the transaction pool awaiting atomic commitment
+  """
+  @spec add_transaction_to_commit_pool(Transaction.t()) :: :ok
+  defdelegate add_transaction_to_commit_pool(tx), to: TransactionPool, as: :add_transaction
+
+  @doc """
+  Pop a registered transaction in the pool awaiting atomic commitment
+  """
+  @spec get_transaction_in_commit_pool(binary()) ::
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+  defdelegate get_transaction_in_commit_pool(address), to: TransactionPool, as: :pop_transaction
+
+  @doc """
+  Replicate and store the transaction chain from the transaction cached in the pool
+  """
+  @spec sync_transaction_chain(Transaction.t(), list(Node.t())) :: :ok
+  def sync_transaction_chain(
+        tx = %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        },
+        download_nodes \\ P2P.authorized_and_available_nodes()
+      ) do
+    start_time = System.monotonic_time()
+
+    # Stream the insertion of the chain
+    tx
+    |> stream_previous_chain(download_nodes)
+    |> Stream.reject(&Enum.empty?/1)
+    |> Stream.flat_map(& &1)
+    |> Stream.each(fn tx = %Transaction{address: address} ->
+      TransactionChain.write_transaction(tx)
+
+      # There is some case where a transaction is not replicated while it should
+      # because of some latency or network issue. So when we replicate a past chain
+      # we also ingest the transaction if we are storage node of it
+
+      storage_node? =
+        address
+        |> Election.chain_storage_nodes(download_nodes)
+        |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+
+      if storage_node?, do: ingest_transaction(tx, false)
+    end)
+    |> Stream.run()
+
+    TransactionChain.write_transaction(tx)
+
+    :ok = ingest_transaction(tx, false)
+
+    Logger.info("Replication finished",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
+
+    PubSub.notify_new_transaction(address, type, timestamp)
+
+    :telemetry.execute(
+      [:archethic, :replication, :full_write],
+      %{
+        duration: System.monotonic_time() - start_time
+      }
+    )
+
+    :ok
+  end
+
+  @doc """
+  Process a new transaction replication for a new chain handling.
+
+  It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
+  and update the internal ledger and views
+  """
+  @spec validate_and_store_transaction_chain(
+          validated_tx :: Transaction.t(),
+          self_repair? :: boolean(),
+          download_nodes :: list(Node.t())
+        ) ::
+          :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
+  def validate_and_store_transaction_chain(
+        tx = %Transaction{
+          address: address,
+          type: type
+        },
+        self_repair? \\ false,
+        download_nodes \\ P2P.authorized_and_available_nodes()
+      ) do
+    case validate_transaction(tx, self_repair?, download_nodes) do
+      :ok ->
+        sync_transaction_chain(tx, download_nodes)
+
+      {:error, reason} ->
+        Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
+        {:error, reason}
     end
   end
 
