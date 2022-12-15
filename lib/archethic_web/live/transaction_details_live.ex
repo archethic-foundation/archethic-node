@@ -67,7 +67,21 @@ defmodule ArchethicWeb.TransactionDetailsLive do
     {:noreply, new_socket}
   end
 
-  def handle_info({:async_assign, assigns}, socket) do
+  def handle_info(
+        {:async_assign_inputs,
+         [
+           assigns: assigns,
+           transaction_movements: transaction_movements,
+           token_transfers: token_transfers
+         ]},
+        socket
+      ) do
+    async_assign_token_properties(assigns[:inputs], transaction_movements, token_transfers)
+
+    {:noreply, assign(socket, assigns)}
+  end
+
+  def handle_info({:async_assign_token_properties, assigns}, socket) do
     {:noreply, assign(socket, assigns)}
   end
 
@@ -105,40 +119,20 @@ defmodule ArchethicWeb.TransactionDetailsLive do
        ) do
     previous_address = Transaction.previous_address(tx)
 
-    timestamp = tx.validation_stamp.timestamp
+    uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
+    uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
 
-    async_assign_uco_price(timestamp)
     async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers)
 
     socket
     |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
     |> assign(:address, address)
-    |> assign(:uco_price_at_time, 0.0)
-    |> assign(:uco_price_now, 0.0)
+    |> assign(:uco_price_at_time, uco_price_at_time)
+    |> assign(:uco_price_now, uco_price_now)
     |> assign(:inputs, [])
     |> assign(:calls, [])
     |> assign(:token_properties, %{})
-  end
-
-  defp async_assign_uco_price(timestamp) do
-    me = self()
-
-    Task.Supervisor.async_nolink(
-      TaskSupervisor,
-      fn ->
-        uco_price_at_time = timestamp |> OracleChain.get_uco_price()
-        uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
-
-        assigns = [
-          uco_price_at_time: uco_price_at_time,
-          uco_price_now: uco_price_now
-        ]
-
-        send(me, {:async_assign, assigns})
-      end,
-      timeout: 20_000
-    )
   end
 
   defp async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers) do
@@ -151,6 +145,31 @@ defmodule ArchethicWeb.TransactionDetailsLive do
         ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
         contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
+        assigns = [
+          inputs: ledger_inputs,
+          calls: contract_inputs
+        ]
+
+        send(
+          me,
+          {:async_assign_inputs,
+           [
+             assigns: assigns,
+             transaction_movements: transaction_movements,
+             token_transfers: token_transfers
+           ]}
+        )
+      end,
+      timeout: 20_000
+    )
+  end
+
+  defp async_assign_token_properties(ledger_inputs, transaction_movements, token_transfers) do
+    me = self()
+
+    Task.Supervisor.async_nolink(
+      TaskSupervisor,
+      fn ->
         token_properties =
           get_token_addresses([], ledger_inputs)
           |> get_token_addresses(transaction_movements)
@@ -159,12 +178,13 @@ defmodule ArchethicWeb.TransactionDetailsLive do
           |> get_token_properties()
 
         assigns = [
-          inputs: ledger_inputs,
-          calls: contract_inputs,
           token_properties: token_properties
         ]
 
-        send(me, {:async_assign, assigns})
+        send(
+          me,
+          {:async_assign_token_properties, assigns}
+        )
       end,
       timeout: 20_000
     )
