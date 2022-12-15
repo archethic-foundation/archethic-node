@@ -43,6 +43,8 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
 
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
+
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
     as: TransactionMovementType
 
@@ -543,6 +545,7 @@ defmodule Archethic.TransactionChain do
       tx
       |> Transaction.get_movements()
       |> Enum.map(&{&1.to, &1.type})
+      |> Enum.filter(&(&1.to != LedgerOperations.burning_address()))
       |> Enum.concat(recipients)
 
     Task.Supervisor.async_stream_nolink(
