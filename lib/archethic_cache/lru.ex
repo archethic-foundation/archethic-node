@@ -48,13 +48,13 @@ defmodule ArchethicCache.LRU do
      }}
   end
 
-  def handle_call({:get, key}, _from, state) do
+  def handle_call({:get, key}, _from, state = %{table: table, keys: keys, get_fn: get_fn}) do
     {reply, new_state} =
-      case :ets.lookup(state.table, key) do
+      case :ets.lookup(table, key) do
         [{^key, {_size, value}}] ->
           {
-            state.get_fn.(key, value),
-            %{state | keys: state.keys |> move_front(key)}
+            get_fn.(key, value),
+            %{state | keys: keys |> move_front(key)}
           }
 
         [] ->
@@ -64,34 +64,37 @@ defmodule ArchethicCache.LRU do
     {:reply, reply, new_state}
   end
 
-  def handle_call(:purge, _from, state) do
+  def handle_call(:purge, _from, state = %{table: table, evict_fn: evict_fn}) do
     # we call the evict_fn to be able to clean effects (ex: file written to disk)
-    :ets.tab2list(state.table)
+    :ets.tab2list(table)
     |> Enum.each(fn {key, {_size, value}} ->
-      _ = state.evict_fn.(key, value)
+      evict_fn.(key, value)
     end)
 
-    :ets.delete_all_objects(state.table)
+    :ets.delete_all_objects(table)
     {:reply, :ok, %{state | keys: [], bytes_used: 0}}
   end
 
-  def handle_cast({:put, key, value}, state) do
+  def handle_cast(
+        {:put, key, value},
+        state = %{table: table, bytes_max: bytes_max, put_fn: put_fn, evict_fn: evict_fn}
+      ) do
     size = :erlang.external_size(value)
 
-    if size > state.bytes_max do
+    if size > bytes_max do
       {:noreply, state}
     else
       # maybe evict some keys to make space
       state =
-        evict_until(state, fn state ->
-          state.bytes_used + size <= state.bytes_max
+        evict_until(state, fn %{bytes_used: bytes_used, bytes_max: bytes_max} ->
+          bytes_used + size <= bytes_max
         end)
 
-      case :ets.lookup(state.table, key) do
+      case :ets.lookup(table, key) do
         [] ->
-          value_to_store = state.put_fn.(key, value)
+          value_to_store = put_fn.(key, value)
 
-          :ets.insert(state.table, {key, {size, value_to_store}})
+          :ets.insert(table, {key, {size, value_to_store}})
 
           new_state = %{
             state
@@ -103,10 +106,10 @@ defmodule ArchethicCache.LRU do
 
         [{^key, {old_size, old_value}}] ->
           # this is a replacement, we need to evict to update the bytes_used
-          state.evict_fn.(key, old_value)
-          value_to_store = state.put_fn.(key, value)
+          evict_fn.(key, old_value)
+          value_to_store = put_fn.(key, value)
 
-          :ets.insert(state.table, {key, {size, value_to_store}})
+          :ets.insert(table, {key, {size, value_to_store}})
 
           new_state = %{
             state
@@ -119,23 +122,26 @@ defmodule ArchethicCache.LRU do
     end
   end
 
-  defp evict_until(state, predicate) do
+  defp evict_until(
+         state = %{table: table, keys: keys, evict_fn: evict_fn, bytes_used: bytes_used},
+         predicate
+       ) do
     if predicate.(state) do
       state
     else
-      case List.last(state.keys) do
+      case List.last(keys) do
         nil ->
           state
 
         oldest_key ->
-          [{_, {size, oldest_value}}] = :ets.take(state.table, oldest_key)
-          state.evict_fn.(oldest_key, oldest_value)
+          [{_, {size, oldest_value}}] = :ets.take(table, oldest_key)
+          evict_fn.(oldest_key, oldest_value)
 
           evict_until(
             %{
               state
-              | bytes_used: state.bytes_used - size,
-                keys: List.delete(state.keys, oldest_key)
+              | bytes_used: bytes_used - size,
+                keys: List.delete(keys, oldest_key)
             },
             predicate
           )
