@@ -34,16 +34,16 @@ defmodule Archethic.Replication.TransactionValidator do
           :invalid_atomic_commitment
           | :invalid_node_election
           | :invalid_proof_of_work
-          | :invalid_validation_stamp_signature
           | :invalid_transaction_fee
           | :invalid_transaction_movements
           | :insufficient_funds
-          | :invalid_unspent_outputs
           | :invalid_chain
           | :invalid_transaction_with_inconsistencies
           | :invalid_contract_acceptance
           | :invalid_pending_transaction
           | :invalid_inherit_constraints
+          | :invalid_validation_stamp_signature
+          | :invalid_unspent_outputs
 
   @doc """
   Validate transaction with context

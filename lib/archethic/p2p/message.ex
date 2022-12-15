@@ -465,8 +465,8 @@ defmodule Archethic.P2P.Message do
     <<232::8, encoded_transaction_summaries_len::binary, transaction_summaries_bin::bitstring>>
   end
 
-  def encode(%ReplicationError{address: address, reason: reason}) do
-    <<233::8, address::binary, ReplicationError.serialize_reason(reason)::8>>
+  def encode(msg = %ReplicationError{}) do
+    <<233::8, ReplicationError.serialize(msg)::bitstring>>
   end
 
   def encode(%ValidationError{context: :network_issue, reason: reason, address: address}) do
@@ -1015,15 +1015,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<233::8, rest::bitstring>>) do
-    {address, <<reason::8, rest::bitstring>>} = Utils.deserialize_address(rest)
-
-    {
-      %ReplicationError{
-        address: address,
-        reason: ReplicationError.deserialize_reason(reason)
-      },
-      rest
-    }
+    ReplicationError.deserialize(rest)
   end
 
   def decode(<<234::8, rest::bitstring>>) do
