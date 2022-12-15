@@ -99,7 +99,8 @@ defmodule Archethic.P2P.Message do
     TransactionList,
     UnspentOutputList,
     ValidationError,
-    ValidateTransaction
+    ValidateTransaction,
+    ReplicatePendingTransactionChain
   }
 
   alias ArchethicWeb.TransactionSubscriber
@@ -146,6 +147,7 @@ defmodule Archethic.P2P.Message do
           | ShardRepair.t()
           | GetNextAddresses.t()
           | ValidateTransaction.t()
+          | ReplicatePendingTransactionChain.t()
 
   @type response ::
           Ok.t()
@@ -459,6 +461,10 @@ defmodule Archethic.P2P.Message do
 
   def encode(msg = %ValidateTransaction{}) do
     <<36::8, ValidateTransaction.serialize(msg)::bitstring>>
+  end
+
+  def encode(msg = %ReplicatePendingTransactionChain{}) do
+    <<37::8, ReplicatePendingTransactionChain.serialize(msg)::bitstring>>
   end
 
   def encode(msg = %AddressList{}) do
@@ -1017,6 +1023,10 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<36::8, rest::bitstring>>) do
     ValidateTransaction.deserialize(rest)
+  end
+
+  def decode(<<37::8, rest::bitstring>>) do
+    ReplicatePendingTransactionChain.deserialize(rest)
   end
 
   def decode(<<229::8, rest::bitstring>>) do
@@ -1948,7 +1958,7 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%ValidateTransaction{transaction: tx}) do
+  def process(%ValidateTransaction{transaction: tx}, _) do
     case Replication.validate_transaction(tx) do
       :ok ->
         Replication.add_transaction_to_commit_pool(tx)
@@ -1959,6 +1969,29 @@ defmodule Archethic.P2P.Message do
 
       {:error, reason} ->
         %ReplicationError{address: tx.address, reason: reason}
+    end
+  end
+
+  def process(%ReplicatePendingTransactionChain{address: address}, sender_public_key) do
+    case Replication.get_transaction_in_commit_pool(address) do
+      {:ok, tx} ->
+        Task.Supervisor.start_child(TaskSupervisor, fn ->
+          Replication.sync_transaction_chain(tx)
+          tx_summary = TransactionSummary.from_transaction(tx)
+
+          ack = %AcknowledgeStorage{
+            address: tx.address,
+            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
+            node_public_key: Crypto.first_node_public_key()
+          }
+
+          P2P.send_message(sender_public_key, ack)
+        end)
+
+        %Ok{}
+
+      {:error, :transaction_not_exists} ->
+        %Error{reason: :invalid_transaction}
     end
   end
 
