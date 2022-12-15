@@ -152,8 +152,14 @@ config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
 # -----End-of-Networking-configs ------
 
 config :archethic_web,
-  tx_cache_bytes: 128 * 1024 * 1024,
-  file_cache_bytes: 512 * 1024 * 1024
+  # The tx_cache is stored on RAM
+  # 750MB should hold a minimum 250 transactions
+  tx_cache_bytes: 750 * 1024 * 1024,
+
+  # The file_cache is stored on DISK
+  # 5GB should hold 2000 average size pages
+  # https://httparchive.org/reports/page-weight
+  file_cache_bytes: 5 * 1024 * 1024 * 1024
 
 config :esbuild,
   version: "0.12.18",
