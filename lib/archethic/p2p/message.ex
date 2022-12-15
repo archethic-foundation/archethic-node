@@ -98,7 +98,8 @@ defmodule Archethic.P2P.Message do
     TransactionSummaryList,
     TransactionList,
     UnspentOutputList,
-    ValidationError
+    ValidationError,
+    ValidateTransaction
   }
 
   alias ArchethicWeb.TransactionSubscriber
@@ -144,6 +145,7 @@ defmodule Archethic.P2P.Message do
           | NotifyPreviousChain.t()
           | ShardRepair.t()
           | GetNextAddresses.t()
+          | ValidateTransaction.t()
 
   @type response ::
           Ok.t()
@@ -453,6 +455,10 @@ defmodule Archethic.P2P.Message do
 
   def encode(msg = %GetNextAddresses{}) do
     <<35::8, GetNextAddresses.serialize(msg)::bitstring>>
+  end
+
+  def encode(msg = %ValidateTransaction{}) do
+    <<36::8, ValidateTransaction.serialize(msg)::bitstring>>
   end
 
   def encode(msg = %AddressList{}) do
@@ -1007,6 +1013,10 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<35::8, rest::bitstring>>) do
     GetNextAddresses.deserialize(rest)
+  end
+
+  def decode(<<36::8, rest::bitstring>>) do
+    ValidateTransaction.deserialize(rest)
   end
 
   def decode(<<229::8, rest::bitstring>>) do
@@ -1935,6 +1945,20 @@ defmodule Archethic.P2P.Message do
 
       _ ->
         %AddressList{addresses: []}
+    end
+  end
+
+  def process(%ValidateTransaction{transaction: tx}) do
+    case Replication.validate_transaction(tx) do
+      :ok ->
+        Replication.add_transaction_to_commit_pool(tx)
+        %Ok{}
+
+      {:error, :transaction_already_exists} ->
+        %ReplicationError{address: tx.address, reason: :transaction_already_exists}
+
+      {:error, reason} ->
+        %ReplicationError{address: tx.address, reason: reason}
     end
   end
 
