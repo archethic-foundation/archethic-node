@@ -62,7 +62,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   def verify?(prices_prior = %{}) do
     case fetch() do
       {:ok, prices_now} when prices_now == %{} ->
-        Logger.warning("Cannot fetch UCO price - reason: no data from any service.")
+        Logger.error("Cannot fetch UCO price - reason: no data from any service.")
         false
 
       {:ok, prices_now} ->
