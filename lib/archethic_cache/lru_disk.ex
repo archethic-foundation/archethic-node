@@ -61,9 +61,9 @@ defmodule ArchethicCache.LRUDisk do
   end
 
   defp key_to_path(cache_dir, key) do
-    # DISCUSS: use a proper hash function
-    # DISCUSS: this is flat and not site/file
-    hash = Base.encode64(:erlang.term_to_binary(key))
-    Path.join(cache_dir, hash)
+    Path.join(
+      cache_dir,
+      Base.encode64(:erlang.term_to_binary(key))
+    )
   end
 end
