@@ -6,7 +6,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
   import Mox
 
   test "fetch/0 should retrieve some data and build a map with the oracle name in it" do
-    MockUCOPriceProvider
+    MockUCOPriceProvider1
     |> expect(:fetch, fn pairs ->
       res =
         Enum.map(pairs, fn pair ->
@@ -44,7 +44,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
   describe "verify/1" do
     test "should return true if the prices are the good one" do
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
         {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
       end)
@@ -63,7 +63,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     end
 
     test "should return false if the prices are not the good one" do
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
         {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
       end)
@@ -83,7 +83,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
   end
 
   test "should return the median value when multiple providers queried" do
-    MockUCOPriceProvider
+    MockUCOPriceProvider1
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
     end)
@@ -113,7 +113,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     new_uco_env =
       old_env
       |> Keyword.replace(:providers, [
-        MockUCOPriceProvider,
+        MockUCOPriceProvider1,
         MockUCOPriceProvider2,
         MockUCOPriceProvider3,
         MockUCOPriceProvider4
@@ -122,7 +122,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     Application.put_env(:archethic, Archethic.OracleChain.Services.UCOPrice, new_uco_env)
 
     ## Define mocks expectations
-    MockUCOPriceProvider
+    MockUCOPriceProvider1
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
     end)
@@ -149,7 +149,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
   end
 
   test "should return false when no data are returned from providers" do
-    MockUCOPriceProvider
+    MockUCOPriceProvider1
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [], "usd" => []}}
     end)
@@ -168,7 +168,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
   end
 
   test "should report values even if a provider returns an error" do
-    MockUCOPriceProvider
+    MockUCOPriceProvider1
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.50], "usd" => [0.12]}}
     end)

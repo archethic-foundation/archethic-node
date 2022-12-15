@@ -7,7 +7,17 @@ defmodule Archethic.OracleChain.ServicesTest do
 
   describe "fetch_new_data/1" do
     test "should return the new data when no previous content" do
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs ->
+        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs ->
+        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      end)
+
+      MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
         {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
       end)
@@ -16,7 +26,17 @@ defmodule Archethic.OracleChain.ServicesTest do
     end
 
     test "should not return the new data when the previous content is the same" do
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs ->
+        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs ->
+        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      end)
+
+      MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
         {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
       end)
@@ -25,7 +45,17 @@ defmodule Archethic.OracleChain.ServicesTest do
     end
 
     test "should return the new data when the previous content is not the same" do
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs ->
+        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs ->
+        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      end)
+
+      MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
         {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
       end)
@@ -36,7 +66,17 @@ defmodule Archethic.OracleChain.ServicesTest do
   end
 
   test "verify_correctness?/1 should true when the data is correct" do
-    MockUCOPriceProvider
+    MockUCOPriceProvider1
+    |> expect(:fetch, fn _pairs ->
+      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+    end)
+
+    MockUCOPriceProvider2
+    |> expect(:fetch, fn _pairs ->
+      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+    end)
+
+    MockUCOPriceProvider3
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
     end)

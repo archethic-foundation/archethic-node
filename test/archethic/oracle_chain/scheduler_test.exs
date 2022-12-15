@@ -102,7 +102,13 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, _} = :sys.get_state(pid)
 
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       # polling_date =
@@ -174,7 +180,13 @@ defmodule Archethic.OracleChain.SchedulerTest do
          }}
       end)
 
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       send(pid, :poll)
@@ -206,7 +218,13 @@ defmodule Archethic.OracleChain.SchedulerTest do
         available?: true
       })
 
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       summary_date =
@@ -309,7 +327,13 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, %{polling_timer: timer1}} = :sys.get_state(pid)
 
-      MockUCOPriceProvider
+      MockUCOPriceProvider1
+      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
       |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       send(pid, :poll)

@@ -57,7 +57,17 @@ defmodule Archethic.RewardTest do
   end
 
   test "get_transfers should create transfer transaction" do
-    MockUCOPriceProvider
+    MockUCOPriceProvider1
+    |> stub(:fetch, fn _pairs ->
+      {:ok, %{"eur" => [0.10], "usd" => [0.10]}}
+    end)
+
+    MockUCOPriceProvider2
+    |> stub(:fetch, fn _pairs ->
+      {:ok, %{"eur" => [0.10], "usd" => [0.10]}}
+    end)
+
+    MockUCOPriceProvider3
     |> stub(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.10], "usd" => [0.10]}}
     end)
