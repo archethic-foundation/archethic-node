@@ -91,7 +91,7 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
   @spec handle_event(_event :: binary(), _params :: map(), socket :: LiveView.Socket.t()) ::
           {:noreply, LiveView.Socket.t()}
   def handle_event("goto", %{"page" => page}, socket) do
-    {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
+    {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
   @spec handle_info(

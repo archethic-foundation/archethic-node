@@ -59,7 +59,7 @@ defmodule ArchethicWeb.FaucetRateLimiter do
   @impl GenServer
   def handle_call({:block_status, address}, _from, state) do
     address =
-      case TransactionChain.fetch_genesis_address_remotely(address) do
+      case Archethic.fetch_genesis_address_remotely(address) do
         {:ok, genesis_address} ->
           genesis_address
 
