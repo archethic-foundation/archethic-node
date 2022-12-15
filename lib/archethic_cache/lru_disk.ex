@@ -21,12 +21,10 @@ defmodule ArchethicCache.LRUDisk do
         # write to disk
         File.write!(key_to_path(cache_dir, key), value, [:exclusive, :binary])
 
-        # return value to store in memory and size
-        # we use the size as value so it's available in the evict fn without doing a File.stat
-        size = byte_size(value)
-        {size, size}
+        # store a nil value in the LRU's ETS table
+        nil
       end,
-      get_fn: fn key, _size ->
+      get_fn: fn key, nil ->
         # called only if the key is already in LRU's ETS table
         case File.read(key_to_path(cache_dir, key)) do
           {:ok, bin} ->
@@ -36,7 +34,7 @@ defmodule ArchethicCache.LRUDisk do
             nil
         end
       end,
-      evict_fn: fn key, size ->
+      evict_fn: fn key, nil ->
         case File.rm(key_to_path(cache_dir, key)) do
           :ok ->
             :ok
@@ -44,9 +42,6 @@ defmodule ArchethicCache.LRUDisk do
           {:error, _} ->
             :ok
         end
-
-        # return size deleted
-        size
       end
     )
   end
