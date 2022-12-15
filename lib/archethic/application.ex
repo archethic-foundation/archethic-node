@@ -31,6 +31,8 @@ defmodule Archethic.Application do
   alias Archethic.OracleChain
   alias Archethic.OracleChain.Supervisor, as: OracleChainSupervisor
 
+  alias Archethic.Replication.Supervisor, as: ReplicationSupervisor
+
   alias Archethic.Reward
   alias Archethic.Reward.Supervisor, as: RewardSupervisor
 
@@ -74,6 +76,7 @@ defmodule Archethic.Application do
       MiningSupervisor,
       BeaconChainSupervisor,
       SharedSecretsSupervisor,
+      ReplicationSupervisor,
       RewardSupervisor,
       AccountSupervisor,
       GovernanceSupervisor,
