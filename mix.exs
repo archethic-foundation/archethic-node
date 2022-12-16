@@ -125,6 +125,7 @@ defmodule Archethic.MixProject do
         "clean",
         "format",
         "compile",
+        " hex.outdated --within-requirements",
         "credo",
         "sobelow",
         "cmd mix test --trace",
