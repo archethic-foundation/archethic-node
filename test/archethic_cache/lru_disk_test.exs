@@ -81,21 +81,45 @@ defmodule ArchethicCache.LRUDiskTest do
     test "should not crash if an external intervention deletes the file or folder" do
       binary = get_a_binary_of_bytes(400)
 
-      {:ok, pid} = LRUDisk.start_link(:my_cache, 500, @cache_dir)
+      server = :my_cache
 
-      LRUDisk.put(pid, :key1, binary)
+      start_supervised!(%{
+        id: ArchethicCache.LRUDisk,
+        start: {ArchethicCache.LRUDisk, :start_link, [server, 500, @cache_dir]}
+      })
 
-      assert ^binary = LRUDisk.get(pid, :key1)
+      LRUDisk.put(server, :key1, binary)
+
+      assert ^binary = LRUDisk.get(server, :key1)
 
       # example of external intervention
-      File.rm_rf!(cache_dir_for_ls(:my_cache))
+      File.rm_rf!(cache_dir_for_ls(server))
 
       # we loose the cached value
-      assert nil == LRUDisk.get(pid, :key1)
+      assert nil == LRUDisk.get(server, :key1)
 
-      # but if we try to add new values, it should resume
-      LRUDisk.put(pid, :key1, binary)
-      assert ^binary = LRUDisk.get(pid, :key1)
+      pid_before_crash = Process.whereis(server)
+
+      # capture_log is used to hide the LRU process terminating
+      # because we don't want red in our logs when it's expected
+      # ps: only use it with async: false
+      ExUnit.CaptureLog.capture_log(fn ->
+        # if we try to add new values, it will crash the LRU process (write to a non existing dir)
+        # the cache is restarted from a blank state (recreate dir) by the supervisor
+        # the caller will not crash (it's a genserver.cast)
+        LRUDisk.put(server, :key1, binary)
+
+        # allow some time for supervisor to restart the LRU
+        Process.sleep(100)
+      end)
+
+      pid_after_crash = Process.whereis(server)
+      assert Process.alive?(pid_after_crash)
+      refute Process.alive?(pid_before_crash)
+
+      # cache should automatically restart later
+      LRUDisk.put(server, :key1, binary)
+      assert ^binary = LRUDisk.get(server, :key1)
     end
 
     test "should remove when purged" do

@@ -15,9 +15,6 @@ defmodule ArchethicCache.LRUDisk do
 
     LRU.start_link(name, max_bytes,
       put_fn: fn key, value ->
-        # retry to create the dir everytime in case someones delete it
-        File.mkdir_p!(cache_dir)
-
         # write to disk
         File.write!(key_to_path(cache_dir, key), value, [:exclusive, :binary])
 
