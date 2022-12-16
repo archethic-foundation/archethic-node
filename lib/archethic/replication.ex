@@ -310,7 +310,10 @@ defmodule Archethic.Replication do
           Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
         {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} =
-          TransactionChain.get_transaction(address, validation_stamp: [:timestamp])
+          TransactionChain.get_transaction(address, [
+            :previous_public_key,
+            validation_stamp: [:timestamp]
+          ])
 
         previous_address = Transaction.previous_address(tx)
 
