@@ -124,6 +124,7 @@ defmodule Archethic.MixProject do
       "dev.checks": [
         "clean",
         "format",
+        "compile",
         " hex.outdated --within-requirements",
         "credo",
         "sobelow",

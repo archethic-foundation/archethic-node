@@ -98,7 +98,7 @@ defmodule Archethic.P2P.Message.ReplicationError do
   def error(3), do: :invalid_node_election
   def error(4), do: :invalid_proof_of_work
   def error(5), do: :invalid_transaction_fee
-  def error(6), do: :invalid_tranxaction_movements
+  def error(6), do: :invalid_transaction_movements
   def error(7), do: :insufficient_funds
   def error(8), do: :invalid_chain
   def error(9), do: :invalid_transaction_with_inconsistencies
