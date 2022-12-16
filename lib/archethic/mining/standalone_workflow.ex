@@ -21,10 +21,15 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.Mining.WorkflowRegistry
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.ReplicatePendingTransactionChain
+  alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.ValidationError
+  alias Archethic.P2P.Message.ValidateTransaction
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain
@@ -159,15 +164,49 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     replication_nodes = ValidationContext.get_chain_replication_nodes(context)
 
     Logger.info(
-      "Send transaction to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)}",
+      "Send transaction to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)} for replication's validation",
       transaction_address: Base.encode16(validated_tx.address),
       transaction_type: validated_tx.type
     )
 
-    P2P.broadcast_message(replication_nodes, %ReplicateTransactionChain{
-      transaction: validated_tx,
-      replying_node: Crypto.first_node_public_key()
-    })
+    message = %ValidateTransaction{
+      transaction: validated_tx
+    }
+
+    results =
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        replication_nodes,
+        &P2P.send_message(&1, message),
+        ordered: false,
+        on_timeout: :kill_task,
+        timeout: Message.get_timeout(message) + 2000
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.map(fn {:ok, {:ok, res}} -> res end)
+      |> Enum.to_list()
+
+    if Enum.all?(results, &match?(%Ok{}, &1)) do
+      Logger.info(
+        "Send replication chain message to storage nodes: #{Enum.map_join(replication_nodes, ",", &Node.endpoint/1)}",
+        transaction_address: Base.encode16(validated_tx.address),
+        transaction_type: validated_tx.type
+      )
+
+      P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
+        address: validated_tx.address
+      })
+    else
+      errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
+
+      case Enum.dedup(errors) do
+        [%ReplicationError{reason: reason}] ->
+          send(self(), {:replication_error, reason})
+
+        _ ->
+          send(self(), {:replication_error, :invalid_atomic_commitment})
+      end
+    end
   end
 
   def handle_info(

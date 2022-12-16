@@ -180,6 +180,16 @@ defmodule Archethic.Mining do
     :ok
   end
 
+  @doc """
+  Notify about the validation from a replication node
+  """
+  @spec notify_replication_validation(binary(), Crypto.key()) :: :ok
+  def notify_replication_validation(tx_address, node_public_key) do
+    pid = get_mining_process!(tx_address, 1_000)
+    if pid, do: DistributedWorkflow.add_replication_validation(pid, node_public_key)
+    :ok
+  end
+
   defp get_mining_process!(tx_address, timeout \\ 3_000) do
     retry_while with: exponential_backoff(100, 2) |> expiry(timeout) do
       case Registry.lookup(WorkflowRegistry, tx_address) do
