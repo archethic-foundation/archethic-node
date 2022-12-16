@@ -15,13 +15,22 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Utils
+
   alias ArchethicCache.LRU
+  alias ArchethicCache.LRUDisk
 
   import Mox
 
   setup do
+    # There is a setup in ArchethicCase that removes the mut_dir()
+    # Since we need it for LRUDisk, we recreate it on every test
+    File.mkdir_p!(Path.join([Utils.mut_dir(), "aeweb", "cache_file"]))
+
     # clear cache on every test because most tests use the same address
+    # and cache is a global state
     :ok = LRU.purge(:cache_tx)
+    :ok = LRUDisk.purge(:cache_file)
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
