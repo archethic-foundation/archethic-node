@@ -129,11 +129,11 @@ defmodule ArchethicCache.LRU do
     if predicate.(state) do
       state
     else
-      case List.last(keys) do
-        nil ->
+      case Enum.reverse(keys) do
+        [] ->
           state
 
-        oldest_key ->
+        [oldest_key | rest] ->
           [{_, {size, oldest_value}}] = :ets.take(table, oldest_key)
           evict_fn.(oldest_key, oldest_value)
 
@@ -141,7 +141,7 @@ defmodule ArchethicCache.LRU do
             %{
               state
               | bytes_used: bytes_used - size,
-                keys: List.delete(keys, oldest_key)
+                keys: rest
             },
             predicate
           )
