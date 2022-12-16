@@ -42,20 +42,20 @@ defmodule Archethic.P2P.Message.ReplicationError do
   end
 
   @spec serialize_reason(reason()) :: non_neg_integer()
-  def serialize_reason(:transaction_already_exists), do: 1
-  def serialize_reason(:invalid_atomic_commitment), do: 2
-  def serialize_reason(:invalid_node_election), do: 3
-  def serialize_reason(:invalid_proof_of_work), do: 4
-  def serialize_reason(:invalid_transaction_fee), do: 5
-  def serialize_reason(:invalid_transaction_movements), do: 6
-  def serialize_reason(:insufficient_funds), do: 7
-  def serialize_reason(:invalid_chain), do: 8
-  def serialize_reason(:invalid_transaction_with_inconsistencies), do: 9
-  def serialize_reason(:invalid_contract_acceptance), do: 10
-  def serialize_reason(:invalid_pending_transaction), do: 11
-  def serialize_reason(:invalid_inherit_constraints), do: 12
-  def serialize_reason(:invalid_validation_stamp_signature), do: 13
-  def serialize_reason(:invalid_unspent_outputs), do: 14
+  defp serialize_reason(:transaction_already_exists), do: 1
+  defp serialize_reason(:invalid_atomic_commitment), do: 2
+  defp serialize_reason(:invalid_node_election), do: 3
+  defp serialize_reason(:invalid_proof_of_work), do: 4
+  defp serialize_reason(:invalid_transaction_fee), do: 5
+  defp serialize_reason(:invalid_transaction_movements), do: 6
+  defp serialize_reason(:insufficient_funds), do: 7
+  defp serialize_reason(:invalid_chain), do: 8
+  defp serialize_reason(:invalid_transaction_with_inconsistencies), do: 9
+  defp serialize_reason(:invalid_contract_acceptance), do: 10
+  defp serialize_reason(:invalid_pending_transaction), do: 11
+  defp serialize_reason(:invalid_inherit_constraints), do: 12
+  defp serialize_reason(:invalid_validation_stamp_signature), do: 13
+  defp serialize_reason(:invalid_unspent_outputs), do: 14
 
   @doc """
   DeSerialize a replication error message
@@ -93,18 +93,18 @@ defmodule Archethic.P2P.Message.ReplicationError do
   def deserialize_reason(<<nb::8, rest::bitstring>>), do: {error(nb), rest}
 
   @spec error(1..255) :: atom
-  def error(1), do: :transaction_already_exists
-  def error(2), do: :invalid_atomic_commitment
-  def error(3), do: :invalid_node_election
-  def error(4), do: :invalid_proof_of_work
-  def error(5), do: :invalid_transaction_fee
-  def error(6), do: :invalid_transaction_movements
-  def error(7), do: :insufficient_funds
-  def error(8), do: :invalid_chain
-  def error(9), do: :invalid_transaction_with_inconsistencies
-  def error(10), do: :invalid_contract_acceptance
-  def error(11), do: :invalid_pending_transaction
-  def error(12), do: :invalid_inherit_constraints
-  def error(13), do: :invalid_validation_stamp_signature
-  def error(14), do: :invalid_unspent_outputs
+  defp error(1), do: :transaction_already_exists
+  defp error(2), do: :invalid_atomic_commitment
+  defp error(3), do: :invalid_node_election
+  defp error(4), do: :invalid_proof_of_work
+  defp error(5), do: :invalid_transaction_fee
+  defp error(6), do: :invalid_transaction_movements
+  defp error(7), do: :insufficient_funds
+  defp error(8), do: :invalid_chain
+  defp error(9), do: :invalid_transaction_with_inconsistencies
+  defp error(10), do: :invalid_contract_acceptance
+  defp error(11), do: :invalid_pending_transaction
+  defp error(12), do: :invalid_inherit_constraints
+  defp error(13), do: :invalid_validation_stamp_signature
+  defp error(14), do: :invalid_unspent_outputs
 end
