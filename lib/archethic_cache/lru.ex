@@ -66,10 +66,14 @@ defmodule ArchethicCache.LRU do
 
   def handle_call(:purge, _from, state = %{table: table, evict_fn: evict_fn}) do
     # we call the evict_fn to be able to clean effects (ex: file written to disk)
-    :ets.tab2list(table)
-    |> Enum.each(fn {key, {_size, value}} ->
-      evict_fn.(key, value)
-    end)
+    :ets.foldr(
+      fn {key, {_size, value}}, acc ->
+        evict_fn.(key, value)
+        acc + 1
+      end,
+      0,
+      table
+    )
 
     :ets.delete_all_objects(table)
     {:reply, :ok, %{state | keys: [], bytes_used: 0}}
