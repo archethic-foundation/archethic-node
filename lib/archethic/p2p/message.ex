@@ -100,7 +100,8 @@ defmodule Archethic.P2P.Message do
     UnspentOutputList,
     ValidationError,
     ValidateTransaction,
-    ReplicatePendingTransactionChain
+    ReplicatePendingTransactionChain,
+    NotifyReplicationValidation
   }
 
   alias ArchethicWeb.TransactionSubscriber
@@ -148,6 +149,7 @@ defmodule Archethic.P2P.Message do
           | GetNextAddresses.t()
           | ValidateTransaction.t()
           | ReplicatePendingTransactionChain.t()
+          | NotifyReplicationValidation.t()
 
   @type response ::
           Ok.t()
@@ -465,6 +467,10 @@ defmodule Archethic.P2P.Message do
 
   def encode(msg = %ReplicatePendingTransactionChain{}) do
     <<37::8, ReplicatePendingTransactionChain.serialize(msg)::bitstring>>
+  end
+
+  def encode(msg = %NotifyReplicationValidation{}) do
+    <<38::8, NotifyReplicationValidation.serialize(msg)::bitstring>>
   end
 
   def encode(msg = %AddressList{}) do
@@ -1027,6 +1033,10 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<37::8, rest::bitstring>>) do
     ReplicatePendingTransactionChain.deserialize(rest)
+  end
+
+  def decode(<<38::8, rest::bitstring>>) do
+    NotifyReplicationValidation.deserialize(rest)
   end
 
   def decode(<<229::8, rest::bitstring>>) do
@@ -1993,6 +2003,11 @@ defmodule Archethic.P2P.Message do
       {:error, :transaction_not_exists} ->
         %Error{reason: :invalid_transaction}
     end
+  end
+
+  def process(%NotifyReplicationValidation{address: address, node_public_key: node_public_key}, _) do
+    Mining.notify_replication_validation(address, node_public_key)
+    %Ok{}
   end
 
   defp process_replication_chain(tx, replying_node_public_key) do

@@ -9,11 +9,13 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
-  alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.ValidateTransaction
+  alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
@@ -57,6 +59,10 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
     me = self()
 
+    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+    {:ok, agent_pid} = Agent.start_link(fn -> nil end)
+
     MockClient
     |> stub(:send_message, fn
       _, %Ping{}, _ ->
@@ -71,13 +77,26 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
       _, %GetTransaction{}, _ ->
         {:ok, %NotFound{}}
 
-      _, %ReplicateTransactionChain{transaction: tx}, _ ->
+      _, %GetTransactionSummary{}, _ ->
+        case Agent.get(agent_pid, & &1) do
+          nil ->
+            {:ok, %NotFound{}}
+
+          tx ->
+            tx_summary = TransactionSummary.from_transaction(tx)
+            {:ok, tx_summary}
+        end
+
+      _, %ValidateTransaction{transaction: tx}, _ ->
+        Agent.update(agent_pid, fn _ -> tx end)
+        {:ok, %Ok{}}
+
+      _, %ReplicatePendingTransactionChain{}, _ ->
+        tx = Agent.get(agent_pid, & &1)
         tx_summary = TransactionSummary.from_transaction(tx)
         sig = Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
 
         send(me, {:ack_replication, sig, Crypto.first_node_public_key()})
-
-        {:ok, %Ok{}}
 
       _, %ReplicationAttestation{}, _ ->
         send(me, :transaction_replicated)
@@ -86,8 +105,6 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
       _, %Archethic.P2P.Message.GetTransactionSummary{}, _ ->
         {:ok, %NotFound{}}
     end)
-
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
     assert {:ok, pid} =
              StandaloneWorkflow.start_link(

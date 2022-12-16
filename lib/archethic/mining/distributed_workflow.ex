@@ -30,17 +30,26 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.NotifyPreviousChain
+  alias Archethic.P2P.Message.NotifyReplicationValidation
   alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
+  alias Archethic.P2P.Message.ReplicationError
+  alias Archethic.P2P.Message.ValidateTransaction
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Node
+
+  alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
+
+  alias Archethic.Utils
 
   require Logger
 
@@ -122,6 +131,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
   @spec add_cross_validation_stamp(worker_pid :: pid(), stamp :: CrossValidationStamp.t()) :: :ok
   def add_cross_validation_stamp(pid, stamp = %CrossValidationStamp{}) do
     GenStateMachine.cast(pid, {:add_cross_validation_stamp, stamp})
+  end
+
+  @doc """
+  Add a replication validation in the mining process
+  """
+  @spec add_replication_validation(worker_pid :: pid(), node_public_key :: Crypto.key()) :: :ok
+  def add_replication_validation(pid, node_public_key) do
+    GenStateMachine.cast(pid, {:add_replication_validation, node_public_key})
   end
 
   defp get_context_timeout(:hosting), do: Message.get_max_timeout()
@@ -635,6 +652,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         from_state,
         :replication,
         data = %{
+          node_public_key: node_public_key,
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: tx_address, type: type}
@@ -649,14 +667,35 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: type
         )
 
-        request_replication(context)
-        :keep_state_and_data
+        new_context = request_replication_validation(context, node_public_key)
+
+        {:keep_state, %{data | context: new_context}}
 
       err ->
         Logger.info("Skipped replication because validation failed", err: err)
 
         notify_error(err, data)
         :stop
+    end
+  end
+
+  def handle_event(
+        :cast,
+        {:add_replication_validation, node_public_key},
+        :replication,
+        data = %{context: context = %ValidationContext{chain_storage_nodes: chain_storage_nodes}}
+      ) do
+    if Utils.key_in_node_list?(chain_storage_nodes, node_public_key) do
+      new_context = ValidationContext.add_replication_validation(context, node_public_key)
+
+      if ValidationContext.enough_replication_validations?(new_context) do
+        request_replication(context)
+        :keep_state_and_data
+      else
+        {:keep_state, %{data | context: new_context}}
+      end
+    else
+      :keep_state_and_data
     end
   end
 
@@ -844,7 +883,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         event_type,
         event,
         state,
-        _ = %{context: %ValidationContext{transaction: tx}}
+        _data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.warning(
       "Unexpected event #{inspect(event)}(#{inspect(event_type)}) in the state #{inspect(state)} - Will be postponed for the next state",
@@ -937,6 +976,86 @@ defmodule Archethic.Mining.DistributedWorkflow do
     })
   end
 
+  defp request_replication_validation(
+         context = %ValidationContext{transaction: tx, coordinator_node: coordinator_node},
+         node_public_key
+       ) do
+    storage_nodes = ValidationContext.get_chain_replication_nodes(context)
+
+    Logger.info(
+      "Send validated transaction to #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)} for replication's validation",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    validated_tx = ValidationContext.get_validated_transaction(context)
+
+    message = %ValidateTransaction{
+      transaction: validated_tx
+    }
+
+    results =
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        storage_nodes,
+        fn node ->
+          {P2P.send_message(node, message), node}
+        end,
+        ordered: false,
+        on_timeout: :kill_task,
+        timeout: Message.get_timeout(message) + 2000
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.map(fn {:ok, {{:ok, res}, node}} -> {res, node} end)
+      |> Enum.to_list()
+
+    if Enum.all?(results, &match?({%Ok{}, _}, &1)) do
+      cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
+
+      validation_nodes =
+        [coordinator_node | cross_validation_nodes]
+        |> P2P.distinct_nodes()
+        |> Enum.reject(&(&1.last_public_key == node_public_key))
+
+      Logger.info(
+        "Send replication validation message to validation nodes: #{Enum.map_join(validation_nodes, ",", &Node.endpoint/1)}",
+        transaction_address: Base.encode16(validated_tx.address),
+        transaction_type: validated_tx.type
+      )
+
+      new_context =
+        Enum.reduce(results, context, fn {_, %Node{first_public_key: first_public_key}}, acc ->
+          ValidationContext.add_replication_validation(acc, first_public_key)
+        end)
+
+      Task.Supervisor.async_stream(TaskSupervisor, results, fn {_,
+                                                                %Node{
+                                                                  first_public_key:
+                                                                    first_public_key
+                                                                }} ->
+        P2P.broadcast_message(validation_nodes, %NotifyReplicationValidation{
+          address: validated_tx.address,
+          node_public_key: first_public_key
+        })
+      end)
+      |> Stream.run()
+
+      new_context
+    else
+      errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
+
+      case Enum.dedup(errors) do
+        [%ReplicationError{reason: reason}] ->
+          send(self(), {:replication_error, reason})
+
+        _ ->
+          send(self(), {:replication_error, :invalid_atomic_commitment})
+      end
+
+      context
+    end
+  end
+
   defp request_replication(
          context = %ValidationContext{
            transaction: tx
@@ -950,11 +1069,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    validated_tx = ValidationContext.get_validated_transaction(context)
-
-    message = %ReplicateTransactionChain{
-      transaction: validated_tx,
-      replying_node: Crypto.first_node_public_key()
+    message = %ReplicatePendingTransactionChain{
+      address: tx.address
     }
 
     P2P.broadcast_message(storage_nodes, message)

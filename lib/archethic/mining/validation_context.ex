@@ -33,7 +33,8 @@ defmodule Archethic.Mining.ValidationContext do
     previous_storage_nodes: [],
     valid_pending_transaction?: false,
     pending_transaction_error_detail: "",
-    storage_nodes_confirmations: []
+    storage_nodes_confirmations: [],
+    storage_nodes_validations: []
   ]
 
   alias Archethic.Contracts
@@ -94,7 +95,8 @@ defmodule Archethic.Mining.ValidationContext do
           valid_pending_transaction?: boolean(),
           storage_nodes_confirmations:
             list({node_public_key :: Crypto.key(), signature :: binary()}),
-          pending_transaction_error_detail: binary()
+          pending_transaction_error_detail: binary(),
+          storage_nodes_validations: list(Crypto.key())
         }
 
   @doc """
@@ -1324,4 +1326,55 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   def get_first_error(%__MODULE__{validation_stamp: %ValidationStamp{error: error}}), do: error
+
+  @doc """
+  Add a replication nodes validation confirmation
+  """
+  @spec add_replication_validation(t(), Crypto.key()) :: t()
+  def add_replication_validation(context = %__MODULE__{}, node_public_key) do
+    Map.update!(context, :storage_nodes_validations, &[node_public_key | &1])
+  end
+
+  @doc """
+  Determine if the replication validations are sufficient
+  """
+  @spec enough_replication_validations?(t()) :: boolean()
+  def enough_replication_validations?(
+        context = %__MODULE__{
+          storage_nodes_validations: storage_nodes_validations
+        }
+      ) do
+    expected_nb_replication_validations =
+      context
+      |> get_full_chain_replication_nodes()
+      |> Enum.count()
+
+    length(storage_nodes_validations) == expected_nb_replication_validations
+  end
+
+  @doc """
+  Returns the entire list (availables) of the chain replication nodes 
+  """
+  @spec get_full_chain_replication_nodes(t()) :: list(Node.t())
+  def get_full_chain_replication_nodes(%__MODULE__{
+        chain_storage_nodes: chain_storage_nodes,
+        full_replication_tree: %{chain: chain_replication_tree}
+      }) do
+    chain_replication_tree
+    |> Enum.map(&Archethic.Utils.bitstring_to_integer_list/1)
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+    |> Enum.map(fn x ->
+      if Enum.member?(x, 1) do
+        1
+      else
+        0
+      end
+    end)
+    |> Enum.with_index()
+    |> Enum.filter(fn {available, _} -> available == 1 end)
+    |> Enum.map(fn {_, i} ->
+      Enum.at(chain_storage_nodes, i)
+    end)
+  end
 end

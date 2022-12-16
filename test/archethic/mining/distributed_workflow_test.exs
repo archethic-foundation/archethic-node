@@ -29,9 +29,12 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
+  alias Archethic.P2P.Message.NotifyReplicationValidation
   alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.ValidationError
+  alias Archethic.P2P.Message.ValidateTransaction
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain
@@ -810,6 +813,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       P2P.add_and_connect_node(welcome_node)
 
+      {:ok, agent_pid} = Agent.start_link(fn -> nil end)
+
       MockClient
       |> stub(:send_message, fn
         _, %ValidationError{}, _ ->
@@ -844,9 +849,18 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           send(me, {:cross_validation_done, stamp})
           {:ok, %Ok{}}
 
-        %Node{first_public_key: first_public_key},
-        %ReplicateTransactionChain{transaction: tx},
+        _, %ValidateTransaction{transaction: tx}, _ ->
+          Agent.update(agent_pid, fn _ -> tx end)
+          {:ok, %Ok{}}
+
+        %Node{first_public_key: recipient_node},
+        %NotifyReplicationValidation{node_public_key: node_public_key},
         _ ->
+          send(me, {:ack_replication_validation, node_public_key, recipient_node})
+          {:ok, %Ok{}}
+
+        %Node{first_public_key: first_public_key}, %ReplicatePendingTransactionChain{}, _ ->
+          tx = Agent.get(agent_pid, & &1)
           tx_summary = TransactionSummary.from_transaction(tx)
 
           {other_validator_pub, other_validator_pv} =
@@ -884,6 +898,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
           send(me, {:ack_replication, sig, pub})
 
+          {:ok, %Ok{}}
+
+        _, %ReplicateTransactionChain{}, _ ->
           {:ok, %Ok{}}
 
         _, %ReplicationAttestation{}, _ ->
@@ -983,6 +1000,50 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           end
 
           receive do
+            {:ack_replication_validation, node_public_key, recipient_node} ->
+              cond do
+                recipient_node == List.first(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
+
+                recipient_node == List.last(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
+              end
+          end
+
+          receive do
+            {:ack_replication_validation, node_public_key, recipient_node} ->
+              cond do
+                recipient_node == List.first(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
+
+                recipient_node == List.last(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
+              end
+          end
+
+          receive do
+            {:ack_replication_validation, node_public_key, recipient_node} ->
+              cond do
+                recipient_node == List.first(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
+
+                recipient_node == List.last(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
+              end
+          end
+
+          receive do
+            {:ack_replication_validation, node_public_key, recipient_node} ->
+              cond do
+                recipient_node == List.first(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
+
+                recipient_node == List.last(validation_nodes).first_public_key ->
+                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
+              end
+          end
+
+          receive do
             {:ack_replication, sig, pub} ->
               send(coordinator_pid, {:ack_replication, sig, pub})
           end
@@ -1046,8 +1107,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           node_public_key: context.coordinator_node.last_public_key
         )
 
-      :sys.replace_state(coordinator_pid, fn {:coordinator, %{context: _}} ->
-        {:wait_cross_validation_stamps, %{context: context}}
+      :sys.replace_state(coordinator_pid, fn {:coordinator, state} ->
+        {:wait_cross_validation_stamps, %{state | context: context}}
       end)
 
       Workflow.add_cross_validation_stamp(
@@ -1118,8 +1179,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           node_public_key: context.coordinator_node.last_public_key
         )
 
-      :sys.replace_state(coordinator_pid, fn {:coordinator, %{context: _}} ->
-        {:wait_cross_validation_stamps, %{context: context}}
+      :sys.replace_state(coordinator_pid, fn {:coordinator, state} ->
+        {:wait_cross_validation_stamps, %{state | context: context}}
       end)
 
       Workflow.add_cross_validation_stamp(
