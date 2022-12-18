@@ -96,27 +96,6 @@ defmodule Archethic.Account.MemTablesLoader do
       TokenLedger.spend_all_unspent_outputs(previous_address)
     end
 
-    burn_storage_nodes =
-      Election.storage_nodes(
-        LedgerOperations.burning_address(),
-        P2P.authorized_and_available_nodes(timestamp)
-      )
-
-    transaction_movements =
-      if Utils.key_in_node_list?(burn_storage_nodes, Crypto.first_node_public_key()) and
-           fee > 0 do
-        [
-          %TransactionMovement{
-            to: LedgerOperations.burning_address(),
-            amount: fee,
-            type: :UCO
-          }
-          | transaction_movements
-        ]
-      else
-        transaction_movements
-      end
-
     :ok =
       set_transaction_movements(
         address,
