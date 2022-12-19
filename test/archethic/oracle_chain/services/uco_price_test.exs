@@ -185,4 +185,23 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
     assert false == UCOPrice.verify?(%{"eur" => 0.55, "usd" => 0.12})
   end
+
+  test "should handle unexpected format in values returned from service" do
+    MockUCOPriceProvider1
+    |> expect(:fetch, fn _pairs ->
+      {:ok, %{"eur" => [0.50], "usd" => [0.10]}}
+    end)
+
+    MockUCOPriceProvider2
+    |> expect(:fetch, fn _pairs ->
+      {:ok, %{"eur" => [0.60], "usd" => [0.20]}}
+    end)
+
+    MockUCOPriceProvider3
+    |> expect(:fetch, fn _pairs ->
+      {:ok, [{"eur", 0.80}, {"usd", 0.30}]}
+    end)
+
+    assert false == UCOPrice.verify?(%{"eur" => 0.55, "usd" => 0.15})
+  end
 end

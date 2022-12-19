@@ -43,7 +43,17 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
           false
       end)
-      |> Enum.map(fn {_, {_, result}} -> result end)
+      |> Enum.map(fn
+        {_, {_, result = %{}}} ->
+          result
+
+        other_service_answer_format ->
+          Logger.error(
+            "Service : #{inspect(__MODULE__)} : Unexpected answer while querying provider : #{inspect(other_service_answer_format)}, ignoring."
+          )
+
+          %{}
+      end)
 
       ## split prices in a list per currency. If a service returned a list of prices of a currency,
       ## they will be medianed first before being added to list
