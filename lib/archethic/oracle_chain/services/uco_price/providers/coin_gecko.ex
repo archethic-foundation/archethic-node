@@ -34,7 +34,11 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko do
            :httpc.request(:get, {query, []}, httpc_options, []),
          {:ok, payload} <- Jason.decode(body),
          {:ok, prices} <- Map.fetch(payload, "archethic") do
-      formatted_prices = Enum.map(prices, fn {pair, price} -> {pair, [price]} end)
+      formatted_prices =
+        prices
+        |> Enum.map(fn {pair, price} -> {pair, [price]} end)
+        |> Map.new()
+
       {:ok, formatted_prices}
     else
       {:ok, {{_, _, status}, _, _}} ->
