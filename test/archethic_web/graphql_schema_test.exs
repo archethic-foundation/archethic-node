@@ -545,4 +545,10 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert recv_addr == Base.encode16(addr)
     end
   end
+
+  test "should fail to connect if node is bootstraping" do
+    :persistent_term.put(:archethic_up, nil)
+
+    assert_raise MatchError, fn -> get_socket() end
+  end
 end
