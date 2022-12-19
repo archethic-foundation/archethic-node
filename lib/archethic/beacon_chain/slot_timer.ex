@@ -9,6 +9,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SubsetRegistry
   alias Archethic.BeaconChain.SummaryTimer
+  alias Archethic.Bootstrap
 
   alias Archethic.DB
 
@@ -87,7 +88,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
     interval = Keyword.get(opts, :interval)
     :ets.insert(@slot_timer_ets, {:interval, interval})
 
-    if Archethic.Bootstrap.done?() do
+    if Bootstrap.done?() do
       Logger.info("Slot Timer: Starting...")
       next_time = next_slot(DateTime.utc_now())
 

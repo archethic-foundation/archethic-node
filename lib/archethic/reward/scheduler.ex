@@ -5,6 +5,7 @@ defmodule Archethic.Reward.Scheduler do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.{
+    Bootstrap,
     Crypto,
     PubSub,
     DB,
@@ -29,7 +30,7 @@ defmodule Archethic.Reward.Scheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    if Archethic.Bootstrap.done?() do
+    if Bootstrap.done?() do
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}
     else

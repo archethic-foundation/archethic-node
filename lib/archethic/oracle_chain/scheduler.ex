@@ -3,6 +3,7 @@ defmodule Archethic.OracleChain.Scheduler do
   Manage the scheduling of the oracle transactions
   """
 
+  alias Archethic.Bootstrap
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -60,7 +61,7 @@ defmodule Archethic.OracleChain.Scheduler do
       |> Map.put(:polling_interval, polling_interval)
       |> Map.put(:summary_interval, summary_interval)
 
-    if Archethic.Bootstrap.done?() do
+    if Bootstrap.done?() do
       # when node is already bootstrapped, - handles scheduler crash
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}

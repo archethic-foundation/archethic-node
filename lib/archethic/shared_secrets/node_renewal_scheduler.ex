@@ -11,6 +11,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   alias Archethic
 
+  alias Archethic.Bootstrap
   alias Archethic.Election
 
   alias Archethic.Crypto
@@ -52,7 +53,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    if Archethic.Bootstrap.done?() do
+    if Bootstrap.done?() do
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}
     else

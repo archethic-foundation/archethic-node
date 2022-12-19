@@ -6,6 +6,8 @@ defmodule ArchethicWeb.UserSocket do
   use Absinthe.Phoenix.Socket,
     schema: ArchethicWeb.GraphQLSchema
 
+  alias Archethic.Bootstrap
+
   require Logger
 
   ## Channels
@@ -23,7 +25,7 @@ defmodule ArchethicWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
   def connect(_params, socket, _connect_info) do
-    if Archethic.Bootstrap.done?() do
+    if Bootstrap.done?() do
       {:ok, socket}
     else
       Logger.debug("Received a websocket connect but node is bootstraping")
