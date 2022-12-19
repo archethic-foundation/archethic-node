@@ -170,7 +170,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
       Enum.reduce(prices, aggregated_data, fn
         ## Assert we have at least one value for the currency
         {currency, [_ | _] = values}, acc ->
-          Map.update(acc, currency, [median(values)], fn previous_values ->
+          Map.update(acc, String.downcase(currency), [median(values)], fn previous_values ->
             previous_values ++ [median(values)]
           end)
 
