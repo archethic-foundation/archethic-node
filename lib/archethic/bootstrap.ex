@@ -63,6 +63,10 @@ defmodule Archethic.Bootstrap do
     ])
   end
 
+  def done?() do
+    :persistent_term.get(:archethic_up, nil) == :up
+  end
+
   @doc """
   Start the bootstrap workflow.
 

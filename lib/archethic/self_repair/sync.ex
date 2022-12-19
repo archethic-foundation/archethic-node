@@ -270,7 +270,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
 
-    if :persistent_term.get(:archethic_up, nil) == :up do
+    if Archethic.Bootstrap.done?() do
       SelfRepair.start_notifier(
         previous_available_nodes,
         new_available_nodes,

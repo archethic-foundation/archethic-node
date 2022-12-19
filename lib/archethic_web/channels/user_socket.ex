@@ -6,6 +6,8 @@ defmodule ArchethicWeb.UserSocket do
   use Absinthe.Phoenix.Socket,
     schema: ArchethicWeb.GraphQLSchema
 
+  require Logger
+
   ## Channels
   # channel "room:*", ArchethicWeb.RoomChannel
 
@@ -21,7 +23,12 @@ defmodule ArchethicWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
   def connect(_params, socket, _connect_info) do
-    {:ok, socket}
+    if Archethic.Bootstrap.done?() do
+      {:ok, socket}
+    else
+      Logger.debug("Received a websocket connect but node is bootstraping")
+      :error
+    end
   end
 
   # Socket id's are topics that allow you to identify all sockets for a given user:

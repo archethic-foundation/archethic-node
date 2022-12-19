@@ -87,18 +87,16 @@ defmodule Archethic.BeaconChain.SlotTimer do
     interval = Keyword.get(opts, :interval)
     :ets.insert(@slot_timer_ets, {:interval, interval})
 
-    case :persistent_term.get(:archethic_up, nil) do
-      nil ->
-        Logger.info("Slot Timer:  Waiting for Node to complete Bootstrap.")
+    if Archethic.Bootstrap.done?() do
+      Logger.info("Slot Timer: Starting...")
+      next_time = next_slot(DateTime.utc_now())
 
-        Archethic.PubSub.register_to_node_up()
-        {:ok, %{interval: interval}}
+      {:ok, %{interval: interval, timer: schedule_new_slot(interval), next_time: next_time}}
+    else
+      Logger.info("Slot Timer:  Waiting for Node to complete Bootstrap.")
 
-      :up ->
-        Logger.info("Slot Timer: Starting...")
-        next_time = next_slot(DateTime.utc_now())
-
-        {:ok, %{interval: interval, timer: schedule_new_slot(interval), next_time: next_time}}
+      Archethic.PubSub.register_to_node_up()
+      {:ok, %{interval: interval}}
     end
   end
 
