@@ -31,7 +31,7 @@ defmodule Archethic.Networking.IPLookupTest do
       MockStatic
       |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
-      assert {127, 0, 0, 1} == get_node_ip()
+      assert {:ok, {127, 0, 0, 1}} == get_node_ip()
     end
   end
 
@@ -43,12 +43,7 @@ defmodule Archethic.Networking.IPLookupTest do
       MockStatic
       |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
-      provider = MockStatic
-      reason = :invalid_ip
-
-      assert_raise(RuntimeError, "Cannot use #{provider} IP lookup - #{inspect(reason)}", fn ->
-        get_node_ip()
-      end)
+      assert {:error, _} = get_node_ip()
     end
 
     test "If Private IP(NAT), it must fallback to IPIFY to get public IP" do
@@ -61,7 +56,7 @@ defmodule Archethic.Networking.IPLookupTest do
       MockRemoteDiscovery
       |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
-      assert {17, 5, 7, 8} == get_node_ip()
+      assert {:ok, {17, 5, 7, 8}} == get_node_ip()
     end
 
     test "IPIFIY IP: returns public IP" do
@@ -71,7 +66,7 @@ defmodule Archethic.Networking.IPLookupTest do
       MockRemoteDiscovery
       |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
-      assert {17, 5, 7, 8} == get_node_ip()
+      assert {:ok, {17, 5, 7, 8}} == get_node_ip()
     end
   end
 end
