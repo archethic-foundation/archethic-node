@@ -362,12 +362,12 @@ defmodule Archethic.DB.EmbeddedTest do
     end
   end
 
-  describe "get_transaction_chain_desc/4" do
+  describe "get_transaction_chain/4 order: :desc" do
     test "should return empty when there is no transactions" do
       {pub_key, _} = Crypto.generate_deterministic_keypair("SEED")
       address = Crypto.derive_address(pub_key)
 
-      assert {[], false, ""} == EmbeddedImpl.get_transaction_chain_desc(address)
+      assert {[], false, ""} == EmbeddedImpl.get_transaction_chain(address, [], order: :desc)
     end
 
     test "should return all transactions if there are less than one page (10)" do
@@ -381,7 +381,9 @@ defmodule Archethic.DB.EmbeddedTest do
 
       EmbeddedImpl.write_transaction_chain(transactions)
 
-      {page, false, ""} = EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address)
+      {page, false, ""} =
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
+
       assert length(page) == 9
       assert page == Enum.reverse(transactions)
     end
@@ -398,22 +400,24 @@ defmodule Archethic.DB.EmbeddedTest do
       EmbeddedImpl.write_transaction_chain(transactions)
 
       {page1, true, paging_state1} =
-        EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address)
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
 
       assert length(page1) == 10
       assert paging_state1 == List.last(page1).address
 
       {page2, true, paging_state2} =
-        EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address, [],
-          paging_state: paging_state1
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
+          paging_state: paging_state1,
+          order: :desc
         )
 
       assert length(page2) == 10
       assert paging_state2 == List.last(page2).address
 
       {page3, false, ""} =
-        EmbeddedImpl.get_transaction_chain_desc(List.last(transactions).address, [],
-          paging_state: paging_state2
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
+          paging_state: paging_state2,
+          order: :desc
         )
 
       assert length(page3) == 8

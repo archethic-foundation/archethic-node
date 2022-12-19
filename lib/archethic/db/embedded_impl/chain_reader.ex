@@ -109,6 +109,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  @doc """
+  Return a transaction chain.
+  By default, order is chronological (ASC)
+
+  Opts:
+    paging_state :: binary()
+    order :: :asc | :desc
+  """
   @spec get_transaction_chain(
           address :: binary(),
           fields :: list(),
@@ -129,40 +137,21 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         fd = File.open!(filepath, [:binary, :read])
 
         {transactions, more?, paging_state} =
-          process_get_chain(fd, address, fields, opts, db_path)
+          case Keyword.get(opts, :order, :asc) do
+            :asc ->
+              process_get_chain(fd, address, fields, opts, db_path)
 
+            :desc ->
+              process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
+          end
+
+        # we want different metrics for ASC and DESC
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-          query: "get_transaction_chain"
-        })
-
-        {transactions, more?, paging_state}
-    end
-  end
-
-  @spec get_transaction_chain_desc(
-          address :: binary(),
-          fields :: list(),
-          opts :: list(),
-          db_path :: String.t()
-        ) ::
-          {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
-           paging_state :: nil | binary()}
-  def get_transaction_chain_desc(address, fields, opts, db_path) do
-    start = System.monotonic_time()
-
-    case ChainIndex.get_tx_entry(address, db_path) do
-      {:error, :not_exists} ->
-        {[], false, ""}
-
-      {:ok, %{genesis_address: genesis_address}} ->
-        filepath = ChainWriter.chain_path(db_path, genesis_address)
-        fd = File.open!(filepath, [:binary, :read])
-
-        {transactions, more?, paging_state} =
-          process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
-
-        :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-          query: "get_transaction_chain_desc"
+          query:
+            case Keyword.get(opts, :order, :asc) do
+              :asc -> "get_transaction_chain"
+              :desc -> "get_transaction_chain_reverse"
+            end
         })
 
         {transactions, more?, paging_state}

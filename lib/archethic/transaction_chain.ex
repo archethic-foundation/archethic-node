@@ -176,14 +176,6 @@ defmodule Archethic.TransactionChain do
   defdelegate get(address, fields \\ [], opts \\ []), to: DB, as: :get_transaction_chain
 
   @doc """
-  Retrieve an entire chain from the last transaction
-  The returned list is ordered anti-chronologically.
-  """
-  @spec get_desc(binary(), list()) ::
-          Enumerable.t() | {list(Transaction.t()), boolean(), binary()}
-  defdelegate get_desc(address, fields \\ [], opts \\ []), to: DB, as: :get_transaction_chain_desc
-
-  @doc """
   Persist only one transaction
   """
   @spec write_transaction(Transaction.t(), DB.storage_type()) :: :ok

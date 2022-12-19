@@ -27,11 +27,6 @@ defmodule Archethic.DB do
               fields :: list(),
               opts :: [paging_state: nil | binary(), after: DateTime.t()]
             ) :: Enumerable.t()
-  @callback get_transaction_chain_desc(
-              binary(),
-              fields :: list(),
-              opts :: [paging_state: nil | binary(), after: DateTime.t()]
-            ) :: Enumerable.t()
   @callback write_transaction(Transaction.t(), storage_type()) :: :ok
   @callback write_beacon_summary(Summary.t()) :: :ok
   @callback clear_beacon_summaries() :: :ok

@@ -201,19 +201,6 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Get a transaction chain - anti-chronological order
-
-  The returned values will be splitted according to the pagination state presents in the options
-  """
-  @spec get_transaction_chain_desc(address :: binary(), fields :: list(), opts :: list()) ::
-          {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
-           paging_state :: nil | binary()}
-  def get_transaction_chain_desc(address, fields \\ [], opts \\ [])
-      when is_binary(address) and is_list(fields) and is_list(opts) do
-    ChainReader.get_transaction_chain_desc(address, fields, opts, db_path())
-  end
-
-  @doc """
   Return the size of a transaction chain
   """
   @spec chain_size(address :: binary()) :: non_neg_integer()
