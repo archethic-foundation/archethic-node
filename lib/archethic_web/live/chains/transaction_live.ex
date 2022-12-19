@@ -144,6 +144,6 @@ defmodule ArchethicWeb.TransactionChainLive do
   # DESC pagination
   defp paginate_chain(address, paging_address) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-    TransactionChain.fetch_transaction_chain_desc(nodes, address, paging_address)
+    TransactionChain.fetch_transaction_chain(nodes, address, paging_address, order: :desc)
   end
 end

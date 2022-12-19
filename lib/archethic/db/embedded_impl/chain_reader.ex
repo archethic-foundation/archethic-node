@@ -259,7 +259,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   end
 
   # in order to read the file sequentially in DESC (faster than random access)
-  # we have to determined the correct paging_state and limit_address
+  # we have to determine the correct paging_state and limit_address
   # then we can use the process_get_chain that does the ASC read
   defp process_get_chain_desc(fd, genesis_address, fields, opts, db_path) do
     all_addresses_asc =

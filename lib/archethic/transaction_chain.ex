@@ -763,24 +763,12 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Get 10 transactions in a chain after a paging address - chronological order
+  Get 10 transactions in a chain after a paging address
   """
   @spec fetch_transaction_chain(list(Node.t()), binary(), binary()) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def fetch_transaction_chain(nodes, address, paging_address) do
-    case do_fetch_transaction_chain(nodes, address, paging_address) do
-      {transactions, _more?, _paging_state} -> {:ok, transactions}
-      error -> error
-    end
-  end
-
-  @doc """
-  Get 10 transactions in a chain before a paging address - anti-chronological order
-  """
-  @spec fetch_transaction_chain_desc(list(Node.t()), binary(), nil | binary()) ::
-          {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def fetch_transaction_chain_desc(nodes, address, paging_address) do
-    case do_fetch_transaction_chain(nodes, address, paging_address, order: :desc) do
+  def fetch_transaction_chain(nodes, address, paging_address, opts \\ []) do
+    case do_fetch_transaction_chain(nodes, address, paging_address, opts) do
       {transactions, _more?, _paging_state} -> {:ok, transactions}
       error -> error
     end

@@ -188,7 +188,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Get a transaction chain - chronological order
+  Get a transaction chain
 
   The returned values will be splitted according to the pagination state presents in the options
   """
