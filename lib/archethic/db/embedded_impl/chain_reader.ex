@@ -109,6 +109,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
+  @doc """
+  Return a transaction chain.
+  By default, order is chronological (ASC)
+
+  Opts:
+    paging_state :: binary()
+    order :: :asc | :desc
+  """
   @spec get_transaction_chain(
           address :: binary(),
           fields :: list(),
@@ -129,10 +137,21 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         fd = File.open!(filepath, [:binary, :read])
 
         {transactions, more?, paging_state} =
-          process_get_chain(fd, address, fields, opts, db_path)
+          case Keyword.get(opts, :order, :asc) do
+            :asc ->
+              process_get_chain(fd, address, fields, opts, db_path)
 
+            :desc ->
+              process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
+          end
+
+        # we want different metrics for ASC and DESC
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-          query: "get_transaction_chain"
+          query:
+            case Keyword.get(opts, :order, :asc) do
+              :asc -> "get_transaction_chain"
+              :desc -> "get_transaction_chain_reverse"
+            end
         })
 
         {transactions, more?, paging_state}
@@ -237,6 +256,51 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     :file.close(fd)
 
     {transactions, more?, paging_state}
+  end
+
+  # in order to read the file sequentially in DESC (faster than random access)
+  # we have to determine the correct paging_state and limit_address
+  # then we can use the process_get_chain that does the ASC read
+  defp process_get_chain_desc(fd, genesis_address, fields, opts, db_path) do
+    all_addresses_asc =
+      ChainIndex.list_chain_addresses(genesis_address, db_path)
+      |> Enum.map(&elem(&1, 0))
+
+    {limit_address, paging_state, more?, new_paging_state} =
+      case Keyword.get(opts, :paging_state) do
+        nil ->
+          chain_length = Enum.count(all_addresses_asc)
+
+          if chain_length <= @page_size do
+            {nil, nil, false, ""}
+          else
+            idx = chain_length - 1 - @page_size
+
+            {nil, all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
+          end
+
+        paging_state ->
+          paging_state_idx =
+            all_addresses_asc
+            |> Enum.find_index(&(&1 == paging_state))
+
+          limit_address = Enum.at(all_addresses_asc, paging_state_idx - 1)
+
+          if paging_state_idx < @page_size do
+            {limit_address, nil, false, ""}
+          else
+            idx = paging_state_idx - 1 - @page_size
+
+            {limit_address, all_addresses_asc |> Enum.at(idx), true,
+             all_addresses_asc |> Enum.at(idx + 1)}
+          end
+      end
+
+    # call the ASC function and ignore the more? and paging_state
+    {transactions, _more?, _paging_state} =
+      process_get_chain(fd, limit_address, fields, [paging_state: paging_state], db_path)
+
+    {Enum.reverse(transactions), more?, new_paging_state}
   end
 
   defp read_transaction(fd, fields, limit, position, acc \\ %{})

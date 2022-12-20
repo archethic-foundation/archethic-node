@@ -775,14 +775,14 @@ defmodule Archethic.TransactionChain do
   """
   @spec fetch_transaction_chain(list(Node.t()), binary(), binary()) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def fetch_transaction_chain(nodes, address, paging_address) do
-    case do_fetch_transaction_chain(nodes, address, paging_address) do
+  def fetch_transaction_chain(nodes, address, paging_address, opts \\ []) do
+    case do_fetch_transaction_chain(nodes, address, paging_address, opts) do
       {transactions, _more?, _paging_state} -> {:ok, transactions}
       error -> error
     end
   end
 
-  defp do_fetch_transaction_chain(nodes, address, paging_state) do
+  defp do_fetch_transaction_chain(nodes, address, paging_state, opts \\ []) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
@@ -791,12 +791,14 @@ defmodule Archethic.TransactionChain do
       |> List.first()
     end
 
+    order = Keyword.get(opts, :order, :asc)
+
     # We got transactions by batch of 10 transactions
     timeout = Message.get_max_timeout() + Message.get_max_timeout() * 10
 
     case P2P.quorum_read(
            nodes,
-           %GetTransactionChain{address: address, paging_state: paging_state},
+           %GetTransactionChain{address: address, paging_state: paging_state, order: order},
            conflict_resolver,
            timeout
          ) do
