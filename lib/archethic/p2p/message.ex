@@ -1323,8 +1323,8 @@ defmodule Archethic.P2P.Message do
     %NodeList{nodes: P2P.list_nodes()}
   end
 
-  def process(%NewTransaction{transaction: tx}, _) do
-    case Archethic.send_new_transaction(tx) do
+  def process(%NewTransaction{transaction: tx}, sender_public_key) do
+    case Archethic.send_new_transaction(tx, sender_public_key) do
       :ok ->
         %Ok{}
 
