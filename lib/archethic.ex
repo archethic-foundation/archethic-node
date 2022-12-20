@@ -4,14 +4,19 @@ defmodule Archethic do
   """
 
   alias Archethic.SharedSecrets
-  alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
+  alias __MODULE__.{Account, BeaconChain, Contracts, Crypto, Election, P2P, P2P.Node, P2P.Message}
   alias __MODULE__.{SelfRepair, TransactionChain}
 
   alias Message.{NewTransaction, NotFound, StartMining}
   alias Message.{Balance, GetBalance, GetTransactionSummary}
   alias Message.{StartMining, Ok, TransactionSummaryMessage}
 
-  alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
+  alias TransactionChain.{
+    Transaction,
+    TransactionInput,
+    TransactionSummary,
+    TransactionData
+  }
 
   require Logger
 
@@ -300,6 +305,28 @@ defmodule Archethic do
       error ->
         error
     end
+  end
+
+  @doc """
+  Assert the transaction holds a contract and then simulate its execution.
+  Return an error if the transaction holds no contract.
+  """
+  @spec simulate_contract_execution(Transaction.t(), Transaction.t()) ::
+          :ok | {:error, reason :: term()}
+  def simulate_contract_execution(
+        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        incoming_tx
+      )
+      when code != "" do
+    Contracts.simulate_contract_execution(prev_tx, incoming_tx, DateTime.utc_now())
+  end
+
+  ## Empty contracts are considered invalid
+  def simulate_contract_execution(
+        _prev_tx,
+        _next_tx
+      ) do
+    {:error, :no_contract}
   end
 
   @doc """

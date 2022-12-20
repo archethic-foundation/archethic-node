@@ -18,6 +18,8 @@ defmodule Archethic.Contracts do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Contracts.ContractConstants, as: Constants
+
   require Logger
 
   @extended_mode? Mix.env() != :prod
@@ -196,6 +198,137 @@ defmodule Archethic.Contracts do
     else
       {:error, _} ->
         false
+    end
+  end
+
+  @doc """
+  Simulate the execution of the contract hold in prev_tx with the inputs of next_tx, at a certain date
+  """
+
+  @spec simulate_contract_execution(Transaction.t(), Transaction.t(), DateTime.t()) ::
+          :ok | {:error, reason :: term()}
+  def simulate_contract_execution(
+        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        incoming_tx = %Transaction{},
+        date = %DateTime{}
+      ) do
+    case Interpreter.parse(code) do
+      {:ok,
+       %Contract{
+         version: version,
+         triggers: triggers,
+         conditions: conditions
+       }} ->
+        triggers
+        |> Enum.find_value(:ok, fn {trigger_type, trigger_code} ->
+          do_simulate_contract(
+            version,
+            trigger_code,
+            trigger_type,
+            conditions,
+            prev_tx,
+            incoming_tx,
+            date
+          )
+        end)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp do_simulate_contract(
+         version,
+         trigger_code,
+         trigger_type,
+         conditions,
+         prev_tx,
+         incoming_tx,
+         date
+       ) do
+    case valid_from_trigger?(trigger_type, incoming_tx, date) do
+      true ->
+        case validate_transaction_conditions(
+               version,
+               trigger_type,
+               conditions,
+               prev_tx,
+               incoming_tx
+             ) do
+          :ok ->
+            validate_inherit_conditions(version, trigger_code, conditions, prev_tx, incoming_tx)
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      false ->
+        {:error, :invalid_trigger}
+    end
+  end
+
+  defp validate_transaction_conditions(
+         version,
+         trigger_type,
+         %{transaction: transaction_conditions},
+         prev_tx,
+         incoming_tx
+       ) do
+    case trigger_type do
+      :transaction ->
+        constants_prev = %{
+          "transaction" => Constants.from_transaction(incoming_tx),
+          "contract" => Constants.from_transaction(prev_tx)
+        }
+
+        case Interpreter.valid_conditions?(version, transaction_conditions, constants_prev) do
+          true ->
+            :ok
+
+          false ->
+            {:error, :invalid_transaction_conditions}
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp validate_inherit_conditions(
+         version,
+         trigger_code,
+         %{inherit: inherit_conditions},
+         prev_tx,
+         incoming_tx
+       ) do
+    prev_constants = %{
+      "transaction" => Constants.from_transaction(incoming_tx),
+      "contract" => Constants.from_transaction(prev_tx)
+    }
+
+    case Interpreter.execute_trigger(version, trigger_code, prev_constants) do
+      nil ->
+        :ok
+
+      next_transaction = %Transaction{} ->
+        %{next_transaction: next_transaction} =
+          %{next_transaction: next_transaction, previous_transaction: prev_tx}
+          |> Worker.chain_type()
+          |> Worker.chain_code()
+          |> Worker.chain_ownerships()
+
+        constants_both = %{
+          "previous" => Constants.from_transaction(prev_tx),
+          "next" => Constants.from_transaction(next_transaction)
+        }
+
+        case Interpreter.valid_conditions?(version, inherit_conditions, constants_both) do
+          true ->
+            :ok
+
+          false ->
+            {:error, :invalid_inherit_conditions}
+        end
     end
   end
 

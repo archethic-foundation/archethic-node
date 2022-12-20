@@ -143,4 +143,89 @@ defmodule ArchethicWeb.API.TransactionController do
         |> render("400.json", changeset: changeset)
     end
   end
+
+  @doc """
+  This controller, Fetch the recipients contract and simulate the transaction, managing possible
+  exits from contract execution
+  """
+  def simulate_contract_execution(
+        conn,
+        params = %{}
+      ) do
+    case TransactionPayload.changeset(params) do
+      changeset = %{valid?: true} ->
+        tx =
+          %Transaction{data: %TransactionData{recipients: recipients}} =
+          changeset
+          |> TransactionPayload.to_map()
+          |> Transaction.cast()
+
+        {:ok, sup} = Task.Supervisor.start_link(strategy: :one_for_one)
+
+        results =
+          Task.Supervisor.async_stream_nolink(
+            sup,
+            recipients,
+            &fetch_recipient_tx_and_simulate(&1, tx),
+            on_timeout: :kill_task,
+            timeout: 5000
+          )
+          |> Stream.zip(recipients)
+          |> Stream.map(fn
+            {{:ok, :ok}, recipient} ->
+              %{
+                "valid" => true,
+                "recipient_address" => Base.encode16(recipient)
+              }
+
+            {{:ok, {:error, reason}}, recipient} ->
+              %{
+                "valid" => false,
+                "reason" => reason,
+                "recipient_address" => Base.encode16(recipient)
+              }
+
+            {{:exit, :timeout}, recipient} ->
+              %{
+                "valid" => false,
+                "reason" => "A contract timed out",
+                "recipient_address" => Base.encode16(recipient)
+              }
+
+            {{:exit, _reason}, recipient} ->
+              # TODO: find a way to prettify the error and remove the stacktrace
+              %{
+                "valid" => false,
+                "reason" => "A contract exited while simulating",
+                "recipient_address" => Base.encode16(recipient)
+              }
+          end)
+          |> Enum.to_list()
+
+        conn
+        |> put_status(:ok)
+        |> json(results)
+
+      changeset ->
+        error_details =
+          Ecto.Changeset.traverse_errors(changeset, &ArchethicWeb.ErrorHelpers.translate_error/1)
+
+        json_body =
+          Map.merge(error_details, %{"valid" => false, "reason" => "Query validation failled"})
+
+        conn
+        |> put_status(:ok)
+        |> json([json_body])
+    end
+  end
+
+  defp fetch_recipient_tx_and_simulate(recipient_address, tx) do
+    case Archethic.search_transaction(recipient_address) do
+      {:ok, prev_tx} ->
+        Archethic.simulate_contract_execution(prev_tx, tx)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 end

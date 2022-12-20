@@ -380,36 +380,36 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  defp chain_type(
-         acc = %{
-           next_transaction: %Transaction{type: nil},
-           previous_transaction: _
-         }
-       ) do
+  def chain_type(
+        acc = %{
+          next_transaction: %Transaction{type: nil},
+          previous_transaction: _
+        }
+      ) do
     put_in(acc, [:next_transaction, Access.key(:type)], :contract)
   end
 
-  defp chain_type(acc), do: acc
+  def chain_type(acc), do: acc
 
-  defp chain_code(
-         acc = %{
-           next_transaction: %Transaction{data: %TransactionData{code: ""}},
-           previous_transaction: %Transaction{data: %TransactionData{code: previous_code}}
-         }
-       ) do
+  def chain_code(
+        acc = %{
+          next_transaction: %Transaction{data: %TransactionData{code: ""}},
+          previous_transaction: %Transaction{data: %TransactionData{code: previous_code}}
+        }
+      ) do
     put_in(acc, [:next_transaction, Access.key(:data, %{}), Access.key(:code)], previous_code)
   end
 
-  defp chain_code(acc), do: acc
+  def chain_code(acc), do: acc
 
-  defp chain_ownerships(
-         acc = %{
-           next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
-           previous_transaction: %Transaction{
-             data: %TransactionData{ownerships: previous_ownerships}
-           }
-         }
-       ) do
+  def chain_ownerships(
+        acc = %{
+          next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
+          previous_transaction: %Transaction{
+            data: %TransactionData{ownerships: previous_ownerships}
+          }
+        }
+      ) do
     put_in(
       acc,
       [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],
@@ -417,7 +417,7 @@ defmodule Archethic.Contracts.Worker do
     )
   end
 
-  defp chain_ownerships(acc), do: acc
+  def chain_ownerships(acc), do: acc
 
   defp enough_funds?(contract_address) do
     case Account.get_balance(contract_address) do

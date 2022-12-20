@@ -31,8 +31,8 @@ defmodule Archethic.Contracts.Interpreter do
             Legacy.parse(block)
         end
 
-      {:error, reason} ->
-        {:error, reason}
+      {:error, {[line: line, column: column], _msg_info, _token}} ->
+        {:error, "Parse error at line #{line} column #{column}"}
     end
   end
 

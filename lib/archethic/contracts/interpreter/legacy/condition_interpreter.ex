@@ -556,7 +556,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
     {"timestamp", true}
   end
 
-  defp validate_condition({"type", nil}, %{"next" => %{"type" => "transfer"}}) do
+  defp validate_condition({"type", nil}, %{"next" => %{"type" => type}})
+       when type in ["transfer", "contract"] do
     # Skip the verification when it's the default type
     {"type", true}
   end

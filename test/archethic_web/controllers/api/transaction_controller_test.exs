@@ -8,6 +8,11 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
   alias Archethic.P2P.Node
   alias Archethic.Crypto
 
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.TransactionChain.TransactionData
+  import Mox
+
   setup do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -97,6 +102,406 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
                },
                "status" => "invalid"
              } = json_response(conn, 400)
+    end
+  end
+
+  describe "simulate_contract_execution/2" do
+    test "should return sucessfull answer when asked to validate a valid contract", %{conn: conn} do
+      code = """
+      condition inherit: [
+        type: transfer,
+        content: true,
+        uco_transfers: true
+      ]
+
+      condition transaction: [
+        uco_transfers: size() > 0
+      ]
+
+      actions triggered_by: transaction do
+        set_type transfer
+        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+      end
+      """
+
+      previous_tx1 = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        type: :transfer,
+        data: %TransactionData{
+          code: code,
+          content: "hello"
+        },
+        version: 1
+      }
+
+      previous_tx2 = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
+        type: :transfer,
+        data: %TransactionData{
+          code: code,
+          content: "hello"
+        },
+        version: 1
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        ## These decoded addresses are matching the ones in the code above
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
+              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 103>>
+        },
+        _ ->
+          {:ok, previous_tx1}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
+              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 102>>
+        },
+        _ ->
+          {:ok, previous_tx2}
+      end)
+
+      new_tx = %{
+        "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        "data" => %{
+          "content" => "0000",
+          "recipients" => [
+            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
+            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"
+          ]
+        },
+        "originSignature" =>
+          "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
+        "previousPublicKey" =>
+          "000071e1b5d4b89eddf2322c69bbf1c5591f7361b24cb3c4c464f6b5eb688fe50f7a",
+        "previousSignature" =>
+          "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
+        "type" => "transfer",
+        "version" => 1
+      }
+
+      conn = post(conn, "/api/transaction/contract/simulator", new_tx)
+
+      assert(
+        match?(
+          [
+            %{
+              "valid" => true,
+              "address" => "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D66"
+            },
+            %{
+              "valid" => true,
+              "address" => "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D67"
+            }
+          ],
+          json_response(conn, 200)
+        )
+      )
+    end
+
+    test "should indicate faillure when asked to validate an invalid contract", %{conn: conn} do
+      code = """
+      condition inherit: [
+        type: transfer,
+        content: false,
+        uco_transfers: true
+      ]
+
+      condition transaction: [
+        uco_transfers: size() > 0
+      ]
+
+      actions triggered_by: transaction do
+        set_type transfer
+        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+      end
+      """
+
+      previous_tx = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        type: :transfer,
+        data: %TransactionData{
+          code: code,
+          content: "hello"
+        },
+        version: 1
+      }
+
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
+        {:ok, previous_tx}
+      end)
+
+      new_tx = %{
+        "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        "data" => %{
+          "code" => code,
+          "content" => "0000",
+          "recipients" => ["00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"]
+        },
+        "originSignature" =>
+          "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
+        "previousPublicKey" =>
+          "000071e1b5d4b89eddf2322c69bbf1c5591f7361b24cb3c4c464f6b5eb688fe50f7a",
+        "previousSignature" =>
+          "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
+        "type" => "transfer",
+        "version" => 1
+      }
+
+      conn = post(conn, "/api/transaction/contract/simulator", new_tx)
+
+      assert(match?([%{"valid" => false}], json_response(conn, 200)))
+    end
+
+    test "should indicate when body fails changeset validation", %{conn: conn} do
+      code = """
+      condition inherit: [
+        type: transfer,
+        content: "hello",
+        uco_transfers: true
+      ]
+
+      condition transaction: [
+        uco_transfers: size() > 0
+      ]
+
+      actions triggered_by: transaction do
+        set_type transfer
+        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+      end
+      """
+
+      previous_tx = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        type: :transfer,
+        data: %TransactionData{
+          code: code,
+          content: "hello"
+        },
+        version: 1
+      }
+
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
+        {:ok, previous_tx}
+      end)
+
+      new_tx = %{
+        "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        "data" => %{
+          "code" => code,
+          ## Next line is the invalid part
+          "content" => "hola",
+          "recipients" => ["00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"]
+        },
+        "originSignature" =>
+          "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
+        "previousPublicKey" =>
+          "000071e1b5d4b89eddf2322c69bbf1c5591f7361b24cb3c4c464f6b5eb688fe50f7a",
+        "previousSignature" =>
+          "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
+        "type" => "transfer",
+        "version" => 1
+      }
+
+      conn = post(conn, "/api/transaction/contract/simulator", new_tx)
+
+      assert(match?([%{"valid" => false}], json_response(conn, 200)))
+    end
+
+    test "should indicate faillure when failling parsing of contracts", %{conn: conn} do
+      ## SC is missing the "inherit" keyword
+      code = """
+      condition : [
+        type: transfer,
+        content: true,
+        uco_transfers: true
+      ]
+
+      condition transaction: [
+        uco_transfers: size() > 0
+      ]
+
+      actions triggered_by: transaction do
+        set_type transfer
+        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+      end
+      """
+
+      previous_tx = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        type: :transfer,
+        data: %TransactionData{
+          code: code
+        },
+        version: 1
+      }
+
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
+        {:ok, previous_tx}
+      end)
+
+      new_tx = %{
+        "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        "data" => %{
+          "code" => code,
+          "recipients" => ["00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"]
+        },
+        "originSignature" =>
+          "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
+        "previousPublicKey" =>
+          "000071e1b5d4b89eddf2322c69bbf1c5591f7361b24cb3c4c464f6b5eb688fe50f7a",
+        "previousSignature" =>
+          "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
+        "type" => "transfer",
+        "version" => 1
+      }
+
+      conn = post(conn, "/api/transaction/contract/simulator", new_tx)
+
+      assert(match?([%{"valid" => false}], json_response(conn, 200)))
+    end
+
+    test "Assert empty contract are not simulated and return negative answer", %{conn: conn} do
+      code = ""
+
+      previous_tx = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        type: :transfer,
+        data: %TransactionData{
+          code: code
+        },
+        version: 1
+      }
+
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
+        {:ok, previous_tx}
+      end)
+
+      new_tx = %{
+        "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        "data" => %{
+          "code" => code,
+          "recipients" => [
+            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"
+          ]
+        },
+        "originSignature" =>
+          "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
+        "previousPublicKey" =>
+          "000071e1b5d4b89eddf2322c69bbf1c5591f7361b24cb3c4c464f6b5eb688fe50f7a",
+        "previousSignature" =>
+          "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
+        "type" => "transfer",
+        "version" => 1
+      }
+
+      conn = post(conn, "/api/transaction/contract/simulator", new_tx)
+      assert(match?([%{"valid" => false}], json_response(conn, 200)))
+    end
+
+    test "should return error answer when asked to validate a crashing contract", %{
+      conn: conn
+    } do
+      code = """
+      condition inherit: [
+        content: true
+      ]
+
+      condition transaction: [
+        uco_transfers: size() > 0
+      ]
+
+      actions triggered_by: transaction do
+        set_content 10 / 0
+      end
+      """
+
+      previous_tx1 = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        type: :transfer,
+        data: %TransactionData{
+          code: code,
+          content: "hello"
+        },
+        version: 1
+      }
+
+      previous_tx2 = %Transaction{
+        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
+        type: :transfer,
+        data: %TransactionData{
+          code: code,
+          content: "hello"
+        },
+        version: 1
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        ## These decoded addresses are matching the ones in the code above
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
+              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 103>>
+        },
+        _ ->
+          {:ok, previous_tx1}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
+              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 102>>
+        },
+        _ ->
+          {:ok, previous_tx2}
+      end)
+
+      new_tx = %{
+        "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        "data" => %{
+          "code" => code,
+          "content" => "0000",
+          "recipients" => [
+            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
+            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"
+          ]
+        },
+        "originSignature" =>
+          "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
+        "previousPublicKey" =>
+          "000071e1b5d4b89eddf2322c69bbf1c5591f7361b24cb3c4c464f6b5eb688fe50f7a",
+        "previousSignature" =>
+          "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
+        "type" => "transfer",
+        "version" => 1
+      }
+
+      conn = post(conn, "/api/transaction/contract/simulator", new_tx)
+
+      assert(
+        match?(
+          [
+            %{
+              "valid" => false
+            },
+            %{
+              "valid" => false
+            }
+          ],
+          json_response(conn, 200)
+        )
+      )
     end
   end
 end

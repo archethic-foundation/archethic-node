@@ -314,4 +314,74 @@ defmodule Archethic.ContractsTest do
       assert true == Contracts.accept_new_contract?(previous_tx, next_tx, time)
     end
   end
+
+  describe "simulate_contract_execution?/3" do
+    test "should return true when simulating execution of a valid contract" do
+      code = """
+        condition inherit: [
+          content: "hello"
+        ]
+
+        actions triggered_by: transaction do
+          set_content "hello"
+        end
+      """
+
+      previous_tx = %Transaction{
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:00.000999], "Etc/UTC")
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{
+          content: "hello",
+          code: code
+        }
+      }
+
+      assert match?(
+               :ok,
+               Contracts.simulate_contract_execution(previous_tx, incoming_tx, time)
+             )
+    end
+
+    test "should return false when simulating execution of a contract where
+    conditions aren't filled" do
+      code = """
+        condition inherit: [
+          content: "hello",
+          type: data
+        ]
+
+        actions triggered_by: transaction do
+          set_content "hello"
+        end
+      """
+
+      previous_tx = %Transaction{
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:00.000999], "Etc/UTC")
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{
+          content: "hola",
+          code: code
+        }
+      }
+
+      assert match?(
+               {:error, :invalid_inherit_conditions},
+               Contracts.simulate_contract_execution(previous_tx, incoming_tx, time)
+             )
+    end
+  end
 end
