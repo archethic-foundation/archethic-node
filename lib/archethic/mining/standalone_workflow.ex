@@ -42,7 +42,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   def init(arg) do
     tx = Keyword.get(arg, :transaction)
-    welcome_node = Keyword.get(arg, :welcome_node)
+    welcome_node = Keyword.fetch!(arg, :welcome_node)
 
     Registry.register(WorkflowRegistry, tx.address, [])
 

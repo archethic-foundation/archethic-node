@@ -78,12 +78,11 @@ defmodule ArchethicWeb.FaucetController do
     end
   end
 
-  @curve Crypto.default_curve()
   @spec prepare_transaction(binary()) :: {:ok, Transaction.t()} | {:error, any()}
   defp prepare_transaction(recipient_address) do
     pool_gen_address =
       @pool_seed
-      |> Crypto.derive_keypair(0, @curve)
+      |> Crypto.derive_keypair(0)
       |> elem(0)
       |> Crypto.derive_address()
 
