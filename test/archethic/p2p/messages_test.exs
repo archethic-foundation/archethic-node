@@ -105,9 +105,28 @@ defmodule Archethic.P2P.MessageTest do
 
     test "GetTransactionChain message" do
       address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
+      paging_state = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %GetTransactionChain{address: address} ==
                %GetTransactionChain{address: address}
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+
+      assert %GetTransactionChain{address: address, paging_state: paging_state} ==
+               %GetTransactionChain{address: address, paging_state: paging_state}
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+
+      assert %GetTransactionChain{address: address, order: :desc} ==
+               %GetTransactionChain{address: address, order: :desc}
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+
+      assert %GetTransactionChain{address: address, order: :asc} ==
+               %GetTransactionChain{address: address, order: :asc}
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
