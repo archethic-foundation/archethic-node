@@ -553,8 +553,8 @@ defmodule Archethic.TransactionChain do
       TaskSupervisor,
       addresses,
       fn
-        {burning_address, _} ->
-          {{burning_address, type}, resolved}
+        {^burning_address, type} ->
+          {{burning_address, type}, burning_address}
 
         {to, type} ->
           case resolve_last_address(to, time) do

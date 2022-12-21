@@ -385,6 +385,11 @@ defmodule Archethic.Account.MemTablesLoaderTest do
               type: {:token, "@CharlieToken", 0}
             },
             %TransactionMovement{
+              to: LedgerOperations.burning_address(),
+              amount: 1_000_000,
+              type: {:token, "@CharlieToken", 0}
+            },
+            %TransactionMovement{
               to: "@Tom4",
               amount: 200_000_000,
               type: {:token, "@RewardToken1", 0}
