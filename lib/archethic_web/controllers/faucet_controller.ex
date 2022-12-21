@@ -12,7 +12,8 @@ defmodule ArchethicWeb.FaucetController do
     TransactionData.UCOLedger
   }
 
-  alias ArchethicWeb.{TransactionSubscriber, FaucetRateLimiter}
+  alias ArchethicWeb.TransactionSubscriber
+  alias ArchethicWeb.FaucetRateLimiter
 
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
   @faucet_rate_limit_expiry Application.compile_env(:archethic, :faucet_rate_limit_expiry)
@@ -45,8 +46,7 @@ defmodule ArchethicWeb.FaucetController do
          {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address),
          %{blocked?: false} <- FaucetRateLimiter.get_address_block_status(recipient_address),
-         {:ok, tx} <- prepare_transaction(recipient_address),
-         {:ok, tx_address} <- send_tx(tx, recipient_address) do
+         {:ok, tx_address} <- transfer(recipient_address) do
       conn
       |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
       |> put_resp_header("pragma", "no-cache")
@@ -78,43 +78,47 @@ defmodule ArchethicWeb.FaucetController do
     end
   end
 
-  @spec prepare_transaction(binary()) :: {:ok, Transaction.t()} | {:error, any()}
-  defp prepare_transaction(recipient_address) do
-    pool_gen_address =
-      @pool_seed
-      |> Crypto.derive_keypair(0)
-      |> elem(0)
-      |> Crypto.derive_address()
+  defp transfer(
+         recipient_address,
+         curve \\ Crypto.default_curve()
+       )
+       when is_bitstring(recipient_address) do
+    {gen_pub, _} = Crypto.derive_keypair(@pool_seed, 0, curve)
 
-    with {:ok, last_address} <- Archethic.get_last_transaction_address(pool_gen_address),
+    pool_gen_address = Crypto.derive_address(gen_pub)
+
+    with {:ok, last_address} <-
+           Archethic.get_last_transaction_address(pool_gen_address),
          {:ok, last_index} <- Archethic.get_transaction_chain_length(last_address) do
-      {:ok, Transaction.new(:transfer, get_tx_data(recipient_address), @pool_seed, last_index)}
+      create_transaction(last_index, curve, recipient_address)
     else
-      {:error, e} ->
+      {:error, _} = e ->
         e
     end
   end
 
-  # for compile time values
-  @unit_uco 100_000_000
-  @max_uco 100
-  @uco_limit @max_uco * @unit_uco
-  defp get_tx_data(recipient_address) do
-    %TransactionData{
-      ledger: %Ledger{
-        uco: %UCOLedger{
-          transfers: [
-            %UCOLedger.Transfer{
-              to: recipient_address,
-              amount: @uco_limit
+  defp create_transaction(transaction_index, curve, recipient_address) do
+    tx =
+      Transaction.new(
+        :transfer,
+        %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOLedger.Transfer{
+                  to: recipient_address,
+                  amount: 10_000_000_000
+                }
+              ]
             }
-          ]
-        }
-      }
-    }
-  end
+          }
+        },
+        @pool_seed,
+        transaction_index,
+        curve
+      )
 
-  defp send_tx(tx = %Transaction{address: tx_address}, recipient_address) do
+    tx_address = tx.address
     TransactionSubscriber.register(tx_address, System.monotonic_time())
 
     case Archethic.send_new_transaction(tx) do
@@ -124,7 +128,6 @@ defmodule ArchethicWeb.FaucetController do
             FaucetRateLimiter.register(recipient_address, System.monotonic_time())
             {:ok, tx_address}
         after
-          # requires dynamic timeout
           5000 ->
             {:error, :network_issue}
         end
