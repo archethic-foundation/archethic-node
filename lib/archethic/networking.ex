@@ -49,9 +49,9 @@ defmodule Archethic.Networking do
 
   If there is some problems from the provider, fallback methods are used to fetch the IP
 
-  Otherwise error will be thrown
+  Otherwise error will be returned
   """
-  @spec get_node_ip() :: :inet.ip_address()
+  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, any()}
   defdelegate get_node_ip, to: IPLookup
 
   @doc """
@@ -61,7 +61,7 @@ defmodule Archethic.Networking do
 
   A force parameter can be given to use a random port if the port publication doesn't work
   """
-  @spec try_open_port(:inet.port_number(), boolean()) :: :inet.port_number()
+  @spec try_open_port(:inet.port_number(), boolean()) :: {:ok, :inet.port_number()} | :error
   defdelegate try_open_port(port, force?), to: PortForwarding
 
   @doc ~S"""

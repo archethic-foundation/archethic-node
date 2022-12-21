@@ -12,22 +12,18 @@ defmodule Archethic.Networking.IPLookup do
 
   For example, using the NAT provider, if the UPnP discovery failed, it switches to the IPIFY to get the external public ip
   """
-  @spec get_node_ip() :: :inet.ip_address()
+  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, any()}
   def get_node_ip() do
     provider = provider()
 
-    ip =
-      with {:ok, ip} <- provider.get_node_ip(),
-           :ok <- Networking.validate_ip(ip) do
-        Logger.info("Node IP discovered by #{provider}")
-        ip
-      else
-        {:error, reason} ->
-          fallback(provider, reason)
-      end
-
-    Logger.info("Node IP discovered: #{:inet.ntoa(ip)}")
-    ip
+    with {:ok, ip} <- provider.get_node_ip(),
+         :ok <- Networking.validate_ip(ip) do
+      Logger.info("Node IP discovered #{:inet.ntoa(ip)} by #{provider}")
+      {:ok, ip}
+    else
+      {:error, reason} ->
+        fallback(provider, reason)
+    end
   end
 
   defp fallback(NATDiscovery, reason) do
@@ -36,15 +32,17 @@ defmodule Archethic.Networking.IPLookup do
 
     case RemoteDiscovery.get_node_ip() do
       {:ok, ip} ->
-        ip
+        {:ok, ip}
 
       {:error, reason} ->
-        raise "Cannot use remote discovery IP lookup - #{inspect(reason)}"
+        Logger.warning("Cannot use remote discovery IP lookup - #{inspect(reason)}")
+        {:error, reason}
     end
   end
 
   defp fallback(provider, reason) do
-    raise "Cannot use #{provider} IP lookup - #{inspect(reason)}"
+    Logger.warning("Cannot use #{provider} IP lookup - #{inspect(reason)}")
+    {:error, reason}
   end
 
   defp provider() do

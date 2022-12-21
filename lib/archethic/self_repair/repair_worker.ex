@@ -2,12 +2,12 @@ defmodule Archethic.SelfRepair.RepairWorker do
   @moduledoc false
 
   alias Archethic.{
-    Contracts,
     BeaconChain,
     Election,
     P2P,
     Replication,
-    TransactionChain
+    TransactionChain,
+    SelfRepair
   }
 
   alias Archethic.SelfRepair.RepairRegistry
@@ -130,7 +130,7 @@ defmodule Archethic.SelfRepair.RepairWorker do
          {:ok, tx} <- TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
       if storage? do
         case Replication.validate_and_store_transaction_chain(tx, true, authorized_nodes) do
-          :ok -> update_last_address(address, authorized_nodes)
+          :ok -> SelfRepair.update_last_address(address, authorized_nodes)
           error -> error
         end
       else
@@ -146,39 +146,6 @@ defmodule Archethic.SelfRepair.RepairWorker do
         Logger.warning(
           "Notifier RepairWorker failed to replicate transaction because of #{inspect(reason)}"
         )
-    end
-  end
-
-  @doc """
-  Request missing transaction addresses from last local address until last chain address
-  and add them in the DB
-  """
-  def update_last_address(address, authorized_nodes) do
-    # As the node is storage node of this chain, it needs to know all the addresses of the chain until the last
-    # So we get the local last address and verify if it's the same as the last address of the chain
-    # by requesting the nodes which already know the last address
-
-    {last_local_address, _timestamp} = TransactionChain.get_last_address(address)
-    storage_nodes = Election.storage_nodes(last_local_address, authorized_nodes)
-
-    case TransactionChain.fetch_next_chain_addresses_remotely(last_local_address, storage_nodes) do
-      {:ok, []} ->
-        :ok
-
-      {:ok, addresses} ->
-        genesis_address = TransactionChain.get_genesis_address(address)
-
-        addresses
-        |> Enum.sort_by(fn {_address, timestamp} -> timestamp end)
-        |> Enum.each(fn {address, timestamp} ->
-          TransactionChain.register_last_address(genesis_address, address, timestamp)
-        end)
-
-        # Stop potential previous smart contract
-        Contracts.stop_contract(address)
-
-      _ ->
-        :ok
     end
   end
 end

@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
   def project do
     [
       app: :archethic,
-      version: "1.0.4",
+      version: "1.0.5",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
@@ -125,6 +125,7 @@ defmodule Archethic.MixProject do
         "clean",
         "format",
         "compile",
+        " hex.outdated --within-requirements",
         "credo",
         "sobelow",
         "cmd mix test --trace",

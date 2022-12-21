@@ -29,7 +29,7 @@ defmodule Archethic.Bootstrap do
   """
   @spec start_link(list()) :: {:ok, pid()}
   def start_link(args \\ []) do
-    ip = Networking.get_node_ip()
+    {:ok, ip} = Networking.get_node_ip()
     port = Keyword.get(args, :port)
     http_port = Keyword.get(args, :http_port)
     transport = Keyword.get(args, :transport)

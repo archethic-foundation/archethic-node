@@ -145,9 +145,13 @@ defmodule ArchethicWeb.API.TransactionController do
       changeset = %{valid?: true} ->
         timestamp = DateTime.utc_now()
 
-        uco_price = OracleChain.get_uco_price(timestamp)
-        uco_eur = uco_price |> Keyword.fetch!(:eur)
-        uco_usd = uco_price |> Keyword.fetch!(:usd)
+        previous_price =
+          timestamp
+          |> OracleChain.get_last_scheduling_date()
+          |> OracleChain.get_uco_price()
+
+        uco_eur = previous_price |> Keyword.fetch!(:eur)
+        uco_usd = previous_price |> Keyword.fetch!(:usd)
 
         fee =
           changeset
