@@ -4,6 +4,7 @@ defmodule ArchethicCache.LRUDisk do
   The value is always a binary.
   """
   alias ArchethicCache.LRU
+  alias Archethic.Crypto
 
   require Logger
 
@@ -60,7 +61,7 @@ defmodule ArchethicCache.LRUDisk do
   defp key_to_path(cache_dir, key) do
     Path.join(
       cache_dir,
-      Base.encode64(:erlang.term_to_binary(key))
+      Crypto.hash(:erlang.term_to_binary(key)) |> Base.url_encode64(padding: false)
     )
   end
 end
