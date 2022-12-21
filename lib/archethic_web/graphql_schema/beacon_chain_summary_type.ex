@@ -80,7 +80,7 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
     node_average_availabilities
     |> Enum.with_index()
     |> Enum.map(fn {node_average_availability, index} ->
-      end_of_node_synchronization =
+      endOfNodeSynchronization =
         end_of_node_synchronizations
         |> Enum.at(index, false)
         |> transform_end_of_node_synchronization()
@@ -89,7 +89,7 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
         transformed_node_availabilities
         |> Enum.at(index)
 
-      public_key =
+      publicKey =
         list_nodes
         |> Enum.at(index)
         |> Map.get(:last_public_key)
@@ -97,9 +97,9 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
 
       %{
         averageAvailability: node_average_availability,
-        endOfNodeSynchronization: end_of_node_synchronization,
+        endOfNodeSynchronization: endOfNodeSynchronization,
         available: available,
-        publicKey: public_key
+        publicKey: publicKey
       }
     end)
   end
