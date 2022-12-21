@@ -9,10 +9,6 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
-
-  alias Archethic.P2P
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -23,8 +19,6 @@ defmodule Archethic.Account.MemTablesLoader do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.Utils
 
   require Logger
 
@@ -81,12 +75,11 @@ defmodule Archethic.Account.MemTablesLoader do
             timestamp: timestamp,
             protocol_version: protocol_version,
             ledger_operations: %LedgerOperations{
-              fee: fee,
               unspent_outputs: unspent_outputs,
-              transaction_movements: transaction_movements
-            }
+            transaction_movements: transaction_movements
           }
-        },
+        }
+      },
         io_transaction?
       ) do
     unless io_transaction? do
