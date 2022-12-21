@@ -222,26 +222,26 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       datetime
       |> BeaconChain.next_summary_date()
 
-    previous_current_date_summary_time =
+    next_current_date_summary_time =
       current_datetime
       |> BeaconChain.next_summary_date()
 
     authorized_nodes = P2P.authorized_and_available_nodes()
 
-    cond do
-      DateTime.compare(next_datetime_summary_time, previous_current_date_summary_time) == :gt ->
+    case DateTime.compare(next_datetime_summary_time, next_current_date_summary_time) do
+      :gt ->
         {
           :error,
           "No data found at this date"
         }
 
-      DateTime.compare(next_datetime_summary_time, previous_current_date_summary_time) == :eq ->
+      :eq ->
         {
           :ok,
-          BeaconChain.fetch_and_aggregate_summaries(datetime, authorized_nodes)
+          BeaconChain.fetch_and_aggregate_summaries(next_datetime_summary_time, authorized_nodes)
         }
 
-      DateTime.compare(next_datetime_summary_time, previous_current_date_summary_time) == :lt ->
+      :lt ->
         BeaconChain.fetch_summaries_aggregate(datetime, authorized_nodes)
     end
   end

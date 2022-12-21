@@ -417,8 +417,12 @@ defmodule Archethic.BeaconChain do
     end
   end
 
-  # Slots which are already has been added
-  # Real time transaction can be get from pubsub
+  @doc """
+    Fetch transaction from current slots for a given date
+    Slots which are already has been added
+    Real time transaction can be get from pubsub
+  """
+  @spec list_transactions_from_current_slots(DateTime.t()) :: list(TransactionSummaryList.t())
   def list_transactions_from_current_slots(date = %DateTime{} \\ DateTime.utc_now()) do
     authorized_nodes = P2P.authorized_and_available_nodes()
 

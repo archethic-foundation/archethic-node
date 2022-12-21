@@ -3,6 +3,7 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
 
   use Absinthe.Schema.Notation
   alias Archethic.BeaconChain.SummaryAggregate
+  alias Archethic.BeaconChain.Subset.P2PSampling
 
   @desc """
   [Beacon Chain Summary] represents the beacon chain aggregate for a certain date
@@ -55,33 +56,64 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
       p2p_availabilities
       |> Map.to_list()
       |> Enum.map(fn {
-                       <<subset>>,
-                       %{
-                         end_of_node_synchronizations: end_of_node_synchronizations,
-                         node_average_availabilities: node_average_availabilities,
-                         node_availabilities: node_availabilities
-                       }
+                       subset,
+                       subset_map
                      } ->
-        {
-          subset,
-          %{
-            end_of_node_synchronizations: end_of_node_synchronizations,
-            node_average_availabilities: node_average_availabilities,
-            node_availabilities: transform_node_availabilities(node_availabilities)
-          }
-        }
+        transform_subset_map_to_node_maps(subset_map, P2PSampling.list_nodes_to_sample(subset))
       end)
-      |> Enum.into(%{})
+      |> List.flatten()
     end)
   end
+
+  defp transform_subset_map_to_node_maps(
+         %{
+           end_of_node_synchronizations: end_of_node_synchronizations,
+           node_average_availabilities: node_average_availabilities,
+           node_availabilities: node_availabilities
+         },
+         list_nodes
+       ) do
+    transformed_node_availabilities =
+      node_availabilities
+      |> transform_node_availabilities()
+
+    node_average_availabilities
+    |> Enum.with_index()
+    |> Enum.map(fn {node_average_availability, index} ->
+      end_of_node_synchronization =
+        end_of_node_synchronizations
+        |> Enum.at(index, false)
+        |> transform_end_of_node_synchronization()
+
+      available =
+        transformed_node_availabilities
+        |> Enum.at(index)
+
+      public_key =
+        list_nodes
+        |> Enum.at(index)
+        |> Map.get(:last_public_key)
+        |> Base.encode16()
+
+      %{
+        averageAvailability: node_average_availability,
+        endOfNodeSynchronization: end_of_node_synchronization,
+        available: available,
+        publicKey: public_key
+      }
+    end)
+  end
+
+  defp transform_end_of_node_synchronization(false), do: false
+  defp transform_end_of_node_synchronization(_), do: true
 
   defp transform_node_availabilities(bitstring, acc \\ [])
 
   defp transform_node_availabilities(<<1::size(1), rest::bitstring>>, acc),
-    do: transform_node_availabilities(<<rest::bitstring>>, [1 | acc])
+    do: transform_node_availabilities(<<rest::bitstring>>, [true | acc])
 
   defp transform_node_availabilities(<<0::size(1), rest::bitstring>>, acc),
-    do: transform_node_availabilities(<<rest::bitstring>>, [0 | acc])
+    do: transform_node_availabilities(<<rest::bitstring>>, [false | acc])
 
   defp transform_node_availabilities(<<>>, acc), do: acc
 end

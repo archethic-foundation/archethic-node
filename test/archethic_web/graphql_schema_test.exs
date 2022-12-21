@@ -615,13 +615,22 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         }
       }
 
-      str_p2p_availabilities = %{
-        "1" => %{
-          "end_of_node_synchronizations" => [],
-          "node_availabilities" => [1],
-          "node_average_availabilities" => [1.0]
+      str_p2p_availabilities = [
+        %{
+          "available" => true,
+          "averageAvailability" => 1.0,
+          "endOfNodeSynchronization" => false,
+          "publicKey" => "74657374"
         }
-      }
+      ]
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3004,
+        first_public_key: <<0::8, 0::8, 1::8, :crypto.strong_rand_bytes(31)::binary>>,
+        last_public_key: "test",
+        available?: true
+      })
 
       MockClient
       |> expect(:send_message, fn
@@ -744,8 +753,16 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       version = 1
 
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3004,
+        first_public_key: <<0::8, 0::8, 1::8, :crypto.strong_rand_bytes(31)::binary>>,
+        last_public_key: "test",
+        available?: true
+      })
+
       MockClient
-      |> expect(:send_message, fn
+      |> stub(:send_message, fn
         _, %GetBeaconSummaries{}, _ ->
           {:ok,
            %SummaryAggregate{
@@ -758,15 +775,13 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
           "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {version} }"
         })
 
-      %{
-        "data" => %{
-          "beaconChainSummary" => %{
-            "version" => ^version
-          }
-        }
-      } = json_response(conn, 200)
-
-      assert zizou == version
+      assert %{
+               "data" => %{
+                 "beaconChainSummary" => %{
+                   "version" => ^version
+                 }
+               }
+             } = json_response(conn, 200)
     end
   end
 
