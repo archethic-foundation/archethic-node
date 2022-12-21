@@ -76,10 +76,10 @@ defmodule Archethic.Account.MemTablesLoader do
             protocol_version: protocol_version,
             ledger_operations: %LedgerOperations{
               unspent_outputs: unspent_outputs,
-            transaction_movements: transaction_movements
+              transaction_movements: transaction_movements
+            }
           }
-        }
-      },
+        },
         io_transaction?
       ) do
     unless io_transaction? do
