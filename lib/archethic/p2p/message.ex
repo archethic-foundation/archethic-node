@@ -253,12 +253,24 @@ defmodule Archethic.P2P.Message do
     <<3::8, tx_address::binary>>
   end
 
-  def encode(%GetTransactionChain{address: tx_address, paging_state: nil}) do
-    <<4::8, tx_address::binary, 0::8>>
+  def encode(%GetTransactionChain{address: tx_address, paging_state: nil, order: order}) do
+    order_bit =
+      case order do
+        :asc -> 0
+        :desc -> 1
+      end
+
+    <<4::8, tx_address::binary, order_bit::1, 0::8>>
   end
 
-  def encode(%GetTransactionChain{address: tx_address, paging_state: paging_state}) do
-    <<4::8, tx_address::binary, byte_size(paging_state)::8, paging_state::binary>>
+  def encode(%GetTransactionChain{address: tx_address, paging_state: paging_state, order: order}) do
+    order_bit =
+      case order do
+        :asc -> 0
+        :desc -> 1
+      end
+
+    <<4::8, tx_address::binary, order_bit::1, byte_size(paging_state)::8, paging_state::binary>>
   end
 
   def encode(%GetUnspentOutputs{address: tx_address, offset: offset}) do
@@ -691,8 +703,8 @@ defmodule Archethic.P2P.Message do
   #
   def decode(<<4::8, rest::bitstring>>) do
     {address,
-     <<paging_state_size::8, paging_state::binary-size(paging_state_size), rest::bitstring>>} =
-      Utils.deserialize_address(rest)
+     <<order_bit::1, paging_state_size::8, paging_state::binary-size(paging_state_size),
+       rest::bitstring>>} = Utils.deserialize_address(rest)
 
     paging_state =
       case paging_state do
@@ -703,8 +715,14 @@ defmodule Archethic.P2P.Message do
           paging_state
       end
 
+    order =
+      case order_bit do
+        0 -> :asc
+        1 -> :desc
+      end
+
     {
-      %GetTransactionChain{address: address, paging_state: paging_state},
+      %GetTransactionChain{address: address, paging_state: paging_state, order: order},
       rest
     }
   end
@@ -1355,13 +1373,14 @@ defmodule Archethic.P2P.Message do
   def process(
         %GetTransactionChain{
           address: tx_address,
-          paging_state: paging_state
+          paging_state: paging_state,
+          order: order
         },
         _
       ) do
     {chain, more?, paging_state} =
       tx_address
-      |> TransactionChain.get([], paging_state: paging_state)
+      |> TransactionChain.get([], paging_state: paging_state, order: order)
 
     # empty list for fields/cols to be processed
     # new_page_state contains binary offset for the next page
