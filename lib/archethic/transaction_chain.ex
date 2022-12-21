@@ -541,17 +541,21 @@ defmodule Archethic.TransactionChain do
         tx = %Transaction{data: %TransactionData{recipients: recipients}},
         time = %DateTime{}
       ) do
+    burning_address = LedgerOperations.burning_address()
+
     addresses =
       tx
       |> Transaction.get_movements()
       |> Enum.map(&{&1.to, &1.type})
-      |> Enum.filter(fn {to, _} -> to != LedgerOperations.burning_address() end)
       |> Enum.concat(recipients)
 
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       addresses,
       fn
+        {burning_address, _} ->
+          {{burning_address, type}, resolved}
+
         {to, type} ->
           case resolve_last_address(to, time) do
             {:ok, resolved} ->
