@@ -42,11 +42,15 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   def init(arg) do
     tx = Keyword.get(arg, :transaction)
+    welcome_node = Keyword.fetch!(arg, :welcome_node)
+
     Registry.register(WorkflowRegistry, tx.address, [])
-    {:ok, %{start_time: System.monotonic_time()}, {:continue, {:start_mining, tx}}}
+
+    {:ok, %{start_time: System.monotonic_time(), welcome_node: welcome_node},
+     {:continue, {:start_mining, tx}}}
   end
 
-  def handle_continue({:start_mining, tx}, state) do
+  def handle_continue({:start_mining, tx}, state = %{welcome_node: welcome_node}) do
     Logger.info("Start mining",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -102,7 +106,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     validation_context =
       ValidationContext.new(
         transaction: tx,
-        welcome_node: current_node,
+        welcome_node: welcome_node,
         coordinator_node: current_node,
         cross_validation_nodes: [current_node],
         chain_storage_nodes: chain_storage_nodes,
