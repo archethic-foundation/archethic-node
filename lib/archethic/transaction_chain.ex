@@ -565,6 +565,9 @@ defmodule Archethic.TransactionChain do
               {{to, type}, to}
           end
 
+        ^burning_address ->
+          {burning_address, burning_address}
+
         to ->
           case resolve_last_address(to, time) do
             {:ok, resolved} ->
