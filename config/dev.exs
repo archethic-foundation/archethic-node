@@ -1,6 +1,6 @@
 import Config
 
-config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "warning") |> String.to_atom()
+config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> String.to_atom()
 
 if System.get_env("ARCHETHIC_FILE_LOGGER", "false") == "true" do
   config :logger,
