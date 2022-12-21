@@ -203,7 +203,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_address: Base.encode16(tx_address)
     )
 
-    Logger.error("Notify error back to the welcome node",
+    Logger.debug("Notify error back to the welcome node",
       transaction_address: Base.encode16(tx_address)
     )
 
