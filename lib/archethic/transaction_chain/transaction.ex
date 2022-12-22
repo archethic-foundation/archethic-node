@@ -76,6 +76,8 @@ defmodule Archethic.TransactionChain.Transaction do
           | :token
           | :hosting
           | :origin
+          | :data
+          | :contract
 
   @transaction_types [
     :node,
@@ -91,7 +93,9 @@ defmodule Archethic.TransactionChain.Transaction do
     :transfer,
     :hosting,
     :token,
-    :origin
+    :origin,
+    :data,
+    :contract
   ]
 
   @doc """

@@ -671,7 +671,73 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
+  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
+  defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: code}}, _) do
+    cond do
+      byte_size(code) == 0 ->
+        {:error, "invalid contract type transaction -  code is empty "}
+
+      byte_size(code) >= @code_max_size ->
+        {:error, "invalid contract type transaction , code exceed max size "}
+
+      true ->
+        :ok
+    end
+  end
+
+  @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
+  @ownership_max_keys Application.compile_env!(:archethic, :ownership_max_authorized_keys)
+  @max_ownerships @ownership_max_keys
+  defp do_accept_transaction(
+         %Transaction{
+           type: :data,
+           data: %TransactionData{content: content, ownerships: ownerships}
+         },
+         _
+       ) do
+    # content_size = byte_size(content) already handled
+    nb_ownerships = length(ownerships)
+
+    cond do
+      content == "" && nb_ownerships == 0 ->
+        {:error, "invalid data type transaction - Both content & ownership are empty"}
+
+      nb_ownerships > @max_ownerships ->
+        {:error, "invalid data type transaction - ownerships exceeds limit"}
+
+      nb_ownerships != 0 ->
+        validate_ownerships(ownerships)
+    end
+  end
+
   defp do_accept_transaction(_, _), do: :ok
+
+  defp validate_ownerships(ownerships) do
+    Enum.reduce_while(ownerships, :ok, fn
+      %Ownership{secret: "", authorized_keys: _}, :ok ->
+        {:halt, {:error, "invalid data type transaction - secret is empty"}}
+
+      %Ownership{secret: secret, authorized_keys: %{}}, :ok when is_binary(secret) ->
+        {:halt, {:error, "invalid data type transaction - authorized keys is empty"}}
+
+      %Ownership{secret: secret, authorized_keys: authorized_keys}, :ok when is_binary(secret) ->
+        Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
+          {"", _}, _ ->
+            {:halt, {:error, "invalid data type transaction - public key is empty"}}
+
+          {_, ""}, _ ->
+            {:halt, {:error, "invalid data type transaction - encrypted key is empty"}}
+
+          {public_key, _}, acc ->
+            if Crypto.verify_public_key?(public_key),
+              do: {:cont, acc},
+              else: {:halt, {:error, "invalid data type transaction - invalid public key"}}
+
+          _, acc ->
+            {:cont, acc}
+        end)
+    end)
+  end
 
   defp verify_token_creation(content) do
     schema =
