@@ -148,7 +148,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                    timestamp: ^timestamp
                  }
                }
-             ] = UCOLedger.get_unspent_outputs(LedgerOperations.burning_address())
+             ] = TokenLedger.get_unspent_outputs(LedgerOperations.burning_address())
+
+      assert [] = UCOLedger.get_unspent_outputs(LedgerOperations.burning_address())
 
       assert [
                %VersionedUnspentOutput{
@@ -255,6 +257,11 @@ defmodule Archethic.Account.MemTablesLoaderTest do
               to: "@Bob3",
               amount: 1_000_000_000,
               type: {:token, "@CharlieToken", 0}
+            },
+            %TransactionMovement{
+              to: LedgerOperations.burning_address(),
+              amount: 100_000_000,
+              type: {:token, "@Charlie2", 0}
             }
           ],
           unspent_outputs: [
@@ -382,11 +389,6 @@ defmodule Archethic.Account.MemTablesLoaderTest do
             %TransactionMovement{
               to: "@Bob3",
               amount: 1_000_000_000,
-              type: {:token, "@CharlieToken", 0}
-            },
-            %TransactionMovement{
-              to: LedgerOperations.burning_address(),
-              amount: 1_000_000,
               type: {:token, "@CharlieToken", 0}
             },
             %TransactionMovement{
