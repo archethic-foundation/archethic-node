@@ -720,7 +720,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       %Ownership{secret: _, authorized_keys: %{}}, :ok ->
         {:halt, {:error, "invalid data type transaction - authorized keys is empty"}}
 
-      %Ownership{secret: secret, authorized_keys: authorized_keys}, :ok ->
+      %Ownership{secret: _, authorized_keys: authorized_keys}, :ok ->
         Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
           {"", _}, _ ->
             {:halt, {:error, "invalid data type transaction - public key is empty"}}
