@@ -23,7 +23,7 @@ defmodule Archethic.Replication.TransactionContext do
       {:ok, tx} ->
         tx
 
-      {:error, :transaction_not_exists} ->
+      {:error, _} ->
         nil
     end
   end
