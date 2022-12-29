@@ -210,7 +210,7 @@ defmodule Archethic.TransactionChain do
     } = Enum.at(sorted_chain, 0)
 
     DB.write_transaction_chain(sorted_chain)
-    KOLedger.remove_transaction(tx_address)
+    Enum.each(sorted_chain, &KOLedger.remove_transaction(&1.address))
 
     Logger.info("Transaction Chain stored",
       transaction_address: Base.encode16(tx_address),
