@@ -43,8 +43,31 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
     end
   end
 
+  @spec do_open_port(:inet.ip_address(), non_neg_integer()) :: :ok | :error
   defp do_open_port(local_ip, port) do
-    opts = [
+    with {reason, status} when status != 0 <- System.cmd(@upnpc, map_query(local_ip, port)),
+         {:error, e} <- parse_reason(reason),
+         :ok <- handle_error(e, local_ip, port),
+         {_, 0} <- System.cmd(@upnpc, map_query(local_ip, port)) do
+      :ok
+    else
+      {_, 0} ->
+        :ok
+
+      {reason, _status} ->
+        Logger.debug(reason)
+        :error
+
+      :error ->
+        Logger.debug("Unkonwn error", port: port)
+        :error
+    end
+  end
+
+  @protocol "tcp"
+  @spec map_query(:inet.ip_address(), non_neg_integer()) :: [String.t()]
+  defp map_query(local_ip, port) do
+    [
       # Add redirection
       "-a",
       # Local ip
@@ -54,18 +77,44 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
       # Remote port to open
       "#{port}",
       # Protocol
-      "tcp",
+      @protocol,
       # Lifetime
       "0"
     ]
+  end
 
-    case System.cmd(@upnpc, opts) do
-      {_, 0} ->
-        :ok
-
-      {reason, _status} ->
-        Logger.debug(reason)
-        :error
+  @spec parse_reason(String.t()) ::
+          {:error, :conflict_in_mapping_entry | :unknown}
+  defp parse_reason(reason) do
+    # upon more condtions , refactor with cond do end
+    if Regex.scan(~r/ConflictInMappingEntry/, reason, capture: :all) != [] do
+      Logger.warning("Port is employed to another host.")
+      {:error, :conflict_in_mapping_entry}
+    else
+      {:error, :unknown}
     end
+  end
+
+  @spec handle_error(:conflict_in_mapping_entry | :unknown, :inet.ip_address(), non_neg_integer()) ::
+          :ok | :error
+  defp handle_error(:conflict_in_mapping_entry, _, port) do
+    case System.cmd(@upnpc, revoke_query(port)) do
+      {_, 0} -> :ok
+      _ -> :error
+    end
+  end
+
+  defp handle_error(:unknown, _, _), do: :error
+
+  @spec revoke_query(non_neg_integer()) :: [String.t()]
+  defp revoke_query(port) do
+    [
+      # deleting redirection
+      "-d",
+      # external port to delete
+      "#{port}",
+      # Protocol
+      @protocol
+    ]
   end
 end
