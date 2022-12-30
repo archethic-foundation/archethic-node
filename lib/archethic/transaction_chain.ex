@@ -793,15 +793,34 @@ defmodule Archethic.TransactionChain do
   end
 
   defp do_fetch_transaction_chain(nodes, address, paging_state, opts \\ []) do
+    order = Keyword.get(opts, :order, :asc)
+
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
-        &((&1.more? and !&2.more?) or length(&1.transactions) > length(&2.transactions))
+        &with false <- &1.more? and !&2.more?,
+              false <- length(&1.transactions) > length(&2.transactions) do
+          if Enum.empty?(&1.transactions) do
+            false
+          else
+            case order do
+              :asc ->
+                DateTime.compare(
+                  List.first(&1.transactions).validation_stamp.timestamp,
+                  List.first(&2.transactions).validation_stamp.timestamp
+                ) == :lt
+
+              :desc ->
+                DateTime.compare(
+                  List.first(&1.transactions).validation_stamp.timestamp,
+                  List.first(&2.transactions).validation_stamp.timestamp
+                ) == :gt
+            end
+          end
+        end
       )
       |> List.first()
     end
-
-    order = Keyword.get(opts, :order, :asc)
 
     # We got transactions by batch of 10 transactions
     timeout = Message.get_max_timeout() + Message.get_max_timeout() * 10
