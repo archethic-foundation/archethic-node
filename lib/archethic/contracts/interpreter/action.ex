@@ -320,10 +320,10 @@ defmodule Archethic.Contracts.ActionInterpreter do
     InterpreterUtils.postwalk(node, acc)
   end
 
-  # sobelow_skip [RCE.CodeModule]
   @doc """
   Execute actions code and returns a transaction as result
   """
+  # sobelow_skip  ["RCE.CodeModule"]
   @spec execute(Macro.t(), map()) :: Transaction.t()
   def execute(code, constants \\ %{}) do
     {%{"next_transaction" => next_transaction}, _} =
