@@ -38,7 +38,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
@@ -189,7 +188,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
       else
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
-        |> Enum.concat([LedgerOperations.burning_address()])
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
