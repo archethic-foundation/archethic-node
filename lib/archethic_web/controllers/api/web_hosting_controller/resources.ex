@@ -67,7 +67,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
     case Map.get(metadata, resource_path) do
       nil ->
-        if is_a_directory(metadata, resource_path) do
+        if is_a_directory?(metadata, resource_path) do
           {:error, :is_a_directory}
         else
           {:error, :file_not_found}
@@ -90,7 +90,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
     try do
       file_content =
-        Enum.reduce(address_list, "", fn address, acc_map ->
+        Enum.reduce(address_list, "", fn address, acc ->
           {:ok, address_bin} = Base.decode16(address, case: :mixed)
 
           {:ok, %Transaction{data: %TransactionData{content: txn_content}}} =
@@ -100,7 +100,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
           {:ok, res_content} = access(decoded_content, resource_path)
 
-          acc_map <> res_content
+          acc <> res_content
         end)
 
       {:ok, file_content} = Base.url_decode64(file_content, padding: false)
@@ -152,9 +152,9 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     {cached?, etag}
   end
 
-  defp is_a_directory(_metadata, ""), do: true
+  defp is_a_directory?(_metadata, ""), do: true
 
-  defp is_a_directory(metadata, file_path) do
+  defp is_a_directory?(metadata, file_path) do
     # dir1/file1.txt
     # => dir1       should match
     # => file1.txt  should not match
