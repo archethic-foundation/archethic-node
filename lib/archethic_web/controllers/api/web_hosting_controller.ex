@@ -141,8 +141,6 @@ defmodule ArchethicWeb.API.WebHostingController do
       if encoding == "gzip",
         do: {res_conn, file_content},
         else: {res_conn, :zlib.gzip(file_content)}
-
-      # learn lru
     else
       if encoding == "gzip",
         do: {conn, :zlib.gunzip(file_content)},
