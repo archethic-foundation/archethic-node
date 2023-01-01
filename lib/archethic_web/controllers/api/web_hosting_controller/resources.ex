@@ -86,8 +86,6 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         _cached? = false,
         resource_path
       ) do
-    resource_path = if resource_path == "", do: "index.html", else: resource_path
-
     try do
       file_content =
         Enum.reduce(address_list, "", fn address, acc ->
@@ -152,7 +150,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     {cached?, etag}
   end
 
-  defp is_a_directory?(_metadata, ""), do: true
+  # defp is_a_directory?(_metadata, ""), do: true
 
   defp is_a_directory?(metadata, file_path) do
     # dir1/file1.txt
