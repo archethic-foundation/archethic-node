@@ -1,17 +1,10 @@
 defmodule ArchethicWeb.API.WebHostingController.Resources do
   @moduledoc false
 
-  use ArchethicWeb, :controller
-
-  alias Archethic
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-
-  use Pathex
+  alias Archethic.TransactionChain.{Transaction, TransactionData}
 
   require Logger
-  @addresses_key "addresses"
+
   @metadata_key "metaData"
   @aewebversion_key "aewebVersion"
   @path_seperator "/"
@@ -89,7 +82,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     do: {:ok, nil, nil}
 
   def get_file_content(
-        file_metadata = %{@addresses_key => address_list},
+        file_metadata = %{"addresses" => address_list},
         _cached? = false,
         resource_path
       ) do

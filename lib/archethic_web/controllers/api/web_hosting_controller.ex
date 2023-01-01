@@ -3,18 +3,11 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   use ArchethicWeb, :controller
 
-  alias Archethic
-
-  alias Archethic.TransactionChain.Transaction
-
-  alias Archethic.Crypto
-
-  use Pathex
+  alias Archethic.{Crypto, TransactionChain.Transaction}
 
   require Logger
 
-  alias ArchethicWeb.API.WebHostingController.Resources
-  alias ArchethicWeb.API.WebHostingController.DirectoryListing
+  alias ArchethicWeb.API.WebHostingController.{Resources, DirectoryListing}
 
   def web_hosting(conn, params = %{"url_path" => []}) do
     # /web_hosting/:addr redirects to /web_hosting/:addr/

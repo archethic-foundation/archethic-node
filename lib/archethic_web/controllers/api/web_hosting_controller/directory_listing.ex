@@ -1,18 +1,9 @@
 defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
   @moduledoc false
 
-  use ArchethicWeb, :controller
-
-  alias Archethic
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
-
-  use Pathex
+  alias Archethic.TransactionChain.{Transaction, Transaction.ValidationStamp, TransactionData}
 
   require Logger
-  @addresses_key "addresses"
 
   @spec list(
           request_path :: String.t(),
@@ -84,7 +75,7 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
 
     json_content_subset
     |> Enum.map(fn
-      {key, %{@addresses_key => address}} ->
+      {key, %{"addresses" => address}} ->
         case Path.split(key) do
           [^key] ->
             {:file, key, address}
