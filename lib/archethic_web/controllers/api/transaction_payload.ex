@@ -49,6 +49,8 @@ defmodule ArchethicWeb.API.TransactionPayload do
 
   def to_map(%{changes: changes}, acc) do
     Enum.reduce(changes, acc, fn {key, value}, acc ->
+      value = if key == :authorizedKeys, do: format_authorized_keys(value), else: value
+
       key = Macro.underscore(Atom.to_string(key))
 
       case value do
@@ -66,6 +68,18 @@ defmodule ArchethicWeb.API.TransactionPayload do
   end
 
   def to_map(value, _), do: value
+
+  defp format_authorized_keys(authorized_keys) do
+    Enum.reduce(authorized_keys, %{}, fn %Ecto.Changeset{
+                                           changes: %{
+                                             publicKey: public_key,
+                                             encryptedSecretKey: encrypted_secret_key
+                                           }
+                                         },
+                                         acc ->
+      Map.put(acc, public_key, encrypted_secret_key)
+    end)
+  end
 
   defp validate_data(changeset = %Ecto.Changeset{}) do
     validate_change(changeset, :data, fn _, data_changeset ->
