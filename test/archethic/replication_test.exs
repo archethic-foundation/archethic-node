@@ -8,6 +8,7 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.Mining.Fee
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
@@ -250,10 +251,16 @@ defmodule Archethic.ReplicationTest do
         })
       end)
 
+      previous_public_key = "previous_public_key"
+
       MockDB
       |> expect(:get_first_chain_address, fn _ -> "@Alice0" end)
       |> expect(:get_transaction, fn _, _ ->
-        {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}}}
+        {:ok,
+         %Transaction{
+           validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()},
+           previous_public_key: previous_public_key
+         }}
       end)
       |> expect(:list_chain_addresses, fn _ -> [{"@Alice1", DateTime.utc_now()}] end)
 
@@ -261,16 +268,43 @@ defmodule Archethic.ReplicationTest do
       |> stub(:send_message, fn _,
                                 %NotifyLastTransactionAddress{
                                   last_address: last_address,
-                                  genesis_address: genesis_address
+                                  genesis_address: genesis_address,
+                                  previous_address: previous_address
                                 },
                                 _ ->
-        send(me, {:last_address, last_address, genesis_address})
+        send(me, {:last_address, last_address, genesis_address, previous_address})
+        {:ok, %Ok{}}
+      end)
+
+      derived_previous_address = Crypto.derive_address(previous_public_key)
+
+      assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2")
+
+      assert_receive {:last_address, "@Alice2", "@Alice0", ^derived_previous_address}
+    end
+
+    test "should process NotifyLastTransactionAddress message with TransactionChain.register_last_address if last address is different than the previous address" do
+      previous_public_key = "previous_public_key"
+
+      MockDB
+      |> expect(:get_first_chain_address, fn _ -> "@Alice0" end)
+      |> expect(:get_transaction, fn _, _ ->
+        {:ok,
+         %Transaction{
+           validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()},
+           previous_public_key: previous_public_key
+         }}
+      end)
+      |> expect(:list_chain_addresses, fn _ -> [{"@Alice1", DateTime.utc_now()}] end)
+      |> expect(:add_last_transaction_address, 0, fn _, _, _ -> :ok end)
+
+      MockClient
+      |> stub(:send_message, fn _, msg = %NotifyLastTransactionAddress{}, _ ->
+        Message.process(msg, "key")
         {:ok, %Ok{}}
       end)
 
       assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2")
-
-      assert_receive {:last_address, "@Alice2", "@Alice0"}
     end
   end
 end

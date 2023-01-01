@@ -77,19 +77,13 @@ defmodule Archethic.OracleChain.MemTable do
       date
       |> DateTime.to_unix()
 
-    case :ets.lookup(:archethic_oracle, {timestamp, type}) do
-      [] ->
-        case :ets.prev(:archethic_oracle, {timestamp, type}) do
-          :"$end_of_table" ->
-            {:error, :not_found}
+    case :ets.prev(:archethic_oracle, {timestamp, type}) do
+      :"$end_of_table" ->
+        {:error, :not_found}
 
-          key = {time, _} ->
-            [{_, data}] = :ets.lookup(:archethic_oracle, key)
-            {:ok, data, DateTime.from_unix!(time)}
-        end
-
-      [{_, data}] ->
-        {:ok, data, date}
+      key = {time, _} ->
+        [{_, data}] = :ets.lookup(:archethic_oracle, key)
+        {:ok, data, DateTime.from_unix!(time)}
     end
   end
 

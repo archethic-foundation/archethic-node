@@ -34,16 +34,16 @@ defmodule Archethic.Replication.TransactionValidator do
           :invalid_atomic_commitment
           | :invalid_node_election
           | :invalid_proof_of_work
-          | :invalid_validation_stamp_signature
           | :invalid_transaction_fee
           | :invalid_transaction_movements
           | :insufficient_funds
-          | :invalid_unspent_outputs
           | :invalid_chain
           | :invalid_transaction_with_inconsistencies
           | :invalid_contract_acceptance
           | :invalid_pending_transaction
           | :invalid_inherit_constraints
+          | :invalid_validation_stamp_signature
+          | :invalid_unspent_outputs
 
   @doc """
   Validate transaction with context
@@ -275,12 +275,13 @@ defmodule Archethic.Replication.TransactionValidator do
            }
          }
        ) do
-    uco_price_usd =
+    previous_usd_price =
       timestamp
+      |> OracleChain.get_last_scheduling_date()
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, uco_price_usd, timestamp)
+    Mining.get_transaction_fee(tx, previous_usd_price, timestamp)
   end
 
   defp validate_transaction_movements(

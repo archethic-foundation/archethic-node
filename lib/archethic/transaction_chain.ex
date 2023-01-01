@@ -43,6 +43,8 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
 
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
+
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
     as: TransactionMovementType
 
@@ -539,6 +541,8 @@ defmodule Archethic.TransactionChain do
         tx = %Transaction{data: %TransactionData{recipients: recipients}},
         time = %DateTime{}
       ) do
+    burning_address = LedgerOperations.burning_address()
+
     addresses =
       tx
       |> Transaction.get_movements()
@@ -549,6 +553,9 @@ defmodule Archethic.TransactionChain do
       TaskSupervisor,
       addresses,
       fn
+        {^burning_address, type} ->
+          {{burning_address, type}, burning_address}
+
         {to, type} ->
           case resolve_last_address(to, time) do
             {:ok, resolved} ->
@@ -557,6 +564,9 @@ defmodule Archethic.TransactionChain do
             _ ->
               {{to, type}, to}
           end
+
+        ^burning_address ->
+          {burning_address, burning_address}
 
         to ->
           case resolve_last_address(to, time) do
@@ -687,14 +697,21 @@ defmodule Archethic.TransactionChain do
 
   If no nodes are available to answer the request, `{:error, :network_issue}` is returned.
   """
-  @spec fetch_transaction_remotely(address :: Crypto.versioned_hash(), list(Node.t())) ::
+  @spec fetch_transaction_remotely(
+          address :: Crypto.versioned_hash(),
+          list(Node.t()),
+          non_neg_integer()
+        ) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
-  def fetch_transaction_remotely(_, []), do: {:error, :transaction_not_exists}
+  def fetch_transaction_remotely(address, nodes, timeout \\ Message.get_max_timeout())
 
-  def fetch_transaction_remotely(address, nodes) when is_binary(address) and is_list(nodes) do
+  def fetch_transaction_remotely(_, [], _), do: {:error, :transaction_not_exists}
+
+  def fetch_transaction_remotely(address, nodes, timeout)
+      when is_binary(address) and is_list(nodes) do
     conflict_resolver = fn results ->
       # Prioritize transactions results over not found
       with nil <- Enum.find(results, &match?(%Transaction{}, &1)),
@@ -709,7 +726,8 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetTransaction{address: address},
-           conflict_resolver
+           conflict_resolver,
+           timeout
          ) do
       {:ok, %NotFound{}} ->
         {:error, :transaction_not_exists}
@@ -767,14 +785,14 @@ defmodule Archethic.TransactionChain do
   """
   @spec fetch_transaction_chain(list(Node.t()), binary(), binary()) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def fetch_transaction_chain(nodes, address, paging_address) do
-    case do_fetch_transaction_chain(nodes, address, paging_address) do
+  def fetch_transaction_chain(nodes, address, paging_address, opts \\ []) do
+    case do_fetch_transaction_chain(nodes, address, paging_address, opts) do
       {transactions, _more?, _paging_state} -> {:ok, transactions}
       error -> error
     end
   end
 
-  defp do_fetch_transaction_chain(nodes, address, paging_state) do
+  defp do_fetch_transaction_chain(nodes, address, paging_state, opts \\ []) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
@@ -783,12 +801,14 @@ defmodule Archethic.TransactionChain do
       |> List.first()
     end
 
+    order = Keyword.get(opts, :order, :asc)
+
     # We got transactions by batch of 10 transactions
     timeout = Message.get_max_timeout() + Message.get_max_timeout() * 10
 
     case P2P.quorum_read(
            nodes,
-           %GetTransactionChain{address: address, paging_state: paging_state},
+           %GetTransactionChain{address: address, paging_state: paging_state, order: order},
            conflict_resolver,
            timeout
          ) do

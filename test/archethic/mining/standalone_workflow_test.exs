@@ -34,7 +34,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
       ip: {127, 0, 0, 1},
       port: 3000,
       last_public_key: Crypto.last_node_public_key(),
-      first_public_key: Crypto.last_node_public_key(),
+      first_public_key: Crypto.first_node_public_key(),
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
@@ -82,10 +82,18 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
       _, %ReplicationAttestation{}, _ ->
         send(me, :transaction_replicated)
         {:ok, %Ok{}}
+
+      _, %Archethic.P2P.Message.GetTransactionSummary{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-    assert {:ok, pid} = StandaloneWorkflow.start_link(transaction: tx)
+
+    assert {:ok, pid} =
+             StandaloneWorkflow.start_link(
+               transaction: tx,
+               welcome_node: P2P.get_node_info!(Crypto.last_node_public_key())
+             )
 
     receive do
       {:ack_replication, sig, public_key} ->

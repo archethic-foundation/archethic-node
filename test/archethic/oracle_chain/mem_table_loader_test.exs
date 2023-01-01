@@ -21,7 +21,8 @@ defmodule Archethic.OracleChain.MemTableLoaderTest do
                  }
                })
 
-      assert {:ok, %{"eur" => 0.02}, _} = MemTable.get_oracle_data("uco", DateTime.utc_now())
+      assert {:ok, %{"eur" => 0.02}, _} =
+               MemTable.get_oracle_data("uco", DateTime.utc_now() |> DateTime.add(1000))
     end
 
     test "should load an oracle summary transaction and the related changes" do
@@ -43,7 +44,7 @@ defmodule Archethic.OracleChain.MemTableLoaderTest do
                })
 
       assert {:ok, %{"eur" => 0.07}, _} =
-               MemTable.get_oracle_data("uco", DateTime.from_unix!(1_614_677_925))
+               MemTable.get_oracle_data("uco", DateTime.from_unix!(1_614_677_927))
     end
   end
 end

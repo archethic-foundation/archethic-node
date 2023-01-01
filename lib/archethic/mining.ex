@@ -36,8 +36,11 @@ defmodule Archethic.Mining do
           welcome_node_public_key :: Crypto.key(),
           validation_node_public_keys :: list(Crypto.key())
         ) :: {:ok, pid()}
-  def start(tx = %Transaction{}, _welcome_node_public_key, [_ | []]) do
-    StandaloneWorkflow.start_link(transaction: tx)
+  def start(tx = %Transaction{}, welcome_node_public_key, [_ | []]) do
+    StandaloneWorkflow.start_link(
+      transaction: tx,
+      welcome_node: P2P.get_node_info!(welcome_node_public_key)
+    )
   end
 
   def start(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys)
@@ -162,7 +165,7 @@ defmodule Archethic.Mining do
         ) ::
           :ok
   def confirm_replication(tx_address, signature, node_public_key) do
-    pid = get_mining_process!(tx_address)
+    pid = get_mining_process!(tx_address, 1000)
     if pid, do: send(pid, {:ack_replication, signature, node_public_key})
     :ok
   end

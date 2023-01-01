@@ -208,71 +208,36 @@ defmodule Archethic.Replication do
     end
   end
 
-  defp fetch_context(tx = %Transaction{type: type}, self_repair?, download_nodes) do
-    if Transaction.network_type?(type) do
-      fetch_context_for_network_transaction(tx, self_repair?, download_nodes)
-    else
-      fetch_context_for_regular_transaction(tx, self_repair?, download_nodes)
-    end
-  end
-
-  defp fetch_context_for_network_transaction(tx = %Transaction{}, self_repair?, download_nodes) do
+  defp fetch_context(tx = %Transaction{}, self_repair?, download_nodes) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
-      "Try to fetch network previous transaction locally (#{Base.encode16(previous_address)})",
+      "Try to fetch previous transaction (#{Base.encode16(previous_address)})",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    # If the transaction is missing (orphan) and the previous chain has not been synchronized
-    # We request other nodes to give us the information
-    previous_transaction =
-      case TransactionChain.get_transaction(previous_address) do
-        {:ok, tx = %Transaction{}} ->
-          tx
-
-        {:error, :transaction_not_exists} ->
-          Logger.debug(
-            "Try to fetch network previous transaction (#{Base.encode16(previous_address)}) from remote nodes (possibility of an orphan state)",
-            transaction_address: Base.encode16(tx.address),
-            transaction_type: tx.type
-          )
-
-          TransactionContext.fetch_transaction(previous_address, download_nodes)
-      end
-
-    Logger.debug("Previous transaction #{inspect(previous_transaction)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    inputs = if self_repair?, do: [], else: fetch_inputs(tx, download_nodes)
-
-    {previous_transaction, inputs}
-  end
-
-  defp fetch_context_for_regular_transaction(tx = %Transaction{}, self_repair?, download_nodes) do
-    previous_address = Transaction.previous_address(tx)
-
-    t1 =
+    # First, we check locally if the transaction exists
+    # Otherwise we check others nodes
+    previous_transaction_task =
       Task.Supervisor.async(TaskSupervisor, fn ->
-        Logger.debug(
-          "Fetch previous transaction #{Base.encode16(previous_address)}",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: tx.type
-        )
+        case TransactionChain.get_transaction(previous_address) do
+          {:ok, tx = %Transaction{}} ->
+            tx
 
-        TransactionContext.fetch_transaction(previous_address, download_nodes)
+          {:error, _} ->
+            Logger.debug(
+              "Try to fetch previous transaction (#{Base.encode16(previous_address)}) from remote nodes",
+              transaction_address: Base.encode16(tx.address),
+              transaction_type: tx.type
+            )
+
+            TransactionContext.fetch_transaction(previous_address, download_nodes)
+        end
       end)
 
-    {previous_transaction, inputs} =
-      if self_repair? do
-        {Task.await(t1, Message.get_max_timeout()), []}
-      else
-        t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx, download_nodes) end)
-        {Task.await(t1, Message.get_max_timeout()), Task.await(t2)}
-      end
+    inputs = if self_repair?, do: [], else: fetch_inputs(tx, download_nodes)
+    previous_transaction = Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
       transaction_address: Base.encode16(tx.address),
@@ -344,8 +309,13 @@ defmodule Archethic.Replication do
         last_storage_nodes =
           Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-        {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} =
-          TransactionChain.get_transaction(address, validation_stamp: [:timestamp])
+        {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}} =
+          TransactionChain.get_transaction(address, [
+            :previous_public_key,
+            validation_stamp: [:timestamp]
+          ])
+
+        previous_address = Transaction.previous_address(tx)
 
         # Send a message to all the previous storage nodes
         genesis_address
@@ -359,7 +329,8 @@ defmodule Archethic.Replication do
         |> P2P.broadcast_message(%NotifyLastTransactionAddress{
           last_address: address,
           genesis_address: genesis_address,
-          timestamp: timestamp
+          timestamp: timestamp,
+          previous_address: previous_address
         })
     end
   end

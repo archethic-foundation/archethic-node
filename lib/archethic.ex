@@ -40,9 +40,12 @@ defmodule Archethic do
   Send a new transaction in the network to be mined. The current node will act as welcome node
   """
   @spec send_new_transaction(Transaction.t()) :: :ok | {:error, :network_issue}
-  def send_new_transaction(tx = %Transaction{}) do
+  def send_new_transaction(
+        tx = %Transaction{},
+        welcome_node_key \\ Crypto.first_node_public_key()
+      ) do
     if P2P.authorized_and_available_node?() do
-      do_send_transaction(tx)
+      do_send_transaction(tx, welcome_node_key)
     else
       P2P.authorized_and_available_nodes()
       |> Enum.filter(&Node.locally_available?/1)
@@ -63,7 +66,7 @@ defmodule Archethic do
 
   defp forward_transaction([], _), do: {:error, :network_issue}
 
-  defp do_send_transaction(tx) do
+  defp do_send_transaction(tx = %Transaction{type: tx_type}, welcome_node_key) do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
@@ -84,12 +87,29 @@ defmodule Archethic do
 
     message = %StartMining{
       transaction: tx,
-      welcome_node_public_key: Crypto.last_node_public_key(),
+      welcome_node_public_key: get_welcome_node_public_key(tx_type, welcome_node_key),
       validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
     }
 
     P2P.broadcast_message(validation_nodes, message)
   end
+
+  # Since welcome node is not anymore constant, as we want unauthorised
+  # nodes to do some labor. Following bootstrapping, the txn of a new node
+  # is sent, with the welcome node being the same new node whose information
+  # does not exist in the network. Thus solitary and distributed workflows
+  # are more susceptible to failures.
+  defp get_welcome_node_public_key(:node, key) do
+    case P2P.get_node_info(key) do
+      {:error, _} ->
+        Crypto.last_node_public_key()
+
+      _ ->
+        key
+    end
+  end
+
+  defp get_welcome_node_public_key(_, key), do: key
 
   @doc """
   Retrieve the last transaction for a chain from the closest nodes

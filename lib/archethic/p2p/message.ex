@@ -253,12 +253,24 @@ defmodule Archethic.P2P.Message do
     <<3::8, tx_address::binary>>
   end
 
-  def encode(%GetTransactionChain{address: tx_address, paging_state: nil}) do
-    <<4::8, tx_address::binary, 0::8>>
+  def encode(%GetTransactionChain{address: tx_address, paging_state: nil, order: order}) do
+    order_bit =
+      case order do
+        :asc -> 0
+        :desc -> 1
+      end
+
+    <<4::8, tx_address::binary, order_bit::1, 0::8>>
   end
 
-  def encode(%GetTransactionChain{address: tx_address, paging_state: paging_state}) do
-    <<4::8, tx_address::binary, byte_size(paging_state)::8, paging_state::binary>>
+  def encode(%GetTransactionChain{address: tx_address, paging_state: paging_state, order: order}) do
+    order_bit =
+      case order do
+        :asc -> 0
+        :desc -> 1
+      end
+
+    <<4::8, tx_address::binary, order_bit::1, byte_size(paging_state)::8, paging_state::binary>>
   end
 
   def encode(%GetUnspentOutputs{address: tx_address, offset: offset}) do
@@ -391,9 +403,10 @@ defmodule Archethic.P2P.Message do
   def encode(%NotifyLastTransactionAddress{
         last_address: last_address,
         genesis_address: genesis_address,
+        previous_address: previous_address,
         timestamp: timestamp
       }) do
-    <<22::8, last_address::binary, genesis_address::binary,
+    <<22::8, last_address::binary, genesis_address::binary, previous_address::binary,
       DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
@@ -465,8 +478,8 @@ defmodule Archethic.P2P.Message do
     <<232::8, encoded_transaction_summaries_len::binary, transaction_summaries_bin::bitstring>>
   end
 
-  def encode(%ReplicationError{address: address, reason: reason}) do
-    <<233::8, address::binary, ReplicationError.serialize_reason(reason)::8>>
+  def encode(msg = %ReplicationError{}) do
+    <<233::8, ReplicationError.serialize(msg)::bitstring>>
   end
 
   def encode(%ValidationError{context: :network_issue, reason: reason, address: address}) do
@@ -690,8 +703,8 @@ defmodule Archethic.P2P.Message do
   #
   def decode(<<4::8, rest::bitstring>>) do
     {address,
-     <<paging_state_size::8, paging_state::binary-size(paging_state_size), rest::bitstring>>} =
-      Utils.deserialize_address(rest)
+     <<order_bit::1, paging_state_size::8, paging_state::binary-size(paging_state_size),
+       rest::bitstring>>} = Utils.deserialize_address(rest)
 
     paging_state =
       case paging_state do
@@ -702,8 +715,14 @@ defmodule Archethic.P2P.Message do
           paging_state
       end
 
+    order =
+      case order_bit do
+        0 -> :asc
+        1 -> :desc
+      end
+
     {
-      %GetTransactionChain{address: address, paging_state: paging_state},
+      %GetTransactionChain{address: address, paging_state: paging_state, order: order},
       rest
     }
   end
@@ -904,11 +923,13 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<22::8, rest::bitstring>>) do
     {last_address, rest} = Utils.deserialize_address(rest)
-    {genesis_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {genesis_address, rest} = Utils.deserialize_address(rest)
+    {previous_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%NotifyLastTransactionAddress{
        last_address: last_address,
        genesis_address: genesis_address,
+       previous_address: previous_address,
        timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
   end
@@ -1015,15 +1036,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<233::8, rest::bitstring>>) do
-    {address, <<reason::8, rest::bitstring>>} = Utils.deserialize_address(rest)
-
-    {
-      %ReplicationError{
-        address: address,
-        reason: ReplicationError.deserialize_reason(reason)
-      },
-      rest
-    }
+    ReplicationError.deserialize(rest)
   end
 
   def decode(<<234::8, rest::bitstring>>) do
@@ -1328,8 +1341,8 @@ defmodule Archethic.P2P.Message do
     %NodeList{nodes: P2P.list_nodes()}
   end
 
-  def process(%NewTransaction{transaction: tx}, _) do
-    case Archethic.send_new_transaction(tx) do
+  def process(%NewTransaction{transaction: tx}, sender_public_key) do
+    case Archethic.send_new_transaction(tx, sender_public_key) do
       :ok ->
         %Ok{}
 
@@ -1360,13 +1373,14 @@ defmodule Archethic.P2P.Message do
   def process(
         %GetTransactionChain{
           address: tx_address,
-          paging_state: paging_state
+          paging_state: paging_state,
+          order: order
         },
         _
       ) do
     {chain, more?, paging_state} =
       tx_address
-      |> TransactionChain.get([], paging_state: paging_state)
+      |> TransactionChain.get([], paging_state: paging_state, order: order)
 
     # empty list for fields/cols to be processed
     # new_page_state contains binary offset for the next page
@@ -1648,40 +1662,41 @@ defmodule Archethic.P2P.Message do
       |> Enum.sort_by(& &1.input.timestamp, {:desc, DateTime})
       |> Enum.with_index()
       |> Enum.drop(offset)
-      |> Enum.reduce_while(%{inputs: [], offset: 0, more?: false}, fn {versioned_input, index},
-                                                                      acc ->
-        acc_size =
-          acc.inputs
-          |> Enum.map(&VersionedTransactionInput.serialize/1)
-          |> :erlang.list_to_bitstring()
-          |> byte_size()
+      |> Enum.reduce_while(
+        %{inputs: [], offset: 0, more?: false},
+        fn {versioned_input, index}, acc = %{inputs: inputs, offset: offset, more?: more?} ->
+          acc_size = Map.get(acc, :acc_size, 0)
+          acc_length = Map.get(acc, :acc_length, 0)
 
-        input_size =
-          versioned_input
-          |> VersionedTransactionInput.serialize()
-          |> byte_size
+          input_size =
+            versioned_input
+            |> VersionedTransactionInput.serialize()
+            |> byte_size
 
-        size_capacity? = acc_size + input_size < 3_000_000
+          size_capacity? = acc_size + input_size < 3_000_000
 
-        should_take_more? =
-          if limit > 0 do
-            length(acc.inputs) < limit and size_capacity?
+          should_take_more? =
+            if limit > 0 do
+              acc_length < limit and size_capacity?
+            else
+              size_capacity?
+            end
+
+          if should_take_more? do
+            new_acc =
+              acc
+              |> Map.update!(:inputs, &[versioned_input | &1])
+              |> Map.update(:acc_size, input_size, &(&1 + input_size))
+              |> Map.update(:acc_length, 1, &(&1 + 1))
+              |> Map.put(:offset, index + 1)
+              |> Map.put(:more?, index + 1 < inputs_length)
+
+            {:cont, new_acc}
           else
-            size_capacity?
+            {:halt, %{inputs: inputs, offset: offset, more?: more?}}
           end
-
-        if should_take_more? do
-          new_acc =
-            acc
-            |> Map.update!(:inputs, &[versioned_input | &1])
-            |> Map.put(:offset, index + 1)
-            |> Map.put(:more?, index + 1 < inputs_length)
-
-          {:cont, new_acc}
-        else
-          {:halt, acc}
         end
-      end)
+      )
 
     %TransactionInputList{
       inputs: Enum.reverse(inputs),
@@ -1716,19 +1731,24 @@ defmodule Archethic.P2P.Message do
 
   def process(
         %NotifyLastTransactionAddress{
-          last_address: last_address,
           genesis_address: genesis_address,
+          last_address: last_address,
+          previous_address: previous_address,
           timestamp: timestamp
         },
         _
       ) do
-    with {local_last_address, _} <-
-           TransactionChain.get_last_address(genesis_address),
+    with {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
          true <- local_last_address != last_address do
-      TransactionChain.register_last_address(genesis_address, last_address, timestamp)
+      if local_last_address == previous_address do
+        TransactionChain.register_last_address(genesis_address, last_address, timestamp)
 
-      # Stop potential previous smart contract
-      Contracts.stop_contract(local_last_address)
+        # Stop potential previous smart contract
+        Contracts.stop_contract(local_last_address)
+      else
+        authorized_nodes = P2P.authorized_and_available_nodes()
+        SelfRepair.update_last_address(local_last_address, authorized_nodes)
+      end
     end
 
     %Ok{}
