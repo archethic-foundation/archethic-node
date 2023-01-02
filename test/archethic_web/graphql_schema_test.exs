@@ -26,7 +26,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.GetFirstAddress
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
-  alias Archethic.P2P.Message.GetBeaconSummaries
+  alias Archethic.P2P.Message.GetCurrentSummaries
   alias Archethic.P2P.Node
 
   alias Archethic.PubSub
@@ -600,12 +600,15 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       today = DateTime.utc_now()
       str_today = to_string(today)
 
-      timestamp =
+      yesterday =
         today
         |> DateTime.add(-1, :day)
+
+      timestamp =
+        yesterday
         |> DateTime.to_unix()
 
-      availability_adding_time = [1]
+      availability_adding_time = 1
 
       p2p_availabilities = %{
         <<1>> => %{
@@ -615,21 +618,15 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         }
       }
 
-      str_p2p_availabilities = [
-        %{
-          "available" => true,
-          "averageAvailability" => 1.0,
-          "endOfNodeSynchronization" => false,
-          "publicKey" => "74657374"
-        }
-      ]
+      str_p2p_availabilities = []
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3004,
-        first_public_key: <<0::8, 0::8, 1::8, :crypto.strong_rand_bytes(31)::binary>>,
+        first_public_key: "test",
         last_public_key: "test",
-        available?: true
+        available?: true,
+        enrollment_date: yesterday
       })
 
       MockClient
@@ -763,11 +760,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBeaconSummaries{}, _ ->
-          {:ok,
-           %SummaryAggregate{
-             version: version
-           }}
+        _, %GetCurrentSummaries{}, _ ->
+          {:ok, []}
       end)
 
       conn =
