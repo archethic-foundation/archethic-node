@@ -5,7 +5,6 @@ defmodule ArchethicWeb.ExplorerController do
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.OracleChain
 
   def index(conn, _params) do
     render(conn, "index.html", layout: {ArchethicWeb.LayoutView, "index.html"})
