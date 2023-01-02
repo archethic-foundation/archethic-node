@@ -269,7 +269,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     }
   end
 
-  defp transform_beacon_chain_summary({:error, _} = error, _next_datetime_summary_time), do: error
+  defp transform_beacon_chain_summary(error = {:error, _}, _next_datetime_summary_time), do: error
 
   defp transform_beacon_chain_summary(beacon_chain_summary, next_datetime_summary_time) do
     transformed_beacon_chain_summary =
