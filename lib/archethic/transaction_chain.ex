@@ -798,6 +798,10 @@ defmodule Archethic.TransactionChain do
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
+        # Prioritize more? at true
+        # then length of transaction list
+        # then regarding order, the oldest or newest transaction timestamp
+        # of the first element of the list
         &with false <- &1.more? and !&2.more?,
               false <- length(&1.transactions) > length(&2.transactions) do
           if Enum.empty?(&1.transactions) do
