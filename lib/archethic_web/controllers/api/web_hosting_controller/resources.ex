@@ -36,7 +36,8 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         {:error, :file_not_found}
 
       {:error, :get_metadata} ->
-        {:error, "Error: Cant access metadata and aewebversion, Reftx: #{last_address}"}
+        {:error,
+         "Error: Cant access metadata and aewebversion, Reftx: #{Base.encode16(last_address)}"}
 
       {:error, :is_a_directory} ->
         {:error, {:is_a_directory, tx}}
@@ -48,7 +49,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
   @spec get_metadata(json_content :: map()) ::
           {:ok, metadata :: map(), aeweb_version :: non_neg_integer()} | {:error, any()}
-  def get_metadata(json_content) do
+  defp get_metadata(json_content) do
     case json_content do
       %{"metaData" => metadata, "aewebVersion" => aewebversion} ->
         {:ok, metadata, aewebversion}
@@ -62,7 +63,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   @spec get_file(metadata :: map(), url_path :: list()) ::
           {:ok, file :: map(), mime_type :: binary(), resource_path :: binary()}
           | {:error, :is_a_directory | :file_not_found | :invalid_encoding}
-  def get_file(metadata, []) do
+  defp get_file(metadata, []) do
     case Map.get(metadata, "index.html", :error) do
       :error ->
         {:error, :is_a_directory}
@@ -72,7 +73,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     end
   end
 
-  def get_file(metadata, url_path) do
+  defp get_file(metadata, url_path) do
     resource_path = Enum.join(url_path, "/")
 
     case Map.get(metadata, resource_path) do
@@ -91,13 +92,13 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   @spec get_file_content(file_metadata :: map(), cached? :: boolean(), resource_path :: binary()) ::
           {:ok, nil | binary(), nil | binary()}
           | {:error, :encoding_error | :file_not_found | :invalid_encoding | any()}
-  def get_file_content(_, true, _), do: {:ok, nil, nil}
+  defp get_file_content(_, true, _), do: {:ok, nil, nil}
 
-  def get_file_content(
-        file_metadata = %{"addresses" => address_list},
-        _cached? = false,
-        resource_path
-      ) do
+  defp get_file_content(
+         file_metadata = %{"addresses" => address_list},
+         _cached? = false,
+         resource_path
+       ) do
     try do
       file_content =
         Enum.reduce(address_list, "", fn address, acc ->
@@ -128,10 +129,10 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     end
   end
 
-  def get_file_content(_, false, _), do: {:error, :file_not_found}
+  defp get_file_content(_, false, _), do: {:error, :file_not_found}
 
   @spec access(map(), key :: binary(), any()) :: {:error, :file_not_found} | {:ok, any()}
-  def access(map, key, default \\ :file_not_found) do
+  defp access(map, key, default \\ :file_not_found) do
     case Map.get(map, key, default) do
       :file_not_found ->
         {:error, :file_not_found}

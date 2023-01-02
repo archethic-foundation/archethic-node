@@ -52,7 +52,7 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
     end
   end
 
-  def get_metadata(%{"metaData" => metadata, "aewebVersion" => aewebversion}) do
+  defp get_metadata(%{"metaData" => metadata, "aewebVersion" => aewebversion}) do
     {:ok, metadata, aewebversion}
   end
 
