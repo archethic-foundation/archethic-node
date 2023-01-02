@@ -11,6 +11,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   alias Archethic
 
+  alias Archethic.Bootstrap
   alias Archethic.Election
 
   alias Archethic.Crypto
@@ -52,17 +53,14 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    case :persistent_term.get(:archethic_up, nil) do
-      nil ->
-        Logger.info("Node Renewal Scheduler: Waiting for node to complete Bootstrap. ")
+    if Bootstrap.done?() do
+      {state, new_state_data, events} = start_scheduler(state_data)
+      {:ok, state, new_state_data, events}
+    else
+      Logger.info("Node Renewal Scheduler: Waiting for node to complete Bootstrap. ")
 
-        PubSub.register_to_node_up()
-        {:ok, :idle, state_data}
-
-      # wait for node ups
-      :up ->
-        {state, new_state_data, events} = start_scheduler(state_data)
-        {:ok, state, new_state_data, events}
+      PubSub.register_to_node_up()
+      {:ok, :idle, state_data}
     end
   end
 

@@ -27,7 +27,6 @@ defmodule ArchethicWeb.Supervisor do
         TransactionCache,
         TopTransactionsCache,
         {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
-        # Start the endpoint when the application starts
         Endpoint,
         {Absinthe.Subscription, Endpoint},
         TransactionSubscriber
