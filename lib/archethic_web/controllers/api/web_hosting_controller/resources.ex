@@ -5,12 +5,17 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
   require Logger
 
-  @metadata_key "metaData"
-  @aewebversion_key "aewebVersion"
-  @path_seperator "/"
-
+  @spec load(tx :: Transaction.t(), url_path :: list(), cache_headers :: list()) ::
+          {:ok, file_content :: binary() | nil, encoding :: binary() | nil, mime_type :: binary(),
+           cached? :: boolean(), etag :: binary()}
+          | {:error,
+             :invalid_content
+             | :file_not_found
+             | {:is_a_directory, tx :: Transaction.t()}
+             | :invalid_encoding
+             | any()}
   def load(
-        txn = %Transaction{
+        tx = %Transaction{
           address: last_address,
           data: %TransactionData{content: content}
         },
@@ -31,19 +36,21 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         {:error, :file_not_found}
 
       {:error, :get_metadata} ->
-        {:error, "Error: Cant access metadata and aewebversion, RefTxn: #{last_address}"}
+        {:error, "Error: Cant access metadata and aewebversion, Reftx: #{last_address}"}
 
       {:error, :is_a_directory} ->
-        {:error, {:is_a_directory, txn}}
+        {:error, {:is_a_directory, tx}}
 
       error ->
         error
     end
   end
 
+  @spec get_metadata(json_content :: map()) ::
+          {:ok, metadata :: map(), aeweb_version :: non_neg_integer()} | {:error, any()}
   def get_metadata(json_content) do
     case json_content do
-      %{@metadata_key => metadata, @aewebversion_key => aewebversion} ->
+      %{"metaData" => metadata, "aewebVersion" => aewebversion} ->
         {:ok, metadata, aewebversion}
 
       _ ->
@@ -52,6 +59,9 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   end
 
   # index file
+  @spec get_file(metadata :: map(), url_path :: list()) ::
+          {:ok, file :: map(), mime_type :: binary(), resource_path :: binary()}
+          | {:error, :is_a_directory | :file_not_found | :invalid_encoding}
   def get_file(metadata, []) do
     case Map.get(metadata, "index.html", :error) do
       :error ->
@@ -63,7 +73,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   end
 
   def get_file(metadata, url_path) do
-    resource_path = Enum.join(url_path, @path_seperator)
+    resource_path = Enum.join(url_path, "/")
 
     case Map.get(metadata, resource_path) do
       nil ->
@@ -78,8 +88,10 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     end
   end
 
-  def get_file_content(_, true, _),
-    do: {:ok, nil, nil}
+  @spec get_file_content(file_metadata :: map(), cached? :: boolean(), resource_path :: binary()) ::
+          {:ok, nil | binary(), nil | binary()}
+          | {:error, :encoding_error | :file_not_found | :invalid_encoding | any()}
+  def get_file_content(_, true, _), do: {:ok, nil, nil}
 
   def get_file_content(
         file_metadata = %{"addresses" => address_list},
@@ -91,10 +103,10 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         Enum.reduce(address_list, "", fn address, acc ->
           {:ok, address_bin} = Base.decode16(address, case: :mixed)
 
-          {:ok, %Transaction{data: %TransactionData{content: txn_content}}} =
+          {:ok, %Transaction{data: %TransactionData{content: tx_content}}} =
             Archethic.search_transaction(address_bin)
 
-          {:ok, decoded_content} = Jason.decode(txn_content)
+          {:ok, decoded_content} = Jason.decode(tx_content)
 
           {:ok, res_content} = access(decoded_content, resource_path)
 
@@ -112,12 +124,13 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         {:error, :encoding_error}
 
       error ->
-        error
+        {:error, error}
     end
   end
 
   def get_file_content(_, false, _), do: {:error, :file_not_found}
 
+  @spec access(map(), key :: binary(), any()) :: {:error, :file_not_found} | {:ok, any()}
   def access(map, key, default \\ :file_not_found) do
     case Map.get(map, key, default) do
       :file_not_found ->
@@ -128,6 +141,8 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     end
   end
 
+  @spec get_cache(cache_headers :: list(), last_address :: binary(), url_path :: list()) ::
+          {cached? :: boolean(), etag :: binary()}
   defp get_cache(cache_headers, last_address, url_path) do
     etag =
       case Enum.empty?(url_path) do
@@ -150,8 +165,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
     {cached?, etag}
   end
 
-  # defp is_a_directory?(_metadata, ""), do: true
-
+  @spec is_a_directory?(metadata :: map(), file_path :: binary()) :: boolean()
   defp is_a_directory?(metadata, file_path) do
     # dir1/file1.txt
     # => dir1       should match

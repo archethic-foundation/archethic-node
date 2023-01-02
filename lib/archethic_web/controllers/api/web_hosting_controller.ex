@@ -9,6 +9,7 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   alias ArchethicWeb.API.WebHostingController.{Resources, DirectoryListing}
 
+  @spec web_hosting(Plug.Conn.t(), params :: map()) :: Plug.Conn.t()
   def web_hosting(conn, params = %{"url_path" => []}) do
     # /web_hosting/:addr redirects to /web_hosting/:addr/
     if String.last(conn.request_path) != "/" do
@@ -20,6 +21,7 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   def web_hosting(conn, params), do: do_web_hosting(conn, params)
 
+  @spec do_web_hosting(Plug.Conn.t(), params :: map()) :: Plug.Conn.t()
   defp do_web_hosting(conn, params) do
     cache_headers = get_cache_headers(conn)
 
@@ -61,10 +63,11 @@ defmodule ArchethicWeb.API.WebHostingController do
   @doc """
   Fetch the website file content
   """
-  @spec get_website(request_params :: map(), cached_headers :: list()) ::
+  @spec get_website(params :: map(), cached_headers :: list()) ::
           {:ok, file_content :: binary() | nil, encoding :: binary() | nil, mime_type :: binary(),
            cached? :: boolean(), etag :: binary()}
           | {:error, :invalid_address}
+          | {:error, :website_not_found}
           | {:error, :invalid_content}
           | {:error, :file_not_found}
           | {:error, :is_a_directory}
