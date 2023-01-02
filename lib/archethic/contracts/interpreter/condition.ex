@@ -560,6 +560,21 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     {"content", true}
   end
 
+  defp validate_condition({"code", nil}, %{
+         "next" => %{"code" => next_code},
+         "previous" => %{"code" => prev_code}
+       }) do
+    quoted_next_code =
+      next_code
+      |> Code.string_to_quoted!(static_atoms_encoder: &atom_encoder/2)
+
+    quoted_previous_code =
+      prev_code
+      |> Code.string_to_quoted!(static_atoms_encoder: &atom_encoder/2)
+
+    {"code", quoted_next_code == quoted_previous_code}
+  end
+
   # Validation rules for inherit constraints
   defp validate_condition({field, nil}, %{"previous" => prev, "next" => next}) do
     {field, Map.get(prev, field) == Map.get(next, field)}
@@ -597,5 +612,13 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   defp execute_condition_code(quoted_code, constants) do
     {res, _} = Code.eval_quoted(quoted_code, scope: constants)
     res
+  end
+
+  defp atom_encoder(atom, _) do
+    if atom in ["if"] do
+      {:ok, String.to_atom(atom)}
+    else
+      {:ok, {:atom, atom}}
+    end
   end
 end
