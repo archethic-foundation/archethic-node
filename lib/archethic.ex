@@ -27,7 +27,8 @@ defmodule Archethic do
   require Logger
 
   @doc """
-  Query the search of the transaction to the dedicated storage pool from the closest nodes
+  Search a transaction by its address
+  Check locally and fallback to a quorum read
   """
   @spec search_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
@@ -35,8 +36,19 @@ defmodule Archethic do
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
   def search_transaction(address) when is_binary(address) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-    TransactionChain.fetch_transaction_remotely(address, storage_nodes)
+    case TransactionChain.get_transaction(address) do
+      {:ok, tx} ->
+        {:ok, tx}
+
+      {:error, :invalid_transaction} ->
+        {:error, :transaction_invalid}
+
+      {:error, :transaction_not_exists} ->
+        storage_nodes =
+          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+        TransactionChain.fetch_transaction_remotely(address, storage_nodes)
+    end
   end
 
   @doc """
@@ -125,8 +137,7 @@ defmodule Archethic do
   def get_last_transaction(address) when is_binary(address) do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
-        nodes = Election.chain_storage_nodes(last_address, P2P.authorized_and_available_nodes())
-        TransactionChain.fetch_transaction_remotely(last_address, nodes)
+        search_transaction(last_address)
 
       {:error, :network_issue} = e ->
         e
@@ -327,17 +338,18 @@ defmodule Archethic do
 
   @doc """
   Fetch a summaries aggregate for a given date.
-  If node is a storage node, it will skip I/O and fetch from local DB
+  Check locally first and fallback to a quorum read
   """
   @spec fetch_summaries_aggregate(DateTime.t()) ::
           {:ok, BeaconChain.SummaryAggregate.t()} | {:error, atom()}
   def fetch_summaries_aggregate(date) do
-    nodes = P2P.authorized_and_available_nodes()
+    case BeaconChain.get_summaries_aggregate(date) do
+      {:error, :not_exists} ->
+        nodes = P2P.authorized_and_available_nodes()
+        BeaconChain.fetch_summaries_aggregate(date, nodes)
 
-    if is_a_beacon_storage_node?(date, nodes) do
-      BeaconChain.get_summaries_aggregate(date)
-    else
-      BeaconChain.fetch_summaries_aggregate(date, nodes)
+      {:ok, aggregate} ->
+        {:ok, aggregate}
     end
   end
 
@@ -450,13 +462,5 @@ defmodule Archethic do
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(&elem(&1, 1))
     |> Enum.to_list()
-  end
-
-  defp is_a_beacon_storage_node?(date, nodes) do
-    Election.beacon_storage_node?(
-      date,
-      Crypto.first_node_public_key(),
-      nodes
-    )
   end
 end
