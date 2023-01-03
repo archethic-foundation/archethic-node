@@ -415,35 +415,41 @@ defmodule Archethic do
 
   @doc """
   Check if a transaction exists at address
+  Check locally first and fallback to a quorum read
   """
   @spec transaction_exists?(binary()) :: boolean()
   def transaction_exists?(address) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    if TransactionChain.transaction_exists?(address) do
+      # if it exists locally, no need to query the network
+      true
+    else
+      storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    conflict_resolver = fn results ->
-      # Prioritize transactions results over not found
-      case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
-        [] ->
-          %NotFound{}
+      conflict_resolver = fn results ->
+        # Prioritize transactions results over not found
+        case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
+          [] ->
+            %NotFound{}
 
-        [first | _] ->
-          first
+          [first | _] ->
+            first
+        end
       end
-    end
 
-    case P2P.quorum_read(
-           storage_nodes,
-           %GetTransactionSummary{address: address},
-           conflict_resolver
-         ) do
-      {:ok, %TransactionSummary{address: ^address}} ->
-        true
+      case P2P.quorum_read(
+             storage_nodes,
+             %GetTransactionSummary{address: address},
+             conflict_resolver
+           ) do
+        {:ok, %TransactionSummary{address: ^address}} ->
+          true
 
-      {:ok, %NotFound{}} ->
-        false
+        {:ok, %NotFound{}} ->
+          false
 
-      {:error, e} ->
-        raise e
+        {:error, e} ->
+          raise e
+      end
     end
   end
 
