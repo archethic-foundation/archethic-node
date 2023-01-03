@@ -11,17 +11,26 @@
       "type": "string",
       "description": "SSL certificate of the website"
     },
-    "metadata": {
+    "metaData": {
       "description": "List of files",
       "type": "object",
       "minProperties": 1,
       "additionalProperties": {
         "type": "object",
         "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
           "encoding": {
             "description": "The encoding of the file",
             "type": "string",
-            "enum": ["gzip"]
+            "enum": [
+              "gzip"
+            ]
           },
           "addresses": {
             "description": "List of addresses to storage the file",
@@ -35,9 +44,17 @@
             }
           }
         },
-        "required": ["addresses"]
+        "required": [
+          "hash",
+          "size",
+          "encoding",
+          "addresses"
+        ]
       }
     }
   },
-  "required": ["aewebVersion", "metadata"]
+  "required": [
+    "aewebVersion",
+    "metaData"
+  ]
 }

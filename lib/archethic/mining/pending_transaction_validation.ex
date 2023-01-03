@@ -843,7 +843,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok ->
         :ok
 
-      {:error, [{"Required properties aewebVersion, metadata were not present.", _}]} ->
+      {:error, [{"Required properties aewebVersion, metaData were not present.", _}]} ->
         case ExJsonSchema.Validator.validate(file_schema, json) do
           :ok ->
             :ok

@@ -745,9 +745,11 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           content:
             Jason.encode!(%{
               "aewebVersion" => 1,
-              "metadata" => %{
+              "metaData" => %{
                 "index.html" => %{
                   "encoding" => "gzip",
+                  "hash" => "abcd123",
+                  "size" => 144,
                   "addresses" => [
                     Crypto.derive_keypair("seed", 0)
                     |> elem(0)
