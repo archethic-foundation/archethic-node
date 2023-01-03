@@ -35,6 +35,9 @@ defmodule ArchethicWeb.ConnCase do
   end
 
   setup _tags do
+    # mark the node as bootstraped
+    :persistent_term.put(:archethic_up, :up)
+
     start_supervised!(FaucetRateLimiter)
     {:ok, conn: ConnTest.build_conn()}
   end
