@@ -23,7 +23,7 @@ defmodule ArchethicWeb.ExplorerRootController do
         nil
 
       [referer] ->
-        case Regex.scan(~r/(?<=\/api\/web_hosting\/).*(?!$)/, referer) do
+        case Regex.scan(~r/(?<=\/api\/web_hosting\/)[^\/]*(?!$)/, referer) do
           [] ->
             nil
 

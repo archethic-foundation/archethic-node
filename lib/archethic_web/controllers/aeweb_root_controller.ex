@@ -9,14 +9,19 @@ defmodule ArchethicWeb.AEWebRootController do
     cache_headers = WebHostingController.get_cache_headers(conn)
 
     case WebHostingController.get_website(params, cache_headers) do
-      {:ok, file_content, encodage, mime_type, cached?, etag} ->
-        WebHostingController.send_response(conn, file_content, encodage, mime_type, cached?, etag)
+      {:ok, file_content, encoding, mime_type, cached?, etag} ->
+        WebHostingController.send_response(conn, file_content, encoding, mime_type, cached?, etag)
 
       {:error, {:is_a_directory, transaction}} ->
-        {:ok, listing_html, encodage, mime_type, cached?, etag} =
-          WebHostingController.dir_listing(conn.request_path, params, transaction, cache_headers)
+        {:ok, listing_html, encoding, mime_type, cached?, etag} =
+          WebHostingController.DirectoryListing.list(
+            conn.request_path,
+            params,
+            transaction,
+            cache_headers
+          )
 
-        WebHostingController.send_response(conn, listing_html, encodage, mime_type, cached?, etag)
+        WebHostingController.send_response(conn, listing_html, encoding, mime_type, cached?, etag)
 
       {:error, :file_not_found} ->
         # If file is not found, returning default file (url can be handled by index file)
