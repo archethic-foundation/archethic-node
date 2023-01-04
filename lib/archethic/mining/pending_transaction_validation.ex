@@ -38,6 +38,24 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   @unit_uco 100_000_000
 
+  @aeweb_schema :archethic
+                |> Application.app_dir("priv/json-schemas/aeweb.json")
+                |> File.read!()
+                |> Jason.decode!()
+                |> ExJsonSchema.Schema.resolve()
+
+  @did_schema :archethic
+              |> Application.app_dir("priv/json-schemas/did-core.json")
+              |> File.read!()
+              |> Jason.decode!()
+              |> ExJsonSchema.Schema.resolve()
+
+  @token_schema :archethic
+                |> Application.app_dir("priv/json-schemas/token-core.json")
+                |> File.read!()
+                |> Jason.decode!()
+                |> ExJsonSchema.Schema.resolve()
+
   @doc """
   Determines if the transaction is accepted into the network
   """
@@ -554,15 +572,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          },
          _
        ) do
-    schema =
-      :archethic
-      |> Application.app_dir("priv/json-schemas/did-core.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> ExJsonSchema.Schema.resolve()
-
     with {:ok, json_did} <- Jason.decode(content),
-         :ok <- ExJsonSchema.Validator.validate(schema, json_did) do
+         :ok <- ExJsonSchema.Validator.validate(@did_schema, json_did) do
       :ok
     else
       :error ->
@@ -715,15 +726,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp do_accept_transaction(_, _), do: :ok
 
   defp verify_token_creation(content) do
-    schema =
-      :archethic
-      |> Application.app_dir("priv/json-schemas/token-core.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> ExJsonSchema.Schema.resolve()
-
     with {:ok, json_token} <- Jason.decode(content),
-         :ok <- ExJsonSchema.Validator.validate(schema, json_token),
+         :ok <- ExJsonSchema.Validator.validate(@token_schema, json_token),
          %{
            "type" => "non-fungible",
            "supply" => supply,
@@ -824,14 +828,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp check_aeweb_format(json) do
-    aeweb_schema =
-      :archethic
-      |> Application.app_dir("priv/json-schemas/aeweb.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> ExJsonSchema.Schema.resolve()
-
-    case ExJsonSchema.Validator.validate(aeweb_schema, json) do
+    case ExJsonSchema.Validator.validate(@aeweb_schema, json) do
       :ok ->
         :ok
 
