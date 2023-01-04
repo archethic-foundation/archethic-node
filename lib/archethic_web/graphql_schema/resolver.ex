@@ -239,7 +239,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
           if DateTime.compare(next_datetime_summary_time, next_current_date_summary_time) == :eq do
             datetime
-            |> BeaconChain.list_transactions_from_current_slots()
+            |> Archethic.list_transactions_summaries_from_current_slot()
             |> create_empty_beacon_summary_aggregate(next_current_date_summary_time)
           else
             {
