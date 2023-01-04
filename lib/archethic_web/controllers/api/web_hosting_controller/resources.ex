@@ -60,12 +60,12 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
           {:ok, file :: map(), mime_type :: binary(), resource_path :: binary()}
           | {:error, :is_a_directory | :file_not_found}
   defp get_file(metadata, []) do
-    case Map.get(metadata, "index.html", :error) do
-      :error ->
+    case Map.get(metadata, "index.html") do
+      nil ->
         {:error, :is_a_directory}
 
-      value ->
-        {:ok, value, MIME.from_path("index.html"), "index.html"}
+      file ->
+        {:ok, file, MIME.from_path("index.html"), "index.html"}
     end
   end
 
@@ -77,7 +77,15 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         if is_a_directory?(metadata, resource_path) do
           {:error, :is_a_directory}
         else
-          {:error, :file_not_found}
+          # Handle JS History API by serving index.html instead of a 404
+          # We loose the ability to return real 404 errors
+          case Map.get(metadata, "index.html") do
+            nil ->
+              {:error, :file_not_found}
+
+            file ->
+              {:ok, file, MIME.from_path("index.html"), "index.html"}
+          end
         end
 
       file ->

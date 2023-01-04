@@ -164,14 +164,14 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       :ok
     end
 
-    test "should return file does not exist", %{conn: conn} do
+    test "should return index.html on file not found (handle JS routing)", %{conn: conn} do
       conn =
         get(
           conn,
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/file.html"
         )
 
-      assert "Cannot find file content" = response(conn, 404)
+      assert "<h1>Archethic</h1>" = response(conn, 200)
     end
 
     test "should return default index.html file", %{conn: conn} do

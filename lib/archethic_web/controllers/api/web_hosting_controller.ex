@@ -159,7 +159,7 @@ defmodule ArchethicWeb.API.WebHostingController do
   # Instead of returning the entire transaction,
   # we return a triplet with only the formatted data we need
   @spec get_reference_transaction(binary()) ::
-          {:ok, {binary(), map(), DateTime.t()}} | {:error, atom()}
+          {:ok, {binary(), map(), DateTime.t()}} | {:error, term()}
   defp get_reference_transaction(address) do
     # started by ArchethicWeb.Supervisor
     cache_server = :web_hosting_cache_ref_tx
