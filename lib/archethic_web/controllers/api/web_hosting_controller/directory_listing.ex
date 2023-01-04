@@ -1,14 +1,12 @@
 defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
   @moduledoc false
 
-  alias Archethic.TransactionChain.{Transaction, Transaction.ValidationStamp, TransactionData}
-
   require Logger
 
   @spec list(
           request_path :: String.t(),
           params :: map(),
-          transaction :: Transaction.t(),
+          reference_transaction :: {binary(), map(), DateTime.t()},
           cached_headers :: list()
         ) ::
           {:ok, listing_html :: binary() | nil, encoding :: nil | binary(), mime_type :: binary(),
@@ -16,11 +14,7 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
   def list(
         request_path,
         params,
-        %Transaction{
-          address: last_address,
-          data: %TransactionData{content: content},
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        },
+        {last_address, json_content, timestamp},
         cache_headers
       ) do
     url_path = Map.get(params, "url_path", [])
@@ -31,24 +25,17 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
         {:ok, nil, nil, mime_type, cached?, etag}
 
       {cached? = false, etag} ->
-        case Jason.decode(content) do
-          {:error, err = %Jason.DecodeError{}} ->
-            {:error, err}
+        assigns =
+          do_list(
+            request_path,
+            url_path,
+            elem(get_metadata(json_content), 1),
+            timestamp,
+            last_address
+          )
 
-          {:ok, json_content} ->
-            assigns =
-              do_list(
-                request_path,
-                url_path,
-                elem(get_metadata(json_content), 1),
-                timestamp,
-                last_address
-              )
-
-            {:ok,
-             Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
-             nil, mime_type, cached?, etag}
-        end
+        {:ok, Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
+         nil, mime_type, cached?, etag}
     end
   end
 

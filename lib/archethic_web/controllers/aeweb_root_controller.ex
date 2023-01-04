@@ -12,12 +12,12 @@ defmodule ArchethicWeb.AEWebRootController do
       {:ok, file_content, encoding, mime_type, cached?, etag} ->
         WebHostingController.send_response(conn, file_content, encoding, mime_type, cached?, etag)
 
-      {:error, {:is_a_directory, transaction}} ->
+      {:error, {:is_a_directory, reference_transaction}} ->
         {:ok, listing_html, encoding, mime_type, cached?, etag} =
           WebHostingController.DirectoryListing.list(
             conn.request_path,
             params,
-            transaction,
+            reference_transaction,
             cache_headers
           )
 

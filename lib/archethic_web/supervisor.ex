@@ -33,8 +33,8 @@ defmodule ArchethicWeb.Supervisor do
         Endpoint,
         {Absinthe.Subscription, Endpoint},
         TransactionSubscriber,
-        cache_tx(),
-        cache_file()
+        web_hosting_cache_ref_tx(),
+        web_hosting_cache_file()
       ]
       |> add_faucet_rate_limit_child()
 
@@ -59,25 +59,27 @@ defmodule ArchethicWeb.Supervisor do
     end
   end
 
-  defp cache_tx() do
+  # this is used in web_hosting_controller.ex
+  # it does not store an entire transaction, but a triplet {address, json_content, timestamp}
+  defp web_hosting_cache_ref_tx() do
     %{
-      id: :cache_tx,
+      id: :web_hosting_cache_ref_tx,
       start:
         {LRU, :start_link,
          [
-           :cache_tx,
+           :web_hosting_cache_ref_tx,
            Application.fetch_env!(:archethic_web, :tx_cache_bytes)
          ]}
     }
   end
 
-  defp cache_file() do
+  defp web_hosting_cache_file() do
     %{
-      id: :cache_file,
+      id: :web_hosting_cache_file,
       start:
         {LRUDisk, :start_link,
          [
-           :cache_file,
+           :web_hosting_cache_file,
            Application.fetch_env!(:archethic_web, :file_cache_bytes),
            Path.join(Utils.mut_dir(), "aeweb")
          ]}

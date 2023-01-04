@@ -3,7 +3,14 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   use ArchethicWeb, :controller
 
-  alias Archethic.{Crypto, TransactionChain.Transaction}
+  alias Archethic.{
+    Crypto,
+    TransactionChain.Transaction,
+    TransactionChain.Transaction.ValidationStamp,
+    TransactionChain.TransactionData
+  }
+
+  alias ArchethicCache.LRU
 
   require Logger
 
@@ -44,12 +51,12 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :invalid_encoding} ->
         send_resp(conn, 400, "Invalid file encoding")
 
-      {:error, {:is_a_directory, txn}} ->
+      {:error, {:is_a_directory, reference_transaction}} ->
         {:ok, listing_html, encoding, mime_type, cached?, etag} =
           DirectoryListing.list(
             conn.request_path,
             params,
-            txn,
+            reference_transaction,
             cache_headers
           )
 
@@ -70,9 +77,8 @@ defmodule ArchethicWeb.API.WebHostingController do
           | {:error, :website_not_found}
           | {:error, :invalid_content}
           | {:error, :file_not_found}
-          | {:error, :is_a_directory}
           | {:error, :invalid_encoding}
-          | {:error, {:is_a_directory, any()}}
+          | {:error, {:is_a_directory, {binary(), map(), DateTime.t()}}}
           | {:error, any()}
 
   def get_website(params = %{"address" => address}, cache_headers) do
@@ -80,13 +86,17 @@ defmodule ArchethicWeb.API.WebHostingController do
 
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
-         {:ok, txn = %Transaction{}} <- Archethic.get_last_transaction(address),
+         {:ok, last_address} <- Archethic.get_last_transaction_address(address),
+         {:ok, reference_transaction} <- get_reference_transaction(last_address),
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
-           Resources.load(txn, url_path, cache_headers) do
+           Resources.load(reference_transaction, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
       er when er in [:error, false] ->
         {:error, :invalid_address}
+
+      {:error, %Jason.DecodeError{}} ->
+        {:error, :invalid_content}
 
       {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
         {:error, :website_not_found}
@@ -144,22 +154,32 @@ defmodule ArchethicWeb.API.WebHostingController do
     end
   end
 
-  @spec search_transaction(binary()) :: {:ok, Transaction.t()} | {:error, atom()}
-  defp search_transaction(address) do
-    # :cache_tx is started by the ArchethicWeb.Supervisor
-    case LRU.get(:cache_tx, address) do
-      nil ->
-        case Archethic.search_transaction(address) do
-          {:ok, tx} ->
-            LRU.put(:cache_tx, address, tx)
-            {:ok, tx}
+  # Fetch the reference transaction either from cache, or from the network.
+  #
+  # Instead of returning the entire transaction,
+  # we return a triplet with only the formatted data we need
+  @spec get_reference_transaction(binary()) ::
+          {:ok, {binary(), map(), DateTime.t()}} | {:error, atom()}
+  defp get_reference_transaction(address) do
+    # started by ArchethicWeb.Supervisor
+    cache_server = :web_hosting_cache_ref_tx
+    cache_key = address
 
-          {:error, reason} ->
-            {:error, reason}
+    case LRU.get(cache_server, cache_key) do
+      nil ->
+        with {:ok,
+              %Transaction{
+                data: %TransactionData{content: content},
+                validation_stamp: %ValidationStamp{timestamp: timestamp}
+              }} <- Archethic.search_transaction(address),
+             {:ok, json_content} <- Jason.decode(content) do
+          reference_transaction = {address, json_content, timestamp}
+          LRU.put(cache_server, cache_key, reference_transaction)
+          {:ok, reference_transaction}
         end
 
-      tx ->
-        {:ok, tx}
+      reference_transaction ->
+        {:ok, reference_transaction}
     end
   end
 end
