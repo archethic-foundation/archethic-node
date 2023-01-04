@@ -3,6 +3,7 @@ defmodule ArchethicWeb.GraphQLSchema do
 
   use Absinthe.Schema
 
+  alias __MODULE__.SortOrderEnum
   alias __MODULE__.DateTimeType
   alias __MODULE__.HexType
   alias __MODULE__.P2PType
@@ -15,6 +16,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.OracleData
   alias __MODULE__.Version
 
+  import_types(SortOrderEnum)
   import_types(HexType)
   import_types(DateTimeType)
   import_types(TransactionType)
@@ -67,10 +69,13 @@ defmodule ArchethicWeb.GraphQLSchema do
     field :transaction_chain, list_of(:transaction) do
       arg(:address, non_null(:address))
       arg(:paging_address, :address)
+      arg(:order, :sort_order)
 
       resolve(fn args = %{address: address}, _ ->
         paging_address = Map.get(args, :paging_address)
-        Resolver.transaction_chain_by_paging_address(address, paging_address)
+        order = Map.get(args, :order, :asc)
+
+        Resolver.transaction_chain_by_paging_address(address, paging_address, order)
       end)
     end
 

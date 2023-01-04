@@ -274,6 +274,56 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   end
 
   describe "query: transaction_chain" do
+    test "should handle order flag and pass it to get transaction function", %{conn: conn} do
+      first = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      last = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      transactions = [
+        %Transaction{
+          address: first,
+          type: :transfer,
+          data: %TransactionData{}
+        },
+        %Transaction{
+          address: last,
+          type: :hosting,
+          data: %TransactionData{}
+        }
+      ]
+
+      order = :desc
+
+      order_str =
+        order
+        |> to_string()
+        |> String.upcase()
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{order: given_order}, _ ->
+          assert given_order == order
+
+          {:ok,
+           %TransactionList{
+             transactions: transactions
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %NotFound{}}
+      end)
+
+      conn =
+        post(conn, "/api", %{
+          "query" =>
+            "query { transactionChain(address: \"#{Base.encode16(last)}\", order: #{order_str}) { type } }"
+        })
+
+      assert %{"data" => %{"transactionChain" => _recv_transactions}} = json_response(conn, 200)
+    end
+
     test "should retrieve the first page of a transaction chain", %{conn: conn} do
       transactions =
         Enum.map(1..20, fn _ ->

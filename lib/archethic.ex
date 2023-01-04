@@ -292,9 +292,10 @@ defmodule Archethic do
   Retrieve a transaction chain based on an address from the closest nodes
   by setting `paging_address as an offset address.
   """
-  @spec get_transaction_chain_by_paging_address(binary(), binary()) ::
+  @spec get_transaction_chain_by_paging_address(binary(), binary(), :asc | :desc) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def get_transaction_chain_by_paging_address(address, paging_address) when is_binary(address) do
+  def get_transaction_chain_by_paging_address(address, paging_address, order)
+      when is_binary(address) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     try do
@@ -304,14 +305,16 @@ defmodule Archethic do
              last_address when last_address != nil <-
                TransactionChain.get_last_local_address(address),
              true <- last_address != paging_address do
-          {TransactionChain.get_locally(last_address, paging_address), last_address}
+          {TransactionChain.get_locally(last_address, paging_address, order), last_address}
         else
           _ -> {[], paging_address}
         end
 
       remote_chain =
         if paging_address != address do
-          case TransactionChain.fetch_transaction_chain(nodes, address, paging_address) do
+          case TransactionChain.fetch_transaction_chain(nodes, address, paging_address,
+                 order: order
+               ) do
             {:ok, transactions} -> transactions
             {:error, _} -> []
           end
