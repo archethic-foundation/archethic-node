@@ -5,7 +5,7 @@ defmodule ArchethicWeb.GraphQLSchema.SortOrderEnum do
 
   @desc """
   SortOrder represents the order of the result
-  possible values are :asc or :desc
+  possible values are ASC or DESC
   """
   enum :sort_order do
     value(:asc, description: "Ascending order")

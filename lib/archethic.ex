@@ -295,7 +295,7 @@ defmodule Archethic do
   @spec get_transaction_chain_by_paging_address(binary(), binary(), :asc | :desc) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
   def get_transaction_chain_by_paging_address(address, paging_address, order)
-      when is_binary(address) do
+      when is_binary(address) and order in [:asc, :desc] do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     try do
