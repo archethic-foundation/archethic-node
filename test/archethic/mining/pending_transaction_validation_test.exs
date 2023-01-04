@@ -775,5 +775,42 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
     end
+
+    test "should return :error when we deploy a wrong aeweb file transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "index.html" => 32
+            })
+        })
+
+      assert {:error, error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :error when we deploy a wrong aeweb ref transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "wrongKey" => 1,
+              "metaData" => %{
+                "index.html" => %{
+                  "encoding" => "gzip",
+                  "hash" => "abcd123",
+                  "size" => 144,
+                  "addresses" => [
+                    Crypto.derive_keypair("seed", 0)
+                    |> elem(0)
+                    |> Crypto.derive_address()
+                    |> Base.encode16()
+                  ]
+                }
+              }
+            })
+        })
+
+      assert {:error, reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
   end
 end

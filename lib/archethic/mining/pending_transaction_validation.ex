@@ -290,11 +290,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok
     else
       :error ->
-        {:error, "Invalid AEWeb transaction"}
+        {:error, "Invalid AEWeb transaction - Does not match JSON schema"}
 
-      {:error, reason} ->
-        Logger.debug("Invalid AEWeb format #{inspect(reason)}")
-        {:error, "Invalid AEWeb transaction"}
+      {:error, _} ->
+        {:error, "Invalid AEWeb transaction - Not a JSON format"}
     end
   end
 
@@ -825,35 +824,19 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp check_aeweb_format(json) do
-    ref_schema =
+    aeweb_schema =
       :archethic
-      |> Application.app_dir("priv/json-schemas/aeweb_ref.json")
+      |> Application.app_dir("priv/json-schemas/aeweb.json")
       |> File.read!()
       |> Jason.decode!()
       |> ExJsonSchema.Schema.resolve()
 
-    file_schema =
-      :archethic
-      |> Application.app_dir("priv/json-schemas/aeweb_file.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> ExJsonSchema.Schema.resolve()
-
-    case ExJsonSchema.Validator.validate(ref_schema, json) do
+    case ExJsonSchema.Validator.validate(aeweb_schema, json) do
       :ok ->
         :ok
 
-      {:error, [{"Required properties aewebVersion, metaData were not present.", _}]} ->
-        case ExJsonSchema.Validator.validate(file_schema, json) do
-          :ok ->
-            :ok
-
-          {:error, error_file} ->
-            {:error, error_file}
-        end
-
-      {:error, error_ref} ->
-        {:error, error_ref}
+      _ ->
+        :error
     end
   end
 end
