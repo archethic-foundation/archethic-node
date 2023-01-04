@@ -863,6 +863,7 @@ defmodule Archethic.TransactionChain.Transaction do
       type: Atom.to_string(tx.type),
       data: TransactionData.to_map(tx.data),
       previous_public_key: tx.previous_public_key,
+      previous_address: previous_address(tx),
       previous_signature: tx.previous_signature,
       origin_signature: tx.origin_signature,
       validation_stamp: ValidationStamp.to_map(tx.validation_stamp),
