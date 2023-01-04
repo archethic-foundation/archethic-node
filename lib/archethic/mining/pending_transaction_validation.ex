@@ -304,10 +304,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          _
        ) do
     with {:ok, json} <- Jason.decode(content),
-         :ok <- check_aeweb_format(json) do
+         {:schema, :ok} <- {:schema, ExJsonSchema.Validator.validate(@aeweb_schema, json)} do
       :ok
     else
-      :error ->
+      {:schema, _} ->
         {:error, "Invalid AEWeb transaction - Does not match JSON schema"}
 
       {:error, _} ->
@@ -824,16 +824,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:error, :invalid_ip} ->
         {:error, :invalid_ip}
-    end
-  end
-
-  defp check_aeweb_format(json) do
-    case ExJsonSchema.Validator.validate(@aeweb_schema, json) do
-      :ok ->
-        :ok
-
-      _ ->
-        :error
     end
   end
 end
