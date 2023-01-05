@@ -43,6 +43,8 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
 
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
+
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
     as: TransactionMovementType
 
@@ -539,6 +541,8 @@ defmodule Archethic.TransactionChain do
         tx = %Transaction{data: %TransactionData{recipients: recipients}},
         time = %DateTime{}
       ) do
+    burning_address = LedgerOperations.burning_address()
+
     addresses =
       tx
       |> Transaction.get_movements()
@@ -549,6 +553,9 @@ defmodule Archethic.TransactionChain do
       TaskSupervisor,
       addresses,
       fn
+        {^burning_address, type} ->
+          {{burning_address, type}, burning_address}
+
         {to, type} ->
           case resolve_last_address(to, time) do
             {:ok, resolved} ->
@@ -557,6 +564,9 @@ defmodule Archethic.TransactionChain do
             _ ->
               {{to, type}, to}
           end
+
+        ^burning_address ->
+          {burning_address, burning_address}
 
         to ->
           case resolve_last_address(to, time) do
@@ -1009,10 +1019,11 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  @spec get_locally(address :: binary(), paging_address :: binary() | nil) ::
+  @spec get_locally(address :: binary(), paging_address :: binary() | nil, order :: :asc | :desc) ::
           Enumerable.t() | list(Transaction.t())
-  def get_locally(address, paging_address \\ nil) when is_binary(address) do
-    fetch_chain_db(get(address, [], paging_state: paging_address), [])
+  def get_locally(address, paging_address \\ nil, order)
+      when is_binary(address) and order in [:asc, :desc] do
+    fetch_chain_db(get(address, [], paging_state: paging_address, order: order), [])
   end
 
   def fetch_chain_db({chain, false, _}, acc), do: acc ++ chain

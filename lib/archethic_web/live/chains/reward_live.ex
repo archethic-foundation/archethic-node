@@ -71,11 +71,7 @@ defmodule ArchethicWeb.RewardChainLive do
 
   @spec handle_event(binary(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_event(_event = "prev_page", %{"page" => page}, socket) do
-    {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
-  end
-
-  def handle_event(_event = "next_page", %{"page" => page}, socket) do
+  def handle_event("goto", %{"page" => page}, socket) do
     {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 

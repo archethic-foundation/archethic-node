@@ -5,6 +5,7 @@ defmodule Archethic.Reward.Scheduler do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.{
+    Bootstrap,
     Crypto,
     PubSub,
     DB,
@@ -29,18 +30,14 @@ defmodule Archethic.Reward.Scheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    case :persistent_term.get(:archethic_up, nil) do
-      nil ->
-        Logger.info(" Reward Scheduler: Waiting for Node to complete Bootstrap. ")
+    if Bootstrap.done?() do
+      {state, new_state_data, events} = start_scheduler(state_data)
+      {:ok, state, new_state_data, events}
+    else
+      Logger.info(" Reward Scheduler: Waiting for Node to complete Bootstrap. ")
 
-        PubSub.register_to_node_up()
-        {:ok, :idle, state_data}
-
-      # wait for node up
-
-      :up ->
-        {state, new_state_data, events} = start_scheduler(state_data)
-        {:ok, state, new_state_data, events}
+      PubSub.register_to_node_up()
+      {:ok, :idle, state_data}
     end
   end
 

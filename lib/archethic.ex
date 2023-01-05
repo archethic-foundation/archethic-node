@@ -4,27 +4,31 @@ defmodule Archethic do
   """
 
   alias __MODULE__.Account
+  alias __MODULE__.BeaconChain
   alias __MODULE__.Crypto
-
   alias __MODULE__.Election
-
   alias __MODULE__.P2P
   alias __MODULE__.P2P.Node
-
   alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
+  alias __MODULE__.P2P.Message.GetCurrentSummaries
+  alias __MODULE__.P2P.Message.GetTransactionSummary
   alias __MODULE__.P2P.Message.NewTransaction
+  alias __MODULE__.P2P.Message.NotFound
   alias __MODULE__.P2P.Message.Ok
   alias __MODULE__.P2P.Message.StartMining
+  alias __MODULE__.P2P.Message.TransactionSummaryList
 
   alias __MODULE__.TransactionChain
   alias __MODULE__.TransactionChain.Transaction
   alias __MODULE__.TransactionChain.TransactionInput
+  alias __MODULE__.TransactionChain.TransactionSummary
 
   require Logger
 
   @doc """
-  Query the search of the transaction to the dedicated storage pool from the closest nodes
+  Search a transaction by its address
+  Check locally and fallback to a quorum read
   """
   @spec search_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
@@ -32,8 +36,19 @@ defmodule Archethic do
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
   def search_transaction(address) when is_binary(address) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-    TransactionChain.fetch_transaction_remotely(address, storage_nodes)
+    case TransactionChain.get_transaction(address) do
+      {:ok, tx} ->
+        {:ok, tx}
+
+      {:error, :invalid_transaction} ->
+        {:error, :transaction_invalid}
+
+      {:error, :transaction_not_exists} ->
+        storage_nodes =
+          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+        TransactionChain.fetch_transaction_remotely(address, storage_nodes)
+    end
   end
 
   @doc """
@@ -122,8 +137,7 @@ defmodule Archethic do
   def get_last_transaction(address) when is_binary(address) do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
-        nodes = Election.chain_storage_nodes(last_address, P2P.authorized_and_available_nodes())
-        TransactionChain.fetch_transaction_remotely(last_address, nodes)
+        search_transaction(last_address)
 
       {:error, :network_issue} = e ->
         e
@@ -278,9 +292,10 @@ defmodule Archethic do
   Retrieve a transaction chain based on an address from the closest nodes
   by setting `paging_address as an offset address.
   """
-  @spec get_transaction_chain_by_paging_address(binary(), binary()) ::
+  @spec get_transaction_chain_by_paging_address(binary(), binary(), :asc | :desc) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def get_transaction_chain_by_paging_address(address, paging_address) when is_binary(address) do
+  def get_transaction_chain_by_paging_address(address, paging_address, order)
+      when is_binary(address) and order in [:asc, :desc] do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     try do
@@ -290,14 +305,16 @@ defmodule Archethic do
              last_address when last_address != nil <-
                TransactionChain.get_last_local_address(address),
              true <- last_address != paging_address do
-          {TransactionChain.get_locally(last_address, paging_address), last_address}
+          {TransactionChain.get_locally(last_address, paging_address, order), last_address}
         else
           _ -> {[], paging_address}
         end
 
       remote_chain =
         if paging_address != address do
-          case TransactionChain.fetch_transaction_chain(nodes, address, paging_address) do
+          case TransactionChain.fetch_transaction_chain(nodes, address, paging_address,
+                 order: order
+               ) do
             {:ok, transactions} -> transactions
             {:error, _} -> []
           end
@@ -320,5 +337,139 @@ defmodule Archethic do
   def get_transaction_chain_length(address) when is_binary(address) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
     TransactionChain.fetch_size_remotely(address, nodes)
+  end
+
+  @doc """
+  Fetch a summaries aggregate for a given date.
+  Check locally first and fallback to a quorum read
+  """
+  @spec fetch_summaries_aggregate(DateTime.t()) ::
+          {:ok, BeaconChain.SummaryAggregate.t()} | {:error, atom()}
+  def fetch_summaries_aggregate(date) do
+    case BeaconChain.get_summaries_aggregate(date) do
+      {:error, :not_exists} ->
+        nodes = P2P.authorized_and_available_nodes()
+        BeaconChain.fetch_summaries_aggregate(date, nodes)
+
+      {:ok, aggregate} ->
+        {:ok, aggregate}
+    end
+  end
+
+  @doc """
+  Request from the beacon chains all the summaries for the given dates and aggregate them
+  """
+  @spec fetch_and_aggregate_summaries(DateTime.t()) :: BeaconChain.SummaryAggregate.t()
+  def fetch_and_aggregate_summaries(date) do
+    BeaconChain.fetch_and_aggregate_summaries(date, P2P.authorized_and_available_nodes())
+  end
+
+  @doc """
+  Retrieve the genesis address locally or remotely
+  """
+  def fetch_genesis_address_remotely(address) do
+    case TransactionChain.get_genesis_address(address) do
+      ^address ->
+        # if returned address is same as given, it means the DB does not contain the value
+        TransactionChain.fetch_genesis_address_remotely(address)
+
+      genesis_address ->
+        genesis_address
+    end
+  end
+
+  @doc """
+  Slots which are already has been added
+  Real time transaction can be get from pubsub
+  """
+  @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
+          list(TransactionSummary.t())
+  def list_transactions_summaries_from_current_slot(date = %DateTime{} \\ DateTime.utc_now()) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    ref_time = DateTime.truncate(date, :millisecond)
+
+    next_summary_date = BeaconChain.next_summary_date(ref_time)
+
+    BeaconChain.list_subsets()
+    |> Flow.from_enumerable(stages: 256)
+    |> Flow.flat_map(fn subset ->
+      # Foreach subset and date we compute concurrently the node election
+      subset
+      |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
+      |> Enum.filter(&Node.locally_available?/1)
+      |> P2P.nearest_nodes()
+      |> Enum.take(3)
+      |> Enum.map(&{&1, subset})
+    end)
+    # We partition by node
+    |> Flow.partition(key: {:elem, 0})
+    |> Flow.reduce(fn -> %{} end, fn {node, subset}, acc ->
+      # We aggregate the subsets for a given node
+      Map.update(acc, node, [subset], &[subset | &1])
+    end)
+    |> Flow.flat_map(fn {node, subsets} ->
+      # For this node we fetch the summaries
+      fetch_summaries(node, subsets)
+    end)
+    |> Stream.uniq_by(& &1.address)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  @doc """
+  Check if a transaction exists at address
+  Check locally first and fallback to a quorum read
+  """
+  @spec transaction_exists?(binary()) :: boolean()
+  def transaction_exists?(address) do
+    if TransactionChain.transaction_exists?(address) do
+      # if it exists locally, no need to query the network
+      true
+    else
+      storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+      conflict_resolver = fn results ->
+        # Prioritize transactions results over not found
+        case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
+          [] ->
+            %NotFound{}
+
+          [first | _] ->
+            first
+        end
+      end
+
+      case P2P.quorum_read(
+             storage_nodes,
+             %GetTransactionSummary{address: address},
+             conflict_resolver
+           ) do
+        {:ok, %TransactionSummary{address: ^address}} ->
+          true
+
+        {:ok, %NotFound{}} ->
+          false
+
+        {:error, e} ->
+          raise e
+      end
+    end
+  end
+
+  defp fetch_summaries(node, subsets) do
+    subsets
+    |> Stream.chunk_every(10)
+    |> Task.async_stream(fn subsets ->
+      case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
+        {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
+          transaction_summaries
+
+        _ ->
+          []
+      end
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(&elem(&1, 1))
+    |> Enum.to_list()
   end
 end
