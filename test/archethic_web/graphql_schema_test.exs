@@ -116,7 +116,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       assert addr == Base.decode16!(address, case: :mixed)
 
-      refute is_nil(previous_address)
+      assert Base.decode16!(previous_address) == Crypto.derive_address(prev_public_key)
     end
   end
 
@@ -309,11 +309,13 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       transactions = [
         %Transaction{
           address: first,
+          previous_public_key: last,
           type: :transfer,
           data: %TransactionData{}
         },
         %Transaction{
           address: last,
+          previous_public_key: last,
           type: :hosting,
           data: %TransactionData{}
         }
