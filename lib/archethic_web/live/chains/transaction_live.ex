@@ -15,7 +15,6 @@ defmodule ArchethicWeb.TransactionChainLive do
   alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
 
   alias ArchethicWeb.{ExplorerView}
 
@@ -50,22 +49,26 @@ defmodule ArchethicWeb.TransactionChainLive do
   @doc """
   Event called by the infinite scrolling to load more transactions
   """
-  def handle_event("load-more", _, socket) do
-    %{
-      transaction_chain: transaction_chain,
-      last_address: last_address,
-      chain_size: size,
-      page: page
-    } = socket.assigns
-
+  def handle_event(
+        "load-more",
+        _,
+        socket = %{
+          assigns: %{
+            transaction_chain: transaction_chain,
+            last_address: last_address,
+            paging_address: paging_address,
+            chain_size: size,
+            page: page
+          }
+        }
+      ) do
     with false <- length(transaction_chain) == size,
-         %Transaction{address: paging_address} <- List.last(transaction_chain),
-         {:ok, last_address} <- Base.decode16(last_address, case: :mixed),
          {:ok, next_transactions} <- paginate_chain(last_address, paging_address) do
       {:noreply,
        assign(socket, %{
          page: page + 1,
-         transaction_chain: transaction_chain ++ next_transactions
+         transaction_chain: transaction_chain ++ next_transactions,
+         paging_address: List.last(next_transactions).address
        })}
     else
       _error ->
@@ -76,16 +79,19 @@ defmodule ArchethicWeb.TransactionChainLive do
   defp get_paginated_transaction_chain(encoded_address) do
     with {:ok, addr} <- Base.decode16(encoded_address, case: :mixed),
          true <- Crypto.valid_address?(addr),
-         {:ok, %Transaction{address: last_address}} <- Archethic.get_last_transaction(addr),
+         {:ok, last_address} <- Archethic.get_last_transaction_address(addr),
          {:ok, chain_length} <- Archethic.get_transaction_chain_length(last_address),
-         {:ok, chain} <- paginate_chain(last_address, nil),
+         {:ok, transactions} <- paginate_chain(last_address, nil),
          {:ok, %{uco: uco_balance}} <- Archethic.get_balance(last_address),
          uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
+      paging_address = unless Enum.empty?(transactions), do: List.last(transactions).address
+
       %{
         page: 1,
-        transaction_chain: List.flatten(chain),
+        transaction_chain: transactions,
         address: encoded_address,
-        last_address: Base.encode16(last_address),
+        last_address: last_address,
+        paging_address: paging_address,
         chain_size: chain_length,
         uco_balance: uco_balance,
         uco_price: uco_price
