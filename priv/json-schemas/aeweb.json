@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "oneOf": [
+    {
+      "type": "object",
+      "description": "List of files",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    {
+      "type": "object",
+      "description": "MetaData",
+      "properties": {
+        "aewebVersion": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "AEWeb's version"
+        },
+        "sslCertificate": {
+          "type": "string",
+          "description": "SSL certificate of the website"
+        },
+        "metaData": {
+          "description": "List of files",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "hash": {
+                "type": "string"
+              },
+              "size": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "encoding": {
+                "description": "The encoding of the file",
+                "type": "string",
+                "enum": [
+                  "gzip"
+                ]
+              },
+              "addresses": {
+                "description": "List of addresses to storage the file",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^([0-9A-Fa-f])*$",
+                  "minLength": 68,
+                  "maxLength": 132
+                }
+              }
+            },
+            "required": [
+              "hash",
+              "size",
+              "encoding",
+              "addresses"
+            ]
+          }
+        }
+      },
+      "required": [
+        "aewebVersion",
+        "metaData"
+      ]
+    }
+  ]
+}
