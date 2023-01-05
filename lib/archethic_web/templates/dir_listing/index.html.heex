@@ -116,6 +116,7 @@
         <thead>
             <tr>
                 <th>Name</th>
+                <th class="size">Size(Bytes)</th>
                 <th class="transaction">Transactions</th>
                 <th class="last-modified">Last Modified</th>
             </tr>
@@ -147,6 +148,7 @@
                             </tbody>
                         </table>
                     </td>
+                    <td class="size"><%= file.size %></td>
                     <td class="transaction">
                     <%= for address <- prepare_addresses(file.addresses) do %>
                         <a class="address comma"{address.href}><%= address.text %></a>
