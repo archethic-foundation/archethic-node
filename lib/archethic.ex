@@ -240,55 +240,6 @@ defmodule Archethic do
   end
 
   @doc """
-  Retrieve a transaction chain based on an address from the closest nodes.
-  """
-  @spec get_transaction_chain(binary()) :: {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def get_transaction_chain(address) when is_binary(address) do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    # We directly check if the transaction exists and retrieve the genesis
-    # Otherwise we are requesting the genesis address remotly
-    genesis_address =
-      with ^address <- TransactionChain.get_genesis_address(address),
-           {:ok, genesis_address} <- TransactionChain.fetch_genesis_address_remotely(address) do
-        genesis_address
-      else
-        _ ->
-          address
-      end
-
-    %{transactions: local_chain, last_address: last_local_address} =
-      genesis_address
-      |> TransactionChain.scan_chain(address)
-      |> Enum.reduce_while(%{transactions: [], last_address: nil}, fn transaction, acc ->
-        # We stop at the desire the transaction
-        if acc.last_address == address do
-          {:halt, acc}
-        else
-          new_acc =
-            acc
-            |> Map.update!(:transactions, &(&1 ++ [transaction]))
-            # We log the last local address
-            |> Map.put(:last_address, transaction.address)
-
-          {:cont, new_acc}
-        end
-      end)
-
-    remote_chain =
-      if address != last_local_address do
-        address
-        |> TransactionChain.stream_remotely(nodes, last_local_address)
-        |> Stream.flat_map(& &1)
-        |> Enum.to_list()
-      else
-        []
-      end
-
-    {:ok, local_chain ++ remote_chain}
-  end
-
-  @doc """
   Retrieve a transaction chain based on an address from the closest nodes
   by setting `paging_address as an offset address.
   """
@@ -304,18 +255,21 @@ defmodule Archethic do
           do: true,
           else: TransactionChain.transaction_exists?(paging_address)
 
-      {local_chain, more?, paging_address} =
+      {local_chain, paging_address} =
         with true <- transaction_exists?,
              last_address when last_address != nil <-
                TransactionChain.get_last_local_address(address),
              true <- last_address != paging_address do
-          TransactionChain.get(last_address, [], paging_state: paging_address, order: order)
+          {transactions, _, _} =
+            TransactionChain.get(last_address, [], paging_state: paging_address, order: order)
+
+          {transactions, last_address}
         else
-          _ -> {[], false, paging_address}
+          _ -> {[], paging_address}
         end
 
       remote_chain =
-        if paging_address != address and paging_address != "" and not more? do
+        if paging_address != address and length(local_chain) < 10 do
           case TransactionChain.fetch_transaction_chain(nodes, address, paging_address,
                  order: order
                ) do

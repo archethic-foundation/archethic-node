@@ -1020,23 +1020,4 @@ defmodule Archethic.TransactionChain do
         {:error, :network_issue}
     end
   end
-
-  @spec scan_chain(genesis_address :: binary(), limit_address :: binary(), fields :: list()) ::
-          Enumerable.t()
-  def scan_chain(genesis_address, limit_address, fields \\ []) do
-    Stream.resource(
-      fn -> DB.scan_chain(genesis_address, limit_address, fields, nil) end,
-      fn
-        {transactions, true, paging_state} ->
-          {transactions, DB.scan_chain(genesis_address, limit_address, fields, paging_state)}
-
-        {transactions, false, _} ->
-          {transactions, :eof}
-
-        :eof ->
-          {:halt, nil}
-      end,
-      fn _ -> :ok end
-    )
-  end
 end

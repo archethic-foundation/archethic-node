@@ -1,8 +1,6 @@
 defmodule ArchethicTest do
   use ArchethicCase
 
-  alias Archethic
-
   alias Archethic.Crypto
 
   alias Archethic.PubSub
@@ -10,21 +8,17 @@ defmodule ArchethicTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.GetBalance
-  alias Archethic.P2P.Message.GetFirstAddress
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.GetTransactionInputs
 
-  alias Archethic.P2P.Message.FirstAddress
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.StartMining
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
@@ -445,112 +439,6 @@ defmodule ArchethicTest do
 
       assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}] =
                Archethic.get_transaction_inputs(address1)
-    end
-  end
-
-  describe "get_transaction_chain/1" do
-    test "should request the storage node to fetch the transaction chain" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.last_node_public_key(),
-        last_public_key: Crypto.last_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA"
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetFirstAddress{address: "@Alice2"}, _ ->
-          {:ok, %FirstAddress{address: "@Alice0"}}
-
-        _, %GetTransactionChain{}, _ ->
-          {:ok,
-           %TransactionList{
-             transactions: [
-               %Transaction{address: "@Alice0"},
-               %Transaction{address: "@Alice1"},
-               %Transaction{address: "@Alice2"}
-             ]
-           }}
-      end)
-
-      assert {:ok,
-              [
-                %Transaction{address: "@Alice0"},
-                %Transaction{address: "@Alice1"},
-                %Transaction{address: "@Alice2"}
-              ]} = Archethic.get_transaction_chain("@Alice2")
-    end
-
-    test "should get_transaction_chain from local db and remaining from network" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.last_node_public_key(),
-        last_public_key: Crypto.last_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA"
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      MockDB
-      |> stub(:scan_chain, fn "@Alice0", _, _, _ ->
-        {[
-           %Transaction{address: "@Alice1"},
-           %Transaction{address: "@Alice2"},
-           %Transaction{address: "@Alice3"},
-           %Transaction{address: "@Alice4"}
-         ], false, nil}
-      end)
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetFirstAddress{address: "@Alice6"}, _ ->
-          {:ok, %FirstAddress{address: "@Alice0"}}
-
-        _, %GetTransactionChain{address: "@Alice6", paging_state: "@Alice4"}, _ ->
-          {:ok,
-           %TransactionList{
-             transactions: [
-               %Transaction{address: "@Alice5"},
-               %Transaction{address: "@Alice6"}
-             ]
-           }}
-      end)
-
-      assert {:ok,
-              [
-                %Transaction{address: "@Alice1"},
-                %Transaction{address: "@Alice2"},
-                %Transaction{address: "@Alice3"},
-                %Transaction{address: "@Alice4"},
-                %Transaction{address: "@Alice5"},
-                %Transaction{address: "@Alice6"}
-              ]} = Archethic.get_transaction_chain("@Alice6")
     end
   end
 

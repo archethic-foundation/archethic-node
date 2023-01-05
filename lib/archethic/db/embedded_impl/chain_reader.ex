@@ -130,7 +130,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
     case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
-        {[], false, ""}
+        {[], false, nil}
 
       {:ok, %{genesis_address: genesis_address}} ->
         filepath = ChainWriter.chain_path(db_path, genesis_address)
@@ -155,6 +155,49 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         })
 
         {transactions, more?, paging_state}
+    end
+  end
+
+  @doc """
+  Stream chain tx from the beginning until a given limit address
+  """
+  @spec stream_chain(
+          genesis_address :: binary(),
+          limit_address :: nil | binary(),
+          fields :: list(),
+          db_path :: binary()
+        ) :: Enumerable.t()
+  def stream_chain(genesis_address, limit_address, fields, db_path) do
+    filepath = ChainWriter.chain_path(db_path, genesis_address)
+
+    case File.open(filepath, [:binary, :read]) do
+      {:ok, fd} ->
+        Stream.resource(
+          fn -> process_get_chain(fd, limit_address, fields, [], db_path) end,
+          fn
+            {transactions, true, paging_state} ->
+              next_transactions =
+                process_get_chain(
+                  fd,
+                  limit_address,
+                  fields,
+                  [paging_state: paging_state],
+                  db_path
+                )
+
+              {transactions, next_transactions}
+
+            {transactions, false, _} ->
+              {transactions, :eof}
+
+            :eof ->
+              {:halt, nil}
+          end,
+          fn _ -> :file.close(fd) end
+        )
+
+      {:error, _} ->
+        {[], false, nil}
     end
   end
 
@@ -226,7 +269,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             do_process_get_chain(fd, address, fields)
 
           {:error, :not_exists} ->
-            {[], false, ""}
+            {[], false, nil}
         end
     end
   end
@@ -252,7 +295,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       end
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-    {transactions, more?, paging_state} = do_scan_chain(fd, column_names, address)
+    {transactions, more?, paging_state} = get_paginated_chain(fd, column_names, address)
     :file.close(fd)
 
     {transactions, more?, paging_state}
@@ -272,7 +315,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           chain_length = Enum.count(all_addresses_asc)
 
           if chain_length <= @page_size do
-            {nil, nil, false, ""}
+            {nil, nil, false, nil}
           else
             idx = chain_length - 1 - @page_size
 
@@ -287,7 +330,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           limit_address = Enum.at(all_addresses_asc, paging_state_idx - 1)
 
           if paging_state_idx < @page_size do
-            {limit_address, nil, false, ""}
+            {limit_address, nil, false, nil}
           else
             idx = paging_state_idx - 1 - @page_size
 
@@ -301,6 +344,30 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       process_get_chain(fd, limit_address, fields, [paging_state: paging_state], db_path)
 
     {Enum.reverse(transactions), more?, new_paging_state}
+  end
+
+  defp get_paginated_chain(fd, fields, limit_address, acc \\ []) do
+    case :file.read(fd, 8) do
+      {:ok, <<size::32, version::32>>} ->
+        if length(acc) == @page_size do
+          %Transaction{address: address} = List.first(acc)
+          {Enum.reverse(acc), true, address}
+        else
+          tx =
+            fd
+            |> read_transaction(fields, size, 0)
+            |> decode_transaction_columns(version)
+
+          if tx.address == limit_address do
+            {Enum.reverse([tx | acc]), false, nil}
+          else
+            get_paginated_chain(fd, fields, limit_address, [tx | acc])
+          end
+        end
+
+      :eof ->
+        {Enum.reverse(acc), false, nil}
+    end
   end
 
   defp read_transaction(fd, fields, limit, position, acc \\ %{})
@@ -333,95 +400,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       :eof ->
         acc
     end
-  end
-
-  @doc """
-  Read chain from the beginning until a given limit address
-  """
-  @spec scan_chain(
-          genesis_address :: binary(),
-          limit_address :: nil | binary(),
-          fields :: list(),
-          paging_address :: nil | binary(),
-          db_path :: binary()
-        ) ::
-          {list(Transaction.t()), boolean(), binary() | nil}
-  def scan_chain(genesis_address, limit_address, fields, paging_address, db_path) do
-    filepath = ChainWriter.chain_path(db_path, genesis_address)
-    # Always return transaction address
-    fields = if Enum.empty?(fields), do: fields, else: Enum.uniq([:address | fields])
-
-    column_names = fields_to_column_names(fields)
-
-    case File.open(filepath, [:binary, :read]) do
-      {:ok, fd} ->
-        if paging_address do
-          case ChainIndex.get_tx_entry(paging_address, db_path) do
-            {:ok, %{offset: offset, size: size}} ->
-              :file.position(fd, offset + size)
-              do_scan_chain(fd, column_names, limit_address)
-
-            {:error, :not_exists} ->
-              {[], false, ""}
-          end
-        else
-          do_scan_chain(fd, column_names, limit_address)
-        end
-
-      {:error, _} ->
-        {[], false, nil}
-    end
-  end
-
-  defp do_scan_chain(fd, fields, limit_address, acc \\ []) do
-    case :file.read(fd, 8) do
-      {:ok, <<size::32, version::32>>} ->
-        if length(acc) == @page_size do
-          %Transaction{address: address} = List.first(acc)
-          {Enum.reverse(acc), true, address}
-        else
-          tx =
-            fd
-            |> read_transaction(fields, size, 0)
-            |> decode_transaction_columns(version)
-
-          if tx.address == limit_address do
-            {Enum.reverse([tx | acc]), false, nil}
-          else
-            do_scan_chain(fd, fields, limit_address, [tx | acc])
-          end
-        end
-
-      :eof ->
-        {Enum.reverse(acc), false, nil}
-    end
-  end
-
-  @doc """
-  Stream chain tx from the beginning until a given limit address
-  """
-  @spec stream_scan_chain(
-          genesis_address :: binary(),
-          limit_address :: nil | binary(),
-          fields :: list(),
-          db_path :: binary()
-        ) :: Enumerable.t()
-  def stream_scan_chain(genesis_address, limit_address, fields, db_path) do
-    Stream.resource(
-      fn -> scan_chain(genesis_address, limit_address, fields, nil, db_path) end,
-      fn
-        {transactions, true, paging_state} ->
-          {transactions,
-           scan_chain(genesis_address, limit_address, fields, paging_state, db_path)}
-
-        {transactions, false, _} ->
-          {transactions, :eof}
-
-        :eof ->
-          {:halt, nil}
-      end,
-      fn _ -> :ok end
-    )
   end
 
   @doc """
