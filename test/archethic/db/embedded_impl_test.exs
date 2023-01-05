@@ -243,7 +243,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
   describe "get_transaction_chain/2" do
     test "should return an empty list when the transaction chain is not found" do
-      assert {[], false, ""} = EmbeddedImpl.get_transaction_chain(:crypto.strong_rand_bytes(32))
+      assert {[], false, nil} = EmbeddedImpl.get_transaction_chain(:crypto.strong_rand_bytes(32))
     end
 
     test "should return the list of all the transactions related to transaction's address chain" do
@@ -312,7 +312,7 @@ defmodule Archethic.DB.EmbeddedTest do
       assert page == Enum.take(transactions, 10)
       assert paging_state == List.last(page).address
 
-      assert {[], false, ""} =
+      assert {[], false, nil} =
                EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
                  paging_state: :crypto.strong_rand_bytes(32)
                )
@@ -324,7 +324,7 @@ defmodule Archethic.DB.EmbeddedTest do
       {pub_key, _} = Crypto.generate_deterministic_keypair("SEED")
       address = Crypto.derive_address(pub_key)
 
-      assert {[], false, ""} == EmbeddedImpl.get_transaction_chain(address, [], order: :desc)
+      assert {[], false, nil} == EmbeddedImpl.get_transaction_chain(address, [], order: :desc)
     end
 
     test "should return all transactions if there are less than one page (10)" do
@@ -341,7 +341,7 @@ defmodule Archethic.DB.EmbeddedTest do
           tx
         end)
 
-      {page, false, ""} =
+      {page, false, nil} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
 
       assert length(page) == 9
@@ -377,7 +377,7 @@ defmodule Archethic.DB.EmbeddedTest do
       assert length(page2) == 10
       assert paging_state2 == List.last(page2).address
 
-      {page3, false, ""} =
+      {page3, false, nil} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
           paging_state: paging_state2,
           order: :desc
@@ -385,64 +385,6 @@ defmodule Archethic.DB.EmbeddedTest do
 
       assert length(page3) == 8
       assert page1 ++ page2 ++ page3 == Enum.reverse(transactions)
-    end
-  end
-
-  describe "scan_chain/4" do
-    test "should return the list of all the transactions until the one given" do
-      transactions =
-        Enum.map(1..20, fn i ->
-          tx =
-            TransactionFactory.create_valid_transaction([],
-              index: i,
-              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-            )
-
-          EmbeddedImpl.write_transaction(tx)
-
-          tx
-        end)
-
-      genesis_address = transactions |> List.first() |> Transaction.previous_address()
-
-      assert {txs, false, nil} =
-               EmbeddedImpl.scan_chain(genesis_address, Enum.at(transactions, 2).address)
-
-      assert Enum.take(transactions, 3) == txs
-    end
-
-    test "should return a page and its paging state" do
-      transactions =
-        Enum.map(1..20, fn i ->
-          tx =
-            TransactionFactory.create_valid_transaction([],
-              index: i,
-              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-            )
-
-          EmbeddedImpl.write_transaction(tx)
-
-          tx
-        end)
-
-      genesis_address = transactions |> List.first() |> Transaction.previous_address()
-
-      {page, true, paging_state} =
-        EmbeddedImpl.scan_chain(genesis_address, Enum.at(transactions, 12).address)
-
-      assert length(page) == 10
-      assert page == Enum.take(transactions, 10)
-      assert paging_state == Enum.at(transactions, 9).address
-
-      {page2, false, nil} =
-        EmbeddedImpl.scan_chain(
-          genesis_address,
-          Enum.at(transactions, 12).address,
-          [],
-          paging_state
-        )
-
-      assert length(page2) == 3
     end
   end
 
