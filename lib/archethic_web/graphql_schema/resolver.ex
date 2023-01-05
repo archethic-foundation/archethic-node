@@ -18,6 +18,30 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   @limit_page 10
 
+  def get_genesis_address(address) do
+    t1 = Task.async(fn -> TransactionChain.fetch_genesis_address_remotely(address) end)
+    with {:ok, {:ok, genesis_address}} <- Task.yield(t1) do
+      {:ok, %{genesis: genesis_address}}
+    else
+      {:ok, {:error, :network_issue}} ->
+        {:error, "Network issue"}
+
+      {:ok, {:error, :decode_error}} ->
+        {:error, "Error in decoding transaction"}
+
+      {:ok, {:error, :transaction_not_found}} ->
+        {:error, "Transaction does not exist!"}
+
+      {:exit, reason} ->
+        Logger.debug("Task exited with reason")
+        Logger.debug(reason)
+        {:error, "Task Exited!"}
+
+      nil ->
+        {:error, "Task didn't responded within timeout!"}
+    end
+  end
+
   def get_balance(address) do
     case Archethic.get_balance(address) do
       {:ok, %{uco: uco, token: token_balances}} ->
