@@ -1021,19 +1021,6 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  @spec get_locally(address :: binary(), paging_address :: binary() | nil, order :: :asc | :desc) ::
-          Enumerable.t() | list(Transaction.t())
-  def get_locally(address, paging_address \\ nil, order)
-      when is_binary(address) and order in [:asc, :desc] do
-    fetch_chain_db(get(address, [], paging_state: paging_address, order: order), [])
-  end
-
-  def fetch_chain_db({chain, false, _}, acc), do: acc ++ chain
-
-  def fetch_chain_db({chain, true, paging_address}, acc) do
-    fetch_chain_db(get(paging_address, [], paging_state: paging_address), acc ++ chain)
-  end
-
   @spec scan_chain(genesis_address :: binary(), limit_address :: binary(), fields :: list()) ::
           Enumerable.t()
   def scan_chain(genesis_address, limit_address, fields \\ []) do

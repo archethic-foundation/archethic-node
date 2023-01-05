@@ -292,26 +292,30 @@ defmodule Archethic do
   Retrieve a transaction chain based on an address from the closest nodes
   by setting `paging_address as an offset address.
   """
-  @spec get_transaction_chain_by_paging_address(binary(), binary(), :asc | :desc) ::
+  @spec get_transaction_chain_by_paging_address(binary(), binary() | nil, :asc | :desc) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
   def get_transaction_chain_by_paging_address(address, paging_address, order)
       when is_binary(address) and order in [:asc, :desc] do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     try do
-      {local_chain, paging_address} =
-        with true <- paging_address != nil,
-             true <- TransactionChain.transaction_exists?(paging_address),
+      transaction_exists? =
+        if paging_address == nil,
+          do: true,
+          else: TransactionChain.transaction_exists?(paging_address)
+
+      {local_chain, more?, paging_address} =
+        with true <- transaction_exists?,
              last_address when last_address != nil <-
                TransactionChain.get_last_local_address(address),
              true <- last_address != paging_address do
-          {TransactionChain.get_locally(last_address, paging_address, order), last_address}
+          TransactionChain.get(last_address, [], paging_state: paging_address, order: order)
         else
-          _ -> {[], paging_address}
+          _ -> {[], false, paging_address}
         end
 
       remote_chain =
-        if paging_address != address do
+        if paging_address != address and paging_address != "" and not more? do
           case TransactionChain.fetch_transaction_chain(nodes, address, paging_address,
                  order: order
                ) do
@@ -322,7 +326,7 @@ defmodule Archethic do
           []
         end
 
-      {:ok, local_chain ++ remote_chain}
+      {:ok, Enum.take(local_chain ++ remote_chain, 10)}
     catch
       _ ->
         {:error, :network_issue}
