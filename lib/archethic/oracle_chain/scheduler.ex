@@ -3,6 +3,7 @@ defmodule Archethic.OracleChain.Scheduler do
   Manage the scheduling of the oracle transactions
   """
 
+  alias Archethic.Bootstrap
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -60,20 +61,17 @@ defmodule Archethic.OracleChain.Scheduler do
       |> Map.put(:polling_interval, polling_interval)
       |> Map.put(:summary_interval, summary_interval)
 
-    case :persistent_term.get(:archethic_up, nil) do
-      nil ->
-        # node still bootstrapping , wait for it to finish Bootstrap
-        Logger.info(" Oracle Scheduler: Waiting for Node to complete Bootstrap. ")
+    if Bootstrap.done?() do
+      # when node is already bootstrapped, - handles scheduler crash
+      {state, new_state_data, events} = start_scheduler(state_data)
+      {:ok, state, new_state_data, events}
+    else
+      # node still bootstrapping , wait for it to finish Bootstrap
+      Logger.info(" Oracle Scheduler: Waiting for Node to complete Bootstrap. ")
 
-        PubSub.register_to_node_up()
+      PubSub.register_to_node_up()
 
-        {:ok, :idle, state_data}
-
-      # wait for node UP
-      :up ->
-        # when node is already bootstrapped, - handles scheduler crash
-        {state, new_state_data, events} = start_scheduler(state_data)
-        {:ok, state, new_state_data, events}
+      {:ok, :idle, state_data}
     end
   end
 

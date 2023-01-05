@@ -23,6 +23,8 @@ defmodule ArchethicWeb.TransactionDetailsLive do
 
   alias Archethic.OracleChain
 
+  alias Archethic.TaskSupervisor
+
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket, %{
@@ -65,6 +67,24 @@ defmodule ArchethicWeb.TransactionDetailsLive do
     {:noreply, new_socket}
   end
 
+  def handle_info(
+        {:async_assign_inputs,
+         [
+           assigns: assigns,
+           transaction_movements: transaction_movements,
+           token_transfers: token_transfers
+         ]},
+        socket
+      ) do
+    async_assign_token_properties(assigns[:inputs], transaction_movements, token_transfers)
+
+    {:noreply, assign(socket, assigns)}
+  end
+
+  def handle_info({:async_assign_token_properties, assigns}, socket) do
+    {:noreply, assign(socket, assigns)}
+  end
+
   def handle_info(_, socket) do
     {:noreply, socket}
   end
@@ -99,28 +119,75 @@ defmodule ArchethicWeb.TransactionDetailsLive do
        ) do
     previous_address = Transaction.previous_address(tx)
 
-    inputs = Archethic.get_transaction_inputs(address)
-    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
     uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
     uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
 
-    token_properties =
-      get_token_addresses([], ledger_inputs)
-      |> get_token_addresses(transaction_movements)
-      |> get_token_addresses(token_transfers)
-      |> Enum.uniq()
-      |> get_token_properties()
+    async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers)
 
     socket
     |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
-    |> assign(:inputs, ledger_inputs)
-    |> assign(:calls, contract_inputs)
     |> assign(:address, address)
     |> assign(:uco_price_at_time, uco_price_at_time)
     |> assign(:uco_price_now, uco_price_now)
-    |> assign(:token_properties, token_properties)
+    |> assign(:inputs, [])
+    |> assign(:calls, [])
+    |> assign(:token_properties, %{})
+  end
+
+  defp async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers) do
+    me = self()
+
+    Task.Supervisor.async_nolink(
+      TaskSupervisor,
+      fn ->
+        inputs = Archethic.get_transaction_inputs(address)
+        ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+        contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+
+        assigns = [
+          inputs: ledger_inputs,
+          calls: contract_inputs
+        ]
+
+        send(
+          me,
+          {:async_assign_inputs,
+           [
+             assigns: assigns,
+             transaction_movements: transaction_movements,
+             token_transfers: token_transfers
+           ]}
+        )
+      end,
+      timeout: 20_000
+    )
+  end
+
+  defp async_assign_token_properties(ledger_inputs, transaction_movements, token_transfers) do
+    me = self()
+
+    Task.Supervisor.async_nolink(
+      TaskSupervisor,
+      fn ->
+        token_properties =
+          get_token_addresses([], ledger_inputs)
+          |> get_token_addresses(transaction_movements)
+          |> get_token_addresses(token_transfers)
+          |> Enum.uniq()
+          |> get_token_properties()
+
+        assigns = [
+          token_properties: token_properties
+        ]
+
+        send(
+          me,
+          {:async_assign_token_properties, assigns}
+        )
+      end,
+      timeout: 20_000
+    )
   end
 
   defp handle_not_existing_transaction(socket, address) do

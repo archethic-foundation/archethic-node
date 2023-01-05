@@ -138,8 +138,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     }
   end
 
-  def transaction_chain_by_paging_address(address, paging_address) do
-    case Archethic.get_transaction_chain_by_paging_address(address, paging_address) do
+  def transaction_chain_by_paging_address(address, paging_address, order) do
+    case Archethic.get_transaction_chain_by_paging_address(address, paging_address, order) do
       {:ok, chain} ->
         chain = Enum.map(chain, &Transaction.to_map(&1))
         {:ok, chain}

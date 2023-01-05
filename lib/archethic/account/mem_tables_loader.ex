@@ -9,10 +9,6 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
-
-  alias Archethic.P2P
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -23,8 +19,6 @@ defmodule Archethic.Account.MemTablesLoader do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.Utils
 
   require Logger
 
@@ -81,7 +75,6 @@ defmodule Archethic.Account.MemTablesLoader do
             timestamp: timestamp,
             protocol_version: protocol_version,
             ledger_operations: %LedgerOperations{
-              fee: fee,
               unspent_outputs: unspent_outputs,
               transaction_movements: transaction_movements
             }
@@ -95,27 +88,6 @@ defmodule Archethic.Account.MemTablesLoader do
       UCOLedger.spend_all_unspent_outputs(previous_address)
       TokenLedger.spend_all_unspent_outputs(previous_address)
     end
-
-    burn_storage_nodes =
-      Election.storage_nodes(
-        LedgerOperations.burning_address(),
-        P2P.authorized_and_available_nodes(timestamp)
-      )
-
-    transaction_movements =
-      if Utils.key_in_node_list?(burn_storage_nodes, Crypto.first_node_public_key()) and
-           fee > 0 do
-        [
-          %TransactionMovement{
-            to: LedgerOperations.burning_address(),
-            amount: fee,
-            type: :UCO
-          }
-          | transaction_movements
-        ]
-      else
-        transaction_movements
-      end
 
     :ok =
       set_transaction_movements(

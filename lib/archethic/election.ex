@@ -647,16 +647,16 @@ defmodule Archethic.Election do
   @doc """
   Determine if a node's public key must be a beacon storage node
   """
-  @spec beacon_storage_node?(binary(), DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()
+  @spec beacon_storage_node?(DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()
   def beacon_storage_node?(
-        address,
         timestamp = %DateTime{},
         public_key,
         node_list
       )
-      when is_binary(address) and is_binary(public_key) and is_list(node_list) do
-    address
-    |> beacon_storage_nodes(timestamp, node_list)
+      when is_binary(public_key) and is_list(node_list) do
+    timestamp
+    |> Crypto.derive_beacon_aggregate_address()
+    |> chain_storage_nodes(node_list)
     |> Utils.key_in_node_list?(public_key)
   end
 
