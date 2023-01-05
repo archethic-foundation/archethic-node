@@ -44,23 +44,19 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   end
 
   @spec do_open_port(:inet.ip_address(), non_neg_integer()) :: :ok | :error
-  defp do_open_port(local_ip, port) do
-    with {reason, status} when status != 0 <- System.cmd(@upnpc, map_query(local_ip, port)),
-         {:error, e} <- parse_reason(reason),
-         :ok <- handle_error(e, local_ip, port),
-         {_, 0} <- System.cmd(@upnpc, map_query(local_ip, port)) do
-      :ok
-    else
+  def do_open_port(local_ip, port, retires \\ 2)
+
+  def do_open_port(_local_ip, _port, 0), do: :error
+
+  def do_open_port(local_ip, port, retires) do
+    case System.cmd(@upnpc, map_query(local_ip, port)) do
       {_, 0} ->
         :ok
 
-      {reason, _status} ->
-        Logger.debug(reason)
-        :error
+      {reason, status} when status != 0 ->
+        handle_error(reason, local_ip, port)
 
-      :error ->
-        Logger.debug("Unkonwn error", port: port)
-        :error
+        do_open_port(local_ip, port, retires - 1)
     end
   end
 
@@ -68,6 +64,9 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   @spec map_query(:inet.ip_address(), non_neg_integer()) :: [String.t()]
   defp map_query(local_ip, port) do
     [
+      # description
+      "-e",
+      "Archethic_Node",
       # Add redirection
       "-a",
       # Local ip
@@ -83,28 +82,17 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
     ]
   end
 
-  @spec parse_reason(String.t()) ::
-          {:error, :conflict_in_mapping_entry | :unknown}
-  defp parse_reason(reason) do
-    # upon more condtions , refactor with cond do end
+  @spec handle_error(
+          reason :: String.t(),
+          local_ip :: :inet.ip_address(),
+          port :: non_neg_integer()
+        ) :: :error | any()
+  defp handle_error(reason, _local_ip, port) do
     if Regex.scan(~r/ConflictInMappingEntry/, reason, capture: :all) != [] do
       Logger.warning("Port is employed to another host.")
-      {:error, :conflict_in_mapping_entry}
-    else
-      {:error, :unknown}
+      System.cmd(@upnpc, revoke_query(port))
     end
   end
-
-  @spec handle_error(:conflict_in_mapping_entry | :unknown, :inet.ip_address(), non_neg_integer()) ::
-          :ok | :error
-  defp handle_error(:conflict_in_mapping_entry, _, port) do
-    case System.cmd(@upnpc, revoke_query(port)) do
-      {_, 0} -> :ok
-      _ -> :error
-    end
-  end
-
-  defp handle_error(:unknown, _, _), do: :error
 
   @spec revoke_query(non_neg_integer()) :: [String.t()]
   defp revoke_query(port) do
