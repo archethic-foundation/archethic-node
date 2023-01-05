@@ -3,18 +3,12 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   use ArchethicWeb, :controller
 
-  alias Archethic.{
-    Crypto,
-    TransactionChain.Transaction,
-    TransactionChain.Transaction.ValidationStamp,
-    TransactionChain.TransactionData
-  }
-
-  alias ArchethicCache.LRU
+  alias Archethic.Crypto
 
   require Logger
 
   alias ArchethicWeb.API.WebHostingController.{Resources, DirectoryListing}
+  alias ArchethicWeb.ReferenceTransaction
 
   @spec web_hosting(Plug.Conn.t(), params :: map()) :: Plug.Conn.t()
   def web_hosting(conn, params = %{"url_path" => []}) do
@@ -78,7 +72,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           | {:error, :invalid_content}
           | {:error, :file_not_found}
           | {:error, :invalid_encoding}
-          | {:error, {:is_a_directory, {binary(), map(), DateTime.t()}}}
+          | {:error, {:is_a_directory, ReferenceTransaction.t()}}
           | {:error, any()}
 
   def get_website(params = %{"address" => address}, cache_headers) do
@@ -86,8 +80,7 @@ defmodule ArchethicWeb.API.WebHostingController do
 
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
-         {:ok, last_address} <- Archethic.get_last_transaction_address(address),
-         {:ok, reference_transaction} <- get_reference_transaction(last_address),
+         {:ok, reference_transaction} <- ReferenceTransaction.fetch_last(address),
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
            Resources.load(reference_transaction, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
@@ -151,35 +144,6 @@ defmodule ArchethicWeb.API.WebHostingController do
       if encoding == "gzip",
         do: {conn, :zlib.gunzip(file_content)},
         else: {conn, file_content}
-    end
-  end
-
-  # Fetch the reference transaction either from cache, or from the network.
-  #
-  # Instead of returning the entire transaction,
-  # we return a triplet with only the formatted data we need
-  @spec get_reference_transaction(binary()) ::
-          {:ok, {binary(), map(), DateTime.t()}} | {:error, term()}
-  defp get_reference_transaction(address) do
-    # started by ArchethicWeb.Supervisor
-    cache_server = :web_hosting_cache_ref_tx
-    cache_key = address
-
-    case LRU.get(cache_server, cache_key) do
-      nil ->
-        with {:ok,
-              %Transaction{
-                data: %TransactionData{content: content},
-                validation_stamp: %ValidationStamp{timestamp: timestamp}
-              }} <- Archethic.search_transaction(address),
-             {:ok, json_content} <- Jason.decode(content) do
-          reference_transaction = {address, json_content, timestamp}
-          LRU.put(cache_server, cache_key, reference_transaction)
-          {:ok, reference_transaction}
-        end
-
-      reference_transaction ->
-        {:ok, reference_transaction}
     end
   end
 end

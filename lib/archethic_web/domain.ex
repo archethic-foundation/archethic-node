@@ -5,9 +5,8 @@ defmodule ArchethicWeb.Domain do
 
   alias Archethic
   alias Archethic.Crypto
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
+  alias ArchethicWeb.ReferenceTransaction
 
   require Logger
 
@@ -51,16 +50,11 @@ defmodule ArchethicWeb.Domain do
     with {:ok, tx_address} <- lookup_dnslink_address(domain),
          {:ok, tx_address} <- Base.decode16(tx_address, case: :mixed),
          {:ok,
-          %Transaction{
-            type: :hosting,
-            data: %TransactionData{
-              content: content,
-              ownerships: [ownership = %Ownership{secret: secret} | _]
-            }
-          }} <-
-           Archethic.get_last_transaction(tx_address),
-         {:ok, json} <- Jason.decode(content),
-         {:ok, cert_pem} <- Map.fetch(json, "sslCertificate"),
+          %ReferenceTransaction{
+            json_content: json_content,
+            ownerships: [ownership = %Ownership{secret: secret} | _]
+          }} <- ReferenceTransaction.fetch_last(tx_address),
+         {:ok, cert_pem} <- Map.fetch(json_content, "sslCertificate"),
          %{extensions: extensions} <- EasySSL.parse_pem(cert_pem),
          {:ok, san} <- Map.fetch(extensions, :subjectAltName),
          ^domain <- String.split(san, ":") |> List.last(),

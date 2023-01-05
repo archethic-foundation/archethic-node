@@ -1,12 +1,14 @@
 defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
   @moduledoc false
 
+  alias ArchethicWeb.ReferenceTransaction
+
   require Logger
 
   @spec list(
           request_path :: String.t(),
           params :: map(),
-          reference_transaction :: {binary(), map(), DateTime.t()},
+          reference_transaction :: ReferenceTransaction.t(),
           cached_headers :: list()
         ) ::
           {:ok, listing_html :: binary() | nil, encoding :: nil | binary(), mime_type :: binary(),
@@ -14,13 +16,17 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
   def list(
         request_path,
         params,
-        {last_address, json_content, timestamp},
+        %ReferenceTransaction{
+          address: address,
+          timestamp: timestamp,
+          json_content: json_content
+        },
         cache_headers
       ) do
     url_path = Map.get(params, "url_path", [])
     mime_type = "text/html"
 
-    case get_cache(cache_headers, last_address, url_path) do
+    case get_cache(cache_headers, address, url_path) do
       {cached? = true, etag} ->
         {:ok, nil, nil, mime_type, cached?, etag}
 
@@ -31,7 +37,7 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
             url_path,
             elem(get_metadata(json_content), 1),
             timestamp,
-            last_address
+            address
           )
 
         {:ok, Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),

@@ -3,25 +3,33 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
   alias Archethic.TransactionChain.{Transaction, TransactionData}
   alias ArchethicCache.LRUDisk
+  alias ArchethicWeb.ReferenceTransaction
 
   require Logger
 
-  @spec load(tx :: {binary(), map(), DateTime.t()}, url_path :: list(), cache_headers :: list()) ::
+  @spec load(
+          reference_transaction :: ReferenceTransaction.t(),
+          url_path :: list(),
+          cache_headers :: list()
+        ) ::
           {:ok, file_content :: binary() | nil, encoding :: binary() | nil, mime_type :: binary(),
            cached? :: boolean(), etag :: binary()}
           | {:error,
              :file_not_found
-             | {:is_a_directory, {binary(), map(), DateTime.t()}}
+             | {:is_a_directory, ReferenceTransaction.t()}
              | :invalid_encoding
              | any()}
   def load(
-        reference_transaction = {last_address, json_content, _timestamp},
+        reference_transaction = %ReferenceTransaction{
+          address: address,
+          json_content: json_content
+        },
         url_path,
         cache_headers
       ) do
     with {:ok, metadata, _aeweb_version} <- get_metadata(json_content),
          {:ok, file, mime_type, resource_path} <- get_file(metadata, url_path),
-         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
+         {cached?, etag} <- get_cache(cache_headers, address, url_path),
          {:ok, file_content, encoding} <- get_file_content(file, cached?, resource_path) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
@@ -32,8 +40,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         {:error, :file_not_found}
 
       {:error, :get_metadata} ->
-        {:error,
-         "Error: Cant access metadata and aewebversion, Reftx: #{Base.encode16(last_address)}"}
+        {:error, "Error: Cant access metadata and aewebversion, Reftx: #{Base.encode16(address)}"}
 
       {:error, :is_a_directory} ->
         {:error, {:is_a_directory, reference_transaction}}
