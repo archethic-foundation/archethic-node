@@ -43,7 +43,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     @desc """
     Query the network to find the genesis address of a transaction
     """
-    field :get_genesis_address, :genesis_address do
+    field :genesis_address, :genesis_address do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
