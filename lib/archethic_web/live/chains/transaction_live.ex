@@ -10,11 +10,8 @@ defmodule ArchethicWeb.TransactionChainLive do
 
   use ArchethicWeb, :live_view
 
-  alias Archethic.Election
-  alias Archethic.P2P
   alias Archethic.Crypto
   alias Archethic.OracleChain
-  alias Archethic.TransactionChain
 
   alias ArchethicWeb.{ExplorerView}
 
@@ -149,7 +146,6 @@ defmodule ArchethicWeb.TransactionChainLive do
 
   # DESC pagination
   defp paginate_chain(address, paging_address) do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-    TransactionChain.fetch_transaction_chain(nodes, address, paging_address, order: :desc)
+    Archethic.get_transaction_chain_by_paging_address(address, paging_address, :desc)
   end
 end
