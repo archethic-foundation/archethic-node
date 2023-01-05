@@ -41,7 +41,12 @@ defmodule Archethic.Networking.PortForwarding do
   defp do_try_open_port(port), do: NATDiscovery.open_port(port)
 
   defp fallback(port, _force? = true) do
-    case do_try_open_port(0) do
+    # // If the port is not open, try to open a random port
+    Logger.info("Trying to open a random port")
+
+    rand_port = get_random_port()
+
+    case do_try_open_port(rand_port) do
       {:ok, port} ->
         Logger.info("Use the random port #{port} as fallback")
         {:ok, port}
@@ -69,5 +74,28 @@ defmodule Archethic.Networking.PortForwarding do
 
   defp ip_lookup_provider do
     Application.get_env(:archethic, IPLookup)
+  end
+
+  @iana_registry_path Path.join([
+                        File.cwd() |> elem(1),
+                        "lib",
+                        "archethic",
+                        "networking",
+                        "registry",
+                        "iana_unassigned_ports"
+                      ])
+
+  # see https://github.com/apoorv-2204/iana_port_registry
+  defp list_iana_unassigned_ports() do
+    Logger.notice("IANA Registry Date #{inspect(DateTime.from_unix(1_672_826_429) |> elem(1))}")
+
+    @iana_registry_path
+    |> File.read!()
+    |> :erlang.binary_to_term()
+  end
+
+  defp get_random_port() do
+    list_iana_unassigned_ports()
+    |> Enum.random()
   end
 end
