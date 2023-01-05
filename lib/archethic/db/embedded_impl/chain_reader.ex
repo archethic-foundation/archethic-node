@@ -139,7 +139,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         {transactions, more?, paging_state} =
           case Keyword.get(opts, :order, :asc) do
             :asc ->
-              process_get_chain(fd, address, fields, opts, db_path)
+              process_get_chain(fd, fields, opts, db_path)
 
             :desc ->
               process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
@@ -163,23 +163,21 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   """
   @spec stream_chain(
           genesis_address :: binary(),
-          limit_address :: nil | binary(),
           fields :: list(),
           db_path :: binary()
         ) :: Enumerable.t()
-  def stream_chain(genesis_address, limit_address, fields, db_path) do
+  def stream_chain(genesis_address, fields, db_path) do
     filepath = ChainWriter.chain_path(db_path, genesis_address)
 
     case File.open(filepath, [:binary, :read]) do
       {:ok, fd} ->
         Stream.resource(
-          fn -> process_get_chain(fd, limit_address, fields, [], db_path) end,
+          fn -> process_get_chain(fd, fields, [], db_path) end,
           fn
             {transactions, true, paging_state} ->
               next_transactions =
                 process_get_chain(
                   fd,
-                  limit_address,
                   fields,
                   [paging_state: paging_state],
                   db_path
@@ -255,18 +253,18 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     tx
   end
 
-  defp process_get_chain(fd, address, fields, opts, db_path) do
+  defp process_get_chain(fd, fields, opts, db_path) do
     # Set the file cursor position to the paging state
     case Keyword.get(opts, :paging_state) do
       nil ->
         :file.position(fd, 0)
-        do_process_get_chain(fd, address, fields)
+        do_process_get_chain(fd, fields)
 
       paging_address ->
         case ChainIndex.get_tx_entry(paging_address, db_path) do
           {:ok, %{offset: offset, size: size}} ->
             :file.position(fd, offset + size)
-            do_process_get_chain(fd, address, fields)
+            do_process_get_chain(fd, fields)
 
           {:error, :not_exists} ->
             {[], false, nil}
@@ -274,7 +272,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  defp do_process_get_chain(fd, address, fields) do
+  defp do_process_get_chain(fd, fields) do
     # Always return transaction address
     fields = if Enum.empty?(fields), do: fields, else: Enum.uniq([:address | fields])
 
@@ -295,7 +293,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       end
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-    {transactions, more?, paging_state} = get_paginated_chain(fd, column_names, address)
+    {transactions, more?, paging_state} = get_paginated_chain(fd, column_names)
     :file.close(fd)
 
     {transactions, more?, paging_state}
@@ -309,17 +307,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       ChainIndex.list_chain_addresses(genesis_address, db_path)
       |> Enum.map(&elem(&1, 0))
 
-    {limit_address, paging_state, more?, new_paging_state} =
+    {paging_state, more?, new_paging_state} =
       case Keyword.get(opts, :paging_state) do
         nil ->
           chain_length = Enum.count(all_addresses_asc)
 
           if chain_length <= @page_size do
-            {nil, nil, false, nil}
+            {nil, false, nil}
           else
             idx = chain_length - 1 - @page_size
 
-            {nil, all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
+            {all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
           end
 
         paging_state ->
@@ -327,26 +325,23 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             all_addresses_asc
             |> Enum.find_index(&(&1 == paging_state))
 
-          limit_address = Enum.at(all_addresses_asc, paging_state_idx - 1)
-
           if paging_state_idx < @page_size do
-            {limit_address, nil, false, nil}
+            {nil, false, nil}
           else
             idx = paging_state_idx - 1 - @page_size
 
-            {limit_address, all_addresses_asc |> Enum.at(idx), true,
-             all_addresses_asc |> Enum.at(idx + 1)}
+            {all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
           end
       end
 
     # call the ASC function and ignore the more? and paging_state
     {transactions, _more?, _paging_state} =
-      process_get_chain(fd, limit_address, fields, [paging_state: paging_state], db_path)
+      process_get_chain(fd, fields, [paging_state: paging_state], db_path)
 
     {Enum.reverse(transactions), more?, new_paging_state}
   end
 
-  defp get_paginated_chain(fd, fields, limit_address, acc \\ []) do
+  defp get_paginated_chain(fd, fields, acc \\ []) do
     case :file.read(fd, 8) do
       {:ok, <<size::32, version::32>>} ->
         if length(acc) == @page_size do
@@ -358,11 +353,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             |> read_transaction(fields, size, 0)
             |> decode_transaction_columns(version)
 
-          if tx.address == limit_address do
-            {Enum.reverse([tx | acc]), false, nil}
-          else
-            get_paginated_chain(fd, fields, limit_address, [tx | acc])
-          end
+          get_paginated_chain(fd, fields, [tx | acc])
         end
 
       :eof ->

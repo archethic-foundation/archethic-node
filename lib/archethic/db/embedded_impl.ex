@@ -262,7 +262,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec list_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_transactions(fields \\ []) when is_list(fields) do
     ChainIndex.list_genesis_addresses()
-    |> Stream.flat_map(&ChainReader.stream_chain(&1, nil, fields, db_path()))
+    |> Stream.flat_map(&ChainReader.stream_chain(&1, fields, db_path()))
   end
 
   @doc """
