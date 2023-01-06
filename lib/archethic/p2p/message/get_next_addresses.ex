@@ -6,10 +6,31 @@ defmodule Archethic.P2P.Message.GetNextAddresses do
   defstruct [:address]
 
   alias Archethic.Crypto
-
   alias Archethic.Utils
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.P2P.Message.AddressList
 
   @type t :: %__MODULE__{address: Crypto.prepended_hash()}
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: AddressList.t()
+  def process(%__MODULE__{address: address}, _) do
+    case TransactionChain.get_transaction(address, validation_stamp: [:timestamp]) do
+      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: address_timestamp}}} ->
+        addresses =
+          TransactionChain.get_genesis_address(address)
+          |> TransactionChain.list_chain_addresses()
+          |> Enum.filter(fn {_address, timestamp} ->
+            DateTime.compare(timestamp, address_timestamp) == :gt
+          end)
+
+        %AddressList{addresses: addresses}
+
+      _ ->
+        %AddressList{addresses: []}
+    end
+  end
 
   @doc """
         Serialize GetNextAddresses Struct

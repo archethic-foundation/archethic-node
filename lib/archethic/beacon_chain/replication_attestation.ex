@@ -7,12 +7,17 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
 
   alias Archethic.Election
 
+  alias Archethic.PubSub
+
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
+
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Error
 
   require Logger
 
@@ -22,6 +27,29 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           transaction_summary: TransactionSummary.t(),
           confirmations: list({position :: non_neg_integer(), signature :: binary()})
         }
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
+
+  def process(
+        attestation = %__MODULE__{
+          transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}
+        },
+        _
+      ) do
+    case validate(attestation) do
+      :ok ->
+        PubSub.notify_replication_attestation(attestation)
+        %Ok{}
+
+      {:error, :invalid_confirmations_signatures} ->
+        Logger.error("Invalid attestation signatures",
+          transaction_address: Base.encode16(tx_address),
+          transaction_type: tx_type
+        )
+
+        %Error{reason: :invalid_attestation}
+    end
+  end
 
   @doc """
   Serialize a replication attestation

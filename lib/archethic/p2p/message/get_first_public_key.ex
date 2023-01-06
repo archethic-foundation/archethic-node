@@ -6,7 +6,20 @@ defmodule Archethic.P2P.Message.GetFirstPublicKey do
   @enforce_keys [:public_key]
   defstruct [:public_key]
 
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain
+  alias Archethic.P2P.Message.FirstPublicKey
+
   @type t() :: %__MODULE__{
           public_key: binary()
         }
+
+  # Returns the first public_key for a given public_key and if the public_key is used for the first time, return the same public_key.
+  @spec process(__MODULE__.t(), Crypto.key()) :: FirstPublicKey.t()
+  def process(%__MODULE__{public_key: public_key}, _) do
+    @spec process(__MODULE__.t(), Crypto.key()) :: TransactionChainLength.t()
+    %FirstPublicKey{
+      public_key: TransactionChain.get_first_public_key(public_key)
+    }
+  end
 end

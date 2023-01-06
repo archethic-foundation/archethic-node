@@ -5,10 +5,30 @@ defmodule Archethic.P2P.Message.GetBootstrappingNodes do
 
   This message is used during the node bootstrapping.
   """
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.BootstrappingNodes
+  alias Archethic.Crypto
+
   @enforce_keys [:patch]
   defstruct [:patch]
 
   @type t() :: %__MODULE__{
           patch: binary()
         }
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: BootstrappingNodes.t()
+  def process(%__MODULE__{patch: patch}, _) do
+    top_nodes = P2P.authorized_and_available_nodes()
+
+    closest_nodes =
+      top_nodes
+      |> P2P.nearest_nodes(patch)
+      |> Enum.take(5)
+
+    %BootstrappingNodes{
+      new_seeds: Enum.take_random(top_nodes, 5),
+      closest_nodes: closest_nodes
+    }
+  end
 end

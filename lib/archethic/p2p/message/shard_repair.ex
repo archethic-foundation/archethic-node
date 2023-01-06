@@ -6,15 +6,57 @@ defmodule Archethic.P2P.Message.ShardRepair do
   defstruct [:first_address, :storage_address, :io_addresses]
 
   alias Archethic.Crypto
+  alias Archethic.Election
+  alias Archethic.SelfRepair
+  alias Archethic.P2P
 
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
+
+  alias Archethic.P2P.Message.Ok
 
   @type t :: %__MODULE__{
           first_address: Crypto.prepended_hash(),
           storage_address: Crypto.prepended_hash(),
           io_addresses: list(Crypto.prepended_hash())
         }
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  def process(
+        %__MODULE__{
+          first_address: first_address,
+          storage_address: storage_address,
+          io_addresses: io_addresses
+        },
+        _
+      ) do
+    # Ensure all addresses are expected to be replicated
+    nodes = P2P.authorized_and_available_nodes()
+
+    addresses =
+      if storage_address != nil, do: [storage_address | io_addresses], else: io_addresses
+
+    public_key = Crypto.first_node_public_key()
+
+    if Enum.all?(
+         addresses,
+         &(Election.storage_nodes(&1, nodes) |> Utils.key_in_node_list?(public_key))
+       ) do
+      case SelfRepair.repair_in_progress?(first_address) do
+        false ->
+          SelfRepair.start_worker(
+            first_address: first_address,
+            storage_address: storage_address,
+            io_addresses: io_addresses
+          )
+
+        pid ->
+          SelfRepair.add_repair_addresses(pid, storage_address, io_addresses)
+      end
+    end
+
+    %Ok{}
+  end
 
   @doc """
         Serialize ShardRepair Struct

@@ -12,6 +12,8 @@ defmodule Archethic.P2P.Message.CrossValidate do
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.Mining
+  alias Archethic.P2P.Message.Ok
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
@@ -23,4 +25,18 @@ defmodule Archethic.P2P.Message.CrossValidate do
           },
           confirmed_validation_nodes: bitstring()
         }
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  def process(
+        %__MODULE__{
+          address: tx_address,
+          validation_stamp: stamp,
+          replication_tree: replication_tree,
+          confirmed_validation_nodes: confirmed_validation_nodes
+        },
+        _
+      ) do
+    Mining.cross_validate(tx_address, stamp, replication_tree, confirmed_validation_nodes)
+    %Ok{}
+  end
 end

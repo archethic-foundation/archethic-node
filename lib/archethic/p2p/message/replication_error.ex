@@ -4,6 +4,9 @@ defmodule Archethic.P2P.Message.ReplicationError do
   """
 
   alias Archethic.Replication.TransactionValidator
+  alias Archethic.Crypto
+  alias Archethic.Mining
+  alias Archethic.P2P.Message.Ok
   alias Archethic.Utils
 
   @enforce_keys [:address, :reason]
@@ -15,6 +18,18 @@ defmodule Archethic.P2P.Message.ReplicationError do
         }
 
   @type reason :: TransactionValidator.error() | :transaction_already_exists
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  def process(
+        %__MODULE__{
+          address: address,
+          reason: reason
+        },
+        _
+      ) do
+    Mining.notify_replication_error(address, reason)
+    %Ok{}
+  end
 
   @doc """
   Serialize a replication error message

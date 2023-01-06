@@ -11,6 +11,10 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
+  alias Archethic.Crypto
+  alias Archethic.PubSub
+  alias Archethic.P2P.Message.Ok
+
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),
           address: binary(),
@@ -18,6 +22,13 @@ defmodule Archethic.TransactionChain.TransactionSummary do
           type: Transaction.transaction_type(),
           fee: pos_integer()
         }
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  def process(tx_summary = %__MODULE__{}, _) do
+    PubSub.notify_transaction_attestation(tx_summary)
+
+    %Ok{}
+  end
 
   @doc """
   Convert a transaction into transaction info

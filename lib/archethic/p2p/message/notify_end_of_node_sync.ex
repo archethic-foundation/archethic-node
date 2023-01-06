@@ -8,9 +8,17 @@ defmodule Archethic.P2P.Message.NotifyEndOfNodeSync do
   defstruct [:node_public_key, :timestamp]
 
   alias Archethic.Crypto
+  alias Archethic.BeaconChain
+  alias Archethic.P2P.Message.Ok
 
   @type t :: %__MODULE__{
           node_public_key: Crypto.key(),
           timestamp: DateTime.t()
         }
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
+  def process(%__MODULE__{node_public_key: public_key, timestamp: timestamp}, _) do
+    BeaconChain.add_end_of_node_sync(public_key, timestamp)
+    %Ok{}
+  end
 end
