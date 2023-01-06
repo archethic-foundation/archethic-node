@@ -40,7 +40,17 @@ defmodule Archethic.Networking.PortForwarding do
 
   defp do_try_open_port(port), do: NATDiscovery.open_port(port)
 
-  defp fallback(port, _force? = true) do
+  defp fallback(port, force?, retries \\ 10)
+
+  defp fallback(_, _force? = true, 0) do
+    Logger.error(
+      "Port from configuration is used but requires a manuel port forwarding setting on the router"
+    )
+
+    :error
+  end
+
+  defp fallback(port, _force? = true, retries) do
     # // If the port is not open, try to open a random port
     Logger.info("Trying to open a random port")
 
@@ -54,15 +64,11 @@ defmodule Archethic.Networking.PortForwarding do
       :error ->
         Logger.error("Cannot publish the a random port #{port}")
 
-        Logger.error(
-          "Port from configuration is used but requires a manuel port forwarding setting on the router"
-        )
-
-        :error
+        fallback(port, _force? = true, retries - 1)
     end
   end
 
-  defp fallback(port, _force? = false) do
+  defp fallback(port, _force? = false, _) do
     Logger.warning("No fallback provided for the port #{port}")
 
     Logger.warning(
@@ -76,26 +82,8 @@ defmodule Archethic.Networking.PortForwarding do
     Application.get_env(:archethic, IPLookup)
   end
 
-  @iana_registry_path Path.join([
-                        File.cwd() |> elem(1),
-                        "lib",
-                        "archethic",
-                        "networking",
-                        "registry",
-                        "iana_unassigned_ports"
-                      ])
-
-  # see https://github.com/apoorv-2204/iana_port_registry
-  defp list_iana_unassigned_ports() do
-    Logger.notice("IANA Registry Date #{inspect(DateTime.from_unix(1_672_826_429) |> elem(1))}")
-
-    @iana_registry_path
-    |> File.read!()
-    |> :erlang.binary_to_term()
-  end
-
   defp get_random_port() do
-    list_iana_unassigned_ports()
+    49_152..65_535
     |> Enum.random()
   end
 end
