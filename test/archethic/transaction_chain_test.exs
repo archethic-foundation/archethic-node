@@ -275,6 +275,8 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
+      validation_stamp = %ValidationStamp{timestamp: DateTime.utc_now()}
+
       MockClient
       |> stub(:send_message, fn
         %Node{port: 3000}, %GetTransactionChain{address: _}, _ ->
@@ -284,10 +286,10 @@ defmodule Archethic.TransactionChainTest do
           {:ok,
            %TransactionList{
              transactions: [
-               %Transaction{},
-               %Transaction{},
-               %Transaction{},
-               %Transaction{}
+               %Transaction{validation_stamp: validation_stamp},
+               %Transaction{validation_stamp: validation_stamp},
+               %Transaction{validation_stamp: validation_stamp},
+               %Transaction{validation_stamp: validation_stamp}
              ],
              more?: false
            }}
@@ -296,11 +298,11 @@ defmodule Archethic.TransactionChainTest do
           {:ok,
            %TransactionList{
              transactions: [
-               %Transaction{},
-               %Transaction{},
-               %Transaction{},
-               %Transaction{},
-               %Transaction{}
+               %Transaction{validation_stamp: validation_stamp},
+               %Transaction{validation_stamp: validation_stamp},
+               %Transaction{validation_stamp: validation_stamp},
+               %Transaction{validation_stamp: validation_stamp},
+               %Transaction{validation_stamp: validation_stamp}
              ],
              more?: false
            }}
