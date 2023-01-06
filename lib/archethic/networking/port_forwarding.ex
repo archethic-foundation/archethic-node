@@ -50,13 +50,12 @@ defmodule Archethic.Networking.PortForwarding do
     :error
   end
 
+  @random_ports_range Application.compile_env!(:archethic, [__MODULE__, :port_range])
   defp fallback(port, _force? = true, retries) do
     # // If the port is not open, try to open a random port
     Logger.info("Trying to open a random port")
 
-    rand_port = get_random_port()
-
-    case do_try_open_port(rand_port) do
+    case do_try_open_port(Enum.random(@random_ports_range)) do
       {:ok, port} ->
         Logger.info("Use the random port #{port} as fallback")
         {:ok, port}
@@ -80,10 +79,5 @@ defmodule Archethic.Networking.PortForwarding do
 
   defp ip_lookup_provider do
     Application.get_env(:archethic, IPLookup)
-  end
-
-  defp get_random_port() do
-    49_152..65_535
-    |> Enum.random()
   end
 end
