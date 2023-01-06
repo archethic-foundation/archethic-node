@@ -243,9 +243,9 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Return the first address of given chain's address
   """
-  @spec get_first_chain_address(address :: binary()) :: binary()
-  def get_first_chain_address(address) when is_binary(address) do
-    ChainIndex.get_first_chain_address(address, db_path())
+  @spec get_genesis_address(address :: binary()) :: binary()
+  def get_genesis_address(address) when is_binary(address) do
+    ChainIndex.get_genesis_address(address, db_path())
   end
 
   @doc """

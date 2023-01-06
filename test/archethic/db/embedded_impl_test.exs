@@ -549,10 +549,10 @@ defmodule Archethic.DB.EmbeddedTest do
     end
   end
 
-  describe "get_first_chain_address" do
+  describe "get_genesis_address" do
     test "should return the same given address if not previous chain" do
       address = :crypto.strong_rand_bytes(32)
-      assert ^address = EmbeddedImpl.get_first_chain_address(address)
+      assert ^address = EmbeddedImpl.get_genesis_address(address)
     end
 
     test "should return the first address of a chain" do
@@ -580,9 +580,9 @@ defmodule Archethic.DB.EmbeddedTest do
 
       genesis_address = Transaction.previous_address(tx1)
 
-      assert ^genesis_address = EmbeddedImpl.get_first_chain_address(tx3.address)
-      assert ^genesis_address = EmbeddedImpl.get_first_chain_address(tx2.address)
-      assert ^genesis_address = EmbeddedImpl.get_first_chain_address(tx1.address)
+      assert ^genesis_address = EmbeddedImpl.get_genesis_address(tx3.address)
+      assert ^genesis_address = EmbeddedImpl.get_genesis_address(tx2.address)
+      assert ^genesis_address = EmbeddedImpl.get_genesis_address(tx1.address)
     end
   end
 

@@ -496,8 +496,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
   If not address is found, the given address is returned
   """
-  @spec get_first_chain_address(binary(), String.t()) :: binary()
-  def get_first_chain_address(address, db_path) do
+  @spec get_genesis_address(binary(), String.t()) :: binary()
+  def get_genesis_address(address, db_path) do
     case get_tx_entry(address, db_path) do
       {:ok, %{genesis_address: genesis_address}} ->
         genesis_address
@@ -531,7 +531,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     # We derive the previous address from the public key to get the genesis address
     # and its relative file
     address = Crypto.derive_address(public_key)
-    genesis_address = get_first_chain_address(address, db_path)
+    genesis_address = get_genesis_address(address, db_path)
     filepath = chain_keys_path(db_path, genesis_address)
 
     case File.open(filepath, [:binary, :read]) do
@@ -565,7 +565,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     # We derive the previous address from the public key to get the genesis address
     # and its relative file
     address = Crypto.derive_address(public_key)
-    genesis_address = get_first_chain_address(address, db_path)
+    genesis_address = get_genesis_address(address, db_path)
     filepath = chain_keys_path(db_path, genesis_address)
 
     until = DateTime.to_unix(until, :millisecond)

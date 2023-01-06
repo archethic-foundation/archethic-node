@@ -263,21 +263,10 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Get the first transaction from a given chain address
-  """
-  @spec get_first_transaction(binary(), list()) ::
-          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
-  def get_first_transaction(address, fields \\ []) when is_binary(address) do
-    address
-    |> DB.get_first_chain_address()
-    |> get_transaction(fields)
-  end
-
-  @doc """
   Get the genesis address from a given chain address
   """
   @spec get_genesis_address(binary()) :: binary()
-  defdelegate get_genesis_address(address), to: DB, as: :get_first_chain_address
+  defdelegate get_genesis_address(address), to: DB, as: :get_genesis_address
 
   @doc """
   Produce a proof of integrity for a given chain.

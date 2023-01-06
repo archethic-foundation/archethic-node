@@ -387,6 +387,9 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
         _, %GetFirstAddress{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: List.last(transactions).address}}
       end)
 
       last_addr = List.last(transactions).address
@@ -430,6 +433,9 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
         _, %GetFirstAddress{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: List.last(transactions).address}}
       end)
 
       last_addr = List.last(transactions).address
