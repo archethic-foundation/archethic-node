@@ -245,45 +245,55 @@ defmodule Archethic do
   """
   @spec get_transaction_chain_by_paging_address(binary(), binary() | nil, :asc | :desc) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def get_transaction_chain_by_paging_address(address, paging_address, order)
-      when is_binary(address) and order in [:asc, :desc] do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    try do
-      transaction_exists? =
-        if paging_address == nil,
-          do: true,
-          else: TransactionChain.transaction_exists?(paging_address)
-
-      {local_chain, paging_address} =
-        with true <- transaction_exists?,
-             last_address when last_address != nil <-
-               TransactionChain.get_last_local_address(address),
-             true <- last_address != paging_address do
-          {transactions, _, _} =
-            TransactionChain.get(last_address, [], paging_state: paging_address, order: order)
-
-          {transactions, last_address}
+  def get_transaction_chain_by_paging_address(address, paging_address, :asc)
+      when is_binary(address) do
+    case get_last_transaction_address(address) do
+      {:ok, last_address} ->
+        with {local_chain, false, _} <-
+               TransactionChain.get(address, [], paging_state: paging_address, order: :asc),
+             %Transaction{address: ^last_address} <- List.last(local_chain) do
+          {:ok, local_chain}
         else
-          _ -> {[], paging_address}
+          {local_chain, true, _} ->
+            # Local chain already contains 10 transactions
+            {:ok, local_chain}
+
+          _ ->
+            last_address
+            |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+            |> TransactionChain.fetch_transaction_chain(last_address, paging_address, order: :asc)
         end
 
-      remote_chain =
-        if paging_address != address and length(local_chain) < 10 do
-          case TransactionChain.fetch_transaction_chain(nodes, address, paging_address,
-                 order: order
-               ) do
-            {:ok, transactions} -> transactions
-            {:error, _} -> []
-          end
-        else
-          []
-        end
+      error ->
+        error
+    end
+  end
 
-      {:ok, Enum.take(local_chain ++ remote_chain, 10)}
-    catch
-      _ ->
-        {:error, :network_issue}
+  def get_transaction_chain_by_paging_address(address, nil, :desc)
+      when is_binary(address) do
+    case get_last_transaction_address(address) do
+      {:ok, last_address} ->
+        get_desc_chain(last_address, nil)
+
+      error ->
+        error
+    end
+  end
+
+  def get_transaction_chain_by_paging_address(_address, paging_address, :desc)
+      when is_binary(paging_address) do
+    get_desc_chain(paging_address, paging_address)
+  end
+
+  defp get_desc_chain(address, paging_address) do
+    if TransactionChain.transaction_exists?(address) do
+      {chain, _, _} = TransactionChain.get(address, [], paging_state: paging_address, order: :desc)
+
+      {:ok, chain}
+    else
+      address
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+      |> TransactionChain.fetch_transaction_chain(address, paging_address, order: :desc)
     end
   end
 
