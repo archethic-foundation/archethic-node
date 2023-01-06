@@ -42,7 +42,7 @@ defmodule Archethic.SelfRepairTest do
     |> expect(:get_transaction, fn "Alice2", _ ->
       {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2022-11-27 00:10:00Z]}}}
     end)
-    |> expect(:get_first_chain_address, 2, fn "Alice2" -> "Alice0" end)
+    |> expect(:get_genesis_address, 2, fn "Alice2" -> "Alice0" end)
     |> expect(:list_chain_addresses, fn "Alice0" ->
       [
         {"Alice1", ~U[2022-11-27 00:09:00Z]},

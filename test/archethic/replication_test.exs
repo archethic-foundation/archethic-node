@@ -250,7 +250,7 @@ defmodule Archethic.ReplicationTest do
       previous_public_key = "previous_public_key"
 
       MockDB
-      |> expect(:get_first_chain_address, fn _ -> "@Alice0" end)
+      |> expect(:get_genesis_address, fn _ -> "@Alice0" end)
       |> expect(:get_transaction, fn _, _ ->
         {:ok,
          %Transaction{
@@ -283,7 +283,7 @@ defmodule Archethic.ReplicationTest do
       previous_public_key = "previous_public_key"
 
       MockDB
-      |> expect(:get_first_chain_address, fn _ -> "@Alice0" end)
+      |> expect(:get_genesis_address, fn _ -> "@Alice0" end)
       |> expect(:get_transaction, fn _, _ ->
         {:ok,
          %Transaction{
