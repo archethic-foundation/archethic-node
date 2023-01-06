@@ -307,17 +307,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       ChainIndex.list_chain_addresses(genesis_address, db_path)
       |> Enum.map(&elem(&1, 0))
 
-    {paging_state, more?, new_paging_state} =
+    {nb_to_take, paging_state, more?, new_paging_state} =
       case Keyword.get(opts, :paging_state) do
         nil ->
           chain_length = Enum.count(all_addresses_asc)
 
           if chain_length <= @page_size do
-            {nil, false, nil}
+            {@page_size, nil, false, nil}
           else
             idx = chain_length - 1 - @page_size
 
-            {all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
+            {@page_size, all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
           end
 
         paging_state ->
@@ -326,17 +326,20 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             |> Enum.find_index(&(&1 == paging_state))
 
           if paging_state_idx < @page_size do
-            {nil, false, nil}
+            {paging_state_idx , nil, false, nil}
           else
             idx = paging_state_idx - 1 - @page_size
 
-            {all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
+            {@page_size, all_addresses_asc |> Enum.at(idx), true,
+             all_addresses_asc |> Enum.at(idx + 1)}
           end
       end
 
     # call the ASC function and ignore the more? and paging_state
     {transactions, _more?, _paging_state} =
       process_get_chain(fd, fields, [paging_state: paging_state], db_path)
+
+    transactions = Enum.take(transactions, nb_to_take)
 
     {Enum.reverse(transactions), more?, new_paging_state}
   end
