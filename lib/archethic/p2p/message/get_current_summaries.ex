@@ -16,6 +16,12 @@ defmodule Archethic.P2P.Message.GetCurrentSummaries do
           subsets: list(binary())
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{subsets: subsets}) do
+    subsets_bin = :erlang.list_to_binary(subsets)
+    <<32::8, length(subsets)::8, subsets_bin::binary>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionSummaryList.t()
   def process(%__MODULE__{subsets: subsets}, _) do
     transaction_summaries =

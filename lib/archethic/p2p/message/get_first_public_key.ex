@@ -14,6 +14,11 @@ defmodule Archethic.P2P.Message.GetFirstPublicKey do
           public_key: binary()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{public_key: public_key}) do
+    <<20::8, public_key::binary>>
+  end
+
   # Returns the first public_key for a given public_key and if the public_key is used for the first time, return the same public_key.
   @spec process(__MODULE__.t(), Crypto.key()) :: FirstPublicKey.t()
   def process(%__MODULE__{public_key: public_key}, _) do

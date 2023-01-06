@@ -7,4 +7,9 @@ defmodule Archethic.P2P.Message.P2PView do
   @type t :: %__MODULE__{
           nodes_view: bitstring()
         }
+
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{nodes_view: view}) do
+    <<243::8, bit_size(view)::8, view::bitstring>>
+  end
 end

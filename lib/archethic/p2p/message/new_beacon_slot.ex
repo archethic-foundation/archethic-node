@@ -21,6 +21,10 @@ defmodule Archethic.P2P.Message.NewBeaconSlot do
           slot: Slot.t()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{slot: slot}),
+    do: <<27::8, Slot.serialize(slot) |> Utils.wrap_binary()::bitstring>>
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
   def process(%__MODULE__{slot: slot = %Slot{subset: subset, slot_time: slot_time}}, _) do
     summary_time = BeaconChain.next_summary_date(slot_time)

@@ -19,6 +19,17 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
           timestamp: DateTime.t()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{
+        last_address: last_address,
+        genesis_address: genesis_address,
+        previous_address: previous_address,
+        timestamp: timestamp
+      }) do
+    <<22::8, last_address::binary, genesis_address::binary, previous_address::binary,
+      DateTime.to_unix(timestamp, :millisecond)::64>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{

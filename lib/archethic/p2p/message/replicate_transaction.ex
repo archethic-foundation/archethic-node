@@ -21,6 +21,11 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           transaction: Transaction.t()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{transaction: tx}) do
+    <<12::8, Transaction.serialize(tx)::bitstring>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
   def process(
         %__MODULE__{

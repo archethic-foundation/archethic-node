@@ -17,6 +17,11 @@ defmodule Archethic.P2P.Message.GetBootstrappingNodes do
           patch: binary()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{patch: patch}) do
+    <<0::8, patch::binary-size(3)>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: BootstrappingNodes.t()
   def process(%__MODULE__{patch: patch}, _) do
     top_nodes = P2P.authorized_and_available_nodes()

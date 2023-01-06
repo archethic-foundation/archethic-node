@@ -19,6 +19,11 @@ defmodule Archethic.P2P.Message.ReplicationError do
 
   @type reason :: TransactionValidator.error() | :transaction_already_exists
 
+  @spec encode(t()) :: bitstring()
+  def encode(msg = %__MODULE__{}) do
+    <<233::8, serialize(msg)::bitstring>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{

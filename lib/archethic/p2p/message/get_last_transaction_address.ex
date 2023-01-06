@@ -14,6 +14,11 @@ defmodule Archethic.P2P.Message.GetLastTransactionAddress do
           timestamp: DateTime.t()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address, timestamp: timestamp}) do
+    <<21::8, address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: LastTransactionAddress.t()
   def process(%__MODULE__{address: address, timestamp: timestamp}, _) do
     {address, time} = TransactionChain.get_last_address(address, timestamp)

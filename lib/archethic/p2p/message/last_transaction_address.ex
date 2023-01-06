@@ -11,4 +11,9 @@ defmodule Archethic.P2P.Message.LastTransactionAddress do
           address: Crypto.versioned_hash(),
           timestamp: DateTime.t()
         }
+
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address, timestamp: timestamp}) do
+    <<241::8, address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
+  end
 end

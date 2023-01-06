@@ -16,6 +16,11 @@ defmodule Archethic.P2P.Message.NotifyEndOfNodeSync do
           timestamp: DateTime.t()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{node_public_key: public_key, timestamp: timestamp}) do
+    <<14::8, public_key::binary, DateTime.to_unix(timestamp)::32>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(%__MODULE__{node_public_key: public_key, timestamp: timestamp}, _) do
     BeaconChain.add_end_of_node_sync(public_key, timestamp)

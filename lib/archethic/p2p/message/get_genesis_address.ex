@@ -14,6 +14,9 @@ defmodule Archethic.P2P.Message.GetGenesisAddress do
           address: binary()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address}), do: <<31::8, address::binary>>
+
   @spec process(__MODULE__.t(), Crypto.key()) :: FirstAddress.t()
   def process(%__MODULE__{address: address}, _) do
     genesis_address = TransactionChain.get_genesis_address(address)

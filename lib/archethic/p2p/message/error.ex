@@ -15,6 +15,11 @@ defmodule Archethic.P2P.Message.Error do
           reason: reason()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{reason: reason}) do
+    <<238::8, serialize_reason(reason)::8>>
+  end
+
   @doc """
   Serialize an error reason
   """

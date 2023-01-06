@@ -22,6 +22,11 @@ defmodule Archethic.P2P.Message.ReplicateTransactionChain do
           replying_node: nil | Crypto.key()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{transaction: tx, replying_node: nil}) do
+    <<11::8, Transaction.serialize(tx)::bitstring, 0::1>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{

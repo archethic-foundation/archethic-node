@@ -15,6 +15,11 @@ defmodule Archethic.P2P.Message.GetStorageNonce do
           public_key: Crypto.key()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{public_key: public_key}) do
+    <<1::8, public_key::binary>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: EncryptedStorageNonce.t()
   def process(%__MODULE__{public_key: public_key}, _) do
     %EncryptedStorageNonce{

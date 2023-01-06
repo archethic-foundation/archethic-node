@@ -13,6 +13,11 @@ defmodule Archethic.P2P.Message.NotifyPreviousChain do
           address: binary()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address}) do
+    <<34::8, address::binary>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(%__MODULE__{address: address}, _) do
     Replication.acknowledge_previous_storage_nodes(address)

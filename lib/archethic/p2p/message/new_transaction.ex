@@ -15,6 +15,11 @@ defmodule Archethic.P2P.Message.NewTransaction do
           transaction: Transaction.t()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{transaction: tx}) do
+    <<6::8, Transaction.serialize(tx)::bitstring>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
   def process(%__MODULE__{transaction: tx}, sender_public_key) do
     case Archethic.send_new_transaction(tx, sender_public_key) do

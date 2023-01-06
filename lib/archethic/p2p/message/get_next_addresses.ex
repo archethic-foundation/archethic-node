@@ -14,6 +14,11 @@ defmodule Archethic.P2P.Message.GetNextAddresses do
 
   @type t :: %__MODULE__{address: Crypto.prepended_hash()}
 
+  @spec encode(t()) :: bitstring()
+  def encode(msg = %__MODULE__{}) do
+    <<35::8, serialize(msg)::bitstring>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: AddressList.t()
   def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_transaction(address, validation_stamp: [:timestamp]) do

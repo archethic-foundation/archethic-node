@@ -11,12 +11,19 @@ defmodule Archethic.P2P.Message.GetTransactionInputs do
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           offset: non_neg_integer(),
           limit: non_neg_integer()
         }
+
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address, offset: offset, limit: limit}) do
+    <<17::8, address::binary, VarInt.from_value(offset)::binary,
+      VarInt.from_value(limit)::binary>>
+  end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionInputList.t()
   def process(%__MODULE__{address: address, offset: offset, limit: limit}, _) do

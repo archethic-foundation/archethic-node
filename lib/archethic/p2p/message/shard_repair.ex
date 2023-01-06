@@ -21,6 +21,11 @@ defmodule Archethic.P2P.Message.ShardRepair do
           io_addresses: list(Crypto.prepended_hash())
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(msg = %__MODULE__{}) do
+    <<230::8, serialize(msg)::bitstring>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{

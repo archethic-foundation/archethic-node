@@ -9,12 +9,19 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
   alias Archethic.Account
   alias Archethic.P2P.Message.UnspentOutputList
 
+  alias Archethic.Utils.VarInt
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           offset: non_neg_integer()
         }
+
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: tx_address, offset: offset}) do
+    <<5::8, tx_address::binary, VarInt.from_value(offset)::binary>>
+  end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: UnspentOutputList.t()
   def process(%__MODULE__{address: tx_address, offset: offset}, _) do

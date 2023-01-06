@@ -11,4 +11,9 @@ defmodule Archethic.P2P.Message.FirstPublicKey do
   @type t :: %__MODULE__{
           public_key: Crypto.key()
         }
+
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{public_key: public_key}) do
+    <<242::8, public_key::binary>>
+  end
 end

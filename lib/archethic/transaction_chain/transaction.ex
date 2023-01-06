@@ -910,4 +910,9 @@ defmodule Archethic.TransactionChain.Transaction do
         |> Enum.map(&CrossValidationStamp.cast/1)
     }
   end
+
+  @spec encode(t()) :: bitstring()
+  def encode(tx = %__MODULE__{}) do
+    <<252::8, serialize(tx)::bitstring>>
+  end
 end

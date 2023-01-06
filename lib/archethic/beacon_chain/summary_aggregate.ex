@@ -40,6 +40,11 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           }
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(msg = %__MODULE__{}) do
+    <<231::8, serialize(msg)::bitstring>>
+  end
+
   @doc """
   Aggregate a new BeaconChain's summary
   """

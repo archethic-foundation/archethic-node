@@ -15,6 +15,11 @@ defmodule Archethic.P2P.Message.GetTransaction do
           address: Crypto.versioned_hash()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: tx_address}) do
+    <<3::8, tx_address::binary>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: NotFound.t() | Error.t() | Transaction.t()
   def process(%__MODULE__{address: tx_address}, _) do
     case TransactionChain.get_transaction(tx_address) do

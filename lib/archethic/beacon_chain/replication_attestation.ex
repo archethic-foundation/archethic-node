@@ -28,8 +28,10 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           confirmations: list({position :: non_neg_integer(), signature :: binary()})
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
+  @spec encode(t()) :: bitstring()
+  def encode(attestation = %__MODULE__{}), do: <<30::8, serialize(attestation)::binary>>
 
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
   def process(
         attestation = %__MODULE__{
           transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}

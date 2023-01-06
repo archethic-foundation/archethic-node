@@ -14,6 +14,11 @@ defmodule Archethic.P2P.Message.GetTransactionSummary do
           address: binary()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address}) do
+    <<23::8, address::binary>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionSummary.t() | NotFound.t()
   def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_transaction_summary(address) do

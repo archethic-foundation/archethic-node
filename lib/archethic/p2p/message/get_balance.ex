@@ -13,6 +13,11 @@ defmodule Archethic.P2P.Message.GetBalance do
           address: Crypto.versioned_hash()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address}) do
+    <<16::8, address::binary>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Balance.t()
   def process(%__MODULE__{address: address}, _) do
     %{uco: uco, token: token} = Account.get_balance(address)

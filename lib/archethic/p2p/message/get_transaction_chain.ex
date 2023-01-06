@@ -15,6 +15,27 @@ defmodule Archethic.P2P.Message.GetTransactionChain do
           order: :desc | :asc
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: tx_address, paging_state: nil, order: order}) do
+    order_bit =
+      case order do
+        :asc -> 0
+        :desc -> 1
+      end
+
+    <<4::8, tx_address::binary, order_bit::1, 0::8>>
+  end
+
+  def encode(%__MODULE__{address: tx_address, paging_state: paging_state, order: order}) do
+    order_bit =
+      case order do
+        :asc -> 0
+        :desc -> 1
+      end
+
+    <<4::8, tx_address::binary, order_bit::1, byte_size(paging_state)::8, paging_state::binary>>
+  end
+
   # paging_state received contains binary offset for next page, to be used for query
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionList.t()
   def process(

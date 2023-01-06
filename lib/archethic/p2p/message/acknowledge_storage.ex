@@ -17,6 +17,16 @@ defmodule Archethic.P2P.Message.AcknowledgeStorage do
           signature: binary()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{
+        address: address,
+        signature: signature,
+        node_public_key: node_public_key
+      }) do
+    <<13::8, address::binary, node_public_key::binary, byte_size(signature)::8,
+      signature::binary>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{

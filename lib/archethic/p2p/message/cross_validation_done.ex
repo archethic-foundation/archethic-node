@@ -17,6 +17,11 @@ defmodule Archethic.P2P.Message.CrossValidationDone do
           cross_validation_stamp: CrossValidationStamp.t()
         }
 
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address, cross_validation_stamp: stamp}) do
+    <<10::8, address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
+  end
+
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(%__MODULE__{address: tx_address, cross_validation_stamp: stamp}, _) do
     Mining.add_cross_validation_stamp(tx_address, stamp)

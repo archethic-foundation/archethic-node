@@ -8,4 +8,9 @@ defmodule Archethic.P2P.Message.GenesisAddress do
   @type t :: %__MODULE__{
           address: binary()
         }
+
+  @spec encode(t()) :: bitstring()
+  def encode(%__MODULE__{address: address}) do
+    <<235::8, address::binary>>
+  end
 end
