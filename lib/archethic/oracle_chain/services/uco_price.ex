@@ -127,9 +127,9 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     length_list = Enum.count(sorted)
 
     case rem(length_list, 2) do
-      1 -> Enum.at(sorted, div(length_list, 2) + 1)
+      1 -> Enum.at(sorted, div(length_list, 2))
       ## If we have an even number, media is the average of the two medium nu,bers
-      0 -> Enum.slice(sorted, div(length_list, 2), 2) |> Enum.sum() |> Kernel./(2)
+      0 -> Enum.slice(sorted, div(length_list, 2) - 1, 2) |> Enum.sum() |> Kernel./(2)
     end
   end
 
