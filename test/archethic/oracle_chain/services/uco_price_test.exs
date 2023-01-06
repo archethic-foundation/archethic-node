@@ -62,7 +62,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       assert true == UCOPrice.verify?(%{"eur" => 0.20, "usd" => 0.12})
     end
 
-    test "should return false if the prices are not the good one" do
+    test "should return false if the prices have deviated" do
       MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
         {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
@@ -98,7 +98,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       {:ok, %{"eur" => [0.40], "usd" => [0.12]}}
     end)
 
-    assert false == UCOPrice.verify?(%{"eur" => 0.30, "usd" => 0.12})
+    assert true == UCOPrice.verify?(%{"eur" => 0.30, "usd" => 0.12})
   end
 
   test "should return the average of median values when a even number of providers queried" do
@@ -148,7 +148,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     assert false == UCOPrice.verify?(%{"eur" => 0.35, "usd" => 0.12})
   end
 
-  test "should return false when no data are returned from providers" do
+  test "verify?/1 should return false when no data are returned from providers" do
     MockUCOPriceProvider1
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [], "usd" => []}}
@@ -183,7 +183,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       {:ok, %{"eur" => [0.60], "usd" => [0.12]}}
     end)
 
-    assert false == UCOPrice.verify?(%{"eur" => 0.55, "usd" => 0.12})
+    assert {:ok, %{"eur" => 0.55, "usd" => 0.12}} = UCOPrice.fetch()
   end
 
   test "should handle unexpected format in values returned from service" do
@@ -199,9 +199,9 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
     MockUCOPriceProvider3
     |> expect(:fetch, fn _pairs ->
-      {:ok, [{"eur", 0.80}, {"usd", 0.30}]}
+      {:ok, [{"eur", 1.00}, {"usd", 0.60}]}
     end)
 
-    assert false == UCOPrice.verify?(%{"eur" => 0.55, "usd" => 0.15})
+    assert true == UCOPrice.verify?(%{"eur" => 0.55, "usd" => 0.15})
   end
 end
