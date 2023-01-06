@@ -4,6 +4,12 @@ defmodule ArchethicWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :archethic
   use Absinthe.Phoenix.Endpoint
 
+  alias Archethic.Bootstrap
+
+  require Logger
+
+  plug(:archethic_up)
+
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
@@ -51,6 +57,22 @@ defmodule ArchethicWeb.Endpoint do
   plug(Plug.Session, @session_options)
   plug(CORSPlug, origin: "*")
   plug(ArchethicWeb.RouterDispatch)
+
+  # don't serve anything before the node is bootstraped
+  #
+  # ps: this handle only HTTP(S) requests
+  #     for WS, see archethic_web/channels/user_socket.ex
+  defp archethic_up(conn, _opts) do
+    if Bootstrap.done?() do
+      conn
+    else
+      Logger.debug("Received a web request but node is bootstraping")
+
+      conn
+      |> send_resp(503, "")
+      |> halt()
+    end
+  end
 
   #  Config.HSTS Sobelow
   #  Plug.ssl, probe polcies to what seem best for mainnet(after proxy)

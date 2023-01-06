@@ -73,7 +73,7 @@ defmodule ArchethicWeb.RewardsLiveTest do
       {:ok, view, html} = live(conn, "/explorer/chain/rewards")
       assert html =~ "Reward Chain"
 
-      render_click(view, "next_page", %{"page" => 2})
+      render_click(view, "goto", %{"page" => 2})
       assert_patch(view, "/explorer/chain/rewards?page=2")
     end
   end

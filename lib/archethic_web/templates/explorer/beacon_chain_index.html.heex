@@ -11,20 +11,9 @@
 
   <div class="columns">
     <div class="column">
-      <nav class="pagination is-right" role="navigation" aria-label="pagination">
-        <%= if @current_date_page  > 1  do %>
-        <a class="pagination-previous  is-outlined has-text-white" phx-value-page={@current_date_page - 1} phx-click="goto">Previous</a>
-       <% end %>
-
-        <%= if @current_date_page + 1 <= Enum.count(@dates) do %>
-        <a class="pagination-next  is-outlined has-text-white" phx-value-page={@current_date_page + 1} phx-click="goto">Next page</a>
-        <% end %>
-      <%= if Enum.count(@dates)!= 0  do %>
-        <p class="pagination-list has-text-white">
-          Page <%= @current_date_page %> on <%= Enum.count(@dates) %>
-        </p>
-      <% end %>
-      </nav>
+      <ArchethicWeb.Pagination.previous_next
+        current_page={@current_date_page}
+        total_pages={Enum.count(@dates)} />
     </div>
   </div>
 

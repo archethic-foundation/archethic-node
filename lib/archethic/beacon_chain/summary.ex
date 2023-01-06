@@ -307,12 +307,12 @@ defmodule Archethic.BeaconChain.Summary do
     # Then do a wheighted mean of the result
     map =
       availabilities
-      |> Map.values()
-      |> Enum.map(&Utils.median(&1))
+      |> Enum.sort_by(fn {slot_time, _} -> slot_time end, {:asc, DateTime})
+      |> Enum.map(fn {_, availabilities} -> Utils.median(availabilities) end)
       |> Enum.with_index()
       |> Enum.reduce(%{}, fn {slot_availability_time, slot_index}, acc ->
         # 1,0 -> 1,1 -> 1,2 ...
-        # Weight for 144th slot = 15.4
+        # Weight for 144th slot = 15.3
         weight = 1 + slot_index / 10
         weighted_availability_time = slot_availability_time * weight
 
