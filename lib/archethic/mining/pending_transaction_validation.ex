@@ -28,6 +28,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     TransactionData,
     TransactionData.Ledger,
     TransactionData.Ownership,
+    TransactionData.UCOLedger,
     TransactionData.TokenLedger,
     TransactionSummary
   }
@@ -36,6 +37,24 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   require Logger
 
   @unit_uco 100_000_000
+
+  @aeweb_schema :archethic
+                |> Application.app_dir("priv/json-schemas/aeweb.json")
+                |> File.read!()
+                |> Jason.decode!()
+                |> ExJsonSchema.Schema.resolve()
+
+  @did_schema :archethic
+              |> Application.app_dir("priv/json-schemas/did-core.json")
+              |> File.read!()
+              |> Jason.decode!()
+              |> ExJsonSchema.Schema.resolve()
+
+  @token_schema :archethic
+                |> Application.app_dir("priv/json-schemas/token-core.json")
+                |> File.read!()
+                |> Jason.decode!()
+                |> ExJsonSchema.Schema.resolve()
 
   @doc """
   Determines if the transaction is accepted into the network
@@ -253,6 +272,46 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       {:error, reason} ->
         {:error, "Smart contract invalid #{inspect(reason)}"}
+    end
+  end
+
+  defp do_accept_transaction(
+         %Transaction{
+           type: :transfer,
+           data: %TransactionData{
+             ledger: %Ledger{
+               uco: %UCOLedger{transfers: uco_transfers},
+               token: %TokenLedger{transfers: token_transfers}
+             },
+             recipients: recipients
+           }
+         },
+         _
+       ) do
+    if length(uco_transfers) > 0 or length(token_transfers) > 0 or length(recipients) > 0 do
+      :ok
+    else
+      {:error,
+       "Transfer's transaction requires some recipients for ledger or smart contract calls"}
+    end
+  end
+
+  defp do_accept_transaction(
+         %Transaction{
+           type: :hosting,
+           data: %TransactionData{content: content}
+         },
+         _
+       ) do
+    with {:ok, json} <- Jason.decode(content),
+         {:schema, :ok} <- {:schema, ExJsonSchema.Validator.validate(@aeweb_schema, json)} do
+      :ok
+    else
+      {:schema, _} ->
+        {:error, "Invalid AEWeb transaction - Does not match JSON schema"}
+
+      {:error, _} ->
+        {:error, "Invalid AEWeb transaction - Not a JSON format"}
     end
   end
 
@@ -513,15 +572,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          },
          _
        ) do
-    schema =
-      :archethic
-      |> Application.app_dir("priv/json-schemas/did-core.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> ExJsonSchema.Schema.resolve()
-
     with {:ok, json_did} <- Jason.decode(content),
-         :ok <- ExJsonSchema.Validator.validate(schema, json_did) do
+         :ok <- ExJsonSchema.Validator.validate(@did_schema, json_did) do
       :ok
     else
       :error ->
@@ -737,15 +789,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp verify_token_creation(content) do
-    schema =
-      :archethic
-      |> Application.app_dir("priv/json-schemas/token-core.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> ExJsonSchema.Schema.resolve()
-
     with {:ok, json_token} <- Jason.decode(content),
-         :ok <- ExJsonSchema.Validator.validate(schema, json_token),
+         :ok <- ExJsonSchema.Validator.validate(@token_schema, json_token),
          %{
            "type" => "non-fungible",
            "supply" => supply,
