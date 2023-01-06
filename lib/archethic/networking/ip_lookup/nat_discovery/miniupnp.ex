@@ -44,11 +44,11 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   end
 
   @spec do_open_port(:inet.ip_address(), non_neg_integer()) :: :ok | :error
-  def do_open_port(local_ip, port, retires \\ 2)
+  defp do_open_port(local_ip, port, retires \\ 2)
 
-  def do_open_port(_local_ip, _port, 0), do: :error
+  defp do_open_port(_local_ip, _port, 0), do: :error
 
-  def do_open_port(local_ip, port, retires) do
+  defp do_open_port(local_ip, port, retires) do
     case System.cmd(@upnpc, map_query(local_ip, port)) do
       {_, 0} ->
         :ok
@@ -64,9 +64,6 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   @spec map_query(:inet.ip_address(), non_neg_integer()) :: [String.t()]
   defp map_query(local_ip, port) do
     [
-      # description
-      "-e",
-      "Archethic_Node",
       # Add redirection
       "-a",
       # Local ip
