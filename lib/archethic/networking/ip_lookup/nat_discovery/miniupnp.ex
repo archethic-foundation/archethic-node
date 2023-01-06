@@ -44,19 +44,19 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   end
 
   @spec do_open_port(:inet.ip_address(), non_neg_integer()) :: :ok | :error
-  defp do_open_port(local_ip, port, retires \\ 2)
+  defp do_open_port(local_ip, port, retries \\ 2)
 
   defp do_open_port(_local_ip, _port, 0), do: :error
 
-  defp do_open_port(local_ip, port, retires) do
+  defp do_open_port(local_ip, port, retries) do
     case System.cmd(@upnpc, map_query(local_ip, port)) do
       {_, 0} ->
         :ok
 
-      {reason, status} when status != 0 ->
+      {reason, _} ->
         handle_error(reason, local_ip, port)
 
-        do_open_port(local_ip, port, retires - 1)
+        do_open_port(local_ip, port, retries - 1)
     end
   end
 
