@@ -10,7 +10,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
   @impl Impl
   @spec fetch(list(binary())) :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch(pairs) when is_list(pairs) do
-    query = 'http://coinmarketcap.com/currencies/uniris/markets/'
+    query = 'http://coinmrketcap.com/currencies/uniris/markets/'
 
     httpc_options = [
       connect_timeout: 1000,
