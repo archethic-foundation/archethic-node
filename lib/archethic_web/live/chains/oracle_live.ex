@@ -173,16 +173,13 @@ defmodule ArchethicWeb.OracleChainLive do
   end
 
   defp list_transactions_by_date(date = %DateTime{}) do
-    oracle_genesis_address = Crypto.derive_oracle_address(date, 0)
-    {last_address, _} = TransactionChain.get_last_address(oracle_genesis_address)
-
-    last_address
+    Crypto.derive_oracle_address(date, 0)
     |> get_transaction_chain()
-    |> Stream.map(fn %Transaction{
-                       address: address,
-                       type: type,
-                       validation_stamp: %ValidationStamp{timestamp: timestamp}
-                     } ->
+    |> Enum.map(fn %Transaction{
+                     address: address,
+                     type: type,
+                     validation_stamp: %ValidationStamp{timestamp: timestamp}
+                   } ->
       %{address: address, type: type, timestamp: timestamp}
     end)
     |> Enum.reverse()
