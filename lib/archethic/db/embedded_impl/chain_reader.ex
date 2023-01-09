@@ -128,33 +128,33 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   def get_transaction_chain(address, fields, opts, db_path) do
     start = System.monotonic_time()
 
-    case ChainIndex.get_tx_entry(address, db_path) do
-      {:error, :not_exists} ->
-        {[], false, nil}
+    genesis_address = ChainIndex.get_genesis_address(address, db_path)
+    filepath = ChainWriter.chain_path(db_path, genesis_address)
 
-      {:ok, %{genesis_address: genesis_address}} ->
-        filepath = ChainWriter.chain_path(db_path, genesis_address)
-        fd = File.open!(filepath, [:binary, :read])
+    if File.exists?(filepath) do
+      fd = File.open!(filepath, [:binary, :read])
 
-        {transactions, more?, paging_state} =
+      {transactions, more?, paging_state} =
+        case Keyword.get(opts, :order, :asc) do
+          :asc ->
+            process_get_chain(fd, fields, opts, db_path)
+
+          :desc ->
+            process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
+        end
+
+      # we want different metrics for ASC and DESC
+      :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+        query:
           case Keyword.get(opts, :order, :asc) do
-            :asc ->
-              process_get_chain(fd, fields, opts, db_path)
-
-            :desc ->
-              process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
+            :asc -> "get_transaction_chain"
+            :desc -> "get_transaction_chain_reverse"
           end
+      })
 
-        # we want different metrics for ASC and DESC
-        :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-          query:
-            case Keyword.get(opts, :order, :asc) do
-              :asc -> "get_transaction_chain"
-              :desc -> "get_transaction_chain_reverse"
-            end
-        })
-
-        {transactions, more?, paging_state}
+      {transactions, more?, paging_state}
+    else
+      {[], false, nil}
     end
   end
 
@@ -317,7 +317,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           else
             idx = chain_length - 1 - @page_size
 
-            {@page_size, all_addresses_asc |> Enum.at(idx), true, all_addresses_asc |> Enum.at(idx + 1)}
+            {@page_size, all_addresses_asc |> Enum.at(idx), true,
+             all_addresses_asc |> Enum.at(idx + 1)}
           end
 
         paging_state ->
@@ -326,7 +327,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             |> Enum.find_index(&(&1 == paging_state))
 
           if paging_state_idx < @page_size do
-            {paging_state_idx , nil, false, nil}
+            {paging_state_idx, nil, false, nil}
           else
             idx = paging_state_idx - 1 - @page_size
 

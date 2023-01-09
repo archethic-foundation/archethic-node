@@ -183,15 +183,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @spec chain_size(binary(), String.t()) :: non_neg_integer()
   def chain_size(address, db_path) do
     # Get the genesis address for the given transaction's address
-    case get_tx_entry(address, db_path) do
-      {:ok, %{genesis_address: genesis_address}} ->
-        # Get the chain file stats including the nb of transactions written
-        {_, nb_txs} = get_file_stats(genesis_address)
-        nb_txs
-
-      {:error, :not_exists} ->
-        0
-    end
+    {_, nb_txs} = get_genesis_address(address, db_path) |> get_file_stats()
+    nb_txs
   end
 
   @doc """
