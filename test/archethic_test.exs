@@ -466,8 +466,12 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %GetTransactionChainLength{}, _ ->
-        {:ok, %TransactionChainLength{length: 3}}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: "@Alice2"}}
+
+        _, %GetTransactionChainLength{}, _ ->
+          {:ok, %TransactionChainLength{length: 3}}
       end)
 
       assert {:ok, 3} == Archethic.get_transaction_chain_length("@Alice2")

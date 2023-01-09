@@ -269,31 +269,23 @@ defmodule Archethic do
     end
   end
 
-  def get_transaction_chain_by_paging_address(address, nil, :desc)
+  def get_transaction_chain_by_paging_address(address, paging_address, :desc)
       when is_binary(address) do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
-        get_desc_chain(last_address, nil)
+        if TransactionChain.transaction_exists?(last_address) do
+          {chain, _, _} =
+            TransactionChain.get(address, [], paging_state: paging_address, order: :desc)
+
+          {:ok, chain}
+        else
+          last_address
+          |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+          |> TransactionChain.fetch_transaction_chain(address, paging_address, order: :desc)
+        end
 
       error ->
         error
-    end
-  end
-
-  def get_transaction_chain_by_paging_address(_address, paging_address, :desc)
-      when is_binary(paging_address) do
-    get_desc_chain(paging_address, paging_address)
-  end
-
-  defp get_desc_chain(address, paging_address) do
-    if TransactionChain.transaction_exists?(address) do
-      {chain, _, _} = TransactionChain.get(address, [], paging_state: paging_address, order: :desc)
-
-      {:ok, chain}
-    else
-      address
-      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-      |> TransactionChain.fetch_transaction_chain(address, paging_address, order: :desc)
     end
   end
 
@@ -303,8 +295,14 @@ defmodule Archethic do
   @spec get_transaction_chain_length(binary()) ::
           {:ok, non_neg_integer()} | {:error, :network_issue}
   def get_transaction_chain_length(address) when is_binary(address) do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-    TransactionChain.fetch_size_remotely(address, nodes)
+    case get_last_transaction_address(address) do
+      {:ok, last_address} ->
+        nodes = Election.chain_storage_nodes(last_address, P2P.authorized_and_available_nodes())
+        TransactionChain.fetch_size_remotely(address, nodes)
+
+      error ->
+        error
+    end
   end
 
   @doc """
