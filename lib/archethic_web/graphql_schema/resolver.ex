@@ -20,12 +20,13 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   def get_genesis_address(address) do
     case Archethic.fetch_genesis_address_remotely(address) do
-      ^address ->
-        {:ok, %{genesis: address}}
+      {:ok, genesis_address} ->
+        {:ok, %{genesis: genesis_address}}
 
-      genesis ->
-        {:ok, %{genesis: genesis}}
+      _ ->
+        {:ok, %{genesis: address}}
     end
+
   end
 
   def get_balance(address) do
