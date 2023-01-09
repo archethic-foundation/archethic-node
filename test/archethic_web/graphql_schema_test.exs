@@ -496,17 +496,16 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         })
 
       assert %{
-        "data" => %{
-          "genesisAddress" => %{
-            "genesis" => genesis
-          }
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "genesisAddress" => %{
+                   "genesis" => genesis
+                 }
+               }
+             } = json_response(conn, 200)
 
       assert genesis == Base.encode16(genesis_addr)
-
-
     end
+
     test "should return same address", %{conn: conn} do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -520,17 +519,17 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         })
 
       assert %{
-        "data" => %{
-          "genesisAddress" => %{
-            "genesis" => genesis
-          }
-        }
-      } = json_response(conn, 200)
+               "data" => %{
+                 "genesisAddress" => %{
+                   "genesis" => genesis
+                 }
+               }
+             } = json_response(conn, 200)
 
       assert genesis == Base.encode16(addr)
-
     end
   end
+
   describe "query: transaction_inputs" do
     test "should return a list of ledger inputs", %{conn: conn} do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>

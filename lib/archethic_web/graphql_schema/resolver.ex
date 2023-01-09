@@ -26,7 +26,6 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       _ ->
         {:ok, %{genesis: address}}
     end
-
   end
 
   def get_balance(address) do
