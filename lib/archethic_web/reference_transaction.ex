@@ -32,11 +32,13 @@ defmodule ArchethicWeb.ReferenceTransaction do
       nil ->
         with {:ok, transaction} <- Archethic.search_transaction(address),
              {:ok, reference_transaction} <- from_transaction(transaction) do
+          :telemetry.execute([:archethic_web, :hosting, :cache_ref_tx, :miss], %{count: 1})
           LRU.put(cache_server, cache_key, reference_transaction)
           {:ok, reference_transaction}
         end
 
       reference_transaction ->
+        :telemetry.execute([:archethic_web, :hosting, :cache_ref_tx, :hit], %{count: 1})
         {:ok, reference_transaction}
     end
   end

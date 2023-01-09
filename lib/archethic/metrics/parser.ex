@@ -287,7 +287,19 @@ defmodule Archethic.Metrics.Parser do
 
       metric = %{type: "gauge"}, acc ->
         Map.merge(acc, map_gauge(metric))
+
+      metric = %{type: "counter"}, acc ->
+        Map.merge(acc, map_counter(metric))
     end)
+  end
+
+  defp map_counter(%{name: name, metrics: metrics}) do
+    metrics =
+      Enum.reduce(metrics, 0, fn _, acc ->
+        acc + 1
+      end)
+
+    %{name => metrics}
   end
 
   defp map_gauge(%{name: name, metrics: [metric | _]}) do

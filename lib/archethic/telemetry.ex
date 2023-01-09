@@ -189,7 +189,13 @@ defmodule Archethic.Telemetry do
         reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10]],
         measurement: :duration,
         tags: [:nb_summaries]
-      )
+      ),
+
+      # Archethic Web
+      counter("archethic_web.hosting.cache_file.hit.count"),
+      counter("archethic_web.hosting.cache_file.miss.count"),
+      counter("archethic_web.hosting.cache_ref_tx.hit.count"),
+      counter("archethic_web.hosting.cache_ref_tx.miss.count")
     ]
   end
 end

@@ -140,6 +140,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
         case Base.url_decode64(encoded_file_content, padding: false) do
           {:ok, decoded_file_content} ->
+            :telemetry.execute([:archethic_web, :hosting, :cache_file, :miss], %{count: 1})
             LRUDisk.put(cache_server, cache_key, decoded_file_content)
             {:ok, decoded_file_content}
 
@@ -148,6 +149,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         end
 
       decoded_file_content ->
+        :telemetry.execute([:archethic_web, :hosting, :cache_file, :hit], %{count: 1})
         {:ok, decoded_file_content}
     end
   end
