@@ -475,6 +475,57 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
     end
   end
 
+  describe "query: genesis_address" do
+    test "should return the genesis address", %{conn: conn} do
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      genesis_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      MockClient
+      |> stub(:send_message, fn _, %GetFirstAddress{}, _ ->
+        {:ok, %FirstAddress{address: genesis_addr}}
+      end)
+
+      conn =
+        post(conn, "/api", %{
+          "query" => "query {
+            genesisAddress(address: \"#{Base.encode16(addr)}\") {
+              genesis
+            }
+          }"
+        })
+
+      assert %{
+        "data" => %{
+          "genesisAddress" => %{
+            "genesis" => genesis_addr
+          }
+        }
+      } = json_response(conn, 200)
+
+    end
+    test "should return same address", %{conn: conn} do
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      conn =
+        post(conn, "/api", %{
+          "query" => "query {
+            genesisAddress(address: \"#{Base.encode16(addr)}\") {
+              genesis
+            }
+          }"
+        })
+
+      assert %{
+        "data" => %{
+          "genesisAddress" => %{
+            "genesis" => addr
+          }
+        }
+      } = json_response(conn, 200)
+
+    end
+  end
   describe "query: transaction_inputs" do
     test "should return a list of ledger inputs", %{conn: conn} do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
