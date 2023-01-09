@@ -498,10 +498,13 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert %{
         "data" => %{
           "genesisAddress" => %{
-            "genesis" => genesis_addr
+            "genesis" => genesis
           }
         }
       } = json_response(conn, 200)
+
+      assert genesis == Base.encode16(genesis_addr)
+
 
     end
     test "should return same address", %{conn: conn} do
@@ -519,10 +522,12 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert %{
         "data" => %{
           "genesisAddress" => %{
-            "genesis" => addr
+            "genesis" => genesis
           }
         }
       } = json_response(conn, 200)
+
+      assert genesis == Base.encode16(addr)
 
     end
   end
