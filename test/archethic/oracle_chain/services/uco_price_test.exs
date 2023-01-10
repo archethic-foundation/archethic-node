@@ -194,7 +194,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
     MockUCOPriceProvider2
     |> expect(:fetch, fn _pairs ->
-      :timer.sleep(15000)
+      :timer.sleep(5_000)
     end)
 
     MockUCOPriceProvider3

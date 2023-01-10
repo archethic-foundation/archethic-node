@@ -42,19 +42,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
           result
       end)
       ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
-      |> Enum.reduce(%{}, fn provider_results, acc ->
-        provider_results
-        |> Enum.reduce(acc, fn
-          {currency, values}, acc when values != [] ->
-            Map.update(acc, String.downcase(currency), values, fn
-              previous_values ->
-                previous_values ++ values
-            end)
-
-          {_currency, _values}, acc ->
-            acc
-        end)
-      end)
+      |> Enum.reduce(%{}, &agregate_providers_data/2)
       |> Enum.reduce(%{}, fn {currency, values}, acc ->
         Map.put(acc, currency, Utils.median(values))
       end)
@@ -65,8 +53,23 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     ## compute median per currency list
     #      |> median_prices()
 
-    Supervisor.stop(fetching_tasks_supervisor, :normal, 10000)
+    Supervisor.stop(fetching_tasks_supervisor, :normal, 3_000)
     {:ok, prices}
+  end
+
+  @spec agregate_providers_data(map(), map()) :: map()
+  defp agregate_providers_data(provider_results, acc) do
+    provider_results
+    |> Enum.reduce(acc, fn
+      {currency, values}, acc when values != [] ->
+        Map.update(acc, String.downcase(currency), values, fn
+          previous_values ->
+            previous_values ++ values
+        end)
+
+      {_currency, _values}, acc ->
+        acc
+    end)
   end
 
   @impl Impl
