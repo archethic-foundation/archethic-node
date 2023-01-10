@@ -39,6 +39,7 @@ defmodule Archethic.Replication do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.Utils
 
@@ -107,18 +108,39 @@ defmodule Archethic.Replication do
           |> stream_previous_chain(download_nodes)
           |> Stream.reject(&Enum.empty?/1)
           |> Stream.flat_map(& &1)
-          |> Stream.each(fn tx = %Transaction{address: address} ->
-            TransactionChain.write_transaction(tx)
+          |> Stream.each(
+            fn tx = %Transaction{
+                 address: address,
+                 validation_stamp: %ValidationStamp{
+                   ledger_operations: %LedgerOperations{
+                     transaction_movements: transaction_movements
+                   }
+                 }
+               } ->
+              TransactionChain.write_transaction(tx)
 
-            # There is some case where a transaction is not replicated while it should
-            # because of some latency or network issue. So when we replicate a past chain
-            # we also ingest the transaction if we are storage node of it
+              # There is some case where a transaction is not replicated while it should
+              # because of some latency or network issue. So when we replicate a past chain
+              # we also ingest the transaction if we are storage node of it
 
-            if address
-               |> Election.chain_storage_nodes(download_nodes)
-               |> Utils.key_in_node_list?(Crypto.first_node_public_key()),
-               do: ingest_transaction(tx, false)
-          end)
+              io_addresses = Enum.map(transaction_movements, & &1.to)
+
+              cond do
+                address
+                |> Election.chain_storage_nodes(download_nodes)
+                |> Utils.key_in_node_list?(Crypto.first_node_public_key()) ->
+                  ingest_transaction(tx, false)
+
+                io_addresses
+                |> Election.io_storage_nodes(download_nodes)
+                |> Utils.key_in_node_list?(Crypto.first_node_public_key()) ->
+                  ingest_transaction(tx, true)
+
+                true ->
+                  :ok
+              end
+            end
+          )
           |> Stream.run()
 
           TransactionChain.write_transaction(tx)
