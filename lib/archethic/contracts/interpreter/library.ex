@@ -5,9 +5,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
     Election,
     P2P,
     P2P.Message.GetFirstPublicKey,
-    P2P.Message.GetGenesisAddress,
     P2P.Message.FirstPublicKey,
-    P2P.Message.GenesisAddress,
     TransactionChain,
     TransactionChain.TransactionInput
   }
@@ -188,8 +186,16 @@ defmodule Archethic.Contracts.Interpreter.Library do
   Get the inputs of the transaction with given hexadecimal address
   """
   @spec get_inputs(binary()) :: list(TransactionInput.t())
-  def get_inputs(encoded_address) do
-    address = Base.decode16!(encoded_address, case: :mixed)
+  def get_inputs(maybe_encoded_address) do
+    address =
+      case Base.decode16(maybe_encoded_address) do
+        :error ->
+          maybe_encoded_address
+
+        {:ok, address} ->
+          address
+      end
+
     Archethic.get_transaction_inputs(address)
   end
 

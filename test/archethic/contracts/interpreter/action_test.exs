@@ -487,8 +487,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
     assert %Transaction{data: %TransactionData{content: "1"}} =
              ~s"""
              actions triggered_by: transaction do
-               address = get_inputs("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
-               set_content size(address)
+               inputs = get_inputs("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
+               set_content size(inputs)
              end
              """
              |> Interpreter.sanitize_code()
