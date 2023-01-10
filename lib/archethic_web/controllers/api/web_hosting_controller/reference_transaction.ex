@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.ReferenceTransaction do
+defmodule ArchethicWeb.API.WebHostingController.ReferenceTransaction do
   @moduledoc """
   ReferenceTransaction is a subset of a transaction
   It is meant to be cached so we use a lighter structure

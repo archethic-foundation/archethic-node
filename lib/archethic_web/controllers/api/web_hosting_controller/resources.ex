@@ -3,7 +3,7 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
   alias Archethic.TransactionChain.{Transaction, TransactionData}
   alias ArchethicCache.LRUDisk
-  alias ArchethicWeb.ReferenceTransaction
+  alias ArchethicWeb.API.WebHostingController.ReferenceTransaction
 
   require Logger
 

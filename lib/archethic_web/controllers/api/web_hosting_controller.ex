@@ -7,8 +7,11 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   require Logger
 
-  alias ArchethicWeb.API.WebHostingController.{Resources, DirectoryListing}
-  alias ArchethicWeb.ReferenceTransaction
+  alias ArchethicWeb.API.WebHostingController.{
+    Resources,
+    DirectoryListing,
+    ReferenceTransaction
+  }
 
   @spec web_hosting(Plug.Conn.t(), params :: map()) :: Plug.Conn.t()
   def web_hosting(conn, params = %{"url_path" => []}) do

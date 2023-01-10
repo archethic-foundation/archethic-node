@@ -1,7 +1,7 @@
 defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
   @moduledoc false
 
-  alias ArchethicWeb.ReferenceTransaction
+  alias ArchethicWeb.API.WebHostingController.ReferenceTransaction
 
   require Logger
 

@@ -6,7 +6,7 @@ defmodule ArchethicWeb.Domain do
   alias Archethic
   alias Archethic.Crypto
   alias Archethic.TransactionChain.TransactionData.Ownership
-  alias ArchethicWeb.ReferenceTransaction
+  alias ArchethicWeb.API.WebHostingController.ReferenceTransaction
 
   require Logger
 
