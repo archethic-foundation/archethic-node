@@ -489,19 +489,15 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       conn =
         post(conn, "/api", %{
           "query" => "query {
-            genesisAddress(address: \"#{Base.encode16(addr)}\") {
-              genesis
-            }
+            genesisAddress(address: \"#{Base.encode16(addr)}\")
           }"
         })
 
       assert %{
-               "data" => %{
-                 "genesisAddress" => %{
-                   "genesis" => genesis
-                 }
-               }
-             } = json_response(conn, 200)
+          "data" => %{
+            "genesisAddress" => genesis
+          }
+        } = json_response(conn, 200)
 
       assert genesis == Base.encode16(genesis_addr)
     end
@@ -512,17 +508,13 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       conn =
         post(conn, "/api", %{
           "query" => "query {
-            genesisAddress(address: \"#{Base.encode16(addr)}\") {
-              genesis
-            }
+            genesisAddress(address: \"#{Base.encode16(addr)}\")
           }"
         })
 
       assert %{
                "data" => %{
-                 "genesisAddress" => %{
-                   "genesis" => genesis
-                 }
+                 "genesisAddress" => genesis
                }
              } = json_response(conn, 200)
 
