@@ -10,8 +10,14 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetFirstTransactionAddress
   alias Archethic.P2P.Message.FirstTransactionAddress
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.TransactionInputList
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionData
 
   doctest ActionInterpreter
@@ -431,6 +437,60 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
 
     assert %Transaction{data: %TransactionData{content: "first_address_acquired"}} =
              contract_code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ActionInterpreter.parse()
+             |> elem(2)
+             |> ActionInterpreter.execute()
+  end
+
+  test "shall use get_inputs/1 in actions" do
+    key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: key,
+      last_public_key: key,
+      available?: true,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
+    address = Base.decode16!("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetLastTransactionAddress{address: ^address}, _ ->
+        {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
+
+      _, %GetTransactionInputs{address: ^address}, _ ->
+        {:ok,
+         %TransactionInputList{
+           inputs: [
+             %VersionedTransactionInput{
+               input: %TransactionInput{
+                 from: "@Bob3",
+                 amount: 1_000_000_000,
+                 spent?: false,
+                 type: :UCO,
+                 timestamp: DateTime.utc_now()
+               },
+               protocol_version: 1
+             }
+           ]
+         }}
+    end)
+
+    assert %Transaction{data: %TransactionData{content: "1"}} =
+             ~s"""
+             actions triggered_by: transaction do
+               address = get_inputs("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
+               set_content size(address)
+             end
+             """
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ActionInterpreter.parse()

@@ -5,8 +5,11 @@ defmodule Archethic.Contracts.Interpreter.Library do
     Election,
     P2P,
     P2P.Message.GetFirstPublicKey,
+    P2P.Message.GetGenesisAddress,
     P2P.Message.FirstPublicKey,
-    TransactionChain
+    P2P.Message.GenesisAddress,
+    TransactionChain,
+    TransactionChain.TransactionInput
   }
 
   @doc """
@@ -180,6 +183,15 @@ defmodule Archethic.Contracts.Interpreter.Library do
   def size(binary) when is_binary(binary), do: binary |> decode_binary() |> byte_size()
   def size(list) when is_list(list), do: length(list)
   def size(map) when is_map(map), do: map_size(map)
+
+  @doc """
+  Get the inputs of the transaction with given hexadecimal address
+  """
+  @spec get_inputs(binary()) :: list(TransactionInput.t())
+  def get_inputs(encoded_address) do
+    address = Base.decode16!(encoded_address, case: :mixed)
+    Archethic.get_transaction_inputs(address)
+  end
 
   @doc """
   Get the genesis public key
