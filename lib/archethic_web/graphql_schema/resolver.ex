@@ -250,6 +250,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
         :eq ->
           BeaconChain.fetch_and_aggregate_summaries(next_datetime_summary_time, authorized_nodes)
+          |> SummaryAggregate.aggregate()
 
         :lt ->
           case BeaconChain.fetch_summaries_aggregate(next_datetime_summary_time, authorized_nodes) do
@@ -311,13 +312,6 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
          },
          list_nodes
        ) do
-    transformed_node_availabilities =
-      if is_bitstring(node_availabilities) do
-        transform_node_availabilities(node_availabilities)
-      else
-        node_availabilities
-      end
-
     node_average_availabilities
     |> Enum.with_index()
     |> Enum.map(fn {node_average_availability, index} ->
@@ -327,27 +321,21 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
         |> transform_end_of_node_synchronization()
 
       available =
-        transformed_node_availabilities
+        node_availabilities
+        |> transform_node_availabilities()
         |> Enum.at(index)
 
-      current_node =
+      public_key =
         list_nodes
         |> Enum.at(index)
-
-      formatted_public_key =
-        if current_node do
-          current_node
-          |> Map.get(:first_public_key)
-          |> Base.encode16()
-        else
-          ""
-        end
+        |> Map.get(:first_public_key)
+        |> Base.encode16()
 
       %{
         averageAvailability: node_average_availability,
         endOfNodeSynchronization: end_of_node_synchronization,
         available: available,
-        publicKey: formatted_public_key
+        publicKey: public_key
       }
     end)
   end
