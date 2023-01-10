@@ -10,9 +10,17 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
   @impl Impl
   @spec fetch(list(binary())) :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch(pairs) when is_list(pairs) do
-    query = 'http://coinmrketcap.com/currencies/uniris/markets/'
+    query = 'https://coinmarketcap.com/currencies/uniris/markets/'
 
     httpc_options = [
+      ssl: [
+        verify: :verify_peer,
+        cacertfile: CAStore.file_path(),
+        depth: 3,
+        customize_hostname_check: [
+          match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+        ]
+      ],
       connect_timeout: 1000,
       timeout: 2000
     ]
@@ -49,24 +57,11 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
             e
         end
       end)
-      |> Enum.map(fn {:ok, val} -> val end)
+      |> Enum.to_list()
+      |> Stream.reject(&match?({:ok, {:error, _}}, &1))
+      |> Stream.map(fn {:ok, val} -> val end)
+      |> Enum.into(%{})
 
-    errors? =
-      Enum.any?(returned_prices, fn
-        {:error, _error} -> true
-        _ -> false
-      end)
-
-    if errors? do
-      errors =
-        Enum.reduce(returned_prices, [], fn
-          {:error, error}, acc -> [error | acc]
-          _, acc -> acc
-        end)
-
-      {:error, errors}
-    else
-      {:ok, Enum.into(returned_prices, %{})}
-    end
+    {:ok, returned_prices}
   end
 end

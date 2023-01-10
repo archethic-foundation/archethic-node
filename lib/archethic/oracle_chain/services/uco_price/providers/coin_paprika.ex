@@ -40,8 +40,17 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika do
       prices =
         pairs
         |> Enum.map(fn pair ->
-          {pair, Enum.map(quotes, &get_in(&1, [String.upcase(pair), "price"]))}
+          {
+            pair,
+            quotes
+            |> Enum.map(
+              &(&1
+                |> get_in([String.downcase(pair), "price"])
+                |> Enum.reject(fn price -> is_nil(price) end))
+            )
+          }
         end)
+        |> Enum.reject(fn {_pair, prices} -> prices == [] end)
         |> Enum.into(%{})
 
       {:ok, prices}
