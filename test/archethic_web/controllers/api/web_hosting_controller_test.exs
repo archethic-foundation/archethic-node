@@ -1,5 +1,5 @@
 defmodule ArchethicWeb.API.WebHostingControllerTest do
-  use ArchethicCase
+  use ArchethicCase, async: false
   use ArchethicWeb.ConnCase
 
   alias Archethic.P2P
@@ -15,9 +15,23 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Utils
+
+  alias ArchethicCache.LRU
+  alias ArchethicCache.LRUDisk
+
   import Mox
 
   setup do
+    # There is a setup in ArchethicCase that removes the mut_dir()
+    # Since we need it for LRUDisk, we recreate it on every test
+    File.mkdir_p!(Path.join([Utils.mut_dir(), "aeweb", "web_hosting_cache_file"]))
+
+    # clear cache on every test because most tests use the same address
+    # and cache is a global state
+    :ok = LRU.purge(:web_hosting_cache_ref_tx)
+    :ok = LRUDisk.purge(:web_hosting_cache_file)
+
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -63,7 +77,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
              address:
                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-             data: %TransactionData{content: "invalid"}
+             data: %TransactionData{content: "invalid"},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
       end)
 
@@ -122,7 +139,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           {:ok,
            %Transaction{
              address: address,
-             data: %TransactionData{content: content}
+             data: %TransactionData{content: content},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
 
         _,
@@ -134,21 +154,24 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _ ->
           {:ok,
            %Transaction{
-             data: %TransactionData{content: content2}
+             data: %TransactionData{content: content2},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
       end)
 
       :ok
     end
 
-    test "should return file does not exist", %{conn: conn} do
+    test "should return index.html on file not found (handle JS routing)", %{conn: conn} do
       conn =
         get(
           conn,
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/file.html"
         )
 
-      assert "Cannot find file content" = response(conn, 404)
+      assert "<h1>Archethic</h1>" = response(conn, 200)
     end
 
     test "should return default index.html file", %{conn: conn} do
@@ -252,7 +275,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           {:ok,
            %Transaction{
              address: address,
-             data: %TransactionData{content: content}
+             data: %TransactionData{content: content},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
 
         _,
@@ -264,7 +290,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _ ->
           {:ok,
            %Transaction{
-             data: %TransactionData{content: content2}
+             data: %TransactionData{content: content2},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
       end)
 
@@ -525,7 +554,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           {:ok,
            %Transaction{
              address: address,
-             data: %TransactionData{content: content}
+             data: %TransactionData{content: content},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
 
         _,
@@ -537,7 +569,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _ ->
           {:ok,
            %Transaction{
-             data: %TransactionData{content: content2}
+             data: %TransactionData{content: content2},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
 
         _,
@@ -549,7 +584,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _ ->
           {:ok,
            %Transaction{
-             data: %TransactionData{content: content3}
+             data: %TransactionData{content: content3},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
       end)
 
@@ -616,7 +654,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           {:ok,
            %Transaction{
              address: address,
-             data: %TransactionData{content: content}
+             data: %TransactionData{content: content},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
 
         _,
@@ -628,7 +669,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _ ->
           {:ok,
            %Transaction{
-             data: %TransactionData{content: content2}
+             data: %TransactionData{content: content2},
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
            }}
       end)
 

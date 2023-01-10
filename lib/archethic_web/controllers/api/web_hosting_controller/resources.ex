@@ -2,45 +2,48 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   @moduledoc false
 
   alias Archethic.TransactionChain.{Transaction, TransactionData}
+  alias ArchethicCache.LRUDisk
+  alias ArchethicWeb.API.WebHostingController.ReferenceTransaction
 
   require Logger
 
-  @spec load(tx :: Transaction.t(), url_path :: list(), cache_headers :: list()) ::
+  @spec load(
+          reference_transaction :: ReferenceTransaction.t(),
+          url_path :: list(),
+          cache_headers :: list()
+        ) ::
           {:ok, file_content :: binary() | nil, encoding :: binary() | nil, mime_type :: binary(),
            cached? :: boolean(), etag :: binary()}
           | {:error,
-             :invalid_content
-             | :file_not_found
-             | {:is_a_directory, tx :: Transaction.t()}
+             :file_not_found
+             | {:is_a_directory, ReferenceTransaction.t()}
              | :invalid_encoding
              | any()}
   def load(
-        tx = %Transaction{
-          address: last_address,
-          data: %TransactionData{content: content}
+        reference_transaction = %ReferenceTransaction{
+          address: address,
+          json_content: json_content
         },
         url_path,
         cache_headers
       ) do
-    with {:ok, json_content} <- Jason.decode(content),
-         {:ok, metadata, _aeweb_version} <- get_metadata(json_content),
+    with {:ok, metadata, _aeweb_version} <- get_metadata(json_content),
          {:ok, file, mime_type, resource_path} <- get_file(metadata, url_path),
-         {cached?, etag} <- get_cache(cache_headers, last_address, url_path),
+         {cached?, etag} <- get_cache(cache_headers, address, url_path),
          {:ok, file_content, encoding} <- get_file_content(file, cached?, resource_path) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
-      {:error, %Jason.DecodeError{}} ->
-        {:error, :invalid_content}
+      {:error, :invalid_encoding} ->
+        {:error, :invalid_encoding}
 
       {:error, :file_not_found} ->
         {:error, :file_not_found}
 
       {:error, :get_metadata} ->
-        {:error,
-         "Error: Cant access metadata and aewebversion, Reftx: #{Base.encode16(last_address)}"}
+        {:error, "Error: Cant access metadata and aewebversion, Reftx: #{Base.encode16(address)}"}
 
       {:error, :is_a_directory} ->
-        {:error, {:is_a_directory, tx}}
+        {:error, {:is_a_directory, reference_transaction}}
 
       error ->
         error
@@ -62,14 +65,14 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
   # index file
   @spec get_file(metadata :: map(), url_path :: list()) ::
           {:ok, file :: map(), mime_type :: binary(), resource_path :: binary()}
-          | {:error, :is_a_directory | :file_not_found | :invalid_encoding}
+          | {:error, :is_a_directory | :file_not_found}
   defp get_file(metadata, []) do
-    case Map.get(metadata, "index.html", :error) do
-      :error ->
+    case Map.get(metadata, "index.html") do
+      nil ->
         {:error, :is_a_directory}
 
-      value ->
-        {:ok, value, MIME.from_path("index.html"), "index.html"}
+      file ->
+        {:ok, file, MIME.from_path("index.html"), "index.html"}
     end
   end
 
@@ -81,7 +84,15 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
         if is_a_directory?(metadata, resource_path) do
           {:error, :is_a_directory}
         else
-          {:error, :file_not_found}
+          # Handle JS History API by serving index.html instead of a 404
+          # We loose the ability to return real 404 errors
+          case Map.get(metadata, "index.html") do
+            nil ->
+              {:error, :file_not_found}
+
+            file ->
+              {:ok, file, MIME.from_path("index.html"), "index.html"}
+          end
         end
 
       file ->
@@ -91,45 +102,57 @@ defmodule ArchethicWeb.API.WebHostingController.Resources do
 
   @spec get_file_content(file_metadata :: map(), cached? :: boolean(), resource_path :: binary()) ::
           {:ok, nil | binary(), nil | binary()}
-          | {:error, :encoding_error | :file_not_found | :invalid_encoding | any()}
-  defp get_file_content(_, true, _), do: {:ok, nil, nil}
-
+          | {:error, :file_not_found | :invalid_encoding | any()}
   defp get_file_content(
          file_metadata = %{"addresses" => address_list},
          _cached? = false,
          resource_path
        ) do
-    try do
-      file_content =
-        Enum.reduce(address_list, "", fn address, acc ->
-          {:ok, address_bin} = Base.decode16(address, case: :mixed)
-
-          {:ok, %Transaction{data: %TransactionData{content: tx_content}}} =
-            Archethic.search_transaction(address_bin)
-
-          {:ok, decoded_content} = Jason.decode(tx_content)
-
-          {:ok, res_content} = access(decoded_content, resource_path)
-
-          acc <> res_content
-        end)
-
-      {:ok, file_content} = Base.url_decode64(file_content, padding: false)
-      {:ok, encoding} = access(file_metadata, "encoding", nil)
+    with {:ok, file_content} <- do_get_file_content(address_list, resource_path),
+         {:ok, encoding} <- access(file_metadata, "encoding", nil) do
       {:ok, file_content, encoding}
-    rescue
-      MatchError ->
-        {:error, :invalid_encoding}
-
-      ArgumentError ->
-        {:error, :encoding_error}
-
-      error ->
-        {:error, error}
     end
   end
 
-  defp get_file_content(_, false, _), do: {:error, :file_not_found}
+  defp get_file_content(_, true, _), do: {:ok, nil, nil}
+  defp get_file_content(_, _, _), do: {:error, :file_not_found}
+
+  defp do_get_file_content(address_list, resource_path) do
+    # started by ArchethicWeb.Supervisor
+    cache_server = :web_hosting_cache_file
+    cache_key = {address_list, resource_path}
+
+    case LRUDisk.get(cache_server, cache_key) do
+      nil ->
+        encoded_file_content =
+          Enum.reduce(address_list, "", fn address, acc ->
+            {:ok, address_bin} = Base.decode16(address, case: :mixed)
+
+            {:ok, %Transaction{data: %TransactionData{content: tx_content}}} =
+              Archethic.search_transaction(address_bin)
+
+            {:ok, decoded_content} = Jason.decode(tx_content)
+
+            {:ok, res_content} = access(decoded_content, resource_path)
+
+            acc <> res_content
+          end)
+
+        case Base.url_decode64(encoded_file_content, padding: false) do
+          {:ok, decoded_file_content} ->
+            :telemetry.execute([:archethic_web, :hosting, :cache_file, :miss], %{count: 1})
+            LRUDisk.put(cache_server, cache_key, decoded_file_content)
+            {:ok, decoded_file_content}
+
+          :error ->
+            {:error, :invalid_encoding}
+        end
+
+      decoded_file_content ->
+        :telemetry.execute([:archethic_web, :hosting, :cache_file, :hit], %{count: 1})
+        {:ok, decoded_file_content}
+    end
+  end
 
   @spec access(map(), key :: binary(), any()) :: {:error, :file_not_found} | {:ok, any()}
   defp access(map, key, default \\ :file_not_found) do
