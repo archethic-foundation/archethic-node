@@ -48,7 +48,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
             |> Enum.into("")
             |> String.to_float()
 
-          {pair, [price]}
+          {:ok, {pair, [price]}}
         else
           :error ->
             {:error, "invalid content"}
@@ -57,8 +57,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
             e
         end
       end)
-      |> Enum.to_list()
-      |> Stream.reject(&match?({:ok, {:error, _}}, &1))
+      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
       |> Stream.map(fn {:ok, val} -> val end)
       |> Enum.into(%{})
 
