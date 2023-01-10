@@ -11,12 +11,21 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
   alias __MODULE__.IntegerType
+  alias __MODULE__.AddressType
+  alias __MODULE__.ContentType
+  alias __MODULE__.HashType
+  alias __MODULE__.PublicKeyType
   alias __MODULE__.TransactionAttestation
   alias __MODULE__.TransactionError
   alias __MODULE__.OracleData
   alias __MODULE__.Version
+  alias __MODULE__.BeaconChainSummary
 
   import_types(SortOrderEnum)
+  import_types(AddressType)
+  import_types(ContentType)
+  import_types(HashType)
+  import_types(PublicKeyType)
   import_types(HexType)
   import_types(DateTimeType)
   import_types(TransactionType)
@@ -27,6 +36,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   import_types(IntegerType)
   import_types(OracleData)
   import_types(Version)
+  import_types(BeaconChainSummary)
 
   query do
     @desc """
@@ -173,6 +183,19 @@ defmodule ArchethicWeb.GraphQLSchema do
           {:error, :not_found} ->
             {:error, "Not data found at this date"}
         end
+      end)
+    end
+
+    @desc """
+    Query the network to get the value of the summary of beacon chain at a specific time or the last value
+    """
+    field :beacon_chain_summary, :beacon_chain_summary do
+      arg(:timestamp, :timestamp)
+
+      resolve(fn args, _ ->
+        datetime = Map.get(args, :timestamp, DateTime.utc_now())
+
+        Resolver.beacon_chain_summary(datetime)
       end)
     end
 

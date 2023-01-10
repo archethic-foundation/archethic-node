@@ -3,11 +3,6 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
 
   use Absinthe.Schema.Notation
 
-  import_types(ArchethicWeb.GraphQLSchema.ContentType)
-  import_types(ArchethicWeb.GraphQLSchema.AddressType)
-  import_types(ArchethicWeb.GraphQLSchema.HashType)
-  import_types(ArchethicWeb.GraphQLSchema.PublicKeyType)
-
   alias ArchethicWeb.GraphQLSchema.Resolver
 
   alias Archethic.TransactionChain.Transaction
