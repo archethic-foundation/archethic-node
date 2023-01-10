@@ -800,34 +800,43 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   def do_validate_ownerships(ownerships) do
     # handles irregulrarites in ownerships
     Enum.reduce_while(ownerships, :ok, fn
-      %Ownership{secret: "", authorized_keys: _}, :ok ->
-        {:halt, {:error, "invalid transaction - Ownership: secret is empty"}}
+      ownership, :ok ->
+        %Ownership{secret: secret, authorized_keys: authorized_keys} = ownership
+        nb_authorized_keys = map_size(authorized_keys)
 
-      %Ownership{secret: _, authorized_keys: %{}}, :ok ->
-        # defstruct authorized_keys: %{}, secret: ""
-        {:halt, {:error, "invalid transaction - Ownership: authorized keys are empty"}}
+        cond do
+          secret == "" ->
+            {:halt, {:error, "invalid transaction - Ownership: secret is empty"}}
 
-      %Ownership{secret: _, authorized_keys: authorized_keys}, :ok
-      when length(authorized_keys) > @max_authorized_keys ->
-        {:halt, {:error, "invalid transaction - Ownership: authorized keys excceds limit"}}
+          nb_authorized_keys == 0 ->
+            {:halt, {:error, "invalid transaction - Ownership: authorized keys are empty"}}
 
-      %Ownership{secret: _, authorized_keys: authorized_keys}, :ok ->
-        verify_authorized_keys(authorized_keys)
+          nb_authorized_keys > @max_authorized_keys ->
+            {:halt, {:error, "invalid transaction - Ownership: authorized keys excceds limit"}}
+
+          true ->
+            verify_authorized_keys(authorized_keys)
+        end
     end)
   end
 
+  @spec verify_authorized_keys(any) :: any
   def verify_authorized_keys(authorized_keys) do
+    # authorized_keys: %{(public_key :: Crypto.key()) => encrypted_key }
+
     Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
       {"", _}, _ ->
-        {:halt, {:error, "invalid transaction - Ownership: public key is empty "}}
+        e = {:halt, {:error, "invalid transaction - Ownership: public key is empty "}}
+        {:halt, e}
 
       {_, ""}, _ ->
-        {:halt, {:error, "invalid transaction - Ownership: encrypted key is empty"}}
+        e = {:halt, {:error, "invalid transaction - Ownership: encrypted key is empty"}}
+        {:halt, e}
 
       {public_key, _}, acc ->
         if Crypto.valid_public_key?(public_key),
           do: {:cont, acc},
-          else: {:halt, {:error, "invalid transaction - Ownership: invalid public key"}}
+          else: {:halt, {:halt, {:error, "invalid transaction - Ownership: invalid public key"}}}
     end)
   end
 

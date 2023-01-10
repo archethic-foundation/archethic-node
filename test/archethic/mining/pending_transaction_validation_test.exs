@@ -179,8 +179,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         http_port: 4000,
-        first_public_key: "node_key1",
-        last_public_key: "node_key1",
+        first_public_key: Crypto.derive_keypair("node_key1", 0) |> elem(1),
+        last_public_key: Crypto.derive_keypair("node_key1", 1) |> elem(1),
         available?: true
       })
 
@@ -188,8 +188,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         http_port: 4000,
-        first_public_key: "node_key2",
-        last_public_key: "node_key2",
+        first_public_key: Crypto.derive_keypair("node_key2", 0) |> elem(1),
+        last_public_key: Crypto.derive_keypair("node_key2", 1) |> elem(1),
         available?: true
       })
 
@@ -214,10 +214,10 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
               %Ownership{
                 secret: :crypto.strong_rand_bytes(32),
                 authorized_keys: %{
-                  "node_key1" => "",
-                  "node_key2" => "",
+                  (Crypto.derive_keypair("node_key1", 0) |> elem(1)) => "a_encrypted_key",
+                  (Crypto.derive_keypair("node_key2", 0) |> elem(1)) => "a_encrypted_key",
                   # we started and connected this node in setup
-                  Crypto.last_node_public_key() => ""
+                  Crypto.last_node_public_key() => "a_encrypted_key"
                 }
               }
             ]
@@ -262,7 +262,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                 secret: :crypto.strong_rand_bytes(32),
                 authorized_keys: %{
                   # we started and connected this node in setup
-                  Crypto.last_node_public_key() => ""
+                  Crypto.last_node_public_key() => :crypto.strong_rand_bytes(32)
                 }
               }
             ]
@@ -706,7 +706,10 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
             ownerships: [
               %Ownership{
                 secret: :crypto.strong_rand_bytes(32),
-                authorized_keys: %{"node_key" => :crypto.strong_rand_bytes(32)}
+                authorized_keys: %{
+                  <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> =>
+                    :crypto.strong_rand_bytes(32)
+                }
               }
             ]
           },
