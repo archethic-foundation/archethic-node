@@ -89,21 +89,38 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert %{"errors" => [%{"message" => "transaction_not_exists"}]} = json_response(conn, 200)
     end
 
-    test "should the transaction with the requested fields", %{conn: conn} do
+    test "should return the transaction with the requested fields", %{conn: conn} do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
+      prev_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{}, _ ->
-        {:ok, %Transaction{address: addr, type: :transfer, data: %TransactionData{}}}
+        {:ok,
+         %Transaction{
+           address: addr,
+           previous_public_key: prev_public_key,
+           type: :transfer,
+           data: %TransactionData{}
+         }}
       end)
 
       conn =
         post(conn, "/api", %{
-          "query" => "query { transaction(address: \"#{addr}\") { address } }"
+          "query" => "query { transaction(address: \"#{addr}\") { address, previousAddress } }"
         })
 
-      assert %{"data" => %{"transaction" => %{"address" => address}}} = json_response(conn, 200)
+      assert %{
+               "data" => %{
+                 "transaction" => %{
+                   "address" => address,
+                   "previousAddress" => previous_address
+                 }
+               }
+             } = json_response(conn, 200)
+
       assert addr == Base.decode16!(address, case: :mixed)
+
+      assert Base.decode16!(previous_address) == Crypto.derive_address(prev_public_key)
     end
   end
 
@@ -118,7 +135,12 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
           {:ok, %LastTransactionAddress{address: last_address}}
 
         _, %GetTransaction{address: ^last_address}, _ ->
-          {:ok, %Transaction{address: last_address, type: :transfer}}
+          {:ok,
+           %Transaction{
+             previous_public_key: first_addr,
+             address: last_address,
+             type: :transfer
+           }}
       end)
 
       conn =
@@ -229,16 +251,20 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       |> stub(:list_transactions, fn _ ->
         addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
         addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        prev_addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        prev_addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
         [
           %Transaction{
             address: addr1,
             type: :transfer,
+            previous_public_key: prev_addr1,
             data: %TransactionData{}
           },
           %Transaction{
             address: addr2,
             type: :transfer,
+            previous_public_key: prev_addr2,
             data: %TransactionData{}
           }
         ]
@@ -258,9 +284,11 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       |> stub(:list_transactions, fn _ ->
         Enum.map(1..20, fn _ ->
           addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+          prev_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
           %Transaction{
             address: addr,
+            previous_public_key: prev_addr,
             type: :transfer,
             data: %TransactionData{}
           }
@@ -285,11 +313,13 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       transactions = [
         %Transaction{
           address: first,
+          previous_public_key: last,
           type: :transfer,
           data: %TransactionData{}
         },
         %Transaction{
           address: last,
+          previous_public_key: last,
           type: :hosting,
           data: %TransactionData{}
         }
@@ -332,10 +362,12 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       transactions =
         Enum.map(1..20, fn _ ->
           addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+          prev_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
           %Transaction{
             address: addr,
             type: :transfer,
+            previous_public_key: prev_addr,
             data: %TransactionData{}
           }
         end)
@@ -373,10 +405,12 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       transactions =
         Enum.map(1..20, fn _ ->
           addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+          prev_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
           %Transaction{
             address: addr,
             type: :transfer,
+            previous_public_key: prev_addr,
             data: %TransactionData{}
           }
         end)
