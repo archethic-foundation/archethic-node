@@ -90,11 +90,6 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:transfers, list_of(:uco_transfer))
   end
 
-  @desc "[Genesis] represents genesis address of a transaction chain"
-  object :genesis_address do
-    field(:genesis, :address)
-  end
-
   @desc "[TokenLedger] represents the transfers to perform on the UCO ledger"
   object :token_ledger do
     field(:transfers, list_of(:token_transfer))
