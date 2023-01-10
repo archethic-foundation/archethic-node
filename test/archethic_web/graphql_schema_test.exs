@@ -598,7 +598,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
 
       today = DateTime.utc_now()
-      str_today = to_string(today)
+      timestamp_today = DateTime.to_unix(today)
 
       yesterday =
         today
@@ -649,7 +649,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert %{
                "data" => %{
                  "beaconChainSummary" => %{
-                   "summaryTime" => ^str_today,
+                   "summaryTime" => ^timestamp_today,
                    "p2pAvailabilities" => ^str_p2p_availabilities,
                    "availabilityAddingTime" => ^availability_adding_time
                  }

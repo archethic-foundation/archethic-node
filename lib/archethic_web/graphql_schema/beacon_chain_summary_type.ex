@@ -12,7 +12,7 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
 
   object :beacon_chain_summary do
     field(:version, :integer)
-    field(:summary_time, :string)
+    field(:summary_time, :timestamp)
     field(:availability_adding_time, :integer)
     field(:p2p_availabilities, :p2p_availabilities)
 
