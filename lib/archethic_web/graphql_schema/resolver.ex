@@ -291,6 +291,10 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
         end)
         |> List.flatten()
       end)
+      |> Map.update!(:availability_adding_time, fn
+        [] -> 0
+        num -> num
+      end)
 
     {:ok, transformed_beacon_chain_summary}
   end
