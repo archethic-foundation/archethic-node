@@ -204,7 +204,7 @@ defmodule Archethic.Utils.Regression.Playbook do
       {:ok, %{"status" => "pending"}} ->
         case Task.yield(replication_attestation, 5_000) || Task.shutdown(replication_attestation) do
           {:ok, :ok} ->
-            :ok
+            {:ok, tx.address}
 
           {:ok, {:error, reason}} ->
             Logger.error(
@@ -240,9 +240,26 @@ defmodule Archethic.Utils.Regression.Playbook do
       _sub_id = Base.encode16(txn_address)
     )
 
+    query = """
+    subscription {
+      transactionError(address: "#{Base.encode16(txn_address)}") {
+        reason
+    }
+    }
+    """
+
+    WSClient.absinthe_sub(
+      query,
+      _var = %{},
+      _sub_id = Base.encode16(txn_address)
+    )
+
     receive do
       %{"transactionConfirmed" => %{"nbConfirmations" => 1}} ->
         :ok
+
+      %{"transactionError" => %{"reason" => reason}} ->
+        {:error, reason}
 
       {:error, reason} ->
         {:error, reason}
