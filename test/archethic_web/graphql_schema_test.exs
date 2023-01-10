@@ -494,10 +494,10 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         })
 
       assert %{
-          "data" => %{
-            "genesisAddress" => genesis
-          }
-        } = json_response(conn, 200)
+               "data" => %{
+                 "genesisAddress" => genesis
+               }
+             } = json_response(conn, 200)
 
       assert genesis == Base.encode16(genesis_addr)
     end
