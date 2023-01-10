@@ -41,7 +41,7 @@ defmodule ArchethicWeb.RewardsLiveTest do
         {address, time}
       end)
     end)
-    |> stub(:get_transaction, fn _address, [:type] ->
+    |> stub(:get_transaction, fn _address, [:type], _ ->
       {:ok,
        %Transaction{
          type: :node_rewards

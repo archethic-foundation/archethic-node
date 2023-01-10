@@ -123,11 +123,29 @@ defmodule Archethic.DB.EmbeddedImpl do
 
   @doc """
   Get a transaction at the given address
+  Read from storage first and maybe read from IO storage if flag is passed
   """
-  @spec get_transaction(address :: binary(), fields :: list()) ::
+  @spec get_transaction(address :: binary(), fields :: list(), storage_type :: DB.storage_type()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
-  def get_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
-    ChainReader.get_transaction(address, fields, db_path())
+  def get_transaction(address, fields \\ [], storage_type \\ :chain)
+      when is_binary(address) and is_list(fields) do
+    case ChainReader.get_transaction(address, fields, db_path()) do
+      {:ok, transaction} ->
+        {:ok, transaction}
+
+      {:error, :transaction_not_exists} ->
+        if storage_type == :io do
+          case ChainReader.get_io_transaction(address, fields, db_path()) do
+            nil ->
+              {:error, :transaction_not_exists}
+
+            transaction ->
+              {:ok, transaction}
+          end
+        else
+          {:error, :transaction_not_exists}
+        end
+    end
   end
 
   @doc """

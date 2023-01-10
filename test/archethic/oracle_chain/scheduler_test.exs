@@ -165,7 +165,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       })
 
       MockDB
-      |> expect(:get_transaction, fn _, _ ->
+      |> expect(:get_transaction, fn _, _, _ ->
         {:ok,
          %Transaction{
            type: :oracle,

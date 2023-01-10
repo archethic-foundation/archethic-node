@@ -7,7 +7,9 @@ defmodule Archethic.Contracts.Interpreter.Library do
     P2P.Message.GetFirstPublicKey,
     P2P.Message.FirstPublicKey,
     TransactionChain,
-    TransactionChain.TransactionInput
+    TransactionChain.TransactionInput,
+    TransactionChain.Transaction,
+    TransactionChain.TransactionData
   }
 
   @doc """
@@ -183,9 +185,16 @@ defmodule Archethic.Contracts.Interpreter.Library do
   def size(map) when is_map(map), do: map_size(map)
 
   @doc """
-  Get the inputs of the transaction with given hexadecimal address
+  Get the inputs of the transaction of given address
+
+  Address can be encoded in hexadecimal or raw (binary)
+  This is useful to be able to do both:
+  - `get_inputs("abcd123...")`
+  - `get_inputs(contract.address)`
+
+  The return value is similar to a TransactionInput but with more fields
   """
-  @spec get_inputs(binary()) :: list(TransactionInput.t())
+  @spec get_inputs(binary()) :: list(map())
   def get_inputs(maybe_encoded_address) do
     address =
       case Base.decode16(maybe_encoded_address) do
@@ -197,6 +206,22 @@ defmodule Archethic.Contracts.Interpreter.Library do
       end
 
     Archethic.get_transaction_inputs(address)
+    |> Enum.map(fn input = %TransactionInput{from: from} ->
+      # read the transaction from IO storage
+      # to add the transaction's content to the input's map
+      {:ok, %Transaction{data: %TransactionData{content: content}}} =
+        TransactionChain.get_transaction(from, [], :io)
+
+      %{
+        amount: input.amount,
+        content: content,
+        from: input.from,
+        type: input.type,
+        timestamp: input.timestamp,
+        reward?: input.reward?,
+        spent?: input.spent?
+      }
+    end)
   end
 
   @doc """

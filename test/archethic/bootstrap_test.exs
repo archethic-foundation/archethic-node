@@ -563,7 +563,7 @@ defmodule Archethic.BootstrapTest do
         ^addr2, _ -> true
         ^addr1, _ -> true
       end)
-      |> expect(:get_transaction, fn ^addr3, _ ->
+      |> expect(:get_transaction, fn ^addr3, _, _ ->
         {:error, :transaction_not_exists}
       end)
       |> stub(:write_transaction, fn tx, _ ->

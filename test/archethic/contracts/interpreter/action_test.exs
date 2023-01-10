@@ -484,6 +484,14 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
          }}
     end)
 
+    MockDB
+    |> stub(:get_transaction, fn _, _, _ ->
+      {:ok, %Transaction{data: %TransactionData{content: "input tx content"}}}
+    end)
+
+    # TODO: find a way to check the inputs from the contract
+    # TODO: maybe with a "set_content json(inputs)"
+
     assert %Transaction{data: %TransactionData{content: "1"}} =
              ~s"""
              actions triggered_by: transaction do

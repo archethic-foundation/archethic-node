@@ -34,7 +34,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
       |> expect(:list_addresses_by_type, fn :node_shared_secrets ->
         [:crypto.strong_rand_bytes(32)]
       end)
-      |> expect(:get_transaction, fn _, _ ->
+      |> expect(:get_transaction, fn _, _, _ ->
         {:ok,
          %Transaction{
            data: %TransactionData{
