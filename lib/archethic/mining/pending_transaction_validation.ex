@@ -56,6 +56,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                 |> Jason.decode!()
                 |> ExJsonSchema.Schema.resolve()
 
+  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
+
+  @tx_data_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
+
+  @ownership_max_keys Application.compile_env!(:archethic, :ownership_max_authorized_keys)
+
   @doc """
   Determines if the transaction is accepted into the network
   """
@@ -70,6 +76,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          :ok <- valid_previous_signature(tx),
          :ok <- validate_contract(tx),
          :ok <- validate_content_size(tx),
+         :ok <- validate_ownerships(tx),
          :ok <- do_accept_transaction(tx, validation_time),
          :ok <- validate_previous_transaction_type?(tx) do
       :telemetry.execute(
@@ -723,7 +730,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
   defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: code}}, _) do
     cond do
       byte_size(code) == 0 ->
@@ -737,54 +743,91 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
-  @ownership_max_keys Application.compile_env!(:archethic, :ownership_max_authorized_keys)
-  @max_ownerships @ownership_max_keys
   defp do_accept_transaction(
          %Transaction{
            type: :data,
-           data: %TransactionData{content: content, ownerships: ownerships}
+           data: data = %TransactionData{content: content, ownerships: ownerships},
+           version: tx_version
          },
          _
        ) do
-    # content_size = byte_size(content) already handled
     nb_ownerships = length(ownerships)
 
+    tx_data_size =
+      data
+      |> TransactionData.serialize(tx_version)
+      |> :erlang.byte_size()
+
     cond do
+      tx_data_size > @tx_data_max_size ->
+        # only for data type txns
+        # content_size  already handled
+        {:error, "invalid data type transaction - transaction size exceeds limit"}
+
       content == "" && nb_ownerships == 0 ->
+        #  content or ownership either must be present or error
+        #  defstruct recipients: [], ledger: %Ledger{}, code: "", ownerships: [], content: ""
         {:error, "invalid data type transaction - Both content & ownership are empty"}
 
-      nb_ownerships > @max_ownerships ->
-        {:error, "invalid data type transaction - ownerships exceeds limit"}
+      content == "" && nb_ownerships != 0 ->
+        :ok
 
-      nb_ownerships != 0 ->
-        validate_ownerships(ownerships)
+      nb_ownerships == 0 && content != "" ->
+        :ok
     end
   end
 
   defp do_accept_transaction(_, _), do: :ok
 
-  defp validate_ownerships(ownerships) do
+  def validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
+    nb_ownerships = length(ownerships)
+
+    cond do
+      # defstruct recipients: [], ledger: %Ledger{}`, code: "", ownerships: [], content: ""
+      # we might not have any ownerships at all
+      nb_ownerships == 0 ->
+        :ok
+
+      nb_ownerships > @ownership_max_keys ->
+        {:error, "invalid transaction - ownerships exceeds limit"}
+
+      nb_ownerships > 0 and nb_ownerships <= @ownership_max_keys ->
+        do_validate_ownerships(ownerships)
+    end
+  end
+
+  @max_authorized_keys @ownership_max_keys
+  def do_validate_ownerships(ownerships) do
+    # handles irregulrarites in ownerships
     Enum.reduce_while(ownerships, :ok, fn
       %Ownership{secret: "", authorized_keys: _}, :ok ->
-        {:halt, {:error, "invalid data type transaction - secret is empty"}}
+        {:halt, {:error, "invalid transaction - Ownership: secret is empty"}}
 
       %Ownership{secret: _, authorized_keys: %{}}, :ok ->
-        {:halt, {:error, "invalid data type transaction - authorized keys is empty"}}
+        # defstruct authorized_keys: %{}, secret: ""
+        {:halt, {:error, "invalid transaction - Ownership: authorized keys are empty"}}
+
+      %Ownership{secret: _, authorized_keys: authorized_keys}, :ok
+      when length(authorized_keys) > @max_authorized_keys ->
+        {:halt, {:error, "invalid transaction - Ownership: authorized keys excceds limit"}}
 
       %Ownership{secret: _, authorized_keys: authorized_keys}, :ok ->
-        Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
-          {"", _}, _ ->
-            {:halt, {:error, "invalid data type transaction - public key is empty"}}
+        verify_authorized_keys(authorized_keys)
+    end)
+  end
 
-          {_, ""}, _ ->
-            {:halt, {:error, "invalid data type transaction - encrypted key is empty"}}
+  def verify_authorized_keys(authorized_keys) do
+    Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
+      {"", _}, _ ->
+        {:halt, {:error, "invalid transaction - Ownership: public key is empty "}}
 
-          {public_key, _}, acc ->
-            if Crypto.valid_public_key?(public_key),
-              do: {:cont, acc},
-              else: {:halt, {:error, "invalid data type transaction - invalid public key"}}
-        end)
+      {_, ""}, _ ->
+        {:halt, {:error, "invalid transaction - Ownership: encrypted key is empty"}}
+
+      {public_key, _}, acc ->
+        if Crypto.valid_public_key?(public_key),
+          do: {:cont, acc},
+          else: {:halt, {:error, "invalid transaction - Ownership: invalid public key"}}
     end)
   end
 
