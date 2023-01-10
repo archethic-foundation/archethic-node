@@ -106,7 +106,19 @@ defmodule Archethic.Replication do
           tx
           |> stream_previous_chain(download_nodes)
           |> Stream.reject(&Enum.empty?/1)
-          |> Stream.each(&TransactionChain.write/1)
+          |> Stream.flat_map(& &1)
+          |> Stream.each(fn tx = %Transaction{address: address} ->
+            TransactionChain.write_transaction(tx)
+
+            # There is some case where a transaction is not replicated while it should
+            # because of some latency or network issue. So when we replicate a past chain
+            # we also ingest the transaction if we are storage node of it
+
+            if address
+               |> Election.chain_storage_nodes(download_nodes)
+               |> Utils.key_in_node_list?(Crypto.first_node_public_key()),
+               do: ingest_transaction(tx, false)
+          end)
           |> Stream.run()
 
           TransactionChain.write_transaction(tx)
