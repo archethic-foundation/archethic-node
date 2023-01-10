@@ -6,6 +6,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   require Logger
 
   alias Archethic.OracleChain.Services.Impl
+  alias Archethic.Utils
 
   @behaviour Impl
 
@@ -14,10 +15,13 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @impl Impl
   @spec fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch do
+    ## Start a supervisor for the feching tasks
+    {:ok, fetching_tasks_supervisor} = Task.Supervisor.start_link()
     ## retrieve prices from configured providers and filter results marked as errors
     prices =
-      providers()
-      |> Task.async_stream(
+      Task.Supervisor.async_stream_nolink(
+        fetching_tasks_supervisor,
+        providers(),
         fn provider ->
           case provider.fetch(@pairs) do
             {:ok, _prices} = result ->
@@ -32,35 +36,36 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         end,
         on_timeout: :kill_task
       )
-      |> Stream.filter(fn
-        {:ok, {:ok, _result}} ->
-          true
-
-        other ->
-          Logger.warning(
-            "Service : #{inspect(__MODULE__)} : Unexpected answer while querying provider : #{inspect(other)}"
-          )
-
-          false
-      end)
-      |> Enum.map(fn
+      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
+      |> Stream.map(fn
         {_, {_, result = %{}}} ->
           result
+      end)
+      ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
+      |> Enum.reduce(%{}, fn provider_results, acc ->
+        provider_results
+        |> Enum.reduce(acc, fn
+          {currency, values}, acc when values != [] ->
+            Map.update(acc, String.downcase(currency), values, fn
+              previous_values ->
+                previous_values ++ values
+            end)
 
-        other_service_answer_format ->
-          Logger.error(
-            "Service : #{inspect(__MODULE__)} : Unexpected answer while querying provider : #{inspect(other_service_answer_format)}, ignoring."
-          )
-
-          %{}
+          {_currency, _values}, acc ->
+            acc
+        end)
+      end)
+      |> Enum.reduce(%{}, fn {currency, values}, acc ->
+        Map.put(acc, currency, Utils.median(values))
       end)
 
-      ## split prices in a list per currency. If a service returned a list of prices of a currency,
-      ## they will be medianed first before being added to list
-      |> split_prices()
-      ## compute median per currency list
-      |> median_prices()
+    ## split prices in a list per currency. If a service returned a list of prices of a currency,
+    ## they will be medianed first before being added to list
+    #      |> split_prices()
+    ## compute median per currency list
+    #      |> median_prices()
 
+    Supervisor.stop(fetching_tasks_supervisor, :normal, 10000)
     {:ok, prices}
   end
 
@@ -111,28 +116,6 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     mean(xs, t + x, l + 1)
   end
 
-  defp median_prices(map_prices = %{}) do
-    Enum.reduce(map_prices, %{}, fn {currency, values}, acc ->
-      Map.put(acc, currency, median(values))
-    end)
-  end
-
-  ## To avoid all calculation from general clause to follow
-  defp median([price]) do
-    price
-  end
-
-  defp median(prices) do
-    sorted = Enum.sort(prices)
-    length_list = Enum.count(sorted)
-
-    case rem(length_list, 2) do
-      1 -> Enum.at(sorted, div(length_list, 2))
-      ## If we have an even number, media is the average of the two medium nu,bers
-      0 -> Enum.slice(sorted, div(length_list, 2) - 1, 2) |> Enum.sum() |> Kernel./(2)
-    end
-  end
-
   @impl Impl
   @spec parse_data(map()) :: {:ok, map()} | :error
   def parse_data(service_data) when is_map(service_data) do
@@ -152,36 +135,5 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
   defp providers do
     Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:providers)
-  end
-
-  defp split_prices(list_of_maps_of_prices) do
-    split_prices(list_of_maps_of_prices, %{})
-  end
-
-  defp split_prices([], acc) do
-    acc
-  end
-
-  defp split_prices(
-         [%{} = prices | other_prices],
-         aggregated_data
-       ) do
-    new_aggregated_data =
-      Enum.reduce(prices, aggregated_data, fn
-        ## Assert we have at least one value for the currency
-        {currency, [_ | _] = values}, acc ->
-          Map.update(acc, String.downcase(currency), [median(values)], fn previous_values ->
-            previous_values ++ [median(values)]
-          end)
-
-        other, acc ->
-          Logger.warning(
-            "No or Unexpected value : #{inspect(other)} while aggregating service result"
-          )
-
-          acc
-      end)
-
-    split_prices(other_prices, new_aggregated_data)
   end
 end

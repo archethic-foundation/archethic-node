@@ -46,20 +46,20 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     test "should return true if the prices are the good one" do
       MockUCOPriceProvider1
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+        {:ok, %{"eur" => [0.20], "usd" => [0.11]}}
       end)
 
       MockUCOPriceProvider2
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+        {:ok, %{"eur" => [0.30, 0.40], "usd" => [0.12, 0.13]}}
       end)
 
       MockUCOPriceProvider3
       |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+        {:ok, %{"eur" => [0.50], "usd" => [0.14]}}
       end)
 
-      assert true == UCOPrice.verify?(%{"eur" => 0.20, "usd" => 0.12})
+      assert {:ok, %{"eur" => 0.35, "usd" => 0.125}} == UCOPrice.fetch()
     end
 
     test "should return false if the prices have deviated" do
@@ -148,7 +148,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     assert false == UCOPrice.verify?(%{"eur" => 0.35, "usd" => 0.12})
   end
 
-  test "verify?/1 should return false when no data are returned from providers" do
+  test "verify?/1 should return false when no data are returned from all providers" do
     MockUCOPriceProvider1
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [], "usd" => []}}
@@ -186,7 +186,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     assert {:ok, %{"eur" => 0.55, "usd" => 0.12}} = UCOPrice.fetch()
   end
 
-  test "should handle unexpected format in values returned from service" do
+  test "should handle a service timing out" do
     MockUCOPriceProvider1
     |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.50], "usd" => [0.10]}}
@@ -194,14 +194,14 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
     MockUCOPriceProvider2
     |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.60], "usd" => [0.20]}}
+      :timer.sleep(15000)
     end)
 
     MockUCOPriceProvider3
     |> expect(:fetch, fn _pairs ->
-      {:ok, [{"eur", 1.00}, {"usd", 0.60}]}
+      {:ok, %{"eur" => [0.50], "usd" => [0.10]}}
     end)
 
-    assert true == UCOPrice.verify?(%{"eur" => 0.55, "usd" => 0.15})
+    assert true == UCOPrice.verify?(%{"eur" => 0.50, "usd" => 0.10})
   end
 end
