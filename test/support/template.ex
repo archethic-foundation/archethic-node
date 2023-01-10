@@ -41,7 +41,6 @@ defmodule ArchethicCase do
     MockDB
     |> stub(:list_transactions, fn _ -> [] end)
     |> stub(:write_transaction, fn _, _ -> :ok end)
-    |> stub(:write_transaction_chain, fn _ -> :ok end)
     |> stub(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
     |> stub(:get_transaction_chain, fn _, _, _ -> {[], false, nil} end)
     |> stub(:scan_chain, fn _, _, _, _ -> {[], false, nil} end)

@@ -45,45 +45,6 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
-  Write the transaction chain through the a chain writer which will
-  append the transactions to the chain's file
-
-  If a transaction already exists it will be discarded
-
-  Indexes will then be filled with the relative transactions
-  """
-  @spec write_transaction_chain(list(Transaction.t())) :: :ok
-  def write_transaction_chain(chain) do
-    sorted_chain = Enum.sort_by(chain, & &1.validation_stamp.timestamp, {:asc, DateTime})
-
-    previous_address =
-      List.first(sorted_chain)
-      |> Transaction.previous_address()
-
-    genesis_address =
-      case ChainIndex.get_tx_entry(previous_address, db_path()) do
-        {:ok, %{genesis_address: genesis_address}} ->
-          genesis_address
-
-        _ ->
-          previous_address
-      end
-
-    do_write_transaction_chain(genesis_address, sorted_chain)
-  end
-
-  defp do_write_transaction_chain(genesis_address, sorted_chain) do
-    Enum.each(sorted_chain, fn tx ->
-      unless ChainIndex.transaction_exists?(tx.address, db_path()) do
-        ChainWriter.append_transaction(genesis_address, tx)
-
-        # Delete IO transaction if it exists as it is now stored as a chain
-        delete_io_transaction(tx.address)
-      end
-    end)
-  end
-
-  @doc """
   Write a single transaction and append it to its chain
   """
   @spec write_transaction(Transaction.t(), DB.storage_type()) :: :ok
