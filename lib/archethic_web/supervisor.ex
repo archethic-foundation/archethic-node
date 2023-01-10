@@ -4,7 +4,10 @@ defmodule ArchethicWeb.Supervisor do
   use Supervisor
 
   alias Archethic.Networking
+  alias Archethic.Utils
 
+  alias ArchethicCache.LRU
+  alias ArchethicCache.LRUDisk
   alias ArchethicWeb.Endpoint
   alias ArchethicWeb.{FaucetRateLimiter, TransactionSubscriber, TransactionCache}
   alias ArchethicWeb.ExplorerLive.TopTransactionsCache
@@ -29,7 +32,9 @@ defmodule ArchethicWeb.Supervisor do
         {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
         Endpoint,
         {Absinthe.Subscription, Endpoint},
-        TransactionSubscriber
+        TransactionSubscriber,
+        web_hosting_cache_ref_tx(),
+        web_hosting_cache_file()
       ]
       |> add_faucet_rate_limit_child()
 
@@ -52,5 +57,32 @@ defmodule ArchethicWeb.Supervisor do
     else
       children
     end
+  end
+
+  # this is used in web_hosting_controller.ex
+  # it does not store an entire transaction, but a triplet {address, json_content, timestamp}
+  defp web_hosting_cache_ref_tx() do
+    %{
+      id: :web_hosting_cache_ref_tx,
+      start:
+        {LRU, :start_link,
+         [
+           :web_hosting_cache_ref_tx,
+           Application.fetch_env!(:archethic_web, :tx_cache_bytes)
+         ]}
+    }
+  end
+
+  defp web_hosting_cache_file() do
+    %{
+      id: :web_hosting_cache_file,
+      start:
+        {LRUDisk, :start_link,
+         [
+           :web_hosting_cache_file,
+           Application.fetch_env!(:archethic_web, :file_cache_bytes),
+           Path.join(Utils.mut_dir(), "aeweb")
+         ]}
+    }
   end
 end
