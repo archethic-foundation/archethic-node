@@ -58,7 +58,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
         end
       end)
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
-      |> Stream.map(fn {:ok, val} -> val end)
+      |> Stream.map(fn {:ok, {:ok, val}} -> val end)
       |> Enum.into(%{})
 
     {:ok, returned_prices}

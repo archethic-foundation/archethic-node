@@ -28,10 +28,14 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
               result
 
             {:error, reason} ->
-              Logger.warning("Service : #{inspect(__MODULE__)} : Cannot fetch values from
-                provider: #{inspect(provider)} with reason : #{inspect(reason)}.")
+              provider_name = provider |> to_string() |> String.split(".") |> List.last()
 
-              {false, provider}
+              Logger.warning(
+                "Service UCOPrice cannot fetch values from " <>
+                  "provider: #{inspect(provider_name)} with reason : #{inspect(reason)}."
+              )
+
+              {:error, provider}
           end
         end,
         on_timeout: :kill_task
