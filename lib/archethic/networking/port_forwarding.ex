@@ -17,8 +17,9 @@ defmodule Archethic.Networking.PortForwarding do
     Logger.info("Try to open port #{port}")
 
     with true <- required?(ip_lookup_provider()),
-         true <- conf_overrides?() do
-      do_try_open_port(port)
+         true <- conf_overrides?(),
+         {:ok, port} <- do_try_open_port(port) do
+      {:ok, port}
     else
       false ->
         Logger.info("Port forwarding is skipped")
