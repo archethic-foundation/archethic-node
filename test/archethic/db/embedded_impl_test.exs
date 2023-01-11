@@ -27,56 +27,6 @@ defmodule Archethic.DB.EmbeddedTest do
     %{db_path: db_path}
   end
 
-  describe "write_transaction_chain/1" do
-    test "should persist a transaction chain in the dedicated file", %{db_path: db_path} do
-      tx = TransactionFactory.create_valid_transaction()
-      :ok = EmbeddedImpl.write_transaction_chain([tx])
-
-      genesis_address = Transaction.previous_address(tx)
-
-      filename = ChainWriter.chain_path(db_path, genesis_address)
-      assert File.exists?(filename)
-
-      contents = File.read!(filename)
-
-      assert contents == Encoding.encode(tx)
-      filesize = byte_size(contents)
-
-      assert {:ok, %{size: ^filesize, offset: 0, genesis_address: ^genesis_address}} =
-               ChainIndex.get_tx_entry(tx.address, db_path)
-    end
-
-    test "should append transaction to an existing chain", %{db_path: db_path} do
-      tx1 = TransactionFactory.create_valid_transaction([], index: 0)
-      :ok = EmbeddedImpl.write_transaction_chain([tx1])
-
-      genesis_address = Transaction.previous_address(tx1)
-
-      tx2 = TransactionFactory.create_valid_transaction([], index: 1)
-      :ok = EmbeddedImpl.write_transaction_chain([tx1, tx2])
-
-      filename = ChainWriter.chain_path(db_path, genesis_address)
-      assert File.exists?(filename)
-
-      contents = File.read!(filename)
-
-      assert contents == Encoding.encode(tx1) <> Encoding.encode(tx2)
-
-      size_tx1 = Encoding.encode(tx1) |> byte_size()
-      size_tx2 = Encoding.encode(tx2) |> byte_size()
-
-      assert {:ok, %{size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
-               ChainIndex.get_tx_entry(tx1.address, db_path)
-
-      assert {:ok,
-              %{
-                size: ^size_tx2,
-                offset: ^size_tx1,
-                genesis_address: ^genesis_address
-              }} = ChainIndex.get_tx_entry(tx2.address, db_path)
-    end
-  end
-
   describe "write_transaction/1" do
     test "should write single transaction to non existing chain", %{db_path: db_path} do
       tx1 = TransactionFactory.create_valid_transaction()
@@ -159,7 +109,7 @@ defmodule Archethic.DB.EmbeddedTest do
   describe "transaction_exists?/2" do
     test "should return true when the transaction is present in chain storage" do
       tx1 = TransactionFactory.create_valid_transaction()
-      :ok = EmbeddedImpl.write_transaction_chain([tx1])
+      :ok = EmbeddedImpl.write_transaction(tx1)
 
       assert EmbeddedImpl.transaction_exists?(tx1.address, :chain)
     end
@@ -198,14 +148,14 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should retrieve a transaction" do
       tx1 = TransactionFactory.create_valid_transaction()
-      :ok = EmbeddedImpl.write_transaction_chain([tx1])
+      :ok = EmbeddedImpl.write_transaction(tx1)
 
       assert {:ok, ^tx1} = EmbeddedImpl.get_transaction(tx1.address)
     end
 
     test "should filter with the given fields" do
       tx1 = TransactionFactory.create_valid_transaction()
-      :ok = EmbeddedImpl.write_transaction_chain([tx1])
+      :ok = EmbeddedImpl.write_transaction(tx1)
 
       assert {:ok, %Transaction{type: :transfer, address: nil}} =
                EmbeddedImpl.get_transaction(tx1.address, [:type])
@@ -213,7 +163,7 @@ defmodule Archethic.DB.EmbeddedTest do
 
     test "should filter with nested fields" do
       tx1 = TransactionFactory.create_valid_transaction()
-      :ok = EmbeddedImpl.write_transaction_chain([tx1])
+      :ok = EmbeddedImpl.write_transaction(tx1)
 
       assert {:ok,
               %Transaction{
@@ -305,7 +255,8 @@ defmodule Archethic.DB.EmbeddedTest do
           timestamp: DateTime.add(DateTime.utc_now(), 100)
         )
 
-      :ok = EmbeddedImpl.write_transaction_chain([tx1, tx2])
+      :ok = EmbeddedImpl.write_transaction(tx1)
+      :ok = EmbeddedImpl.write_transaction(tx2)
 
       assert {[^tx1, ^tx2], false, nil} = EmbeddedImpl.get_transaction_chain(tx2.address)
     end
@@ -313,13 +264,16 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should return a page and its paging state" do
       transactions =
         Enum.map(1..20, fn i ->
-          TransactionFactory.create_valid_transaction([],
-            index: i,
-            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-          )
-        end)
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
 
-      EmbeddedImpl.write_transaction_chain(transactions)
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
 
       {page, true, paging_state} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address)
@@ -340,13 +294,16 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should return an empty list when the Paging Address is not found" do
       transactions =
         Enum.map(1..15, fn i ->
-          TransactionFactory.create_valid_transaction([],
-            index: i,
-            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-          )
-        end)
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
 
-      EmbeddedImpl.write_transaction_chain(transactions)
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
 
       {page, true, paging_state} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address)
@@ -373,13 +330,16 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should return all transactions if there are less than one page (10)" do
       transactions =
         Enum.map(1..9, fn i ->
-          TransactionFactory.create_valid_transaction([],
-            index: i,
-            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-          )
-        end)
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
 
-      EmbeddedImpl.write_transaction_chain(transactions)
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
 
       {page, false, ""} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
@@ -391,13 +351,16 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should return transactions paginated if there are more than one page (10)" do
       transactions =
         Enum.map(1..28, fn i ->
-          TransactionFactory.create_valid_transaction([],
-            index: i,
-            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-          )
-        end)
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
 
-      EmbeddedImpl.write_transaction_chain(transactions)
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
 
       {page1, true, paging_state1} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
@@ -429,14 +392,18 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should return the list of all the transactions until the one given" do
       transactions =
         Enum.map(1..20, fn i ->
-          TransactionFactory.create_valid_transaction([],
-            index: i,
-            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-          )
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
+
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
         end)
 
       genesis_address = transactions |> List.first() |> Transaction.previous_address()
-      :ok = EmbeddedImpl.write_transaction_chain(transactions)
 
       assert {txs, false, nil} =
                EmbeddedImpl.scan_chain(genesis_address, Enum.at(transactions, 2).address)
@@ -447,13 +414,17 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should return a page and its paging state" do
       transactions =
         Enum.map(1..20, fn i ->
-          TransactionFactory.create_valid_transaction([],
-            index: i,
-            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-          )
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
+
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
         end)
 
-      EmbeddedImpl.write_transaction_chain(transactions)
       genesis_address = transactions |> List.first() |> Transaction.previous_address()
 
       {page, true, paging_state} =
@@ -483,13 +454,16 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should return the number of transaction in a chain" do
       transactions =
         Enum.map(1..20, fn i ->
-          TransactionFactory.create_valid_transaction([],
-            index: i,
-            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
-          )
-        end)
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
 
-      EmbeddedImpl.write_transaction_chain(transactions)
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
 
       Enum.each(1..20, fn i ->
         assert 20 == EmbeddedImpl.chain_size(Enum.at(transactions, i - 1).address)
@@ -564,7 +538,9 @@ defmodule Archethic.DB.EmbeddedTest do
           timestamp: ~U[2020-04-10 10:13:00Z]
         )
 
-      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.write_transaction(tx2)
+      EmbeddedImpl.write_transaction(tx3)
 
       assert {tx3.address, ~U[2020-04-10 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx1.address)
@@ -607,7 +583,9 @@ defmodule Archethic.DB.EmbeddedTest do
           timestamp: ~U[2020-04-10 10:13:00Z]
         )
 
-      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.write_transaction(tx2)
+      EmbeddedImpl.write_transaction(tx3)
 
       assert {tx2.address, ~U[2020-04-02 10:13:00.000Z]} ==
                EmbeddedImpl.get_last_chain_address(tx2.address, tx3.validation_stamp.timestamp)
@@ -654,7 +632,9 @@ defmodule Archethic.DB.EmbeddedTest do
           timestamp: ~U[2020-04-10 10:13:00Z]
         )
 
-      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.write_transaction(tx2)
+      EmbeddedImpl.write_transaction(tx3)
 
       genesis_address = Transaction.previous_address(tx1)
 
@@ -689,7 +669,9 @@ defmodule Archethic.DB.EmbeddedTest do
           timestamp: ~U[2020-04-10 10:13:00Z]
         )
 
-      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.write_transaction(tx2)
+      EmbeddedImpl.write_transaction(tx3)
 
       assert tx1.previous_public_key == EmbeddedImpl.get_first_public_key(tx3.previous_public_key)
       assert tx1.previous_public_key == EmbeddedImpl.get_first_public_key(tx2.previous_public_key)
@@ -776,9 +758,12 @@ defmodule Archethic.DB.EmbeddedTest do
           timestamp: ~U[2020-04-11 10:13:00Z]
         )
 
-      EmbeddedImpl.write_transaction_chain([tx1_1, tx1_2])
-      EmbeddedImpl.write_transaction_chain([tx2_1, tx2_2])
-      EmbeddedImpl.write_transaction_chain([tx3_1, tx3_2])
+      EmbeddedImpl.write_transaction(tx1_1)
+      EmbeddedImpl.write_transaction(tx1_2)
+      EmbeddedImpl.write_transaction(tx2_1)
+      EmbeddedImpl.write_transaction(tx2_2)
+      EmbeddedImpl.write_transaction(tx3_1)
+      EmbeddedImpl.write_transaction(tx3_2)
 
       last_addresses = EmbeddedImpl.list_last_transaction_addresses()
       assert Enum.all?(last_addresses, &(&1 in [tx1_2.address, tx2_2.address, tx3_2.address]))
@@ -829,8 +814,7 @@ defmodule Archethic.DB.EmbeddedTest do
           timestamp: ~U[2020-04-30 10:17:00Z]
         )
 
-      txn_list = [tx0, tx1, tx2, tx3, tx4]
-      assert :ok == EmbeddedImpl.write_transaction_chain(txn_list)
+      Enum.each([tx0, tx1, tx2, tx3, tx4], &EmbeddedImpl.write_transaction(&1))
 
       address_stream =
         seed

@@ -65,7 +65,7 @@ defmodule Archethic.BootstrapTest do
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
 
     MockDB
-    |> stub(:write_transaction_chain, fn _ -> :ok end)
+    |> stub(:write_transaction, fn _, _ -> :ok end)
 
     MockDB
     |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
@@ -262,7 +262,7 @@ defmodule Archethic.BootstrapTest do
           }
 
           validated_tx = %{tx | validation_stamp: stamp}
-          :ok = TransactionChain.write([validated_tx])
+          :ok = TransactionChain.write_transaction(validated_tx)
           :ok = Replication.ingest_transaction(validated_tx, false)
 
           {:ok, %Ok{}}
@@ -560,13 +560,9 @@ defmodule Archethic.BootstrapTest do
       |> expect(:get_transaction, fn ^addr3, _ ->
         {:error, :transaction_not_exists}
       end)
-      |> expect(:write_transaction_chain, fn
-        txn_list ->
-          # to know this fx executed or not we use send
-          send(me, {:write_transaction_chain, txn_list})
-          :ok
-      end)
-      |> expect(:write_transaction, fn _tx, _ ->
+      |> stub(:write_transaction, fn tx, _ ->
+        # to know this fx executed or not we use send
+        send(me, {:write_transaction, tx.address})
         :ok
       end)
 
@@ -616,12 +612,8 @@ defmodule Archethic.BootstrapTest do
       # &TransactionChain.write/1 <- stream_remotely(addr3,addr2) <- get_last_address(locally)
       #    |
       #   write_transaction(tx4) -> ingest txn4
-      assert_receive({:write_transaction_chain, txn_list})
-
-      assert [] ==
-               Enum.reduce(txn_list, [addr4, addr3], fn tx, acc ->
-                 acc -- [tx.address]
-               end)
+      assert_receive({:write_transaction, ^addr3})
+      assert_receive({:write_transaction, ^addr4})
     end
 
     defp p2p_context() do
