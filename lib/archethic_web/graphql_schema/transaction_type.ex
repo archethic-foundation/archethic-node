@@ -3,11 +3,6 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
 
   use Absinthe.Schema.Notation
 
-  import_types(ArchethicWeb.GraphQLSchema.ContentType)
-  import_types(ArchethicWeb.GraphQLSchema.AddressType)
-  import_types(ArchethicWeb.GraphQLSchema.HashType)
-  import_types(ArchethicWeb.GraphQLSchema.PublicKeyType)
-
   alias ArchethicWeb.GraphQLSchema.Resolver
 
   alias Archethic.TransactionChain.Transaction
@@ -20,6 +15,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:data, :data)
     field(:previous_public_key, :public_key)
     field(:previous_signature, :hex)
+    field(:previous_address, :address)
     field(:origin_signature, :hex)
     field(:validation_stamp, :validation_stamp)
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
