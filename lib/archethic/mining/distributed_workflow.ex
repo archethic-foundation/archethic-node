@@ -141,6 +141,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
     GenStateMachine.cast(pid, {:add_replication_validation, node_public_key})
   end
 
+  @doc """
+  Notify the replication failure from a validation node
+  """
+  @spec replication_error(pid, ReplicationError.reason(), Crypto.key()) :: :ok
+  def replication_error(pid, reason, node_public_key) do
+    GenStateMachine.cast(pid, {:replication_error, reason, node_public_key})
+  end
+
   defp get_context_timeout(:hosting), do: Message.get_max_timeout()
   defp get_context_timeout(:oracle), do: @context_notification_timeout + 1_000
   defp get_context_timeout(_type), do: @context_notification_timeout
@@ -806,15 +814,48 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :info,
         {:replication_error, reason},
         :replication,
-        data = %{context: %ValidationContext{transaction: tx}}
+        data = %{
+          context:
+            context = %ValidationContext{transaction: tx, coordinator_node: coordinator_node},
+          node_public_key: node_public_key
+        }
       ) do
     Logger.error("Replication error - #{inspect(reason)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
+    # Notify the other validations nodes about the replication error
+    cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
+
+    validation_nodes =
+      [coordinator_node | cross_validation_nodes]
+      |> P2P.distinct_nodes()
+      |> Enum.reject(&(&1.last_public_key == node_public_key))
+
+    P2P.broadcast_message(validation_nodes, %ReplicationError{
+      address: tx.adddress,
+      reason: reason
+    })
+
     notify_error(reason, data)
     :stop
+  end
+
+  def handle_event(
+        :cast,
+        {:replication_error, reason, from},
+        :replication,
+        data = %{context: context}
+      ) do
+    validation_nodes = ValidationContext.get_validation_nodes(context)
+
+    if Utils.key_in_node_list?(validation_nodes, from) do
+      notify_error(reason, data)
+      :stop
+    else
+      :keep_state_and_data
+    end
   end
 
   def handle_event(

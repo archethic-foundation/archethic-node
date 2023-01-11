@@ -1589,11 +1589,8 @@ defmodule Archethic.P2P.Message do
         :ok ->
           %Ok{}
 
-        {:error, :transaction_already_exists} ->
-          %ReplicationError{address: tx.address, reason: :transaction_already_exists}
-
-        {:error, invalid_tx_reason} ->
-          %ReplicationError{address: tx.address, reason: invalid_tx_reason}
+        {:error, reason} ->
+          %ReplicationError{address: tx.address, reason: reason}
       end
     else
       %Ok{}
@@ -1616,9 +1613,9 @@ defmodule Archethic.P2P.Message do
           address: address,
           reason: reason
         },
-        _
+        from
       ) do
-    Mining.notify_replication_error(address, reason)
+    Mining.notify_replication_error(address, reason, from)
     %Ok{}
   end
 
@@ -2012,11 +2009,8 @@ defmodule Archethic.P2P.Message do
               signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
             }
 
-          {:error, :transaction_already_exists} ->
-            %ReplicationError{address: tx.address, reason: :transaction_already_exists}
-
-          {:error, invalid_tx_error} ->
-            %ReplicationError{address: tx.address, reason: invalid_tx_error}
+          {:error, reason} ->
+            %ReplicationError{address: tx.address, reason: reason}
         end
 
       if replying_node_public_key do
