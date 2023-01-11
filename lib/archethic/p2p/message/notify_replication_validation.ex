@@ -1,28 +1,25 @@
 defmodule Archethic.P2P.Message.NotifyReplicationValidation do
   @moduledoc false
 
-  @enforce_keys [:address, :node_public_key]
-  defstruct [:address, :node_public_key]
+  @enforce_keys [:address]
+  defstruct [:address]
 
   @type t :: %__MODULE__{
-          address: binary(),
-          node_public_key: binary()
+          address: binary()
         }
 
   alias Archethic.Utils
 
-  def serialize(%__MODULE__{address: address, node_public_key: node_public_key}) do
-    <<address::binary, node_public_key::binary>>
+  def serialize(%__MODULE__{address: address}) do
+    <<address::binary>>
   end
 
   def deserialize(bin) when is_bitstring(bin) do
     {address, rest} = Utils.deserialize_address(bin)
-    {public_key, rest} = Utils.deserialize_public_key(rest)
 
     {
       %__MODULE__{
-        address: address,
-        node_public_key: public_key
+        address: address
       },
       rest
     }

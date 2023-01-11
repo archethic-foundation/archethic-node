@@ -41,8 +41,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Node
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
@@ -691,9 +689,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :cast,
         {:add_replication_validation, node_public_key},
         :replication,
-        data = %{context: context = %ValidationContext{chain_storage_nodes: chain_storage_nodes}}
+        data = %{context: context}
       ) do
-    if Utils.key_in_node_list?(chain_storage_nodes, node_public_key) do
+    validation_nodes = ValidationContext.get_validation_nodes(context)
+
+    if Utils.key_in_node_list?(validation_nodes, node_public_key) do
       new_context = ValidationContext.add_replication_validation(context, node_public_key)
 
       if ValidationContext.enough_replication_validations?(new_context) do
@@ -1064,22 +1064,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
         transaction_type: validated_tx.type
       )
 
-      new_context =
-        Enum.reduce(results, context, fn {_, %Node{first_public_key: first_public_key}}, acc ->
-          ValidationContext.add_replication_validation(acc, first_public_key)
-        end)
+      new_context = ValidationContext.add_replication_validation(context, node_public_key)
 
-      Task.Supervisor.async_stream(TaskSupervisor, results, fn {_,
-                                                                %Node{
-                                                                  first_public_key:
-                                                                    first_public_key
-                                                                }} ->
-        P2P.broadcast_message(validation_nodes, %NotifyReplicationValidation{
-          address: validated_tx.address,
-          node_public_key: first_public_key
-        })
-      end)
-      |> Stream.run()
+      P2P.broadcast_message(validation_nodes, %NotifyReplicationValidation{
+        address: validated_tx.address
+      })
 
       new_context
     else

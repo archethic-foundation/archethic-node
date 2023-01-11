@@ -101,9 +101,6 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
       _, %ReplicationAttestation{}, _ ->
         send(me, :transaction_replicated)
         {:ok, %Ok{}}
-
-      _, %Archethic.P2P.Message.GetTransactionSummary{}, _ ->
-        {:ok, %NotFound{}}
     end)
 
     assert {:ok, pid} =

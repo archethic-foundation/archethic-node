@@ -853,10 +853,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           Agent.update(agent_pid, fn _ -> tx end)
           {:ok, %Ok{}}
 
-        %Node{first_public_key: recipient_node},
-        %NotifyReplicationValidation{node_public_key: node_public_key},
-        _ ->
-          send(me, {:ack_replication_validation, node_public_key, recipient_node})
+        _, %NotifyReplicationValidation{}, _ ->
+          send(me, :ack_replication_validation)
           {:ok, %Ok{}}
 
         %Node{first_public_key: first_public_key}, %ReplicatePendingTransactionChain{}, _ ->
@@ -1000,47 +998,16 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           end
 
           receive do
-            {:ack_replication_validation, node_public_key, recipient_node} ->
-              cond do
-                recipient_node == List.first(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
+            :ack_replication_validation ->
+              Workflow.add_replication_validation(
+                coordinator_pid,
+                List.first(validation_nodes).first_public_key
+              )
 
-                recipient_node == List.last(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
-              end
-          end
-
-          receive do
-            {:ack_replication_validation, node_public_key, recipient_node} ->
-              cond do
-                recipient_node == List.first(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
-
-                recipient_node == List.last(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
-              end
-          end
-
-          receive do
-            {:ack_replication_validation, node_public_key, recipient_node} ->
-              cond do
-                recipient_node == List.first(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
-
-                recipient_node == List.last(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
-              end
-          end
-
-          receive do
-            {:ack_replication_validation, node_public_key, recipient_node} ->
-              cond do
-                recipient_node == List.first(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(coordinator_pid, node_public_key)
-
-                recipient_node == List.last(validation_nodes).first_public_key ->
-                  Workflow.add_replication_validation(cross_validator_pid, node_public_key)
-              end
+              Workflow.add_replication_validation(
+                cross_validator_pid,
+                List.last(validation_nodes).first_public_key
+              )
           end
 
           receive do

@@ -34,7 +34,7 @@ defmodule Archethic.Mining.ValidationContext do
     valid_pending_transaction?: false,
     pending_transaction_error_detail: "",
     storage_nodes_confirmations: [],
-    storage_nodes_validations: []
+    sub_replication_tree_validations: []
   ]
 
   alias Archethic.Contracts
@@ -96,7 +96,7 @@ defmodule Archethic.Mining.ValidationContext do
           storage_nodes_confirmations:
             list({node_public_key :: Crypto.key(), signature :: binary()}),
           pending_transaction_error_detail: binary(),
-          storage_nodes_validations: list(Crypto.key())
+          sub_replication_tree_validations: list(Crypto.key())
         }
 
   @doc """
@@ -1332,24 +1332,18 @@ defmodule Archethic.Mining.ValidationContext do
   """
   @spec add_replication_validation(t(), Crypto.key()) :: t()
   def add_replication_validation(context = %__MODULE__{}, node_public_key) do
-    Map.update!(context, :storage_nodes_validations, &[node_public_key | &1])
+    Map.update!(context, :sub_replication_tree_validations, &[node_public_key | &1])
   end
 
   @doc """
   Determine if the replication validations are sufficient
   """
   @spec enough_replication_validations?(t()) :: boolean()
-  def enough_replication_validations?(
-        context = %__MODULE__{
-          storage_nodes_validations: storage_nodes_validations
-        }
-      ) do
-    expected_nb_replication_validations =
-      context
-      |> get_full_chain_replication_nodes()
-      |> Enum.count()
-
-    length(storage_nodes_validations) == expected_nb_replication_validations
+  def enough_replication_validations?(%__MODULE__{
+        sub_replication_tree_validations: sub_replication_tree_validations,
+        full_replication_tree: %{chain: chain_replication_tree}
+      }) do
+    length(chain_replication_tree) == length(sub_replication_tree_validations)
   end
 
   @doc """
