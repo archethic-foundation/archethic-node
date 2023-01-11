@@ -103,7 +103,6 @@ config :archethic, Archethic.Networking.IPLookup.NATDiscovery, provider: MockNAT
 # Regardless of default IPIFY use MockRemoteDiscovery
 config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery, provider: MockRemoteDiscovery
 
-config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
 config :archethic, Archethic.Networking.Scheduler, enabled: false
 
 # -----End-of-Networking-tests-configs ------
