@@ -10,8 +10,8 @@ defmodule Archethic.ReplicationTransactionPoolTest do
     now = DateTime.utc_now()
     TransactionPool.add_transaction(pid, %Transaction{address: address, type: :transfer})
 
-    assert %{transactions: %{^address => {_, timeout}}} = :sys.get_state(pid)
-    assert DateTime.diff(timeout, now, :second) == 60
+    assert %{transactions: %{^address => {_, expire_at}}} = :sys.get_state(pid)
+    assert DateTime.diff(expire_at, now, :second) == 60
   end
 
   test "pop_transaction/2 should get and remove a registed transaction in the pool" do
@@ -24,7 +24,7 @@ defmodule Archethic.ReplicationTransactionPoolTest do
   end
 
   test "should clean too long transactions" do
-    {:ok, pid} = TransactionPool.start_link([clean_interval: 1000, timeout: 500], [])
+    {:ok, pid} = TransactionPool.start_link([clean_interval: 1000, ttl: 500], [])
     address = :crypto.strong_rand_bytes(33)
     TransactionPool.add_transaction(pid, %Transaction{address: address, type: :transfer})
 
