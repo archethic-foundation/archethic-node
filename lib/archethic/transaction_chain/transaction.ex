@@ -526,7 +526,7 @@ defmodule Archethic.TransactionChain.Transaction do
   @doc """
   Determines if the previous signature is valid
   """
-  @spec verify_previous_signature?(t()) :: boolean()
+  @spec verify_previous_signature?(tx :: t()) :: boolean()
   def verify_previous_signature?(
         tx = %__MODULE__{previous_public_key: prev_key, previous_signature: prev_sig}
       ) do

@@ -170,7 +170,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         {:error, :transaction_not_exists}
       end)
 
-      assert {:error, "Invalid node transaction with content size greaterthan content_max_size"} =
+      assert {:error, "invalid transaction : transaction data exceeds limit"} =
                PendingTransactionValidation.validate(tx)
     end
 
@@ -788,7 +788,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
             })
         })
 
-      assert {:error, error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
     end
 
     test "should return :error when we deploy a wrong aeweb ref transaction" do
@@ -813,7 +813,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
             })
         })
 
-      assert {:error, reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
     end
   end
 end
