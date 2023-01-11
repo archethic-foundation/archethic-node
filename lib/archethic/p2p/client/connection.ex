@@ -17,6 +17,8 @@ defmodule Archethic.P2P.Client.Connection do
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
 
+  alias Archethic.Utils
+
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
@@ -267,12 +269,19 @@ defmodule Archethic.P2P.Client.Connection do
       Task.async(fn ->
         start_encoding_time = System.monotonic_time()
 
+        signature =
+          message
+          |> Message.encode()
+          |> Utils.wrap_binary()
+          |> Crypto.sign_with_first_node_key()
+
         message_envelop =
           MessageEnvelop.encode(
             %MessageEnvelop{
               message: message,
               message_id: request_id,
-              sender_public_key: Crypto.first_node_public_key()
+              sender_public_key: Crypto.first_node_public_key(),
+              signature: signature
             },
             node_public_key
           )
@@ -446,7 +455,8 @@ defmodule Archethic.P2P.Client.Connection do
 
         %MessageEnvelop{
           message_id: message_id,
-          message: message
+          message: message,
+          signature: signature
         } = MessageEnvelop.decode(msg)
 
         :telemetry.execute(
@@ -457,30 +467,35 @@ defmodule Archethic.P2P.Client.Connection do
           %{message: Message.name(message)}
         )
 
-        end_time = System.monotonic_time()
+        with true <-
+               Crypto.verify?(
+                 signature,
+                 message |> Message.encode() |> Utils.wrap_binary(),
+                 node_public_key
+               ),
+             {%{
+                from: from,
+                ref: ref,
+                start_time: start_time,
+                message_name: message_name
+              }, new_data} <- pop_in(new_data, [:messages, message_id]) do
+          end_time = System.monotonic_time()
 
-        case pop_in(new_data, [:messages, message_id]) do
-          {%{
-             from: from,
-             ref: ref,
-             start_time: start_time,
-             message_name: message_name
-           }, new_data} ->
-            :telemetry.execute(
-              [:archethic, :p2p, :send_message],
-              %{
-                duration: end_time - start_time
-              },
-              %{message: message_name}
-            )
+          :telemetry.execute(
+            [:archethic, :p2p, :send_message],
+            %{
+              duration: end_time - start_time
+            },
+            %{message: message_name}
+          )
 
-            send(from, {ref, {:ok, message}})
+          send(from, {ref, {:ok, message}})
 
-            actions = [{{:timeout, {:message, msg}}, :cancel}]
+          actions = [{{:timeout, {:message, msg}}, :cancel}]
 
-            {:keep_state, new_data, actions}
-
-          {nil, _state} ->
+          {:keep_state, new_data, actions}
+        else
+          _ ->
             :keep_state_and_data
         end
     end

@@ -3,10 +3,12 @@ defmodule Archethic.P2P.MessageEnvelop do
   Represents the message envelop foreach P2P messages
   """
 
+  @enforce_keys [:message_id, :message, :sender_public_key, :signature]
   defstruct [
     :message_id,
     :message,
-    :sender_public_key
+    :sender_public_key,
+    :signature
   ]
 
   alias Archethic.Crypto
@@ -16,7 +18,8 @@ defmodule Archethic.P2P.MessageEnvelop do
   @type t :: %__MODULE__{
           message: Message.t(),
           message_id: non_neg_integer(),
-          sender_public_key: Crypto.key()
+          sender_public_key: Crypto.key(),
+          signature: binary()
         }
 
   @doc """
@@ -26,14 +29,16 @@ defmodule Archethic.P2P.MessageEnvelop do
   def encode(%__MODULE__{
         message_id: message_id,
         sender_public_key: sender_public_key,
-        message: message
+        message: message,
+        signature: signature
       }) do
     encoded_message =
       message
       |> Message.encode()
       |> Utils.wrap_binary()
 
-    <<message_id::32, 0::8, sender_public_key::binary, encoded_message::binary>>
+    <<message_id::32, 0::8, sender_public_key::binary, byte_size(signature)::8, signature::binary,
+      encoded_message::binary>>
   end
 
   @doc """
@@ -44,7 +49,8 @@ defmodule Archethic.P2P.MessageEnvelop do
         %__MODULE__{
           message_id: message_id,
           sender_public_key: sender_public_key,
-          message: message
+          message: message,
+          signature: signature
         },
         recipient_public_key
       )
@@ -55,7 +61,8 @@ defmodule Archethic.P2P.MessageEnvelop do
       |> Utils.wrap_binary()
       |> Crypto.ec_encrypt(recipient_public_key)
 
-    <<message_id::32, 1::8, sender_public_key::binary, encrypted_message::binary>>
+    <<message_id::32, 1::8, sender_public_key::binary, byte_size(signature)::8, signature::binary,
+      encrypted_message::binary>>
   end
 
   @doc """
@@ -67,18 +74,26 @@ defmodule Archethic.P2P.MessageEnvelop do
   def decode(<<message_id::32, 0::8, curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
-    <<public_key::binary-size(key_size), message::bitstring>> = rest
+    <<public_key::binary-size(key_size), signature_size::8,
+      signature::binary-size(signature_size), message::bitstring>> = rest
 
     {data, _} = Message.decode(message)
+
     sender_public_key = <<curve_id::8, origin_id::8, public_key::binary>>
 
-    %__MODULE__{message_id: message_id, message: data, sender_public_key: sender_public_key}
+    %__MODULE__{
+      message_id: message_id,
+      message: data,
+      sender_public_key: sender_public_key,
+      signature: signature
+    }
   end
 
   def decode(<<message_id::32, 1::8, curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
-    <<public_key::binary-size(key_size), encrypted_message::bitstring>> = rest
+    <<public_key::binary-size(key_size), signature_size::8,
+      signature::binary-size(signature_size), encrypted_message::bitstring>> = rest
 
     message = Crypto.ec_decrypt_with_first_node_key!(encrypted_message)
 
@@ -86,7 +101,12 @@ defmodule Archethic.P2P.MessageEnvelop do
 
     sender_public_key = <<curve_id::8, origin_id::8, public_key::binary>>
 
-    %__MODULE__{message_id: message_id, message: data, sender_public_key: sender_public_key}
+    %__MODULE__{
+      message_id: message_id,
+      message: data,
+      sender_public_key: sender_public_key,
+      signature: signature
+    }
   end
 
   @doc """

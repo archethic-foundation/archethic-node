@@ -4,9 +4,12 @@ defmodule Archethic.P2P.Client.ConnectionTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Client.Connection
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.MessageEnvelop
+
+  alias Archethic.Utils
 
   test "start_link/1 should open a socket and a connection worker and initialize the backlog and lookup tables" do
     {:ok, pid} =
@@ -207,11 +210,18 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       Process.sleep(100)
 
+      signature =
+        %Balance{}
+        |> Message.encode()
+        |> Utils.wrap_binary()
+        |> Crypto.sign_with_first_node_key()
+
       msg_envelop =
         %MessageEnvelop{
           message: %Balance{},
           message_id: 0,
-          sender_public_key: Crypto.first_node_public_key()
+          sender_public_key: Crypto.first_node_public_key(),
+          signature: signature
         }
         |> MessageEnvelop.encode(Crypto.first_node_public_key())
 
@@ -259,11 +269,18 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       Process.sleep(10)
 
+      signature =
+        %Balance{}
+        |> Message.encode()
+        |> Utils.wrap_binary()
+        |> Crypto.sign_with_first_node_key()
+
       msg_envelop =
         %MessageEnvelop{
           message: %Balance{},
           message_id: 0,
-          sender_public_key: Crypto.first_node_public_key()
+          sender_public_key: Crypto.first_node_public_key(),
+          signature: signature
         }
         |> MessageEnvelop.encode(Crypto.first_node_public_key())
 
@@ -320,11 +337,18 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       Process.sleep(10)
 
+      signature =
+        %Balance{}
+        |> Message.encode()
+        |> Utils.wrap_binary()
+        |> Crypto.sign_with_first_node_key()
+
       msg_envelop =
         %MessageEnvelop{
           message: %Balance{},
           message_id: 0,
-          sender_public_key: Crypto.first_node_public_key()
+          sender_public_key: Crypto.first_node_public_key(),
+          signature: signature
         }
         |> MessageEnvelop.encode(Crypto.first_node_public_key())
 
@@ -428,11 +452,18 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       assert {{:connected, _socket}, %{availability_timer: {start, 0}}} = :sys.get_state(pid)
       assert start != nil
 
+      signature =
+        %Balance{}
+        |> Message.encode()
+        |> Utils.wrap_binary()
+        |> Crypto.sign_with_first_node_key()
+
       msg_envelop =
         %MessageEnvelop{
           message: %Balance{},
           message_id: 0,
-          sender_public_key: Crypto.first_node_public_key()
+          sender_public_key: Crypto.first_node_public_key(),
+          signature: signature
         }
         |> MessageEnvelop.encode(Crypto.first_node_public_key())
 
