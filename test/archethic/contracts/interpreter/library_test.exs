@@ -25,12 +25,15 @@ defmodule Archethic.Contracts.Interpreter.LibraryTest do
       authorization_date: DateTime.utc_now()
     })
 
+    addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::bitstring>>
+    addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::bitstring>>
+
     MockClient
     |> expect(:send_message, fn
-      _, %GetFirstTransactionAddress{address: "addr2"}, _ ->
-        {:ok, %FirstTransactionAddress{address: "addr1"}}
+      _, %GetFirstTransactionAddress{address: ^addr1}, _ ->
+        {:ok, %FirstTransactionAddress{address: addr2}}
     end)
 
-    assert "addr1" == Library.get_first_transaction_address("addr2") |> Library.decode_binary()
+    assert Base.encode16(addr2) == Library.get_first_transaction_address(Base.encode16(addr1))
   end
 end

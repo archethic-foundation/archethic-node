@@ -6,6 +6,8 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
+  alias Archethic.Contracts.Interpreter.Utils
+
   @doc """
   Set the transaction type
 
@@ -47,7 +49,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:uco), Access.key(:transfers)],
-      &[%UCOTransfer{to: decode_binary(to), amount: amount} | &1]
+      &[%UCOTransfer{to: Utils.maybe_decode_hex(to), amount: amount} | &1]
     )
   end
 
@@ -92,9 +94,9 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
       &[
         %TokenTransfer{
           token_id: Map.get(map_args, "token_id", 0),
-          to: decode_binary(to),
+          to: Utils.maybe_decode_hex(to),
           amount: amount,
-          token_address: decode_binary(token_address)
+          token_address: Utils.maybe_decode_hex(token_address)
         }
         | &1
       ]
@@ -173,9 +175,9 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
 
     ownership =
       Ownership.new(
-        decode_binary(secret),
-        decode_binary(secret_key),
-        Enum.map(authorized_public_keys, &decode_binary(&1))
+        Utils.maybe_decode_hex(secret),
+        Utils.maybe_decode_hex(secret_key),
+        Enum.map(authorized_public_keys, &Utils.maybe_decode_hex(&1))
       )
 
     update_in(
@@ -204,15 +206,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
     update_in(
       tx,
       [Access.key(:data), Access.key(:recipients)],
-      &[decode_binary(recipient_address) | &1]
+      &[Utils.maybe_decode_hex(recipient_address) | &1]
     )
-  end
-
-  defp decode_binary(bin) do
-    if String.match?(bin, ~r/^[[:xdigit:]]+$/) do
-      Base.decode16!(bin, case: :mixed)
-    else
-      bin
-    end
   end
 end

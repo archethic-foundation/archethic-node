@@ -8,7 +8,8 @@ defmodule Archethic.Contracts.Interpreter.Library do
     P2P.Message.FirstPublicKey,
     TransactionChain,
     Contracts.ContractConstants,
-    Contracts.TransactionLookup
+    Contracts.TransactionLookup,
+    Contracts.Interpreter.Utils
   }
 
   @doc """
@@ -140,7 +141,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
           :blake2b
       end
 
-    :crypto.hash(algo, decode_binary(content))
+    :crypto.hash(algo, Utils.maybe_decode_hex(content))
     |> Base.encode16()
   end
 
@@ -179,7 +180,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
       2
   """
   @spec size(binary() | list()) :: non_neg_integer()
-  def size(binary) when is_binary(binary), do: binary |> decode_binary() |> byte_size()
+  def size(binary) when is_binary(binary), do: binary |> Utils.maybe_decode_hex() |> byte_size()
   def size(list) when is_list(list), do: length(list)
   def size(map) when is_map(map), do: map_size(map)
 
@@ -190,7 +191,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_calls(binary()) :: list(map())
   def get_calls(contract_address) do
-    contract_address = decode_binary(contract_address)
+    contract_address = Utils.maybe_decode_hex(contract_address)
 
     # TODO: parallelize?
     TransactionLookup.list_contract_transactions(contract_address)
@@ -207,7 +208,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_genesis_public_key(binary()) :: binary()
   def get_genesis_public_key(address) do
-    bin_address = decode_binary(address)
+    bin_address = Utils.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(bin_address, P2P.authorized_and_available_nodes())
     {:ok, key} = download_first_public_key(nodes, bin_address)
     Base.encode16(key)
@@ -229,27 +230,13 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec timestamp() :: non_neg_integer()
   def timestamp, do: DateTime.utc_now() |> DateTime.to_unix()
 
-  def decode_binary(bin) do
-    if String.printable?(bin) do
-      case Base.decode16(bin, case: :mixed) do
-        {:ok, hex} ->
-          hex
-
-        _ ->
-          bin
-      end
-    else
-      bin
-    end
-  end
-
   @doc """
   Get the genesis address of the chain
   """
   @spec get_genesis_address(binary()) ::
           binary()
   def get_genesis_address(address) do
-    addr_bin = decode_binary(address)
+    addr_bin = Utils.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_genesis_address_remotely(addr_bin, nodes) do
@@ -264,7 +251,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_first_transaction_address(address :: binary()) ::
           binary()
   def get_first_transaction_address(address) do
-    addr_bin = decode_binary(address)
+    addr_bin = Utils.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_first_transaction_address_remotely(addr_bin, nodes) do
