@@ -198,27 +198,6 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Persist a new transaction chain
-  """
-  @spec write(Enumerable.t()) :: :ok
-  def write(chain) do
-    sorted_chain = Enum.sort_by(chain, & &1.validation_stamp.timestamp, {:desc, DateTime})
-
-    %Transaction{
-      address: tx_address,
-      type: tx_type
-    } = Enum.at(sorted_chain, 0)
-
-    DB.write_transaction_chain(sorted_chain)
-    Enum.each(sorted_chain, &KOLedger.remove_transaction(&1.address))
-
-    Logger.info("Transaction Chain stored",
-      transaction_address: Base.encode16(tx_address),
-      transaction_type: tx_type
-    )
-  end
-
-  @doc """
   Write an invalid transaction
   """
   @spec write_ko_transaction(Transaction.t(), list()) :: :ok

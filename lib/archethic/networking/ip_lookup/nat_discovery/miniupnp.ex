@@ -43,8 +43,27 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
     end
   end
 
-  defp do_open_port(local_ip, port) do
-    opts = [
+  @spec do_open_port(:inet.ip_address(), non_neg_integer()) :: :ok | :error
+  defp do_open_port(local_ip, port, retries \\ 2)
+
+  defp do_open_port(_local_ip, _port, 0), do: :error
+
+  defp do_open_port(local_ip, port, retries) do
+    case System.cmd(@upnpc, map_query(local_ip, port)) do
+      {_, 0} ->
+        :ok
+
+      {reason, _} ->
+        handle_error(reason, local_ip, port)
+
+        do_open_port(local_ip, port, retries - 1)
+    end
+  end
+
+  @protocol "tcp"
+  @spec map_query(:inet.ip_address(), non_neg_integer()) :: [String.t()]
+  defp map_query(local_ip, port) do
+    [
       # Add redirection
       "-a",
       # Local ip
@@ -54,18 +73,33 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
       # Remote port to open
       "#{port}",
       # Protocol
-      "tcp",
+      @protocol,
       # Lifetime
       "0"
     ]
+  end
 
-    case System.cmd(@upnpc, opts) do
-      {_, 0} ->
-        :ok
-
-      {reason, _status} ->
-        Logger.debug(reason)
-        :error
+  @spec handle_error(
+          reason :: String.t(),
+          local_ip :: :inet.ip_address(),
+          port :: non_neg_integer()
+        ) :: :error | any()
+  defp handle_error(reason, _local_ip, port) do
+    if Regex.scan(~r/ConflictInMappingEntry/, reason, capture: :all) != [] do
+      Logger.warning("Port is employed to another host.")
+      System.cmd(@upnpc, revoke_query(port))
     end
+  end
+
+  @spec revoke_query(non_neg_integer()) :: [String.t()]
+  defp revoke_query(port) do
+    [
+      # deleting redirection
+      "-d",
+      # external port to delete
+      "#{port}",
+      # Protocol
+      @protocol
+    ]
   end
 end

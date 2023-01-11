@@ -708,26 +708,19 @@ defmodule Archethic.Utils do
   """
   @spec median([number]) :: number | nil
   def median([]), do: nil
+  ## To avoid all calculation from general clause to follow
 
-  def median(list) when is_list(list) do
-    midpoint =
-      (length(list) / 2)
-      |> Float.floor()
-      |> round
+  def median([number]), do: number
+  ## To avoid all calculation from general clause to follow
 
-    {l1, l2} =
-      Enum.sort(list)
-      |> Enum.split(midpoint)
+  def median(numbers) do
+    sorted = Enum.sort(numbers)
+    length_list = length(sorted)
 
-    case length(l2) > length(l1) do
-      true ->
-        [med | _] = l2
-        med
-
-      false ->
-        [m1 | _] = l2
-        [m2 | _] = Enum.reverse(l1)
-        (m1 + m2) / 2
+    case rem(length_list, 2) do
+      1 -> Enum.at(sorted, div(length_list, 2))
+      ## If we have an even number, media is the average of the two medium numbers
+      0 -> Enum.slice(sorted, div(length_list, 2) - 1, 2) |> Enum.sum() |> Kernel./(2)
     end
   end
 

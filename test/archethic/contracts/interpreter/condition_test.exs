@@ -276,5 +276,51 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                  }
                })
     end
+
+    test "should return true if the ast of the code is the same" do
+      assert ~s"""
+             condition inherit: []
+             """
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "previous" => %{
+                 "code" => ~s"""
+                  condition inherit: [    ]
+                 """
+               },
+               "next" => %{
+                 "code" => ~s"""
+                  condition inherit: []
+
+
+                 """
+               }
+             })
+    end
+
+    test "should return false if the ast of the code is the different" do
+      refute ~s"""
+             condition inherit: []
+             """
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "previous" => %{
+                 "code" => ~s"""
+                  condition inherit: [    ]
+                 """
+               },
+               "next" => %{
+                 "code" => ~s"""
+                  condition inherit: [1]
+                 """
+               }
+             })
+    end
   end
 end

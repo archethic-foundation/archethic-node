@@ -102,8 +102,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, _} = :sys.get_state(pid)
 
-      MockUCOPriceProvider
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => 0.2}} end)
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       # polling_date =
       #   "0 * * * *"
@@ -174,8 +180,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
          }}
       end)
 
-      MockUCOPriceProvider
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => 0.2}} end)
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       send(pid, :poll)
 
@@ -206,8 +218,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
         available?: true
       })
 
-      MockUCOPriceProvider
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => 0.2}} end)
+      MockUCOPriceProvider1
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
+      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       summary_date =
         "0 0 0 * *"
@@ -309,8 +327,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, %{polling_timer: timer1}} = :sys.get_state(pid)
 
-      MockUCOPriceProvider
-      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => 0.2}} end)
+      MockUCOPriceProvider1
+      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider2
+      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+
+      MockUCOPriceProvider3
+      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
 
       send(pid, :poll)
 

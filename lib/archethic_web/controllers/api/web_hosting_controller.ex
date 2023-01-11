@@ -3,11 +3,15 @@ defmodule ArchethicWeb.API.WebHostingController do
 
   use ArchethicWeb, :controller
 
-  alias Archethic.{Crypto, TransactionChain.Transaction}
+  alias Archethic.Crypto
 
   require Logger
 
-  alias ArchethicWeb.API.WebHostingController.{Resources, DirectoryListing}
+  alias ArchethicWeb.API.WebHostingController.{
+    Resources,
+    DirectoryListing,
+    ReferenceTransaction
+  }
 
   @spec web_hosting(Plug.Conn.t(), params :: map()) :: Plug.Conn.t()
   def web_hosting(conn, params = %{"url_path" => []}) do
@@ -44,12 +48,12 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :invalid_encoding} ->
         send_resp(conn, 400, "Invalid file encoding")
 
-      {:error, {:is_a_directory, txn}} ->
+      {:error, {:is_a_directory, reference_transaction}} ->
         {:ok, listing_html, encoding, mime_type, cached?, etag} =
           DirectoryListing.list(
             conn.request_path,
             params,
-            txn,
+            reference_transaction,
             cache_headers
           )
 
@@ -70,9 +74,8 @@ defmodule ArchethicWeb.API.WebHostingController do
           | {:error, :website_not_found}
           | {:error, :invalid_content}
           | {:error, :file_not_found}
-          | {:error, :is_a_directory}
           | {:error, :invalid_encoding}
-          | {:error, {:is_a_directory, any()}}
+          | {:error, {:is_a_directory, ReferenceTransaction.t()}}
           | {:error, any()}
 
   def get_website(params = %{"address" => address}, cache_headers) do
@@ -80,13 +83,16 @@ defmodule ArchethicWeb.API.WebHostingController do
 
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
-         {:ok, txn = %Transaction{}} <- Archethic.get_last_transaction(address),
+         {:ok, reference_transaction} <- ReferenceTransaction.fetch_last(address),
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
-           Resources.load(txn, url_path, cache_headers) do
+           Resources.load(reference_transaction, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
     else
       er when er in [:error, false] ->
         {:error, :invalid_address}
+
+      {:error, %Jason.DecodeError{}} ->
+        {:error, :invalid_content}
 
       {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
         {:error, :website_not_found}

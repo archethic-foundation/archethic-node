@@ -134,7 +134,11 @@ config :archethic, Archethic.OracleChain,
   ]
 
 config :archethic, Archethic.OracleChain.Services.UCOPrice,
-  provider: Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko
+  providers: [
+    Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+    Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+    Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika
+  ]
 
 config :archethic, ArchethicWeb.FaucetController,
   seed:
@@ -151,6 +155,16 @@ config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
 
 config :archethic, Archethic.Networking.PortForwarding, port_range: 49_152..65_535
 # -----End-of-Networking-configs ------
+
+config :archethic_web,
+  # The tx_cache is stored on RAM
+  # 750MB should hold a minimum 250 transactions
+  tx_cache_bytes: 750 * 1024 * 1024,
+
+  # The file_cache is stored on DISK
+  # 5GB should hold 2000 average size pages
+  # https://httparchive.org/reports/page-weight
+  file_cache_bytes: 5 * 1024 * 1024 * 1024
 
 config :esbuild,
   version: "0.12.18",
