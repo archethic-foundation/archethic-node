@@ -361,7 +361,9 @@ defmodule Archethic.TransactionChain.Transaction do
   def serialize_type(:code_proposal), do: 5
   def serialize_type(:code_approval), do: 6
   def serialize_type(:node_rewards), do: 7
-  def serialize_type(:mint_rewards), do: 8
+
+  def serialize_type(:mint_rewards),
+    do: 8
 
   # User transaction's type
   def serialize_type(:keychain), do: 255
@@ -369,6 +371,8 @@ defmodule Archethic.TransactionChain.Transaction do
   def serialize_type(:transfer), do: 253
   def serialize_type(:hosting), do: 252
   def serialize_type(:token), do: 251
+  def serialize_type(:data), do: 250
+  def serialize_type(:contract), do: 249
 
   @doc """
   Parse a serialize transaction type
@@ -391,6 +395,8 @@ defmodule Archethic.TransactionChain.Transaction do
   def parse_type(253), do: :transfer
   def parse_type(252), do: :hosting
   def parse_type(251), do: :token
+  def parse_type(250), do: :data
+  def parse_type(249), do: :contract
 
   @doc """
   Determines if a transaction type is a network one
