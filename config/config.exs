@@ -57,8 +57,6 @@ config :archethic, :mut_dir, "data"
 
 config :archethic, :marker, "-=%=-=%=-=%=-"
 
-config :archethic, :ownership_max_authorized_keys, 256
-
 # size represents in bytes binary
 config :archethic, :transaction_data_content_max_size, 3_145_728
 

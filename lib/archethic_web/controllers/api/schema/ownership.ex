@@ -1,7 +1,5 @@
 defmodule ArchethicWeb.API.Schema.Ownership do
   @moduledoc false
-  @ownership_max_keys Application.compile_env!(:archethic, :ownership_max_authorized_keys)
-
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -19,7 +17,7 @@ defmodule ArchethicWeb.API.Schema.Ownership do
     |> cast_embed(:authorizedKeys, required: [:publicKey, :encryptedSecretKey])
     |> validate_required([:secret])
     |> validate_length(:authorizedKeys,
-      max: @ownership_max_keys,
+      max: 256,
       message: "maximum number of authorized keys can be 256"
     )
   end

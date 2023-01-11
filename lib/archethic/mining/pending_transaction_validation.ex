@@ -58,9 +58,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
 
-  @tx_data_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
-
-  @ownership_max_keys Application.compile_env!(:archethic, :ownership_max_authorized_keys)
+  @tx_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
 
   @doc """
   Determines if the transaction is accepted into the network
@@ -75,7 +73,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     with :ok <- valid_not_exists(tx),
          :ok <- valid_previous_signature(tx),
          :ok <- validate_contract(tx),
-         :ok <- validate_content_size(tx),
+         :ok <- validate_size(tx),
          :ok <- validate_ownerships(tx),
          :ok <- do_accept_transaction(tx, validation_time),
          :ok <- validate_previous_transaction_type?(tx) do
@@ -248,13 +246,14 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   def validate_network_chain?(_type, _tx), do: true
 
-  defp validate_content_size(%Transaction{data: %TransactionData{content: content}}) do
-    content_max_size = Application.get_env(:archethic, :transaction_data_content_max_size)
+  defp validate_size(%Transaction{data: data}) do
+    tx_size = byte_size(data)
 
-    if byte_size(content) >= content_max_size do
-      {:error, "Invalid node transaction with content size greaterthan content_max_size"}
-    else
-      :ok
+    cond tx_size >= @tx_max_size do
+      {:error, "invalid transaction : transaction data exceeds limit"}
+
+      true ->
+        :ok
     end
   end
 
@@ -746,24 +745,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp do_accept_transaction(
          %Transaction{
            type: :data,
-           data: data = %TransactionData{content: content, ownerships: ownerships},
-           version: tx_version
+           data: %TransactionData{content: content, ownerships: ownerships}
          },
          _
        ) do
     nb_ownerships = length(ownerships)
 
-    tx_data_size =
-      data
-      |> TransactionData.serialize(tx_version)
-      |> :erlang.byte_size()
-
     cond do
-      tx_data_size > @tx_data_max_size ->
-        # only for data type txns
-        # content_size  already handled
-        {:error, "invalid data type transaction - transaction size exceeds limit"}
-
       content == "" && nb_ownerships == 0 ->
         #  content or ownership either must be present or error
         #  defstruct recipients: [], ledger: %Ledger{}, code: "", ownerships: [], content: ""
@@ -788,15 +776,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       nb_ownerships == 0 ->
         :ok
 
-      nb_ownerships > @ownership_max_keys ->
-        {:error, "invalid transaction - ownerships exceeds limit"}
-
-      nb_ownerships > 0 and nb_ownerships <= @ownership_max_keys ->
+      true ->
         do_validate_ownerships(ownerships)
     end
   end
 
-  @max_authorized_keys @ownership_max_keys
   def do_validate_ownerships(ownerships) do
     # handles irregulrarites in ownerships
     Enum.reduce_while(ownerships, :ok, fn
@@ -810,9 +794,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
           nb_authorized_keys == 0 ->
             {:halt, {:error, "invalid transaction - Ownership: authorized keys are empty"}}
-
-          nb_authorized_keys > @max_authorized_keys ->
-            {:halt, {:error, "invalid transaction - Ownership: authorized keys excceds limit"}}
 
           true ->
             verify_authorized_keys(authorized_keys)
