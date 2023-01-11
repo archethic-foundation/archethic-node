@@ -54,7 +54,164 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     :ok
   end
 
-  describe "validate_pending_transaction/1" do
+  describe "Data" do
+  end
+
+  describe "Code Approval" do
+    test "should return :ok when a code approval transaction contains a proposal target and the sender is member of the technical council and not previously signed" do
+      tx =
+        Transaction.new(
+          :code_approval,
+          %TransactionData{
+            recipients: ["@CodeProposal1"]
+          },
+          "approval_seed",
+          0
+        )
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node1",
+        last_public_key: "node1",
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      assert :ok = PoolsMemTable.put_pool_member(:technical_council, tx.previous_public_key)
+
+      MockDB
+      |> expect(:get_transaction, fn _, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{
+             content: """
+             Description: My Super Description
+             Changes:
+             diff --git a/mix.exs b/mix.exs
+             index d9d9a06..5e34b89 100644
+             --- a/mix.exs
+             +++ b/mix.exs
+             @@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
+               def project do
+                 [
+                   app: :archethic,
+             -      version: \"0.7.1\",
+             +      version: \"0.7.2\",
+                   build_path: \"_build\",
+                   config_path: \"config/config.exs\",
+                   deps_path: \"deps\",
+             @@ -53,7 +53,7 @@ defmodule Archethic.MixProject do
+                   {:git_hooks, \"~> 0.4.0\", only: [:test, :dev], runtime: false},
+                   {:mox, \"~> 0.5.2\", only: [:test]},
+                   {:stream_data, \"~> 0.4.3\", only: [:test]},
+             -      {:elixir_make, \"~> 0.6.0\", only: [:dev, :test], runtime: false},
+             +      {:elixir_make, \"~> 0.6.0\", only: [:dev, :test]},
+                   {:logger_file_backend, \"~> 0.0.11\", only: [:dev]}
+                 ]
+               end
+             """
+           }
+         }}
+      end)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetFirstPublicKey{}, _ ->
+          {:ok, %FirstPublicKey{public_key: tx.previous_public_key}}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
+      end)
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+  end
+
+  describe "Contract" do
+  end
+
+  describe "Hosting" do
+    test "should return :ok when we deploy a aeweb ref transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "aewebVersion" => 1,
+              "metaData" => %{
+                "index.html" => %{
+                  "encoding" => "gzip",
+                  "hash" => "abcd123",
+                  "size" => 144,
+                  "addresses" => [
+                    Crypto.derive_keypair("seed", 0)
+                    |> elem(0)
+                    |> Crypto.derive_address()
+                    |> Base.encode16()
+                  ]
+                }
+              }
+            })
+        })
+
+      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :ok when we deploy a aeweb file transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "index.html" => Base.url_encode64(:crypto.strong_rand_bytes(1000))
+            })
+        })
+
+      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :error when we deploy a wrong aeweb file transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "index.html" => 32
+            })
+        })
+
+      assert {:error, _error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :error when we deploy a wrong aeweb ref transaction" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "wrongKey" => 1,
+              "metaData" => %{
+                "index.html" => %{
+                  "encoding" => "gzip",
+                  "hash" => "abcd123",
+                  "size" => 144,
+                  "addresses" => [
+                    Crypto.derive_keypair("seed", 0)
+                    |> elem(0)
+                    |> Crypto.derive_address()
+                    |> Base.encode16()
+                  ]
+                }
+              }
+            })
+        })
+
+      assert {:error, _reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+  end
+
+  describe "Node" do
     test "should return :ok when a node transaction data content contains node endpoint information" do
       {origin_public_key, _} =
         Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
@@ -173,7 +330,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert {:error, "invalid transaction : transaction data exceeds limit"} =
                PendingTransactionValidation.validate(tx)
     end
+  end
 
+  describe "Node Shared Secrets" do
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -277,6 +436,51 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
     end
 
+    test "should return error when there is already a node shared secrets transaction since the last schedule" do
+      MockDB
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
+      end)
+
+      tx =
+        Transaction.new(
+          :node_shared_secrets,
+          %TransactionData{
+            content: :crypto.strong_rand_bytes(32),
+            ownerships: [
+              %Ownership{
+                secret: :crypto.strong_rand_bytes(32),
+                authorized_keys: %{
+                  <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> =>
+                    :crypto.strong_rand_bytes(32)
+                }
+              }
+            ]
+          },
+          "seed",
+          0
+        )
+
+      assert {:error, "Invalid node shared secrets trigger time"} =
+               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
+    end
+  end
+
+  describe "Oracle" do
+    test "should return error when there is already a oracle transaction since the last schedule" do
+      MockDB
+      |> expect(:get_last_chain_address, fn _, _ ->
+        {"OtherAddress", DateTime.utc_now()}
+      end)
+
+      tx = Transaction.new(:oracle, %TransactionData{}, "seed", 0)
+
+      assert {:error, "Invalid oracle trigger time"} =
+               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:10:03Z])
+    end
+  end
+
+  describe "Origin" do
     test "should return :ok when a origin transaction is made" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -416,150 +620,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       :persistent_term.put(:origin_gen_addr, nil)
     end
+  end
 
-    test "should return :ok when a code approval transaction contains a proposal target and the sender is member of the technical council and not previously signed" do
-      tx =
-        Transaction.new(
-          :code_approval,
-          %TransactionData{
-            recipients: ["@CodeProposal1"]
-          },
-          "approval_seed",
-          0
-        )
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        http_port: 4000,
-        first_public_key: "node1",
-        last_public_key: "node1",
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      assert :ok = PoolsMemTable.put_pool_member(:technical_council, tx.previous_public_key)
-
-      MockDB
-      |> expect(:get_transaction, fn _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             content: """
-             Description: My Super Description
-             Changes:
-             diff --git a/mix.exs b/mix.exs
-             index d9d9a06..5e34b89 100644
-             --- a/mix.exs
-             +++ b/mix.exs
-             @@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
-               def project do
-                 [
-                   app: :archethic,
-             -      version: \"0.7.1\",
-             +      version: \"0.7.2\",
-                   build_path: \"_build\",
-                   config_path: \"config/config.exs\",
-                   deps_path: \"deps\",
-             @@ -53,7 +53,7 @@ defmodule Archethic.MixProject do
-                   {:git_hooks, \"~> 0.4.0\", only: [:test, :dev], runtime: false},
-                   {:mox, \"~> 0.5.2\", only: [:test]},
-                   {:stream_data, \"~> 0.4.3\", only: [:test]},
-             -      {:elixir_make, \"~> 0.6.0\", only: [:dev, :test], runtime: false},
-             +      {:elixir_make, \"~> 0.6.0\", only: [:dev, :test]},
-                   {:logger_file_backend, \"~> 0.0.11\", only: [:dev]}
-                 ]
-               end
-             """
-           }
-         }}
-      end)
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetFirstPublicKey{}, _ ->
-          {:ok, %FirstPublicKey{public_key: tx.previous_public_key}}
-
-        _, %GetTransactionSummary{}, _ ->
-          {:ok, %NotFound{}}
-      end)
-
-      assert :ok = PendingTransactionValidation.validate(tx)
-    end
-
-    test "should return :ok when a transaction contains a valid smart contract code" do
-      tx_seed = :crypto.strong_rand_bytes(32)
-
-      tx =
-        Transaction.new(
-          :transfer,
-          %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{to: :crypto.strong_rand_bytes(32), amount: 100_000}
-                ]
-              }
-            },
-            code: """
-            condition inherit: [
-              content: "hello"
-            ]
-
-            condition transaction: [
-              content: ""
-            ]
-
-            actions triggered_by: transaction do
-              set_content "hello"
-            end
-            """,
-            ownerships: [
-              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
-                Crypto.storage_nonce_public_key()
-              ])
-            ]
-          },
-          tx_seed,
-          0
-        )
-
-      assert :ok = PendingTransactionValidation.validate(tx)
-    end
-
-    test "should return :ok when a transaction contains valid fields for token creation" do
-      tx_seed = :crypto.strong_rand_bytes(32)
-
-      tx =
-        Transaction.new(
-          :token,
-          %TransactionData{
-            content:
-              Jason.encode!(%{
-                supply: 300_000_000,
-                name: "MyToken",
-                type: "non-fungible",
-                symbol: "MTK",
-                properties: %{
-                  global: "property"
-                },
-                collection: [
-                  %{image: "link", value: "link"},
-                  %{image: "link", value: "link"},
-                  %{image: "link", value: "link"}
-                ]
-              })
-          },
-          tx_seed,
-          0
-        )
-
-      assert :ok = PendingTransactionValidation.validate(tx)
-    end
-
+  describe "Reward" do
     test "should return :ok when a mint reward transaction passes all tests" do
       tx_seed = :crypto.strong_rand_bytes(32)
       {pub, _} = Crypto.derive_keypair(tx_seed, 1)
@@ -680,47 +743,6 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
                PendingTransactionValidation.validate(tx)
     end
 
-    test "should return error when there is already a oracle transaction since the last schedule" do
-      MockDB
-      |> expect(:get_last_chain_address, fn _, _ ->
-        {"OtherAddress", DateTime.utc_now()}
-      end)
-
-      tx = Transaction.new(:oracle, %TransactionData{}, "seed", 0)
-
-      assert {:error, "Invalid oracle trigger time"} =
-               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:10:03Z])
-    end
-
-    test "should return error when there is already a node shared secrets transaction since the last schedule" do
-      MockDB
-      |> expect(:get_last_chain_address, fn _, _ ->
-        {"OtherAddress", DateTime.utc_now()}
-      end)
-
-      tx =
-        Transaction.new(
-          :node_shared_secrets,
-          %TransactionData{
-            content: :crypto.strong_rand_bytes(32),
-            ownerships: [
-              %Ownership{
-                secret: :crypto.strong_rand_bytes(32),
-                authorized_keys: %{
-                  <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> =>
-                    :crypto.strong_rand_bytes(32)
-                }
-              }
-            ]
-          },
-          "seed",
-          0
-        )
-
-      assert {:error, "Invalid node shared secrets trigger time"} =
-               PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
-    end
-
     test "should return error when there is already a node rewards transaction since the last schedule" do
       MockDB
       |> expect(:get_last_chain_address, fn _, _ ->
@@ -741,79 +763,79 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert {:error, "Invalid node rewards trigger time"} =
                PendingTransactionValidation.validate(tx, ~U[2022-01-01 00:00:03Z])
     end
+  end
 
-    test "should return :ok when we deploy a aeweb ref transaction" do
+  describe "token" do
+    test "should return :ok when a transaction contains valid fields for token creation" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
       tx =
-        Transaction.new(:hosting, %TransactionData{
-          content:
-            Jason.encode!(%{
-              "aewebVersion" => 1,
-              "metaData" => %{
-                "index.html" => %{
-                  "encoding" => "gzip",
-                  "hash" => "abcd123",
-                  "size" => 144,
-                  "addresses" => [
-                    Crypto.derive_keypair("seed", 0)
-                    |> elem(0)
-                    |> Crypto.derive_address()
-                    |> Base.encode16()
-                  ]
-                }
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 300_000_000,
+                name: "MyToken",
+                type: "non-fungible",
+                symbol: "MTK",
+                properties: %{
+                  global: "property"
+                },
+                collection: [
+                  %{image: "link", value: "link"},
+                  %{image: "link", value: "link"},
+                  %{image: "link", value: "link"}
+                ]
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+  end
+
+  describe "transfer" do
+    test "should return :ok when a transaction contains a valid smart contract code" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :transfer,
+          %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{to: :crypto.strong_rand_bytes(32), amount: 100_000}
+                ]
               }
-            })
-        })
+            },
+            code: """
+            condition inherit: [
+              content: "hello"
+            ]
 
-      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
-    end
+            condition transaction: [
+              content: ""
+            ]
 
-    test "should return :ok when we deploy a aeweb file transaction" do
-      tx =
-        Transaction.new(:hosting, %TransactionData{
-          content:
-            Jason.encode!(%{
-              "index.html" => Base.url_encode64(:crypto.strong_rand_bytes(1000))
-            })
-        })
+            actions triggered_by: transaction do
+              set_content "hello"
+            end
+            """,
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ]
+          },
+          tx_seed,
+          0
+        )
 
-      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
-    end
-
-    test "should return :error when we deploy a wrong aeweb file transaction" do
-      tx =
-        Transaction.new(:hosting, %TransactionData{
-          content:
-            Jason.encode!(%{
-              "index.html" => 32
-            })
-        })
-
-      assert {:error, _error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
-    end
-
-    test "should return :error when we deploy a wrong aeweb ref transaction" do
-      tx =
-        Transaction.new(:hosting, %TransactionData{
-          content:
-            Jason.encode!(%{
-              "wrongKey" => 1,
-              "metaData" => %{
-                "index.html" => %{
-                  "encoding" => "gzip",
-                  "hash" => "abcd123",
-                  "size" => 144,
-                  "addresses" => [
-                    Crypto.derive_keypair("seed", 0)
-                    |> elem(0)
-                    |> Crypto.derive_address()
-                    |> Base.encode16()
-                  ]
-                }
-              }
-            })
-        })
-
-      assert {:error, _reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert :ok = PendingTransactionValidation.validate(tx)
     end
   end
 end
