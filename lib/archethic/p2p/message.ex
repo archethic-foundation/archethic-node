@@ -1992,7 +1992,7 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%NotifyReplicationValidation{address: address, node_public_key: node_public_key}, _) do
+  def process(%NotifyReplicationValidation{address: address}, node_public_key) do
     Mining.notify_replication_validation(address, node_public_key)
     %Ok{}
   end

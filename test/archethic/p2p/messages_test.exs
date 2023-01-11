@@ -461,17 +461,14 @@ defmodule Archethic.P2P.MessageTest do
     test "AcknowledgeStorage message" do
       signature = :crypto.strong_rand_bytes(32)
       tx_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      node_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       assert %AcknowledgeStorage{
                signature: signature,
-               address: tx_address,
-               node_public_key: node_public_key
+               address: tx_address
              } ==
                %AcknowledgeStorage{
                  signature: signature,
-                 address: tx_address,
-                 node_public_key: node_public_key
+                 address: tx_address
                }
                |> Message.encode()
                |> Message.decode()
