@@ -86,7 +86,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok
     else
       {:error, reason} = e ->
-        Logger.info("Invalid Transaction: #{inspect(reason)}",
+        Logger.info(reason,
           transaction_address: Base.encode16(address),
           transaction_type: type
         )
@@ -102,10 +102,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       |> byte_size()
 
     if tx_size >= @tx_max_size do
-      {:error, "invalid transaction : transaction data exceeds limit"}
+      {:error, "invalid transaction: transaction data exceeds limit"}
     else
       :ok
     end
+  rescue
+    _ -> {:error, "invalid transaction: serialization error"}
   end
 
   defp valid_not_exists(%Transaction{address: address}) do
@@ -173,7 +175,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   @spec validate_ownerships(Transaction.t()) :: :ok | {:error, any()}
-  def validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
+  defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
     nb_ownerships = length(ownerships)
 
     # defstruct recipients: [], ledger: %Ledger{}`, code: "", ownerships: [], content: ""
@@ -211,7 +213,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
       {"", _}, _ ->
-        e = {:halt, {:error, "invalid transaction - Ownership: public key is empty "}}
+        e = {:halt, {:error, "invalid transaction - Ownership: public key is empty"}}
         {:halt, e}
 
       {_, ""}, _ ->
@@ -676,7 +678,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: code}}, _) do
     cond do
       byte_size(code) == 0 ->
-        {:error, "invalid contract type transaction -  code is empty "}
+        {:error, "invalid contract type transaction -  code is empty"}
 
       byte_size(code) >= @code_max_size ->
         {:error, "invalid contract type transaction , code exceed max size "}

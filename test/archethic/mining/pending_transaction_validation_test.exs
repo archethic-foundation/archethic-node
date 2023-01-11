@@ -54,7 +54,77 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     :ok
   end
 
+  describe "validate_size/1" do
+    test "should return :ok when the transaction size is less than 3.1MB" do
+      tx = Transaction.new(:data, %TransactionData{content: :crypto.strong_rand_bytes(3_145_711)})
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return  transaction data exceeds limit when the transaction size is greater than 3.1MB" do
+      tx = Transaction.new(:data, %TransactionData{content: :crypto.strong_rand_bytes(3_145_728)})
+
+      assert {:error, "invalid transaction: transaction data exceeds limit"} =
+               PendingTransactionValidation.validate(tx)
+    end
+  end
+
+  describe "validate_validate_ownerships" do
+    defp get_tx(ownership) do
+      Transaction.new(:data, %TransactionData{ownerships: ownership})
+    end
+
+    test "validate conditions for ownerships" do
+      assert {:error, "invalid data type transaction - Both content & ownership are empty"} =
+               PendingTransactionValidation.validate(get_tx([]))
+
+      assert {:error, "invalid transaction - Ownership: secret is empty"} =
+               [%Ownership{secret: "", authorized_keys: %{}}]
+               |> get_tx()
+               |> PendingTransactionValidation.validate()
+
+      assert {:error, "invalid transaction - Ownership: authorized keys are empty"} =
+               [%Ownership{secret: "secret", authorized_keys: %{}}]
+               |> get_tx()
+               |> PendingTransactionValidation.validate()
+
+      assert {:error, "invalid transaction - Ownership: public key is empty"} =
+               [%Ownership{secret: "secret", authorized_keys: %{"" => "ecnrypted_key"}}]
+               |> get_tx()
+               |> PendingTransactionValidation.validate()
+
+      assert {:error, "invalid transaction - Ownership: encrypted key is empty"} =
+               [%Ownership{secret: "secret", authorized_keys: %{"abc" => ""}}]
+               |> get_tx()
+               |> PendingTransactionValidation.validate()
+
+      assert {:error, "invalid transaction - Ownership: invalid public key"} =
+               [%Ownership{secret: "secret", authorized_keys: %{"abc" => "cba"}}]
+               |> get_tx()
+               |> PendingTransactionValidation.validate()
+
+      assert :ok =
+               [%Ownership{secret: "secret", authorized_keys: %{<<0::272>> => "cba"}}]
+               |> get_tx()
+               |> PendingTransactionValidation.validate()
+    end
+  end
+
   describe "Data" do
+    test "Should return error when both content and ownerships are empty" do
+      assert {:error, "invalid data type transaction - Both content & ownership are empty"} =
+               Transaction.new(:data, %TransactionData{})
+               |> PendingTransactionValidation.validate()
+
+      assert :ok ==
+               [%Ownership{secret: "secret", authorized_keys: %{<<0::272>> => "cba"}}]
+               |> get_tx()
+               |> PendingTransactionValidation.validate()
+
+      assert :ok ==
+               Transaction.new(:data, %TransactionData{content: "content"})
+               |> PendingTransactionValidation.validate()
+    end
   end
 
   describe "Code Approval" do
@@ -133,6 +203,11 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   end
 
   describe "Contract" do
+    test "should return error when code is empty" do
+      assert {:error, "invalid contract type transaction -  code is empty"} =
+               Transaction.new(:contract, %TransactionData{code: ""})
+               |> PendingTransactionValidation.validate()
+    end
   end
 
   describe "Hosting" do
@@ -327,7 +402,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         {:error, :transaction_not_exists}
       end)
 
-      assert {:error, "invalid transaction : transaction data exceeds limit"} =
+      assert {:error, "invalid transaction: transaction data exceeds limit"} =
                PendingTransactionValidation.validate(tx)
     end
   end
