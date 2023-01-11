@@ -7,9 +7,8 @@ defmodule Archethic.Contracts.Interpreter.Library do
     P2P.Message.GetFirstPublicKey,
     P2P.Message.FirstPublicKey,
     TransactionChain,
-    TransactionChain.TransactionInput,
-    TransactionChain.Transaction,
-    TransactionChain.TransactionData
+    Contracts.ContractConstants,
+    Contracts.TransactionLookup
   }
 
   @doc """
@@ -185,43 +184,22 @@ defmodule Archethic.Contracts.Interpreter.Library do
   def size(map) when is_map(map), do: map_size(map)
 
   @doc """
-  Get the inputs of the transaction of given address
+  Get the inputs(type= :call) of the given transaction
 
-  Address can be encoded in hexadecimal or raw (binary)
-  This is useful to be able to do both:
-  - `get_inputs("abcd123...")`
-  - `get_inputs(contract.address)`
-
-  The return value is similar to a TransactionInput but with more fields
+  This is useful for contracts that want to throttle their calls
   """
-  @spec get_inputs(binary()) :: list(map())
-  def get_inputs(maybe_encoded_address) do
-    address =
-      case Base.decode16(maybe_encoded_address) do
-        :error ->
-          maybe_encoded_address
+  @spec get_calls(binary()) :: list(map())
+  def get_calls(contract_address) do
+    contract_address = decode_binary(contract_address)
 
-        {:ok, address} ->
-          address
-      end
-
-    Archethic.get_transaction_inputs(address)
-    |> Enum.map(fn input = %TransactionInput{from: from} ->
-      # read the transaction from IO storage
-      # to add the transaction's content to the input's map
-      {:ok, %Transaction{data: %TransactionData{content: content}}} =
-        TransactionChain.get_transaction(from, [], :io)
-
-      %{
-        amount: input.amount,
-        content: content,
-        from: input.from,
-        type: input.type,
-        timestamp: input.timestamp,
-        reward?: input.reward?,
-        spent?: input.spent?
-      }
+    # TODO: parallelize?
+    TransactionLookup.list_contract_transactions(contract_address)
+    |> Enum.map(fn {address, _, _} -> address end)
+    |> Enum.map(fn address ->
+      {:ok, tx} = TransactionChain.get_transaction(address, [], :io)
+      tx
     end)
+    |> Enum.map(&ContractConstants.from_transaction(&1))
   end
 
   @doc """

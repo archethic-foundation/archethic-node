@@ -10,15 +10,13 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetFirstTransactionAddress
   alias Archethic.P2P.Message.FirstTransactionAddress
-  alias Archethic.P2P.Message.GetLastTransactionAddress
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.LastTransactionAddress
-  alias Archethic.P2P.Message.TransactionInputList
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.TransactionFactory
 
   doctest ActionInterpreter
 
@@ -444,7 +442,7 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
              |> ActionInterpreter.execute()
   end
 
-  test "shall use get_inputs/1 in actions" do
+  test "shall use get_calls/1 in actions" do
     key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
     P2P.add_and_connect_node(%Node{
@@ -461,42 +459,33 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
 
     address = Base.decode16!("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetLastTransactionAddress{address: ^address}, _ ->
-        {:ok, %LastTransactionAddress{address: address, timestamp: DateTime.utc_now()}}
-
-      _, %GetTransactionInputs{address: ^address}, _ ->
-        {:ok,
-         %TransactionInputList{
-           inputs: [
-             %VersionedTransactionInput{
-               input: %TransactionInput{
-                 from: "@Bob3",
-                 amount: 1_000_000_000,
-                 spent?: false,
-                 type: :UCO,
-                 timestamp: DateTime.utc_now()
-               },
-               protocol_version: 1
-             }
-           ]
-         }}
-    end)
-
     MockDB
-    |> stub(:get_transaction, fn _, _, _ ->
-      {:ok, %Transaction{data: %TransactionData{content: "input tx content"}}}
+    |> stub(:get_inputs, fn _, ^address ->
+      [
+        %VersionedTransactionInput{
+          protocol_version: ArchethicCase.current_protocol_version(),
+          input: %TransactionInput{
+            from: address,
+            amount: nil,
+            type: :call,
+            timestamp: DateTime.utc_now(),
+            spent?: false,
+            reward?: false
+          }
+        }
+      ]
+    end)
+    |> stub(:get_transaction, fn ^address, _, _ ->
+      {:ok, TransactionFactory.create_valid_transaction()}
     end)
 
-    # TODO: find a way to check the inputs from the contract
-    # TODO: maybe with a "set_content json(inputs)"
+    # TODO: find a way to check the transactions returned by get_calls
 
     assert %Transaction{data: %TransactionData{content: "1"}} =
              ~s"""
              actions triggered_by: transaction do
-               inputs = get_inputs("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
-               set_content size(inputs)
+               transactions = get_calls("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
+               set_content size(transactions)
              end
              """
              |> Interpreter.sanitize_code()
