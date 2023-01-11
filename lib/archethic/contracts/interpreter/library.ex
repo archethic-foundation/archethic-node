@@ -217,4 +217,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
       bin
     end
   end
+
+  # polkadot Blake2b eth Keccak btc sha512
+  # sha3 , sha2
 end
