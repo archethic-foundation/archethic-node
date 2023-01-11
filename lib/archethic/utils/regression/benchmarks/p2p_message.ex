@@ -18,6 +18,7 @@ defmodule Archethic.Utils.Regression.Benchmark.P2PMessage do
 
   alias Archethic.TransactionChain.Transaction
 
+  alias Archethic.Utils
   alias Archethic.Utils.Regression.Benchmark
   alias Archethic.Utils.WebClient
 
@@ -134,13 +135,19 @@ defmodule Archethic.Utils.Regression.Benchmark.P2PMessage do
     def handle_call(
           {:send_message, msg},
           from,
-          state = %{socket: socket, public_key: public_key, request_id: request_id}
+          state = %{
+            socket: socket,
+            public_key: public_key,
+            private_key: private_key,
+            request_id: request_id
+          }
         ) do
       envelop =
         %MessageEnvelop{
           message: msg,
           message_id: request_id,
-          sender_public_key: public_key
+          sender_public_key: public_key,
+          signature: msg |> Message.encode() |> Utils.wrap_binary() |> Crypto.sign(private_key)
         }
         |> MessageEnvelop.encode()
 

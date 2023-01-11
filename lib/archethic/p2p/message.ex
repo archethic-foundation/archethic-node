@@ -363,11 +363,9 @@ defmodule Archethic.P2P.Message do
 
   def encode(%AcknowledgeStorage{
         address: address,
-        signature: signature,
-        node_public_key: node_public_key
+        signature: signature
       }) do
-    <<13::8, address::binary, node_public_key::binary, byte_size(signature)::8,
-      signature::binary>>
+    <<13::8, address::binary, byte_size(signature)::8, signature::binary>>
   end
 
   def encode(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}) do
@@ -873,15 +871,12 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<13::8, rest::bitstring>>) do
-    {address, rest} = Utils.deserialize_address(rest)
-
-    {public_key, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
-      Utils.deserialize_public_key(rest)
+    {address, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
+      Utils.deserialize_address(rest)
 
     {%AcknowledgeStorage{
        address: address,
-       signature: signature,
-       node_public_key: public_key
+       signature: signature
      }, rest}
   end
 
@@ -1608,10 +1603,9 @@ defmodule Archethic.P2P.Message do
   def process(
         %AcknowledgeStorage{
           address: address,
-          signature: signature,
-          node_public_key: node_public_key
+          signature: signature
         },
-        _
+        node_public_key
       ) do
     Mining.confirm_replication(address, signature, node_public_key)
     %Ok{}
@@ -1988,8 +1982,7 @@ defmodule Archethic.P2P.Message do
 
           ack = %AcknowledgeStorage{
             address: tx.address,
-            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
-            node_public_key: Crypto.first_node_public_key()
+            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
           }
 
           P2P.send_message(sender_public_key, ack)
@@ -2016,9 +2009,7 @@ defmodule Archethic.P2P.Message do
 
             %AcknowledgeStorage{
               address: tx.address,
-              signature:
-                Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
-              node_public_key: Crypto.first_node_public_key()
+              signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
             }
 
           {:error, :transaction_already_exists} ->

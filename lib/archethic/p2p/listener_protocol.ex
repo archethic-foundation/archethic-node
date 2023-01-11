@@ -7,7 +7,14 @@ defmodule Archethic.P2P.ListenerProtocol do
 
   require Logger
 
+  alias Archethic.Crypto
+
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.MessageEnvelop
+
   alias Archethic.TaskSupervisor
+
+  alias Archethic.Utils
 
   @behaviour :ranch_protocol
 
@@ -39,53 +46,72 @@ defmodule Archethic.P2P.ListenerProtocol do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
       start_decode_time = System.monotonic_time()
 
-      %Archethic.P2P.MessageEnvelop{
+      %MessageEnvelop{
         message_id: message_id,
         message: message,
-        sender_public_key: sender_public_key
-      } = Archethic.P2P.MessageEnvelop.decode(msg)
+        sender_public_key: sender_public_key,
+        signature: signature
+      } = MessageEnvelop.decode(msg)
 
-      :telemetry.execute(
-        [:archethic, :p2p, :decode_message],
-        %{duration: System.monotonic_time() - start_decode_time},
-        %{message: Archethic.P2P.Message.name(message)}
-      )
+      valid_signature? =
+        Crypto.verify?(
+          signature,
+          Message.encode(message) |> Utils.wrap_binary(),
+          sender_public_key
+        )
 
-      start_processing_time = System.monotonic_time()
-      response = Archethic.P2P.Message.process(message, sender_public_key)
+      if valid_signature? do
+        :telemetry.execute(
+          [:archethic, :p2p, :decode_message],
+          %{duration: System.monotonic_time() - start_decode_time},
+          %{message: Message.name(message)}
+        )
 
-      :telemetry.execute(
-        [:archethic, :p2p, :handle_message],
-        %{
-          duration: System.monotonic_time() - start_processing_time
-        },
-        %{message: Archethic.P2P.Message.name(message)}
-      )
+        start_processing_time = System.monotonic_time()
+        response = Message.process(message, sender_public_key)
 
-      start_encode_time = System.monotonic_time()
+        :telemetry.execute(
+          [:archethic, :p2p, :handle_message],
+          %{
+            duration: System.monotonic_time() - start_processing_time
+          },
+          %{message: Message.name(message)}
+        )
 
-      encoded_response =
-        %Archethic.P2P.MessageEnvelop{
-          message: response,
-          message_id: message_id,
-          sender_public_key: Archethic.Crypto.first_node_public_key()
-        }
-        |> Archethic.P2P.MessageEnvelop.encode(sender_public_key)
+        start_encode_time = System.monotonic_time()
 
-      :telemetry.execute(
-        [:archethic, :p2p, :encode_message],
-        %{duration: System.monotonic_time() - start_encode_time},
-        %{message: Archethic.P2P.Message.name(message)}
-      )
+        response_signature =
+          response
+          |> Message.encode()
+          |> Utils.wrap_binary()
+          |> Crypto.sign_with_first_node_key()
 
-      start_sending_time = System.monotonic_time()
-      transport.send(socket, encoded_response)
+        encoded_response =
+          %MessageEnvelop{
+            message: response,
+            message_id: message_id,
+            sender_public_key: Crypto.first_node_public_key(),
+            signature: response_signature
+          }
+          |> MessageEnvelop.encode(sender_public_key)
 
-      :telemetry.execute(
-        [:archethic, :p2p, :transport_sending_message],
-        %{duration: System.monotonic_time() - start_sending_time},
-        %{message: Archethic.P2P.Message.name(message)}
-      )
+        :telemetry.execute(
+          [:archethic, :p2p, :encode_message],
+          %{duration: System.monotonic_time() - start_encode_time},
+          %{message: Archethic.P2P.Message.name(message)}
+        )
+
+        start_sending_time = System.monotonic_time()
+        transport.send(socket, encoded_response)
+
+        :telemetry.execute(
+          [:archethic, :p2p, :transport_sending_message],
+          %{duration: System.monotonic_time() - start_sending_time},
+          %{message: Archethic.P2P.Message.name(message)}
+        )
+      else
+        transport.close(socket)
+      end
     end)
 
     {:noreply, state}
