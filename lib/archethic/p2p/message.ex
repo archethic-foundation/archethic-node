@@ -1974,9 +1974,6 @@ defmodule Archethic.P2P.Message do
         Replication.add_transaction_to_commit_pool(tx)
         %Ok{}
 
-      {:error, :transaction_already_exists} ->
-        %ReplicationError{address: tx.address, reason: :transaction_already_exists}
-
       {:error, reason} ->
         %ReplicationError{address: tx.address, reason: reason}
     end
