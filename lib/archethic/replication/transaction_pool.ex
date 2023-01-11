@@ -21,12 +21,12 @@ defmodule Archethic.Replication.TransactionPool do
 
   def init(arg) do
     clean_interval = Keyword.get(arg, :clean_interval, 5_000)
-    timeout_duration = Keyword.get(arg, :timeout, 60_000)
+    ttl = Keyword.get(arg, :ttl, 60_000)
     clean_ref = Process.send_after(self(), :clean, clean_interval)
 
     {:ok,
      %{
-       timeout_duration: timeout_duration,
+       ttl: ttl,
        clean_interval: clean_interval,
        clean_ref: clean_ref,
        transactions: %{}
@@ -35,10 +35,10 @@ defmodule Archethic.Replication.TransactionPool do
 
   def handle_cast(
         {:add_transaction, tx = %Transaction{address: address, type: type}},
-        state = %{timeout_duration: timeout_duration}
+        state = %{ttl: ttl}
       ) do
-    timeout = DateTime.add(DateTime.utc_now(), timeout_duration, :millisecond)
-    new_state = Map.update!(state, :transactions, &Map.put(&1, address, {tx, timeout}))
+    expire_at = DateTime.add(DateTime.utc_now(), ttl, :millisecond)
+    new_state = Map.update!(state, :transactions, &Map.put(&1, address, {tx, expire_at}))
 
     Logger.info("Added in the transaction pool",
       transaction_address: Base.encode16(address),
@@ -64,8 +64,8 @@ defmodule Archethic.Replication.TransactionPool do
     new_state =
       state
       |> Map.update!(:transactions, fn transactions ->
-        Enum.reject(transactions, fn {_, {_, timeout}} ->
-          DateTime.compare(DateTime.utc_now(), timeout) in [:gt, :eq]
+        Enum.reject(transactions, fn {_, {_, expire_at}} ->
+          DateTime.compare(DateTime.utc_now(), expire_at) in [:gt, :eq]
         end)
         |> Enum.into(%{})
       end)
