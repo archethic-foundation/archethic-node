@@ -8,7 +8,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.FirstPublicKey
-  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GenesisAddress
 
   doctest ConditionInterpreter
 
@@ -219,7 +219,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
 
       MockClient
       |> expect(:send_message, fn _, _, _ ->
-        {:ok, %FirstAddress{address: b_address}}
+        {:ok, %GenesisAddress{address: b_address}}
       end)
 
       assert true =

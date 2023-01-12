@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -323,7 +323,7 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
 
     MockClient
     |> expect(:send_message, fn _, _, _ ->
-      {:ok, %FirstAddress{address: b_address}}
+      {:ok, %GenesisAddress{address: b_address}}
     end)
 
     assert %Transaction{data: %TransactionData{content: "yes"}} =

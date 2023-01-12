@@ -23,8 +23,8 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetFirstAddress
-  # alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
+  # alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.TransactionFactory
 
@@ -260,7 +260,7 @@ defmodule Archethic.SelfRepair.SyncTest do
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
 
-        _, %GetFirstAddress{}, _ ->
+        _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
       end)
 
@@ -329,7 +329,7 @@ defmodule Archethic.SelfRepair.SyncTest do
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
 
-        _, %GetFirstAddress{}, _ ->
+        _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
       end)
 
