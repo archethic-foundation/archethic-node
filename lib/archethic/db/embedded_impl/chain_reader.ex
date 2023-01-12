@@ -317,8 +317,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           else
             idx = chain_length - 1 - @page_size
 
-            {@page_size, all_addresses_asc |> Enum.at(idx), true,
-             all_addresses_asc |> Enum.at(idx + 1)}
+            paging_state = all_addresses_asc |> Enum.at(idx)
+            new_paging_state = all_addresses_asc |> Enum.at(idx + 1)
+
+            {@page_size, paging_state, true, new_paging_state}
           end
 
         paging_state ->
@@ -331,8 +333,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           else
             idx = paging_state_idx - 1 - @page_size
 
-            {@page_size, all_addresses_asc |> Enum.at(idx), true,
-             all_addresses_asc |> Enum.at(idx + 1)}
+            paging_state = all_addresses_asc |> Enum.at(idx)
+            new_paging_state = all_addresses_asc |> Enum.at(idx + 1)
+
+            {@page_size, paging_state, true, new_paging_state}
           end
       end
 
