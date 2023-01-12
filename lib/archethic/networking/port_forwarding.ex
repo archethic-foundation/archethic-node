@@ -17,8 +17,9 @@ defmodule Archethic.Networking.PortForwarding do
     Logger.info("Try to open port #{port}")
 
     with true <- required?(ip_lookup_provider()),
-         true <- conf_overrides?() do
-      do_try_open_port(port)
+         true <- conf_overrides?(),
+         {:ok, port} <- do_try_open_port(port) do
+      {:ok, port}
     else
       false ->
         Logger.info("Port forwarding is skipped")
@@ -40,8 +41,22 @@ defmodule Archethic.Networking.PortForwarding do
 
   defp do_try_open_port(port), do: NATDiscovery.open_port(port)
 
-  defp fallback(port, _force? = true) do
-    case do_try_open_port(0) do
+  defp fallback(port, force?, retries \\ 10)
+
+  defp fallback(_, _force? = true, 0) do
+    Logger.error(
+      "Port from configuration is used but requires a manuel port forwarding setting on the router"
+    )
+
+    :error
+  end
+
+  @random_ports_range Application.compile_env!(:archethic, [__MODULE__, :port_range])
+  defp fallback(port, _force? = true, retries) do
+    # // If the port is not open, try to open a random port
+    Logger.info("Trying to open a random port")
+
+    case do_try_open_port(Enum.random(@random_ports_range)) do
       {:ok, port} ->
         Logger.info("Use the random port #{port} as fallback")
         {:ok, port}
@@ -49,15 +64,11 @@ defmodule Archethic.Networking.PortForwarding do
       :error ->
         Logger.error("Cannot publish the a random port #{port}")
 
-        Logger.error(
-          "Port from configuration is used but requires a manuel port forwarding setting on the router"
-        )
-
-        :error
+        fallback(port, _force? = true, retries - 1)
     end
   end
 
-  defp fallback(port, _force? = false) do
+  defp fallback(port, _force? = false, _) do
     Logger.warning("No fallback provided for the port #{port}")
 
     Logger.warning(

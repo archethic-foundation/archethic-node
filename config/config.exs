@@ -153,6 +153,7 @@ config :archethic, Archethic.Networking.IPLookup.NATDiscovery,
 config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
   provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY
 
+config :archethic, Archethic.Networking.PortForwarding, port_range: 49_152..65_535
 # -----End-of-Networking-configs ------
 
 config :archethic_web,
