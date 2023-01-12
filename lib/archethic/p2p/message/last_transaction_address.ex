@@ -6,14 +6,25 @@ defmodule Archethic.P2P.Message.LastTransactionAddress do
   defstruct [:address, :timestamp]
 
   alias Archethic.Crypto
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           timestamp: DateTime.t()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: address, timestamp: timestamp}) do
-    <<241::8, address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: address, timestamp: timestamp}) do
+    <<address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+
+    {%__MODULE__{
+       address: address,
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
+     }, rest}
   end
 end

@@ -14,11 +14,6 @@ defmodule Archethic.P2P.Message.GetNextAddresses do
 
   @type t :: %__MODULE__{address: Crypto.prepended_hash()}
 
-  @spec encode(t()) :: bitstring()
-  def encode(msg = %__MODULE__{}) do
-    <<35::8, serialize(msg)::bitstring>>
-  end
-
   @spec process(__MODULE__.t(), Crypto.key()) :: AddressList.t()
   def process(%__MODULE__{address: address}, _) do
     case TransactionChain.get_transaction(address, validation_stamp: [:timestamp]) do
@@ -47,6 +42,7 @@ defmodule Archethic.P2P.Message.GetNextAddresses do
         <<0, 0, 94, 5, 249, 103, 126, 31, 43, 57, 25, 14, 187, 133, 59, 234, 201, 172,
         3, 195, 43, 81, 81, 146, 164, 202, 147, 218, 207, 204, 31, 185, 73, 251>>
   """
+  @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{address: address}) do
     <<address::binary>>
   end
@@ -64,6 +60,7 @@ defmodule Archethic.P2P.Message.GetNextAddresses do
         }, ""}
 
   """
+  @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(bin) do
     {address, rest} = Utils.deserialize_address(bin)
 

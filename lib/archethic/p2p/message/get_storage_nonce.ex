@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.GetStorageNonce do
 
   alias Archethic.P2P.Message.EncryptedStorageNonce
   alias Archethic.Crypto
+  alias Archethic.Utils
 
   @enforce_keys [:public_key]
   defstruct [:public_key]
@@ -15,9 +16,21 @@ defmodule Archethic.P2P.Message.GetStorageNonce do
           public_key: Crypto.key()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{public_key: public_key}) do
-    <<1::8, public_key::binary>>
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(bin) do
+    {public_key, rest} = Utils.deserialize_public_key(bin)
+
+    {
+      %__MODULE__{
+        public_key: public_key
+      },
+      rest
+    }
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{public_key: public_key}) do
+    <<public_key::binary>>
   end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: EncryptedStorageNonce.t()

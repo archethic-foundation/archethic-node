@@ -22,11 +22,6 @@ defmodule Archethic.P2P.Message.ReplicateTransactionChain do
           replying_node: nil | Crypto.key()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{transaction: tx, replying_node: nil}) do
-    <<11::8, Transaction.serialize(tx)::bitstring, 0::1>>
-  end
-
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
         %__MODULE__{
@@ -60,6 +55,29 @@ defmodule Archethic.P2P.Message.ReplicateTransactionChain do
     end
 
     %Ok{}
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{transaction: tx, replying_node: nil}) do
+    <<Transaction.serialize(tx)::bitstring, 0::1>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {tx, <<replying_node::1, rest::bitstring>>} = Transaction.deserialize(rest)
+
+    if replying_node == 1 do
+      {node_public_key, rest} = Utils.deserialize_public_key(rest)
+
+      {%__MODULE__{
+         transaction: tx,
+         replying_node: node_public_key
+       }, rest}
+    else
+      {%__MODULE__{
+         transaction: tx
+       }, rest}
+    end
   end
 
   defp process_replication_chain(tx, replying_node_public_key) do

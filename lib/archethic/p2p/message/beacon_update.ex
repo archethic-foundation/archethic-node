@@ -10,6 +10,7 @@ defmodule Archethic.P2P.Message.BeaconUpdate do
   alias Archethic.Crypto
   alias Archethic.P2P.Message.Ok
 
+  alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
@@ -27,8 +28,8 @@ defmodule Archethic.P2P.Message.BeaconUpdate do
     %Ok{}
   end
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{transaction_attestations: transaction_attestations}) do
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{transaction_attestations: transaction_attestations}) do
     transaction_attestations_bin =
       transaction_attestations
       |> Enum.map(&ReplicationAttestation.serialize/1)
@@ -36,7 +37,21 @@ defmodule Archethic.P2P.Message.BeaconUpdate do
 
     encoded_transaction_attestations_len = length(transaction_attestations) |> VarInt.from_value()
 
-    <<236::8, encoded_transaction_attestations_len::binary,
-      transaction_attestations_bin::bitstring>>
+    <<encoded_transaction_attestations_len::binary, transaction_attestations_bin::bitstring>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
+
+    {transaction_attestations, rest} =
+      Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
+
+    {
+      %__MODULE__{
+        transaction_attestations: transaction_attestations
+      },
+      rest
+    }
   end
 end

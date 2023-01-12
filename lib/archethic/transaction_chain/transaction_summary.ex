@@ -23,11 +23,6 @@ defmodule Archethic.TransactionChain.TransactionSummary do
           fee: pos_integer()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(tx_summary = %__MODULE__{}) do
-    <<239::8, serialize(tx_summary)::binary>>
-  end
-
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(tx_summary = %__MODULE__{}, _) do
     PubSub.notify_transaction_attestation(tx_summary)

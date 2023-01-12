@@ -13,8 +13,8 @@ defmodule Archethic.P2P.Message.TransactionList do
           more?: boolean()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{transactions: transactions, more?: false}) do
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{transactions: transactions, more?: false}) do
     transaction_bin =
       transactions
       |> Stream.map(&Transaction.serialize/1)
@@ -23,10 +23,10 @@ defmodule Archethic.P2P.Message.TransactionList do
 
     encoded_transactions_length = Enum.count(transactions) |> VarInt.from_value()
 
-    <<251::8, encoded_transactions_length::binary, transaction_bin::bitstring, 0::1>>
+    <<encoded_transactions_length::binary, transaction_bin::bitstring, 0::1>>
   end
 
-  def encode(%__MODULE__{transactions: transactions, more?: true, paging_state: paging_state}) do
+  def serialize(%__MODULE__{transactions: transactions, more?: true, paging_state: paging_state}) do
     transaction_bin =
       transactions
       |> Stream.map(&Transaction.serialize/1)
@@ -35,7 +35,39 @@ defmodule Archethic.P2P.Message.TransactionList do
 
     encoded_transactions_length = Enum.count(transactions) |> VarInt.from_value()
 
-    <<251::8, encoded_transactions_length::binary, transaction_bin::bitstring, 1::1,
+    <<encoded_transactions_length::binary, transaction_bin::bitstring, 1::1,
       byte_size(paging_state)::8, paging_state::binary>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {nb_transactions, rest} = rest |> VarInt.get_value()
+    {transactions, rest} = deserialize_tx_list(rest, nb_transactions, [])
+
+    case rest do
+      <<0::1, rest::bitstring>> ->
+        {
+          %__MODULE__{transactions: transactions, more?: false},
+          rest
+        }
+
+      <<1::1, paging_state_size::8, paging_state::binary-size(paging_state_size),
+        rest::bitstring>> ->
+        {
+          %__MODULE__{transactions: transactions, more?: true, paging_state: paging_state},
+          rest
+        }
+    end
+  end
+
+  defp deserialize_tx_list(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_tx_list(rest, nb_transactions, acc) when length(acc) == nb_transactions do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_tx_list(rest, nb_transactions, acc) do
+    {tx, rest} = Transaction.deserialize(rest)
+    deserialize_tx_list(rest, nb_transactions, [tx | acc])
   end
 end

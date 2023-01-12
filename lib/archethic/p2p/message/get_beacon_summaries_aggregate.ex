@@ -15,9 +15,6 @@ defmodule Archethic.P2P.Message.GetBeaconSummariesAggregate do
           date: DateTime.t()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{date: date}), do: <<33::8, DateTime.to_unix(date)::32>>
-
   @spec process(__MODULE__.t(), Crypto.key()) :: SummaryAggregate.t() | NotFound.t()
   def process(%__MODULE__{date: date}, _) do
     case BeaconChain.get_summaries_aggregate(date) do
@@ -27,5 +24,13 @@ defmodule Archethic.P2P.Message.GetBeaconSummariesAggregate do
       {:error, :not_exists} ->
         %NotFound{}
     end
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{date: date}), do: <<DateTime.to_unix(date)::32>>
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<timestamp::32, rest::bitstring>>) do
+    {%__MODULE__{date: DateTime.from_unix!(timestamp)}, rest}
   end
 end

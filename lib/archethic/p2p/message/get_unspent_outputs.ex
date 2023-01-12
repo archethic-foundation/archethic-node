@@ -9,6 +9,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
   alias Archethic.Account
   alias Archethic.P2P.Message.UnspentOutputList
 
+  alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -17,11 +18,6 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
           address: Crypto.versioned_hash(),
           offset: non_neg_integer()
         }
-
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: tx_address, offset: offset}) do
-    <<5::8, tx_address::binary, VarInt.from_value(offset)::binary>>
-  end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: UnspentOutputList.t()
   def process(%__MODULE__{address: tx_address, offset: offset}, _) do
@@ -63,5 +59,18 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
       offset: offset,
       more?: more?
     }
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: tx_address, offset: offset}) do
+    <<tx_address::binary, VarInt.from_value(offset)::binary>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+
+    {offset, rest} = VarInt.get_value(rest)
+    {%__MODULE__{address: address, offset: offset}, rest}
   end
 end

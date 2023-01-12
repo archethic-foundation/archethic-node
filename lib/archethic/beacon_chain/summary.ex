@@ -44,11 +44,6 @@ defmodule Archethic.BeaconChain.Summary do
           version: pos_integer()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(summary = %__MODULE__{}) do
-    <<240::8, serialize(summary)::bitstring>>
-  end
-
   @doc """
   Generate a summary from a list of beacon chain slot transactions
 

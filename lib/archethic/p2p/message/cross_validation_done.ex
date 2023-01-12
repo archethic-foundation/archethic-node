@@ -11,15 +11,27 @@ defmodule Archethic.P2P.Message.CrossValidationDone do
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.Mining
   alias Archethic.P2P.Message.Ok
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           cross_validation_stamp: CrossValidationStamp.t()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: address, cross_validation_stamp: stamp}) do
-    <<10::8, address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+    {stamp, rest} = CrossValidationStamp.deserialize(rest)
+
+    {%__MODULE__{
+       address: address,
+       cross_validation_stamp: stamp
+     }, rest}
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: address, cross_validation_stamp: stamp}) do
+    <<address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
   end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()

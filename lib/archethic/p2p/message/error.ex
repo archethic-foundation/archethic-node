@@ -15,9 +15,14 @@ defmodule Archethic.P2P.Message.Error do
           reason: reason()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{reason: reason}) do
-    <<238::8, serialize_reason(reason)::8>>
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{reason: reason}) do
+    <<serialize_reason(reason)::8>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<reason::8, rest::bitstring>>) do
+    {%__MODULE__{reason: deserialize_reason(reason)}, rest}
   end
 
   @doc """

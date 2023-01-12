@@ -12,11 +12,6 @@ defmodule Archethic.P2P.Message.AddressList do
 
   @type t :: %__MODULE__{addresses: list(Crypto.prepended_hash())}
 
-  @spec encode(t()) :: bitstring()
-  def encode(msg = %__MODULE__{}) do
-    <<229::8, serialize(msg)::bitstring>>
-  end
-
   @doc """
         Serialize AddressList Struct
 

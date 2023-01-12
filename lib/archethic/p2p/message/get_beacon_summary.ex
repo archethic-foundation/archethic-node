@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.GetBeaconSummary do
   defstruct [:address]
 
   alias Archethic.Crypto
+  alias Archethic.Utils
   alias Archethic.BeaconChain
   alias Archethic.P2P.Message.NotFound
   alias Archethic.BeaconChain.Summary
@@ -14,9 +15,6 @@ defmodule Archethic.P2P.Message.GetBeaconSummary do
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash()
         }
-
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: address}), do: <<26::8, address::binary>>
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Summary.t() | NotFound.t()
   def process(%__MODULE__{address: address}, _) do
@@ -27,5 +25,18 @@ defmodule Archethic.P2P.Message.GetBeaconSummary do
       {:error, :not_found} ->
         %NotFound{}
     end
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: address}), do: <<address::binary>>
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::binary>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+
+    {
+      %__MODULE__{address: address},
+      rest
+    }
   end
 end

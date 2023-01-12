@@ -6,17 +6,13 @@ defmodule Archethic.P2P.Message.GetBalance do
   defstruct [:address]
 
   alias Archethic.Crypto
+  alias Archethic.Utils
   alias Archethic.Account
   alias Archethic.P2P.Message.Balance
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash()
         }
-
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: address}) do
-    <<16::8, address::binary>>
-  end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Balance.t()
   def process(%__MODULE__{address: address}, _) do
@@ -26,5 +22,16 @@ defmodule Archethic.P2P.Message.GetBalance do
       uco: uco,
       token: token
     }
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: address}) do
+    <<address::binary>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+    {%__MODULE__{address: address}, rest}
   end
 end

@@ -11,8 +11,15 @@ defmodule Archethic.P2P.Message.EncryptedStorageNonce do
           digest: binary()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{digest: digest}) do
-    <<247::8, byte_size(digest)::8, digest::binary>>
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{digest: digest}) do
+    <<byte_size(digest)::8, digest::binary>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<digest_size::8, digest::binary-size(digest_size), rest::bitstring>>) do
+    {%__MODULE__{
+       digest: digest
+     }, rest}
   end
 end

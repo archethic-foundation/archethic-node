@@ -10,15 +10,11 @@ defmodule Archethic.P2P.Message.GetTransaction do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Error
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash()
         }
-
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: tx_address}) do
-    <<3::8, tx_address::binary>>
-  end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: NotFound.t() | Error.t() | Transaction.t()
   def process(%__MODULE__{address: tx_address}, _) do
@@ -32,5 +28,18 @@ defmodule Archethic.P2P.Message.GetTransaction do
       {:error, :invalid_transaction} ->
         %Error{reason: :invalid_transaction}
     end
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: tx_address}), do: <<tx_address::binary>>
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+
+    {
+      %__MODULE__{address: address},
+      rest
+    }
   end
 end

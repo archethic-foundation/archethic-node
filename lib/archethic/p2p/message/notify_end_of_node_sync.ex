@@ -9,6 +9,7 @@ defmodule Archethic.P2P.Message.NotifyEndOfNodeSync do
 
   alias Archethic.Crypto
   alias Archethic.BeaconChain
+  alias Archethic.Utils
   alias Archethic.P2P.Message.Ok
 
   @type t :: %__MODULE__{
@@ -16,14 +17,24 @@ defmodule Archethic.P2P.Message.NotifyEndOfNodeSync do
           timestamp: DateTime.t()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{node_public_key: public_key, timestamp: timestamp}) do
-    <<14::8, public_key::binary, DateTime.to_unix(timestamp)::32>>
-  end
-
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(%__MODULE__{node_public_key: public_key, timestamp: timestamp}, _) do
     BeaconChain.add_end_of_node_sync(public_key, timestamp)
     %Ok{}
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{node_public_key: public_key, timestamp: timestamp}) do
+    <<public_key::binary, DateTime.to_unix(timestamp)::32>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {public_key, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_public_key(rest)
+
+    {%__MODULE__{
+       node_public_key: public_key,
+       timestamp: DateTime.from_unix!(timestamp)
+     }, rest}
   end
 end

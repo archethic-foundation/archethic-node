@@ -4,6 +4,7 @@ defmodule Archethic.P2P.Message.FirstPublicKey do
   """
 
   alias Archethic.Crypto
+  alias Archethic.Utils
 
   @enforce_keys [:public_key]
   defstruct [:public_key]
@@ -12,8 +13,14 @@ defmodule Archethic.P2P.Message.FirstPublicKey do
           public_key: Crypto.key()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{public_key: public_key}) do
-    <<242::8, public_key::binary>>
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{public_key: public_key}) do
+    <<public_key::binary>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {public_key, rest} = Utils.deserialize_public_key(rest)
+    {%__MODULE__{public_key: public_key}, rest}
   end
 end

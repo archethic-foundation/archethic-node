@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.GetGenesisAddress do
   defstruct [:address]
 
   alias Archethic.Crypto
+  alias Archethic.Utils
   alias Archethic.TransactionChain
   alias Archethic.P2P.Message.FirstAddress
 
@@ -14,12 +15,18 @@ defmodule Archethic.P2P.Message.GetGenesisAddress do
           address: binary()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: address}), do: <<31::8, address::binary>>
-
   @spec process(__MODULE__.t(), Crypto.key()) :: FirstAddress.t()
   def process(%__MODULE__{address: address}, _) do
     genesis_address = TransactionChain.get_genesis_address(address)
     %FirstAddress{address: genesis_address}
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: address}), do: <<address::binary>>
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+    {%__MODULE__{address: address}, rest}
   end
 end

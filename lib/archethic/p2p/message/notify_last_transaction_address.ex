@@ -6,6 +6,7 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
   defstruct [:last_address, :genesis_address, :previous_address, :timestamp]
 
   alias Archethic.Crypto
+  alias Archethic.Utils
   alias Archethic.Contracts
   alias Archethic.SelfRepair
   alias Archethic.P2P
@@ -18,17 +19,6 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
           previous_address: Crypto.versioned_hash(),
           timestamp: DateTime.t()
         }
-
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{
-        last_address: last_address,
-        genesis_address: genesis_address,
-        previous_address: previous_address,
-        timestamp: timestamp
-      }) do
-    <<22::8, last_address::binary, genesis_address::binary, previous_address::binary,
-      DateTime.to_unix(timestamp, :millisecond)::64>>
-  end
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
@@ -54,5 +44,30 @@ defmodule Archethic.P2P.Message.NotifyLastTransactionAddress do
     end
 
     %Ok{}
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{
+        last_address: last_address,
+        genesis_address: genesis_address,
+        previous_address: previous_address,
+        timestamp: timestamp
+      }) do
+    <<last_address::binary, genesis_address::binary, previous_address::binary,
+      DateTime.to_unix(timestamp, :millisecond)::64>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {last_address, rest} = Utils.deserialize_address(rest)
+    {genesis_address, rest} = Utils.deserialize_address(rest)
+    {previous_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+
+    {%__MODULE__{
+       last_address: last_address,
+       genesis_address: genesis_address,
+       previous_address: previous_address,
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
+     }, rest}
   end
 end

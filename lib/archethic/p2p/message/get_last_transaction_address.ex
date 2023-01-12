@@ -6,6 +6,7 @@ defmodule Archethic.P2P.Message.GetLastTransactionAddress do
   defstruct [:address, :timestamp]
 
   alias Archethic.Crypto
+  alias Archethic.Utils
   alias Archethic.TransactionChain
   alias Archethic.P2P.Message.LastTransactionAddress
 
@@ -14,14 +15,24 @@ defmodule Archethic.P2P.Message.GetLastTransactionAddress do
           timestamp: DateTime.t()
         }
 
-  @spec encode(t()) :: bitstring()
-  def encode(%__MODULE__{address: address, timestamp: timestamp}) do
-    <<21::8, address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
-  end
-
   @spec process(__MODULE__.t(), Crypto.key()) :: LastTransactionAddress.t()
   def process(%__MODULE__{address: address, timestamp: timestamp}, _) do
     {address, time} = TransactionChain.get_last_address(address, timestamp)
     %LastTransactionAddress{address: address, timestamp: time}
+  end
+
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{address: address, timestamp: timestamp}) do
+    <<address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
+  end
+
+  @spec deserialize(bitstring()) :: {t(), bitstring}
+  def deserialize(<<rest::bitstring>>) do
+    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+
+    {%__MODULE__{
+       address: address,
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
+     }, rest}
   end
 end
