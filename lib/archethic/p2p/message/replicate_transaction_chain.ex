@@ -6,6 +6,7 @@ defmodule Archethic.P2P.Message.ReplicateTransactionChain do
   defstruct [:transaction, :replying_node]
 
   alias Archethic.Crypto
+  alias Archethic.TaskSupervisor
   alias Archethic.Election
   alias Archethic.Replication
   alias Archethic.P2P

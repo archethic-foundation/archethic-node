@@ -25,9 +25,9 @@ defmodule Archethic.P2P.Message.ReplicationError do
           address: address,
           reason: reason
         },
-        _
+        from
       ) do
-    Mining.notify_replication_error(address, reason)
+    Mining.notify_replication_error(address, reason, from)
     %Ok{}
   end
 

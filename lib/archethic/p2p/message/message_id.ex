@@ -32,7 +32,7 @@ defmodule Archethic.P2P.MessageId do
     NewBeaconSlot,
     GetBeaconSummaries,
     RegisterBeaconUpdates,
-    GetFirstAddress,
+    GetGenesisAddress,
     GetCurrentSummaries,
     GetBeaconSummariesAggregate,
     NotifyPreviousChain,
@@ -42,7 +42,7 @@ defmodule Archethic.P2P.MessageId do
     TransactionSummaryList,
     ReplicationError,
     ValidationError,
-    FirstAddress,
+    GenesisAddress,
     BeaconUpdate,
     BeaconSummaryList,
     Error,
@@ -77,6 +77,7 @@ defmodule Archethic.P2P.MessageId do
   }
 
   @spec id_to_module(0..256) :: atom()
+  # Requests
   def id_to_module(0), do: GetBootstrappingNodes
   def id_to_module(1), do: GetStorageNonce
   def id_to_module(2), do: ListNodes
@@ -101,14 +102,14 @@ defmodule Archethic.P2P.MessageId do
   def id_to_module(21), do: GetLastTransactionAddress
   def id_to_module(22), do: NotifyLastTransactionAddress
   def id_to_module(23), do: GetTransactionSummary
-  # no message with id 24 ???
+  # id 24 is available for a new message
   def id_to_module(25), do: Ping
   def id_to_module(26), do: GetBeaconSummary
   def id_to_module(27), do: NewBeaconSlot
   def id_to_module(28), do: GetBeaconSummaries
   def id_to_module(29), do: RegisterBeaconUpdates
   def id_to_module(30), do: ReplicationAttestation
-  def id_to_module(31), do: GetFirstAddress
+  def id_to_module(31), do: GetGenesisAddress
   def id_to_module(32), do: GetCurrentSummaries
   def id_to_module(33), do: GetBeaconSummariesAggregate
   def id_to_module(34), do: NotifyPreviousChain
@@ -116,13 +117,15 @@ defmodule Archethic.P2P.MessageId do
   def id_to_module(36), do: ValidateTransaction
   def id_to_module(37), do: ReplicatePendingTransactionChain
   def id_to_module(38), do: NotifyReplicationValidation
+
+  # Responses
   def id_to_module(229), do: AddressList
   def id_to_module(230), do: ShardRepair
   def id_to_module(231), do: SummaryAggregate
   def id_to_module(232), do: TransactionSummaryList
   def id_to_module(233), do: ReplicationError
   def id_to_module(234), do: ValidationError
-  def id_to_module(235), do: FirstAddress
+  def id_to_module(235), do: GenesisAddress
   def id_to_module(236), do: BeaconUpdate
   def id_to_module(237), do: BeaconSummaryList
   def id_to_module(238), do: Error
@@ -144,6 +147,7 @@ defmodule Archethic.P2P.MessageId do
   def id_to_module(254), do: Ok
 
   @spec module_to_id(atom()) :: integer()
+  # Requests
   def module_to_id(GetBootstrappingNodes), do: 0
   def module_to_id(GetStorageNonce), do: 1
   def module_to_id(ListNodes), do: 2
@@ -168,14 +172,14 @@ defmodule Archethic.P2P.MessageId do
   def module_to_id(GetLastTransactionAddress), do: 21
   def module_to_id(NotifyLastTransactionAddress), do: 22
   def module_to_id(GetTransactionSummary), do: 23
-  # no message with id 24 ???
+  # id 24 is available for a new message
   def module_to_id(Ping), do: 25
   def module_to_id(GetBeaconSummary), do: 26
   def module_to_id(NewBeaconSlot), do: 27
   def module_to_id(GetBeaconSummaries), do: 28
   def module_to_id(RegisterBeaconUpdates), do: 29
   def module_to_id(ReplicationAttestation), do: 30
-  def module_to_id(GetFirstAddress), do: 31
+  def module_to_id(GetGenesisAddress), do: 31
   def module_to_id(GetCurrentSummaries), do: 32
   def module_to_id(GetBeaconSummariesAggregate), do: 33
   def module_to_id(NotifyPreviousChain), do: 34
@@ -183,13 +187,15 @@ defmodule Archethic.P2P.MessageId do
   def module_to_id(ValidateTransaction), do: 36
   def module_to_id(ReplicatePendingTransactionChain), do: 37
   def module_to_id(NotifyReplicationValidation), do: 38
+
+  # Responses
   def module_to_id(AddressList), do: 229
   def module_to_id(ShardRepair), do: 230
   def module_to_id(SummaryAggregate), do: 231
   def module_to_id(TransactionSummaryList), do: 232
   def module_to_id(ReplicationError), do: 233
   def module_to_id(ValidationError), do: 234
-  def module_to_id(FirstAddress), do: 235
+  def module_to_id(GenesisAddress), do: 235
   def module_to_id(BeaconUpdate), do: 236
   def module_to_id(BeaconSummaryList), do: 237
   def module_to_id(Error), do: 238

@@ -9,16 +9,16 @@ defmodule Archethic.P2P.Message.GetGenesisAddress do
   alias Archethic.Crypto
   alias Archethic.Utils
   alias Archethic.TransactionChain
-  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GenesisAddress
 
   @type t() :: %__MODULE__{
           address: binary()
         }
 
-  @spec process(__MODULE__.t(), Crypto.key()) :: FirstAddress.t()
+  @spec process(__MODULE__.t(), Crypto.key()) :: GenesisAddress.t()
   def process(%__MODULE__{address: address}, _) do
     genesis_address = TransactionChain.get_genesis_address(address)
-    %FirstAddress{address: genesis_address}
+    %GenesisAddress{address: genesis_address}
   end
 
   @spec serialize(t()) :: bitstring()

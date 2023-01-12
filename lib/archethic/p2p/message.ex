@@ -71,10 +71,10 @@ defmodule Archethic.P2P.Message do
     TransactionList,
     UnspentOutputList,
     ValidationError,
+    AddMiningContext,
     ValidateTransaction,
     ReplicatePendingTransactionChain,
-    NotifyReplicationValidation,
-    AddMiningContext
+    NotifyReplicationValidation
   }
 
   require Logger
@@ -225,12 +225,12 @@ defmodule Archethic.P2P.Message do
   Decode an encoded message
   """
   @spec decode(bitstring()) :: {t(), bitstring}
+  def decode(<<255::8>>), do: raise("255 message type is reserved for stream EOF")
+
   def decode(<<message_id::8, rest::bitstring>>) do
     msg_module = MessageId.id_to_module(message_id)
     msg_module.deserialize(rest)
   end
-
-  def decode(<<255::8>>), do: raise("255 message type is reserved for stream EOF")
 
   @doc """
   Handle a P2P message by processing it and return list of responses to be streamed back to the client

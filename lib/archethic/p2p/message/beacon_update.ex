@@ -10,6 +10,8 @@ defmodule Archethic.P2P.Message.BeaconUpdate do
   alias Archethic.Crypto
   alias Archethic.P2P.Message.Ok
 
+  alias Archethic.TransactionChain.TransactionSummary
+
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
@@ -22,7 +24,7 @@ defmodule Archethic.P2P.Message.BeaconUpdate do
     Enum.each(transaction_attestations, fn %ReplicationAttestation{
                                              transaction_summary: tx_summary
                                            } ->
-      process(tx_summary, sender)
+      TransactionSummary.process(tx_summary, sender)
     end)
 
     %Ok{}
