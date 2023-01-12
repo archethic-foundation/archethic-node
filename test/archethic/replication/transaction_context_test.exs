@@ -24,9 +24,9 @@ defmodule Archethic.Replication.TransactionContextTest do
 
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
-  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.NotFound
-  # alias Archethic.P2P.Message.FirstAddress
+  # alias Archethic.P2P.Message.GenesisAddress
   import Mox
 
   test "fetch_transaction/1 should retrieve the transaction" do
@@ -60,7 +60,7 @@ defmodule Archethic.Replication.TransactionContextTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
+      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 

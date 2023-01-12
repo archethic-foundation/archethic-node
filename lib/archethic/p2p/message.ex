@@ -55,8 +55,8 @@ defmodule Archethic.P2P.Message do
     EncryptedStorageNonce,
     Error,
     FirstPublicKey,
-    FirstAddress,
-    GetFirstAddress,
+    GenesisAddress,
+    GetGenesisAddress,
     GetBalance,
     GetBeaconSummaries,
     GetBeaconSummary,
@@ -137,7 +137,7 @@ defmodule Archethic.P2P.Message do
           | BeaconUpdate.t()
           | TransactionSummary.t()
           | ReplicationAttestation.t()
-          | GetFirstAddress.t()
+          | GetGenesisAddress.t()
           | ValidationError.t()
           | GetCurrentSummaries.t()
           | GetBeaconSummariesAggregate.t()
@@ -165,7 +165,7 @@ defmodule Archethic.P2P.Message do
           | Error.t()
           | Summary.t()
           | BeaconSummaryList.t()
-          | FirstAddress.t()
+          | GenesisAddress.t()
           | ReplicationError.t()
           | SummaryAggregate.t()
           | AddressList.t()
@@ -434,7 +434,7 @@ defmodule Archethic.P2P.Message do
     <<30::8, ReplicationAttestation.serialize(attestation)::binary>>
   end
 
-  def encode(%GetFirstAddress{address: address}) do
+  def encode(%GetGenesisAddress{address: address}) do
     <<31::8, address::binary>>
   end
 
@@ -492,7 +492,7 @@ defmodule Archethic.P2P.Message do
       reason::binary, 1::8>>
   end
 
-  def encode(%FirstAddress{address: address}) do
+  def encode(%GenesisAddress{address: address}) do
     <<235::8, address::binary>>
   end
 
@@ -987,7 +987,7 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<31::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {%GetFirstAddress{address: address}, rest}
+    {%GetGenesisAddress{address: address}, rest}
   end
 
   def decode(<<32::8, nb_subsets::8, rest::binary>>) do
@@ -1055,7 +1055,7 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<235::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {%FirstAddress{address: address}, rest}
+    {%GenesisAddress{address: address}, rest}
   end
 
   def decode(<<236::8, rest::bitstring>>) do
@@ -1719,9 +1719,9 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def process(%GetFirstAddress{address: address}, _) do
+  def process(%GetGenesisAddress{address: address}, _) do
     genesis_address = TransactionChain.get_genesis_address(address)
-    %FirstAddress{address: genesis_address}
+    %GenesisAddress{address: genesis_address}
   end
 
   def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}, _) do

@@ -4,9 +4,9 @@ defmodule Archethic.Contracts.Interpreter.Library do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetFirstPublicKey
-  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.FirstPublicKey
 
   @doc """
@@ -190,8 +190,8 @@ defmodule Archethic.Contracts.Interpreter.Library do
   defp download_first_public_key([], _address), do: {:error, :network_issue}
 
   defp download_first_address([node | rest], address) do
-    case P2P.send_message(node, %GetFirstAddress{address: address}) do
-      {:ok, %FirstAddress{address: address}} -> {:ok, address}
+    case P2P.send_message(node, %GetGenesisAddress{address: address}) do
+      {:ok, %GenesisAddress{address: address}} -> {:ok, address}
       {:error, _} -> download_first_address(rest, address)
     end
   end

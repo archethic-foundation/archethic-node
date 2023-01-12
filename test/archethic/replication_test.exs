@@ -20,8 +20,8 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetFirstAddress
-  # alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
+  # alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.Replication
 
@@ -115,7 +115,7 @@ defmodule Archethic.ReplicationTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
+      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 

@@ -25,8 +25,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetFirstAddress
-  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.NotFound
 
   alias Archethic.SharedSecrets
@@ -49,7 +49,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
-  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
   import Mox
 
   alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
@@ -127,7 +127,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
   test "self_validation/2 should return a validated transaction" do
     MockClient
-    |> stub(:send_message, fn _, %GetFirstAddress{address: address}, _ ->
+    |> stub(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
       address
     end)
 
@@ -211,7 +211,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
+      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -270,8 +270,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{address: address}, _ ->
-        {:ok, %FirstAddress{address: address}}
+      _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address}}
     end)
 
     me = self()
@@ -328,7 +328,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
+      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -376,7 +376,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
+      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -423,7 +423,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
+      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 

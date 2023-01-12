@@ -26,8 +26,8 @@ defmodule Archethic.BootstrapTest do
     GetTransactionChain,
     GetTransactionSummary,
     GetTransactionInputs,
-    GetFirstAddress,
-    FirstAddress,
+    GetGenesisAddress,
+    GenesisAddress,
     LastTransactionAddress,
     ListNodes,
     NewTransaction,
@@ -37,7 +37,7 @@ defmodule Archethic.BootstrapTest do
     TransactionList,
     TransactionInputList,
     Ok,
-    GetFirstAddress,
+    GetGenesisAddress,
     NotFound
   }
 
@@ -130,7 +130,7 @@ defmodule Archethic.BootstrapTest do
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
 
-        _, %GetFirstAddress{}, _ ->
+        _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
       end)
 
@@ -580,8 +580,8 @@ defmodule Archethic.BootstrapTest do
         _, %GetTransactionInputs{address: ^addr3}, _ ->
           {:ok, %TransactionInputList{inputs: []}}
 
-        _, %GetFirstAddress{address: ^addr3}, _ ->
-          {:ok, %FirstAddress{address: addr0}}
+        _, %GetGenesisAddress{address: ^addr3}, _ ->
+          {:ok, %GenesisAddress{address: addr0}}
 
         _, %GetTransactionChain{address: ^addr3, paging_state: ^addr2}, _ ->
           {:ok,

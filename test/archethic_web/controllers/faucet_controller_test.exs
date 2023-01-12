@@ -18,8 +18,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
     Ok,
     StartMining,
     TransactionChainLength,
-    GetFirstAddress,
-    FirstAddress
+    GetGenesisAddress,
+    GenesisAddress
   }
 
   alias Archethic.TransactionChain.{
@@ -101,8 +101,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
 
           {:ok, %Ok{}}
 
-        _, %GetFirstAddress{}, _ ->
-          {:ok, %GetFirstAddress{address: tx.address}}
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GetGenesisAddress{address: tx.address}}
 
           {:ok, %Ok{}}
       end)
@@ -162,8 +162,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
             }
           })
 
-        _, %GetFirstAddress{}, _ ->
-          {:ok, %FirstAddress{address: tx.address}}
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: tx.address}}
       end)
 
       faucet_requests =

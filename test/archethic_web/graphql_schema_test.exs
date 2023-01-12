@@ -14,7 +14,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.Balance
-  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
@@ -24,7 +24,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.GetCurrentSummaries
   alias Archethic.P2P.Node
@@ -182,8 +182,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetFirstAddress{}, _ ->
-          {:ok, %FirstAddress{address: token_addr}}
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: token_addr}}
 
         _, %GetTransaction{}, _ ->
           aes_key = :crypto.strong_rand_bytes(32)
@@ -345,7 +345,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
 
-        _, %GetFirstAddress{}, _ ->
+        _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
       end)
 
@@ -385,7 +385,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
 
-        _, %GetFirstAddress{}, _ ->
+        _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
 
         _, %GetLastTransactionAddress{}, _ ->
@@ -431,7 +431,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
 
-        _, %GetFirstAddress{}, _ ->
+        _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
 
         _, %GetLastTransactionAddress{}, _ ->

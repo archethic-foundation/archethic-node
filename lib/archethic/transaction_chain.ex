@@ -16,8 +16,8 @@ defmodule Archethic.TransactionChain do
   alias Archethic.P2P.Message.{
     AddressList,
     Error,
-    FirstAddress,
-    GetFirstAddress,
+    GenesisAddress,
+    GetGenesisAddress,
     GetLastTransactionAddress,
     GetNextAddresses,
     GetTransaction,
@@ -1001,8 +1001,8 @@ defmodule Archethic.TransactionChain do
   def fetch_genesis_address_remotely(address) when is_binary(address) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case P2P.quorum_read(nodes, %GetFirstAddress{address: address}) do
-      {:ok, %FirstAddress{address: genesis_address}} ->
+    case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}) do
+      {:ok, %GenesisAddress{address: genesis_address}} ->
         {:ok, genesis_address}
 
       _ ->

@@ -1,4 +1,4 @@
-defmodule Archethic.P2P.Message.GetFirstAddress do
+defmodule Archethic.P2P.Message.GetGenesisAddress do
   @moduledoc """
   Represents a message to request the first address from a transaction chain
   """
