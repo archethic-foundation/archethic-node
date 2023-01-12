@@ -1,32 +1,34 @@
 defmodule Archethic.Mining.PendingTransactionValidationTest do
   use ArchethicCase, async: false
 
-  alias Archethic.Crypto
+  alias Archethic.{
+    Crypto,
+    Mining.PendingTransactionValidation,
+    P2P,
+    P2P.Node,
+    Reward.Scheduler,
+    SharedSecrets,
+    TransactionChain
+  }
 
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
+  alias Archethic.SharedSecrets.{MemTables.NetworkLookup, MemTables.OriginKeyLookup}
 
-  alias Archethic.Mining.PendingTransactionValidation
+  alias Archethic.P2P.Message.{
+    FirstPublicKey,
+    GetFirstPublicKey,
+    GetTransactionSummary,
+    NotFound
+  }
 
-  alias Archethic.SharedSecrets.MemTables.NetworkLookup
-
-  alias Archethic.Reward.Scheduler
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.FirstPublicKey
-  alias Archethic.P2P.Message.GetFirstPublicKey
-  alias Archethic.P2P.Message.GetTransactionSummary
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Node
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
-  alias Archethic.TransactionChain.TransactionData.Ownership
-
-  alias Archethic.SharedSecrets
-  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+  alias Archethic.TransactionChain.{
+    Transaction,
+    TransactionData,
+    TransactionData.Ledger,
+    TransactionData.UCOLedger,
+    TransactionData.UCOLedger.Transfer,
+    TransactionData.Ownership
+  }
 
   import Mox
 
@@ -69,7 +71,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     end
   end
 
-  describe "validate_validate_ownerships" do
+  describe "validate_ownerships" do
     defp get_tx(ownership) do
       Transaction.new(:data, %TransactionData{ownerships: ownership})
     end
@@ -106,6 +108,35 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert :ok =
                [%Ownership{secret: "secret", authorized_keys: %{<<0::272>> => "cba"}}]
                |> get_tx()
+               |> PendingTransactionValidation.validate()
+    end
+  end
+
+  describe "validate_contract" do
+    test "parse" do
+      code = ~s"""
+        condition inherit: [
+               uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1040000000 }
+             ]
+      """
+
+      assert :ok =
+               Transaction.new(:contract, %TransactionData{code: code})
+               |> PendingTransactionValidation.validate()
+    end
+
+    test "exceeds max code size" do
+      size = Application.get_env(:archethic, :transaction_data_code_max_size)
+      data = :crypto.strong_rand_bytes(size + 1)
+
+      code = ~s"""
+        condition transaction: [
+         content: hash(#{data}})
+      ]
+      """
+
+      assert {:error, "invalid contract type transaction , code exceed max size"} =
+               Transaction.new(:contract, %TransactionData{code: code})
                |> PendingTransactionValidation.validate()
     end
   end

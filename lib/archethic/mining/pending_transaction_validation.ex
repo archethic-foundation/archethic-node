@@ -154,7 +154,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp validate_contract(%Transaction{
          data: %TransactionData{code: code, ownerships: ownerships}
-       }) do
+       })
+       when byte_size(code) <= @code_max_size do
     case Contracts.parse(code) do
       {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
         if Enum.any?(
@@ -172,6 +173,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:error, reason} ->
         {:error, "Smart contract invalid #{inspect(reason)}"}
     end
+  end
+
+  defp validate_contract(%Transaction{data: %TransactionData{code: code}})
+       when byte_size(code) > @code_max_size do
+    {:error, "invalid contract type transaction , code exceed max size"}
   end
 
   @spec validate_ownerships(Transaction.t()) :: :ok | {:error, any()}
@@ -676,15 +682,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: code}}, _) do
-    cond do
-      byte_size(code) == 0 ->
-        {:error, "invalid contract type transaction -  code is empty"}
-
-      byte_size(code) >= @code_max_size ->
-        {:error, "invalid contract type transaction , code exceed max size "}
-
-      true ->
-        :ok
+    if byte_size(code) == 0 do
+      {:error, "invalid contract type transaction -  code is empty"}
+    else
+      :ok
     end
   end
 
