@@ -182,11 +182,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: []}}), do: :ok
 
   defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
-    do_validate_ownerships(ownerships)
-  end
-
-  defp do_validate_ownerships(ownerships) do
-    # handles irregulrarites in ownerships
     Enum.reduce_while(ownerships, :ok, fn
       ownership, :ok ->
         %Ownership{secret: secret, authorized_keys: authorized_keys} = ownership
@@ -205,7 +200,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end)
   end
 
-  @spec verify_authorized_keys(any) :: any
+  @spec verify_authorized_keys(authorized_keys :: map()) ::
+          {:cont, :ok} | {:halt, {:error, any()}}
   defp verify_authorized_keys(authorized_keys) do
     # authorized_keys: %{(public_key :: Crypto.key()) => encrypted_key }
 
