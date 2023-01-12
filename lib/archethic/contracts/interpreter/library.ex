@@ -191,16 +191,14 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_calls(binary()) :: list(map())
   def get_calls(contract_address) do
-    contract_address = Utils.maybe_decode_hex(contract_address)
-
-    # TODO: parallelize?
-    TransactionLookup.list_contract_transactions(contract_address)
-    |> Enum.map(fn {address, _, _} -> address end)
-    |> Enum.map(fn address ->
+    contract_address
+    |> Utils.maybe_decode_hex()
+    |> TransactionLookup.list_contract_transactions()
+    |> Enum.map(fn {address, _, _} ->
+      # TODO: parallelize
       {:ok, tx} = TransactionChain.get_transaction(address, [], :io)
-      tx
+      ContractConstants.from_transaction(tx)
     end)
-    |> Enum.map(&ContractConstants.from_transaction(&1))
   end
 
   @doc """
