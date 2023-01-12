@@ -22,6 +22,10 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   alias Archethic.Utils
 
+  @availability_adding_time :archethic
+                            |> Application.compile_env!(Archethic.SelfRepair.Scheduler)
+                            |> Keyword.fetch!(:availability_application)
+
   @type t :: %__MODULE__{
           version: non_neg_integer(),
           summary_time: DateTime.t(),
@@ -122,7 +126,13 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       |> Enum.uniq_by(& &1.address)
       |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
     end)
-    |> Map.update!(:availability_adding_time, &(Utils.median(&1) |> trunc()))
+    |> Map.update!(:availability_adding_time, fn
+      [] ->
+        @availability_adding_time
+
+      list ->
+        Utils.median(list) |> trunc()
+    end)
     |> Map.update!(:p2p_availabilities, fn availabilities_by_subject ->
       availabilities_by_subject
       |> Enum.map(fn {subset, data} ->
