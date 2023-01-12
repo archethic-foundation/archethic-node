@@ -21,7 +21,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     NotFound
   }
 
-  alias Archethic.TransactionChain.{
+  alias TransactionChain.{
     Transaction,
     TransactionData,
     TransactionData.Ledger,

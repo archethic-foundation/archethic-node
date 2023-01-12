@@ -106,8 +106,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     else
       :ok
     end
-  rescue
-    _ -> {:error, "invalid transaction: serialization error"}
   end
 
   defp valid_not_exists(%Transaction{address: address}) do
@@ -181,19 +179,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   @spec validate_ownerships(Transaction.t()) :: :ok | {:error, any()}
-  defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
-    nb_ownerships = length(ownerships)
+  defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: []}}), do: :ok
 
-    # defstruct recipients: [], ledger: %Ledger{}`, code: "", ownerships: [], content: ""
-    if nb_ownerships == 0 do
-      # we might not have any ownerships at all
-      :ok
-    else
-      do_validate_ownerships(ownerships)
-    end
+  defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
+    do_validate_ownerships(ownerships)
   end
 
-  def do_validate_ownerships(ownerships) do
+  defp do_validate_ownerships(ownerships) do
     # handles irregulrarites in ownerships
     Enum.reduce_while(ownerships, :ok, fn
       ownership, :ok ->
@@ -214,7 +206,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   @spec verify_authorized_keys(any) :: any
-  def verify_authorized_keys(authorized_keys) do
+  defp verify_authorized_keys(authorized_keys) do
     # authorized_keys: %{(public_key :: Crypto.key()) => encrypted_key }
 
     Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
@@ -690,31 +682,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(
-         %Transaction{
-           type: :data,
-           data: %TransactionData{content: content, ownerships: ownerships}
-         },
+         %Transaction{type: :data, data: %TransactionData{content: "", ownerships: []}},
          _
-       ) do
-    nb_ownerships = length(ownerships)
+       ),
+       do: {:error, "invalid data type transaction - Both content & ownership are empty"}
 
-    cond do
-      content == "" && nb_ownerships == 0 ->
-        #  content or ownership either must be present or error
-        #  defstruct recipients: [], ledger: %Ledger{}, code: "", ownerships: [], content: ""
-        {:error, "invalid data type transaction - Both content & ownership are empty"}
-
-      content == "" && nb_ownerships != 0 ->
-        :ok
-
-      nb_ownerships == 0 && content != "" ->
-        :ok
-    end
-  end
+  defp do_accept_transaction(%Transaction{type: :data}, _), do: :ok
 
   defp do_accept_transaction(_, _), do: :ok
 
-  def validate_previous_transaction_type?(tx) do
+  defp validate_previous_transaction_type?(tx) do
     case Transaction.network_type?(tx.type) do
       false ->
         # not a network tx, no need to validate with last tx
@@ -740,8 +717,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           | :origin,
           Archethic.TransactionChain.Transaction.t()
         ) :: boolean
-  def validate_network_chain?(type, tx = %Transaction{})
-      when type in [:oracle, :oracle_summary] do
+  defp validate_network_chain?(type, tx = %Transaction{})
+       when type in [:oracle, :oracle_summary] do
     # mulitpe txn chain based on summary date
 
     case OracleChain.genesis_address() do
@@ -763,8 +740,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  def validate_network_chain?(type, tx = %Transaction{})
-      when type in [:mint_rewards, :node_rewards] do
+  defp validate_network_chain?(type, tx = %Transaction{})
+       when type in [:mint_rewards, :node_rewards] do
     # singleton tx chain in network lifespan
     case Reward.genesis_address() do
       nil ->
@@ -781,7 +758,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  def validate_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
+  defp validate_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
     # singleton tx chain in network lifespan
     case SharedSecrets.genesis_address(:node_shared_secrets) do
       nil ->
@@ -797,7 +774,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  def validate_network_chain?(:origin, tx = %Transaction{}) do
+  defp validate_network_chain?(:origin, tx = %Transaction{}) do
     # singleton tx chain in network lifespan
     # not parsing orgin pub key for origin family
     case SharedSecrets.genesis_address(:origin) do
@@ -814,7 +791,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  def validate_network_chain?(_type, _tx), do: true
+  defp validate_network_chain?(_type, _tx), do: true
 
   defp verify_token_creation(content) do
     with {:ok, json_token} <- Jason.decode(content),
