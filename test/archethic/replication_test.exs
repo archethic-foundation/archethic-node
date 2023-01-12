@@ -80,10 +80,6 @@ defmodule Archethic.ReplicationTest do
     tx = create_valid_transaction(unspent_outputs)
 
     MockDB
-    # |> stub(:write_transaction_chain, fn [^tx] ->
-    #  send(me, :replicated)
-    #  :ok
-    # end)
     |> expect(:write_transaction, fn ^tx, _ ->
       send(me, :replicated)
       :ok
