@@ -53,7 +53,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           |> Enum.into(%{})
           |> decode_transaction_columns(version)
 
-        :file.close(fd)
+        File.close(fd)
 
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
           query: "get_transaction"
@@ -191,7 +191,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             :eof ->
               {:halt, nil}
           end,
-          fn _ -> :file.close(fd) end
+          fn _ -> File.close(fd) end
         )
 
       {:error, _} ->
@@ -248,7 +248,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       |> Enum.into(%{})
       |> decode_transaction_columns(version)
 
-    :file.close(fd)
+    File.close(fd)
 
     tx
   end
@@ -294,7 +294,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
     {transactions, more?, paging_state} = get_paginated_chain(fd, column_names)
-    :file.close(fd)
+    File.close(fd)
 
     {transactions, more?, paging_state}
   end
