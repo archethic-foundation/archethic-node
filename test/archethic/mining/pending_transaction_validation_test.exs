@@ -785,7 +785,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
             })
         })
 
-      assert {:error, error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
     end
 
     test "should return :error when we deploy a wrong aeweb ref transaction" do
@@ -810,7 +810,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
             })
         })
 
-      assert {:error, reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+      assert {:error, _reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
     end
   end
 end
