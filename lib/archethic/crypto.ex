@@ -1315,4 +1315,8 @@ defmodule Archethic.Crypto do
   def authorized_key_origin?(<<_::8, _::8, _::binary>>, []) do
     true
   end
+
+  def default_hash() do
+    Application.get_env(:archethic, __MODULE__)[:default_hash]
+  end
 end
