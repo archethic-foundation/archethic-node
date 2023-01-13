@@ -86,7 +86,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok
     else
       {:error, reason} = e ->
-        Logger.info(reason,
+        Logger.info("Invalid Transaction: #{reason}",
           transaction_address: Base.encode16(address),
           transaction_type: type
         )
@@ -102,7 +102,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       |> byte_size()
 
     if tx_size >= @tx_max_size do
-      {:error, "invalid transaction: transaction data exceeds limit"}
+      {:error, "Transaction data exceeds limit"}
     else
       :ok
     end
@@ -129,7 +129,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            conflict_resolver
          ) do
       {:ok, %TransactionSummary{address: ^address}} ->
-        {:error, "transaction already exists"}
+        {:error, "Transaction already exists"}
 
       {:ok, %NotFound{}} ->
         :ok
@@ -175,7 +175,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp validate_contract(%Transaction{data: %TransactionData{code: code}})
        when byte_size(code) > @code_max_size do
-    {:error, "invalid contract type transaction , code exceed max size"}
+    {:error, "Invalid contract type transaction , code exceed max size"}
   end
 
   @spec validate_ownerships(Transaction.t()) :: :ok | {:error, any()}
@@ -183,16 +183,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
     Enum.reduce_while(ownerships, :ok, fn
-      ownership, :ok ->
-        %Ownership{secret: secret, authorized_keys: authorized_keys} = ownership
-        nb_authorized_keys = map_size(authorized_keys)
-
+      %Ownership{secret: secret, authorized_keys: authorized_keys}, :ok ->
         cond do
           secret == "" ->
-            {:halt, {:error, "invalid transaction - Ownership: secret is empty"}}
+            {:halt, {:error, "Ownership: secret is empty"}}
 
-          nb_authorized_keys == 0 ->
-            {:halt, {:error, "invalid transaction - Ownership: authorized keys are empty"}}
+          authorized_keys == %{} ->
+            {:halt, {:error, "Ownership: authorized keys are empty"}}
 
           true ->
             verify_authorized_keys(authorized_keys)
@@ -207,17 +204,17 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
       {"", _}, _ ->
-        e = {:halt, {:error, "invalid transaction - Ownership: public key is empty"}}
+        e = {:halt, {:error, "Ownership: public key is empty"}}
         {:halt, e}
 
       {_, ""}, _ ->
-        e = {:halt, {:error, "invalid transaction - Ownership: encrypted key is empty"}}
+        e = {:halt, {:error, "Ownership: encrypted key is empty"}}
         {:halt, e}
 
       {public_key, _}, acc ->
         if Crypto.valid_public_key?(public_key),
           do: {:cont, acc},
-          else: {:halt, {:halt, {:error, "invalid transaction - Ownership: invalid public key"}}}
+          else: {:halt, {:halt, {:error, "Ownership: invalid public key"}}}
     end)
   end
 
@@ -669,21 +666,14 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: code}}, _) do
-    if byte_size(code) == 0 do
-      {:error, "invalid contract type transaction -  code is empty"}
-    else
-      :ok
-    end
-  end
+  defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: ""}}, _),
+    do: {:error, "Invalid contract type transaction -  code is empty"}
 
   defp do_accept_transaction(
          %Transaction{type: :data, data: %TransactionData{content: "", ownerships: []}},
          _
        ),
-       do: {:error, "invalid data type transaction - Both content & ownership are empty"}
-
-  defp do_accept_transaction(%Transaction{type: :data}, _), do: :ok
+       do: {:error, "Invalid data type transaction - Both content & ownership are empty"}
 
   defp do_accept_transaction(_, _), do: :ok
 
