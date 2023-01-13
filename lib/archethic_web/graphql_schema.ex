@@ -51,6 +51,17 @@ defmodule ArchethicWeb.GraphQLSchema do
     end
 
     @desc """
+    Query the network to find the genesis address of a transaction
+    """
+    field :genesis_address, :address do
+      arg(:address, non_null(:address))
+
+      resolve(fn %{address: address}, _ ->
+        Resolver.get_genesis_address(address)
+      end)
+    end
+
+    @desc """
     Query the network to find the last transaction from an address
     """
     field :last_transaction, :transaction do

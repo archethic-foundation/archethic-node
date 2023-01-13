@@ -22,6 +22,16 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   @limit_page 10
 
+  def get_genesis_address(address) do
+    case Archethic.fetch_genesis_address_remotely(address) do
+      {:ok, genesis_address} ->
+        {:ok, genesis_address}
+
+      _ ->
+        {:ok, address}
+    end
+  end
+
   def get_balance(address) do
     case Archethic.get_balance(address) do
       {:ok, %{uco: uco, token: token_balances}} ->

@@ -340,7 +340,7 @@ defmodule Archethic do
         TransactionChain.fetch_genesis_address_remotely(address)
 
       genesis_address ->
-        genesis_address
+        {:ok, genesis_address}
     end
   end
 
