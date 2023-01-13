@@ -135,12 +135,25 @@ defmodule Archethic.Contracts.Interpreter.Library do
         "blake2b" ->
           :blake2b
 
+        "keccak256" ->
+          :keccak256
+
         _ ->
           Crypto.default_hash()
           # raise "Invalid Hsash Algorithim"
       end
 
-    :crypto.hash(algo, decode_binary(content)) |> Base.encode16()
+    get_hash(algo, decode_binary(content))
+  end
+
+  def get_hash(:keccak256, content_bin) do
+    content_bin
+    |> Crypto.Keccak.keccak_256()
+    |> Base.encode16()
+  end
+
+  def get_hash(algo, content_bin) do
+    :crypto.hash(algo, content_bin) |> Base.encode16()
   end
 
   @spec ae_hash(
