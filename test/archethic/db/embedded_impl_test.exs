@@ -12,6 +12,7 @@ defmodule Archethic.DB.EmbeddedTest do
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -159,6 +160,16 @@ defmodule Archethic.DB.EmbeddedTest do
 
       assert {:ok, %Transaction{type: :transfer, address: nil}} =
                EmbeddedImpl.get_transaction(tx1.address, [:type])
+    end
+
+    test "should filter with the given field which is nested" do
+      tx1 = TransactionFactory.create_valid_transaction([], content: "Hello")
+      :ok = EmbeddedImpl.write_transaction(tx1)
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{content: "Hello"}
+              }} = IO.inspect(EmbeddedImpl.get_transaction(tx1.address, [:data]))
     end
 
     test "should filter with nested fields" do
