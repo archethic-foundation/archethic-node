@@ -11,6 +11,8 @@ defmodule ArchethicWeb.API.Types.TransactionType do
     "transfer",
     "hosting",
     "token",
+    "data",
+    "contract",
     "code_proposal",
     "code_approval"
   ]

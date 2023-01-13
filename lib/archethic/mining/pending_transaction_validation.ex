@@ -56,6 +56,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                 |> Jason.decode!()
                 |> ExJsonSchema.Schema.resolve()
 
+  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
+
+  @tx_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
+
   @doc """
   Determines if the transaction is accepted into the network
   """
@@ -66,10 +70,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       ) do
     start = System.monotonic_time()
 
-    with :ok <- valid_not_exists(tx),
+    with :ok <- validate_size(tx),
+         :ok <- valid_not_exists(tx),
          :ok <- valid_previous_signature(tx),
          :ok <- validate_contract(tx),
-         :ok <- validate_content_size(tx),
+         :ok <- validate_ownerships(tx),
          :ok <- do_accept_transaction(tx, validation_time),
          :ok <- validate_previous_transaction_type?(tx) do
       :telemetry.execute(
@@ -80,25 +85,26 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       :ok
     else
-      {:error, :invalid_tx_type} ->
-        Logger.error("Invalid Transaction Type",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        {:error, "Invalid Transaction Type"}
-
-      false ->
-        Logger.error("Invalid previous signature",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        {:error, "Invalid previous signature"}
-
       {:error, reason} = e ->
-        Logger.info(reason, transaction_address: Base.encode16(address), transaction_type: type)
+        Logger.info("Invalid Transaction: #{reason}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
         e
+    end
+  end
+
+  defp validate_size(%Transaction{data: data, version: tx_version}) do
+    tx_size =
+      data
+      |> TransactionData.serialize(tx_version)
+      |> byte_size()
+
+    if tx_size >= @tx_max_size do
+      {:error, "Transaction data exceeds limit"}
+    else
+      :ok
     end
   end
 
@@ -123,7 +129,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            conflict_resolver
          ) do
       {:ok, %TransactionSummary{address: ^address}} ->
-        {:error, "transaction already exists"}
+        {:error, "Transaction already exists"}
 
       {:ok, %NotFound{}} ->
         :ok
@@ -133,6 +139,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
+  @spec valid_previous_signature(tx :: Transaction.t()) :: :ok | {:error, any()}
   defp valid_previous_signature(tx = %Transaction{}) do
     if Transaction.verify_previous_signature?(tx) do
       :ok
@@ -141,121 +148,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  def validate_previous_transaction_type?(tx) do
-    case Transaction.network_type?(tx.type) do
-      false ->
-        # not a network tx, no need to validate with last tx
-        :ok
-
-      true ->
-        # when network tx, check with previous transaction
-        if validate_network_chain?(tx.type, tx), do: :ok, else: {:error, :invalid_tx_type}
-    end
-  end
-
-  @spec validate_network_chain?(
-          :code_approval
-          | :code_proposal
-          | :mint_rewards
-          | :node
-          | :node_rewards
-          | :node_shared_secrets
-          | :oracle
-          | :oracle_summary
-          | :origin,
-          Archethic.TransactionChain.Transaction.t()
-        ) :: boolean
-  def validate_network_chain?(type, tx = %Transaction{})
-      when type in [:oracle, :oracle_summary] do
-    # mulitpe txn chain based on summary date
-
-    case OracleChain.genesis_address() do
-      nil ->
-        false
-
-      gen_addr ->
-        # first adddress found by looking up in the db
-        first_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        # 1: tx gen & validated in current summary cycle, gen_addr.current must match
-        # 2: tx gen in prev summary cycle &  validated in current summary cycle, gen_addr.prev must match
-        # situation: the shift b/w summary A to summary B
-        gen_addr.current |> elem(0) == first_addr ||
-          gen_addr.prev |> elem(0) == first_addr
-    end
-  end
-
-  def validate_network_chain?(type, tx = %Transaction{})
-      when type in [:mint_rewards, :node_rewards] do
-    # singleton tx chain in network lifespan
-    case Reward.genesis_address() do
-      nil ->
-        false
-
-      gen_addr ->
-        # first addr located in db by prev_address from tx
-        first_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        gen_addr == first_addr
-    end
-  end
-
-  def validate_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
-    # singleton tx chain in network lifespan
-    case SharedSecrets.genesis_address(:node_shared_secrets) do
-      nil ->
-        false
-
-      gen_addr ->
-        first_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        first_addr == gen_addr
-    end
-  end
-
-  def validate_network_chain?(:origin, tx = %Transaction{}) do
-    # singleton tx chain in network lifespan
-    # not parsing orgin pub key for origin family
-    case SharedSecrets.genesis_address(:origin) do
-      nil ->
-        false
-
-      origin_gen_addr_list ->
-        first_addr_from_prev_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        first_addr_from_prev_addr in origin_gen_addr_list
-    end
-  end
-
-  def validate_network_chain?(_type, _tx), do: true
-
-  defp validate_content_size(%Transaction{data: %TransactionData{content: content}}) do
-    content_max_size = Application.get_env(:archethic, :transaction_data_content_max_size)
-
-    if byte_size(content) >= content_max_size do
-      {:error, "Invalid node transaction with content size greaterthan content_max_size"}
-    else
-      :ok
-    end
-  end
-
   defp validate_contract(%Transaction{data: %TransactionData{code: ""}}), do: :ok
 
   defp validate_contract(%Transaction{
          data: %TransactionData{code: code, ownerships: ownerships}
-       }) do
+       })
+       when byte_size(code) <= @code_max_size do
     case Contracts.parse(code) do
       {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
         if Enum.any?(
@@ -273,6 +171,51 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:error, reason} ->
         {:error, "Smart contract invalid #{inspect(reason)}"}
     end
+  end
+
+  defp validate_contract(%Transaction{data: %TransactionData{code: code}})
+       when byte_size(code) > @code_max_size do
+    {:error, "Invalid contract type transaction , code exceed max size"}
+  end
+
+  @spec validate_ownerships(Transaction.t()) :: :ok | {:error, any()}
+  defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: []}}), do: :ok
+
+  defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
+    Enum.reduce_while(ownerships, :ok, fn
+      %Ownership{secret: secret, authorized_keys: authorized_keys}, :ok ->
+        cond do
+          secret == "" ->
+            {:halt, {:error, "Ownership: secret is empty"}}
+
+          authorized_keys == %{} ->
+            {:halt, {:error, "Ownership: authorized keys are empty"}}
+
+          true ->
+            verify_authorized_keys(authorized_keys)
+        end
+    end)
+  end
+
+  @spec verify_authorized_keys(authorized_keys :: map()) ::
+          {:cont, :ok} | {:halt, {:error, any()}}
+  defp verify_authorized_keys(authorized_keys) do
+    # authorized_keys: %{(public_key :: Crypto.key()) => encrypted_key }
+
+    Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
+      {"", _}, _ ->
+        e = {:halt, {:error, "Ownership: public key is empty"}}
+        {:halt, e}
+
+      {_, ""}, _ ->
+        e = {:halt, {:error, "Ownership: encrypted key is empty"}}
+        {:halt, e}
+
+      {public_key, _}, acc ->
+        if Crypto.valid_public_key?(public_key),
+          do: {:cont, acc},
+          else: {:halt, {:halt, {:error, "Ownership: invalid public key"}}}
+    end)
   end
 
   defp do_accept_transaction(
@@ -723,7 +666,118 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
+  defp do_accept_transaction(%Transaction{type: :contract, data: %TransactionData{code: ""}}, _),
+    do: {:error, "Invalid contract type transaction -  code is empty"}
+
+  defp do_accept_transaction(
+         %Transaction{type: :data, data: %TransactionData{content: "", ownerships: []}},
+         _
+       ),
+       do: {:error, "Invalid data type transaction - Both content & ownership are empty"}
+
   defp do_accept_transaction(_, _), do: :ok
+
+  defp validate_previous_transaction_type?(tx) do
+    case Transaction.network_type?(tx.type) do
+      false ->
+        # not a network tx, no need to validate with last tx
+        :ok
+
+      true ->
+        # when network tx, check with previous transaction
+        if validate_network_chain?(tx.type, tx),
+          do: :ok,
+          else: {:error, "Invalid Transaction Type"}
+    end
+  end
+
+  @spec validate_network_chain?(
+          :code_approval
+          | :code_proposal
+          | :mint_rewards
+          | :node
+          | :node_rewards
+          | :node_shared_secrets
+          | :oracle
+          | :oracle_summary
+          | :origin,
+          Archethic.TransactionChain.Transaction.t()
+        ) :: boolean
+  defp validate_network_chain?(type, tx = %Transaction{})
+       when type in [:oracle, :oracle_summary] do
+    # mulitpe txn chain based on summary date
+
+    case OracleChain.genesis_address() do
+      nil ->
+        false
+
+      gen_addr ->
+        # first adddress found by looking up in the db
+        first_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        # 1: tx gen & validated in current summary cycle, gen_addr.current must match
+        # 2: tx gen in prev summary cycle &  validated in current summary cycle, gen_addr.prev must match
+        # situation: the shift b/w summary A to summary B
+        gen_addr.current |> elem(0) == first_addr ||
+          gen_addr.prev |> elem(0) == first_addr
+    end
+  end
+
+  defp validate_network_chain?(type, tx = %Transaction{})
+       when type in [:mint_rewards, :node_rewards] do
+    # singleton tx chain in network lifespan
+    case Reward.genesis_address() do
+      nil ->
+        false
+
+      gen_addr ->
+        # first addr located in db by prev_address from tx
+        first_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        gen_addr == first_addr
+    end
+  end
+
+  defp validate_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
+    # singleton tx chain in network lifespan
+    case SharedSecrets.genesis_address(:node_shared_secrets) do
+      nil ->
+        false
+
+      gen_addr ->
+        first_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        first_addr == gen_addr
+    end
+  end
+
+  defp validate_network_chain?(:origin, tx = %Transaction{}) do
+    # singleton tx chain in network lifespan
+    # not parsing orgin pub key for origin family
+    case SharedSecrets.genesis_address(:origin) do
+      nil ->
+        false
+
+      origin_gen_addr_list ->
+        first_addr_from_prev_addr =
+          tx
+          |> Transaction.previous_address()
+          |> TransactionChain.get_genesis_address()
+
+        first_addr_from_prev_addr in origin_gen_addr_list
+    end
+  end
+
+  defp validate_network_chain?(_type, _tx), do: true
 
   defp verify_token_creation(content) do
     with {:ok, json_token} <- Jason.decode(content),

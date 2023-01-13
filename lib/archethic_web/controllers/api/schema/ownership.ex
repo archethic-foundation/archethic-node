@@ -1,6 +1,5 @@
 defmodule ArchethicWeb.API.Schema.Ownership do
   @moduledoc false
-
   use Ecto.Schema
   import Ecto.Changeset
 
