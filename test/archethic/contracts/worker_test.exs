@@ -221,7 +221,7 @@ defmodule Archethic.Contracts.WorkerTest do
   end
 
   describe "execute/2" do
-    test "should return an error when not transaction trigger has been defined", %{
+    test "should not execute when no transaction trigger has been defined", %{
       constants: constants = %{"address" => contract_address}
     } do
       contract = %Contract{
@@ -230,8 +230,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      assert {:error, :no_transaction_trigger} =
-               Worker.execute(contract_address, %Transaction{address: "@Alice2"})
+      Worker.execute(contract_address, %Transaction{address: "@Alice2"})
 
       refute_receive {:transaction_sent, _}
     end
@@ -260,12 +259,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      assert :ok =
-               Worker.execute(contract_address, %Transaction{
-                 address: "@Bob3",
-                 data: %TransactionData{},
-                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-               })
+      Worker.execute(contract_address, %Transaction{
+        address: "@Bob3",
+        data: %TransactionData{},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      })
 
       receive do
         {:transaction_sent, tx} ->
@@ -307,12 +305,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      assert :ok =
-               Worker.execute(contract_address, %Transaction{
-                 address: "@Bob3",
-                 data: %TransactionData{content: "Mr.X"},
-                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-               })
+      Worker.execute(contract_address, %Transaction{
+        address: "@Bob3",
+        data: %TransactionData{content: "Mr.X"},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      })
 
       receive do
         {:transaction_sent, tx} ->
@@ -324,12 +321,11 @@ defmodule Archethic.Contracts.WorkerTest do
           raise "Timeout"
       end
 
-      assert {:error, :invalid_condition} =
-               Worker.execute(contract_address, %Transaction{
-                 address: "@Bob3",
-                 data: %TransactionData{content: "Mr.Z"},
-                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-               })
+      Worker.execute(contract_address, %Transaction{
+        address: "@Bob3",
+        data: %TransactionData{content: "Mr.Z"},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      })
 
       refute_receive {:transaction_sent, _}
     end
@@ -375,12 +371,11 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      assert :ok =
-               Worker.execute(contract_address, %Transaction{
-                 address: "@Bob3",
-                 data: %TransactionData{content: "Mr.X"},
-                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-               })
+      Worker.execute(contract_address, %Transaction{
+        address: "@Bob3",
+        data: %TransactionData{content: "Mr.X"},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      })
 
       receive do
         {:transaction_sent, tx} ->
@@ -500,22 +495,21 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      assert :ok =
-               Worker.execute(contract_address, %Transaction{
-                 address: "@Bob3",
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{to: contract_address, amount: 100_000_000}
-                       ]
-                     }
-                   },
-                   recipients: [contract_address]
-                 },
-                 validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-               })
+      Worker.execute(contract_address, %Transaction{
+        address: "@Bob3",
+        type: :transfer,
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %Transfer{to: contract_address, amount: 100_000_000}
+              ]
+            }
+          },
+          recipients: [contract_address]
+        },
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      })
 
       receive do
         {:transaction_sent,

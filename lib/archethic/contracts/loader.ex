@@ -27,14 +27,7 @@ defmodule Archethic.Contracts.Loader do
 
   def init(_opts) do
     DB.list_last_transaction_addresses()
-    |> Stream.map(fn address ->
-      DB.get_transaction(address, [
-        :address,
-        :previous_public_key,
-        :data,
-        validation_stamp: [:timestamp]
-      ])
-    end)
+    |> Stream.map(&DB.get_transaction(&1, []))
     |> Stream.filter(fn
       {:ok, %Transaction{data: %TransactionData{code: ""}}} -> false
       {:error, _} -> false
@@ -103,23 +96,20 @@ defmodule Archethic.Contracts.Loader do
         transaction_type: tx_type
       )
 
-      case Worker.execute(contract_address, tx) do
-        :ok ->
-          TransactionLookup.add_contract_transaction(
-            contract_address,
-            tx_address,
-            tx_timestamp,
-            protocol_version
-          )
+      # execute asynchronously the contract
+      Worker.execute(contract_address, tx)
 
-          Logger.info("Transaction towards contract ingested",
-            transaction_address: Base.encode16(tx_address),
-            transaction_type: tx_type
-          )
+      TransactionLookup.add_contract_transaction(
+        contract_address,
+        tx_address,
+        tx_timestamp,
+        protocol_version
+      )
 
-        _ ->
-          :ok
-      end
+      Logger.info("Transaction towards contract ingested",
+        transaction_address: Base.encode16(tx_address),
+        transaction_type: tx_type
+      )
     end)
   end
 

@@ -52,7 +52,7 @@ defmodule Archethic.Contracts.Worker do
   @spec execute(binary(), Transaction.t()) ::
           :ok | {:error, :no_transaction_trigger} | {:error, :condition_not_respected}
   def execute(address, tx = %Transaction{}) do
-    GenServer.call(via_tuple(address), {:execute, tx})
+    GenServer.cast(via_tuple(address), {:execute, tx})
   end
 
   def init(contract = %Contract{}) do
@@ -76,9 +76,8 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, new_state}
   end
 
-  def handle_call(
+  def handle_cast(
         {:execute, incoming_tx = %Transaction{}},
-        _from,
         state = %{
           contract: %Contract{
             triggers: triggers,
@@ -107,7 +106,7 @@ defmodule Archethic.Contracts.Worker do
            next_tx <- ActionInterpreter.execute(Map.fetch!(triggers, :transaction), constants),
            {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction) do
         handle_new_transaction(next_tx)
-        {:reply, :ok, state}
+        {:noreply, state}
       else
         false ->
           Logger.debug("Incoming transaction didn't match the condition",
@@ -116,10 +115,10 @@ defmodule Archethic.Contracts.Worker do
             contract: Base.encode16(contract_address)
           )
 
-          {:reply, {:error, :invalid_condition}, state}
+          {:noreply, state}
 
         {:error, :transaction_seed_decryption} ->
-          {:reply, :error, state}
+          {:noreply, state}
       end
     else
       Logger.debug("No transaction trigger",
@@ -128,7 +127,7 @@ defmodule Archethic.Contracts.Worker do
         contract: Base.encode16(contract_address)
       )
 
-      {:reply, {:error, :no_transaction_trigger}, state}
+      {:noreply, state}
     end
   end
 
