@@ -526,8 +526,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       genesis_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %GetFirstAddress{}, _ ->
-        {:ok, %FirstAddress{address: genesis_addr}}
+      |> stub(:send_message, fn _, %GetGenesisAddress{}, _ ->
+        {:ok, %GenesisAddress{address: genesis_addr}}
       end)
 
       conn =
