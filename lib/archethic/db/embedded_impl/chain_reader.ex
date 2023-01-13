@@ -388,11 +388,18 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           read_transaction(fd, fields, limit, position, Map.put(acc, column_name, value))
         else
           # Check if we need to take this field based on the selection criteria
-          if column_name in fields do
-            read_transaction(fd, fields, limit, position, Map.put(acc, column_name, value))
-          else
-            # We continue to the next as the selection critieria didn't match
-            read_transaction(fd, fields, limit, position, acc)
+          cond do
+            column_name in fields ->
+              # match a field
+              read_transaction(fd, fields, limit, position, Map.put(acc, column_name, value))
+
+            Enum.any?(fields, &String.starts_with?(column_name, &1 <> ".")) ->
+              # match a nested field
+              read_transaction(fd, fields, limit, position, Map.put(acc, column_name, value))
+
+            true ->
+              # We continue to the next as the selection critieria didn't match
+              read_transaction(fd, fields, limit, position, acc)
           end
         end
 
