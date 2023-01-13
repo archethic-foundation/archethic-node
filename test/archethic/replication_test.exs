@@ -103,7 +103,7 @@ defmodule Archethic.ReplicationTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
+      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
