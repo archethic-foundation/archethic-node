@@ -107,7 +107,7 @@ defmodule Archethic.MixProject do
       {:ex_json_schema, "~> 0.9", override: true},
       {:pathex, "~> 2.4"},
       {:easy_ssl, "~> 1.3"},
-      {:castore, "~> 0.1"},
+      {:castore, "~> 1.0", override: true},
       {:floki, "~> 0.33"}
     ]
   end
