@@ -834,7 +834,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       |> Enum.reject(&(&1.last_public_key == node_public_key))
 
     P2P.broadcast_message(validation_nodes, %ReplicationError{
-      address: tx.adddress,
+      address: tx.address,
       reason: reason
     })
 
@@ -1046,7 +1046,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         on_timeout: :kill_task,
         timeout: Message.get_timeout(message) + 2000
       )
-      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
       |> Stream.map(fn {:ok, {{:ok, res}, node}} -> {res, node} end)
       |> Enum.to_list()
 

@@ -51,7 +51,7 @@ defmodule Archethic.Replication.TransactionPool do
   def handle_call({:pop_transaction, address}, _from, state = %{transactions: transactions}) do
     case Map.pop(transactions, address) do
       {nil, _} ->
-        {:reply, {:error, :not_found}, state}
+        {:reply, {:error, :transaction_not_exists}, state}
 
       {{transaction, _}, rest_transactions} ->
         {:reply, {:ok, transaction}, %{state | transactions: rest_transactions}}
