@@ -332,14 +332,24 @@ defmodule Archethic.Contracts.ActionInterpreter do
     end
   end
 
+  # expand get_calls() to get_calls(contract.address)
   defp postwalk(
-         node = {{:atom, "get_calls"}, _, []},
-         test
+         {{:atom, "get_calls"}, meta, []},
+         acc
        ) do
-    IO.inspect(test)
+    node = {
+      {:atom, "get_calls"},
+      meta,
+      [
+        {:get_in, meta,
+         [
+           {:scope, meta, nil},
+           ["contract", "address"]
+         ]}
+      ]
+    }
 
-    # see condition.build_conditions (return ast modified (contract address = subject of get_calls))
-    # return {node, _}
+    {node, acc}
   end
 
   defp postwalk(node, acc) do

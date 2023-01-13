@@ -310,6 +310,31 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
              |> ActionInterpreter.execute()
   end
 
+  test "get_calls() should be expanded to get_calls(contract.address)" do
+    {:ok, :transaction, ast} =
+      ~S"""
+        actions triggered_by: transaction do
+          get_calls()
+        end
+      """
+      |> Interpreter.sanitize_code()
+      |> elem(1)
+      |> ActionInterpreter.parse()
+
+    assert {{:., [line: 2],
+             [
+               {:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]},
+               :get_calls
+             ]}, [line: 2],
+            [
+              {:get_in, meta,
+               [
+                 {:scope, meta, nil},
+                 ["contract", "address"]
+               ]}
+            ]} = ast
+  end
+
   test "shall use get_genesis_address/1 in actions" do
     key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
