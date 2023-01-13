@@ -146,6 +146,14 @@ defmodule Archethic.Contracts.ActionInterpreter do
     {node, acc}
   end
 
+  # Whitelist the get_calls/0
+  defp prewalk(
+         node = {{:atom, "get_calls"}, _, []},
+         acc = {:ok, %{scope: {:actions, _}}}
+       ) do
+    {node, acc}
+  end
+
   # Whitelist the add_uco_transfer function parameters
   defp prewalk(
          node = {{:atom, "to"}, address},
@@ -322,6 +330,16 @@ defmodule Archethic.Contracts.ActionInterpreter do
       "oracle" ->
         {node, {:ok, :oracle, actions}}
     end
+  end
+
+  defp postwalk(
+         node = {{:atom, "get_calls"}, _, []},
+         test
+       ) do
+    IO.inspect(test)
+
+    # see condition.build_conditions (return ast modified (contract address = subject of get_calls))
+    # return {node, _}
   end
 
   defp postwalk(node, acc) do
