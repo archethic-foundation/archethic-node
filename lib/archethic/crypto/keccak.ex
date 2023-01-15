@@ -1,10 +1,13 @@
 defmodule Archethic.Crypto.Keccak do
   @moduledoc """
     To be removed after stable OPENSSL #3.2
+    Ethereum's version of the algorithm.
   """
   require Bitwise
   require Record
 
+  # specifiy compiler  inline specific functions
+  # :inline_list_funcs option tells the compiler to inline  functions
   @compile :inline_list_funcs
   @compile {:inline_unroll, 24}
   @compile {:inline_effort, 500}
@@ -13,19 +16,63 @@ defmodule Archethic.Crypto.Keccak do
     :inline,
     rho: 1, pi: 1, rc: 1, rol: 2, for_n: 4, binary_a64: 2, xor: 2, bnot: 1, band: 2
   }
-  @rho {1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 2, 14, 27, 41, 56, 8, 25, 43, 62, 18, 39, 61, 20, 44}
-  @pi {10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12, 2, 20, 14, 22, 9, 6, 1}
-  @rc {1, 0x8082, 0x800000000000808A, 0x8000000080008000, 0x808B, 0x80000001, 0x8000000080008081,
-       0x8000000000008009, 0x8A, 0x88, 0x80008009, 0x8000000A, 0x8000808B, 0x800000000000008B,
-       0x8000000000008089, 0x8000000000008003, 0x8000000000008002, 0x8000000000000080, 0x800A,
-       0x800000008000000A, 0x8000000080008081, 0x8000000000008080, 0x80000001, 0x8000000080008008}
 
   @zero64 0
   @full64 0xFFFFFFFFFFFFFFFF
 
-  defp rho(index), do: elem(@rho, index)
-  defp pi(index), do: elem(@pi, index)
-  defp rc(index), do: elem(@rc, index)
+  @doc """
+   Keccak256 as in ethereum.Does not return 0x prefixed hex string.
+
+  ## Examples
+
+      iex> Keccak.keccak_256("hello")|>Base.encode16
+      "1C8AFF950685C2ED4BC3174F3472287B56D9517B9C948127319A09A7A36DEAC8"
+
+      iex> Keccak.keccak_256("hello")
+      <<28, 138, 255, 149, 6, 133, 194, 237, 75, 195, 23, 79, 52, 114, 40, 123, 86,
+       217, 81, 123, 156, 148, 129, 39, 49, 154, 9, 167, 163, 109, 234, 200>>
+  """
+  @spec keccak_256(data :: binary()) :: binary()
+  def keccak_256(data) do
+    bits = 256
+    bytes = 32
+    hash(bytes, data, 200 - bits / 4, 0x01)
+  end
+
+  @plen 200
+  defp hash(outlen, source, rate, delim) do
+    outlen = floor(outlen)
+    inlen = floor(byte_size(source))
+    rate = floor(rate)
+
+    # // Absorb input.
+    a = binary_new(@plen)
+    {a, _, inlen} = foldP(a, source, inlen, &xorin/4, rate)
+    # // Xor source the DS and pad frame.
+    a = binary_xor(a, inlen, <<delim>>)
+    a = binary_xor(a, rate - 1, <<0x80>>)
+    # // Xor source the last block.
+    {a, _source} = xorin(a, source, floor(byte_size(source) - inlen), inlen)
+    # // Apply P
+    a = keccakf(a)
+    # // Squeeze output.
+    out = binary_new(outlen)
+    {a, out, outlen} = foldP(a, out, outlen, &setout/4, rate)
+    {_a, out} = setout(a, out, 0, outlen)
+    out
+  end
+
+  @rho {1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 2, 14, 27, 41, 56, 8, 25, 43, 62, 18, 39, 61, 20, 44}
+  defp rho(index), do: @rho |> elem(index)
+
+  @pi {10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12, 2, 20, 14, 22, 9, 6, 1}
+  defp pi(index), do: @pi |> elem(index)
+
+  @rc {1, 0x8082, 0x800000000000808A, 0x8000000080008000, 0x808B, 0x80000001, 0x8000000080008081,
+       0x8000000000008009, 0x8A, 0x88, 0x80008009, 0x8000000A, 0x8000808B, 0x800000000000008B,
+       0x8000000000008089, 0x8000000000008003, 0x8000000000008002, 0x8000000000000080, 0x800A,
+       0x800000008000000A, 0x8000000080008081, 0x8000000000008080, 0x80000001, 0x8000000080008008}
+  defp rc(index), do: @rc |> elem(index)
 
   defp rol(x, s) do
     x = Bitwise.bsl(x, s)
@@ -61,7 +108,6 @@ defmodule Archethic.Crypto.Keccak do
     Bitwise.bxor(a, b)
   end
 
-  # defp bnot(a), do: xor(a, @full64)
   defp bnot(a), do: xor(a, @full64)
 
   defp band(a, b), do: Bitwise.band(a, b)
@@ -179,44 +225,4 @@ defmodule Archethic.Crypto.Keccak do
     c = :crypto.exor(binary_part(var, index, 1), value)
     binary_put(var, index, c)
   end
-
-  @plen 200
-  defp hash(outlen, source, rate, delim) do
-    outlen = floor(outlen)
-    inlen = floor(byte_size(source))
-    rate = floor(rate)
-
-    # // Absorb input.
-    a = binary_new(@plen)
-    {a, _, inlen} = foldP(a, source, inlen, &xorin/4, rate)
-    # // Xor source the DS and pad frame.
-    a = binary_xor(a, inlen, <<delim>>)
-    a = binary_xor(a, rate - 1, <<0x80>>)
-    # // Xor source the last block.
-    {a, _source} = xorin(a, source, floor(byte_size(source) - inlen), inlen)
-    # // Apply P
-    a = keccakf(a)
-    # // Squeeze output.
-    out = binary_new(outlen)
-    {a, out, outlen} = foldP(a, out, outlen, &setout/4, rate)
-    {_a, out} = setout(a, out, 0, outlen)
-    out
-  end
-
-  defp keccak(bits, source), do: hash(bits / 8, source, 200 - bits / 4, 0x01)
-
-  @doc """
-   Keccak256 as in ethereum.Does not return 0x prefixed hex string.
-
-  ## Examples
-
-      iex> Keccak.keccak_256("hello")|>Base.encode16
-      "1C8AFF950685C2ED4BC3174F3472287B56D9517B9C948127319A09A7A36DEAC8"
-
-      iex> Keccak.keccak_256("hello")
-      <<28, 138, 255, 149, 6, 133, 194, 237, 75, 195, 23, 79, 52, 114, 40, 123, 86,
-       217, 81, 123, 156, 148, 129, 39, 49, 154, 9, 167, 163, 109, 234, 200>>
-  """
-  @spec keccak_256(binary()) :: binary()
-  def keccak_256(source), do: keccak(256, source)
 end
