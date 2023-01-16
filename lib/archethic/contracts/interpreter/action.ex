@@ -138,15 +138,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
     {node, {:ok, %{context | scope: {:function, function, parent_scope}}}}
   end
 
-  # Whitelist the get_calls/1
-  defp prewalk(
-         node = {{:atom, "get_calls"}, _, [_]},
-         acc = {:ok, %{scope: {:actions, _}}}
-       ) do
-    {node, acc}
-  end
-
-  # Whitelist the get_calls/0
+  # Whitelist the get_calls/0 (this will be expanded to a get_calls(contract.address) in postwalk)
   defp prewalk(
          node = {{:atom, "get_calls"}, _, []},
          acc = {:ok, %{scope: {:actions, _}}}

@@ -509,7 +509,7 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
     assert %Transaction{data: %TransactionData{content: "1"}} =
              ~s"""
              actions triggered_by: transaction do
-               transactions = get_calls("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
+               transactions = get_calls()
                set_content size(transactions)
              end
              """
@@ -517,6 +517,10 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
              |> elem(1)
              |> ActionInterpreter.parse()
              |> elem(2)
-             |> ActionInterpreter.execute()
+             |> ActionInterpreter.execute(%{
+               "contract" => %{
+                 "address" => "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+               }
+             })
   end
 end
