@@ -24,6 +24,9 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   Parse a condition block and returns the right condition's type with a `Archethic.Contracts.Contract.Conditions` struct
 
   ## Examples
+      # condition transaction: [
+        content: "Hello"
+      ]
 
       iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
       ...> [
@@ -45,6 +48,10 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       }
 
     Usage of functions in the condition fields
+
+    # condition transaction: [
+        content: hash(contract.code)
+      ]
 
       iex> ConditionInterpreter.parse({{:atom, "condition"}, [line: 1],
       ...> [

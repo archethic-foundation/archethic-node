@@ -2,6 +2,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @moduledoc false
 
   alias Archethic.Election
+  alias Archethic.Crypto
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetGenesisAddress
@@ -108,12 +109,84 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
   ## Examples
 
-      iex> Library.hash("hello")
+      iex> Library.hash("hello","sha256")
       "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824"
   """
-  @spec hash(binary()) :: binary()
-  def hash(content) when is_binary(content) do
-    :crypto.hash(:sha256, decode_binary(content)) |> Base.encode16()
+  @spec hash(
+          content :: binary(),
+          algo :: binary()
+        ) ::
+          binary()
+  def hash(content, algo) when is_binary(content) do
+    algo =
+      case algo do
+        "sha256" ->
+          :sha256
+
+        "sha512" ->
+          :sha512
+
+        "sha3_256" ->
+          :sha3_256
+
+        "sha3_512" ->
+          :sha3_512
+
+        "blake2b" ->
+          :blake2b
+
+        "keccak256" ->
+          :keccak256
+
+        _ ->
+          Crypto.default_hash()
+          # raise "Invalid Hsash Algorithim"
+      end
+
+    get_hash(algo, decode_binary(content))
+  end
+
+  def get_hash(:keccak256, content_bin) do
+    content_bin
+    |> Crypto.Keccak.keccak_256()
+    |> Base.encode16()
+  end
+
+  def get_hash(algo, content_bin) do
+    :crypto.hash(algo, content_bin) |> Base.encode16()
+  end
+
+  @spec ae_hash(
+          content :: binary(),
+          algo :: binary()
+        ) ::
+          binary()
+  def ae_hash(content, algo) do
+    algo =
+      case algo do
+        "sha256" ->
+          :sha256
+
+        "sha512" ->
+          :sha512
+
+        "sha3_256" ->
+          :sha3_256
+
+        "sha3_512" ->
+          :sha3_512
+
+        "blake2b" ->
+          :blake2b
+
+        _ ->
+          Crypto.default_hash()
+      end
+
+    content
+    |> decode_binary()
+    |> Crypto.hash(algo)
+    |> Base.encode16()
   end
 
   @doc """
@@ -217,4 +290,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
       bin
     end
   end
+
+  # polkadot Blake2b eth Keccak btc sha512
+  # sha3 , sha2
 end
