@@ -5,10 +5,29 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   defstruct [:transaction]
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.P2P.Message.ReplicationError
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.Replication
+  alias Archethic.Crypto
 
   @type t :: %__MODULE__{
           transaction: Transaction.t()
         }
+
+  @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
+  def process(%__MODULE__{transaction: tx}, _) do
+    case Replication.validate_transaction(tx) do
+      :ok ->
+        Replication.add_transaction_to_commit_pool(tx)
+        %Ok{}
+
+      {:error, :transaction_already_exists} ->
+        %ReplicationError{address: tx.address, reason: :transaction_already_exists}
+
+      {:error, reason} ->
+        %ReplicationError{address: tx.address, reason: reason}
+    end
+  end
 
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{transaction: tx}) do

@@ -13,10 +13,7 @@ defmodule Archethic.P2P.Message do
     SummaryAggregate
   }
 
-  alias Archethic.TransactionChain.{
-    Transaction,
-    TransactionSummary
-  }
+  alias Archethic.TransactionChain.Transaction
 
   alias __MODULE__.{
     AddressList,
@@ -74,7 +71,9 @@ defmodule Archethic.P2P.Message do
     AddMiningContext,
     ValidateTransaction,
     ReplicatePendingTransactionChain,
-    NotifyReplicationValidation
+    NotifyReplicationValidation,
+    TransactionSummaryMessage,
+    AcknowledgeStorage
   }
 
   require Logger
@@ -109,7 +108,7 @@ defmodule Archethic.P2P.Message do
           | GetBeaconSummaries.t()
           | RegisterBeaconUpdates.t()
           | BeaconUpdate.t()
-          | TransactionSummary.t()
+          | TransactionSummaryMessage.t()
           | ReplicationAttestation.t()
           | GetGenesisAddress.t()
           | ValidationError.t()
@@ -121,6 +120,7 @@ defmodule Archethic.P2P.Message do
           | ValidateTransaction.t()
           | ReplicatePendingTransactionChain.t()
           | NotifyReplicationValidation.t()
+          | AcknowledgeStorage.t()
 
   @type response ::
           Ok.t()
@@ -133,7 +133,7 @@ defmodule Archethic.P2P.Message do
           | EncryptedStorageNonce.t()
           | BootstrappingNodes.t()
           | P2PView.t()
-          | TransactionSummary.t()
+          | TransactionSummaryMessage.t()
           | LastTransactionAddress.t()
           | FirstPublicKey.t()
           | TransactionChainLength.t()

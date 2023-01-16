@@ -62,12 +62,12 @@ defmodule Archethic.P2P.MessageId do
     Ok,
     ValidateTransaction,
     ReplicatePendingTransactionChain,
-    NotifyReplicationValidation
+    NotifyReplicationValidation,
+    TransactionSummaryMessage
   }
 
   alias Archethic.TransactionChain.{
-    Transaction,
-    TransactionSummary
+    Transaction
   }
 
   alias Archethic.BeaconChain.{
@@ -129,7 +129,7 @@ defmodule Archethic.P2P.MessageId do
   def id_to_module(236), do: BeaconUpdate
   def id_to_module(237), do: BeaconSummaryList
   def id_to_module(238), do: Error
-  def id_to_module(239), do: TransactionSummary
+  def id_to_module(239), do: TransactionSummaryMessage
   def id_to_module(240), do: Summary
   def id_to_module(241), do: LastTransactionAddress
   def id_to_module(242), do: FirstPublicKey
@@ -199,7 +199,7 @@ defmodule Archethic.P2P.MessageId do
   def module_to_id(BeaconUpdate), do: 236
   def module_to_id(BeaconSummaryList), do: 237
   def module_to_id(Error), do: 238
-  def module_to_id(TransactionSummary), do: 239
+  def module_to_id(TransactionSummaryMessage), do: 239
   def module_to_id(Summary), do: 240
   def module_to_id(LastTransactionAddress), do: 241
   def module_to_id(FirstPublicKey), do: 242

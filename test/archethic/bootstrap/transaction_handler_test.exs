@@ -7,6 +7,7 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransactionSummary
+  alias Archethic.P2P.Message.TransactionSummaryMessage
   alias Archethic.P2P.Message.NewTransaction
   alias Archethic.P2P.Message.Ok
 
@@ -67,7 +68,13 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
 
       _, %GetTransactionSummary{}, _ ->
         {:ok,
-         %TransactionSummary{address: tx.address, type: :node, timestamp: DateTime.utc_now()}}
+         %TransactionSummaryMessage{
+           transaction_summary: %TransactionSummary{
+             address: tx.address,
+             type: :node,
+             timestamp: DateTime.utc_now()
+           }
+         }}
     end)
 
     assert :ok = TransactionHandler.send_transaction(tx, [node])
