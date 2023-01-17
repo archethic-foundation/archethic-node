@@ -63,7 +63,8 @@ defmodule Archethic.P2P.MessageId do
     ValidateTransaction,
     ReplicatePendingTransactionChain,
     NotifyReplicationValidation,
-    TransactionSummaryMessage
+    TransactionSummaryMessage,
+    ReplicationAttestationMessage
   }
 
   alias Archethic.TransactionChain.{
@@ -72,8 +73,7 @@ defmodule Archethic.P2P.MessageId do
 
   alias Archethic.BeaconChain.{
     Summary,
-    SummaryAggregate,
-    ReplicationAttestation
+    SummaryAggregate
   }
 
   @spec id_to_module(0..256) :: atom()
@@ -108,7 +108,7 @@ defmodule Archethic.P2P.MessageId do
   def id_to_module(27), do: NewBeaconSlot
   def id_to_module(28), do: GetBeaconSummaries
   def id_to_module(29), do: RegisterBeaconUpdates
-  def id_to_module(30), do: ReplicationAttestation
+  def id_to_module(30), do: ReplicationAttestationMessage
   def id_to_module(31), do: GetGenesisAddress
   def id_to_module(32), do: GetCurrentSummaries
   def id_to_module(33), do: GetBeaconSummariesAggregate
@@ -178,7 +178,7 @@ defmodule Archethic.P2P.MessageId do
   def module_to_id(NewBeaconSlot), do: 27
   def module_to_id(GetBeaconSummaries), do: 28
   def module_to_id(RegisterBeaconUpdates), do: 29
-  def module_to_id(ReplicationAttestation), do: 30
+  def module_to_id(ReplicationAttestationMessage), do: 30
   def module_to_id(GetGenesisAddress), do: 31
   def module_to_id(GetCurrentSummaries), do: 32
   def module_to_id(GetBeaconSummariesAggregate), do: 33

@@ -1,7 +1,6 @@
 defmodule Archethic.Mining.StandaloneWorkflowTest do
   use ArchethicCase
 
-  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.Crypto
 
@@ -17,6 +16,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   alias Archethic.P2P.Message.ValidateTransaction
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
@@ -98,7 +98,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
         send(me, {:ack_replication, sig, Crypto.first_node_public_key()})
 
-      _, %ReplicationAttestation{}, _ ->
+      _, %ReplicationAttestationMessage{}, _ ->
         send(me, :transaction_replicated)
         {:ok, %Ok{}}
     end)

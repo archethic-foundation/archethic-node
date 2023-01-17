@@ -8,7 +8,6 @@ defmodule Archethic.P2P.Message do
   alias Archethic.P2P.MessageId
 
   alias Archethic.BeaconChain.{
-    ReplicationAttestation,
     Summary,
     SummaryAggregate
   }
@@ -73,7 +72,8 @@ defmodule Archethic.P2P.Message do
     ReplicatePendingTransactionChain,
     NotifyReplicationValidation,
     TransactionSummaryMessage,
-    AcknowledgeStorage
+    AcknowledgeStorage,
+    ReplicationAttestationMessage
   }
 
   require Logger
@@ -109,7 +109,7 @@ defmodule Archethic.P2P.Message do
           | RegisterBeaconUpdates.t()
           | BeaconUpdate.t()
           | TransactionSummaryMessage.t()
-          | ReplicationAttestation.t()
+          | ReplicationAttestationMessage.t()
           | GetGenesisAddress.t()
           | ValidationError.t()
           | GetCurrentSummaries.t()

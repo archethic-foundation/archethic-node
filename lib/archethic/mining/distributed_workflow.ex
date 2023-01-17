@@ -33,6 +33,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.NotifyReplicationValidation
+  alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
@@ -767,10 +768,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
     validated_tx = ValidationContext.get_validated_transaction(context)
     tx_summary = TransactionSummary.from_transaction(validated_tx)
 
-    message = %ReplicationAttestation{
-      transaction_summary: tx_summary,
-      confirmations: confirmations
-    }
+    message =
+      ReplicationAttestationMessage.from_replication_attestation(%ReplicationAttestation{
+        transaction_summary: tx_summary,
+        confirmations: confirmations
+      })
 
     beacon_storage_nodes = ValidationContext.get_beacon_replication_nodes(context)
     P2P.broadcast_message(P2P.distinct_nodes([welcome_node | beacon_storage_nodes]), message)
