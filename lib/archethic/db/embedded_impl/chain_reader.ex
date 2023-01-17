@@ -143,6 +143,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             process_get_chain_desc(fd, genesis_address, fields, opts, db_path)
         end
 
+      File.close(fd)
+
       # we want different metrics for ASC and DESC
       :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
         query:
@@ -294,7 +296,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
     {transactions, more?, paging_state} = get_paginated_chain(fd, column_names)
-    File.close(fd)
 
     {transactions, more?, paging_state}
   end
