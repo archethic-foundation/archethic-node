@@ -166,6 +166,14 @@ defmodule Archethic.Contracts.Interpreter.Library do
   end
 
   @doc """
+  Invokes fun for each element in the enumerable with the accumulator.
+  """
+  @spec reduce(Enumerable.t(), any(), (any(), any() -> any())) :: any()
+  def reduce(list, acc, func) do
+    Enum.reduce(list, acc, func)
+  end
+
+  @doc """
   Determines the size  of the input
 
   ## Examples

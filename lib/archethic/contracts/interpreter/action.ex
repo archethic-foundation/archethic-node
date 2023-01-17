@@ -280,6 +280,22 @@ defmodule Archethic.Contracts.ActionInterpreter do
     throw({:error, reason, node})
   end
 
+  # Whitelist the reduce/3 and enter the reduce scope
+  defp prewalk(
+         node = {{:atom, "reduce"}, _, [_, _, _]},
+         _acc = {:ok, %{scope: parent_scope}}
+       ) do
+    {node, {:ok, %{scope: {:reduce, parent_scope}}}}
+  end
+
+  # Delegate all nodes inside the reduce
+  defp prewalk(
+         node,
+         acc = {:ok, %{scope: {:reduce, _}}}
+       ) do
+    Archethic.Contracts.Interpreter.ActionReduce.prewalk(node, acc)
+  end
+
   defp prewalk(node, acc) do
     InterpreterUtils.prewalk(node, acc)
   end
@@ -334,6 +350,14 @@ defmodule Archethic.Contracts.ActionInterpreter do
     }
 
     {node, acc}
+  end
+
+  # Exit the reduce scope
+  defp postwalk(
+         node = {{:atom, "reduce"}, _, [_, _, _]},
+         _acc = {:ok, %{scope: {:reduce, parent_scope}}}
+       ) do
+    {node, {:ok, %{scope: parent_scope}}}
   end
 
   defp postwalk(node, acc) do

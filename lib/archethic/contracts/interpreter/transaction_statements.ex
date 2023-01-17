@@ -129,6 +129,10 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
     put_in(tx, [Access.key(:data), Access.key(:content)], Float.to_string(content))
   end
 
+  def set_content(tx = %Transaction{}, content) when is_list(content) do
+    put_in(tx, [Access.key(:data), Access.key(:content)], Jason.encode!(content))
+  end
+
   @doc """
   Set transaction smart contract code
 

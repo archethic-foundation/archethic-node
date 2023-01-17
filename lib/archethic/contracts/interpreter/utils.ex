@@ -84,6 +84,9 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   def prewalk(node = {:==, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
+  def prewalk(node = {:++, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
+    do: {node, acc}
+
   # Whitelist the use of doted statement
   def prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc = {:ok, %{scope: scope}})
       when scope != :root,
@@ -215,6 +218,15 @@ defmodule Archethic.Contracts.Interpreter.Utils do
       )
       when scope != :root do
     {node, acc}
+  end
+
+  # Whitelist and delegate the rem/2 function to Kernel
+  def prewalk(
+        _node = {{:atom, "rem"}, meta, ctx = [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {{:rem, Keyword.put(meta, :context, Kernel), ctx}, acc}
   end
 
   # Whitelist the hash/1 function

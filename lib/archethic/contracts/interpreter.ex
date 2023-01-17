@@ -184,6 +184,8 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
+  # We do not want user-code to generate atoms because it can exhaust the atom table
+  # https://hexdocs.pm/elixir/1.14.2/Code.html#string_to_quoted/2-the-static_atoms_encoder-function
   defp atom_encoder(atom, _) do
     if atom in ["if"] do
       {:ok, String.to_atom(atom)}
