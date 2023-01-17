@@ -233,15 +233,11 @@ defmodule Archethic.TransactionChainTest do
                %Transaction{}
              ]
            }}
-
-        _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
       end)
 
       assert 1 =
                TransactionChain.stream_remotely("Alice1", nodes)
                |> Enum.to_list()
-               |> List.first()
                |> length()
     end
 
@@ -314,7 +310,6 @@ defmodule Archethic.TransactionChainTest do
       assert 5 =
                TransactionChain.stream_remotely("Alice1", nodes)
                |> Enum.to_list()
-               |> List.first()
                |> length()
     end
   end
