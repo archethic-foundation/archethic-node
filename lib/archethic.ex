@@ -337,7 +337,9 @@ defmodule Archethic do
     case TransactionChain.get_genesis_address(address) do
       ^address ->
         # if returned address is same as given, it means the DB does not contain the value
-        TransactionChain.fetch_genesis_address_remotely(address)
+        nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+        TransactionChain.fetch_genesis_address_remotely(address, nodes)
 
       genesis_address ->
         {:ok, genesis_address}
