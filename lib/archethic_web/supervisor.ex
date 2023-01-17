@@ -68,7 +68,7 @@ defmodule ArchethicWeb.Supervisor do
         {LRU, :start_link,
          [
            :web_hosting_cache_ref_tx,
-           Application.fetch_env!(:archethic_web, :tx_cache_bytes)
+           web_hosting_config(:tx_cache_bytes)
          ]}
     }
   end
@@ -80,9 +80,14 @@ defmodule ArchethicWeb.Supervisor do
         {LRUDisk, :start_link,
          [
            :web_hosting_cache_file,
-           Application.fetch_env!(:archethic_web, :file_cache_bytes),
+           web_hosting_config(:file_cache_bytes),
            Path.join(Utils.mut_dir(), "aeweb")
          ]}
     }
+  end
+
+  defp web_hosting_config(key) do
+    config = Application.fetch_env!(:archethic, ArchethicWeb.API.WebHostingController)
+    Keyword.get(config, key)
   end
 end

@@ -156,7 +156,7 @@ config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
 config :archethic, Archethic.Networking.PortForwarding, port_range: 49_152..65_535
 # -----End-of-Networking-configs ------
 
-config :archethic_web,
+config :archethic, ArchethicWeb.API.WebHostingController,
   # The tx_cache is stored on RAM
   # 750MB should hold a minimum 250 transactions
   tx_cache_bytes: 750 * 1024 * 1024,
