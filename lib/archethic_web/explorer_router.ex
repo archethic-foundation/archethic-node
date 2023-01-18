@@ -10,11 +10,13 @@ defmodule ArchethicWeb.ExplorerRouter do
     plug(:fetch_live_flash)
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
+    plug(ArchethicWeb.PlugThrottleByIPandPath)
     plug(:put_root_layout, {ArchethicWeb.LayoutView, :root})
   end
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(ArchethicWeb.PlugThrottleByIPandPath)
     plug(ArchethicWeb.GraphQLContext)
   end
 

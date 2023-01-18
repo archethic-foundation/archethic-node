@@ -67,7 +67,7 @@ config :archethic, :transaction_data_code_max_size, 24576
 config :archethic, :throttle,
   by_ip: [
     period: 1000,
-    limit: 150
+    limit: 500
   ],
   by_ip_and_path: [
     period: 1000,

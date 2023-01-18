@@ -19,7 +19,7 @@ defmodule ArchethicWeb.PlugThrottleByIPTest do
           ordered: false
         )
         |> Enum.reduce_while(false, fn
-          {:ok, 403}, _acc -> {:halt, true}
+          {:ok, 429}, _acc -> {:halt, true}
           _, acc -> {:cont, acc}
         end)
 
