@@ -5,8 +5,8 @@ defmodule Archethic.P2P.Message.AcknowledgeStorage do
   This message is used during the transaction replication
   """
 
-  @enforce_keys [:address, :signature, :node_public_key]
-  defstruct [:address, :signature, :node_public_key]
+  @enforce_keys [:address, :signature]
+  defstruct [:address, :signature]
 
   alias Archethic.Crypto
   alias Archethic.Mining
@@ -22,10 +22,9 @@ defmodule Archethic.P2P.Message.AcknowledgeStorage do
   def process(
         %__MODULE__{
           address: address,
-          signature: signature,
-          node_public_key: node_public_key
+          signature: signature
         },
-        _
+        node_public_key
       ) do
     Mining.confirm_replication(address, signature, node_public_key)
     %Ok{}
@@ -34,23 +33,19 @@ defmodule Archethic.P2P.Message.AcknowledgeStorage do
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
         address: address,
-        signature: signature,
-        node_public_key: node_public_key
+        signature: signature
       }) do
-    <<address::binary, node_public_key::binary, byte_size(signature)::8, signature::binary>>
+    <<address::binary, byte_size(signature)::8, signature::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(bin) do
-    {address, rest} = Utils.deserialize_address(bin)
-
-    {public_key, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
-      Utils.deserialize_public_key(rest)
+    {address, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
+      Utils.deserialize_address(bin)
 
     {%__MODULE__{
        address: address,
-       signature: signature,
-       node_public_key: public_key
+       signature: signature
      }, rest}
   end
 end

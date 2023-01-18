@@ -375,12 +375,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     burned_fees =
       transaction_summaries
-      |> Enum.reduce(acc, fn %TransactionSummary{
-                               fee: fee
-                             },
-                             acc ->
-        acc + fee
-      end)
+      |> Enum.reduce(acc, fn %TransactionSummary{fee: fee}, acc -> acc + fee end)
 
     DB.register_stats(date, tps, nb_transactions, burned_fees)
 

@@ -73,7 +73,8 @@ defmodule Archethic.P2P.Message do
     NotifyReplicationValidation,
     TransactionSummaryMessage,
     AcknowledgeStorage,
-    ReplicationAttestationMessage
+    ReplicationAttestationMessage,
+    GetTransactionSummary
   }
 
   require Logger
@@ -121,6 +122,7 @@ defmodule Archethic.P2P.Message do
           | ReplicatePendingTransactionChain.t()
           | NotifyReplicationValidation.t()
           | AcknowledgeStorage.t()
+          | GetTransactionSummary.t()
 
   @type response ::
           Ok.t()

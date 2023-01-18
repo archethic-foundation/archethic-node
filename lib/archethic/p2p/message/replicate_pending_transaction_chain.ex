@@ -27,8 +27,7 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
 
           ack = %AcknowledgeStorage{
             address: tx.address,
-            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
-            node_public_key: Crypto.first_node_public_key()
+            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
           }
 
           P2P.send_message(sender_public_key, ack)
