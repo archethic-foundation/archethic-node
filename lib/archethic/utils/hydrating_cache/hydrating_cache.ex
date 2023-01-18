@@ -105,7 +105,7 @@ defmodule Archethic.Utils.HydratingCache do
 
             GenServer.call(
               me,
-              {:register, fn -> apply(mod, func, params) end, provider, 10000, refresh_rate}
+              {:register, fn -> apply(mod, func, params) end, provider, 75_000, refresh_rate}
             )
 
           other ->
