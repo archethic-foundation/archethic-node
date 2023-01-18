@@ -8,6 +8,8 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   alias Archethic.OracleChain.Services.Impl
   alias Archethic.Utils
 
+  alias Archethic.Utils.HydratingCache
+
   @behaviour Impl
 
   @precision_digits 5
@@ -21,32 +23,33 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     {:ok, fetching_tasks_supervisor} = Task.Supervisor.start_link()
     ## retrieve prices from configured providers and filter results marked as errors
     prices =
-      Task.Supervisor.async_stream_nolink(
-        fetching_tasks_supervisor,
-        providers(),
-        fn provider ->
-          case provider.fetch(@pairs) do
-            {:ok, _prices} = result ->
-              result
+      Enum.map(providers(), fn provider ->
+        case HydratingCache.get(:"Elixir.Archethic.Utils.HydratingCache.uco_service", provider) do
+          {:error, reason} ->
+            Logger.warning(
+              "Service UCOPrice cannot fetch values from provider: #{inspect(provider)} with reason : #{inspect(reason)}."
+            )
 
-            {:error, reason} ->
-              provider_name = provider |> to_string() |> String.split(".") |> List.last()
+            []
 
-              Logger.warning(
-                "Service UCOPrice cannot fetch values from " <>
-                  "provider: #{inspect(provider_name)} with reason : #{inspect(reason)}."
-              )
+          result ->
+            {provider, result}
+        end
+      end)
+      |> List.flatten()
+      |> Enum.filter(fn
+        {_, %{}} ->
+          true
 
-              {:error, provider}
-          end
-        end,
-        on_timeout: :kill_task
-      )
-      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
-      |> Stream.map(fn
-        {_, {_, result = %{}}} ->
+        other ->
+          Logger.error("Service UCOPrice cannot fetch values from provider: #{inspect(other)}.")
+          false
+      end)
+      |> Enum.map(fn
+        {_, result = %{}} ->
           result
       end)
+
       ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
       |> Enum.reduce(%{}, &agregate_providers_data/2)
       |> Enum.reduce(%{}, fn {currency, values}, acc ->
