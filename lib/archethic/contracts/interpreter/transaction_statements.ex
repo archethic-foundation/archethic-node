@@ -15,7 +15,8 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
        %Transaction{ type: :transfer }
   """
   @spec set_type(Transaction.t(), binary()) :: Transaction.t()
-  def set_type(tx = %Transaction{}, type) when type in ["transfer", "token", "hosting"] do
+  def set_type(tx = %Transaction{}, type)
+      when type in ["transfer", "token", "hosting", "data", "contract"] do
     %{tx | type: String.to_existing_atom(type)}
   end
 

@@ -364,7 +364,7 @@ defmodule Archethic.Contracts.Worker do
            previous_transaction: _
          }
        ) do
-    put_in(acc, [:next_transaction, Access.key(:type)], :transfer)
+    put_in(acc, [:next_transaction, Access.key(:type)], :contract)
   end
 
   defp chain_type(acc), do: acc
