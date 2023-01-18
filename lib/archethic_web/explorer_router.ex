@@ -23,7 +23,7 @@ defmodule ArchethicWeb.ExplorerRouter do
   pipeline :unrestricted_api do
     plug(:accepts, ["json"])
     plug(ArchethicWeb.PlugThrottleByIPHigh)
-    plug(ArchethicWeb.GraphQLContext)
+    plug(ArchethicWeb.PlugThrottleByIPandPath)
   end
 
   scope "/", ArchethicWeb do
@@ -81,10 +81,7 @@ defmodule ArchethicWeb.ExplorerRouter do
       :last_transaction_content
     )
 
-    get("/web_hosting/:address/*url_path", ArchethicWeb.API.WebHostingController, :web_hosting)
-
     post("/origin_key", ArchethicWeb.API.OriginKeyController, :origin_key)
-
     post("/transaction", ArchethicWeb.API.TransactionController, :new)
     post("/transaction_fee", ArchethicWeb.API.TransactionController, :transaction_fee)
 
