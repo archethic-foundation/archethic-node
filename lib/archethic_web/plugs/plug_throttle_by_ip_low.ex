@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.PlugThrottleByIP do
+defmodule ArchethicWeb.PlugThrottleByIPLow do
   @moduledoc """
     Throttle requests based on the ip address of the user
   """
@@ -7,7 +7,7 @@ defmodule ArchethicWeb.PlugThrottleByIP do
   use PlugAttack
 
   rule "Throttle by IP", conn do
-    [period: period, limit: limit] = Application.get_env(:archethic, :throttle)[:by_ip]
+    [period: period, limit: limit] = Application.get_env(:archethic, :throttle)[:by_ip_low]
 
     throttle(conn.remote_ip,
       period: period,

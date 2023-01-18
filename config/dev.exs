@@ -161,3 +161,17 @@ config :archethic, ArchethicWeb.Endpoint,
     keyfile: "priv/cert/selfsigned_key.pem",
     certfile: "priv/cert/selfsigned.pem"
   ]
+
+config :archethic, :throttle,
+  by_ip_high: [
+    period: 1000,
+    limit: 5_000
+  ],
+  by_ip_low: [
+    period: 1000,
+    limit: 5_000
+  ],
+  by_ip_and_path: [
+    period: 1000,
+    limit: 5_000
+  ]

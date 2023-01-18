@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.PlugThrottleByIPTest do
+defmodule ArchethicWeb.PlugThrottleByIPLowTest do
   use ArchethicWeb.ConnCase
 
   use ArchethicCase, async: false
@@ -7,7 +7,7 @@ defmodule ArchethicWeb.PlugThrottleByIPTest do
     @tag ratelimit: true
     test "within timeframe with the same ip",
          %{conn: conn} do
-      limit = Application.get_env(:archethic, :throttle)[:by_ip][:limit] + 1
+      limit = Application.get_env(:archethic, :throttle)[:by_ip_low][:limit] + 1
 
       is_rate_limited? =
         Task.async_stream(

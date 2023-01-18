@@ -10,13 +10,19 @@ defmodule ArchethicWeb.ExplorerRouter do
     plug(:fetch_live_flash)
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
-    plug(ArchethicWeb.PlugThrottleByIPandPath)
+    plug(ArchethicWeb.PlugThrottleByIPLow)
     plug(:put_root_layout, {ArchethicWeb.LayoutView, :root})
   end
 
   pipeline :api do
     plug(:accepts, ["json"])
-    plug(ArchethicWeb.PlugThrottleByIPandPath)
+    plug(ArchethicWeb.PlugThrottleByIPLow)
+    plug(ArchethicWeb.GraphQLContext)
+  end
+
+  pipeline :unrestricted_api do
+    plug(:accepts, ["json"])
+    plug(ArchethicWeb.PlugThrottleByIPHigh)
     plug(ArchethicWeb.GraphQLContext)
   end
 
@@ -94,6 +100,11 @@ defmodule ArchethicWeb.ExplorerRouter do
       Absinthe.Plug,
       schema: ArchethicWeb.GraphQLSchema
     )
+  end
+
+  scope "/api" do
+    pipe_through(:unrestricted_api)
+    get("/web_hosting/:address/*url_path", ArchethicWeb.API.WebHostingController, :web_hosting)
   end
 
   live_session :settings, session: {ArchethicWeb.WebUtils, :keep_remote_ip, []} do
