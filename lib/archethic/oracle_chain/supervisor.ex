@@ -8,6 +8,7 @@ defmodule Archethic.OracleChain.Supervisor do
   alias Archethic.OracleChain.Scheduler
 
   alias Archethic.Utils
+  alias Archethic.Utils.HydratingCache.CachesManager
 
   def start_link(args \\ []) do
     Supervisor.start_link(__MODULE__, args)
@@ -19,7 +20,8 @@ defmodule Archethic.OracleChain.Supervisor do
     children = [
       MemTable,
       MemTableLoader,
-      {Scheduler, scheduler_conf}
+      {Scheduler, scheduler_conf},
+      CachesManager
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)
