@@ -1,4 +1,4 @@
-defmodule CacheTest do
+defmodule HydratingCacheTest do
   alias Archethic.Utils.HydratingCache
   use ExUnit.Case
   require Logger
@@ -204,7 +204,7 @@ defmodule CacheTest do
       HydratingCache.register_function(
         pid,
         fn ->
-          :timer.sleep(2000)
+          :timer.sleep(4000)
           {:ok, :valid_result}
         end,
         "delayed_result",
@@ -213,8 +213,7 @@ defmodule CacheTest do
       )
 
     ## We query the value with timeout smaller than timed function
-    {:ok, value} = HydratingCache.get(pid, "delayed_result", 3000)
-    assert value == :valid_result
+    assert {:ok, :valid_result} = HydratingCache.get(pid, "delayed_result", 5000)
   end
 
   test "Querying key while first refreshed will block the calling process until timeout" do
