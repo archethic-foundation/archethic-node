@@ -95,6 +95,8 @@ defmodule ArchethicWeb.BeaconChainLive do
     {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
+  def handle_event(_, _, socket), do: {:noreply, socket}
+
   def handle_info(
         :initial_load,
         socket

@@ -15,13 +15,13 @@ defmodule ArchethicWeb.Pagination do
       <%= if @current_page > 1 do %>
         <a class="pagination-previous" phx-value-page={@current_page - 1} phx-click="goto">Previous</a>
       <% else %>
-        <a class="pagination-previous is-disabled">Previous</a>
+        <a class="pagination-previous is-disabled" phx-click="first_page">Previous</a>
       <% end %>
 
       <%= if @current_page + 1 <= @total_pages do %>
         <a class="pagination-next" phx-value-page={@current_page + 1} phx-click="goto">Next page</a>
       <% else %>
-        <a class="pagination-next is-disabled">Next page</a>
+        <a class="pagination-next is-disabled" phx-click="last_page">Next page</a>
       <% end %>
 
       <p class="pagination-list has-text-white">
