@@ -94,6 +94,8 @@ defmodule ArchethicWeb.NodeSharedSecretsChainLive do
     {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
+  def handle_event(_, _, socket), do: {:noreply, socket}
+
   @spec handle_info(
           _msg ::
             {:new_transaction, address :: binary(), :node_shared_secrets, DateTime.t()},

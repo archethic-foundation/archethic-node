@@ -75,6 +75,8 @@ defmodule ArchethicWeb.RewardChainLive do
     {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
+  def handle_event(_, _, socket), do: {:noreply, socket}
+
   @spec handle_info(
           {:new_transaction, binary(), :mint_rewards | :node_rewards, DateTime.t()},
           socket :: Phoenix.LiveView.Socket.t()

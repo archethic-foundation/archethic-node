@@ -103,6 +103,8 @@ defmodule ArchethicWeb.OracleChainLive do
     {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
+  def handle_event(_, _, socket), do: {:noreply, socket}
+
   def handle_info(
         {:new_transaction, address, :oracle, timestamp},
         socket = %{assigns: assigns = %{current_date_page: current_page}}
