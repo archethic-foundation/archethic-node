@@ -7,6 +7,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransactionSummary
+  alias Archethic.P2P.Message.TransactionSummaryMessage
   alias Archethic.P2P.Message.NewTransaction
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
@@ -62,7 +63,12 @@ defmodule Archethic.Bootstrap.TransactionHandler do
 
   defp await_confirmation(tx_address, [node | rest]) do
     case P2P.send_message(node, %GetTransactionSummary{address: tx_address}) do
-      {:ok, %TransactionSummary{address: ^tx_address}} ->
+      {:ok,
+       %TransactionSummaryMessage{
+         transaction_summary: %TransactionSummary{
+           address: ^tx_address
+         }
+       }} ->
         :ok
 
       {:ok, %NotFound{}} ->
@@ -99,7 +105,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
         condition inherit: [
           # We need to ensure the type stays consistent
           type: node,
-        
+
           # Content and token transfers will be validated during tx's validation
           content: true,
           token_transfers: true

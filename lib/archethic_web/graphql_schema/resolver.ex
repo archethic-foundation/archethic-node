@@ -53,7 +53,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   end
 
   def get_token(address) do
-    t1 = Task.async(fn -> TransactionChain.fetch_genesis_address_remotely(address) end)
+    t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
     t2 = Task.async(fn -> get_transaction_content(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),

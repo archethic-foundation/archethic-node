@@ -6,8 +6,6 @@ defmodule Archethic.Replication.TransactionContextTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
@@ -25,8 +23,8 @@ defmodule Archethic.Replication.TransactionContextTest do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.P2P.Message.GetGenesisAddress
-  alias Archethic.P2P.Message.NotFound
-  # alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
+
   import Mox
 
   test "fetch_transaction/1 should retrieve the transaction" do
@@ -52,16 +50,38 @@ defmodule Archethic.Replication.TransactionContextTest do
   end
 
   test "stream_transaction_chain/1 should retrieve the previous transaction chain" do
+    pub1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::bitstring>>
+    pub2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::bitstring>>
+
+    addr1 = Crypto.derive_address(pub1)
+    addr2 = Crypto.derive_address(pub2)
+
+    MockDB
+    |> stub(:list_chain_addresses, fn _ ->
+      [{addr1, DateTime.utc_now()}, {addr2, DateTime.utc_now()}]
+    end)
+    |> stub(:transaction_exists?, fn
+      ^addr1, _ -> true
+      _, _ -> false
+    end)
+
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: [%Transaction{}]}}
-
-      _, %GetTransactionChainLength{}, _ ->
-        %TransactionChainLength{length: 1}
+      _, %GetTransactionChain{address: ^addr2, paging_state: ^addr1}, _ ->
+        {:ok,
+         %TransactionList{
+           transactions: [
+             %Transaction{
+               previous_public_key: pub1
+             },
+             %Transaction{
+               previous_public_key: pub2
+             }
+           ]
+         }}
 
       _, %GetGenesisAddress{}, _ ->
-        {:ok, %NotFound{}}
+        {:ok, %GenesisAddress{address: "@Alice0"}}
     end)
 
     P2P.add_and_connect_node(%Node{
@@ -76,12 +96,15 @@ defmodule Archethic.Replication.TransactionContextTest do
       authorization_date: DateTime.utc_now()
     })
 
-    assert 1 =
-             TransactionContext.stream_transaction_chain(
-               "@Alice1",
-               P2P.authorized_and_available_nodes()
-             )
-             |> Enum.count()
+    chain =
+      TransactionContext.stream_transaction_chain(addr2, P2P.authorized_and_available_nodes())
+      |> Enum.to_list()
+
+    assert [
+             %Transaction{
+               previous_public_key: ^pub1
+             }
+           ] = chain
   end
 
   test "fetch_transaction_inputs/2 should retrieve the inputs of a transaction at a given date" do

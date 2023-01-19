@@ -36,6 +36,7 @@ defmodule Archethic.BootstrapTest do
     NotifyEndOfNodeSync,
     TransactionList,
     TransactionInputList,
+    TransactionSummaryMessage,
     Ok,
     GetGenesisAddress,
     NotFound
@@ -291,7 +292,12 @@ defmodule Archethic.BootstrapTest do
           {:ok, %NotFound{}}
 
         _, %GetTransactionSummary{address: address}, _ ->
-          {:ok, %TransactionSummary{address: address}}
+          {:ok,
+           %TransactionSummaryMessage{
+             transaction_summary: %TransactionSummary{
+               address: address
+             }
+           }}
 
         _, %GetTransactionChainLength{}, _ ->
           {:ok, %TransactionChainLength{length: 0}}

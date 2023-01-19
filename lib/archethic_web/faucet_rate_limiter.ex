@@ -4,8 +4,6 @@ defmodule ArchethicWeb.FaucetRateLimiter do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
-  alias Archethic.TransactionChain
-
   @faucet_rate_limit Application.compile_env!(:archethic, :faucet_rate_limit)
   @faucet_rate_limit_expiry Application.compile_env!(:archethic, :faucet_rate_limit_expiry)
   @block_period_expiry @faucet_rate_limit_expiry
@@ -93,7 +91,7 @@ defmodule ArchethicWeb.FaucetRateLimiter do
     }
 
     address =
-      case TransactionChain.fetch_genesis_address_remotely(address) do
+      case Archethic.fetch_genesis_address_remotely(address) do
         {:ok, genesis_address} ->
           genesis_address
 

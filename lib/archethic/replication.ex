@@ -143,8 +143,6 @@ defmodule Archethic.Replication do
     # Stream the insertion of the chain
     tx
     |> stream_previous_chain(download_nodes)
-    |> Stream.reject(&Enum.empty?/1)
-    |> Stream.flat_map(& &1)
     |> Stream.each(fn tx = %Transaction{address: address} ->
       TransactionChain.write_transaction(tx)
 
@@ -346,22 +344,19 @@ defmodule Archethic.Replication do
     previous_address = Transaction.previous_address(tx)
 
     if Transaction.network_type?(type) do
-      stream_network_tx_chain(tx, download_nodes)
+      stream_network_tx_chain(previous_address, download_nodes)
     else
       TransactionContext.stream_transaction_chain(previous_address, download_nodes)
     end
   end
 
-  defp stream_network_tx_chain(tx = %Transaction{}, download_nodes) do
-    previous_address = Transaction.previous_address(tx)
-
+  defp stream_network_tx_chain(previous_address, download_nodes) do
     if TransactionChain.transaction_exists?(previous_address) do
       []
     else
       Logger.debug(
         "Try to fetch network transaction chain from remote nodes (possibility of an orphan state)",
-        transaction_address: Base.encode16(previous_address),
-        transaction_type: tx.type
+        transaction_address: Base.encode16(previous_address)
       )
 
       TransactionContext.stream_transaction_chain(previous_address, download_nodes)

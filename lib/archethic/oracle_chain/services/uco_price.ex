@@ -10,6 +10,8 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
   @behaviour Impl
 
+  @precision_digits 5
+
   @pairs ["usd", "eur"]
 
   @impl Impl
@@ -48,14 +50,18 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
       ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
       |> Enum.reduce(%{}, &agregate_providers_data/2)
       |> Enum.reduce(%{}, fn {currency, values}, acc ->
-        Map.put(acc, currency, Utils.median(values))
-      end)
+        price =
+          values
+          |> Utils.median()
+          |> Archethic.Cldr.Number.to_string!(
+            currency: currency,
+            currency_symbol: "",
+            fractional_digits: @precision_digits
+          )
+          |> String.to_float()
 
-    ## split prices in a list per currency. If a service returned a list of prices of a currency,
-    ## they will be medianed first before being added to list
-    #      |> split_prices()
-    ## compute median per currency list
-    #      |> median_prices()
+        Map.put(acc, currency, price)
+      end)
 
     Supervisor.stop(fetching_tasks_supervisor, :normal, 3_000)
     {:ok, prices}

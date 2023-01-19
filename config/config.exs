@@ -156,7 +156,7 @@ config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
 config :archethic, Archethic.Networking.PortForwarding, port_range: 49_152..65_535
 # -----End-of-Networking-configs ------
 
-config :archethic_web,
+config :archethic, ArchethicWeb.API.WebHostingController,
   # The tx_cache is stored on RAM
   # 750MB should hold a minimum 250 transactions
   tx_cache_bytes: 750 * 1024 * 1024,
@@ -180,6 +180,11 @@ config :dart_sass,
     args: ~w(css/app.scss --load-path=node_modules ../priv/static/css/app.css),
     cd: Path.expand("../assets", __DIR__)
   ]
+
+config :ex_cldr,
+  default_locale: "en",
+  default_backend: Archethic.Cldr,
+  json_library: Jason
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

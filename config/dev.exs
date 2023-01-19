@@ -19,6 +19,8 @@ config :archethic,
          "data_#{System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")}"
        )
 
+config :archethic, :root_mut_dir, System.get_env("ARCHETHIC_ROOT_MUT_DIR", "./data")
+
 config :telemetry_poller, :default, period: 5_000
 
 # Set a higher stacktrace during development. Avoid configuring such
