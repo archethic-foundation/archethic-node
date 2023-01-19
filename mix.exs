@@ -57,6 +57,7 @@ defmodule Archethic.MixProject do
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.9"},
       {:websockex, "~> 0.4"},
+      {:plug_attack, "~> 0.4.3"},
 
       # Dev
       {:benchee, "~> 1.1"},

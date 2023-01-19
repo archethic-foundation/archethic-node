@@ -157,3 +157,17 @@ config :archethic, ArchethicWeb.Endpoint,
   explorer_url: "",
   http: [port: 4002],
   server: false
+
+config :archethic, :throttle,
+  by_ip_high: [
+    period: 1000,
+    limit: 5_000
+  ],
+  by_ip_low: [
+    period: 1000,
+    limit: 5_000
+  ],
+  by_ip_and_path: [
+    period: 1000,
+    limit: 5_000
+  ]
