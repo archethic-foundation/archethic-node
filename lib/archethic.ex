@@ -13,6 +13,7 @@ defmodule Archethic do
   alias __MODULE__.P2P.Message.GetBalance
   alias __MODULE__.P2P.Message.GetCurrentSummaries
   alias __MODULE__.P2P.Message.GetTransactionSummary
+  alias __MODULE__.P2P.Message.TransactionSummaryMessage
   alias __MODULE__.P2P.Message.NewTransaction
   alias __MODULE__.P2P.Message.NotFound
   alias __MODULE__.P2P.Message.Ok
@@ -398,11 +399,11 @@ defmodule Archethic do
 
       conflict_resolver = fn results ->
         # Prioritize transactions results over not found
-        case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
+        case Enum.filter(results, &match?(%TransactionSummaryMessage{}, &1)) do
           [] ->
             %NotFound{}
 
-          [first | _] ->
+          [%{transaction_summary: first} | _] ->
             first
         end
       end
