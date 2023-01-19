@@ -193,6 +193,51 @@ defmodule Archethic.Contracts.Interpreter.Library do
   def size(map) when is_map(map), do: map_size(map)
 
   @doc """
+  Append item to the list (slow)
+
+  ## Examples
+    iex> Library.append([], 1)
+    [1]
+
+    iex> Library.append([1], [2])
+    [1, [2]]
+  """
+  @spec append(list(any()), any()) :: list(any())
+  def append(list, item) do
+    list ++ [item]
+  end
+
+  @doc """
+  Prepend item to the list (fast)
+
+  ## Examples
+    iex> Library.prepend([], 1)
+    [1]
+
+    iex> Library.prepend([1], [2])
+    [[2], 1]
+  """
+  @spec prepend(list(any()), any()) :: list(any())
+  def prepend(list, item) do
+    [item | list]
+  end
+
+  @doc """
+  Concat both list
+
+  ## Examples
+  iex> Library.concat([], [])
+  []
+
+  iex> Library.concat([1,2], [3,4])
+  [1,2,3,4]
+  """
+  @spec concat(list(), list()) :: list()
+  def concat(list1, list2) do
+    list1 ++ list2
+  end
+
+  @doc """
   Get the inputs(type= :call) of the given transaction
 
   This is useful for contracts that want to throttle their calls

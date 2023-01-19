@@ -497,7 +497,7 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
         list = [1,2,3,4]
         even_numbers = reduce(list, [], fn number, acc ->
           if rem(number, 2) == 0 do
-            acc ++ [number]
+            append(acc, number)
           else
             acc
           end
@@ -514,7 +514,7 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
       actions triggered_by: transaction do
         list = [1,2,3]
         double = reduce(list, [], fn number, accu ->
-            accu ++ [number * 2]
+            append(accu, number * 2)
         end)
 
         set_content double

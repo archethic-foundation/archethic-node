@@ -84,9 +84,6 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   def prewalk(node = {:==, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  def prewalk(node = {:++, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
-    do: {node, acc}
-
   # Whitelist the use of doted statement
   def prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc = {:ok, %{scope: scope}})
       when scope != :root,
@@ -211,9 +208,36 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
-  # Whitelist the size/1 function
+  # Whitelist the size/1 library function
   def prewalk(
         node = {{:atom, "size"}, _, [_data]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the append/2 library function
+  def prewalk(
+        node = {{:atom, "append"}, _, [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the prepend/2 library function
+  def prewalk(
+        node = {{:atom, "prepend"}, _, [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the concat/2 library function
+  def prewalk(
+        node = {{:atom, "concat"}, _, [_, _]},
         acc = {:ok, %{scope: scope}}
       )
       when scope != :root do
