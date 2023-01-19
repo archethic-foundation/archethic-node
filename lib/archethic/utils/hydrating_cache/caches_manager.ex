@@ -40,7 +40,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
 
   @impl true
   def init(_args) do
-    manager_conf = Application.get_env(:archethic, __MODULE__)
+    manager_conf = Application.get_env(:archethic, __MODULE__, [])
 
     {:ok, caches_sup} =
       DynamicSupervisor.start_link(
@@ -65,7 +65,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
     {:ok, pid} =
       DynamicSupervisor.start_child(
         state.caches_sup,
-        HydratingCache.child_spec([{name, initial_keys}, []])
+        HydratingCache.child_spec([name, initial_keys, []])
       )
 
     {:reply, {:ok, pid}, state}
@@ -77,7 +77,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
 
     DynamicSupervisor.start_child(state.caches_sup, %{
       id: name,
-      start: {HydratingCache, :start_link, [{name, keys}]}
+      start: {HydratingCache, :start_link, [name, keys]}
     })
 
     {:noreply, state}

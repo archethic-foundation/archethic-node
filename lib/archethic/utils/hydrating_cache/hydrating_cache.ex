@@ -14,7 +14,7 @@ defmodule Archethic.Utils.HydratingCache do
           | {:error, :timeout}
           | {:error, :not_registered}
 
-  def start_link({name, initial_keys}) do
+  def start_link(name, initial_keys \\ []) do
     GenServer.start_link(__MODULE__, [name, initial_keys], name: :"#{__MODULE__}.#{name}")
   end
 
@@ -68,31 +68,34 @@ defmodule Archethic.Utils.HydratingCache do
       :not_registered}`
   """
   @spec get(atom(), any(), non_neg_integer(), Keyword.t()) :: result
-  def get(cache, key, timeout \\ 3_000, _opts \\ [])
+  def get(cache, key, timeout \\ 1_000, _opts \\ [])
       when is_integer(timeout) and timeout > 0 do
     Logger.debug("Getting key #{inspect(key)} from hydrating cache #{inspect(cache)}")
 
     case GenServer.call(cache, {:get, key}, timeout) do
       {:ok, :answer_delayed} ->
         Logger.debug(
-          "waiting for delayed value for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
+          "waiting for delayed value for key #{inspect(key)} from hydrating cache #{inspect(cache)} #{inspect(self())}"
         )
 
         receive do
           {:ok, value} ->
             {:ok, value}
+
+          other ->
+            Logger.info("Unexpected return value #{inspect(other)}")
             # code
         after
           timeout ->
             {:error, :timeout}
         end
 
-      {:ok, value} ->
+      other_result ->
         Logger.debug(
-          "Got value #{inspect(value)} for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
+          "Got value #{inspect(other_result)} for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
         )
 
-        {:ok, value}
+        other_result
     end
   end
 

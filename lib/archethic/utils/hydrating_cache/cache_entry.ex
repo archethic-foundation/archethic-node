@@ -36,9 +36,12 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
   @impl :gen_statem
   def init([fun, key, ttl, refresh_interval]) do
+    timer = :timer.send_interval(refresh_interval, self(), :hydrate)
+
     ## Hydrate the value
     {:ok, :running,
      %CacheEntry.StateData{
+       timer_func: timer,
        hydrating_func: fun,
        key: key,
        ttl: ttl,
@@ -51,6 +54,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
   @impl :gen_statem
   def handle_event({:call, from}, {:get, _from}, :idle, data) do
+    IO.puts("==> Get in idle state")
     ## Value is requested while fsm is iddle, return the value
     {:next_state, :idle, data, [{:reply, from, data.value}]}
   end
@@ -93,8 +97,12 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
   def handle_event({:call, from}, {:register, fun, key, ttl, refresh_interval}, :running, data) do
     ## Registering a new hydrating function while previous one is running
-    ## We stop the task
-    Task.shutdown(data.running_func_task, :brutal_kill)
+
+    ## We stop the hydrating task if it is already running
+    case data.running_func_task do
+      pid when is_pid(pid) -> Process.exit(pid, :brutal_kill)
+      _ -> :ok
+    end
 
     ## And the timers triggering it and discarding value
     _ = :timer.cancel(data.timer_func)
@@ -175,26 +183,34 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   end
 
   def handle_event(:cast, {:new_value, key, {:ok, value}}, :running, data) do
+    ## Stop timer on value ttl
+    _ = :timer.cancel(data.timer_discard)
+
     ## We got result from hydrating function
     Logger.debug(
       "Key :#{inspect(data.key)}, Hydrating func #{inspect(data.hydrating_func)} got value #{inspect({key, value})}"
     )
 
     ## notify waiiting getters
-    Enum.each(data.getters, fn {pid, _ref} -> send(pid, {:ok, value}) end)
+    Enum.each(data.getters, fn {pid, _ref} ->
+      IO.puts("Sending value to #{inspect(pid)}")
+      send(pid, {:ok, value})
+    end)
+
     ## We could do error control here, like unregistering the running func.
     ## atm, we will keep it
     _ = :timer.cancel(data.timer_discard)
-    # me = self()
-    # {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
+
+    me = self()
+    {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
 
     {:next_state, :idle,
      %CacheEntry.StateData{
        data
        | running_func_task: :undefined,
          value: {:ok, value},
-         getters: []
-         # timer_discard: new_timer
+         getters: [],
+         timer_discard: new_timer
      }}
   end
 
