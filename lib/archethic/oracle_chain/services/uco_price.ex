@@ -32,7 +32,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
             []
 
-          result ->
+          {:ok, result} ->
             {provider, result}
         end
       end)

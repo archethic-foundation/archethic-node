@@ -72,7 +72,28 @@ defmodule Archethic.Utils.HydratingCache do
       when is_integer(timeout) and timeout > 0 do
     Logger.debug("Getting key #{inspect(key)} from hydrating cache #{inspect(cache)}")
 
-    GenServer.call(cache, {:get, key}, timeout)
+    case GenServer.call(cache, {:get, key}, timeout) do
+      {:ok, :answer_delayed} ->
+        Logger.debug(
+          "waiting for delayed value for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
+        )
+
+        receive do
+          {:ok, value} ->
+            {:ok, value}
+            # code
+        after
+          timeout ->
+            {:error, :timeout}
+        end
+
+      {:ok, value} ->
+        Logger.debug(
+          "Got value #{inspect(value)} for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
+        )
+
+        {:ok, value}
+    end
   end
 
   @impl GenServer
@@ -123,13 +144,14 @@ defmodule Archethic.Utils.HydratingCache do
 
   @impl true
 
-  def handle_call({:get, key}, _from, state) do
+  def handle_call({:get, key}, from, state) do
     case Map.get(state, key, :undefined) do
       :undefined ->
         {:reply, {:error, :not_registered}, state}
 
       pid ->
-        value = :gen_statem.call(pid, :get)
+        value = :gen_statem.call(pid, {:get, from})
+
         IO.puts("value #{inspect(value)}")
 
         {:reply, value, state}

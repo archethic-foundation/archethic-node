@@ -50,9 +50,8 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   def callback_mode, do: [:handle_event_function, :state_enter]
 
   @impl :gen_statem
-  def handle_event({:call, from}, :get, :idle, data) do
+  def handle_event({:call, from}, {:get, _from}, :idle, data) do
     ## Value is requested while fsm is iddle, return the value
-    IO.puts("Sending value to #{inspect({from, data.value})}")
     {:next_state, :idle, data, [{:reply, from, data.value}]}
   end
 
@@ -62,15 +61,25 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     {:next_state, :idle, data}
   end
 
-  ## call for value while hydrating function is running
-  ## We return previous value not to block the caller
-  def handle_event({:call, from}, :get, :running, data) do
+  ## Call for value while hydrating function is running and we have no previous value
+  ## We register the caller to send value later on, and we indicate caller to block
+  def handle_event({:call, _from}, {:get, from}, :running, data)
+      when data.value == :"$$undefined" do
+    previous_getters = data.getters
+
+    {:keep_state, %CacheEntry.StateData{data | getters: previous_getters ++ [from]},
+     [{:reply, from, {:ok, :answer_delayed}}]}
+  end
+
+  ## Call for value while hydrating function is running and we have a previous value
+  ## We return the value to caller
+  def handle_event({:call, from}, {:get, _from}, :running, data) do
     {:next_state, :running, data, [{:reply, from, data.value}]}
   end
 
+  ## Getting value when a function is running and no previous value is available
+  ## Register this getter to send value later on
   def handle_event(:cast, {:get, from}, :running, data) when data.value == :"$$undefined" do
-    ## Getting value when a function is running and no previous value is available
-    ## Register this getter to send value later on
     previous_getters = data.getters
     {:next_state, :running, %CacheEntry.StateData{data | getters: previous_getters ++ [from]}}
   end
@@ -172,20 +181,20 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     )
 
     ## notify waiiting getters
-    Enum.each(data.getters, fn getter -> send(getter, {:ok, value}) end)
+    Enum.each(data.getters, fn {pid, _ref} -> send(pid, {:ok, value}) end)
     ## We could do error control here, like unregistering the running func.
     ## atm, we will keep it
     _ = :timer.cancel(data.timer_discard)
-    me = self()
-    {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
+    # me = self()
+    # {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
 
     {:next_state, :idle,
      %CacheEntry.StateData{
        data
        | running_func_task: :undefined,
-         value: value,
-         getters: [],
-         timer_discard: new_timer
+         value: {:ok, value},
+         getters: []
+         # timer_discard: new_timer
      }}
   end
 
