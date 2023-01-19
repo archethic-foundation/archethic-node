@@ -149,14 +149,6 @@ defmodule Archethic.Contracts.ActionInterpreter do
   # Whitelist the add_uco_transfer function parameters
   defp prewalk(
          node = {{:atom, "to"}, address},
-         acc = {:ok, %{scope: {"add_uco_transfer", {:actions, _}}}}
-       )
-       when is_binary(address) do
-    {node, acc}
-  end
-
-  defp prewalk(
-         node = {{:atom, "to"}, address},
          acc = {:ok, %{scope: {:function, "add_uco_transfer", {:actions, _}}}}
        )
        when is_binary(address) do
