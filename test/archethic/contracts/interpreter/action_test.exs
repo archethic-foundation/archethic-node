@@ -318,7 +318,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
       authorization_date: DateTime.utc_now()
     })
 
-    address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+    # seed for replacement address 64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4
+    address = "000077003155E556981870BAEA665910C98679AE501598D11640FE37F58F72B3F06F"
     b_address = Base.decode16!(address)
 
     MockClient
@@ -329,8 +330,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
     assert %Transaction{data: %TransactionData{content: "yes"}} =
              ~s"""
              actions triggered_by: transaction do
-               address = get_genesis_address("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
-               if address == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" do
+               address = get_genesis_address("000077003155E556981870BAEA665910C98679AE501598D11640FE37F58F72B3F06F")
+               if address == "000077003155E556981870BAEA665910C98679AE501598D11640FE37F58F72B3F06F" do
                  set_content "yes"
                else
                  set_content "no"

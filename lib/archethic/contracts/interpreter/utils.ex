@@ -544,4 +544,85 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   defp metadata_to_string(line: line, column: column), do: "L#{line}:C#{column}"
   defp metadata_to_string(line: line), do: "L#{line}"
   defp metadata_to_string(_), do: ""
+
+  @doc """
+  Gets an valid address as true binary from string term or from true binary <<>>.
+  Multiple branching required, ecto type impl adopted. May use ecto itself.String
+  are binary encode terms, and so are true binary.To differentiate between the two,
+  we check if the string is printable.
+  """
+  def get_address(address, context) do
+    %{data: address, error: errors} =
+      %{data: address, error: [], type: nil}
+      |> term_or_binary()
+      |> validate_hex()
+      |> from_hex()
+      |> validate_address(:archethic)
+
+    case errors do
+      [] ->
+        address
+
+      [error] ->
+        raise "#{inspect(context)}: [Invalid Address], Error: [#{error}]"
+    end
+  end
+
+  @doc """
+  Determine if a binary is a true binary created with <<>> or a string encoded as binary.
+  Check if it contains only printable characters.
+  """
+
+  def term_or_binary(_map = %{data: data, error: []}) do
+    case String.printable?(data) do
+      true -> %{data: data, type: :string_encoded_binary, error: []}
+      false -> %{data: data, type: :true_binary, error: []}
+    end
+  end
+
+  @doc """
+  Determine if a string encoded binary is a valid hexadecimal.
+  """
+
+  def validate_hex(map = %{data: data, type: :string_encoded_binary, error: []}) do
+    case String.match?(data, ~r/^[[:xdigit:]]+$/) do
+      true -> map
+      _ -> %{data: data, error: ["Invalid Hex"]}
+    end
+  end
+
+  def validate_hex(map), do: map
+
+  @doc """
+  Decode a string encoded binary to a true binary.
+  """
+  @spec from_hex(
+          _map :: %{
+            data: data :: binary(),
+            type: :true_binary | :string_encoded_binary,
+            error: [any()]
+          }
+        ) ::
+          %{data: data :: binary(), type: :true_binary | :string_encoded_binary, error: [any()]}
+  def from_hex(map = %{data: string, type: :string_encoded_binary, error: []}) do
+    case Base.decode16(string, case: :mixed) do
+      {:ok, data_bin} -> %{map | data: data_bin}
+      _ -> %{map | error: ["Decode Error"]}
+    end
+  end
+
+  def from_hex(map), do: map
+
+  @doc """
+  Determine if a true binary is a AE valid address.
+  """
+
+  def validate_address(map = %{data: bin, type: _, error: []}, :archethic) do
+    case Archethic.Crypto.valid_address?(bin) do
+      true -> map
+      false -> %{map | error: ["Not a AE Protocol Address"]}
+    end
+  end
+
+  def validate_address(map, _protocol), do: map
 end
