@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
   def project do
     [
       app: :archethic,
-      version: "1.0.7-rc1",
+      version: "1.0.7-rc2",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
@@ -108,7 +108,9 @@ defmodule Archethic.MixProject do
       {:pathex, "~> 2.4"},
       {:easy_ssl, "~> 1.3"},
       {:castore, "~> 0.1"},
-      {:floki, "~> 0.33"}
+      {:floki, "~> 0.33"},
+      {:ex_cldr, "~> 2.7"},
+      {:ex_cldr_numbers, "~> 2.29"}
     ]
   end
 
