@@ -741,10 +741,10 @@ defmodule Archethic.TransactionChain do
   defp do_stream_chain(nodes, address, paging_state, size) do
     case do_fetch_transaction_chain(nodes, address, paging_state) do
       {transactions, false, _} ->
-        {[transactions], {:end, size + length(transactions)}}
+        {transactions, {:end, size + length(transactions)}}
 
       {transactions, true, paging_state} ->
-        {[transactions], {address, paging_state, size + length(transactions)}}
+        {transactions, {address, paging_state, size + length(transactions)}}
     end
   end
 
@@ -970,24 +970,11 @@ defmodule Archethic.TransactionChain do
 
   @doc """
   Retrieve the last transaction address for a chain stored locally
-  It queries the the network for genesis address
   """
-  @spec get_last_local_address(address :: binary()) :: binary() | nil
-  def get_last_local_address(address) when is_binary(address) do
-    case fetch_genesis_address_remotely(address) do
-      {:ok, genesis_address} ->
-        last_stored_address = get_last_stored_address(genesis_address)
-
-        if last_stored_address == genesis_address, do: nil, else: last_stored_address
-
-      _ ->
-        nil
-    end
-  end
-
-  defp get_last_stored_address(genesis_address) do
+  @spec get_last_stored_address(genesis_address :: binary()) :: binary() | nil
+  def get_last_stored_address(genesis_address) do
     list_chain_addresses(genesis_address)
-    |> Enum.reduce_while(genesis_address, fn {address, _}, acc ->
+    |> Enum.reduce_while(nil, fn {address, _}, acc ->
       if transaction_exists?(address), do: {:cont, address}, else: {:halt, acc}
     end)
   end
@@ -996,11 +983,9 @@ defmodule Archethic.TransactionChain do
   Retrieve the genesis address for a chain from P2P Quorom
   It queries the the network for genesis address
   """
-  @spec fetch_genesis_address_remotely(address :: binary()) ::
+  @spec fetch_genesis_address_remotely(address :: binary(), list(Node.t())) ::
           {:ok, binary()} | {:error, :network_issue}
-  def fetch_genesis_address_remotely(address) when is_binary(address) do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
+  def fetch_genesis_address_remotely(address, nodes) when is_binary(address) do
     case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}) do
       {:ok, %GenesisAddress{address: genesis_address}} ->
         {:ok, genesis_address}

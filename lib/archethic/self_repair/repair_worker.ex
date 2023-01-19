@@ -13,6 +13,7 @@ defmodule Archethic.SelfRepair.RepairWorker do
   alias Archethic.SelfRepair.RepairRegistry
 
   use GenServer, restart: :transient
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 

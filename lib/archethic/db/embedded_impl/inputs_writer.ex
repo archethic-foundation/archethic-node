@@ -4,6 +4,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
   There will be many files
   """
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.DB.EmbeddedImpl
   alias Archethic.TransactionChain.VersionedTransactionInput

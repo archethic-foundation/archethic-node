@@ -138,7 +138,7 @@ defmodule ArchethicWeb.SettingsLive do
               <%= if @sending do %>
                 <button class="button is-link is-loading" disabled>Save</button>
               <% else %>
-                <submit class="button is-link">Save</submit>
+                <button class="button is-link">Save</button>
               <% end %>
             </div>
           </div>
