@@ -8,6 +8,8 @@ defmodule ArchethicWeb.AEWebRouter do
     plug(:fetch_session)
     plug(:fetch_live_flash)
     plug(:put_secure_browser_headers)
+    plug(ArchethicWeb.PlugThrottleByIPHigh)
+    plug(ArchethicWeb.PlugThrottleByIPandPath)
   end
 
   scope "/", ArchethicWeb do

@@ -57,7 +57,6 @@ defmodule ArchethicWeb.Endpoint do
   plug(Plug.Session, @session_options)
   plug(CORSPlug, origin: "*")
   plug(ArchethicWeb.RouterDispatch)
-
   # don't serve anything before the node is bootstraped
   #
   # ps: this handle only HTTP(S) requests
