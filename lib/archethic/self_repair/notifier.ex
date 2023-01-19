@@ -36,6 +36,7 @@ defmodule Archethic.SelfRepair.Notifier do
   }
 
   use GenServer, restart: :temporary
+  @vsn Mix.Project.config()[:version]
 
   require Logger
 
