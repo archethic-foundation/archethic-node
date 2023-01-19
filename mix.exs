@@ -108,7 +108,7 @@ defmodule Archethic.MixProject do
       {:pathex, "~> 2.4"},
       {:easy_ssl, "~> 1.3"},
       {:castore, "~> 1.0", override: true},
-      {:floki, "~> 0.33"}
+      {:floki, "~> 0.33"},
       {:ex_cldr, "~> 2.7"},
       {:ex_cldr_numbers, "~> 2.29"}
     ]
