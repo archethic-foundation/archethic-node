@@ -18,10 +18,10 @@ defmodule Archethic.OracleChain.Supervisor do
     scheduler_conf = Application.get_env(:archethic, Scheduler)
 
     children = [
+      CachesManager,
       MemTable,
       MemTableLoader,
-      {Scheduler, scheduler_conf},
-      CachesManager
+      {Scheduler, scheduler_conf}
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)
