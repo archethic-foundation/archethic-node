@@ -812,20 +812,80 @@ defmodule Archethic.Utils do
 
   ## Examples
 
+      iex> Utils.number_of_possible_reward_occurences_per_month_for_a_year("0 0 2 * * * *")
+      %{
+        0 => 29,
+        1 => 31,
+        2 => 28,
+        3 => 31,
+        4 => 30,
+        5 => 31,
+        6 => 30,
+        7 => 31,
+        8 => 31,
+        9 => 30,
+        10 => 31,
+        11 => 30,
+        12 => 31
+      }
+  """
+  @spec number_of_possible_reward_occurences_per_month_for_a_year(String.t()) :: map
+  def number_of_possible_reward_occurences_per_month_for_a_year(
+        interval \\ Application.get_env(:archethic, RewardScheduler)[:interval]
+      ) do
+    normal_year = [
+      ~N[2023-01-01 00:00:00.000000],
+      ~N[2023-02-01 00:00:00.000000],
+      ~N[2023-03-01 00:00:00.000000],
+      ~N[2023-04-01 00:00:00.000000],
+      ~N[2023-05-01 00:00:00.000000],
+      ~N[2023-06-01 00:00:00.000000],
+      ~N[2023-07-01 00:00:00.000000],
+      ~N[2023-08-01 00:00:00.000000],
+      ~N[2023-09-01 00:00:00.000000],
+      ~N[2023-10-01 00:00:00.000000],
+      ~N[2023-11-01 00:00:00.000000],
+      ~N[2023-12-01 00:00:00.000000]
+    ]
+
+    leap_year_february = ~N[2024-02-01 00:00:00.000000]
+
+    months = normal_year ++ [leap_year_february]
+
+    months
+    |> Task.async_stream(fn date ->
+      key =
+        if Date.leap_year?(date) do
+          0
+        else
+          date.month
+        end
+
+      {key, number_of_reward_occurences_per_month(interval, date)}
+    end)
+    |> Stream.map(fn {:ok, v} -> v end)
+    |> Map.new()
+  end
+
+  @doc """
+  Return the number of occurences for the cron job over the month
+
+  ## Examples
+
       iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-11-01 00:00:00.000000])
       30
 
       iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-12-01 00:00:00.000000])
       31
 
-      iex> Utils.number_of_reward_occurences_per_month("0 */5 * * * * *", ~N[2022-11-01 00:00:00.000000])
-      8640
+      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2022-02-01 00:00:00.000000])
+      28
+
+      iex> Utils.number_of_reward_occurences_per_month("0 0 2 * * * *", ~N[2024-02-01 00:00:00.000000])
+      29
   """
   @spec number_of_reward_occurences_per_month(String.t(), NaiveDateTime.t()) :: non_neg_integer()
-  def number_of_reward_occurences_per_month(
-        interval \\ Application.get_env(:archethic, RewardScheduler)[:interval],
-        current_datetime \\ NaiveDateTime.utc_now()
-      ) do
+  def number_of_reward_occurences_per_month(interval, current_datetime) do
     time = fn
       true -> " 00:00:00Z"
       false -> " 23:59:59Z"
