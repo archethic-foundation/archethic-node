@@ -73,6 +73,11 @@ defmodule ArchethicWeb.ExplorerRouter do
   end
 
   scope "/api" do
+    pipe_through(:unrestricted_api)
+    get("/web_hosting/:address/*url_path", ArchethicWeb.API.WebHostingController, :web_hosting)
+  end
+
+  scope "/api" do
     pipe_through(:api)
 
     get(
@@ -97,11 +102,6 @@ defmodule ArchethicWeb.ExplorerRouter do
       Absinthe.Plug,
       schema: ArchethicWeb.GraphQLSchema
     )
-  end
-
-  scope "/api" do
-    pipe_through(:unrestricted_api)
-    get("/web_hosting/:address/*url_path", ArchethicWeb.API.WebHostingController, :web_hosting)
   end
 
   live_session :settings, session: {ArchethicWeb.WebUtils, :keep_remote_ip, []} do
