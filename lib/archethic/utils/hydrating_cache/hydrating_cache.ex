@@ -67,8 +67,8 @@ defmodule Archethic.Utils.HydratingCache do
     - If `key` is not associated with any function, return `{:error,
       :not_registered}`
   """
-  @spec get(pid(), any(), non_neg_integer(), Keyword.t()) :: result
-  def get(cache, key, timeout \\ 30_000, _opts \\ [])
+  @spec get(atom(), any(), non_neg_integer(), Keyword.t()) :: result
+  def get(cache, key, timeout \\ 3_000, _opts \\ [])
       when is_integer(timeout) and timeout > 0 do
     Logger.debug("Getting key #{inspect(key)} from hydrating cache #{inspect(cache)}")
 
