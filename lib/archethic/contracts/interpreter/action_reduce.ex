@@ -72,6 +72,14 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
     {node, acc}
   end
 
+  # Whitelist variable assignation inside the reduce
+  def prewalk(
+        node = {:=, _, _},
+        acc
+      ) do
+    {node, acc}
+  end
+
   # Whitelist every utils function inside the reducer
   def prewalk(node, acc) do
     Archethic.Contracts.Interpreter.Utils.prewalk(node, acc)
