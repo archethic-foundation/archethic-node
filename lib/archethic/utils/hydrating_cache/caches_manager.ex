@@ -28,6 +28,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
     This is an asynchronous call, it will return immediately.
   """
   def new_service_async(name, keys) do
+    IO.inspect("Starting new service #{name}")
     GenServer.cast(__MODULE__, {:new_service_async, name, keys, self()})
   end
 

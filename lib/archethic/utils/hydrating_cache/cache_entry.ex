@@ -3,15 +3,17 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry.StateData do
   Struct describing the state of a cache entry FSM
   """
 
-  defstruct running_func_task: :undefined,
-            hydrating_func: :undefined,
-            getters: [],
-            ttl: :undefined,
-            refresh_interval: :undefined,
-            key: :undefined,
-            value: :"$$undefined",
-            timer_func: :undefined,
-            timer_discard: :undefined
+  defstruct([
+    :running_func_task,
+    :hydrating_func,
+    :ttl,
+    :refresh_interval,
+    :key,
+    :timer_func,
+    :timer_discard,
+    getters: [],
+    value: :"$$undefined"
+  ])
 end
 
 defmodule Archethic.Utils.HydratingCache.CacheEntry do
@@ -54,7 +56,6 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
   @impl :gen_statem
   def handle_event({:call, from}, {:get, _from}, :idle, data) do
-    IO.puts("==> Get in idle state")
     ## Value is requested while fsm is iddle, return the value
     {:next_state, :idle, data, [{:reply, from, data.value}]}
   end
