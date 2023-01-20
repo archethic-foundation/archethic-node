@@ -56,6 +56,58 @@ defmodule Archethic.Contracts.Interpreter.Library do
     end
   end
 
+  @doc """
+  Extract data from string using capture groups
+
+  ## Examples
+
+      iex> Library.regex_scan("foo", "bar")
+      []
+
+      iex> Library.regex_scan("toto,123\\ntutu,456\\n", "toto,([0-9]+)")
+      ["123"]
+
+      iex> Library.regex_scan("toto,123\\ntutu,456\\n", "t.t.,([0-9]+)")
+      ["123", "456"]
+  """
+  @spec regex_scan(binary(), binary()) :: list(binary())
+  def regex_scan(text, pattern) when is_binary(text) and is_binary(pattern) do
+    case Regex.compile(pattern) do
+      {:ok, pattern} ->
+        Regex.scan(pattern, text, capture: :all_but_first)
+        |> Enum.map(fn
+          [item] -> item
+          other -> other
+        end)
+
+      _ ->
+        []
+    end
+  end
+
+  @doc """
+  Return the text where all matches of pattern are replaced by the replacement.
+
+  ## Examples
+
+    iex> Library.regex_replace("toto,123\\ntutu,456\\n", "toto,123\\n", "toto,789\\n")
+    "toto,789\\ntutu,456\\n"
+
+    iex> Library.regex_replace("toto,123\\ntutu,456\\n", "toto,123\\n", "")
+    "tutu,456\\n"
+
+  """
+  @spec regex_replace(binary(), binary(), binary()) :: binary()
+  def regex_replace(text, pattern, replacement) do
+    case Regex.compile(pattern) do
+      {:ok, pattern} ->
+        Regex.replace(pattern, text, replacement)
+
+      _ ->
+        text
+    end
+  end
+
   @doc ~S"""
   Extract data from a JSON path expression
 
