@@ -9,7 +9,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   @publickey2 Crypto.generate_deterministic_keypair("seed3")
 
   alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SubsetRegistry
 
@@ -35,6 +34,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ValidateTransaction
+  alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain
@@ -901,7 +901,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %ReplicateTransactionChain{}, _ ->
           {:ok, %Ok{}}
 
-        _, %ReplicationAttestation{}, _ ->
+        _, %ReplicationAttestationMessage{}, _ ->
           send(me, :replication_done)
           {:ok, %Ok{}}
       end)

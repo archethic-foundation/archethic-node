@@ -25,6 +25,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.P2P.Client
   alias Archethic.P2P.Message.NewBeaconSlot
   alias Archethic.P2P.Message.BeaconUpdate
+  alias Archethic.P2P.Message.TransactionSummaryMessage
 
   alias Archethic.PubSub
 
@@ -252,6 +253,8 @@ defmodule Archethic.BeaconChain.Subset do
        }) do
     PubSub.notify_transaction_attestation(tx_summary)
 
+    tx_summary_message = TransactionSummaryMessage.from_transaction_summary(tx_summary)
+
     # Do not notify beacon storage nodes as they are already aware of the transaction
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
@@ -264,7 +267,7 @@ defmodule Archethic.BeaconChain.Subset do
     nodes
     |> P2P.get_nodes_info()
     |> Enum.reject(&Enum.member?(beacon_storage_nodes, &1.first_public_key))
-    |> P2P.broadcast_message(tx_summary)
+    |> P2P.broadcast_message(tx_summary_message)
   end
 
   defp handle_slot(

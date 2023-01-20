@@ -57,6 +57,7 @@ defmodule Archethic.MixProject do
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.9"},
       {:websockex, "~> 0.4"},
+      {:plug_attack, "~> 0.4.3"},
 
       # Dev
       {:benchee, "~> 1.1"},
@@ -107,7 +108,7 @@ defmodule Archethic.MixProject do
       {:ex_json_schema, "~> 0.9", override: true},
       {:pathex, "~> 2.4"},
       {:easy_ssl, "~> 1.3"},
-      {:castore, "~> 0.1"},
+      {:castore, "~> 1.0", override: true},
       {:floki, "~> 0.33"},
       {:ex_cldr, "~> 2.7"},
       {:ex_cldr_numbers, "~> 2.29"}
