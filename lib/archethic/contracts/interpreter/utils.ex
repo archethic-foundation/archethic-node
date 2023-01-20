@@ -236,6 +236,22 @@ defmodule Archethic.Contracts.Interpreter.Utils do
       when scope != :root,
       do: {node, acc}
 
+  # Whitelist the regex_scan/2 function
+  def prewalk(
+        node = {{:atom, "regex_scan"}, _, [_input, _search]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root,
+      do: {node, acc}
+
+  # Whitelist the regex_replace/2 function
+  def prewalk(
+        node = {{:atom, "regex_replace"}, _, [_input, _search, _replacement]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root,
+      do: {node, acc}
+
   # Whitelist the json_path_extract/2 function
   def prewalk(
         node = {{:atom, "json_path_extract"}, _, [_input, _search]},
