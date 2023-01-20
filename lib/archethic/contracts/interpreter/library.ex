@@ -72,13 +72,14 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec regex_scan(binary(), binary()) :: list(binary())
   def regex_scan(text, pattern) when is_binary(text) and is_binary(pattern) do
-    with {:ok, pattern} <- Regex.compile(pattern) do
-      Regex.scan(pattern, text, capture: :all_but_first)
-      |> Enum.map(fn
-        [item] -> item
-        other -> other
-      end)
-    else
+    case Regex.compile(pattern) do
+      {:ok, pattern} ->
+        Regex.scan(pattern, text, capture: :all_but_first)
+        |> Enum.map(fn
+          [item] -> item
+          other -> other
+        end)
+
       _ ->
         []
     end
@@ -98,9 +99,10 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec regex_replace(binary(), binary(), binary()) :: binary()
   def regex_replace(text, pattern, replacement) do
-    with {:ok, pattern} <- Regex.compile(pattern) do
-      Regex.replace(pattern, text, replacement)
-    else
+    case Regex.compile(pattern) do
+      {:ok, pattern} ->
+        Regex.replace(pattern, text, replacement)
+
       _ ->
         text
     end
