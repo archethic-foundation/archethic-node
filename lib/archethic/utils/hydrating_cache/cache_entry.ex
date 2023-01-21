@@ -39,7 +39,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   @impl :gen_statem
   def init([fun, key, ttl, refresh_interval]) do
     timer = :timer.send_interval(refresh_interval, self(), :hydrate)
-
+    Logger.debug("Cache entry started for key #{inspect(key)}")
     ## Hydrate the value
     {:ok, :running,
      %CacheEntry.StateData{
@@ -55,30 +55,57 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   def callback_mode, do: [:handle_event_function, :state_enter]
 
   @impl :gen_statem
-  def handle_event({:call, from}, {:get, _from}, :idle, data) do
+
+  def handle_event(
+        {:call, from},
+        {:get, _requester},
+        :idle,
+        data = %CacheEntry.StateData{:value => :"$$undefined"}
+      ) do
+    IO.puts("Cache entry Call: value for key #{inspect(data.key)} when idle and no value")
+    ## Value is requested while fsm is iddle, return the value
+
+    {:keep_state, data, [{:reply, from, {:error, :not_initialized}}]}
+  end
+
+  def handle_event({:call, from}, {:get, _requester}, :idle, data) do
+    IO.puts("Cache entry Call: value for key #{inspect(data.key)} is requested while idle")
     ## Value is requested while fsm is iddle, return the value
     {:next_state, :idle, data, [{:reply, from, data.value}]}
   end
 
-  def handle_event(:cast, {:get, from}, :idle, data) do
+  def handle_event(:cast, {:get, requester}, :idle, data) do
+    IO.puts("Cache entry Cast: value for key #{inspect(data.key)} is requested while idle")
     ## Value is requested while fsm is iddle, return the value
-    send(from, {:ok, data.value})
+    send(requester, {:ok, data.value})
     {:next_state, :idle, data}
   end
 
   ## Call for value while hydrating function is running and we have no previous value
   ## We register the caller to send value later on, and we indicate caller to block
-  def handle_event({:call, _from}, {:get, from}, :running, data)
-      when data.value == :"$$undefined" do
+  def handle_event(
+        {:call, from},
+        {:get, requester},
+        :running,
+        data = %CacheEntry.StateData{value: :"$$undefined"}
+      ) do
+    IO.puts(
+      "Cache entry Call: value for key #{inspect(data.key)} is requested while running and no value #{inspect(requester)} self:#{inspect(self())}"
+    )
+
     previous_getters = data.getters
 
-    {:keep_state, %CacheEntry.StateData{data | getters: previous_getters ++ [from]},
+    {:keep_state, %CacheEntry.StateData{data | getters: previous_getters ++ [requester]},
      [{:reply, from, {:ok, :answer_delayed}}]}
   end
 
   ## Call for value while hydrating function is running and we have a previous value
   ## We return the value to caller
-  def handle_event({:call, from}, {:get, _from}, :running, data) do
+  def handle_event({:call, from}, {:get, _requester}, :running, data) do
+    IO.puts(
+      "Cache entry Call: value for key #{inspect(data.key)} is requested while running and value"
+    )
+
     {:next_state, :running, data, [{:reply, from, data.value}]}
   end
 
@@ -125,7 +152,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   end
 
   def handle_event({:call, from}, {:register, fun, key, ttl, refresh_interval}, _state, data) do
-    IO.puts("Registering new hydrating function #{inspect(fun)} for key #{inspect(key)}")
+    Logger.info("Registering new hydrating function #{inspect(fun)} for key #{inspect(key)}")
     ## Setting hydrating function in other cases
     ## Hydrating function not running, we just stop the timers
     _ = :timer.cancel(data.timer_func)
