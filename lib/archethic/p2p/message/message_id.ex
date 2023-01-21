@@ -25,6 +25,8 @@ defmodule Archethic.P2P.MessageId do
     GetTransactionChainLength,
     GetP2PView,
     GetFirstPublicKey,
+    GetFirstTransactionAddress,
+    FirstTransactionAddress,
     NotifyLastTransactionAddress,
     GetTransactionSummary,
     Ping,
@@ -102,7 +104,7 @@ defmodule Archethic.P2P.MessageId do
   def id_to_module(21), do: GetLastTransactionAddress
   def id_to_module(22), do: NotifyLastTransactionAddress
   def id_to_module(23), do: GetTransactionSummary
-  # id 24 is available for a new message
+  def id_to_module(24), do: GetFirstTransactionAddress
   def id_to_module(25), do: Ping
   def id_to_module(26), do: GetBeaconSummary
   def id_to_module(27), do: NewBeaconSlot
@@ -119,6 +121,7 @@ defmodule Archethic.P2P.MessageId do
   def id_to_module(38), do: NotifyReplicationValidation
 
   # Responses
+  def id_to_module(228), do: FirstTransactionAddress
   def id_to_module(229), do: AddressList
   def id_to_module(230), do: ShardRepair
   def id_to_module(231), do: SummaryAggregate
@@ -172,7 +175,7 @@ defmodule Archethic.P2P.MessageId do
   def module_to_id(GetLastTransactionAddress), do: 21
   def module_to_id(NotifyLastTransactionAddress), do: 22
   def module_to_id(GetTransactionSummary), do: 23
-  # id 24 is available for a new message
+  def module_to_id(GetFirstTransactionAddress), do: 24
   def module_to_id(Ping), do: 25
   def module_to_id(GetBeaconSummary), do: 26
   def module_to_id(NewBeaconSlot), do: 27
@@ -189,6 +192,7 @@ defmodule Archethic.P2P.MessageId do
   def module_to_id(NotifyReplicationValidation), do: 38
 
   # Responses
+  def module_to_id(FirstTransactionAddress), do: 228
   def module_to_id(AddressList), do: 229
   def module_to_id(ShardRepair), do: 230
   def module_to_id(SummaryAggregate), do: 231

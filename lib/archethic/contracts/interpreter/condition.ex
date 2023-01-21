@@ -263,6 +263,14 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     {node, acc}
   end
 
+  # Whitelist the get_first_transaction_address/0 function in condition
+  defp prewalk(
+         node = {{:atom, "get_first_transaction_address"}, _, []},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
   # Whitelist the get_genesis_public_key/0 function in condition
   defp prewalk(
          node = {{:atom, "get_genesis_public_key"}, _, []},

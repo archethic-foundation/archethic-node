@@ -18,6 +18,8 @@ defmodule Archethic.TransactionChain do
     Error,
     GenesisAddress,
     GetGenesisAddress,
+    GenesisAddress,
+    GetGenesisAddress,
     GetLastTransactionAddress,
     GetNextAddresses,
     GetTransaction,
@@ -30,7 +32,9 @@ defmodule Archethic.TransactionChain do
     TransactionChainLength,
     TransactionInputList,
     TransactionList,
-    UnspentOutputList
+    UnspentOutputList,
+    GetFirstTransactionAddress,
+    FirstTransactionAddress
   }
 
   alias __MODULE__.MemTables.KOLedger
@@ -260,6 +264,37 @@ defmodule Archethic.TransactionChain do
   def get_last_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
     {address, _} = get_last_address(address)
     get_transaction(address, fields)
+  end
+
+  @doc """
+  Get the first transaction from a given chain address
+  """
+  @spec get_first_transaction(binary(), list()) ::
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+  def get_first_transaction(address, fields \\ []) when is_binary(address) do
+    case get_first_transaction_address(address) do
+      {:ok, address} -> get_transaction(address, fields)
+      {:error, :transaction_not_exists} -> {:error, :transaction_not_exists}
+    end
+  end
+
+  @doc """
+  Get the first transaction Address from a genesis/chain address
+  """
+  @spec get_first_transaction_address(address :: binary()) ::
+          {:ok, address :: binary()} | {:error, :transaction_not_exists}
+  def get_first_transaction_address(address) when is_binary(address) do
+    address_list =
+      address
+      |> get_genesis_address()
+      |> list_chain_addresses()
+      |> Enum.at(0)
+
+    case address_list do
+      nil -> {:error, :transaction_not_exists}
+      [] -> {:error, :transaction_not_exists}
+      {address, _datetime} -> {:ok, address}
+    end
   end
 
   @doc """
@@ -979,9 +1014,16 @@ defmodule Archethic.TransactionChain do
     end)
   end
 
+  @spec fetch_genesis_address_remotely(address :: binary()) ::
+          {:ok, binary()} | {:error, :network_issue}
+  def fetch_genesis_address_remotely(address) when is_binary(address) do
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    fetch_genesis_address_remotely(address, nodes)
+  end
+
   @doc """
   Retrieve the genesis address for a chain from P2P Quorom
-  It queries the the network for genesis address
+  It queries the the network for genesis address.
   """
   @spec fetch_genesis_address_remotely(address :: binary(), list(Node.t())) ::
           {:ok, binary()} | {:error, :network_issue}
@@ -989,6 +1031,26 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}) do
       {:ok, %GenesisAddress{address: genesis_address}} ->
         {:ok, genesis_address}
+
+      _ ->
+        {:error, :network_issue}
+    end
+  end
+
+  @doc """
+  Retrieve the First transaction address for a chain from P2P Quorom
+  """
+  @spec fetch_first_transaction_address_remotely(address :: binary()) ::
+          {:ok, binary()} | {:error, :network_issue}
+  def fetch_first_transaction_address_remotely(address) when is_binary(address) do
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    case P2P.quorum_read(nodes, %GetFirstTransactionAddress{address: address}) do
+      {:ok, %FirstTransactionAddress{address: ^address}} ->
+        {:ok, :not_exists}
+
+      {:ok, %FirstTransactionAddress{address: first_address}} ->
+        {:ok, first_address}
 
       _ ->
         {:error, :network_issue}

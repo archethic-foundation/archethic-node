@@ -17,6 +17,8 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetFirstTransactionAddress
+  alias Archethic.P2P.Message.FirstTransactionAddress
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -674,6 +676,163 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       assert {:ok, 2} = TransactionChain.fetch_size_remotely("Alice1", nodes)
+    end
+  end
+
+  describe "fetch_first_address_remotely" do
+    test "when first txn exists" do
+      nodes = [
+        %Node{
+          first_public_key: "node1",
+          last_public_key: "node1",
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          available?: true,
+          availability_history: <<1::1>>,
+          authorized?: true,
+          geo_patch: "AAA",
+          authorization_date: DateTime.utc_now()
+        },
+        %Node{
+          first_public_key: "node2",
+          last_public_key: "node2",
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          availability_history: <<1::1>>,
+          geo_patch: "AAA",
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
+        },
+        %Node{
+          first_public_key: "node3",
+          last_public_key: "node3",
+          geo_patch: "AAA",
+          ip: {127, 0, 0, 1},
+          port: 3002,
+          availability_history: <<1::1>>,
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
+        }
+      ]
+
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
+
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetFirstTransactionAddress{address: "addr2"}, _ ->
+          {:ok, %FirstTransactionAddress{address: "addr1"}}
+      end)
+
+      assert {:ok, "addr1"} = TransactionChain.fetch_first_transaction_address_remotely("addr2")
+    end
+
+    test "when asked from genesis address" do
+      nodes = [
+        %Node{
+          first_public_key: "node1",
+          last_public_key: "node1",
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          available?: true,
+          availability_history: <<1::1>>,
+          authorized?: true,
+          geo_patch: "AAA",
+          authorization_date: DateTime.utc_now()
+        },
+        %Node{
+          first_public_key: "node2",
+          last_public_key: "node2",
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          availability_history: <<1::1>>,
+          geo_patch: "AAA",
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
+        },
+        %Node{
+          first_public_key: "node3",
+          last_public_key: "node3",
+          geo_patch: "AAA",
+          ip: {127, 0, 0, 1},
+          port: 3002,
+          availability_history: <<1::1>>,
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
+        }
+      ]
+
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
+
+      MockClient
+      |> expect(:send_message, fn
+        %Node{
+          first_public_key: "node1"
+        },
+        %GetFirstTransactionAddress{address: "addr0"},
+        _ ->
+          {:ok, %FirstTransactionAddress{address: "addr0"}}
+
+        %Node{
+          first_public_key: "node2"
+        },
+        %GetFirstTransactionAddress{address: "addr0"},
+        _ ->
+          %Archethic.P2P.Message.NotFound{}
+
+        %Node{
+          first_public_key: "node3"
+        },
+        %GetFirstTransactionAddress{address: "addr0"},
+        _ ->
+          {:ok, %FirstTransactionAddress{address: "addr0"}}
+      end)
+
+      assert {:ok, :not_exists} =
+               TransactionChain.fetch_first_transaction_address_remotely("addr0")
+    end
+  end
+
+  describe "First Tx" do
+    setup do
+      MockDB
+      |> stub(:get_genesis_address, fn
+        "not_existing_address" ->
+          "not_existing_address"
+
+        "addr10" ->
+          "addr0"
+      end)
+      |> stub(:list_chain_addresses, fn
+        "not_existing_address" ->
+          []
+
+        "addr0" ->
+          [
+            {"addr1", DateTime.utc_now() |> DateTime.add(-2000)},
+            {"addr2", DateTime.utc_now() |> DateTime.add(-1000)},
+            {"addr3", DateTime.utc_now() |> DateTime.add(-500)}
+          ]
+      end)
+      |> stub(:get_transaction, fn "addr1", _ ->
+        {:ok, %Transaction{address: "addr1"}}
+      end)
+
+      :ok
+    end
+
+    test "get_first_transaction/2" do
+      assert {:ok, %Transaction{address: "addr1"}} =
+               TransactionChain.get_first_transaction("addr10")
+
+      assert {:error, :transaction_not_exists} =
+               TransactionChain.get_first_transaction("not_existing_address")
+    end
+
+    test "get_first_transaction_address/2" do
+      assert {:ok, "addr1"} = TransactionChain.get_first_transaction_address("addr10")
+
+      assert {:error, :transaction_not_exists} =
+               TransactionChain.get_first_transaction_address("not_existing_address")
     end
   end
 end
