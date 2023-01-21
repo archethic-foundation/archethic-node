@@ -81,6 +81,8 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
       start: {HydratingCache, :start_link, [name, keys]}
     })
 
+    Logger.info("Started new service #{name}")
+
     {:noreply, state}
   end
 
