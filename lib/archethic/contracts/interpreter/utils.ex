@@ -20,6 +20,8 @@ defmodule Archethic.Contracts.Interpreter.Utils do
                                                 )
                                                 |> Enum.into(%{})
 
+  @supported_hash Archethic.Crypto.list_supported_hash_functions(:string)
+
   @transaction_fields [
     "address",
     "type",
@@ -215,9 +217,14 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
-  # Whitelist the hash/1 function
-  def prewalk(node = {{:atom, "hash"}, _, [_data]}, acc = {:ok, %{scope: scope}})
-      when scope != :root,
+  # Whitelist the hash/2 function
+  def prewalk(node = {{:atom, "hash"}, _, [_data, algo]}, acc = {:ok, %{scope: scope}})
+      when scope != :root and algo in @supported_hash,
+      do: {node, acc}
+
+  # Whitelist the hash/2 function
+  def prewalk(node = {{:atom, "hash"}, _, [_data, algo]}, acc = {:ok, %{scope: scope}})
+      when scope != :root and algo in @supported_hash,
       do: {node, acc}
 
   # Whitelist the regex_match?/2 function

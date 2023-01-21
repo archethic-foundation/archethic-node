@@ -1315,4 +1315,9 @@ defmodule Archethic.Crypto do
   def authorized_key_origin?(<<_::8, _::8, _::binary>>, []) do
     true
   end
+
+  @supported_hashes Application.compile_env(:archethic, [__MODULE__, :supported_hashes])
+  def list_supported_hash_functions(), do: @supported_hashes
+  @string_hashes Enum.map(@supported_hashes, &Atom.to_string/1)
+  def list_supported_hash_functions(:string), do: @string_hashes
 end

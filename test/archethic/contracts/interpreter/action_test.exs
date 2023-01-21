@@ -343,4 +343,44 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
              |> elem(2)
              |> ActionInterpreter.execute()
   end
+
+  describe "Hash in action" do
+    test "Hash/2 blake2b" do
+      assert %Transaction{data: %TransactionData{content: "yes"}} =
+               ~s"""
+               actions triggered_by: transaction do
+                 address = hash("hello darkness ","blake2b")
+                 if address == "CCFF7E67D673C76E3AAA242BF6B726DD75EF1C5AA201A527CFC76754B23AE0EAF83960DFC9377C4EDA7CF25EF3A9D0E66B54A3993F8AC2ECB5CA9CBDB79454F7" do
+                   set_content "yes"
+                 else
+                   set_content "no"
+                 end
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+               |> elem(2)
+               |> ActionInterpreter.execute()
+    end
+
+    test "Hash/1" do
+      assert %Transaction{data: %TransactionData{content: "yes"}} =
+               ~s"""
+               actions triggered_by: transaction do
+                 address = hash("hello darkness ")
+                 if address == "E96FC07DD7B9EE9CDA01DF26DC9AFA78388EB33B12FDB8619C27BEAA3130CF18" do
+                   set_content "yes"
+                 else
+                   set_content "no"
+                 end
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+               |> elem(2)
+               |> ActionInterpreter.execute()
+    end
+  end
 end
