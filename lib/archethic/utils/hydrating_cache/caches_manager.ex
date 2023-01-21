@@ -12,14 +12,16 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
   end
 
   @doc """
-    Start a new hydrating cache process to hold the values from a service.
-    This is a synchronous call, it will block until the cache is ready ( all keys are hydrated )
+  Start a new hydrating cache process to hold the values from a service.
+  This is a synchronous call, it will block until the cache is started and
+  hydrating process for initial keys is started.
   """
   @spec new_service_sync(
           name :: String.t(),
           initial_keys :: list()
         ) :: {:error, any} | {:ok, pid}
   def new_service_sync(name, initial_keys) do
+    Logger.info("Starting new service sync #{name}")
     GenServer.call(__MODULE__, {:new_service_sync, name, initial_keys})
   end
 
@@ -28,7 +30,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
     This is an asynchronous call, it will return immediately.
   """
   def new_service_async(name, keys) do
-    IO.inspect("Starting new service #{name}")
+    Logger.info("Starting new service async #{name}")
     GenServer.cast(__MODULE__, {:new_service_async, name, keys, self()})
   end
 
