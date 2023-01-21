@@ -81,20 +81,13 @@ config :archethic, Archethic.Utils.HydratingCache.CachesManager,
   uco_service: [
     {Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika, :fetch, [["usd", "eur"]],
-     3000},
+     30000},
     {Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-     Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko, :fetch, [["usd", "eur"]], 3000},
+     Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko, :fetch, [["usd", "eur"]],
+     30000},
     {Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap, :fetch, [["usd", "eur"]],
-     3000}
-  ],
-  coco_service: [
-    {:coin_paprika, Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika, :fetch,
-     [["usd", "eur"]], 3000},
-    {:coin_gecko, Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko, :fetch,
-     [["usd", "eur"]], 3000},
-    {:coin_market_cap, Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap, :fetch,
-     [["usd", "eur"]], 3000}
+     30000}
   ]
 
 config :archethic, Archethic.Governance.Pools,
