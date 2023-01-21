@@ -1,6 +1,7 @@
 defmodule Archethic.Utils.HydratingCache do
   @moduledoc """
   GenServer implementing the hydrating cache itself.
+  There should be one Hydrating per service ( ex : UCO price, meteo etc...)
   It receives queries from clients requesting the cache, and manage the cache entries FSMs
   """
   alias Archethic.Utils.HydratingCache.CacheEntry
@@ -70,7 +71,9 @@ defmodule Archethic.Utils.HydratingCache do
   @spec get(atom(), any(), non_neg_integer(), Keyword.t()) :: result
   def get(cache, key, timeout \\ 1_000, _opts \\ [])
       when is_integer(timeout) and timeout > 0 do
-    Logger.debug("Getting key #{inspect(key)} from hydrating cache #{inspect(cache)}")
+    Logger.debug(
+      "Getting key #{inspect(key)} from hydrating cache #{inspect(cache)} for #{inspect(self())}"
+    )
 
     case GenServer.call(cache, {:get, key}, timeout) do
       {:ok, :answer_delayed} ->
@@ -80,6 +83,10 @@ defmodule Archethic.Utils.HydratingCache do
 
         receive do
           {:ok, value} ->
+            Logger.debug(
+              "Got delayed value #{inspect(value)} for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
+            )
+
             {:ok, value}
 
           other ->
@@ -87,6 +94,10 @@ defmodule Archethic.Utils.HydratingCache do
             # code
         after
           timeout ->
+            Logger.warn(
+              "Timeout waiting for delayed value for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
+            )
+
             {:error, :timeout}
         end
 
@@ -116,6 +127,8 @@ defmodule Archethic.Utils.HydratingCache do
     {:ok, initial_keys_worker_sup} = Task.Supervisor.start_link()
 
     ## Registering initial keys
+    Logger.info("Init Registering initial keys for #{inspect(name)}")
+
     _ =
       Task.Supervisor.async_stream_nolink(
         initial_keys_worker_sup,
@@ -123,14 +136,18 @@ defmodule Archethic.Utils.HydratingCache do
         fn
           {provider, mod, func, params, refresh_rate} ->
             Logger.debug(
-              "Registering hydrating function. Provider: #{inspect(provider)} Hydrating function:
+              "Init asking Registering hydrating function. Provider: #{inspect(provider)} Hydrating function:
               #{inspect(mod)}.#{inspect(func)}(#{inspect(params)}) Refresh rate: #{inspect(refresh_rate)}"
             )
 
-            GenServer.call(
-              me,
-              {:register, fn -> apply(mod, func, params) end, provider, 75_000, refresh_rate}
-            )
+            g =
+              GenServer.cast(
+                me,
+                {:register, fn -> apply(mod, func, params) end, provider, 75_000, refresh_rate}
+              )
+
+            Logger.debug("Finished requesting registration for #{inspect(provider)}")
+            g
 
           other ->
             Logger.error("Hydrating cache: Invalid configuration entry: #{inspect(other)}")
@@ -140,8 +157,10 @@ defmodule Archethic.Utils.HydratingCache do
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
       |> Enum.to_list()
 
+    Logger.info("Hydrating cache: Init Finished registering initial keys")
     ## stop the initial keys worker supervisor
     Supervisor.stop(initial_keys_worker_sup)
+    Logger.info("Hydrating cache: Init Finished stopping initial keys worker supervisor")
     {:ok, %{:keys => keys, keys_sup: keys_sup}}
   end
 
@@ -150,28 +169,34 @@ defmodule Archethic.Utils.HydratingCache do
   def handle_call({:get, key}, from, state) do
     case Map.get(state, key, :undefined) do
       :undefined ->
+        Logger.debug("HydratingCache no entry for #{inspect(state)}")
         {:reply, {:error, :not_registered}, state}
 
       pid ->
+        Logger.debug("HydratingCache found entry #{inspect(pid)} for #{inspect(self())}")
         value = :gen_statem.call(pid, {:get, from})
 
-        IO.puts("value #{inspect(value)}")
+        Logger.debug("Cache entry returned #{inspect(value)}")
 
         {:reply, value, state}
     end
   end
 
   def handle_call({:register, fun, key, ttl, refresh_interval}, _from, state) do
+    Logger.debug("Registering hydrating function for #{inspect(key)}")
     ## Called when asked to register a function
     case Map.get(state, key) do
       nil ->
         ## New key, we start a cache entry fsm
+        Logger.debug("Starting cache entry for #{inspect(key)}")
+
         {:ok, pid} =
           DynamicSupervisor.start_child(
             state.keys_sup,
             {CacheEntry, [fun, key, ttl, refresh_interval]}
           )
 
+        Logger.debug("Started cache entry for #{inspect({key, pid})}")
         {:reply, :ok, Map.put(state, key, pid)}
 
       pid ->
@@ -205,8 +230,25 @@ defmodule Archethic.Utils.HydratingCache do
   end
 
   def handle_cast({:register, fun, key, ttl, refresh_interval}, state) do
-    handle_call({:register, fun, key, ttl, refresh_interval}, nil, state)
-    {:noreply, state}
+    case Map.get(state, key) do
+      nil ->
+        ## New key, we start a cache entry fsm
+        Logger.debug("CAST Starting cache entry for #{inspect(key)}")
+
+        {:ok, pid} =
+          DynamicSupervisor.start_child(
+            state.keys_sup,
+            {CacheEntry, [fun, key, ttl, refresh_interval]}
+          )
+
+        Logger.debug("CAST Started cache entry for #{inspect({key, pid})}")
+        {:noreply, Map.put(state, key, pid)}
+
+      pid ->
+        ## Key already exists, no need to start fsm
+        _ = :gen_statem.call(pid, {:register, fun, key, ttl, refresh_interval})
+        {:noreply, Map.put(state, key, pid)}
+    end
   end
 
   def handle_cast(unmanaged, state) do
