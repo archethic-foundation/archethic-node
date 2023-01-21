@@ -233,6 +233,68 @@ defmodule HydratingCacheTest do
 
     ## We query the value with timeout smaller than timed function
     result = HydratingCache.get(pid, "delayed_result", 1000)
-    assert result == {:error, :timeout}
+    assert result = {:error, :timeout}
+  end
+
+  test "Multiple process can wait for a delayed value" do
+    {:ok, pid} = HydratingCache.start_link(:test_service)
+
+    _ =
+      HydratingCache.register_function(
+        pid,
+        fn ->
+          IO.puts("Hydrating function Sleeping 3 secs")
+          :timer.sleep(3000)
+          IO.puts("Hydrating function done")
+          {:ok, :valid_result}
+        end,
+        "delayed_result",
+        80000,
+        70000
+      )
+
+    ## We query the value with timeout smaller than timed function
+    results =
+      Task.async_stream(1..10, fn _ -> HydratingCache.get(pid, "delayed_result", 4000) end)
+
+    assert Enum.all?(results, fn
+             {:ok, {:ok, :valid_result}} -> true
+             other -> IO.puts("Unk #{inspect(other)}")
+           end)
+  end
+
+  ## Resilience tests
+  test "If hydrating function crash, key fsm will still be oprationnal" do
+    {:ok, pid} = HydratingCache.start_link(:test_service)
+
+    _ =
+      HydratingCache.register_function(
+        pid,
+        fn ->
+          ## Trigger badmatch
+          exit(1)
+          {:ok, :badmatch}
+        end,
+        :key,
+        80000,
+        70000
+      )
+
+    :timer.sleep(1000)
+
+    _ =
+      HydratingCache.register_function(
+        pid,
+        fn ->
+          ## Trigger badmatch
+          {:ok, :value}
+        end,
+        :key,
+        80000,
+        70000
+      )
+
+    result = HydratingCache.get(pid, :key, 3000)
+    assert result == {:ok, :value}
   end
 end
