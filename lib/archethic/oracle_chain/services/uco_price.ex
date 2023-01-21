@@ -24,7 +24,11 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     ## retrieve prices from configured providers and filter results marked as errors
     prices =
       Enum.map(providers(), fn provider ->
-        case HydratingCache.get(:"Elixir.Archethic.Utils.HydratingCache.uco_service", provider) do
+        case HydratingCache.get(
+               :"Elixir.Archethic.Utils.HydratingCache.uco_service",
+               provider,
+               3000
+             ) do
           {:error, reason} ->
             Logger.warning(
               "Service UCOPrice cannot fetch values from provider: #{inspect(provider)} with reason : #{inspect(reason)}."
@@ -49,7 +53,6 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         {_, result = %{}} ->
           result
       end)
-
       ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
       |> Enum.reduce(%{}, &agregate_providers_data/2)
       |> Enum.reduce(%{}, fn {currency, values}, acc ->
