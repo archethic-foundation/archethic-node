@@ -10,7 +10,7 @@ defmodule Archethic.MixProject do
       deps_path: "deps",
       lockfile: "mix.lock",
       aliases: aliases(),
-      elixir: "~> 1.11",
+      elixir: "~> 1.14.1",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       compilers: [:elixir_make] ++ Mix.compilers(),
