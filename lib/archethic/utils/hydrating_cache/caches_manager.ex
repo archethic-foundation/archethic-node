@@ -65,6 +65,8 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
 
   @impl true
   def handle_call({:new_service_sync, name, initial_keys}, _from, state) do
+    Logger.info("Starting new service sync : #{name}")
+
     {:ok, pid} =
       DynamicSupervisor.start_child(
         state.caches_sup,
@@ -76,7 +78,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
 
   @impl true
   def handle_cast({:new_service_async, name, keys, _requester}, state) do
-    IO.inspect("Starting new service genserver #{name}")
+    Logger.info("Starting new service async : #{name}")
 
     DynamicSupervisor.start_child(state.caches_sup, %{
       id: name,

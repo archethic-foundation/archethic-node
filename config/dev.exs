@@ -77,17 +77,19 @@ config :archethic,
             Archethic.Crypto.NodeKeystore.Origin.TPMImpl
         end)
 
+## Format : {service, [{key, module, function, args, refresh_interval_ms, ttl_ms}, ...]}
+## If ttl = :infinity, the cache will never expire
 config :archethic, Archethic.Utils.HydratingCache.CachesManager,
   uco_service: [
     {Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika, :fetch, [["usd", "eur"]],
-     30000},
+     30000, :infinity},
     {Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-     Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko, :fetch, [["usd", "eur"]],
-     30000},
+     Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko, :fetch, [["usd", "eur"]], 30000,
+     :infinity},
     {Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap, :fetch, [["usd", "eur"]],
-     30000}
+     30000, :infinity}
   ]
 
 config :archethic, Archethic.Governance.Pools,

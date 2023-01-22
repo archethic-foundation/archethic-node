@@ -6,9 +6,9 @@ defmodule HydratingCacheTest do
 
   test "starting service from manager returns value once first hydrating have been done" do
     CachesManager.new_service_async("test_services", [
-      {:key1, __MODULE__, :waiting_function, [2000], 6000},
-      {:key2, __MODULE__, :waiting_function, [1000], 6000},
-      {:key3, __MODULE__, :waiting_function, [2000], 6000}
+      {:key1, __MODULE__, :waiting_function, [2000], 6000, 8000},
+      {:key2, __MODULE__, :waiting_function, [1000], 6000, 8000},
+      {:key3, __MODULE__, :waiting_function, [2000], 6000, 8000}
     ])
 
     ## wait a little so at least keys are registered

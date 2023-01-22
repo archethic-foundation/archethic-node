@@ -23,16 +23,18 @@ defmodule Archethic.Utils.HydratingCache do
   Registers a function that will be computed periodically to update the cache.
 
   Arguments:
+    - `hydrating_cache`: the pid of the hydrating cache.
     - `fun`: a 0-arity function that computes the value and returns either
       `{:ok, value}` or `{:error, reason}`.
     - `key`: associated with the function and is used to retrieve the stored
     value.
-    - `ttl` ("time to live"): how long (in milliseconds) the value is stored
-      before it is discarded if the value is not refreshed.
     - `refresh_interval`: how often (in milliseconds) the function is
       recomputed and the new value stored. `refresh_interval` must be strictly
       smaller than `ttl`. After the value is refreshed, the `ttl` counter is
       restarted.
+    - `ttl` ("time to live"): how long (in milliseconds) the value is stored
+      before it is discarded if the value is not refreshed.
+
 
   The value is stored only if `{:ok, value}` is returned by `fun`. If `{:error,
   reason}` is returned, the value is not stored and `fun` must be retried on
@@ -42,14 +44,14 @@ defmodule Archethic.Utils.HydratingCache do
           hydrating_cache :: pid(),
           fun :: (() -> {:ok, any()} | {:error, any()}),
           key :: any,
-          ttl :: non_neg_integer(),
-          refresh_interval :: non_neg_integer()
+          refresh_interval :: non_neg_integer(),
+          ttl :: non_neg_integer()
         ) :: :ok
-  def register_function(hydrating_cache, fun, key, ttl, refresh_interval)
+  def register_function(hydrating_cache, fun, key, refresh_interval, ttl)
       when is_function(fun, 0) and is_integer(ttl) and ttl > 0 and
              is_integer(refresh_interval) and
              refresh_interval < ttl do
-    GenServer.call(hydrating_cache, {:register, fun, key, ttl, refresh_interval})
+    GenServer.call(hydrating_cache, {:register, fun, key, refresh_interval, ttl})
   end
 
   @doc ~s"""
@@ -69,25 +71,25 @@ defmodule Archethic.Utils.HydratingCache do
       :not_registered}`
   """
   @spec get(atom(), any(), non_neg_integer(), Keyword.t()) :: result
-  def get(cache, key, timeout \\ 1_000, _opts \\ [])
+  def get(hydrating_cache, key, timeout \\ 1_000, _opts \\ [])
       when is_integer(timeout) and timeout > 0 do
     Logger.debug(
-      "Getting key #{inspect(key)} from hydrating cache #{inspect(cache)} for #{inspect(self())}"
+      "Getting key #{inspect(key)} from hydrating cache #{inspect(hydrating_cache)} for #{inspect(self())}"
     )
 
-    case GenServer.call(cache, {:get, key}, timeout) do
+    case GenServer.call(hydrating_cache, {:get, key}, timeout) do
       {:ok, :answer_delayed} ->
         receive do
           {:ok, value} ->
             {:ok, value}
 
           other ->
-            Logger.info("Unexpected return value #{inspect(other)}")
+            Logger.warning("Unexpected return value #{inspect(other)}")
             {:error, :unexpected_value}
         after
           timeout ->
-            Logger.warn(
-              "Timeout waiting for delayed value for key #{inspect(key)} from hydrating cache #{inspect(cache)}"
+            Logger.warning(
+              "Timeout waiting for delayed value for key #{inspect(key)} from hydrating cache #{inspect(hydrating_cache)}"
             )
 
             {:error, :timeout}
@@ -120,10 +122,10 @@ defmodule Archethic.Utils.HydratingCache do
         initial_keys_worker_sup,
         keys,
         fn
-          {provider, mod, func, params, refresh_rate} ->
+          {provider, mod, func, params, refresh_rate, ttl} ->
             GenServer.cast(
               me,
-              {:register, fn -> apply(mod, func, params) end, provider, 75_000, refresh_rate}
+              {:register, fn -> apply(mod, func, params) end, provider, refresh_rate, ttl}
             )
 
           other ->
@@ -153,7 +155,7 @@ defmodule Archethic.Utils.HydratingCache do
     end
   end
 
-  def handle_call({:register, fun, key, ttl, refresh_interval}, _from, state) do
+  def handle_call({:register, fun, key, refresh_interval, ttl}, _from, state) do
     Logger.debug("Registering hydrating function for #{inspect(key)}")
     ## Called when asked to register a function
     case Map.get(state, key) do
@@ -162,14 +164,14 @@ defmodule Archethic.Utils.HydratingCache do
         {:ok, pid} =
           DynamicSupervisor.start_child(
             state.keys_sup,
-            {CacheEntry, [fun, key, ttl, refresh_interval]}
+            {CacheEntry, [fun, key, refresh_interval, ttl]}
           )
 
         {:reply, :ok, Map.put(state, key, pid)}
 
       pid ->
         ## Key already exists, no need to start fsm
-        case :gen_statem.call(pid, {:register, fun, key, ttl, refresh_interval}) do
+        case :gen_statem.call(pid, {:register, fun, key, refresh_interval, ttl}) do
           :ok ->
             {:reply, :ok, Map.put(state, key, pid)}
 
@@ -197,7 +199,7 @@ defmodule Archethic.Utils.HydratingCache do
     end
   end
 
-  def handle_cast({:register, fun, key, ttl, refresh_interval}, state) do
+  def handle_cast({:register, fun, key, refresh_interval, ttl}, state) do
     case Map.get(state, key) do
       nil ->
         ## New key, we start a cache entry fsm
@@ -205,14 +207,14 @@ defmodule Archethic.Utils.HydratingCache do
         {:ok, pid} =
           DynamicSupervisor.start_child(
             state.keys_sup,
-            {CacheEntry, [fun, key, ttl, refresh_interval]}
+            {CacheEntry, [fun, key, refresh_interval, ttl]}
           )
 
         {:noreply, Map.put(state, key, pid)}
 
       pid ->
         ## Key already exists, no need to start fsm
-        _ = :gen_statem.call(pid, {:register, fun, key, ttl, refresh_interval})
+        _ = :gen_statem.call(pid, {:register, fun, key, refresh_interval, ttl})
         {:noreply, Map.put(state, key, pid)}
     end
   end

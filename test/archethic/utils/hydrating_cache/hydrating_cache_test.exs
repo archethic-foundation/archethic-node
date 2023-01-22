@@ -18,8 +18,8 @@ defmodule HydratingCacheTest do
           {:ok, 1}
         end,
         "simple_func",
-        50_000,
-        10_000
+        10_000,
+        15_000
       )
 
     assert result == :ok
@@ -29,55 +29,10 @@ defmodule HydratingCacheTest do
     assert r == {:ok, 1}
   end
 
-  test "Getting value for key while function is running first time make process wait and return value" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
-
-    result =
-      HydratingCache.register_function(
-        pid,
-        fn ->
-          Logger.info("Hydrating function Sleeping 3 secs")
-          :timer.sleep(3000)
-          {:ok, 1}
-        end,
-        "test_long_function",
-        50_000,
-        9000
-      )
-
-    assert result == :ok
-
-    r = HydratingCache.get(pid, "test_long_function", 10_000)
-    assert r == {:ok, 1}
-  end
-
-  test "Getting value for key while function is running first time returns timeout after ttl" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
-
-    result =
-      HydratingCache.register_function(
-        pid,
-        fn ->
-          Logger.info("Hydrating function Sleeping 3 secs")
-          :timer.sleep(3000)
-          {:ok, 1}
-        end,
-        "test_get_ttl",
-        50_000,
-        9000
-      )
-
-    assert result == :ok
-
-    ## get and wait up to 1 second
-    r = HydratingCache.get(pid, "test_get_ttl", 1000)
-    assert r == {:error, :timeout}
-  end
-
   test "Hydrating function runs periodically" do
     {:ok, pid} = HydratingCache.start_link(:test_service)
 
-    :persistent_term.put("test", 0)
+    :persistent_term.put("test", 1)
 
     result =
       HydratingCache.register_function(
@@ -90,16 +45,16 @@ defmodule HydratingCacheTest do
           {:ok, value}
         end,
         "test_inc",
-        50000,
-        1000
+        1_000,
+        50_000
       )
 
     assert result == :ok
 
-    :timer.sleep(5000)
+    :timer.sleep(3000)
     {:ok, value} = HydratingCache.get(pid, "test_inc", 3000)
 
-    assert value >= 5
+    assert value >= 3
   end
 
   test "Update hydrating function while another one is running returns new hydrating value from new function" do
@@ -113,8 +68,8 @@ defmodule HydratingCacheTest do
           {:ok, 1}
         end,
         "test_reregister",
-        50000,
-        10000
+        10_000,
+        50_000
       )
 
     assert result == :ok
@@ -126,8 +81,8 @@ defmodule HydratingCacheTest do
           {:ok, 2}
         end,
         "test_reregister",
-        50000,
-        10000
+        10_000,
+        50_000
       )
 
     :timer.sleep(5000)
@@ -146,8 +101,8 @@ defmodule HydratingCacheTest do
           {:ok, 1}
         end,
         "test_reregister",
-        50000,
-        10000
+        10_000,
+        50_000
       )
 
     _ =
@@ -158,8 +113,8 @@ defmodule HydratingCacheTest do
           {:ok, 2}
         end,
         "test_reregister",
-        50000,
-        10000
+        10_000,
+        50_000
       )
 
     {:ok, value} = HydratingCache.get(pid, "test_reregister", 4000)
@@ -178,8 +133,8 @@ defmodule HydratingCacheTest do
           {:ok, :result_timed}
         end,
         "timed_value",
-        80000,
-        70000
+        70_000,
+        80_000
       )
 
     _ =
@@ -189,8 +144,8 @@ defmodule HydratingCacheTest do
           {:ok, :result}
         end,
         "direct_value",
-        80000,
-        70000
+        70_000,
+        80_000
       )
 
     ## We query the value with timeout smaller than timed function
@@ -208,8 +163,8 @@ defmodule HydratingCacheTest do
           {:ok, :valid_result}
         end,
         "delayed_result",
-        80000,
-        70000
+        70_000,
+        80_000
       )
 
     ## We query the value with timeout smaller than timed function
@@ -227,13 +182,12 @@ defmodule HydratingCacheTest do
           {:ok, :valid_result}
         end,
         "delayed_result",
-        80000,
-        70000
+        70_000,
+        80_000
       )
 
     ## We query the value with timeout smaller than timed function
-    result = HydratingCache.get(pid, "delayed_result", 1000)
-    assert result = {:error, :timeout}
+    assert {:error, :timeout} = HydratingCache.get(pid, "delayed_result", 1000)
   end
 
   test "Multiple process can wait for a delayed value" do
@@ -249,8 +203,8 @@ defmodule HydratingCacheTest do
           {:ok, :valid_result}
         end,
         "delayed_result",
-        80000,
-        70000
+        70_000,
+        80_000
       )
 
     ## We query the value with timeout smaller than timed function
@@ -276,8 +230,8 @@ defmodule HydratingCacheTest do
           {:ok, :badmatch}
         end,
         :key,
-        80000,
-        70000
+        70_000,
+        80_000
       )
 
     :timer.sleep(1000)
@@ -290,11 +244,40 @@ defmodule HydratingCacheTest do
           {:ok, :value}
         end,
         :key,
-        80000,
-        70000
+        70_000,
+        80_000
       )
 
     result = HydratingCache.get(pid, :key, 3000)
     assert result == {:ok, :value}
+  end
+
+  ## This could occur if hydrating function takes time to answer.
+  ## In this case, getting the value would return the old value, unless too
+  ## much time occur where it would be discarded because of ttl
+  test "value gets discarded after some time" do
+    {:ok, pid} = HydratingCache.start_link(:test_service)
+
+    _ =
+      HydratingCache.register_function(
+        pid,
+        fn ->
+          case :persistent_term.get("flag", nil) do
+            1 ->
+              :timer.sleep(3_000)
+
+            nil ->
+              :persistent_term.put("flag", 1)
+              {:ok, :value}
+          end
+        end,
+        :key,
+        500,
+        1_000
+      )
+
+    :timer.sleep(1_100)
+    result = HydratingCache.get(pid, :key, 3000)
+    assert result == {:error, :discarded}
   end
 end

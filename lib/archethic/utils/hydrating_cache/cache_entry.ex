@@ -32,12 +32,12 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   use Task
   require Logger
 
-  def start_link([fun, key, ttl, refresh_interval]) do
-    :gen_statem.start_link(__MODULE__, [fun, key, ttl, refresh_interval], [])
+  def start_link([fun, key, refresh_interval, ttl]) do
+    :gen_statem.start_link(__MODULE__, [fun, key, refresh_interval, ttl], [])
   end
 
   @impl :gen_statem
-  def init([fun, key, ttl, refresh_interval]) do
+  def init([fun, key, refresh_interval, ttl]) do
     # start hydrating at the needed refresh interval
     timer = :timer.send_interval(refresh_interval, self(), :hydrate)
 
@@ -113,12 +113,12 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     {:next_state, :running, data}
   end
 
-  def handle_event({:call, from}, {:register, fun, key, ttl, refresh_interval}, :running, data) do
+  def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, :running, data) do
     ## Registering a new hydrating function while previous one is running
 
     ## We stop the hydrating task if it is already running
     case data.running_func_task do
-      pid when is_pid(pid) -> Process.exit(pid, :brutal_kill)
+      pid when is_pid(pid) -> Process.exit(pid, :normal)
       _ -> :ok
     end
 
@@ -141,7 +141,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
      }, [{:reply, from, :ok}]}
   end
 
-  def handle_event({:call, from}, {:register, fun, key, ttl, refresh_interval}, _state, data) do
+  def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, _state, data) do
     ## Setting hydrating function in other cases
     ## Hydrating function not running, we just stop the timers
     _ = :timer.cancel(data.timer_func)
@@ -155,7 +155,15 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
         :refresh_interval => refresh_interval
       })
 
-    timer = :timer.send_interval(refresh_interval, self(), :hydrate)
+    timer =
+      case ttl do
+        :infinity ->
+          nil
+
+        value when is_number(value) ->
+          {:ok, t} = :timer.send_interval(refresh_interval, self(), :hydrate)
+          t
+      end
 
     ## We trigger the update ( to trigger or not could be set at registering option )
     {:next_state, :running,
@@ -181,6 +189,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
     hydrating_task =
       spawn(fn ->
+        Logger.info("Running hydrating function for key :#{inspect(data.key)}")
         value = data.hydrating_func.()
         :gen_statem.cast(me, {:new_value, data.key, value})
       end)
@@ -196,7 +205,8 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
       "Key :#{inspect(data.key)}, Hydrating func #{inspect(data.hydrating_func)} discarded"
     )
 
-    {:next_state, state, %CacheEntry.StateData{data | value: :discarded}}
+    {:next_state, state,
+     %CacheEntry.StateData{data | value: {:error, :discarded}, timer_discard: nil}}
   end
 
   def handle_event(:cast, {:new_value, _key, {:ok, value}}, :running, data) do
@@ -210,9 +220,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
       send(pid, {:ok, value})
     end)
 
-    ## We could do error control here, like unregistering the running func.
-    ## atm, we will keep it
-    _ = :timer.cancel(data.timer_discard)
+    ## Start timer to discard new value
 
     me = self()
     {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
@@ -233,7 +241,18 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
       "Key :#{inspect(data.key)}, Hydrating func #{inspect(data.hydrating_func)} got error value #{inspect({key, {:error, reason}})}"
     )
 
-    {:next_state, :idle, %CacheEntry.StateData{data | running_func_task: :undefined}}
+    ## We reprogram the timer to hydrate, even if previous call failled. Error control could occur here
+    me = self()
+    {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
+
+    {:next_state, :idle,
+     %CacheEntry.StateData{
+       data
+       | running_func_task: :undefined,
+         getters: [],
+         timer_discard: nil,
+         timer_func: new_timer
+     }}
   end
 
   def handle_event(_type, _event, _state, data) do
