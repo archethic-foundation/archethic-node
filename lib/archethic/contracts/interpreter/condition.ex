@@ -59,7 +59,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
       ...>             {:atom, "code"}
       ...>           ]},
       ...>          [no_parens: true, line: 2],
-      ...>          []},"sha256"
+      ...>          []}
       ...>       ]}
       ...>    }]}
       ...>  ]
@@ -78,9 +78,8 @@ defmodule Archethic.Contracts.ConditionInterpreter do
                ]}, [line: 2], [
                  {:get_in, [line: 2], [
                    {:scope, [line: 2], nil},
-                   ["contract", "code"],
-                 ]},
-                "sha256"
+                   ["contract", "code"]
+                 ]}
                ]
               }
             ]
