@@ -1,4 +1,4 @@
-defmodule HydratingCacheTest do
+defmodule CachesManagerTest do
   alias Archethic.Utils.HydratingCache
   alias Archethic.Utils.HydratingCache.CachesManager
   use ExUnit.Case
