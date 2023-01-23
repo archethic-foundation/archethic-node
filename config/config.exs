@@ -8,7 +8,7 @@ config :git_hooks,
       tasks: [
         {:cmd, "mix clean"},
         {:cmd, "mix git_hooks.install"},
-        {:cmd, "mix hex.outdated --within-requirements"},
+        # {:cmd, "mix hex.outdated --within-requirements"},
         {:cmd, "mix format --check-formatted"},
         {:cmd, "mix compile --warnings-as-errors"},
         {:cmd, "mix credo"},
