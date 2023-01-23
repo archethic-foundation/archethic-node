@@ -594,6 +594,43 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
         }
       })
     end
+
+    test "should be able to modify acc if it is an object" do
+      ~S"""
+      actions triggered_by: transaction do
+        list = ["X"]
+        transaction2 = reduce(list, transaction, fn item, acc ->
+            set(acc, address, item)
+        end)
+        set_content transaction2.address
+      end
+      """
+      |> assert_content_after_execute("X", %{
+        "transaction" => %{
+          "address" => "@addr"
+        }
+      })
+    end
+
+    test "should be able to reduce in a reduce" do
+      ~S"""
+      actions triggered_by: transaction do
+        list = [[1,2,3], [10,11,12]]
+        content = reduce(list, [], fn item, acc ->
+          sum = reduce(item, 0, fn item2, acc2 ->
+              item2 + acc2
+            end)
+          append(acc, sum)
+        end)
+        set_content content
+      end
+      """
+      |> assert_content_after_execute("[6,33]", %{
+        "transaction" => %{
+          "address" => "@addr"
+        }
+      })
+    end
   end
 
   test "shall use get_calls/1 in actions" do

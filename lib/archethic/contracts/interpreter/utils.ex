@@ -189,13 +189,12 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   def prewalk(node = Access, acc), do: {node, acc}
   def prewalk(node = :get, acc), do: {node, acc}
 
-  # Whitelist the usage of transaction fields in references: "transaction/contract/previous/next"
+  # Whitelist the usage of dot statement (maps)
   def prewalk(
-        node = {:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, transaction_field}]},
+        node = {:., _, [{{:atom, _}, _, nil}, {:atom, _}]},
         acc = {:ok, %{scope: scope}}
       )
-      when scope != :root and transaction_ref in ["next", "previous", "transaction", "contract"] and
-             transaction_field in @transaction_fields do
+      when scope != :root do
     {node, acc}
   end
 
