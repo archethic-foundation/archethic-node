@@ -59,6 +59,9 @@ defmodule Archethic.Application do
 
     port = Keyword.fetch!(p2p_endpoint_conf, :port)
     {:ok, port} = Networking.try_open_port(port, true)
+    try_open_port(Keyword.get(web_endpoint_conf, :http))
+    try_open_port(Keyword.get(web_endpoint_conf, :https))
+
     http = Keyword.fetch!(web_endpoint_conf, :http)
     http_port = Keyword.fetch!(http, :port)
 
@@ -97,6 +100,13 @@ defmodule Archethic.Application do
 
     opts = [strategy: :rest_for_one, name: Archethic.Supervisor]
     Supervisor.start_link(Utils.configurable_children(children), opts)
+  end
+
+  defp try_open_port(nil), do: :ok
+
+  defp try_open_port(conf) do
+    port = Keyword.get(conf, :port)
+    Networking.try_open_port(port, false)
   end
 
   def config_change(changed, _new, removed) do
