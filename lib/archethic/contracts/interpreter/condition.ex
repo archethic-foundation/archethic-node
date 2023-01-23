@@ -235,6 +235,14 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     {node, acc}
   end
 
+  # Whitelist the get_token_id/1 function in the condition
+  defp prewalk(
+         node = {{:atom, "get_token_id"}, _, [_search]},
+         acc = {:ok, %{scope: {:condition, _, _}}}
+       ) do
+    {node, acc}
+  end
+
   # Whitelist the hash/0 function in the condition
   defp prewalk(
          node = {{:atom, "hash"}, _, []},

@@ -12,6 +12,9 @@ defmodule Archethic.Utils do
 
   alias Archethic.P2P.Node
 
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+
   alias Archethic.Reward.Scheduler, as: RewardScheduler
 
   import Bitwise
@@ -912,5 +915,49 @@ defmodule Archethic.Utils do
     |> CronScheduler.get_next_run_dates(start_of_month_datetime)
     |> Stream.take_while(&(NaiveDateTime.compare(&1, end_of_month_datetime) in [:lt]))
     |> Enum.count()
+  end
+
+  @doc """
+  computes token id based on the genesis address and transaction content
+  """
+  @spec get_token_id(binary(), map()) :: binary()
+  def get_token_id(genesis_address, transaction_content) do
+    properties = Map.get(transaction_content, "properties", %{})
+    decimals = Map.get(transaction_content, "decimals", 8)
+    name = Map.get(transaction_content, "name", "")
+    symbol = Map.get(transaction_content, "symbol", "")
+
+    data_to_digest = %{
+      genesis_address: Base.encode16(genesis_address),
+      name: name,
+      symbol: symbol,
+      properties: properties,
+      decimals: decimals
+    }
+
+    :crypto.hash(:sha256, Jason.encode!(data_to_digest))
+    |> Base.encode16()
+  end
+
+  @doc """
+  get transaction content based on the address of the transaction
+  """
+  @spec get_transaction_content(binary()) :: {:ok, map()} | {:error, atom()}
+  def get_transaction_content(address) do
+    case Archethic.search_transaction(address) do
+      {:ok,
+       %Transaction{data: %TransactionData{content: content, ownerships: ownerships}, type: type}}
+      when type in [:token, :mint_rewards] ->
+        case Jason.decode(content) do
+          {:ok, map} ->
+            {:ok, map |> Map.put("ownerships", ownerships)}
+
+          _ ->
+            {:error, :decode_error}
+        end
+
+      _ ->
+        {:error, :not_a_token_transaction}
+    end
   end
 end

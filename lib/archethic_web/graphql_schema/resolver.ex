@@ -13,10 +13,11 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
 
   alias Archethic.Mining
+
+  alias Archethic.Utils
 
   require Logger
 
@@ -54,7 +55,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   def get_token(address) do
     t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
-    t2 = Task.async(fn -> get_transaction_content(address) end)
+    t2 = Task.async(fn -> Utils.get_transaction_content(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
          {:ok,
@@ -70,15 +71,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       name = Map.get(definition, "name", "")
       symbol = Map.get(definition, "symbol", "")
 
-      data_to_digest = %{
-        genesis_address: Base.encode16(genesis_address),
-        name: name,
-        symbol: symbol,
-        properties: properties,
-        decimals: decimals
-      }
-
-      token_id = :crypto.hash(:sha256, Jason.encode!(data_to_digest)) |> Base.encode16()
+      token_id = Utils.get_token_id(genesis_address, definition)
 
       {:ok,
        %{
@@ -101,7 +94,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
         {:error, "Error in decoding transaction"}
 
       {:ok, {:error, :transaction_not_found}} ->
-        {:error, "Transaction does not exist!"}
+        {:error, "Transaction is not of type token"}
 
       {:exit, reason} ->
         Logger.debug("Task exited with reason")
@@ -110,24 +103,6 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
       nil ->
         {:error, "Task didn't responded within timeout!"}
-    end
-  end
-
-  defp get_transaction_content(address) do
-    case Archethic.search_transaction(address) do
-      {:ok,
-       %Transaction{data: %TransactionData{content: content, ownerships: ownerships}, type: type}}
-      when type in [:token, :mint_rewards] ->
-        case Jason.decode(content) do
-          {:ok, map} ->
-            {:ok, map |> Map.put("ownerships", ownerships)}
-
-          _ ->
-            {:error, :decode_error}
-        end
-
-      _ ->
-        {:error, :transaction_not_found}
     end
   end
 
