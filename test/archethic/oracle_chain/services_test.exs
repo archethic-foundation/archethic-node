@@ -10,11 +10,11 @@ defmodule Archethic.OracleChain.ServicesTest do
       _ =
         HydratingCache.start_link(:uco_service, [
           {MockUCOPriceProvider1, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30000, :infinity},
+           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30_000, :infinity},
           {MockUCOPriceProvider2, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30000, :infinity},
+           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30_000, :infinity},
           {MockUCOPriceProvider3, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30000, :infinity}
+           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30_000, :infinity}
         ])
 
       assert %{uco: %{"eur" => 0.20, "usd" => 0.12}} = Services.fetch_new_data()
@@ -23,11 +23,11 @@ defmodule Archethic.OracleChain.ServicesTest do
     test "should not return the new data when the previous content is the same" do
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity}
+         30_000, :infinity}
       ])
 
       assert %{} = Services.fetch_new_data(%{uco: %{"eur" => 0.20, "usd" => 0.12}})
@@ -36,11 +36,11 @@ defmodule Archethic.OracleChain.ServicesTest do
     test "should return the new data when the previous content is not the same" do
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity}
+         30_000, :infinity}
       ])
 
       assert %{uco: %{"eur" => 0.20, "usd" => 0.12}} =
@@ -52,11 +52,11 @@ defmodule Archethic.OracleChain.ServicesTest do
     _ =
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity}
+         30_000, :infinity}
       ])
 
     assert true == Services.verify_correctness?(%{"uco" => %{"eur" => 0.20, "usd" => 0.12}})
