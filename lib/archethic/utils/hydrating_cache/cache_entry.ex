@@ -39,7 +39,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   @impl :gen_statem
   def init([fun, key, refresh_interval, ttl]) do
     # start hydrating at the needed refresh interval
-    timer = :timer.send_interval(refresh_interval, self(), :hydrate)
+    {:ok, timer} = :timer.send_interval(refresh_interval, self(), :hydrate)
 
     ## Hydrate the value
     {:ok, :running,
@@ -123,11 +123,11 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     end
 
     ## And the timers triggering it and discarding value
-    _ = :timer.cancel(data.timer_func)
-    _ = :timer.cancel(data.timer_discard)
+    _ = maybe_stop_timer(data.timer_func)
+    _ = maybe_stop_timer(data.timer_discard)
 
     ## Start new timer to hydrate at refresh interval
-    timer = :timer.send_interval(refresh_interval, self(), :hydrate)
+    {:ok, timer} = :timer.send_interval(refresh_interval, self(), :hydrate)
 
     ## We trigger the update ( to trigger or not could be set at registering option )
     {:repeat_state,
@@ -144,8 +144,8 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, _state, data) do
     ## Setting hydrating function in other cases
     ## Hydrating function not running, we just stop the timers
-    _ = :timer.cancel(data.timer_func)
-    _ = :timer.cancel(data.timer_discard)
+    _ = maybe_stop_timer(data.timer_func)
+    _ = maybe_stop_timer(data.timer_discard)
 
     ## Fill state with new hydrating function parameters
     data =
@@ -155,15 +155,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
         :refresh_interval => refresh_interval
       })
 
-    timer =
-      case ttl do
-        :infinity ->
-          nil
-
-        value when is_number(value) ->
-          {:ok, t} = :timer.send_interval(refresh_interval, self(), :hydrate)
-          t
-      end
+    {:ok, timer} = :timer.send_interval(refresh_interval, self(), :hydrate)
 
     ## We trigger the update ( to trigger or not could be set at registering option )
     {:next_state, :running,
@@ -211,7 +203,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
   def handle_event(:cast, {:new_value, _key, {:ok, value}}, :running, data) do
     ## Stop timer on value ttl
-    _ = :timer.cancel(data.timer_discard)
+    _ = maybe_stop_timer(data.timer_discard)
 
     ## We got result from hydrating function
 
@@ -220,10 +212,18 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
       send(pid, {:ok, value})
     end)
 
-    ## Start timer to discard new value
-
+    ## Start timer to discard new value if needed
     me = self()
-    {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
+
+    new_timer =
+      case data.ttl do
+        value when is_number(value) ->
+          {:ok, t} = :timer.send_after(value, me, :discarded)
+          t
+
+        _ ->
+          :ok
+      end
 
     {:next_state, :idle,
      %CacheEntry.StateData{
@@ -257,5 +257,13 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
   def handle_event(_type, _event, _state, data) do
     {:keep_state, data}
+  end
+
+  defp maybe_stop_timer(ref = {_, _}) do
+    :timer.cancel(ref)
+  end
+
+  defp maybe_stop_timer(_ref) do
+    :ok
   end
 end
