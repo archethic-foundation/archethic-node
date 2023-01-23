@@ -208,7 +208,25 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
-  # Whitelist the size/1 function
+  # Whitelist the in?/2 function
+  def prewalk(
+        node = {{:atom, "in?"}, _, [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the head/1 function
+  def prewalk(
+        node = {{:atom, "head"}, _, [_]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the size/1 library function
   def prewalk(
         node = {{:atom, "size"}, _, [_data]},
         acc = {:ok, %{scope: scope}}

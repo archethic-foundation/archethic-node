@@ -314,6 +314,17 @@ defmodule Archethic.Contracts.Interpreter.Library do
   end
 
   @doc """
+  Return the head of list
+
+  iex> Library.head([1,2,3])
+  1
+  """
+  @spec head(list()) :: any()
+  def head(list) do
+    hd(list)
+  end
+
+  @doc """
   Get the genesis address of the chain
 
   """
