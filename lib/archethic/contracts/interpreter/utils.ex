@@ -130,20 +130,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   # Whitelist interpolation of strings
   def prewalk(
-        node =
-          {:<<>>, _, [{:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}, _]},
-        acc
-      ) do
-    {node, acc}
-  end
-
-  def prewalk(
-        node =
-          {:<<>>, _,
-           [
-             _,
-             {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}
-           ]},
+        node = {:<<>>, _, _},
         acc
       ) do
     {node, acc}
