@@ -18,6 +18,8 @@ defmodule Archethic.OracleChain.SchedulerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Utils.HydratingCache
+
   import ArchethicCase, only: [setup_before_send_tx: 0]
 
   import Mox
@@ -107,14 +109,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, _} = :sys.get_state(pid)
 
-      MockUCOPriceProvider1
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider2
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider3
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+      HydratingCache.start_link(:uco_service, [
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+      ])
 
       # polling_date =
       #   "0 * * * *"
@@ -185,14 +184,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
          }}
       end)
 
-      MockUCOPriceProvider1
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider2
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider3
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+      HydratingCache.start_link(:uco_service, [
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+      ])
 
       send(pid, :poll)
 
@@ -223,14 +219,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
         available?: true
       })
 
-      MockUCOPriceProvider1
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider2
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider3
-      |> expect(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+      HydratingCache.start_link(:uco_service, [
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+      ])
 
       summary_date =
         "0 0 0 * *"
@@ -332,14 +325,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, %{polling_timer: timer1}} = :sys.get_state(pid)
 
-      MockUCOPriceProvider1
-      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider2
-      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
-
-      MockUCOPriceProvider3
-      |> stub(:fetch, fn _pairs -> {:ok, %{"usd" => [0.2]}} end)
+      HydratingCache.start_link(:uco_service, [
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+      ])
 
       send(pid, :poll)
 
@@ -464,5 +454,9 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       :persistent_term.put(:archethic_up, nil)
     end
+  end
+
+  def fetch(values) do
+    values
   end
 end

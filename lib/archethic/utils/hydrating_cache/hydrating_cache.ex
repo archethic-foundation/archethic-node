@@ -46,7 +46,7 @@ defmodule Archethic.Utils.HydratingCache do
           key :: any,
           refresh_interval :: non_neg_integer(),
           ttl :: non_neg_integer()
-        ) :: :ok
+        ) :: term()
   def register_function(hydrating_cache, fun, key, refresh_interval, ttl)
       when is_function(fun, 0) and is_integer(ttl) and ttl > 0 and
              is_integer(refresh_interval) and
@@ -70,8 +70,8 @@ defmodule Archethic.Utils.HydratingCache do
     - If `key` is not associated with any function, return `{:error,
       :not_registered}`
   """
-  @spec get(atom(), any(), non_neg_integer(), Keyword.t()) :: result
-  def get(hydrating_cache, key, timeout \\ 1_000, _opts \\ [])
+  @spec get(atom(), any(), non_neg_integer()) :: {:ok, term()} | {:error, atom()}
+  def get(hydrating_cache, key, timeout \\ 1_000)
       when is_integer(timeout) and timeout > 0 do
     Logger.debug(
       "Getting key #{inspect(key)} from hydrating cache #{inspect(hydrating_cache)} for #{inspect(self())}"
@@ -102,7 +102,7 @@ defmodule Archethic.Utils.HydratingCache do
 
   @impl GenServer
   def init([name, keys]) do
-    Logger.info("Starting Hydrating cache for service #{inspect(name)}")
+    Logger.info("Starting Hydrating cache for service #{inspect("#{__MODULE__}.#{name}")}")
 
     ## start a dynamic supervisor for the cache entries/keys
     {:ok, keys_sup} =
@@ -146,7 +146,7 @@ defmodule Archethic.Utils.HydratingCache do
   def handle_call({:get, key}, from, state) do
     case Map.get(state, key, :undefined) do
       :undefined ->
-        Logger.warning("HydratingCache no entry for #{inspect(state)}")
+        Logger.warning("HydratingCache no entry for #{inspect(key)}")
         {:reply, {:error, :not_registered}, state}
 
       pid ->

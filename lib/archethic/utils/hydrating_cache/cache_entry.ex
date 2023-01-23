@@ -243,7 +243,16 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
     ## We reprogram the timer to hydrate, even if previous call failled. Error control could occur here
     me = self()
-    {:ok, new_timer} = :timer.send_after(data.ttl, me, :discarded)
+
+    new_timer =
+      case data.ttl do
+        value when is_number(value) ->
+          {:ok, t} = :timer.send_after(value, me, :discarded)
+          t
+
+        _ ->
+          :ok
+      end
 
     {:next_state, :idle,
      %CacheEntry.StateData{
