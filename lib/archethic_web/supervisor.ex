@@ -3,7 +3,6 @@ defmodule ArchethicWeb.Supervisor do
 
   use Supervisor
 
-  alias Archethic.Networking
   alias Archethic.Utils
 
   alias ArchethicCache.LRU
@@ -19,12 +18,6 @@ defmodule ArchethicWeb.Supervisor do
   end
 
   def init(_) do
-    # Try to open the HTTP port
-    endpoint_conf = Application.get_env(:archethic, ArchethicWeb.Endpoint)
-
-    try_open_port(Keyword.get(endpoint_conf, :http))
-    try_open_port(Keyword.get(endpoint_conf, :https))
-
     children =
       [
         TransactionCache,
@@ -41,13 +34,6 @@ defmodule ArchethicWeb.Supervisor do
 
     opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
-  end
-
-  defp try_open_port(nil), do: :ok
-
-  defp try_open_port(conf) do
-    port = Keyword.get(conf, :port)
-    Networking.try_open_port(port, false)
   end
 
   defp add_faucet_rate_limit_child(children) do
