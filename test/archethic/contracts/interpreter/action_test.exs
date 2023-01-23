@@ -527,15 +527,72 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
       ~S"""
       actions triggered_by: transaction do
         list = [1,2,3]
-        double = reduce(list, [], fn number, accu ->
+        double = reduce(list, [], fn number, acc ->
             x = 2
-            append(accu, number * x)
+            append(acc, number * x)
         end)
 
         set_content double
       end
       """
       |> assert_content_after_execute("[2,4,6]")
+    end
+
+    test "should be able to use . in a reduce" do
+      ~S"""
+      actions triggered_by: transaction do
+        list = ["X", "Y"]
+        content = reduce(list, [], fn unused, acc ->
+          # unused assignment just to remove compilation warning
+          x = unused
+
+          append(acc, transaction.address)
+        end)
+        set_content content
+      end
+      """
+      |> assert_content_after_execute("[\"@addr\",\"@addr\"]", %{
+        "transaction" => %{
+          "address" => "@addr"
+        }
+      })
+    end
+
+    test "should be able to use an object as 1st arg in a reduce" do
+      ~S"""
+      actions triggered_by: transaction do
+        list = [transaction, transaction]
+        content = reduce(list, [], fn tx, acc ->
+            append(acc, tx.address)
+        end)
+        set_content content
+      end
+      """
+      |> assert_content_after_execute("[\"@addr\",\"@addr\"]", %{
+        "transaction" => %{
+          "address" => "@addr"
+        }
+      })
+    end
+
+    test "should be able to use an object as 2nd arg in a reduce" do
+      ~S"""
+      actions triggered_by: transaction do
+        list = ["X"]
+        content = reduce(list, transaction, fn letter, acc ->
+            # unused assignment just to remove compilation warning
+            x = unused
+
+            concat(acc.address, letter)
+        end)
+        set_content content
+      end
+      """
+      |> assert_content_after_execute("@addrX", %{
+        "transaction" => %{
+          "address" => "@addr"
+        }
+      })
     end
   end
 
@@ -596,13 +653,13 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
              })
   end
 
-  defp assert_content_after_execute(code, content) do
+  defp assert_content_after_execute(code, content, constants \\ %{}) do
     assert %Transaction{data: %TransactionData{content: ^content}} =
              code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ActionInterpreter.parse()
              |> elem(2)
-             |> ActionInterpreter.execute()
+             |> ActionInterpreter.execute(constants)
   end
 end

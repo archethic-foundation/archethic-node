@@ -80,6 +80,30 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
     {node, acc}
   end
 
+  # Dot access to item
+  def prewalk(
+        _node = {{:., meta, [{@reduce_item_atom, _, _}, {:atom, atom_name}]}, _, _},
+        acc
+      ) do
+    node =
+      {:get_in, [context: Elixir, imports: [{2, Kernel}]],
+       [{@reduce_item_atom, meta, nil}, [atom_name]]}
+
+    {node, acc}
+  end
+
+  # Dot access to acc
+  def prewalk(
+        _node = {{:., meta, [{@reduce_acc_atom, _, _}, {:atom, atom_name}]}, _, _},
+        acc
+      ) do
+    node =
+      {:get_in, [context: Elixir, imports: [{2, Kernel}]],
+       [{@reduce_acc_atom, meta, nil}, [atom_name]]}
+
+    {node, acc}
+  end
+
   # Whitelist every utils function inside the reducer
   def prewalk(node, acc) do
     Archethic.Contracts.Interpreter.Utils.prewalk(node, acc)
