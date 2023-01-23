@@ -579,16 +579,16 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
       ~S"""
       actions triggered_by: transaction do
         list = ["X"]
-        content = reduce(list, transaction, fn letter, acc ->
+        content = reduce(list, transaction, fn unused, acc ->
             # unused assignment just to remove compilation warning
             x = unused
 
-            concat(acc.address, letter)
+            acc.address
         end)
         set_content content
       end
       """
-      |> assert_content_after_execute("@addrX", %{
+      |> assert_content_after_execute("@addr", %{
         "transaction" => %{
           "address" => "@addr"
         }
