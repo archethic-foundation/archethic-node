@@ -241,6 +241,64 @@ defmodule Archethic.Contracts.Interpreter.Library do
   def size(map) when is_map(map), do: map_size(map)
 
   @doc """
+  Append item to the list (slow)
+
+  ## Examples
+
+    iex> Library.append(1, [])
+    [1]
+
+    iex> Library.append([2], [1])
+    [1, [2]]
+  """
+  @spec append(any(), list(any())) :: list(any())
+  def append(item, list) do
+    list ++ [item]
+  end
+
+  @doc """
+
+  Prepend item to the list (fast)
+
+  ## Examples
+    iex> Library.prepend(1, [])
+    [1]
+
+    iex> Library.prepend( [2], [1])
+    [[2], 1]
+  """
+  @spec prepend(any(), list(any())) :: list(any())
+  def prepend(item, list) do
+    [item | list]
+  end
+
+  @doc """
+  Concat both list
+
+  ## Examples
+
+    iex> Library.concat([], [])
+    []
+
+    iex> Library.concat("", "")
+    ""
+
+    iex> Library.concat("hello", " world")
+    "hello world"
+
+    iex> Library.concat([1,2], [3,4])
+    [1,2,3,4]
+  """
+  @spec concat(list() | String.t(), list() | String.t()) :: list() | String.t()
+  def concat(list1, list2) when is_list(list1) and is_list(list2) do
+    list1 ++ list2
+  end
+
+  def concat(str1, str2) when is_binary(str1) and is_binary(str2) do
+    str1 <> str2
+  end
+
+  @doc """
   Get the genesis address of the chain
 
   """
