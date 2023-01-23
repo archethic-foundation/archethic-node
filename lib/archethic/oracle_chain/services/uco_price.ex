@@ -83,7 +83,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
             previous_values ++ values
         end)
 
-      {_currency, _values}, acc ->
+      _, acc ->
         acc
     end)
   end
@@ -98,7 +98,10 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
       {:ok, prices_now} ->
         Enum.all?(@pairs, fn pair ->
-          compare_price(Map.fetch!(prices_prior, pair), Map.fetch!(prices_now, pair))
+          compare_price(
+            Map.fetch!(prices_prior, pair),
+            Map.get(prices_now, pair, Map.fetch!(prices_prior, pair))
+          )
         end)
     end
   end
