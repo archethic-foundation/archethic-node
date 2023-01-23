@@ -6,24 +6,20 @@ defmodule Archethic.OracleChainTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.Utils.HydratingCache
 
   import Mox
 
   test "valid_services_content?/1 should verify the oracle transaction's content correctness" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-    end)
-
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-    end)
-
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-    end)
+    _ =
+      HydratingCache.start_link(:uco_service, [
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
+         30_000, :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
+         30_000, :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
+         30_000, :infinity}
+      ])
 
     content =
       %{
@@ -62,5 +58,9 @@ defmodule Archethic.OracleChainTest do
     ]
 
     assert true == OracleChain.valid_summary?(content, chain)
+  end
+
+  def fetch(values) do
+    values
   end
 end
