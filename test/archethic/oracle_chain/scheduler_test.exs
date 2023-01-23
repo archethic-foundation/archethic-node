@@ -110,9 +110,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
       assert {:scheduled, _} = :sys.get_state(pid)
 
       HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
       ])
 
       # polling_date =
@@ -185,9 +187,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
       end)
 
       HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
       ])
 
       send(pid, :poll)
@@ -220,9 +224,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
       })
 
       HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
       ])
 
       summary_date =
@@ -326,9 +332,11 @@ defmodule Archethic.OracleChain.SchedulerTest do
       assert {:scheduled, %{polling_timer: timer1}} = :sys.get_state(pid)
 
       HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30000, :infinity}
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
+         :infinity},
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
       ])
 
       send(pid, :poll)

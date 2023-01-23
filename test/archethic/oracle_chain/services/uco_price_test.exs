@@ -11,11 +11,11 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     _ =
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity}
+         30_000, :infinity}
       ])
 
     assert {:ok, %{"eur" => _, "usd" => _}} = UCOPrice.fetch()
@@ -25,11 +25,11 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     _ =
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch,
-         [{:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}], 30000, :infinity},
+         [{:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}], 30_000, :infinity},
         {MockUCOPriceProvider2, __MODULE__, :fetch,
-         [{:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}], 30000, :infinity},
+         [{:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}], 30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch,
-         [{:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}], 30000, :infinity}
+         [{:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}], 30_000, :infinity}
       ])
 
     assert {:ok, %{"eur" => 0.12346, "usd" => 0.12345}} = UCOPrice.fetch()
@@ -40,11 +40,11 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       _ =
         HydratingCache.start_link(:uco_service, [
           {MockUCOPriceProvider1, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.20], "usd" => [0.11]}}], 30000, :infinity},
+           [{:ok, %{"eur" => [0.20], "usd" => [0.11]}}], 30_000, :infinity},
           {MockUCOPriceProvider2, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.30, 0.40], "usd" => [0.12, 0.13]}}], 30000, :infinity},
+           [{:ok, %{"eur" => [0.30, 0.40], "usd" => [0.12, 0.13]}}], 30_000, :infinity},
           {MockUCOPriceProvider3, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.50], "usd" => [0.14]}}], 30000, :infinity}
+           [{:ok, %{"eur" => [0.50], "usd" => [0.14]}}], 30_000, :infinity}
         ])
 
       assert {:ok, %{"eur" => 0.35, "usd" => 0.125}} == UCOPrice.fetch()
@@ -54,11 +54,11 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       _ =
         HydratingCache.start_link(:uco_service, [
           {MockUCOPriceProvider1, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30000, :infinity},
+           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30_000, :infinity},
           {MockUCOPriceProvider2, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30000, :infinity},
+           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30_000, :infinity},
           {MockUCOPriceProvider3, __MODULE__, :fetch,
-           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30000, :infinity}
+           [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}], 30_000, :infinity}
         ])
 
       assert false == UCOPrice.verify?(%{"eur" => 0.10, "usd" => 0.14})
@@ -69,11 +69,11 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     _ =
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.30], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.40], "usd" => [0.12]}}],
-         30000, :infinity}
+         30_000, :infinity}
       ])
 
     assert true == UCOPrice.verify?(%{"eur" => 0.30, "usd" => 0.12})
@@ -85,34 +85,19 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
       for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl
     )
 
-    ## Backup old environment variable, and update it with fourth provider
-    old_env = Application.get_env(:archethic, Archethic.OracleChain.Services.UCOPrice)
-
-    new_uco_env =
-      old_env
-      |> Keyword.replace(:providers, [
-        MockUCOPriceProvider1,
-        MockUCOPriceProvider2,
-        MockUCOPriceProvider3,
-        MockUCOPriceProvider4
-      ])
-
     Application.put_env(:archethic, Archethic.OracleChain.Services.UCOPrice, new_uco_env)
 
     _ =
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.30], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.40], "usd" => [0.12]}}],
-         30000, :infinity},
+         30_000, :infinity},
         {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.50], "usd" => [0.12]}}],
-         30000, :infinity}
+         30_000, :infinity}
       ])
-
-    ## Restore original environment
-    Application.put_env(:archethic, Archethic.OracleChain.Services.UCOPrice, old_env)
 
     assert false == UCOPrice.verify?(%{"eur" => 0.35, "usd" => 0.12})
   end
@@ -120,13 +105,13 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
   test "verify?/1 should return false when no data are returned from all providers" do
     _ =
       HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30000,
+        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30_000,
          :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30000,
+        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30_000,
          :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30000,
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30_000,
          :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30000,
+        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [], "usd" => []}}], 30_000,
          :infinity}
       ])
 
@@ -136,10 +121,10 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
   test "should report values even if a provider returns an error" do
     HydratingCache.start_link(:uco_service, [
       {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.50], "usd" => [0.12]}}],
-       30000, :infinity},
-      {MockUCOPriceProvider2, __MODULE__, :fetch, [{:error, :error_message}], 30000, :infinity},
+       30_000, :infinity},
+      {MockUCOPriceProvider2, __MODULE__, :fetch, [{:error, :error_message}], 30_000, :infinity},
       {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.60], "usd" => [0.12]}}],
-       30000, :infinity}
+       30_000, :infinity}
     ])
 
     assert {:ok, %{"eur" => 0.55, "usd" => 0.12}} = UCOPrice.fetch()
@@ -148,10 +133,10 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
   test "should handle a service timing out" do
     HydratingCache.start_link(:uco_service, [
       {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.50], "usd" => [0.10]}}],
-       30000, :infinity},
-      {MockUCOPriceProvider2, __MODULE__, :fetch, [:timer.sleep(5_000)], 30000, :infinity},
+       30_000, :infinity},
+      {MockUCOPriceProvider2, __MODULE__, :fetch, [:timer.sleep(5_000)], 30_000, :infinity},
       {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.50], "usd" => [0.10]}}],
-       30000, :infinity}
+       30_000, :infinity}
     ])
 
     assert true == UCOPrice.verify?(%{"eur" => 0.50, "usd" => 0.10})
