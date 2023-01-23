@@ -217,6 +217,51 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
+  # Whitelist the append/2 library function
+  def prewalk(
+        node = {{:atom, "append"}, _, [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the prepend/2 library function
+  def prewalk(
+        node = {{:atom, "prepend"}, _, [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the concat/2 library function
+  def prewalk(
+        node = {{:atom, "concat"}, _, [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the set/3 library function
+  def prewalk(
+        node = {{:atom, "set"}, _, [_, _, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist and delegate the rem/2 function to Kernel
+  def prewalk(
+        _node = {{:atom, "rem"}, meta, ctx = [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {{:rem, Keyword.put(meta, :context, Kernel), ctx}, acc}
+  end
+
   # Whitelist the hash/1 function
   def prewalk(node = {{:atom, "hash"}, _, [_data]}, acc = {:ok, %{scope: scope}})
       when scope != :root,

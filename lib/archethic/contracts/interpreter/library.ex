@@ -299,6 +299,21 @@ defmodule Archethic.Contracts.Interpreter.Library do
   end
 
   @doc """
+  Set the given `value` under `key` in `map`
+
+  iex> tx = %{"type" => "transfer"}
+  iex> Library.set(tx, "address", "0123abc")
+  %{
+    "type" => "transfer",
+    "address" => "0123abc"
+  }
+  """
+  @spec set(map(), binary(), any()) :: map()
+  def set(map, key, value) do
+    Map.put(map, key, value)
+  end
+
+  @doc """
   Get the genesis address of the chain
 
   """
