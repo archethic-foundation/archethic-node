@@ -41,7 +41,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
     GenServer.call(__MODULE__, {:end_service, name})
   end
 
-  @impl true
+  @impl GenServer
   def init(_args) do
     manager_conf = Application.get_env(:archethic, __MODULE__, [])
 
@@ -63,7 +63,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
     {:ok, %{:caches_sup => caches_sup}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:new_service_sync, name, initial_keys}, _from, state) do
     Logger.info("Starting new service sync : #{name}")
 
@@ -76,7 +76,7 @@ defmodule Archethic.Utils.HydratingCache.CachesManager do
     {:reply, {:ok, pid}, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:new_service_async, name, keys, _requester}, state) do
     Logger.info("Starting new service async : #{name}")
 

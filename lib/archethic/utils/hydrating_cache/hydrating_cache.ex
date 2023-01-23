@@ -141,8 +141,7 @@ defmodule Archethic.Utils.HydratingCache do
     {:ok, %{:keys => keys, keys_sup: keys_sup}}
   end
 
-  @impl true
-
+  @impl GenServer
   def handle_call({:get, key}, from, state) do
     case Map.get(state, key, :undefined) do
       :undefined ->
@@ -186,7 +185,7 @@ defmodule Archethic.Utils.HydratingCache do
     {:reply, :ok, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:get, from, key}, state) do
     case Map.get(state, key, :undefined) do
       :undefined ->
@@ -224,7 +223,7 @@ defmodule Archethic.Utils.HydratingCache do
     {:noreply, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_info(unmanaged, state) do
     Logger.warning("Cache received unmanaged info: #{inspect(unmanaged)}")
     {:noreply, state}
