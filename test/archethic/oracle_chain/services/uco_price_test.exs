@@ -82,6 +82,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     Mox.defmock(MockUCOPriceProvider4,
       for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl
     )
+
     _ =
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
