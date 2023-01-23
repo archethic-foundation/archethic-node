@@ -5,8 +5,6 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
   alias Archethic.Utils.HydratingCache
 
-  import Mox
-
   test "fetch/0 should retrieve some data and build a map with the oracle name in it" do
     _ =
       HydratingCache.start_link(:uco_service, [
@@ -84,9 +82,6 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
     Mox.defmock(MockUCOPriceProvider4,
       for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl
     )
-
-    Application.put_env(:archethic, Archethic.OracleChain.Services.UCOPrice, new_uco_env)
-
     _ =
       HydratingCache.start_link(:uco_service, [
         {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
