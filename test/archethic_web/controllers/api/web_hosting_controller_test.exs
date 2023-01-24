@@ -409,42 +409,49 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       "hashFunction": "sha-1",
       "metaData":{
         "dir1/file10.txt":{
+          "size": 10,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "dir1/file11.txt":{
+          "size": 10,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "dir2/hello.txt":{
+          "size": 10,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "dir3/index.html":{
+          "size": 10,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "file1.txt":{
+          "size": 10,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "file2.txt":{
+          "size": 10,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "file3.txt":{
+          "size": 10,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
@@ -511,12 +518,14 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       "hashFunction": "sha-1",
       "metaData":{
         "address_content.png":{
+          "size": 20,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "concat_content.png":{
+          "size": 30,
           "encoding":"gzip",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de",
@@ -622,6 +631,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       "hashFunction": "sha-1",
       "metaData":{
         "folder/hello_world.html":{
+          "size": 20,
           "encoding":"base64",
           "addresses":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"

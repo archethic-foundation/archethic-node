@@ -47,6 +47,10 @@
     .comma:not(:empty) ~ .comma:not(:empty):before {
         content: ", ";
     }
+    table.index .size{
+      width: 1px;
+      white-space: nowrap;
+    }
 
     i.icon {
         width: 16px;
@@ -116,6 +120,7 @@
         <thead>
             <tr>
                 <th>Name</th>
+                <th class="size">Size(Bytes)</th>
                 <th class="transaction">Transactions</th>
                 <th class="last-modified">Last Modified</th>
             </tr>
@@ -132,6 +137,7 @@
                             </tbody>
                         </table>
                     </td>
+                    <td class="size"></td>
                     <td class="transaction"></td>
                     <td class="last-modified"><%= format_date(dir.last_modified) %></td>
                 </tr>
@@ -147,6 +153,7 @@
                             </tbody>
                         </table>
                     </td>
+                    <td class="size"><%= file.size %></td>
                     <td class="transaction">
                     <%= for address <- prepare_addresses(file.addresses) do %>
                         <a class="address comma"{address.href}><%= address.text %></a>

@@ -68,10 +68,10 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
 
     json_content_subset
     |> Enum.map(fn
-      {key, %{"addresses" => address}} ->
+      {key, %{"addresses" => address, "size" => size}} ->
         case Path.split(key) do
           [^key] ->
-            {:file, key, address}
+            {:file, key, address, size}
 
           [dir | _] ->
             {:dir, dir}
@@ -80,25 +80,26 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
     |> Enum.uniq()
     # sort directory last, then DESC order (it will be accumulated in reverse order below)
     |> Enum.sort(fn
-      {:file, a, _}, {:file, b, _} ->
+      {:file, a, _, _}, {:file, b, _, _} ->
         a > b
 
       {:dir, a}, {:dir, b} ->
         a > b
 
-      {:file, _, _}, {:dir, _} ->
+      {:file, _, _, _}, {:dir, _} ->
         true
 
-      {:dir, _}, {:file, _, _} ->
+      {:dir, _}, {:file, _, _, _} ->
         false
     end)
     |> Enum.reduce(%{dirs: [], files: []}, fn
-      {:file, name, addresses}, %{dirs: dirs_acc, files: files_acc} ->
+      {:file, name, addresses, size}, %{dirs: dirs_acc, files: files_acc} ->
         item = %{
           href: %{href: Path.join(request_path, name)},
           last_modified: timestamp,
           addresses: addresses,
-          name: name
+          name: name,
+          size: size
         }
 
         %{dirs: dirs_acc, files: [item | files_acc]}
