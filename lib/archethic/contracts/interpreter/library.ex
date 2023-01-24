@@ -10,6 +10,48 @@ defmodule Archethic.Contracts.Interpreter.Library do
   alias Archethic.P2P.Message.FirstPublicKey
 
   @doc """
+  Convert a string to an integer
+
+  ## Examples
+
+    iex> Library.int("12345")
+    12345
+  """
+  @spec int(String.t()) :: integer()
+  def int(text) do
+    String.to_integer(text)
+  end
+
+  @doc """
+  Convert a string to a float
+  ## Examples
+
+    iex> Library.float("12345.1")
+    12345.1
+  """
+  @spec float(String.t()) :: float()
+  def float(text) do
+    String.to_float(text)
+  end
+
+  @doc """
+  Convert a number (float or integer) to a string
+
+  ## Examples
+
+    iex> Library.string(12345)
+    "12345"
+  """
+  @spec string(float() | integer()) :: String.t()
+  def string(num) when is_integer(num) do
+    Integer.to_string(num)
+  end
+
+  def string(num) when is_float(num) do
+    Float.to_string(num)
+  end
+
+  @doc """
   Match a regex expression
 
   ## Examples
