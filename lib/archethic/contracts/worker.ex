@@ -103,11 +103,16 @@ defmodule Archethic.Contracts.Worker do
       contract_transaction = Constants.to_transaction(contract_constants)
 
       with true <- ConditionInterpreter.valid_conditions?(transaction_condition, constants),
-           next_tx <- ActionInterpreter.execute(Map.fetch!(triggers, :transaction), constants),
+           next_tx when not is_nil(next_tx) <-
+             ActionInterpreter.execute(Map.fetch!(triggers, :transaction), constants),
            {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction) do
         handle_new_transaction(next_tx)
         {:noreply, state}
       else
+        nil ->
+          # contract did not create a next tx
+          {:noreply, state}
+
         false ->
           Logger.debug("Incoming transaction didn't match the condition",
             transaction_address: Base.encode16(incoming_tx.address),
@@ -150,7 +155,7 @@ defmodule Archethic.Contracts.Worker do
 
     contract_tx = Constants.to_transaction(contract_constants)
 
-    with next_tx <-
+    with next_tx when not is_nil(next_tx) <-
            ActionInterpreter.execute(Map.fetch!(triggers, {:datetime, timestamp}), constants),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx) do
       handle_new_transaction(next_tx)
@@ -184,7 +189,7 @@ defmodule Archethic.Contracts.Worker do
     contract_transaction = Constants.to_transaction(contract_constants)
 
     with true <- enough_funds?(address),
-         next_tx <-
+         next_tx when not is_nil(next_tx) <-
            ActionInterpreter.execute(Map.fetch!(triggers, {:interval, interval}), constants),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
          :ok <- ensure_enough_funds(next_tx, address) do
@@ -218,18 +223,25 @@ defmodule Archethic.Contracts.Worker do
       contract_transaction = Constants.to_transaction(contract_constants)
 
       if Conditions.empty?(oracle_condition) do
-        with next_tx <- ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
+        with next_tx when not is_nil(next_tx) <-
+               ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
              {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
              :ok <- ensure_enough_funds(next_tx, address) do
           handle_new_transaction(next_tx)
         end
       else
         with true <- ConditionInterpreter.valid_conditions?(oracle_condition, constants),
-             next_tx <- ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
+             next_tx when not is_nil(next_tx) <-
+               ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
              {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
              :ok <- ensure_enough_funds(next_tx, address) do
           handle_new_transaction(next_tx)
         else
+          nil ->
+            Logger.error("Oracle contract did not trigger a new tx",
+              contract: Base.encode16(address)
+            )
+
           false ->
             Logger.error("Invalid oracle conditions", contract: Base.encode16(address))
 

@@ -321,11 +321,11 @@ defmodule Archethic.Contracts.ActionInterpreter do
   end
 
   @doc """
-  Execute actions code and returns a transaction as result
+  Execute actions code and returns either the next transaction or nil
   """
-  @spec execute(Macro.t(), map()) :: Transaction.t()
+  @spec execute(Macro.t(), map()) :: Transaction.t() | nil
   def execute(code, constants \\ %{}) do
-    {%{"next_transaction" => next_transaction}, _} =
+    result =
       Code.eval_quoted(code,
         scope:
           Map.put(constants, "next_transaction", %Transaction{
@@ -333,6 +333,12 @@ defmodule Archethic.Contracts.ActionInterpreter do
           })
       )
 
-    next_transaction
+    case result do
+      {%{"next_transaction" => next_transaction}, _} ->
+        next_transaction
+
+      _ ->
+        nil
+    end
   end
 end
