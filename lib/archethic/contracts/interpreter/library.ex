@@ -58,6 +58,9 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
   @doc """
   Extract data from string using capture groups
+  (multiline flag is activated)
+
+  ps: the number of antislash is doubled because this is a doctest
 
   ## Examples
 
@@ -69,10 +72,14 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
       iex> Library.regex_scan("toto,123\\ntutu,456\\n", "t.t.,([0-9]+)")
       ["123", "456"]
+
+      iex> Library.regex_scan("A0B1C2,123\\nD3E4F5,456\\n", "^(\\\\w+),(\\\\d+)$")
+      [["A0B1C2", "123"], ["D3E4F5", "456"]]
+
   """
   @spec regex_scan(binary(), binary()) :: list(binary())
   def regex_scan(text, pattern) when is_binary(text) and is_binary(pattern) do
-    case Regex.compile(pattern) do
+    case Regex.compile(pattern, "m") do
       {:ok, pattern} ->
         Regex.scan(pattern, text, capture: :all_but_first)
         |> Enum.map(fn
