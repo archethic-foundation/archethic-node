@@ -287,7 +287,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
-  # Whitelist the get_token_id/0 function
+  # Whitelist the get_token_id/1 function
   def prewalk(
         node = {{:atom, "get_token_id"}, _, [_address]},
         acc = {:ok, %{scope: scope}}

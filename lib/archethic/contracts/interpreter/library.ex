@@ -12,8 +12,6 @@ defmodule Archethic.Contracts.Interpreter.Library do
     Contracts.Interpreter.Utils
   }
 
-  alias Archethic.Utils
-
   require Logger
 
   @doc """
@@ -237,12 +235,13 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_token_id(binary()) :: {:error, binary()} | {:ok, binary()}
   def get_token_id(address) do
+    address = Utils.maybe_decode_hex(address)
     t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
-    t2 = Task.async(fn -> Utils.get_transaction_content(address) end)
+    t2 = Task.async(fn -> Archethic.Utils.get_transaction_content(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
          {:ok, {:ok, definition}} <- Task.yield(t2) do
-      Utils.get_token_id(genesis_address, definition)
+      Archethic.Utils.get_token_id(genesis_address, definition)
     else
       {:ok, {:error, :network_issue}} ->
         {:error, "Network issue"}

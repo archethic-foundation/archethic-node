@@ -3,8 +3,8 @@ defmodule Archethic.Contracts.Interpreter.LibraryTest do
 
   alias Archethic.Contracts.Interpreter.Library
 
-  alias P2P.Message.GetFirstTransactionAddress
-  alias P2P.Message.FirstTransactionAddress
+  alias Archethic.P2P.Message.GetFirstTransactionAddress
+  alias Archethic.P2P.Message.FirstTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -53,7 +53,7 @@ defmodule Archethic.Contracts.Interpreter.LibraryTest do
         |> Jason.decode!()
 
       MockDB
-      |> stub(:get_transaction, fn _, _ -> {:ok, tx} end)
+      |> stub(:get_transaction, fn _, _, _ -> {:ok, tx} end)
       |> stub(:get_genesis_address, fn _ -> genesis_address end)
 
       assert Utils.get_token_id(genesis_address, transaction_content) ==
