@@ -84,6 +84,9 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   def prewalk(node = {:==, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
+  def prewalk(node = {:!=, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
+    do: {node, acc}
+
   # Whitelist the use of doted statement
   def prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc = {:ok, %{scope: scope}})
       when scope != :root,
