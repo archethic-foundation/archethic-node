@@ -130,6 +130,37 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
              )
   end
 
+  test "download_transaction/2 should download the transaction even after a first failure" do
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+    ]
+
+    tx = TransactionFactory.create_valid_transaction(inputs)
+
+    MockClient
+    |> expect(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:error, :network_issue}
+    end)
+    |> expect(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, tx}
+    end)
+
+    tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
+
+    assert ^tx =
+             TransactionHandler.download_transaction(
+               tx_summary,
+               P2P.authorized_and_available_nodes()
+             )
+  end
+
   test "process_transaction/1 should handle the transaction and replicate it" do
     me = self()
 

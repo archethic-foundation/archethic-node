@@ -66,25 +66,61 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       |> Election.chain_storage_nodes_with_type(type, node_list)
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
+    download_nodes =
+      storage_nodes
+      |> P2P.filter_and_prioritize_nodes_for_quorum_read()
+
     case TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
       {:ok, tx = %Transaction{}} ->
         tx
 
-      {:error, :transaction_not_exists} ->
-        Logger.error("Cannot fetch the transaction to sync",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
+      {:error, error} ->
+        do_retry_download_transaction(address, type, download_nodes, error)
+    end
+  end
 
-        raise "Transaction doesn't exist"
+  defp do_retry_download_transaction(address, type, download_nodes, intial_error) do
+    %{errors: errors, transaction: tx} =
+      download_nodes
+      |> Enum.chunk_every(3)
+      |> Enum.reduce_while(
+        %{
+          errors: [intial_error],
+          transaction: nil
+        },
+        fn nodes, acc ->
+          case TransactionChain.fetch_transaction_remotely(address, nodes) do
+            {:ok, tx = %Transaction{}} ->
+              {:halt, %{acc | transaction: tx}}
 
-      {:error, :network_issue} ->
-        Logger.error("Cannot fetch the transaction to sync",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
+            {:error, error} ->
+              {:cont, %{acc | errors: [error | acc.errors]}}
+          end
+        end
+      )
 
-        raise "Network issue during during self repair"
+    if is_nil(tx) do
+      errors
+      |> Enum.uniq()
+      |> Enum.each(fn
+        :network_issue ->
+          Logger.error("Cannot fetch the transaction to sync",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
+          raise "Network issue during during self repair"
+
+        :transaction_not_exists ->
+          Logger.error("Cannot fetch the transaction to sync",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
+          raise "Transaction doesn't exist"
+      end)
+    else
+      tx
     end
   end
 

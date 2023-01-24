@@ -633,10 +633,19 @@ defmodule Archethic.P2P do
 
   def quorum_read(nodes, message, conflict_resolver, timeout, consistency_level) do
     nodes
+    |> filter_and_prioritize_nodes_for_quorum_read()
+    |> do_quorum_read(message, conflict_resolver, timeout, consistency_level, nil)
+  end
+
+  @doc """
+  Filter and prioritize nodes to be used in quorum read
+  """
+  @spec filter_and_prioritize_nodes_for_quorum_read(list(Node.t())) :: list(Node.t())
+  def filter_and_prioritize_nodes_for_quorum_read(nodes) do
+    nodes
     |> Enum.filter(&Node.locally_available?/1)
     |> nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
-    |> do_quorum_read(message, conflict_resolver, timeout, consistency_level, nil)
   end
 
   defp do_quorum_read([], _, _, _, _, nil), do: {:error, :network_issue}
