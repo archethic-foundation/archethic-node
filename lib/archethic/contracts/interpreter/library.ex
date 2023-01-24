@@ -108,12 +108,38 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
   ## Examples
 
+      iex> Library.hash("hello","sha256")
+      "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824"
+
       iex> Library.hash("hello")
       "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824"
   """
-  @spec hash(binary()) :: binary()
-  def hash(content) when is_binary(content) do
-    :crypto.hash(:sha256, decode_binary(content)) |> Base.encode16()
+  @spec hash(
+          content :: binary(),
+          algo :: binary()
+        ) ::
+          binary()
+  def hash(content, algo \\ "sha256") when is_binary(content) do
+    algo =
+      case algo do
+        "sha256" ->
+          :sha256
+
+        "sha512" ->
+          :sha512
+
+        "sha3_256" ->
+          :sha3_256
+
+        "sha3_512" ->
+          :sha3_512
+
+        "blake2b" ->
+          :blake2b
+      end
+
+    :crypto.hash(algo, decode_binary(content))
+    |> Base.encode16()
   end
 
   @doc """
