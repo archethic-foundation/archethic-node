@@ -11,6 +11,8 @@ defmodule ArchethicCache.LRU do
   Because size can be modified with the hooks
   (ex: For LRUDisk, we discard the value from the ETS table, but still want to know the size written to disk)
   """
+  use GenServer
+  @vsn Mix.Project.config()[:version]
 
   @spec start_link(GenServer.name(), non_neg_integer(), keyword()) ::
           {:ok, binary()} | {:error, term()}
