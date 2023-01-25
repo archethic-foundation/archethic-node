@@ -3,10 +3,13 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
 
   alias Archethic.Contracts.ActionInterpreter
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Crypto
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GetFirstTransactionAddress
+  alias Archethic.P2P.Message.FirstTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -382,5 +385,56 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                |> elem(2)
                |> ActionInterpreter.execute()
     end
+  end
+
+  test "Use get_first_transaction_address/1 in actions" do
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: "key1",
+      last_public_key: "key1",
+      network_patch: "AAA",
+      geo_patch: "AAA",
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
+    first_address_bin =
+      "some random seed" |> Crypto.derive_keypair(0) |> elem(0) |> Crypto.derive_address()
+
+    second_address_bin =
+      "some random seed" |> Crypto.derive_keypair(1) |> elem(0) |> Crypto.derive_address()
+
+    first_addr = first_address_bin |> Base.encode16()
+    second_addr = second_address_bin |> Base.encode16()
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetFirstTransactionAddress{address: ^first_address_bin}, _ ->
+        {:ok, %FirstTransactionAddress{address: second_address_bin}}
+
+      _, _, _ ->
+        {:error, :network_error}
+    end)
+
+    contract_code = ~s"""
+    actions triggered_by: transaction do
+      address = get_first_transaction_address("#{first_addr}")
+      if address == "#{second_addr}" do
+        set_content "first_address_acquired"
+      else
+        set_content "not_acquired"
+      end
+    end
+    """
+
+    assert %Transaction{data: %TransactionData{content: "first_address_acquired"}} =
+             contract_code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ActionInterpreter.parse()
+             |> elem(2)
+             |> ActionInterpreter.execute()
   end
 end

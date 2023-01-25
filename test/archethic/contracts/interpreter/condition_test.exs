@@ -9,6 +9,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.FirstTransactionAddress
 
   doctest ConditionInterpreter
 
@@ -199,7 +200,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                })
     end
 
-    test "shall get the first address of the chain in the conditions" do
+    test "shall get the genesis address of the chain in the conditions" do
       key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
       P2P.add_and_connect_node(%Node{
@@ -226,6 +227,44 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                ~s"""
                condition transaction: [
                  address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+               ]
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse()
+               |> elem(2)
+               |> ConditionInterpreter.valid_conditions?(%{
+                 "transaction" => %{"address" => :crypto.strong_rand_bytes(32)}
+               })
+    end
+
+    test "should get first tx address of the chain in the conditions" do
+      key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: key,
+        last_public_key: key,
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+      b_address = Base.decode16!(address)
+
+      MockClient
+      |> expect(:send_message, 1, fn _, _, _ ->
+        {:ok, %FirstTransactionAddress{address: b_address}}
+      end)
+
+      assert true =
+               ~s"""
+               condition transaction: [
+                 address: get_first_transaction_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
                ]
                """
                |> Interpreter.sanitize_code()

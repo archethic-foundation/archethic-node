@@ -43,6 +43,8 @@ defmodule Archethic.P2P.Message do
     GetTransactionChainLength,
     GetTransactionInputs,
     GetUnspentOutputs,
+    GetFirstTransactionAddress,
+    FirstTransactionAddress,
     LastTransactionAddress,
     ListNodes,
     NewBeaconSlot,
@@ -100,6 +102,8 @@ defmodule Archethic.P2P.Message do
           | GetBalance.t()
           | GetTransactionInputs.t()
           | GetTransactionChainLength.t()
+          | GetFirstTransactionAddress.t()
+          | FirstTransactionAddress.t()
           | NotifyEndOfNodeSync.t()
           | GetLastTransactionAddress.t()
           | NotifyLastTransactionAddress.t()
@@ -200,12 +204,9 @@ defmodule Archethic.P2P.Message do
 
   @doc """
   Serialize a message into binary
-
   ## Examples
-
       iex> Message.encode(%Ok{})
       <<254>>
-
       iex> %Message.GetTransaction{
       ...>  address: <<0, 40, 71, 99, 6, 218, 243, 156, 193, 63, 176, 168, 22, 226, 31, 170, 119, 122,
       ...>    13, 188, 75, 49, 171, 219, 222, 133, 86, 132, 188, 206, 233, 66, 7>>
