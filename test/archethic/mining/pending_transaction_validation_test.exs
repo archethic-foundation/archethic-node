@@ -186,7 +186,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert :ok = PoolsMemTable.put_pool_member(:technical_council, tx.previous_public_key)
 
       MockDB
-      |> expect(:get_transaction, fn _, _ ->
+      |> expect(:get_transaction, fn _, _, _ ->
         {:ok,
          %Transaction{
            data: %TransactionData{

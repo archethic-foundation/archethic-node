@@ -103,16 +103,12 @@ defmodule Archethic.Contracts.Loader do
         protocol_version
       )
 
-      case Worker.execute(contract_address, tx) do
-        :ok ->
-          Logger.info("Transaction towards contract ingested",
-            transaction_address: Base.encode16(tx_address),
-            transaction_type: tx_type
-          )
+      Worker.execute(contract_address, tx)
 
-        _ ->
-          :ok
-      end
+      Logger.info("Transaction towards contract ingested",
+        transaction_address: Base.encode16(tx_address),
+        transaction_type: tx_type
+      )
     end)
   end
 
