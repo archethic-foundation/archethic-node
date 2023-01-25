@@ -303,6 +303,21 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
              |> ActionInterpreter.execute()
   end
 
+  test "should use many interpolation assignations" do
+    assert %Transaction{data: %TransactionData{content: "hello 4, 42"}} =
+             ~S"""
+               actions triggered_by: transaction do
+                 new_content = "hello #{2+2}, #{42}"
+                 set_content new_content
+               end
+             """
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ActionInterpreter.parse()
+             |> elem(2)
+             |> ActionInterpreter.execute()
+  end
+
   test "shall use get_genesis_address/1 in actions" do
     key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
