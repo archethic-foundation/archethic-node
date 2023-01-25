@@ -135,13 +135,7 @@ defmodule Archethic.DB.EmbeddedImpl do
 
       {:error, :transaction_not_exists} ->
         if storage_type == :io do
-          case ChainReader.get_io_transaction(address, fields, db_path()) do
-            nil ->
-              {:error, :transaction_not_exists}
-
-            transaction ->
-              {:ok, transaction}
-          end
+          ChainReader.get_io_transaction(address, fields, db_path())
         else
           {:error, :transaction_not_exists}
         end

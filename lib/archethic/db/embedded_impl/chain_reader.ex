@@ -205,14 +205,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   Read a transaction from io storage
   """
   @spec get_io_transaction(binary(), fields :: list(), db_path :: String.t()) ::
-          Transaction.t() | nil
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_io_transaction(address, fields, db_path) do
     filepath = ChainWriter.io_path(db_path, address)
 
     if File.exists?(filepath) do
-      read_io_transaction(filepath, fields)
+      {:ok, read_io_transaction(filepath, fields)}
     else
-      nil
+      {:error, :transaction_not_exists}
     end
   end
 
