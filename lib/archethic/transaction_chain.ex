@@ -691,11 +691,17 @@ defmodule Archethic.TransactionChain do
       end
     end
 
+    acceptance_resolver = fn
+      {:ok, %Transaction{}} -> true
+      _ -> false
+    end
+
     case P2P.quorum_read(
            nodes,
            %GetTransaction{address: address},
            conflict_resolver,
-           timeout
+           timeout,
+           acceptance_resolver
          ) do
       {:ok, %NotFound{}} ->
         {:error, :transaction_not_exists}

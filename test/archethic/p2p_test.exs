@@ -135,6 +135,36 @@ defmodule Archethic.P2PTest do
                  end
                end)
     end
+
+    test "should try all nodes and return last message when no response match acceptance resolver",
+         %{
+           nodes: nodes
+         } do
+      MockClient
+      |> expect(
+        :send_message,
+        4,
+        fn _node, _message, _timeout ->
+          {:ok, %Transaction{}}
+        end
+      )
+      |> expect(
+        :send_message,
+        1,
+        fn _node, _message, _timeout ->
+          {:ok, %NotFound{}}
+        end
+      )
+
+      assert {:ok, %NotFound{}} =
+               P2P.quorum_read(
+                 nodes,
+                 %GetTransaction{address: ""},
+                 fn results -> List.last(results) end,
+                 0,
+                 fn _ -> false end
+               )
+    end
   end
 
   describe "authorized_and_available_nodes/1" do
@@ -257,56 +287,6 @@ defmodule Archethic.P2PTest do
 
       assert [%Node{first_public_key: "key1"}] =
                P2P.authorized_and_available_nodes(~U[2022-09-11 01:05:00Z])
-    end
-  end
-
-  describe "filter_and_prioritize_nodes_for_quorum_read/1" do
-    setup do
-      pub1 = Crypto.generate_deterministic_keypair("node1") |> elem(0)
-      pub2 = Crypto.generate_deterministic_keypair("node2") |> elem(0)
-      pub3 = Crypto.generate_deterministic_keypair("node3") |> elem(0)
-
-      node_1 = %Node{
-        ip: {127, 0, 0, 1},
-        port: 3002,
-        first_public_key: pub1,
-        last_public_key: pub1,
-        available?: false,
-        availability_history: <<1::1>>,
-        network_patch: "CCC",
-        geo_patch: "CCC"
-      }
-
-      node_2 = %Node{
-        ip: {127, 0, 0, 1},
-        port: 3003,
-        first_public_key: pub2,
-        last_public_key: pub2,
-        available?: true,
-        availability_history: <<0::1>>,
-        network_patch: "BBB",
-        geo_patch: "BBB"
-      }
-
-      node_3 = %Node{
-        ip: {127, 0, 0, 1},
-        port: 3004,
-        first_public_key: pub3,
-        last_public_key: pub3,
-        available?: true,
-        availability_history: <<1::1>>,
-        network_patch: "AAA",
-        geo_patch: "AAA"
-      }
-
-      nodes = [node_1, node_2, node_3]
-
-      Enum.each(nodes, &P2P.add_and_connect_node/1)
-      {:ok, %{nodes: nodes, result: [node_1, node_3]}}
-    end
-
-    test "should return locally available and nearest nodes", %{nodes: nodes, result: result} do
-      assert P2P.filter_and_prioritize_nodes_for_quorum_read(nodes) == result
     end
   end
 end
