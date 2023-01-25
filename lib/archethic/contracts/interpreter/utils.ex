@@ -268,6 +268,15 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
+  # Whitelist the get_first_address/1 function
+  def prewalk(
+        node = {{:atom, "get_first_transaction_address"}, _, [_address]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
   # Whitelist the get_genesis_public_key/1 function
   def prewalk(
         node = {{:atom, "get_genesis_public_key"}, _, [_address]},

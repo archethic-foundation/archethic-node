@@ -1,13 +1,13 @@
 defmodule Archethic.Contracts.Interpreter.Library do
   @moduledoc false
 
-  alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.GetGenesisAddress
-  alias Archethic.P2P.Message.GetFirstPublicKey
-  alias Archethic.P2P.Message.GenesisAddress
-  alias Archethic.P2P.Message.FirstPublicKey
+  alias Archethic.{
+    Election,
+    P2P,
+    P2P.Message.GetFirstPublicKey,
+    P2P.Message.FirstPublicKey,
+    TransactionChain
+  }
 
   @doc """
   Match a regex expression
@@ -182,19 +182,6 @@ defmodule Archethic.Contracts.Interpreter.Library do
   def size(map) when is_map(map), do: map_size(map)
 
   @doc """
-  Get the genesis address of the chain
-
-  """
-  @spec get_genesis_address(binary()) ::
-          binary()
-  def get_genesis_address(address) do
-    bin_address = decode_binary(address)
-    nodes = Election.chain_storage_nodes(bin_address, P2P.authorized_and_available_nodes())
-    {:ok, address} = download_first_address(nodes, bin_address)
-    Base.encode16(address)
-  end
-
-  @doc """
   Get the genesis public key
   """
   @spec get_genesis_public_key(binary()) :: binary()
@@ -215,22 +202,13 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
   defp download_first_public_key([], _address), do: {:error, :network_issue}
 
-  defp download_first_address([node | rest], address) do
-    case P2P.send_message(node, %GetGenesisAddress{address: address}) do
-      {:ok, %GenesisAddress{address: address}} -> {:ok, address}
-      {:error, _} -> download_first_address(rest, address)
-    end
-  end
-
-  defp download_first_address([], _address), do: {:error, :network_issue}
-
   @doc """
   Return the current UNIX timestamp
   """
   @spec timestamp() :: non_neg_integer()
   def timestamp, do: DateTime.utc_now() |> DateTime.to_unix()
 
-  defp decode_binary(bin) do
+  def decode_binary(bin) do
     if String.printable?(bin) do
       case Base.decode16(bin, case: :mixed) do
         {:ok, hex} ->
@@ -241,6 +219,36 @@ defmodule Archethic.Contracts.Interpreter.Library do
       end
     else
       bin
+    end
+  end
+
+  @doc """
+  Get the genesis address of the chain
+  """
+  @spec get_genesis_address(binary()) ::
+          binary()
+  def get_genesis_address(address) do
+    addr_bin = decode_binary(address)
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    case TransactionChain.fetch_genesis_address_remotely(addr_bin, nodes) do
+      {:ok, genesis_address} -> Base.encode16(genesis_address)
+      {:error, reason} -> raise "[get_genesis_address]  #{inspect(reason)}"
+    end
+  end
+
+  @doc """
+  Get the First transaction address of the transaction chain for the given address
+  """
+  @spec get_first_transaction_address(address :: binary()) ::
+          binary()
+  def get_first_transaction_address(address) do
+    addr_bin = decode_binary(address)
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    case TransactionChain.fetch_first_transaction_address_remotely(addr_bin, nodes) do
+      {:ok, first_transaction_address} -> Base.encode16(first_transaction_address)
+      {:error, reason} -> raise "[get_first_transaction_address]  #{inspect(reason)}"
     end
   end
 end

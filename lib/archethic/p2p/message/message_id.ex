@@ -25,6 +25,8 @@ defmodule Archethic.P2P.MessageId do
     GetTransactionChainLength,
     GetP2PView,
     GetFirstPublicKey,
+    GetFirstTransactionAddress,
+    FirstTransactionAddress,
     NotifyLastTransactionAddress,
     GetTransactionSummary,
     Ping,
@@ -102,7 +104,7 @@ defmodule Archethic.P2P.MessageId do
     GetLastTransactionAddress => 21,
     NotifyLastTransactionAddress => 22,
     GetTransactionSummary => 23,
-    # id 24 is available for a new message
+    GetFirstTransactionAddress => 24,
     Ping => 25,
     GetBeaconSummary => 26,
     NewBeaconSlot => 27,
@@ -119,6 +121,7 @@ defmodule Archethic.P2P.MessageId do
     NotifyReplicationValidation => 38,
 
     # Responses
+    FirstTransactionAddress => 228,
     AddressList => 229,
     ShardRepair => 230,
     SummaryAggregate => 231,
