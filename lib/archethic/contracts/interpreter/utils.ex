@@ -295,6 +295,24 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     {node, acc}
   end
 
+  # Whitelist the at/2 library function
+  def prewalk(
+        node = {{:atom, "at"}, _, [_, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
+  # Whitelist the at/3 library function
+  def prewalk(
+        node = {{:atom, "at"}, _, [_, _, _]},
+        acc = {:ok, %{scope: scope}}
+      )
+      when scope != :root do
+    {node, acc}
+  end
+
   # Whitelist the set/3 library function
   def prewalk(
         node = {{:atom, "set"}, _, [_, _, _]},

@@ -10,6 +10,24 @@ defmodule Archethic.Contracts.Interpreter.Library do
   alias Archethic.P2P.Message.FirstPublicKey
 
   @doc """
+  Returns the element at given index (zero-based)
+
+  ## Examples
+
+    iex> Library.at([1,2], 1)
+    2
+
+    iex> Library.at([], 0)
+    nil
+
+    iex> Library.at([], 0, "hello")
+    "hello"
+  """
+  def at(list, idx, default \\ nil) do
+    Enum.at(list, idx, default)
+  end
+
+  @doc """
   Convert a string to an integer
 
   ## Examples
