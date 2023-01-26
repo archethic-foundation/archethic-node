@@ -692,7 +692,7 @@ defmodule Archethic.TransactionChain do
     end
 
     acceptance_resolver = fn
-      {:ok, %Transaction{}} -> true
+      {:ok, %Transaction{address: ^address}} -> true
       _ -> false
     end
 
