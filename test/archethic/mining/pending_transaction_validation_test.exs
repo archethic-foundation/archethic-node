@@ -186,7 +186,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert :ok = PoolsMemTable.put_pool_member(:technical_council, tx.previous_public_key)
 
       MockDB
-      |> expect(:get_transaction, fn _, _ ->
+      |> expect(:get_transaction, fn _, _, _ ->
         {:ok,
          %Transaction{
            data: %TransactionData{
@@ -350,7 +350,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_last_chain_address, fn address ->
         address
       end)
-      |> stub(:get_transaction, fn _address, [:address, :type] ->
+      |> stub(:get_transaction, fn _address, [:address, :type], _ ->
         {:error, :transaction_not_exists}
       end)
 
@@ -391,7 +391,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_last_chain_address, fn address ->
         address
       end)
-      |> stub(:get_transaction, fn _address, [:address, :type] ->
+      |> stub(:get_transaction, fn _address, [:address, :type], _ ->
         {:error, :transaction_not_exists}
       end)
 
@@ -429,7 +429,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> stub(:get_last_chain_address, fn address ->
         address
       end)
-      |> stub(:get_transaction, fn _address, [:address, :type] ->
+      |> stub(:get_transaction, fn _address, [:address, :type], _ ->
         {:error, :transaction_not_exists}
       end)
 
@@ -854,7 +854,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       |> expect(:get_last_chain_address, fn _, _ ->
         {"OtherAddress", DateTime.utc_now()}
       end)
-      |> expect(:get_transaction, fn _, _ ->
+      |> expect(:get_transaction, fn _, _, _ ->
         {:ok, %Transaction{type: :node_rewards}}
       end)
 

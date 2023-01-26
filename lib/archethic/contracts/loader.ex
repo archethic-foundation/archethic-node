@@ -96,15 +96,14 @@ defmodule Archethic.Contracts.Loader do
         transaction_type: tx_type
       )
 
-      # execute asynchronously the contract
-      Worker.execute(contract_address, tx)
-
       TransactionLookup.add_contract_transaction(
         contract_address,
         tx_address,
         tx_timestamp,
         protocol_version
       )
+
+      Worker.execute(contract_address, tx)
 
       Logger.info("Transaction towards contract ingested",
         transaction_address: Base.encode16(tx_address),

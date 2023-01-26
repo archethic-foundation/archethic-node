@@ -340,6 +340,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   def postwalk(node, acc) when is_binary(node) do
     if String.printable?(node) do
+      # uniform hexadecimal to all uppercase
       case Base.decode16(node, case: :mixed) do
         {:ok, hex} ->
           {Base.encode16(hex), acc}
@@ -375,6 +376,21 @@ defmodule Archethic.Contracts.Interpreter.Utils do
       )
 
     ast
+  end
+
+  @doc """
+  Decode an hexadecimal binary or no-op
+  """
+  @spec maybe_decode_hex(binary()) :: binary()
+  def maybe_decode_hex(bin) do
+    if String.match?(bin, ~r/^[[:xdigit:]]+$/) do
+      case Base.decode16(bin, case: :mixed) do
+        {:ok, bin} -> bin
+        :error -> bin
+      end
+    else
+      bin
+    end
   end
 
   defp do_postwalk_execution({:=, metadata, [var_name, content]}, acc) do

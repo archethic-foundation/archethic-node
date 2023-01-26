@@ -442,7 +442,7 @@ defmodule Archethic.Contracts.WorkerTest do
       PubSub.notify_new_transaction("@Oracle1", :oracle, DateTime.utc_now())
 
       MockDB
-      |> expect(:get_transaction, fn "@Oracle1", _ -> {:ok, oracle_tx} end)
+      |> expect(:get_transaction, fn "@Oracle1", _, _ -> {:ok, oracle_tx} end)
 
       receive do
         {:transaction_sent, tx} ->

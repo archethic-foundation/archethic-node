@@ -142,11 +142,11 @@ defmodule Archethic.TransactionChain do
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
           | {:error, :invalid_transaction}
-  def get_transaction(address, fields \\ []) when is_list(fields) do
+  def get_transaction(address, fields \\ [], storage_type \\ :chain) when is_list(fields) do
     if KOLedger.has_transaction?(address) do
       {:error, :invalid_transaction}
     else
-      DB.get_transaction(address, fields)
+      DB.get_transaction(address, fields, storage_type)
     end
   end
 

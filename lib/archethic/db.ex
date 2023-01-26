@@ -16,7 +16,11 @@ defmodule Archethic.DB do
 
   @type storage_type() :: :chain | :io
 
+  @callback get_transaction(address :: binary()) ::
+              {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   @callback get_transaction(address :: binary(), fields :: list()) ::
+              {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+  @callback get_transaction(address :: binary(), fields :: list(), storage_type :: storage_type()) ::
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   @callback get_beacon_summary(summary_address :: binary()) ::
               {:ok, Summary.t()} | {:error, :summary_not_exists}

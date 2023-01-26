@@ -202,6 +202,21 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   end
 
   @doc """
+  Read a transaction from io storage
+  """
+  @spec get_io_transaction(binary(), fields :: list(), db_path :: String.t()) ::
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+  def get_io_transaction(address, fields, db_path) do
+    filepath = ChainWriter.io_path(db_path, address)
+
+    if File.exists?(filepath) do
+      {:ok, read_io_transaction(filepath, fields)}
+    else
+      {:error, :transaction_not_exists}
+    end
+  end
+
+  @doc """
   List all the transactions in io storage
   """
   @spec list_io_transactions(fields :: list(), db_path :: String.t()) ::
