@@ -1,10 +1,5 @@
 defmodule Archethic.Contracts.Interpreter.TransactionStatements do
-  @moduledoc """
-  Two types of SC functions: Utilities and Statements.Utilities functions include hash,etc.
-  Statement functions include set_type, add_uco_transfer,  add_token_transfer,
-  set_content, set_code, etc.These functions can be used to perform various actions such as
-  setting the transaction type,etc.
-  """
+  @moduledoc false
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
