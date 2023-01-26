@@ -1,6 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.Utils do
   @moduledoc false
 
+  alias Archethic.Crypto
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.TransactionStatements
 
@@ -576,4 +577,30 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   defp metadata_to_string(line: line, column: column), do: "L#{line}:C#{column}"
   defp metadata_to_string(line: line), do: "L#{line}"
   defp metadata_to_string(_), do: ""
+
+  @doc """
+  Gets an valid address as true binary from string term or from true binary <<>>.
+  Multiple branching required, ecto type impl adopted. May use ecto itself.String
+  are binary encode terms, and so are true binary.To differentiate between the two,
+  we check if the string is printable.
+  """
+  def get_address(address, context) do
+    address =
+      if String.printable?(address) do
+        case Base.decode16(address, case: :mixed) do
+          {:ok, addr_bin} ->
+            addr_bin
+
+          _ ->
+            raise "Invalid address in #{inspect(context)}"
+        end
+      else
+        address
+      end
+
+    case Crypto.valid_address?(address) do
+      true -> address
+      _ -> raise "Invalid address in #{inspect(context)}"
+    end
+  end
 end

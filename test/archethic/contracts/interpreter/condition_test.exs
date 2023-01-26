@@ -15,6 +15,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
 
   import Mox
 
+  # seed for replacement address 7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3
   test "should parse map based inherit constraints" do
     assert {:ok, :inherit,
             %Conditions{
@@ -28,14 +29,14 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                     ]},
                    {:%{}, [line: 2],
                     [
-                      {"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3",
+                      {"0000C5EDE44A66D452EB6B27D6AA898C9FEF0A2E793207A5AFB2C566047D3BD5D3E8",
                        1_040_000_000}
                     ]}
                  ]}
             }} =
              """
              condition inherit: [
-               uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1040000000 }
+               uco_transfers: %{ "0000C5EDE44A66D452EB6B27D6AA898C9FEF0A2E793207A5AFB2C566047D3BD5D3E8" => 1040000000 }
              ]
              """
              |> Interpreter.sanitize_code()
@@ -54,7 +55,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                      {:%{}, _,
                       [
                         {"to",
-                         "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3"},
+                         "0000C5EDE44A66D452EB6B27D6AA898C9FEF0A2E793207A5AFB2C566047D3BD5D3E8"},
                         {"amount", 1_040_000_000}
                       ]}
                    ]
@@ -63,7 +64,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
             }} =
              """
                condition inherit: [
-                 uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }],
+                 uco_transfers: [%{ to: "0000C5EDE44A66D452EB6B27D6AA898C9FEF0A2E793207A5AFB2C566047D3BD5D3E8", amount: 1040000000 }],
                  content: "hello"
                ]
 
@@ -143,7 +144,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
             "must be a map or a code instruction starting by an comparator - uco_transfers"} =
              """
              condition inherit: [
-               uco_transfers: [%{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1040000000 }]
+               uco_transfers: [%{ "0000C5EDE44A66D452EB6B27D6AA898C9FEF0A2E793207A5AFB2C566047D3BD5D3E8" => 1040000000 }]
              ]
              """
              |> Interpreter.sanitize_code()
@@ -156,7 +157,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
             "must be a map or a code instruction starting by an comparator - token_transfers"} =
              """
              condition inherit: [
-               token_transfers: [%{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1040000000 }]
+               token_transfers: [%{ "0000C5EDE44A66D452EB6B27D6AA898C9FEF0A2E793207A5AFB2C566047D3BD5D3E8" => 1040000000 }]
              ]
              """
              |> Interpreter.sanitize_code()
@@ -215,7 +216,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
         authorization_date: DateTime.utc_now()
       })
 
-      address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
       b_address = Base.decode16!(address)
 
       MockClient
@@ -226,7 +227,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
       assert true =
                ~s"""
                condition transaction: [
-                 address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+                 address: get_genesis_address() == "#{address}"
                ]
                """
                |> Interpreter.sanitize_code()
@@ -234,7 +235,9 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                |> ConditionInterpreter.parse()
                |> elem(2)
                |> ConditionInterpreter.valid_conditions?(%{
-                 "transaction" => %{"address" => :crypto.strong_rand_bytes(32)}
+                 "transaction" => %{
+                   "address" => <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+                 }
                })
     end
 
