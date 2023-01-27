@@ -524,4 +524,44 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                }
              })
   end
+
+  describe "blacklist" do
+    test "should parse when arguments are allowed" do
+      assert {:ok, :transaction, _ast} =
+               ~S"""
+               actions triggered_by: transaction do
+                 add_uco_transfer to: "ABC123", amount: 64
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should parse when building a keyword list" do
+      assert {:ok, :transaction, _ast} =
+               ~S"""
+               actions triggered_by: transaction do
+                 transfer = [to: "ABC123", amount: 33]
+                 add_uco_transfer transfer
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should not parse when arguments are not allowed" do
+      assert {:error, "invalid add_uco_transfer arguments - hello"} =
+               ~S"""
+               actions triggered_by: transaction do
+                 add_uco_transfer to: "abc123", amount: 31, hello: 1
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+  end
+
 end

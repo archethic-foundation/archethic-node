@@ -222,10 +222,12 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
 
   ## Examples
 
-    iex> TransactionStatements.add_recipients(%Transaction{data: %TransactionData{recipients: ["lucy"]}}, ["hannah"])
+    iex> address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    iex> address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    iex> TransactionStatements.add_recipients(%Transaction{data: %TransactionData{recipients: [address1]}}, [address2])
     %Transaction{
       data: %TransactionData{
-        recipients: ["hannah","lucy"]
+        recipients: [address2, address1]
       }
     }
   """
