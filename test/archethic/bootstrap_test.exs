@@ -264,7 +264,7 @@ defmodule Archethic.BootstrapTest do
 
           validated_tx = %{tx | validation_stamp: stamp}
           :ok = TransactionChain.write_transaction(validated_tx)
-          :ok = Replication.ingest_transaction(validated_tx, false)
+          :ok = Replication.ingest_transaction(validated_tx, false, false)
 
           {:ok, %Ok{}}
 

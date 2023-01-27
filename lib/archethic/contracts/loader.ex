@@ -34,7 +34,7 @@ defmodule Archethic.Contracts.Loader do
       _ -> true
     end)
     |> Stream.map(fn {:ok, tx} -> tx end)
-    |> Stream.each(&load_transaction(&1, true))
+    |> Stream.each(&load_transaction(&1, from_db: true))
     |> Stream.run()
 
     {:ok, []}
@@ -43,18 +43,24 @@ defmodule Archethic.Contracts.Loader do
   @doc """
   Load the smart contracts based on transaction involving smart contract code
   """
-  @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(_tx, from_db \\ false)
+  @spec load_transaction(Transaction.t(), list()) :: :ok
+  def load_transaction(tx, opts \\ []) do
+    from_db = Keyword.get(opts, :from_db, false)
+    from_self_repair = Keyword.get(opts, :from_self_repair, false)
 
-  def load_transaction(
-        tx = %Transaction{
-          address: address,
-          type: type,
-          data: %TransactionData{code: code}
-        },
-        _from_db
-      )
-      when code != "" do
+    do_load_transaction(tx, from_db, from_self_repair)
+  end
+
+  defp do_load_transaction(
+         tx = %Transaction{
+           address: address,
+           type: type,
+           data: %TransactionData{code: code}
+         },
+         _from_db,
+         _from_self_repair
+       )
+       when code != "" do
     stop_contract(Transaction.previous_address(tx))
 
     %Contract{triggers: triggers} = Contracts.parse!(code)
@@ -77,24 +83,30 @@ defmodule Archethic.Contracts.Loader do
     end
   end
 
-  def load_transaction(
-        tx = %Transaction{
-          address: tx_address,
-          type: tx_type,
-          validation_stamp: %ValidationStamp{
-            timestamp: tx_timestamp,
-            recipients: recipients,
-            protocol_version: protocol_version
-          }
-        },
-        false
-      )
-      when recipients != [] do
+  defp do_load_transaction(
+         tx = %Transaction{
+           address: tx_address,
+           type: tx_type,
+           validation_stamp: %ValidationStamp{
+             timestamp: tx_timestamp,
+             recipients: recipients,
+             protocol_version: protocol_version
+           }
+         },
+         _from_db = false,
+         from_self_repair?
+       )
+       when recipients != [] do
     Enum.each(recipients, fn contract_address ->
       Logger.info("Execute transaction on contract #{Base.encode16(contract_address)}",
         transaction_address: Base.encode16(tx_address),
         transaction_type: tx_type
       )
+
+      unless from_self_repair? do
+        # execute asynchronously the contract
+        Worker.execute(contract_address, tx)
+      end
 
       TransactionLookup.add_contract_transaction(
         contract_address,
@@ -112,19 +124,20 @@ defmodule Archethic.Contracts.Loader do
     end)
   end
 
-  def load_transaction(
-        %Transaction{
-          address: address,
-          type: type,
-          validation_stamp: %ValidationStamp{
-            recipients: recipients,
-            timestamp: timestamp,
-            protocol_version: protocol_version
-          }
-        },
-        true
-      )
-      when recipients != [] do
+  defp do_load_transaction(
+         %Transaction{
+           address: address,
+           type: type,
+           validation_stamp: %ValidationStamp{
+             recipients: recipients,
+             timestamp: timestamp,
+             protocol_version: protocol_version
+           }
+         },
+         _from_db = true,
+         false
+       )
+       when recipients != [] do
     Enum.each(
       recipients,
       &TransactionLookup.add_contract_transaction(&1, address, timestamp, protocol_version)
@@ -136,7 +149,7 @@ defmodule Archethic.Contracts.Loader do
     )
   end
 
-  def load_transaction(_tx, _), do: :ok
+  defp do_load_transaction(_tx, _, _), do: :ok
 
   @doc """
   Termine a contract execution

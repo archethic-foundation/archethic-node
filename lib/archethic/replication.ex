@@ -136,7 +136,8 @@ defmodule Archethic.Replication do
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        download_nodes \\ P2P.authorized_and_available_nodes()
+        download_nodes \\ P2P.authorized_and_available_nodes(),
+        self_repair? \\ false
       ) do
     start_time = System.monotonic_time()
 
@@ -155,13 +156,13 @@ defmodule Archethic.Replication do
         |> Election.chain_storage_nodes(download_nodes)
         |> Utils.key_in_node_list?(Crypto.first_node_public_key())
 
-      if storage_node?, do: ingest_transaction(tx, false)
+      if storage_node?, do: ingest_transaction(tx, false, self_repair?)
     end)
     |> Stream.run()
 
     TransactionChain.write_transaction(tx)
 
-    :ok = ingest_transaction(tx, false)
+    :ok = ingest_transaction(tx, false, self_repair?)
 
     Logger.info("Replication finished",
       transaction_address: Base.encode16(address),
@@ -202,7 +203,7 @@ defmodule Archethic.Replication do
       ) do
     case validate_transaction(tx, self_repair?, download_nodes) do
       :ok ->
-        sync_transaction_chain(tx, download_nodes)
+        sync_transaction_chain(tx, download_nodes, self_repair?)
 
       {:error, reason} ->
         Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
@@ -247,7 +248,7 @@ defmodule Archethic.Replication do
       case TransactionValidator.validate(tx, self_repair?) do
         :ok ->
           :ok = TransactionChain.write_transaction(tx, :io)
-          ingest_transaction(tx, true)
+          ingest_transaction(tx, true, self_repair?)
 
           Logger.info("Replication finished",
             transaction_address: Base.encode16(address),
@@ -564,14 +565,14 @@ defmodule Archethic.Replication do
   - Transactions with smart contract deploy instances of them or can put in pending state waiting approval signatures
   - Code approval transactions may trigger the TestNets deployments or hot-reloads
   """
-  @spec ingest_transaction(Transaction.t(), boolean()) :: :ok
-  def ingest_transaction(tx = %Transaction{}, io_transaction?) do
+  @spec ingest_transaction(Transaction.t(), boolean(), boolean()) :: :ok
+  def ingest_transaction(tx = %Transaction{}, io_transaction?, self_repair?) do
     TransactionChain.load_transaction(tx)
     Crypto.load_transaction(tx)
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx, io_transaction?)
-    Contracts.load_transaction(tx)
+    Contracts.load_transaction(tx, from_self_repair: self_repair?)
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)
     :ok
