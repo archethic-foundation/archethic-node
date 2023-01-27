@@ -531,6 +531,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                ~S"""
                actions triggered_by: transaction do
                  add_uco_transfer to: "ABC123", amount: 64
+                 add_token_transfer to: "ABC123", amount: 64, token_id: 0, token_address: "012"
+                 add_ownership secret: "ABC123", secret_key: "s3cr3t", authorized_public_keys: ["ADE459"]
                end
                """
                |> Interpreter.sanitize_code()
@@ -542,8 +544,14 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
       assert {:ok, :transaction, _ast} =
                ~S"""
                actions triggered_by: transaction do
-                 transfer = [to: "ABC123", amount: 33]
-                 add_uco_transfer transfer
+                 uco_transfer = [to: "ABC123", amount: 33]
+                 add_uco_transfer uco_transfer
+
+                 token_transfer = [to: "ABC123", amount: 64, token_id: 0, token_address: "012"]
+                 add_token_transfer token_transfer
+
+                 ownership = [secret: "ABC123", secret_key: "s3cr3t", authorized_public_keys: ["ADE459"]]
+                 add_ownership ownership
                end
                """
                |> Interpreter.sanitize_code()
@@ -561,7 +569,26 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> ActionInterpreter.parse()
+
+      assert {:error, "invalid add_token_transfer arguments - amount"} =
+               ~S"""
+               actions triggered_by: transaction do
+                add_token_transfer to: "abc123", amount: "thirty one"
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+
+      assert {:error, "invalid add_ownership arguments - authorized_public_keys"} =
+               ~S"""
+               actions triggered_by: transaction do
+                add_ownership secret: "ABC123", secret_key: "s3cr3t", authorized_public_keys: 42
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
     end
   end
-
 end

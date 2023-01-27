@@ -148,29 +148,101 @@ defmodule Archethic.Contracts.ActionInterpreter do
 
   # Blacklist the add_uco_transfer argument list
   defp prewalk(
-         node = {{:atom, key}, _args},
+         node = {{:atom, "to"}, address},
          _acc = {:ok, %{scope: {:function, "add_uco_transfer", {:actions, _}}}}
        )
-       when key != "to" and key != "amount" do
+       when not is_binary(address) do
+    throw({:error, "invalid add_uco_transfer arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, "amount"}, amount},
+         _acc = {:ok, %{scope: {:function, "add_uco_transfer", {:actions, _}}}}
+       )
+       when not is_integer(amount) or amount <= 0 do
+    throw({:error, "invalid add_uco_transfer arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, atom}, _},
+         _acc = {:ok, %{scope: {:function, "add_uco_transfer", {:actions, _}}}}
+       )
+       when atom != "to" and atom != "amount" do
     throw({:error, "invalid add_uco_transfer arguments", node})
   end
 
   # Blacklist the add_token_transfer argument list
   defp prewalk(
-         node = {{:atom, key}, _args},
+         node = {{:atom, "to"}, address},
          _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
        )
-       when key != "to" and key != "amount" and key != "token_address" and key != "token_id" do
+       when not is_binary(address) do
+    throw({:error, "invalid add_token_transfer arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, "amount"}, amount},
+         _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
+       )
+       when not is_integer(amount) or amount <= 0 do
+    throw({:error, "invalid add_token_transfer arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, "token_address"}, address},
+         _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
+       )
+       when not is_binary(address) do
+    throw({:error, "invalid add_token_transfer arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, "token_id"}, id},
+         _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
+       )
+       when not is_integer(id) or id < 0 do
+    throw({:error, "invalid add_token_transfer arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, atom}, _},
+         _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
+       )
+       when atom != "to" and atom != "amount" and atom != "token_address" and atom != "token_id" do
     throw({:error, "invalid add_token_transfer arguments", node})
   end
 
   # Blacklist the add_ownership argument list
   defp prewalk(
-         node = {{:atom, key}, _args},
+         node = {{:atom, "secret"}, secret},
          _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
        )
-       when key != "secret" and key != "secret_key" and key != "authorized_public_keys" do
-    throw({:error, "invalid add_token_transfer arguments", node})
+       when not is_binary(secret) do
+    throw({:error, "invalid add_ownership arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, "secret_key"}, secret_key},
+         _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
+       )
+       when not is_binary(secret_key) do
+    throw({:error, "invalid add_ownership arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, "authorized_public_keys"}, authorized_public_keys},
+         _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
+       )
+       when not is_list(authorized_public_keys) do
+    throw({:error, "invalid add_ownership arguments", node})
+  end
+
+  defp prewalk(
+         node = {{:atom, atom}, _},
+         _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
+       )
+       when atom != "secret" and atom != "secret_key" and atom != "authorized_public_keys" do
+    throw({:error, "invalid add_ownership arguments", node})
   end
 
   # Whitelist the keywords
