@@ -151,7 +151,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "to"}, address},
          _acc = {:ok, %{scope: {:function, "add_uco_transfer", {:actions, _}}}}
        )
-       when not is_binary(address) do
+       when not is_tuple(address) and not is_binary(address) do
     throw({:error, "invalid add_uco_transfer arguments", node})
   end
 
@@ -159,7 +159,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "amount"}, amount},
          _acc = {:ok, %{scope: {:function, "add_uco_transfer", {:actions, _}}}}
        )
-       when not is_integer(amount) or amount <= 0 do
+       when (not is_tuple(amount) and not is_integer(amount)) or amount <= 0 do
     throw({:error, "invalid add_uco_transfer arguments", node})
   end
 
@@ -176,7 +176,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "to"}, address},
          _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
        )
-       when not is_binary(address) do
+       when not is_tuple(address) and not is_binary(address) do
     throw({:error, "invalid add_token_transfer arguments", node})
   end
 
@@ -184,7 +184,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "amount"}, amount},
          _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
        )
-       when not is_integer(amount) or amount <= 0 do
+       when (not is_tuple(amount) and not is_integer(amount)) or amount <= 0 do
     throw({:error, "invalid add_token_transfer arguments", node})
   end
 
@@ -192,7 +192,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "token_address"}, address},
          _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
        )
-       when not is_binary(address) do
+       when not is_tuple(address) and not is_binary(address) do
     throw({:error, "invalid add_token_transfer arguments", node})
   end
 
@@ -200,7 +200,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "token_id"}, id},
          _acc = {:ok, %{scope: {:function, "add_token_transfer", {:actions, _}}}}
        )
-       when not is_integer(id) or id < 0 do
+       when (not is_tuple(id) and not is_integer(id)) or id < 0 do
     throw({:error, "invalid add_token_transfer arguments", node})
   end
 
@@ -217,7 +217,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "secret"}, secret},
          _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
        )
-       when not is_binary(secret) do
+       when not is_tuple(secret) and not is_binary(secret) do
     throw({:error, "invalid add_ownership arguments", node})
   end
 
@@ -225,7 +225,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "secret_key"}, secret_key},
          _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
        )
-       when not is_binary(secret_key) do
+       when not is_tuple(secret_key) and not is_binary(secret_key) do
     throw({:error, "invalid add_ownership arguments", node})
   end
 
@@ -233,7 +233,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          node = {{:atom, "authorized_public_keys"}, authorized_public_keys},
          _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
        )
-       when not is_list(authorized_public_keys) do
+       when not is_tuple(authorized_public_keys) and not is_list(authorized_public_keys) do
     throw({:error, "invalid add_ownership arguments", node})
   end
 

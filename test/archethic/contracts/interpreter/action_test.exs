@@ -540,6 +540,64 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
+    test "should parse when arguments are variables" do
+      assert {:ok, :transaction, _ast} =
+               ~S"""
+               actions triggered_by: transaction do
+                 address = "ABC123"
+                 add_uco_transfer to: address, amount: 64
+                 add_token_transfer to: address, amount: 64, token_id: 0, token_address: "012"
+                 add_ownership secret: address, secret_key: "s3cr3t", authorized_public_keys: ["ADE459"]
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should parse when arguments are fields" do
+      assert {:ok, :transaction, _ast} =
+               ~S"""
+               actions triggered_by: transaction do
+                 add_uco_transfer to: transaction.address, amount: 64
+                 add_token_transfer to: transaction.address, amount: 64, token_id: 0, token_address: "012"
+                 add_ownership secret: transaction.address, secret_key: "s3cr3t", authorized_public_keys: ["ADE459"]
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should parse when arguments are functions" do
+      assert {:ok, :transaction, _ast} =
+               ~S"""
+               actions triggered_by: transaction do
+                 add_uco_transfer to: regex_extract("@addr", ".*"), amount: 64
+                 add_token_transfer to: regex_extract("@addr", ".*"), amount: 64, token_id: 0, token_address: "012"
+                 add_ownership secret: regex_extract("@addr", ".*"), secret_key: "s3cr3t", authorized_public_keys: ["ADE459"]
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should parse when arguments are string interpolation" do
+      assert {:ok, :transaction, _ast} =
+               ~S"""
+               actions triggered_by: transaction do
+                 name = "sophia"
+                 add_uco_transfer to: "hello #{name}", amount: 64
+                 add_token_transfer to: "hello #{name}", amount: 64, token_id: 0, token_address: "012"
+                 add_ownership secret: "hello #{name}", secret_key: "s3cr3t", authorized_public_keys: ["ADE459"]
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
     test "should parse when building a keyword list" do
       assert {:ok, :transaction, _ast} =
                ~S"""
@@ -560,6 +618,16 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
     end
 
     test "should not parse when arguments are not allowed" do
+      assert {:error, "invalid add_uco_transfer arguments - amount"} =
+               ~S"""
+               actions triggered_by: transaction do
+                 add_uco_transfer to: "abc123", amount: 0
+               end
+               """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+
       assert {:error, "invalid add_uco_transfer arguments - hello"} =
                ~S"""
                actions triggered_by: transaction do
