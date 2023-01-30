@@ -10,6 +10,9 @@ defmodule Archethic.SelfRepair.RepairWorker do
     SelfRepair
   }
 
+  alias Archethic.P2P.Message
+  alias Archethic.TransactionChain.Transaction
+
   alias Archethic.SelfRepair.RepairRegistry
 
   use GenServer, restart: :transient
@@ -126,9 +129,22 @@ defmodule Archethic.SelfRepair.RepairWorker do
       address: Base.encode16(address)
     )
 
+    timeout = Message.get_max_timeout()
+
+    acceptance_resolver = fn
+      {:ok, %Transaction{address: ^address}} -> true
+      _ -> false
+    end
+
     with false <- TransactionChain.transaction_exists?(address),
          storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
-         {:ok, tx} <- TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
+         {:ok, tx} <-
+           TransactionChain.fetch_transaction_remotely(
+             address,
+             storage_nodes,
+             timeout,
+             acceptance_resolver
+           ) do
       if storage? do
         case Replication.validate_and_store_transaction_chain(tx, true, authorized_nodes) do
           :ok -> SelfRepair.update_last_address(address, authorized_nodes)

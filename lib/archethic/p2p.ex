@@ -710,7 +710,7 @@ defmodule Archethic.P2P do
               message,
               conflict_resolver,
               acceptance_resolver,
-              consistency_level - 1,
+              consistency_level,
               timeout,
               quorum_result
             )
@@ -723,7 +723,7 @@ defmodule Archethic.P2P do
             message,
             conflict_resolver,
             acceptance_resolver,
-            consistency_level - 1,
+            consistency_level,
             timeout,
             result
           )
@@ -758,9 +758,7 @@ defmodule Archethic.P2P do
     else
       # If the results differ, we can apply a conflict resolver to merge the result into
       # a consistent response
-      resolved_result = conflict_resolver.(distinct_elems)
-
-      resolved_result
+      conflict_resolver.(distinct_elems)
     end
   end
 end

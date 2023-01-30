@@ -668,17 +668,23 @@ defmodule Archethic.TransactionChain do
   @spec fetch_transaction_remotely(
           address :: Crypto.versioned_hash(),
           list(Node.t()),
-          non_neg_integer()
+          non_neg_integer(),
+          (Message.t() -> boolean())
         ) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
-  def fetch_transaction_remotely(address, nodes, timeout \\ Message.get_max_timeout())
+  def fetch_transaction_remotely(
+        address,
+        nodes,
+        timeout \\ Message.get_max_timeout(),
+        acceptance_resolver \\ fn _ -> true end
+      )
 
-  def fetch_transaction_remotely(_, [], _), do: {:error, :transaction_not_exists}
+  def fetch_transaction_remotely(_, [], _, _), do: {:error, :transaction_not_exists}
 
-  def fetch_transaction_remotely(address, nodes, timeout)
+  def fetch_transaction_remotely(address, nodes, timeout, acceptance_resolver)
       when is_binary(address) and is_list(nodes) do
     conflict_resolver = fn results ->
       # Prioritize transactions results over not found
@@ -689,11 +695,6 @@ defmodule Archethic.TransactionChain do
         res ->
           res
       end
-    end
-
-    acceptance_resolver = fn
-      {:ok, %Transaction{address: ^address}} -> true
-      _ -> false
     end
 
     case P2P.quorum_read(

@@ -7,6 +7,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
   alias Archethic.P2P
 
+  alias Archethic.P2P.Message
+
   alias Archethic.Replication
 
   alias Archethic.TransactionChain
@@ -66,7 +68,19 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       |> Election.chain_storage_nodes_with_type(type, node_list)
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
-    case TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
+    timeout = Message.get_max_timeout()
+
+    acceptance_resolver = fn
+      {:ok, %Transaction{address: ^address}} -> true
+      _ -> false
+    end
+
+    case TransactionChain.fetch_transaction_remotely(
+           address,
+           storage_nodes,
+           timeout,
+           acceptance_resolver
+         ) do
       {:ok, tx = %Transaction{}} ->
         tx
 
