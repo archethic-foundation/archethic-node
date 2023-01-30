@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias Archethic.Contracts.Interpreter.Utils
+  alias Archethic.Contracts.Interpreter.Utils, as: SCUtils
 
   @doc """
   Set the transaction type
@@ -27,14 +27,14 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
 
   ## Examples
 
-      iex> TransactionStatements.add_uco_transfer(%Transaction{data: %TransactionData{}}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1_040_000_000}])
+      iex> TransactionStatements.add_uco_transfer(%Transaction{data: %TransactionData{}}, [{"to", "00007A0D6CDD2746F18DDE227EDB77443FBCE774263C409C8074B80E91BBFD39FA8F"}, {"amount", 1_040_000_000}])
       %Transaction{
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: [
                 %UCOTransfer{
-                  to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
+                  to: <<0, 0, 122, 13, 108, 221, 39, 70, 241, 141, 222, 34, 126, 219, 119, 68, 63,188, 231, 116, 38, 60, 64, 156, 128, 116, 184, 14, 145, 187, 253, 57, 250,143>>,
                   amount: 1_040_000_000
                 }
               ]
@@ -46,11 +46,12 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   @spec add_uco_transfer(Transaction.t(), list()) :: Transaction.t()
   def add_uco_transfer(tx = %Transaction{}, args) when is_list(args) do
     %{"to" => to, "amount" => amount} = Enum.into(args, %{})
+    to = SCUtils.get_address(to, :add_uco_transfer)
 
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:uco), Access.key(:transfers)],
-      &[%UCOTransfer{to: Utils.maybe_decode_hex(to), amount: amount} | &1]
+      &[%UCOTransfer{to: to, amount: amount} | &1]
     )
   end
 
@@ -60,9 +61,9 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   ## Examples
 
       iex> TransactionStatements.add_token_transfer(%Transaction{data: %TransactionData{}}, [
-      ...>   {"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
+      ...>   {"to", "00007A0D6CDD2746F18DDE227EDB77443FBCE774263C409C8074B80E91BBFD39FA8F"},
       ...>   {"amount", 1_000_000_000},
-      ...>   {"token_address", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"},
+      ...>   {"token_address", "0000FA31DCE9E2BE700B119925DE6871B5EF03EA1B8683E3191C8F9EFEC2E2FFA0D9"},
       ...>   {"token_id",  0}
       ...> ])
       %Transaction{
@@ -71,11 +72,11 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
             token: %TokenLedger{
               transfers: [
                 %TokenTransfer{
-                    to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
-                      103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
+                    to: <<0, 0, 122, 13, 108, 221, 39, 70, 241, 141, 222, 34, 126, 219, 119, 68, 63,188, 231,
+                    116, 38, 60, 64, 156, 128, 116, 184, 14, 145, 187, 253, 57, 250,  143>>,
                     amount: 1_000_000_000,
-                    token_address: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243,
-                      189, 156, 107, 125, 219, 63, 26, 204, 98, 132, 101, 229, 40>>,
+                    token_address: <<0, 0, 250, 49, 220, 233, 226, 190, 112, 11, 17, 153, 37, 222, 104, 113, 181,
+                    239, 3, 234, 27, 134, 131, 227, 25, 28, 143, 158, 254, 194, 226, 255, 160,217>>,
                     token_id: 0
                 }
               ]
@@ -89,15 +90,18 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
     map_args =
       %{"to" => to, "amount" => amount, "token_address" => token_address} = Enum.into(args, %{})
 
+    to = SCUtils.get_address(to, :add_token_transfer_to)
+    token_address = SCUtils.get_address(token_address, :add_token_transfer_token_addresss)
+
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:token), Access.key(:transfers)],
       &[
         %TokenTransfer{
           token_id: Map.get(map_args, "token_id", 0),
-          to: Utils.maybe_decode_hex(to),
+          to: to,
           amount: amount,
-          token_address: Utils.maybe_decode_hex(token_address)
+          token_address: token_address
         }
         | &1
       ]
@@ -176,9 +180,9 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
 
     ownership =
       Ownership.new(
-        Utils.maybe_decode_hex(secret),
-        Utils.maybe_decode_hex(secret_key),
-        Enum.map(authorized_public_keys, &Utils.maybe_decode_hex(&1))
+        SCUtils.maybe_decode_hex(secret),
+        SCUtils.maybe_decode_hex(secret_key),
+        Enum.map(authorized_public_keys, &SCUtils.get_public_key(&1, :add_ownership))
       )
 
     update_in(
@@ -193,21 +197,23 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
 
   ## Examples
 
-      iex> TransactionStatements.add_recipient(%Transaction{data: %TransactionData{}}, "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10")
+      iex> TransactionStatements.add_recipient(%Transaction{data: %TransactionData{}}, "00007A0D6CDD2746F18DDE227EDB77443FBCE774263C409C8074B80E91BBFD39FA8F")
       %Transaction{
         data: %TransactionData{
-          recipients: [<<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
-            103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>]
+          recipients: [<<0, 0, 122, 13, 108, 221, 39, 70, 241, 141, 222, 34, 126, 219, 119, 68, 63,  188, 231, 116,
+          38, 60, 64, 156, 128, 116, 184, 14, 145, 187, 253, 57, 250,  143>>]
         }
       }
   """
   @spec add_recipient(Transaction.t(), binary()) :: Transaction.t()
   def add_recipient(tx = %Transaction{}, recipient_address)
       when is_binary(recipient_address) do
+    recipient_address = SCUtils.get_address(recipient_address, :add_recipient)
+
     update_in(
       tx,
       [Access.key(:data), Access.key(:recipients)],
-      &[Utils.maybe_decode_hex(recipient_address) | &1]
+      &[recipient_address | &1]
     )
   end
 end

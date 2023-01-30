@@ -1,40 +1,39 @@
 defmodule Archethic.Contracts.WorkerTest do
   use ArchethicCase
 
-  alias Archethic.Account
+  alias Archethic.{
+    Account,
+    Contracts,
+    ContractRegistry,
+    Crypto,
+    P2P,
+    P2P.Node,
+    PubSub,
+    TransactionChain
+  }
 
-  alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Contracts.{Contract, Interpreter, Worker, ContractConstants}
 
-  alias Archethic.Contracts.Interpreter
+  alias P2P.Message.{Ok, StartMining}
 
-  alias Archethic.Contracts.Worker
+  alias TransactionChain.{
+    Transaction,
+    TransactionData,
+    TransactionData.Ledger,
+    TransactionData.Ownership,
+    TransactionData.UCOLedger,
+    TransactionData.UCOLedger.Transfer,
+    TransactionData.TokenLedger,
+    Transaction.ValidationStamp,
+    Transaction.ValidationStamp.LedgerOperations.UnspentOutput,
+    Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+  }
 
-  alias Archethic.ContractRegistry
-
-  alias Archethic.Crypto
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.StartMining
-  alias Archethic.P2P.Node
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.Ownership
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
-  alias Archethic.TransactionChain.TransactionData.TokenLedger
-  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.PubSub
+  alias TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
   import Mox
+
+  @bob_address <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -66,9 +65,11 @@ defmodule Archethic.Contracts.WorkerTest do
     secret = Crypto.aes_encrypt(transaction_seed, aes_key)
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
+    contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+
     constants =
       %Transaction{
-        address: "@SC1",
+        address: contract_address,
         data: %TransactionData{
           content: "",
           ownerships: [
@@ -86,12 +87,12 @@ defmodule Archethic.Contracts.WorkerTest do
           |> elem(0),
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
-      |> Constants.from_transaction()
+      |> ContractConstants.from_transaction()
 
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     Account.MemTables.UCOLedger.add_unspent_output(
-      "@SC1",
+      contract_address,
       %VersionedUnspentOutput{
         unspent_output: %UnspentOutput{
           from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
@@ -103,6 +104,8 @@ defmodule Archethic.Contracts.WorkerTest do
       }
     )
 
+    to = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+
     expected_tx = %Transaction{
       address: next_address,
       type: :transfer,
@@ -111,9 +114,7 @@ defmodule Archethic.Contracts.WorkerTest do
           uco: %UCOLedger{
             transfers: [
               %Transfer{
-                to:
-                  <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1, 189, 220,
-                    144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212, 37, 132, 112, 179>>,
+                to: to,
                 amount: 1_040_000_000
               }
             ]
@@ -122,31 +123,36 @@ defmodule Archethic.Contracts.WorkerTest do
       }
     }
 
-    {:ok, %{constants: constants, expected_tx: expected_tx}}
+    {:ok, %{constants: constants, expected_tx: expected_tx, to: to}}
   end
 
   describe "start_link/1" do
-    test "should spawn a process accessible by its address", %{constants: constants} do
-      contract = %Contract{constants: %Constants{contract: constants}}
+    test "should spawn a process accessible by its address", %{
+      constants: constants = %{"address" => contract_address}
+    } do
+      contract = %Contract{constants: %ContractConstants{contract: constants}}
       {:ok, pid} = Worker.start_link(contract)
       assert Process.alive?(pid)
       %{contract: ^contract} = :sys.get_state(pid)
 
-      assert [{^pid, _}] = Registry.lookup(ContractRegistry, "@SC1")
+      assert [{^pid, _}] = Registry.lookup(ContractRegistry, contract_address)
     end
 
     test "should schedule a timer for a an datetime trigger", %{
       constants: constants,
-      expected_tx: expected_tx
+      expected_tx: expected_tx,
+      to: to
     } do
+      address = Base.encode16(to)
+
       code = """
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
+        uco_transfers: %{ "#{address}" => 1_040_000_000}
       ]
 
       actions triggered_by: datetime, at: #{DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()} do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
+        add_uco_transfer to: "#{address}", amount: 1_040_000_000
       end
       """
 
@@ -154,7 +160,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Map.put(constants, "code", code)}
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -171,16 +177,19 @@ defmodule Archethic.Contracts.WorkerTest do
 
     test "should schedule a timer for a an interval trigger", %{
       constants: constants,
-      expected_tx: expected_tx
+      expected_tx: expected_tx,
+      to: to
     } do
+      address = Base.encode16(to)
+
       code = """
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
+        uco_transfers: %{ "#{address}" => 1_040_000_000}
       ]
 
       actions triggered_by: interval, at: "* * * * * *" do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
+        add_uco_transfer to: "#{address}", amount: 1_040_000_000
       end
       """
 
@@ -189,7 +198,7 @@ defmodule Archethic.Contracts.WorkerTest do
       contract =
         %{
           contract
-          | constants: %Constants{contract: Map.put(constants, "code", code)}
+          | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
         }
         |> Map.update!(:triggers, fn triggers ->
           Enum.map(triggers, fn {{:interval, interval}, code} ->
@@ -225,7 +234,7 @@ defmodule Archethic.Contracts.WorkerTest do
       constants: constants = %{"address" => contract_address}
     } do
       contract = %Contract{
-        constants: %Constants{contract: constants}
+        constants: %ContractConstants{contract: constants}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -237,16 +246,19 @@ defmodule Archethic.Contracts.WorkerTest do
 
     test "should execute a transaction trigger code using an incoming transaction", %{
       constants: constants = %{"address" => contract_address},
-      expected_tx: expected_tx
+      expected_tx: expected_tx,
+      to: to
     } do
+      address = Base.encode16(to)
+
       code = """
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
+        uco_transfers: %{ "#{address}" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
+        add_uco_transfer to:  "#{address}", amount: 1_040_000_000
       end
       """
 
@@ -254,13 +266,13 @@ defmodule Archethic.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Map.put(constants, "code", code)}
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
 
       Worker.execute(contract_address, %Transaction{
-        address: "@Bob3",
+        address: @bob_address,
         data: %TransactionData{},
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       })
@@ -279,20 +291,23 @@ defmodule Archethic.Contracts.WorkerTest do
     test "should check transaction condition before to execute a transaction trigger code using an incoming transaction",
          %{
            constants: constants = %{"address" => contract_address},
-           expected_tx: expected_tx
+           expected_tx: expected_tx,
+           to: to
          } do
+      address = Base.encode16(to)
+
       code = """
       condition transaction: [
         content: regex_match?(\"^Mr.Y|Mr.X{1}$\")
       ]
 
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
+        uco_transfers: %{ \"#{address}\" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
+        add_uco_transfer to: \"#{address}\", amount: 1_040_000_000
       end
       """
 
@@ -300,13 +315,13 @@ defmodule Archethic.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Map.put(constants, "code", code)}
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
 
       Worker.execute(contract_address, %Transaction{
-        address: "@Bob3",
+        address: @bob_address,
         data: %TransactionData{content: "Mr.X"},
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       })
@@ -322,7 +337,7 @@ defmodule Archethic.Contracts.WorkerTest do
       end
 
       Worker.execute(contract_address, %Transaction{
-        address: "@Bob3",
+        address: @bob_address,
         data: %TransactionData{content: "Mr.Z"},
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       })
@@ -332,32 +347,35 @@ defmodule Archethic.Contracts.WorkerTest do
 
     test "should return a different code if set in the smart contract code", %{
       constants: constants = %{"address" => contract_address},
-      expected_tx: expected_tx
+      expected_tx: expected_tx,
+      to: to
     } do
+      address = Base.encode16(to)
+
       code = ~s"""
       condition transaction: [
         content: regex_match?("^Mr.Y|Mr.X{1}$")
       ]
 
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
+        uco_transfers: %{ "#{address}" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
         set_type transfer
-        add_uco_transfer to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1_040_000_000
+        add_uco_transfer to: "#{address}", amount: 1_040_000_000
         set_code "
           condition transaction: [
             content: regex_match?(\\"^Mr.Y|Mr.X{1}$\\")
           ]
 
           condition inherit: [
-            uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\" => 9_200_000_000}
+            uco_transfers: %{ \\"#{address}\\" => 9_200_000_000}
           ]
 
           actions triggered_by: transaction do
             set_type transfer
-            add_uco_transfer to: \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\", amount: 9_200_000_000
+            add_uco_transfer to: \\"#{address}\\", amount: 9_200_000_000
           end"
       end
       """
@@ -366,13 +384,13 @@ defmodule Archethic.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Map.put(constants, "code", code)}
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
 
       Worker.execute(contract_address, %Transaction{
-        address: "@Bob3",
+        address: @bob_address,
         data: %TransactionData{content: "Mr.X"},
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       })
@@ -387,12 +405,12 @@ defmodule Archethic.Contracts.WorkerTest do
     ]
 
     condition inherit: [
-      uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\" => 9_200_000_000}
+      uco_transfers: %{ \"#{address}\" => 9_200_000_000}
     ]
 
     actions triggered_by: transaction do
       set_type transfer
-      add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 9_200_000_000
+      add_uco_transfer to: \"#{address}\", amount: 9_200_000_000
     end"
       after
         3_000 ->
@@ -423,7 +441,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Map.put(constants, "code", code)}
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -490,13 +508,13 @@ defmodule Archethic.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Map.put(constants, "code", code)}
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
 
       Worker.execute(contract_address, %Transaction{
-        address: "@Bob3",
+        address: @bob_address,
         type: :transfer,
         data: %TransactionData{
           ledger: %Ledger{
@@ -518,14 +536,20 @@ defmodule Archethic.Contracts.WorkerTest do
              ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
            }
          }} ->
-          assert [
-                   %TokenTransfer{
-                     amount: 100_000_000 * 10_000,
-                     to: "@Bob3",
-                     token_address: "@SC1",
-                     token_id: 0
-                   }
-                 ] == token_transfers
+          [
+            %TokenTransfer{
+              amount: amount,
+              to: to,
+              token_address: token_address,
+              token_id: token_id
+            }
+          ] = token_transfers
+
+          assert 1 == length(token_transfers)
+          assert 100_000_000 * 10_000 == amount
+          assert contract_address == token_address
+          assert 0 == token_id
+          assert @bob_address == to
       after
         3_000 ->
           raise "Timeout"
