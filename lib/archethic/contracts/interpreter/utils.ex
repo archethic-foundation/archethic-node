@@ -603,4 +603,24 @@ defmodule Archethic.Contracts.Interpreter.Utils do
       _ -> raise "Invalid address in #{inspect(context)}"
     end
   end
+
+  def get_public_key(public_key, context) do
+    public_key =
+      if String.printable?(public_key) do
+        case Base.decode16(public_key, case: :mixed) do
+          {:ok, key_bin} ->
+            key_bin
+
+          _ ->
+            raise "Invalid public key in #{inspect(context)}"
+        end
+      else
+        public_key
+      end
+
+    case Crypto.valid_public_key?(public_key) do
+      true -> public_key
+      _ -> raise "Invalid public key in #{inspect(context)}"
+    end
+  end
 end

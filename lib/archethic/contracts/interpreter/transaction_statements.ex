@@ -181,7 +181,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
       Ownership.new(
         SCUtils.maybe_decode_hex(secret),
         SCUtils.maybe_decode_hex(secret_key),
-        Enum.map(authorized_public_keys, &SCUtils.maybe_decode_hex(&1))
+        Enum.map(authorized_public_keys, &SCUtils.get_public_key(&1, :add_ownership))
       )
 
     update_in(
