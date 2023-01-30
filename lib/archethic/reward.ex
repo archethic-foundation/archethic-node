@@ -56,11 +56,7 @@ defmodule Archethic.Reward do
   defp number_of_reward_occurences_per_month() do
     datetime = NaiveDateTime.utc_now()
 
-    key =
-      case {datetime.month, Date.leap_year?(datetime)} do
-        {2, true} -> 0
-        {month_num, _} -> month_num
-      end
+    key = Utils.get_key_from_date(datetime)
 
     Map.get(@number_of_occurences_per_month_for_a_year, key)
   end

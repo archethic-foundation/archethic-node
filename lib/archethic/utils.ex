@@ -814,57 +814,67 @@ defmodule Archethic.Utils do
 
       iex> Utils.number_of_possible_reward_occurences_per_month_for_a_year("0 0 2 * * * *")
       %{
-        0 => 29,
-        1 => 31,
-        2 => 28,
-        3 => 31,
-        4 => 30,
-        5 => 31,
-        6 => 30,
-        7 => 31,
-        8 => 31,
-        9 => 30,
-        10 => 31,
-        11 => 30,
-        12 => 31
+        0 => 31,
+        1 => 30,
+        2 => 29,
+        3 => 28
       }
   """
   @spec number_of_possible_reward_occurences_per_month_for_a_year(String.t()) :: map
   def number_of_possible_reward_occurences_per_month_for_a_year(
         interval \\ Application.get_env(:archethic, RewardScheduler)[:interval]
       ) do
-    normal_year = [
+    months = [
+      # 31 days
       ~N[2023-01-01 00:00:00.000000],
-      ~N[2023-02-01 00:00:00.000000],
-      ~N[2023-03-01 00:00:00.000000],
+      # 30 days
       ~N[2023-04-01 00:00:00.000000],
-      ~N[2023-05-01 00:00:00.000000],
-      ~N[2023-06-01 00:00:00.000000],
-      ~N[2023-07-01 00:00:00.000000],
-      ~N[2023-08-01 00:00:00.000000],
-      ~N[2023-09-01 00:00:00.000000],
-      ~N[2023-10-01 00:00:00.000000],
-      ~N[2023-11-01 00:00:00.000000],
-      ~N[2023-12-01 00:00:00.000000]
+      # 29 days
+      ~N[2024-02-01 00:00:00.000000],
+      # 28 days
+      ~N[2023-02-01 00:00:00.000000]
     ]
 
-    leap_year_february = ~N[2024-02-01 00:00:00.000000]
-
-    months = normal_year ++ [leap_year_february]
-
     months
-    |> Task.async_stream(fn date ->
-      key =
-        if Date.leap_year?(date) do
-          0
-        else
-          date.month
-        end
+    |> Task.async_stream(
+      fn date ->
+        key = get_key_from_date(date)
 
-      {key, number_of_reward_occurences_per_month(interval, date)}
-    end)
+        {key, number_of_reward_occurences_per_month(interval, date)}
+      end,
+      timeout: 10_000
+    )
     |> Stream.map(fn {:ok, v} -> v end)
     |> Map.new()
+  end
+
+  @doc """
+  Return the key for a given date
+
+  ## Examples
+
+      iex> Utils.get_key_from_date(~N[2023-01-01 00:00:00.000000])
+      0
+
+      iex> Utils.get_key_from_date(~N[2023-04-01 00:00:00.000000])
+      1
+
+      iex> Utils.get_key_from_date(~N[2023-02-01 00:00:00.000000])
+      3
+
+      iex> Utils.get_key_from_date(~N[2024-02-01 00:00:00.000000])
+      2
+  """
+  def get_key_from_date(date) do
+    # January March May July August October December have 31 days
+    # April June September November have 30 days
+    # February has 28 days or 29 days in a leap year
+    case {Date.leap_year?(date), date.month} do
+      {_, month} when month in [1, 3, 5, 7, 8, 10, 12] -> 0
+      {_, month} when month in [4, 6, 9, 11] -> 1
+      {true, 2} -> 2
+      {false, 2} -> 3
+    end
   end
 
   @doc """
