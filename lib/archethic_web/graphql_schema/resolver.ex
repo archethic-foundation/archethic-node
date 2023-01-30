@@ -55,50 +55,30 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   def get_token(address) do
     t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
-    t2 = Task.async(fn -> Utils.get_transaction_content(address) end)
+    t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
-         {:ok,
-          {:ok,
-           definition = %{
-             "ownerships" => ownerships,
-             "supply" => supply,
-             "type" => type
-           }}} <- Task.yield(t2) do
-      properties = Map.get(definition, "properties", %{})
-      collection = Map.get(definition, "collection", [])
-      decimals = Map.get(definition, "decimals", 8)
-      name = Map.get(definition, "name", "")
-      symbol = Map.get(definition, "symbol", "")
-
-      token_id = Utils.get_token_id(genesis_address, definition)
-
-      {:ok,
-       %{
-         genesis: genesis_address,
-         name: name,
-         supply: supply,
-         symbol: symbol,
-         type: type,
-         decimals: decimals,
-         properties: properties,
-         collection: collection,
-         ownerships: ownerships,
-         id: token_id
-       }}
+         {:ok, {:ok, tx}} <- Task.yield(t2),
+         res = {:ok, _get_token_properties} <- Utils.get_token_properties(genesis_address, tx) do
+      res
     else
       {:ok, {:error, :network_issue}} ->
         {:error, "Network issue"}
 
-      {:ok, {:error, :decode_error}} ->
+      {:ok, {:error, :transaction_not_exists}} ->
+        {:error, "Transaction not exists"}
+
+      {:ok, {:error, :transaction_invalid}} ->
+        {:error, "Transaction invalid"}
+
+      {:error, :decode_error} ->
         {:error, "Error in decoding transaction"}
 
-      {:ok, {:error, :transaction_not_found}} ->
+      {:error, :not_a_token_transaction} ->
         {:error, "Transaction is not of type token"}
 
       {:exit, reason} ->
-        Logger.debug("Task exited with reason")
-        Logger.debug(reason)
+        Logger.debug("Task exited with reason #{inspect(reason)}")
         {:error, "Task Exited!"}
 
       nil ->

@@ -9,8 +9,10 @@ defmodule Archethic.Contracts.Interpreter.Library do
     TransactionChain,
     Contracts.ContractConstants,
     Contracts.TransactionLookup,
-    Contracts.Interpreter.Utils
+    Utils
   }
+
+  alias Archethic.Contracts.Interpreter.Utils, as: SCUtils
 
   require Logger
 
@@ -143,7 +145,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
           :blake2b
       end
 
-    :crypto.hash(algo, Utils.maybe_decode_hex(content))
+    :crypto.hash(algo, SCUtils.maybe_decode_hex(content))
     |> Base.encode16()
   end
 
@@ -182,7 +184,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
       2
   """
   @spec size(binary() | list()) :: non_neg_integer()
-  def size(binary) when is_binary(binary), do: binary |> Utils.maybe_decode_hex() |> byte_size()
+  def size(binary) when is_binary(binary), do: binary |> SCUtils.maybe_decode_hex() |> byte_size()
   def size(list) when is_list(list), do: length(list)
   def size(map) when is_map(map), do: map_size(map)
 
@@ -194,7 +196,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_calls(binary()) :: list(map())
   def get_calls(contract_address) do
     contract_address
-    |> Utils.maybe_decode_hex()
+    |> SCUtils.maybe_decode_hex()
     |> TransactionLookup.list_contract_transactions()
     |> Enum.map(fn {address, _, _} ->
       # TODO: parallelize
@@ -208,7 +210,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_genesis_public_key(binary()) :: binary()
   def get_genesis_public_key(address) do
-    bin_address = Utils.maybe_decode_hex(address)
+    bin_address = SCUtils.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(bin_address, P2P.authorized_and_available_nodes())
     {:ok, key} = download_first_public_key(nodes, bin_address)
     Base.encode16(key)
@@ -235,26 +237,32 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_token_id(binary()) :: {:error, binary()} | {:ok, binary()}
   def get_token_id(address) do
-    address = Utils.maybe_decode_hex(address)
+    address = SCUtils.get_address(address, :get_token_id)
     t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
-    t2 = Task.async(fn -> Archethic.Utils.get_transaction_content(address) end)
+    t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
-         {:ok, {:ok, definition}} <- Task.yield(t2) do
-      Archethic.Utils.get_token_id(genesis_address, definition)
+         {:ok, {:ok, tx}} <- Task.yield(t2),
+         {:ok, %{id: id}} <- Utils.get_token_properties(genesis_address, tx) do
+      id
     else
       {:ok, {:error, :network_issue}} ->
         {:error, "Network issue"}
 
-      {:ok, {:error, :decode_error}} ->
+      {:ok, {:error, :transaction_not_exists}} ->
+        {:error, "Transaction not exists"}
+
+      {:ok, {:error, :transaction_invalid}} ->
+        {:error, "Transaction invalid"}
+
+      {:error, :decode_error} ->
         {:error, "Error in decoding transaction"}
 
-      {:ok, {:error, :not_a_token_transaction}} ->
+      {:error, :not_a_token_transaction} ->
         {:error, "Transaction is not of type token"}
 
       {:exit, reason} ->
-        Logger.debug("Task exited with reason")
-        Logger.debug(reason)
+        Logger.debug("Task exited with reason #{inspect(reason)}")
         {:error, "Task Exited!"}
 
       nil ->
@@ -268,7 +276,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_genesis_address(binary()) ::
           binary()
   def get_genesis_address(address) do
-    addr_bin = Utils.maybe_decode_hex(address)
+    addr_bin = SCUtils.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_genesis_address_remotely(addr_bin, nodes) do
@@ -283,7 +291,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_first_transaction_address(address :: binary()) ::
           binary()
   def get_first_transaction_address(address) do
-    addr_bin = Utils.maybe_decode_hex(address)
+    addr_bin = SCUtils.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_first_transaction_address_remotely(addr_bin, nodes) do

@@ -48,15 +48,13 @@ defmodule Archethic.Contracts.Interpreter.LibraryTest do
 
       genesis_address = "@Alice1"
 
-      transaction_content =
-        tx.data.content
-        |> Jason.decode!()
-
       MockDB
       |> stub(:get_transaction, fn _, _, _ -> {:ok, tx} end)
       |> stub(:get_genesis_address, fn _ -> genesis_address end)
 
-      assert Utils.get_token_id(genesis_address, transaction_content) ==
+      {:ok, %{id: token_id}} = Utils.get_token_properties(genesis_address, tx)
+
+      assert token_id ==
                Library.get_token_id(tx.address)
     end
   end

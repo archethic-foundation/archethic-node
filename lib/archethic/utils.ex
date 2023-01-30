@@ -918,46 +918,60 @@ defmodule Archethic.Utils do
   end
 
   @doc """
-  computes token id based on the genesis address and transaction content
+  get token properties based on the genesis address and the transaction
   """
-  @spec get_token_id(binary(), map()) :: binary()
-  def get_token_id(genesis_address, transaction_content) do
-    properties = Map.get(transaction_content, "properties", %{})
-    decimals = Map.get(transaction_content, "decimals", 8)
-    name = Map.get(transaction_content, "name", "")
-    symbol = Map.get(transaction_content, "symbol", "")
+  @spec get_token_properties(binary(), Transaction.t()) :: {:ok, map()} | {:error, atom()}
+  def get_token_properties(genesis_address, %Transaction{
+        data: %TransactionData{
+          content: content,
+          ownerships: ownerships
+        },
+        type: type
+      })
+      when type in [:token, :mint_rewards] do
+    case Jason.decode(content) do
+      {:ok, map} ->
+        result = %{
+          genesis: genesis_address,
+          name: Map.get(map, "name", ""),
+          supply: Map.get(map, "supply"),
+          symbol: Map.get(map, "symbol", ""),
+          type: type,
+          decimals: Map.get(map, "decimals", 8),
+          properties: Map.get(map, "properties", %{}),
+          collection: Map.get(map, "collection", []),
+          ownerships: ownerships
+        }
 
-    data_to_digest = %{
-      genesis_address: Base.encode16(genesis_address),
-      name: name,
-      symbol: symbol,
-      properties: properties,
-      decimals: decimals
-    }
+        token_id = get_token_id(genesis_address, result)
 
-    :crypto.hash(:sha256, Jason.encode!(data_to_digest))
-    |> Base.encode16()
-  end
-
-  @doc """
-  get transaction content based on the address of the transaction
-  """
-  @spec get_transaction_content(binary()) :: {:ok, map()} | {:error, atom()}
-  def get_transaction_content(address) do
-    case Archethic.search_transaction(address) do
-      {:ok,
-       %Transaction{data: %TransactionData{content: content, ownerships: ownerships}, type: type}}
-      when type in [:token, :mint_rewards] ->
-        case Jason.decode(content) do
-          {:ok, map} ->
-            {:ok, map |> Map.put("ownerships", ownerships)}
-
-          _ ->
-            {:error, :decode_error}
-        end
+        {:ok, Map.put(result, :id, token_id)}
 
       _ ->
-        {:error, :not_a_token_transaction}
+        {:error, :decode_error}
     end
+  end
+
+  def get_token_properties(_, _), do: {:error, :not_a_token_transaction}
+
+  defp get_token_id(genesis_address, %{
+         genesis: genesis_address,
+         name: name,
+         symbol: symbol,
+         decimals: decimals,
+         properties: properties
+       }) do
+    data_to_digest =
+      %{
+        genesis_address: Base.encode16(genesis_address),
+        name: name,
+        symbol: symbol,
+        properties: properties,
+        decimals: decimals
+      }
+      |> Jason.encode!()
+
+    :crypto.hash(:sha256, data_to_digest)
+    |> Base.encode16()
   end
 end
