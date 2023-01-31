@@ -347,6 +347,9 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: last}}
       end)
 
       conn =
@@ -548,6 +551,11 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
     test "should return same address", %{conn: conn} do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      MockClient
+      |> stub(:send_message, fn _, %GetGenesisAddress{}, _ ->
+        {:ok, %GenesisAddress{address: addr}}
+      end)
 
       conn =
         post(conn, "/api", %{
