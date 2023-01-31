@@ -18,7 +18,11 @@ defmodule Archethic.P2P.Client do
               Crypto.key()
             ) :: Supervisor.on_start()
 
-  @callback send_message(Node.t(), Message.request(), timeout()) ::
+  @callback send_message(
+              node :: Node.t(),
+              message :: Message.request(),
+              timeout :: non_neg_integer()
+            ) ::
               {:ok, Message.response()}
               | {:error, :timeout}
               | {:error, :closed}

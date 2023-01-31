@@ -59,6 +59,10 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   @doc """
   Send a message to the given node using the right connection bearer
   """
+  @spec send_message(Node.t(), message :: Message.request(), timeout :: non_neg_integer()) ::
+          {:ok, Message.response()}
+          | {:error, :timeout}
+          | {:error, :closed}
   @impl Client
   def send_message(
         %Node{first_public_key: node_public_key},

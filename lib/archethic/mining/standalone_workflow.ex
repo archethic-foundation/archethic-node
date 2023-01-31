@@ -322,6 +322,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     notify_attestation(context)
     notify_io_nodes(context)
     notify_previous_chain(context)
+
+    :ok
   end
 
   defp notify_attestation(

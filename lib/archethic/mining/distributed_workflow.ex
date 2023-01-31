@@ -775,7 +775,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
       })
 
     beacon_storage_nodes = ValidationContext.get_beacon_replication_nodes(context)
-    P2P.broadcast_message(P2P.distinct_nodes([welcome_node | beacon_storage_nodes]), message)
+
+    [welcome_node | beacon_storage_nodes]
+    |> P2P.distinct_nodes()
+    |> P2P.broadcast_message(message)
 
     validated_tx = ValidationContext.get_validated_transaction(context)
 
