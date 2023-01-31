@@ -22,7 +22,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   @doc """
   Send a transaction to the network towards a welcome node
   """
-  @spec send_transaction(Transaction.t(), list(Node.t())) :: :ok | {:error, :network_issue}
+  @spec send_transaction(Transaction.t(), list(Node.t())) ::
+          :ok
   def send_transaction(tx = %Transaction{address: address}, nodes) do
     Logger.info("Send node transaction...",
       transaction_address: Base.encode16(address),
@@ -32,6 +33,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
     do_send_transaction(nodes, tx)
   end
 
+  @spec do_send_transaction(list(Node.t()), Transaction.t()) ::
+          :ok
   defp do_send_transaction([node | rest], tx) do
     case P2P.send_message(node, %NewTransaction{transaction: tx}) do
       {:ok, %Ok{}} ->
@@ -48,7 +51,13 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           )
           |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
-        await_confirmation(tx.address, storage_nodes)
+        case await_confirmation(tx.address, storage_nodes) do
+          :ok ->
+            :ok
+
+          {:error, :network_issue} ->
+            raise("No node responded with confirmation for new Node tx")
+        end
 
       {:error, _} = e ->
         Logger.error("Cannot send node transaction - #{inspect(e)}",
@@ -61,14 +70,12 @@ defmodule Archethic.Bootstrap.TransactionHandler do
 
   defp do_send_transaction([], _), do: {:error, :network_issue}
 
+  @spec await_confirmation(tx_address :: binary(), list(Node.t())) ::
+          :ok | {:error, :network_issue}
   defp await_confirmation(tx_address, [node | rest]) do
     case P2P.send_message(node, %GetTransactionSummary{address: tx_address}) do
       {:ok,
-       %TransactionSummaryMessage{
-         transaction_summary: %TransactionSummary{
-           address: ^tx_address
-         }
-       }} ->
+       %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^tx_address}}} ->
         :ok
 
       {:ok, %NotFound{}} ->
@@ -83,6 +90,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
         await_confirmation(tx_address, rest)
     end
   end
+
+  defp await_confirmation(_, []), do: {:error, :network_issue}
 
   @doc """
   Create a new node transaction
