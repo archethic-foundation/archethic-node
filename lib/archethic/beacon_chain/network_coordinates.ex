@@ -39,7 +39,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
         {"C", "8"}
       ]
   """
-  @spec get_patch_from_latencies(Nx.tensor()) :: list(latency_patch())
+  @spec get_patch_from_latencies(Nx.Tensor.t()) :: list(latency_patch())
   def get_patch_from_latencies(matrix) do
     center_mass = compute_distance_from_center_mass(matrix)
     gram_matrix = get_gram_matrix(matrix, center_mass)
@@ -162,30 +162,32 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
       x_elem = x[i] |> Nx.to_number()
       y_elem = y[i] |> Nx.to_number()
 
-      %{fd: fd, sd: sd} =
-        Enum.reduce_while(0..15, %{fd: "", sd: ""}, fn j, acc ->
-          if acc.fd != "" and acc.sd != "" do
-            {:halt, acc}
-          else
-            acc =
-              if x_elem >= max - v * (j + 1.0) and x_elem <= max - v * j do
-                Map.put(acc, :fd, Enum.at(@digits, j))
-              else
-                acc
-              end
-
-            acc =
-              if y_elem >= max - v * (j + 1.0) and y_elem <= max - v * j do
-                Map.put(acc, :sd, Enum.at(@digits, j))
-              else
-                acc
-              end
-
-            {:cont, acc}
-          end
-        end)
-
-      {fd, sd}
+      get_patch(x_elem, y_elem, v, max)
     end)
   end
+
+  defp get_patch(x_elem, y_elem, v, max) do
+    %{x: x_patch, y: y_patch} =
+      Enum.reduce_while(0..15, %{x: "", y: ""}, fn j, acc ->
+        if acc.x != "" and acc.y != "" do
+          {:halt, acc}
+        else
+          new_acc =
+            acc
+            |> get_digit(:x, x_elem, j, max, v)
+            |> get_digit(:y, y_elem, j, max, v)
+
+          {:cont, new_acc}
+        end
+      end)
+
+    {x_patch, y_patch}
+  end
+
+  defp get_digit(acc, coord_name, coord, digit_index, max, v)
+       when coord >= max - v * (digit_index + 1.0) and coord <= max - v * digit_index do
+    Map.put(acc, coord_name, Enum.at(@digits, digit_index))
+  end
+
+  defp get_digit(acc, _, _, _, _, _), do: acc
 end
