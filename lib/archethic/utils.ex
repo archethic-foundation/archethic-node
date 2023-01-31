@@ -920,15 +920,16 @@ defmodule Archethic.Utils do
   @doc """
   get token properties based on the genesis address and the transaction
   """
-  @spec get_token_properties(binary(), Transaction.t()) :: {:ok, map()} | {:error, atom()}
+  @spec get_token_properties(binary(), Transaction.t()) ::
+          {:ok, map()} | {:error, :decode_error} | {:error, :not_a_token_transaction}
   def get_token_properties(genesis_address, %Transaction{
         data: %TransactionData{
           content: content,
           ownerships: ownerships
         },
-        type: type
+        type: tx_type
       })
-      when type in [:token, :mint_rewards] do
+      when tx_type in [:token, :mint_rewards] do
     case Jason.decode(content) do
       {:ok, map} ->
         result = %{
@@ -936,7 +937,7 @@ defmodule Archethic.Utils do
           name: Map.get(map, "name", ""),
           supply: Map.get(map, "supply"),
           symbol: Map.get(map, "symbol", ""),
-          type: type,
+          type: Map.get(map, "type"),
           decimals: Map.get(map, "decimals", 8),
           properties: Map.get(map, "properties", %{}),
           collection: Map.get(map, "collection", []),
