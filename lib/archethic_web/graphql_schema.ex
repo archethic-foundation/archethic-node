@@ -101,7 +101,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     end
 
     @desc """
-    Query the network to find a balance from an address
+    Query the network to find a balance from an address coming from the latest transaction on the chain
     """
     field :balance, :balance do
       arg(:address, non_null(:address))
