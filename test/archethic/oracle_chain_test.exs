@@ -11,15 +11,29 @@ defmodule Archethic.OracleChainTest do
   import Mox
 
   test "valid_services_content?/1 should verify the oracle transaction's content correctness" do
-    _ =
-      HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30_000, :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30_000, :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"eur" => [0.20], "usd" => [0.12]}}],
-         30_000, :infinity}
-      ])
+    HydratingCache.register_function(
+      Archethic.Utils.HydratingCache.UcoPrice,
+      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
+      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+      30_000,
+      :infinity
+    )
+
+    HydratingCache.register_function(
+      Archethic.Utils.HydratingCache.UcoPrice,
+      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
+      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+      30_000,
+      :infinity
+    )
+
+    HydratingCache.register_function(
+      Archethic.Utils.HydratingCache.UcoPrice,
+      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
+      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
+      30_000,
+      :infinity
+    )
 
     content =
       %{

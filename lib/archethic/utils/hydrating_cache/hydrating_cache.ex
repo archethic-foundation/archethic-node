@@ -15,8 +15,13 @@ defmodule Archethic.Utils.HydratingCache do
           | {:error, :timeout}
           | {:error, :not_registered}
 
+  def start_link([name, initial_keys]) do
+    Logger.info("Starting cache #{inspect(name)}")
+    GenServer.start_link(__MODULE__, [name, initial_keys], name: name)
+  end
+
   def start_link(name, initial_keys \\ []) do
-    GenServer.start_link(__MODULE__, [name, initial_keys], name: :"#{__MODULE__}.#{name}")
+    start_link([name, initial_keys])
   end
 
   @doc ~s"""
@@ -45,12 +50,12 @@ defmodule Archethic.Utils.HydratingCache do
           fun :: (() -> {:ok, any()} | {:error, any()}),
           key :: any,
           refresh_interval :: non_neg_integer(),
-          ttl :: non_neg_integer()
+          ttl :: non_neg_integer() | :infinity
         ) :: term()
   def register_function(hydrating_cache, fun, key, refresh_interval, ttl)
-      when is_function(fun, 0) and is_integer(ttl) and ttl > 0 and
+      when is_function(fun, 0) and
              is_integer(refresh_interval) and
-             refresh_interval < ttl do
+             (refresh_interval < ttl or ttl == :infinity) do
     GenServer.call(hydrating_cache, {:register, fun, key, refresh_interval, ttl})
   end
 

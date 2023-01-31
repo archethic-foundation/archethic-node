@@ -37,4 +37,8 @@ Mox.defmock(MockIPLookup, for: Archethic.Networking.IPLookup.Impl)
 Mox.defmock(MockRemoteDiscovery, for: Archethic.Networking.IPLookup.Impl)
 Mox.defmock(MockNATDiscovery, for: Archethic.Networking.IPLookup.Impl)
 
+Mox.defmock(MockUCOPriceProvider1, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
+Mox.defmock(MockUCOPriceProvider2, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
+Mox.defmock(MockUCOPriceProvider3, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
+
 # -----End-of-Networking-Mocks ------

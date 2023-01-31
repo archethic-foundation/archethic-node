@@ -23,11 +23,11 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     {:ok, fetching_tasks_supervisor} = Task.Supervisor.start_link()
     ## retrieve prices from configured providers and filter results marked as errors
     prices =
-      Enum.map(providers(), fn provider ->
+      Enum.map(providers(), fn {provider, _, _} ->
         case HydratingCache.get(
-               :"Elixir.Archethic.Utils.HydratingCache.uco_service",
+               Archethic.Utils.HydratingCache.UcoPrice,
                provider,
-               3000
+               3_000
              ) do
           {:error, reason} ->
             Logger.warning(
@@ -100,7 +100,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         Enum.all?(@pairs, fn pair ->
           compare_price(
             Map.fetch!(prices_prior, pair),
-            Map.get(prices_now, pair, Map.fetch!(prices_prior, pair))
+            Map.get(prices_now, pair, Map.get(prices_prior, pair, 0.0))
           )
         end)
     end
@@ -156,6 +156,6 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   def parse_data(_), do: {:error, :invalid_data}
 
   defp providers do
-    Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:providers)
+    Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:providers, [])
   end
 end

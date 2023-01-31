@@ -109,13 +109,29 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, _} = :sys.get_state(pid)
 
-      HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
-      ])
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
+        30_000,
+        :infinity
+      )
 
       # polling_date =
       #   "0 * * * *"
@@ -186,13 +202,29 @@ defmodule Archethic.OracleChain.SchedulerTest do
          }}
       end)
 
-      HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
-      ])
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
+        30_000,
+        :infinity
+      )
 
       send(pid, :poll)
 
@@ -223,13 +255,29 @@ defmodule Archethic.OracleChain.SchedulerTest do
         available?: true
       })
 
-      HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
-      ])
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
+        30_000,
+        :infinity
+      )
 
       summary_date =
         "0 0 0 * *"
@@ -331,13 +379,29 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
       assert {:scheduled, %{polling_timer: timer1}} = :sys.get_state(pid)
 
-      HydratingCache.start_link(:uco_service, [
-        {MockUCOPriceProvider1, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider2, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000,
-         :infinity},
-        {MockUCOPriceProvider3, __MODULE__, :fetch, [{:ok, %{"usd" => [0.2]}}], 30_000, :infinity}
-      ])
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+        30_000,
+        :infinity
+      )
+
+      HydratingCache.register_function(
+        Archethic.Utils.HydratingCache.UcoPrice,
+        fn -> {:ok, %{"usd" => [0.20]}} end,
+        Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
+        30_000,
+        :infinity
+      )
 
       send(pid, :poll)
 

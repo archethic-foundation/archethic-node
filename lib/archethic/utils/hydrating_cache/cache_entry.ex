@@ -202,10 +202,10 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   end
 
   def handle_event(:cast, {:new_value, _key, {:ok, value}}, :running, data) do
+    ## We got result from hydrating function
+
     ## Stop timer on value ttl
     _ = maybe_stop_timer(data.timer_discard)
-
-    ## We got result from hydrating function
 
     ## notify waiting getters
     Enum.each(data.getters, fn {pid, _ref} ->
@@ -241,7 +241,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
       "Key :#{inspect(data.key)}, Hydrating func #{inspect(data.hydrating_func)} got error value #{inspect({key, {:error, reason}})}"
     )
 
-    ## We reprogram the timer to hydrate, even if previous call failled. Error control could occur here
+    ## Error values can be discarded
     me = self()
 
     new_timer =
@@ -259,8 +259,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
        data
        | running_func_task: :undefined,
          getters: [],
-         timer_discard: nil,
-         timer_func: new_timer
+         timer_discard: new_timer
      }}
   end
 
