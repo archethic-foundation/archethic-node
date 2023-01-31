@@ -44,17 +44,17 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
   test "fetch/0 should retrieve some data and build a map with the oracle name in it and keep the precision to 5" do
     MockUCOPriceProvider1
-    |> expect(:fetch, fn pairs ->
+    |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}
     end)
 
     MockUCOPriceProvider2
-    |> expect(:fetch, fn pairs ->
+    |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}
     end)
 
     MockUCOPriceProvider3
-    |> expect(:fetch, fn pairs ->
+    |> expect(:fetch, fn _pairs ->
       {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}
     end)
 
