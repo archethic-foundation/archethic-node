@@ -142,8 +142,50 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
     tx = TransactionFactory.create_valid_transaction(inputs)
 
+    pb_key1 = Crypto.derive_keypair("key101", 0) |> elem(0)
+    pb_key2 = Crypto.derive_keypair("key202", 0) |> elem(0)
+    pb_key3 = Crypto.derive_keypair("key303", 0) |> elem(0)
+
+    nodes = [
+      %Node{
+        first_public_key: pb_key1,
+        last_public_key: pb_key1,
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
+      },
+      %Node{
+        first_public_key: pb_key2,
+        last_public_key: pb_key2,
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
+      },
+      %Node{
+        first_public_key: pb_key3,
+        last_public_key: pb_key3,
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
+      }
+    ]
+
+    Enum.each(nodes, &P2P.add_and_connect_node(&1))
+
     MockClient
-    |> expect(:send_message, fn
+    |> expect(:send_message, 4, fn
       _, %GetTransaction{}, _ ->
         {:error, :network_issue}
     end)

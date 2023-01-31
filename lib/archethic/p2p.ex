@@ -741,7 +741,7 @@ defmodule Archethic.P2P do
             message,
             conflict_resolver,
             acceptance_resolver,
-            consistency_level - 1,
+            consistency_level,
             timeout,
             quorum_result
           )

@@ -152,6 +152,7 @@ defmodule Archethic.P2PTest do
         :send_message,
         1,
         fn _node, _message, _timeout ->
+          :timer.sleep(200)
           {:ok, %NotFound{}}
         end
       )
