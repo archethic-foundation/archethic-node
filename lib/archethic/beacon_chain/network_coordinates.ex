@@ -12,7 +12,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
   The matrix must be an Hollow matrix, symmetric and all the latencies must be positive
 
-  In physicis, the center of mass of a distribution of mass in the space is the unique point where
+  In physics, the center of mass for a distribution of masses in the space is the unique point where
   the weighted relative position of the distributed mass sums to zero. Here, the sum of vectors to
   all nodes from the center of mass is zero (All the nodes being the unit of mass)
 
