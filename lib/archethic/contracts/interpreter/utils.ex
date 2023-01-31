@@ -581,7 +581,21 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   end
 
   def format_error_reason(ast_node = {_, metadata, _}, reason) do
-    do_format_error_reason(reason, Macro.to_string(ast_node), metadata)
+    # we can't rely on Macro.to_string because it may fail because of our {:atom, ""} format
+    # since we can't transform them into atom, there's no way to display it correctly
+    #
+    # Example of unparseable node:
+    #   {:=, [line: 2], [{{:atom, "item"}, [line: 2], nil}, {{:atom, "item"}, [line: 2], nil}]}
+
+    cause =
+      try do
+        Macro.to_string(ast_node)
+      rescue
+        ArgumentError ->
+          "N/A"
+      end
+
+    do_format_error_reason(reason, cause, metadata)
   end
 
   def format_error_reason({{:atom, _}, {_, metadata, _}}, reason) do

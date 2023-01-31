@@ -70,6 +70,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
       {:error, "unexpected term - System - L2"}
 
   """
+
   @spec parse(any()) :: {:ok, trigger(), Macro.t()} | {:error, String.t()}
   def parse(ast) do
     case Macro.traverse(
@@ -89,6 +90,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
       {:error, InterpreterUtils.format_error_reason(node, reason)}
 
     {:error, node} ->
+      IO.inspect(node, label: "err")
       {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
   end
 
@@ -280,21 +282,29 @@ defmodule Archethic.Contracts.ActionInterpreter do
     throw({:error, reason, node})
   end
 
-  # Whitelist the reduce/3 and enter the reduce scope
-  defp prewalk(
-         node = {{:atom, "reduce"}, _, [_, _, _]},
-         _acc = {:ok, %{scope: parent_scope}}
-       ) do
-    {node, {:ok, %{scope: {:reduce, parent_scope}}}}
-  end
+  # # Whitelist the reduce/3 and enter the reduce scope
+  # defp prewalk(
+  #        node = {{:atom, "reduce"}, _, [_, _, _]},
+  #        _acc = {:ok, %{scope: parent_scope}}
+  #      ) do
+  #   # {:reduce, [],
+  #   #  [
+  #   #    {{:., [], [{:list, [], Elixir}, :x]}, [no_parens: true], []},
+  #   #    [as: {:item, [], Elixir}, with: [count: 0]],
+  #   #    [
+  #   #      do: {:+, [context: Elixir, imports: [{1, Kernel}, {2, Kernel}]],
+  #   #       [{:count, [], Elixir}, {:item, [], Elixir}]}
+  #   #    ]
+  #   #  ]}
+  # end
 
-  # Delegate all nodes inside the reduce
-  defp prewalk(
-         node,
-         acc = {:ok, %{scope: {:reduce, _}}}
-       ) do
-    Archethic.Contracts.Interpreter.ActionReduce.prewalk(node, acc)
-  end
+  # # Delegate all nodes inside the reduce
+  # defp prewalk(
+  #        node,
+  #        acc = {:ok, %{scope: {:reduce, _}}}
+  #      ) do
+  #   Archethic.Contracts.Interpreter.ActionReduce.prewalk(node, acc)
+  # end
 
   defp prewalk(node, acc) do
     InterpreterUtils.prewalk(node, acc)
@@ -352,13 +362,13 @@ defmodule Archethic.Contracts.ActionInterpreter do
     {node, acc}
   end
 
-  # Exit the reduce scope
-  defp postwalk(
-         node = {{:atom, "reduce"}, _, [_, _, _]},
-         _acc = {:ok, %{scope: {:reduce, parent_scope}}}
-       ) do
-    {node, {:ok, %{scope: parent_scope}}}
-  end
+  # # Exit the reduce scope
+  # defp postwalk(
+  #        node = {{:atom, "reduce"}, _, [_, _, _]},
+  #        _acc = {:ok, %{scope: {:reduce, parent_scope}}}
+  #      ) do
+  #   {node, {:ok, %{scope: parent_scope}}}
+  # end
 
   defp postwalk(node, acc) do
     InterpreterUtils.postwalk(node, acc)
