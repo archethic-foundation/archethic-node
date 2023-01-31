@@ -26,7 +26,6 @@ defmodule Archethic.OracleChain.Supervisor do
       :archethic
       |> Application.get_env(Archethic.OracleChain.Services.UCOPrice, [])
       |> Keyword.get(:providers, [])
-      |> IO.inspect(label: "Providers")
       |> Enum.map(fn {mod, refresh_rate, ttl} ->
         {mod, mod, :fetch, [@pairs], refresh_rate, ttl}
       end)
