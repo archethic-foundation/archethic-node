@@ -239,15 +239,13 @@ defmodule Archethic.Contracts.Worker do
         else
           nil ->
             # returned by ActionInterpreter.execute when contract did not create a next tx
-            Logger.error("Oracle contract did not trigger a new tx",
-              contract: Base.encode16(address)
-            )
+            :ok
 
           false ->
-            Logger.error("Invalid oracle conditions", contract: Base.encode16(address))
+            Logger.info("Invalid oracle conditions", contract: Base.encode16(address))
 
           {:error, e} ->
-            Logger.error("#{inspect(e)}", contract: Base.encode16(address))
+            Logger.info("#{inspect(e)}", contract: Base.encode16(address))
         end
       end
     end
