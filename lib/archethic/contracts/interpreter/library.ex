@@ -32,11 +32,11 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
   ## Examples
 
-    iex> Library.int("12345")
+    iex> Library.string_to_int("12345")
     12345
   """
-  @spec int(String.t()) :: integer()
-  def int(text) do
+  @spec string_to_int(String.t()) :: integer()
+  def string_to_int(text) do
     String.to_integer(text)
   end
 
@@ -44,11 +44,11 @@ defmodule Archethic.Contracts.Interpreter.Library do
   Convert a string to a float
   ## Examples
 
-    iex> Library.float("12345.1")
+    iex> Library.string_to_float("12345.1")
     12345.1
   """
-  @spec float(String.t()) :: float()
-  def float(text) do
+  @spec string_to_float(String.t()) :: float()
+  def string_to_float(text) do
     String.to_float(text)
   end
 
@@ -57,15 +57,15 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
   ## Examples
 
-    iex> Library.string(12345)
+    iex> Library.number_to_string(12345)
     "12345"
   """
-  @spec string(float() | integer()) :: String.t()
-  def string(num) when is_integer(num) do
+  @spec number_to_string(float() | integer()) :: String.t()
+  def number_to_string(num) when is_integer(num) do
     Integer.to_string(num)
   end
 
-  def string(num) when is_float(num) do
+  def number_to_string(num) when is_float(num) do
     Float.to_string(num)
   end
 

@@ -203,7 +203,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   # Whitelist the int/1 function
   def prewalk(
-        node = {{:atom, "int"}, _, [_]},
+        node = {{:atom, "string_to_int"}, _, [_]},
         acc = {:ok, %{scope: scope}}
       )
       when scope != :root do
@@ -212,7 +212,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   # Whitelist the float/1 function
   def prewalk(
-        node = {{:atom, "float"}, _, [_]},
+        node = {{:atom, "string_to_float"}, _, [_]},
         acc = {:ok, %{scope: scope}}
       )
       when scope != :root do
@@ -221,7 +221,7 @@ defmodule Archethic.Contracts.Interpreter.Utils do
 
   # Whitelist the string/2 function
   def prewalk(
-        node = {{:atom, "string"}, _, [_]},
+        node = {{:atom, "number_to_string"}, _, [_]},
         acc = {:ok, %{scope: scope}}
       )
       when scope != :root do
