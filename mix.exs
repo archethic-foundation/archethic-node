@@ -23,7 +23,16 @@ defmodule Archethic.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :inets, :os_mon, :runtime_tools, :xmerl],
+      extra_applications: [
+        :public_key,
+        :crypto,
+        :logger,
+        :inets,
+        :os_mon,
+        :runtime_tools,
+        :xmerl,
+        :crypto
+      ],
       mod: {Archethic.Application, []}
     ]
   end
