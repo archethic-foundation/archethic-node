@@ -216,4 +216,146 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
       &[recipient_address | &1]
     )
   end
+
+  @doc """
+  Add multiple recipients
+
+  ## Examples
+
+    iex> address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    iex> address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    iex> TransactionStatements.add_recipients(%Transaction{data: %TransactionData{recipients: [address1]}}, [address2])
+    %Transaction{
+      data: %TransactionData{
+        recipients: [address2, address1]
+      }
+    }
+  """
+  @spec add_recipients(Transaction.t(), list(binary())) :: Transaction.t()
+  def add_recipients(tx = %Transaction{}, args) when is_list(args) do
+    Enum.reduce(args, tx, &add_recipient(&2, &1))
+  end
+
+  @doc """
+  Add multiple ownerships
+
+  ## Examples
+
+    iex> {pub_key1, _} = Archethic.Crypto.generate_deterministic_keypair("seed")
+    iex> {pub_key2, _} = Archethic.Crypto.generate_deterministic_keypair("seed2")
+    iex>  %Transaction{
+    ...>   data: %TransactionData{
+    ...>     ownerships: [
+    ...>       %Ownership{
+    ...>         authorized_keys: %{
+    ...>           ^pub_key2 => _
+    ...>         },
+    ...>         secret: "ENCODED_SECRET2"
+    ...>       },
+    ...>       %Ownership{
+    ...>         authorized_keys: %{
+    ...>           ^pub_key1 => _
+    ...>         },
+    ...>         secret: "ENCODED_SECRET1"
+    ...>       }
+    ...>     ]
+    ...>   }
+    ...> } = TransactionStatements.add_ownerships(%Transaction{data: %TransactionData{}}, [[
+    ...>  {"secret", "ENCODED_SECRET1"},
+    ...>  {"secret_key", :crypto.strong_rand_bytes(32)},
+    ...>  {"authorized_public_keys", [pub_key1]}
+    ...> ],
+    ...> [
+    ...>  {"secret", "ENCODED_SECRET2"},
+    ...>  {"secret_key", :crypto.strong_rand_bytes(32)},
+    ...>  {"authorized_public_keys", [pub_key2]}
+    ...> ]
+    ...> ])
+  """
+  @spec add_ownerships(Transaction.t(), list(list())) :: Transaction.t()
+  def add_ownerships(tx = %Transaction{}, args) when is_list(args) do
+    Enum.reduce(args, tx, &add_ownership(&2, &1))
+  end
+
+  @doc """
+  Add multiple token transfers
+
+  ## Examples
+
+      iex> address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      iex> address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      iex> address3 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      iex> address4 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      iex> %Transaction{
+      ...>         data: %TransactionData{
+      ...>           ledger: %Ledger{
+      ...>             token: %TokenLedger{
+      ...>               transfers: [
+      ...>                 %TokenTransfer{
+      ...>                     to: ^address3,
+      ...>                     amount: 3,
+      ...>                     token_address: ^address4,
+      ...>                     token_id: 4
+      ...>                 },
+      ...>                 %TokenTransfer{
+      ...>                     to: ^address1,
+      ...>                     amount: 1,
+      ...>                     token_address: ^address2,
+      ...>                     token_id: 2
+      ...>                 }
+      ...>               ]
+      ...>             }
+      ...>           }
+      ...>         }
+      ...>       } = TransactionStatements.add_token_transfers(%Transaction{data: %TransactionData{}}, [[
+      ...>   {"to", address1},
+      ...>   {"amount", 1},
+      ...>   {"token_address", address2},
+      ...>   {"token_id",  2}
+      ...> ],
+      ...> [
+      ...>   {"to", address3},
+      ...>   {"amount", 3},
+      ...>   {"token_address", address4},
+      ...>   {"token_id",  4}
+      ...> ]])
+  """
+  @spec add_token_transfers(Transaction.t(), list(list())) :: Transaction.t()
+  def add_token_transfers(tx = %Transaction{}, args) when is_list(args) do
+    Enum.reduce(args, tx, &add_token_transfer(&2, &1))
+  end
+
+  @doc """
+  Add multiple UCO transfers
+
+  ## Examples
+
+    iex> address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    iex> address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    iex> %Transaction{
+    ...>  data: %TransactionData{
+    ...>     ledger: %Ledger{
+    ...>       uco: %UCOLedger{
+    ...>         transfers: [
+    ...>           %UCOTransfer{
+    ...>             to: ^address2,
+    ...>             amount: 2
+    ...>           },
+    ...>            %UCOTransfer{
+    ...>             to: ^address1,
+    ...>             amount: 1
+    ...>           }
+    ...>         ]
+    ...>       }
+    ...>     }
+    ...>   }
+    ...> } = TransactionStatements.add_uco_transfers(%Transaction{data: %TransactionData{}}, [
+    ...>   [{"to", address1}, {"amount", 1}],
+    ...>   [{"to", address2}, {"amount", 2}]
+    ...> ])
+  """
+  @spec add_uco_transfers(Transaction.t(), list(list())) :: Transaction.t()
+  def add_uco_transfers(tx = %Transaction{}, args) when is_list(args) do
+    Enum.reduce(args, tx, &add_uco_transfer(&2, &1))
+  end
 end
