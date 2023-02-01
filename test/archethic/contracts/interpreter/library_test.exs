@@ -1,14 +1,63 @@
 defmodule Archethic.Contracts.Interpreter.LibraryTest do
   use ArchethicCase
 
-  alias Archethic.{Contracts.Interpreter.Library, P2P, P2P.Node}
+  alias Archethic.Contracts.Interpreter.Library
 
-  alias P2P.Message.{
-    GetFirstTransactionAddress,
-    FirstTransactionAddress
-  }
+  alias Archethic.P2P.Message.GetFirstTransactionAddress
+  alias Archethic.P2P.Message.FirstTransactionAddress
+
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.Utils
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   doctest Library
+
+  import Mox
+
+  describe "get_token_id\1" do
+    test "should return token_id given the address of the transaction" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 300_000_000,
+                name: "MyToken",
+                type: "non-fungible",
+                symbol: "MTK",
+                properties: %{
+                  global: "property"
+                },
+                collection: [
+                  %{image: "link", value: "link"},
+                  %{image: "link", value: "link"},
+                  %{image: "link", value: "link"}
+                ]
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      genesis_address = "@Alice1"
+
+      MockDB
+      |> stub(:get_transaction, fn _, _, _ -> {:ok, tx} end)
+      |> stub(:get_genesis_address, fn _ -> genesis_address end)
+
+      {:ok, %{id: token_id}} = Utils.get_token_properties(genesis_address, tx)
+
+      assert token_id ==
+               Library.get_token_id(tx.address)
+    end
+  end
 
   import Mox
 

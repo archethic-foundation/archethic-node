@@ -13,10 +13,11 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
 
   alias Archethic.Mining
+
+  alias Archethic.Utils
 
   require Logger
 
@@ -54,80 +55,34 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   def get_token(address) do
     t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
-    t2 = Task.async(fn -> get_transaction_content(address) end)
+    t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
-         {:ok,
-          {:ok,
-           definition = %{
-             "ownerships" => ownerships,
-             "supply" => supply,
-             "type" => type
-           }}} <- Task.yield(t2) do
-      properties = Map.get(definition, "properties", %{})
-      collection = Map.get(definition, "collection", [])
-      decimals = Map.get(definition, "decimals", 8)
-      name = Map.get(definition, "name", "")
-      symbol = Map.get(definition, "symbol", "")
-
-      data_to_digest = %{
-        genesis_address: Base.encode16(genesis_address),
-        name: name,
-        symbol: symbol,
-        properties: properties,
-        decimals: decimals
-      }
-
-      token_id = :crypto.hash(:sha256, Jason.encode!(data_to_digest)) |> Base.encode16()
-
-      {:ok,
-       %{
-         genesis: genesis_address,
-         name: name,
-         supply: supply,
-         symbol: symbol,
-         type: type,
-         decimals: decimals,
-         properties: properties,
-         collection: collection,
-         ownerships: ownerships,
-         id: token_id
-       }}
+         {:ok, {:ok, tx}} <- Task.yield(t2),
+         res = {:ok, _get_token_properties} <- Utils.get_token_properties(genesis_address, tx) do
+      res
     else
       {:ok, {:error, :network_issue}} ->
         {:error, "Network issue"}
 
-      {:ok, {:error, :decode_error}} ->
+      {:ok, {:error, :transaction_not_exists}} ->
+        {:error, "Transaction not exists"}
+
+      {:ok, {:error, :transaction_invalid}} ->
+        {:error, "Transaction invalid"}
+
+      {:error, :decode_error} ->
         {:error, "Error in decoding transaction"}
 
-      {:ok, {:error, :transaction_not_found}} ->
-        {:error, "Transaction does not exist!"}
+      {:error, :not_a_token_transaction} ->
+        {:error, "Transaction is not of type token"}
 
       {:exit, reason} ->
-        Logger.debug("Task exited with reason")
-        Logger.debug(reason)
+        Logger.debug("Task exited with reason #{inspect(reason)}")
         {:error, "Task Exited!"}
 
       nil ->
         {:error, "Task didn't responded within timeout!"}
-    end
-  end
-
-  defp get_transaction_content(address) do
-    case Archethic.search_transaction(address) do
-      {:ok,
-       %Transaction{data: %TransactionData{content: content, ownerships: ownerships}, type: type}}
-      when type in [:token, :mint_rewards] ->
-        case Jason.decode(content) do
-          {:ok, map} ->
-            {:ok, map |> Map.put("ownerships", ownerships)}
-
-          _ ->
-            {:error, :decode_error}
-        end
-
-      _ ->
-        {:error, :transaction_not_found}
     end
   end
 
