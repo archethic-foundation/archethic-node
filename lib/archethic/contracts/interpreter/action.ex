@@ -1,6 +1,7 @@
 defmodule Archethic.Contracts.ActionInterpreter do
   @moduledoc false
 
+  alias Archethic.Contracts.Interpreter.ActionReduce
   alias Archethic.Contracts.Interpreter.TransactionStatements
   alias Archethic.Contracts.Interpreter.Utils, as: InterpreterUtils
 
@@ -76,10 +77,23 @@ defmodule Archethic.Contracts.ActionInterpreter do
     case Macro.traverse(
            ast,
            {:ok, %{scope: :root}},
-           &prewalk(&1, &2),
-           &postwalk/2
+           fn a, b ->
+             # IO.inspect({a, b}, label: "prewalk0")
+             prewalk(a, b)
+           end,
+           fn a, b ->
+             # IO.inspect({a, b}, label: "postwalk0")
+             postwalk(a, b)
+           end
          ) do
       {_node, {:ok, trigger, actions}} ->
+        # IO.inspect(actions,
+        #   label: "parse actions",
+        #   syntax_colors: [atom: :blue, string: :green, tuple: :yellow, list: :red],
+        #   printable_limit: :infinity,
+        #   limit: :infinity
+        # )
+
         {:ok, trigger, actions}
 
       {node, _} ->
@@ -89,8 +103,11 @@ defmodule Archethic.Contracts.ActionInterpreter do
     {:error, reason, node} ->
       {:error, InterpreterUtils.format_error_reason(node, reason)}
 
+    {:error, reason} when is_binary(reason) ->
+      {:error, reason}
+
     {:error, node} ->
-      IO.inspect(node, label: "err")
+      # IO.inspect(node, label: "err")
       {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
   end
 
@@ -282,29 +299,24 @@ defmodule Archethic.Contracts.ActionInterpreter do
     throw({:error, reason, node})
   end
 
-  # # Whitelist the reduce/3 and enter the reduce scope
-  # defp prewalk(
-  #        node = {{:atom, "reduce"}, _, [_, _, _]},
-  #        _acc = {:ok, %{scope: parent_scope}}
-  #      ) do
-  #   # {:reduce, [],
-  #   #  [
-  #   #    {{:., [], [{:list, [], Elixir}, :x]}, [no_parens: true], []},
-  #   #    [as: {:item, [], Elixir}, with: [count: 0]],
-  #   #    [
-  #   #      do: {:+, [context: Elixir, imports: [{1, Kernel}, {2, Kernel}]],
-  #   #       [{:count, [], Elixir}, {:item, [], Elixir}]}
-  #   #    ]
-  #   #  ]}
-  # end
+  # Whitelist the reduce/3 and enter the reduce scope
+  defp prewalk(
+         node = {{:atom, "reduce"}, _, [_, _, _]},
+         _acc = {:ok, %{scope: parent_scope}}
+       ) do
+    reduce_acc = ActionReduce.initial_acc()
+    {new_node, new_reduce_acc} = ActionReduce.prewalk(node, reduce_acc)
+    {new_node, {:ok, %{scope: {:reduce, new_reduce_acc, parent_scope}}}}
+  end
 
-  # # Delegate all nodes inside the reduce
-  # defp prewalk(
-  #        node,
-  #        acc = {:ok, %{scope: {:reduce, _}}}
-  #      ) do
-  #   Archethic.Contracts.Interpreter.ActionReduce.prewalk(node, acc)
-  # end
+  # Everything in the reduce scope pass through (it will have its own traverse)
+  defp prewalk(
+         node,
+         _acc = {:ok, %{scope: {:reduce, reduce_acc, parent_scope}}}
+       ) do
+    {new_node, new_reduce_acc} = ActionReduce.prewalk(node, reduce_acc)
+    {new_node, {:ok, %{scope: {:reduce, new_reduce_acc, parent_scope}}}}
+  end
 
   defp prewalk(node, acc) do
     InterpreterUtils.prewalk(node, acc)
@@ -362,13 +374,23 @@ defmodule Archethic.Contracts.ActionInterpreter do
     {node, acc}
   end
 
-  # # Exit the reduce scope
-  # defp postwalk(
-  #        node = {{:atom, "reduce"}, _, [_, _, _]},
-  #        _acc = {:ok, %{scope: {:reduce, parent_scope}}}
-  #      ) do
-  #   {node, {:ok, %{scope: parent_scope}}}
-  # end
+  # Exit the reduce scope
+  defp postwalk(
+         node = {{:atom, "reduce"}, _, [_, _, _]},
+         _acc = {:ok, %{scope: {:reduce, reduce_acc, parent_scope}}}
+       ) do
+    {new_node, _} = ActionReduce.postwalk(node, reduce_acc)
+    {new_node, {:ok, %{scope: parent_scope}}}
+  end
+
+  # Everything in the reduce scope pass through (it will have its own traverse)
+  defp postwalk(
+         node,
+         _acc = {:ok, %{scope: {:reduce, reduce_acc, parent_scope}}}
+       ) do
+    {new_node, new_reduce_acc} = ActionReduce.postwalk(node, reduce_acc)
+    {new_node, {:ok, %{scope: {:reduce, new_reduce_acc, parent_scope}}}}
+  end
 
   defp postwalk(node, acc) do
     InterpreterUtils.postwalk(node, acc)
@@ -379,14 +401,26 @@ defmodule Archethic.Contracts.ActionInterpreter do
   """
   @spec execute(Macro.t(), map()) :: Transaction.t()
   def execute(code, constants \\ %{}) do
-    {%{"next_transaction" => next_transaction}, _} =
-      Code.eval_quoted(code,
-        scope:
-          Map.put(constants, "next_transaction", %Transaction{
-            data: %TransactionData{}
-          })
-      )
+    bindings =
+      []
+      |> add_scope_binding(constants)
+      |> ActionReduce.add_scope_binding()
+
+    {%{"next_transaction" => next_transaction}, _} = Code.eval_quoted(code, bindings)
 
     next_transaction
+  end
+
+  @doc """
+  Add the scope to the given bindings
+  """
+  def add_scope_binding(keywords, constants) do
+    Keyword.put(
+      keywords,
+      :scope,
+      Map.put(constants, "next_transaction", %Transaction{
+        data: %TransactionData{}
+      })
+    )
   end
 end

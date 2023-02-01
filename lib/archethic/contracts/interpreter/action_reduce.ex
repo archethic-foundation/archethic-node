@@ -1,6 +1,18 @@
 defmodule Archethic.Contracts.Interpreter.ActionReduce do
   @moduledoc """
   AST manipulation related to the reduce/3
+
+
+  There are 3 scopes in here:
+
+  - root
+    we are not in the reduce yet (useful only to check the reduce syntax)
+
+  - definition
+    we are in the reduce statement
+
+  - block
+    we are in the do...end of the reduce
   """
 
   alias Archethic.Contracts.Interpreter.Utils
@@ -9,42 +21,19 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
   @reduce_item :sc_reduce_item
   @reduce_acc :sc_reduce_acc
   @reduce_scope :sc_reduce_scope
-
-  @spec parse(any()) :: {:ok, Macro.t()} | {:error, term()}
-  def parse(ast) do
-    case Macro.traverse(
-           ast,
-           {:ok, %{scope: :root}},
-           fn a, b ->
-             # IO.inspect({a, b}, label: "prewalk")
-             prewalk(a, b)
-           end,
-           fn a, b ->
-             # IO.inspect({a, b}, label: "postwalk")
-             postwalk(a, b)
-           end
-         ) do
-      {node, {:ok, _}} ->
-        {:ok, node}
-    end
-  catch
-    {:error, reason, node} ->
-      {:error, Utils.format_error_reason(node, reason)}
-
-    {:error, node} ->
-      {:error, Utils.format_error_reason(node, "unexpected term")}
-  end
+  @parent_scope :scope
 
   @doc """
-  Execute the code
+  Return the initial accumulator, used by the parse functions
   """
-  @spec execute(Macro.t(), map()) :: Transaction.t()
-  def execute(code, constants \\ %{}) do
-    case Code.eval_quoted(code, scope: constants) do
-      {acc, _ctx} ->
-        # IO.inspect({acc, ctx}, label: "execute result")
-        acc
-    end
+  @spec initial_acc() :: :root
+  def initial_acc() do
+    :root
+  end
+
+  @spec add_scope_binding(Keyword.t()) :: Keyword.t()
+  def add_scope_binding(keywords) do
+    Keyword.put(keywords, @reduce_scope, %{})
   end
 
   # ----------------------------------------------------------------------
@@ -56,85 +45,89 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
   #                     |_|
   #
   # ----------------------------------------------------------------------
-  # ------- root ------------
+  # ------- :root ------------
   # enter in reduce_definition
-  defp prewalk(
-         node =
-           {{:atom, "reduce"}, _,
-            [
-              firstArg,
-              [
-                {{:atom, "as"}, asVariable},
-                {{:atom, "with"}, keywordList}
-              ],
-              [do: _]
-            ]},
-         {:ok, %{scope: :root}}
-       ) do
+  def prewalk(
+        node =
+          {{:atom, "reduce"}, _,
+           [
+             firstArg,
+             [
+               {{:atom, "as"}, asVariable},
+               {{:atom, "with"}, keywordList}
+             ],
+             [do: _]
+           ]},
+        :root
+      ) do
     with true <-
            AST.is_variable?(firstArg) or
              AST.is_function_call?(firstArg) or
-             AST.is_list?(firstArg),
+             is_list(firstArg),
          true <- AST.is_keyword_list?(keywordList),
          true <- AST.is_variable?(asVariable) do
-      {node, {:ok, %{scope: :reduce_definition, parent_scope: :root}}}
+      {node, :definition}
     else
       false ->
         throw({:error, "invalid reduce syntax", node})
     end
   end
 
-  # ------- reduce_definition ------------
+  # ------- :definition ------------
 
   # ASK SAM TO PUT KEYWORD IN UTILS AND NOT IN ACTION
   # allow pairs
-  defp prewalk(
-         node = {{:atom, _}, _},
-         acc = {:ok, %{scope: :reduce_definition}}
-       ) do
+  def prewalk(
+        node = {{:atom, _}, _},
+        acc = :definition
+      ) do
     {node, acc}
   end
 
-  defp prewalk(
-         node = [do: _],
-         _acc = {:ok, %{scope: :reduce_definition}}
-       ) do
-    {node, {:ok, %{scope: :reduce_block, parent_scope: :reduce_definition}}}
+  # enter the block scope
+  def prewalk(
+        node = [do: _],
+        _acc = :definition
+      ) do
+    {node, :block}
   end
 
-  # pass through utils
-  defp prewalk(
-         node,
-         acc = {:ok, %{scope: :reduce_definition}}
-       ) do
-    Utils.prewalk(node, acc)
-  end
-
-  # ------- reduce_block ------------
+  # ------- :block ------------
   # explicit forbid a reduce inside a reduce
   # this is already not allowed with scope, but this provide a helpful message to the user
-  defp prewalk(
-         node = {{:atom, "reduce"}, _, [_, _, _]},
-         {:ok, %{scope: :reduce_block}}
-       ) do
+  def prewalk(
+        node = {{:atom, "reduce"}, _, [_, _, _]},
+        :block
+      ) do
     throw({:error, "Nested reduce are forbidden", node})
   end
 
   # ASK SAM TO PUT ASSIGN IN UTILS AND NOT IN ACTION
   # allow pairs
-  defp prewalk(
-         node = {:=, _, _},
-         acc = {:ok, %{scope: :reduce_block}}
-       ) do
+  def prewalk(
+        node = {:=, _, _},
+        acc = :block
+      ) do
+    {node, acc}
+  end
+
+  # ASK SAM TO PUT KEYWORD IN UTILS AND NOT IN ACTION
+  # allow pairs
+  def prewalk(
+        node = {{:atom, _}, _},
+        acc = :block
+      ) do
     {node, acc}
   end
 
   # pass through utils
-  defp prewalk(
-         node,
-         acc = {:ok, %{scope: :reduce_block}}
-       ) do
-    Utils.prewalk(node, acc)
+  def prewalk(
+        node,
+        acc
+      ) do
+    # utils.prewalk require a weird acc
+    {new_node, _} = Utils.prewalk(node, {:ok, %{scope: :reduce}})
+    {new_node, acc}
   end
 
   # ----------------------------------------------------------------------
@@ -147,19 +140,19 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
   #
   # ----------------------------------------------------------------------
   # Transform reduce into a list comprehension
-  defp postwalk(
-         _node =
-           {{:atom, "reduce"}, _,
-            [
-              enumerable,
-              [
-                {{:atom, "as"}, {{:atom, itemName}, _, nil}},
-                {{:atom, "with"}, withPropList}
-              ],
-              [do: block]
-            ]},
-         acc = {:ok, %{scope: :reduce_definition}}
-       ) do
+  def postwalk(
+        _node =
+          {{:atom, "reduce"}, _,
+           [
+             list,
+             [
+               {{:atom, "as"}, {{:atom, itemName}, _, nil}},
+               {{:atom, "with"}, withPropList}
+             ],
+             [do: block]
+           ]},
+        acc = :definition
+      ) do
     # unwrap the {:atom, _} from the with proplist
     withPropList =
       withPropList
@@ -178,7 +171,80 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
         block,
         :no_acc,
         fn
-          # assignation
+          # DOT ACCESS
+          {{:., meta,
+            [
+              {{:atom, mapName}, _, nil},
+              {:atom, keyName}
+            ]}, _, []},
+          acc0 ->
+            node =
+              case mapName do
+                "transaction" ->
+                  # transaction.address =>
+                  #
+                  # Map.get(
+                  #   Map.get(reduce_scope, "transaction", Map.get(scope, "transaction")),
+                  #  "address"
+                  # )
+                  {{:., meta, [{:__aliases__, [alias: false], [:Map]}, :get]}, meta,
+                   [
+                     {{:., meta, [{:__aliases__, meta, [:Map]}, :get]}, meta,
+                      [
+                        {@reduce_scope, meta, nil},
+                        mapName,
+                        {{:., meta, [{:__aliases__, meta, [:Map]}, :get]}, meta,
+                         [{@parent_scope, meta, nil}, mapName]}
+                      ]},
+                     keyName
+                   ]}
+
+                "contract" ->
+                  # contract.address =>
+                  #
+                  # Map.get(
+                  #   Map.get(reduce_scope, "contract", Map.get(scope, "contract")),
+                  #  "address"
+                  # )
+                  {{:., meta, [{:__aliases__, [alias: false], [:Map]}, :get]}, meta,
+                   [
+                     {{:., meta, [{:__aliases__, meta, [:Map]}, :get]}, meta,
+                      [
+                        {@reduce_scope, meta, nil},
+                        mapName,
+                        {{:., meta, [{:__aliases__, meta, [:Map]}, :get]}, meta,
+                         [{@parent_scope, meta, nil}, mapName]}
+                      ]},
+                     keyName
+                   ]}
+
+                _ ->
+                  # Everything else is a proplist
+                  #
+                  # any.thing =>
+                  #
+                  # :proplists.get_value(
+                  #   "thing",
+                  #   Map.get(reduce_scope, "any", Map.get(scope, "any")),
+                  #   :nil
+                  # )
+                  {{:., meta, [:proplists, :get_value]}, meta,
+                   [
+                     keyName,
+                     {{:., meta, [{:__aliases__, [alias: false], [:Map]}, :get]}, meta,
+                      [
+                        {@reduce_scope, meta, nil},
+                        mapName,
+                        {{:., meta, [{:__aliases__, [alias: false], [:Map]}, :get]}, meta,
+                         [{@parent_scope, meta, nil}, mapName]}
+                      ]},
+                     nil
+                   ]}
+              end
+
+            {node, acc0}
+
+          # ASSIGNATION
           node =
               {:=, meta,
                [
@@ -187,11 +253,17 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
                ]},
           acc0 ->
             cond do
+              # left hand of = is the "as"
               atomName == itemName ->
                 throw({:error, ~s(Rebinding the "#{itemName}" variable is forbidden), node})
 
+              # left hand is a variable from the "with"
               atomName in accVariables ->
-                # variable is in the "with"
+                # count = 0
+                #
+                # =>
+                #
+                # acc = Map.put(acc, "count", 0)
                 node =
                   {:=, meta,
                    [
@@ -202,8 +274,13 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
 
                 {node, acc0}
 
+              # left hand is an unknown variable
               true ->
-                # variable is in the scope
+                # other = 12
+                #
+                # =>
+                #
+                # reduce_scope = Map.put(reduce_scope, "other", 12)
                 node =
                   {:=, meta,
                    [
@@ -220,22 +297,49 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
             {node, acc0}
         end,
         fn
-          # read variable
+          # ASK SAM TO PUT THIS IN UTILS
+          # unwrap the {:atom, _} from keywords list
+          node, acc0 when is_list(node) ->
+            node =
+              if AST.is_keyword_list?(node) do
+                AST.keyword_to_proplist(node)
+              else
+                node
+              end
+
+            {node, acc0}
+
+          # READ A VARIABLE
           {{:atom, atomName}, meta, nil}, acc0 ->
             node =
               cond do
+                # variable is the "as"
                 atomName == itemName ->
-                  # variable is the "as"
                   {@reduce_item, meta, nil}
 
+                # variable is in the "with"
                 atomName in accVariables ->
-                  # variable is in the "with"
+                  # count
+                  #
+                  # =>
+                  #
+                  # Access.get(acc, "count")
                   {{:., meta, [Access, :get]}, meta, [{@reduce_acc, meta, nil}, atomName]}
 
+                # variable is an unknown variable (check :reduce_scope then @parent_scope)
                 true ->
-                  # variable is in the scope
+                  # other
+                  #
+                  # =>
+                  #
+                  # Map.get(reduce_scope, "other", Map.get(scope, "other"))
                   {{:., meta, [{:__aliases__, meta, [:Map]}, :get]}, meta,
-                   [{@reduce_scope, meta, nil}, atomName]}
+                   [
+                     {@reduce_scope, meta, nil},
+                     atomName,
+                     {{:., meta, [{:__aliases__, meta, [:Map]}, :get]}, meta,
+                      [{@parent_scope, meta, nil}, atomName]}
+                   ]}
               end
 
             {node, acc0}
@@ -247,10 +351,20 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
       )
 
     # Transform to an Enum.reduce
+    #
+    # reduce list, as: item, with: [count: 0] do
+    #   ...
+    # end
+    #
+    # Enum.reduce(list, %{"count" => 0}, fn reduce_item, reduce_acc ->
+    #   ...
+    #   Function.identity(reduce_scope)
+    #   reduce_acc
+    # end)
     node =
       {{:., [], [{:__aliases__, [alias: false], [:Enum]}, :reduce]}, [],
        [
-         enumerable,
+         list,
          {:%{}, [], withPropList},
          {:fn, [],
           [
@@ -259,7 +373,8 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
                [{@reduce_item, [], nil}, {@reduce_acc, [], nil}],
                {:__block__, [],
                 [
-                  # initiate a scope for the variables assigned within the reduce
+                  # PROBABLY NOT NEEDED IF WE CREATE SCOPE IN THE EVAL_QUOTED
+                  # # initiate a scope for the variables assigned within the reduce
                   {:=, [], [{@reduce_scope, [], nil}, {:%{}, [], []}]},
 
                   # user code
@@ -280,24 +395,24 @@ defmodule Archethic.Contracts.Interpreter.ActionReduce do
     {node, acc}
   end
 
-  # exit the reduce scope
-  defp postwalk(
-         node = {{:atom, "reduce"}, _, [_, _, _]},
-         {:ok, %{scope: :reduce_definition}}
-       ) do
-    {node, {:ok, %{scope: :root}}}
+  # exit the definition scope
+  def postwalk(
+        node = {{:atom, "reduce"}, _, [_, _, _]},
+        :definition
+      ) do
+    {node, :root}
   end
 
-  # exit the reduce block scope
-  defp postwalk(
-         node = [do: _],
-         _acc = {:ok, %{scope: :reduce_block, parent_scope: parent_scope}}
-       ) do
-    {node, {:ok, %{scope: parent_scope}}}
+  # exit the block scope
+  def postwalk(
+        node = [do: _],
+        :block
+      ) do
+    {node, :definition}
   end
 
   # pass through
-  defp postwalk(node, acc) do
+  def postwalk(node, acc) do
     {node, acc}
   end
 end

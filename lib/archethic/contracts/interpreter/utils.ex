@@ -84,6 +84,14 @@ defmodule Archethic.Contracts.Interpreter.Utils do
   def prewalk(node = {:==, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
+  # Whitelist the debug/2
+  def prewalk(
+        node = {{:atom, "debug"}, _, [_, _]},
+        acc = {:ok, %{scope: _}}
+      ) do
+    {node, acc}
+  end
+
   # Whitelist the use of doted statement
   def prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc = {:ok, %{scope: scope}})
       when scope != :root,
@@ -428,7 +436,9 @@ defmodule Archethic.Contracts.Interpreter.Utils do
     end
   end
 
-  defp do_postwalk_execution({:=, metadata, [var_name, content]}, acc) do
+  # only update the scope if var_name is a binary.
+  # if it's a variable (ex: {:reduce_acc, [], nil}), we don't want to lift it to the scope
+  defp do_postwalk_execution({:=, metadata, [var_name, content]}, acc) when is_binary(var_name) do
     put_ast =
       {{:., metadata, [{:__aliases__, metadata, [:Map]}, :put]}, metadata,
        [{:scope, metadata, nil}, var_name, content]}

@@ -145,6 +145,10 @@ defmodule Archethic.Contracts.Interpreter.Library do
     |> Base.encode16()
   end
 
+  def debug(var, label) do
+    IO.inspect(var, label: label)
+  end
+
   @doc """
   Determines if the value is inside the list
 
@@ -163,14 +167,6 @@ defmodule Archethic.Contracts.Interpreter.Library do
 
   def in?(val, list) when is_list(list) do
     val in list
-  end
-
-  @doc """
-  Invokes fun for each element in the enumerable with the accumulator.
-  """
-  @spec reduce(Enumerable.t(), any(), (any(), any() -> any())) :: any()
-  def reduce(list, acc, func) do
-    Enum.reduce(list, acc, func)
   end
 
   @doc """

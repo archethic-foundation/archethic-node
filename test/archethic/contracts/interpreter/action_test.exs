@@ -480,18 +480,78 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
       |> assert_content_after_execute("[[1,2,3],[\"foo\",\"bar\"]]")
     end
 
-    test "should be able to reduce" do
+    test "should be able to update acc" do
       ~S"""
       actions triggered_by: transaction do
-        list = [49,1337,2551,563]
-        sum = reduce list, as: item, with: [count: 0] do
-          count + item
+        result = reduce [49,1337,2551,563], as: item, with: [count: 0] do
+          count = count + item
         end
-        set_content sum
+        set_content result.count
       end
       """
       |> assert_content_after_execute("4500")
     end
+
+    test "should be able to use a variable in the reduce" do
+      ~S"""
+      actions triggered_by: transaction do
+        result = reduce [49,1337,2551,563], as: item, with: [count: 0] do
+          var_inside_reduce = 1
+          count = count + item * var_inside_reduce
+        end
+        set_content result.count
+      end
+      """
+      |> assert_content_after_execute("4500")
+    end
+
+    test "should be able to use a variable outside the reduce" do
+      ~S"""
+      actions triggered_by: transaction do
+        var_outside_reduce = 1
+        result = reduce [49,1337,2551,563], as: item, with: [count: 0] do
+          count = count + item * var_outside_reduce
+        end
+        set_content result.count
+      end
+      """
+      |> assert_content_after_execute("4500")
+    end
+
+    test "should be able to use a ." do
+      ~S"""
+      actions triggered_by: transaction do
+        result = reduce [49,1337,2551,563], as: item, with: [count: 0] do
+          count = count + item * transaction.an_integer
+        end
+        set_content result.count
+      end
+      """
+      |> assert_content_after_execute("4500", %{
+        "transaction" => %{
+          "an_integer" => 1
+        }
+      })
+    end
+
+    # test "should be able to use a constant" do
+    #   ~S"""
+    #   actions triggered_by: transaction do
+    #     var_outside_reduce = 1
+    #     result = reduce ["@addr1"], as: item, with: [addresses: [], count: 0] do
+    #       count = count + 1
+    #       addresses = append(addresses, item)
+    #       addresses = append(addresses, transaction.address)
+    #     end
+    #     set_content result.addresses
+    #   end
+    #   """
+    #   |> assert_content_after_execute(~s(["@addr1", "@addr_tx"]), %{
+    #     "transaction" => %{
+    #       "address" => "@addr_tx"
+    #     }
+    #   })
+    # end
 
     # test "should be able to filter" do
     #   ~S"""

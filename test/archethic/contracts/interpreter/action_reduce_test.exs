@@ -1,8 +1,15 @@
 defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
+  @moduledoc """
+  Here we test the content of a reduce.
+
+  Everything related to the outside world (outside variables, library functions etc.) is tested in action_text.exs
+  """
   use ArchethicCase
 
+  alias Archethic.Contracts.ActionInterpreter
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionReduce
+  alias Archethic.Contracts.Interpreter.Utils
 
   describe "parse/1" do
     test "should parse if list is a variable" do
@@ -16,7 +23,7 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionReduce.parse()
+               |> parse()
     end
 
     test "should parse a list" do
@@ -30,23 +37,22 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionReduce.parse()
+               |> parse()
     end
 
-    # test "should parse a function" do
-    # # Impossible right now because I need to whitelist a function
-    #   code = """
-    #   reduce get_calls(), as: item, with: [count: 0] do
-    #     count = count + item
-    #   end
-    #   """
+    test "should parse a dot access" do
+      code = """
+      reduce [1,2,3], as: item, with: [count: 0] do
+        count = count + item * transaction.an_integer
+      end
+      """
 
-    #   assert {:ok, _} =
-    #            code
-    #            |> Interpreter.sanitize_code()
-    #            |> elem(1)
-    #            |> ActionReduce.parse()
-    # end
+      assert {:ok, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> parse()
+    end
 
     test "should not parse nested reduce" do
       code = """
@@ -61,7 +67,7 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionReduce.parse()
+               |> parse()
     end
 
     test "should not parse if rebinding the as" do
@@ -76,7 +82,7 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionReduce.parse()
+               |> parse()
     end
 
     test "should not parse if first argument is invalid" do
@@ -90,7 +96,7 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionReduce.parse()
+               |> parse()
     end
 
     test "should not parse if second argument is invalid" do
@@ -104,7 +110,7 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionReduce.parse()
+               |> parse()
     end
 
     test "should not parse if third argument is invalid" do
@@ -118,24 +124,8 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionReduce.parse()
+               |> parse()
     end
-
-    # test "should parse a with value is a variable" do
-    #   # might be impossible at the moment cause it's in parent scope
-    #   code = """
-    #   initial_count = 0
-    #   reduce list, as: item, with: [count: initial_count] do
-    #     count = count + item
-    #   end
-    #   """
-
-    #   assert {:ok, _} =
-    #            code
-    #            |> Interpreter.sanitize_code()
-    #            |> elem(1)
-    #            |> ActionReduce.parse()
-    # end
   end
 
   describe "execute/2" do
@@ -146,13 +136,7 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
       end
       """
 
-      assert %{"count" => 6} =
-               code
-               |> Interpreter.sanitize_code()
-               |> elem(1)
-               |> ActionReduce.parse()
-               |> elem(1)
-               |> ActionReduce.execute()
+      assert %{"count" => 6} = sanitize_parse_execute(code)
     end
 
     test "should be able to use multiple acc variable" do
@@ -163,13 +147,7 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
       end
       """
 
-      assert %{"sum" => 6, "product" => 6} =
-               code
-               |> Interpreter.sanitize_code()
-               |> elem(1)
-               |> ActionReduce.parse()
-               |> elem(1)
-               |> ActionReduce.execute()
+      assert %{"sum" => 6, "product" => 6} = sanitize_parse_execute(code)
     end
 
     test "should be able to use new variable" do
@@ -180,16 +158,71 @@ defmodule Archethic.Contracts.Interpreter.ActionReduceTest do
       end
       """
 
-      assert %{"count" => 36} =
-               code
-               |> Interpreter.sanitize_code()
-               |> elem(1)
-               |> ActionReduce.parse()
-               |> elem(1)
-               |> ActionReduce.execute()
+      assert %{"count" => 36} = sanitize_parse_execute(code)
     end
 
-    # access scope parent
-    # access contract/transaction
+    test "should be able to use keywords" do
+      code = """
+      reduce [1,2,3], as: item, with: [count: 0] do
+        keyword = [value: item]
+        count = count + keyword.value
+      end
+      """
+
+      assert %{"count" => 6} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use library functions" do
+      code = """
+      reduce [1,2,3], as: item, with: [count: 0] do
+        if in?(item, [2,4,6]) do
+          count = count + 1
+        end
+      end
+      """
+
+      assert %{"count" => 1} = sanitize_parse_execute(code)
+    end
+  end
+
+  # --------------------
+  # helper functions
+  # --------------------
+  defp sanitize_parse_execute(code, constants \\ %{}) do
+    ast =
+      code
+      |> Interpreter.sanitize_code()
+      |> elem(1)
+      |> parse()
+      |> elem(1)
+
+    bindings =
+      []
+      |> ActionInterpreter.add_scope_binding(constants)
+      |> ActionReduce.add_scope_binding()
+
+    case Code.eval_quoted(ast, bindings) do
+      {result, _bindings} ->
+        result
+    end
+  end
+
+  defp parse(ast) do
+    case Macro.traverse(
+           ast,
+           ActionReduce.initial_acc(),
+           &ActionReduce.prewalk/2,
+           &ActionReduce.postwalk/2
+         ) do
+      {node, _} ->
+        {:ok, node}
+    end
+  catch
+    {:error, reason, node} ->
+      {:error, Utils.format_error_reason(node, reason)}
+
+    {:error, node} ->
+      # IO.inspect(node, label: "err")
+      {:error, Utils.format_error_reason(node, "unexpected term")}
   end
 end

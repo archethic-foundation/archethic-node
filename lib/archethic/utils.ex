@@ -853,16 +853,19 @@ defmodule Archethic.Utils do
     months = normal_year ++ [leap_year_february]
 
     months
-    |> Task.async_stream(fn date ->
-      key =
-        if Date.leap_year?(date) do
-          0
-        else
-          date.month
-        end
+    |> Task.async_stream(
+      fn date ->
+        key =
+          if Date.leap_year?(date) do
+            0
+          else
+            date.month
+          end
 
-      {key, number_of_reward_occurences_per_month(interval, date)}
-    end)
+        {key, number_of_reward_occurences_per_month(interval, date)}
+      end,
+      timeout: 10000
+    )
     |> Stream.map(fn {:ok, v} -> v end)
     |> Map.new()
   end
