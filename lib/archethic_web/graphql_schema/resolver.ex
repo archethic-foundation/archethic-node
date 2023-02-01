@@ -34,22 +34,19 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   end
 
   def get_balance(address) do
-    case Archethic.get_balance(address) do
-      {:ok, %{uco: uco, token: token_balances}} ->
-        balance = %{
-          uco: uco,
-          token:
-            token_balances
-            |> Enum.map(fn {{address, token_id}, amount} ->
-              %{address: address, amount: amount, token_id: token_id}
-            end)
-            |> Enum.sort_by(& &1.amount)
-        }
+    with {:ok, last_address} <- Archethic.get_last_transaction_address(address),
+         {:ok, %{uco: uco, token: token_balances}} <- Archethic.get_balance(last_address) do
+      balance = %{
+        uco: uco,
+        token:
+          token_balances
+          |> Enum.map(fn {{address, token_id}, amount} ->
+            %{address: address, amount: amount, token_id: token_id}
+          end)
+          |> Enum.sort_by(& &1.amount)
+      }
 
-        {:ok, balance}
-
-      {:error, :network_issue} = e ->
-        e
+      {:ok, balance}
     end
   end
 

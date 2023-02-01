@@ -476,8 +476,12 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %GetBalance{}, _ ->
-        {:ok, %Balance{uco: 218_000_000}}
+      |> stub(:send_message, fn
+        _, %GetBalance{}, _ ->
+          {:ok, %Balance{uco: 218_000_000}}
+
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
       end)
 
       conn =
@@ -492,15 +496,19 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %GetBalance{}, _ ->
-        {:ok,
-         %Balance{
-           token: %{
-             {"@Token1", 0} => 200_000_000,
-             {"@Token2", 0} => 500_000_000,
-             {"@Token3", 0} => 1_000_000_000
-           }
-         }}
+      |> stub(:send_message, fn
+        _, %GetBalance{}, _ ->
+          {:ok,
+           %Balance{
+             token: %{
+               {"@Token1", 0} => 200_000_000,
+               {"@Token2", 0} => 500_000_000,
+               {"@Token3", 0} => 1_000_000_000
+             }
+           }}
+
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
       end)
 
       conn =
