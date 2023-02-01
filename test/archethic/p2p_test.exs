@@ -135,6 +135,37 @@ defmodule Archethic.P2PTest do
                  end
                end)
     end
+
+    test "should try all nodes and return last message when no response match acceptance resolver",
+         %{
+           nodes: nodes
+         } do
+      MockClient
+      |> expect(
+        :send_message,
+        4,
+        fn _node, _message, _timeout ->
+          {:ok, %Transaction{}}
+        end
+      )
+      |> expect(
+        :send_message,
+        1,
+        fn _node, _message, _timeout ->
+          :timer.sleep(200)
+          {:ok, %NotFound{}}
+        end
+      )
+
+      assert {:ok, %NotFound{}} =
+               P2P.quorum_read(
+                 nodes,
+                 %GetTransaction{address: ""},
+                 fn results -> List.last(results) end,
+                 0,
+                 fn _ -> false end
+               )
+    end
   end
 
   describe "authorized_and_available_nodes/1" do

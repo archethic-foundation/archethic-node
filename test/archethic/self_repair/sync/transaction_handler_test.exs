@@ -130,6 +130,79 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
              )
   end
 
+  test "download_transaction/2 should download the transaction even after a first failure" do
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+    ]
+
+    tx = TransactionFactory.create_valid_transaction(inputs)
+
+    pb_key1 = Crypto.derive_keypair("key101", 0) |> elem(0)
+    pb_key2 = Crypto.derive_keypair("key202", 0) |> elem(0)
+    pb_key3 = Crypto.derive_keypair("key303", 0) |> elem(0)
+
+    nodes = [
+      %Node{
+        first_public_key: pb_key1,
+        last_public_key: pb_key1,
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
+      },
+      %Node{
+        first_public_key: pb_key2,
+        last_public_key: pb_key2,
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
+      },
+      %Node{
+        first_public_key: pb_key3,
+        last_public_key: pb_key3,
+        authorized?: true,
+        available?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
+      }
+    ]
+
+    Enum.each(nodes, &P2P.add_and_connect_node(&1))
+
+    MockClient
+    |> expect(:send_message, 4, fn
+      _, %GetTransaction{}, _ ->
+        {:error, :network_issue}
+    end)
+    |> expect(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, tx}
+    end)
+
+    tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
+
+    assert ^tx =
+             TransactionHandler.download_transaction(
+               tx_summary,
+               P2P.authorized_and_available_nodes()
+             )
+  end
+
   test "process_transaction/1 should handle the transaction and replicate it" do
     me = self()
 

@@ -620,6 +620,7 @@ defmodule Archethic.P2P do
           message :: Message.t(),
           conflict_resolver :: (list(Message.t()) -> Message.t()),
           timeout :: non_neg_integer(),
+          acceptance_resolver :: (Message.t() -> boolean()),
           consistency_level :: pos_integer()
         ) ::
           {:ok, Message.t()} | {:error, :network_issue}
@@ -628,24 +629,40 @@ defmodule Archethic.P2P do
         message,
         conflict_resolver \\ fn results -> List.first(results) end,
         timeout \\ 0,
+        acceptance_resolver \\ fn _ -> true end,
         consistency_level \\ 3
       )
 
-  def quorum_read(nodes, message, conflict_resolver, timeout, consistency_level) do
+  def quorum_read(
+        nodes,
+        message,
+        conflict_resolver,
+        timeout,
+        acceptance_resolver,
+        consistency_level
+      ) do
     nodes
     |> Enum.filter(&Node.locally_available?/1)
     |> nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
-    |> do_quorum_read(message, conflict_resolver, timeout, consistency_level, nil)
+    |> do_quorum_read(
+      message,
+      conflict_resolver,
+      acceptance_resolver,
+      timeout,
+      consistency_level,
+      nil
+    )
   end
 
-  defp do_quorum_read([], _, _, _, _, nil), do: {:error, :network_issue}
-  defp do_quorum_read([], _, _, _, _, previous_result), do: {:ok, previous_result}
+  defp do_quorum_read([], _, _, _, _, _, nil), do: {:error, :network_issue}
+  defp do_quorum_read([], _, _, _, _, _, previous_result), do: {:ok, previous_result}
 
   defp do_quorum_read(
          nodes,
          message,
          conflict_resolver,
+         acceptance_resolver,
          timeout,
          consistency_level,
          previous_result
@@ -675,6 +692,7 @@ defmodule Archethic.P2P do
           rest,
           message,
           conflict_resolver,
+          acceptance_resolver,
           consistency_level,
           timeout,
           previous_result
@@ -682,15 +700,52 @@ defmodule Archethic.P2P do
 
       1 ->
         if previous_result != nil do
-          do_quorum([previous_result | results], conflict_resolver)
+          quorum_result = do_quorum([previous_result | results], conflict_resolver)
+
+          if acceptance_resolver.(quorum_result) do
+            {:ok, quorum_result}
+          else
+            do_quorum_read(
+              rest,
+              message,
+              conflict_resolver,
+              acceptance_resolver,
+              consistency_level,
+              timeout,
+              quorum_result
+            )
+          end
         else
           result = List.first(results)
-          do_quorum_read(rest, message, conflict_resolver, consistency_level - 1, timeout, result)
+
+          do_quorum_read(
+            rest,
+            message,
+            conflict_resolver,
+            acceptance_resolver,
+            consistency_level,
+            timeout,
+            result
+          )
         end
 
       _ ->
         results = if previous_result != nil, do: [previous_result | results], else: results
-        do_quorum(results, conflict_resolver)
+        quorum_result = do_quorum(results, conflict_resolver)
+
+        if acceptance_resolver.(quorum_result) do
+          {:ok, quorum_result}
+        else
+          do_quorum_read(
+            rest,
+            message,
+            conflict_resolver,
+            acceptance_resolver,
+            consistency_level,
+            timeout,
+            quorum_result
+          )
+        end
     end
   end
 
@@ -699,12 +754,11 @@ defmodule Archethic.P2P do
 
     # If the results are the same, then we reached consistency
     if length(distinct_elems) == 1 do
-      {:ok, List.first(distinct_elems)}
+      List.first(distinct_elems)
     else
       # If the results differ, we can apply a conflict resolver to merge the result into
       # a consistent response
-      resolved_result = conflict_resolver.(distinct_elems)
-      {:ok, resolved_result}
+      conflict_resolver.(distinct_elems)
     end
   end
 end
