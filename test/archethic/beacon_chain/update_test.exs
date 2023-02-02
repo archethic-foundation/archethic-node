@@ -2,6 +2,8 @@ defmodule Archethic.BeaconChain.UpdateTest do
   use ArchethicCase
 
   alias Archethic.BeaconChain.Update, as: BeaconUpdate
+  alias Archethic.P2P.Message.NewBeaconSlot
+  alias Archethic.P2P.Message.Ok
 
   alias Archethic.P2P.Node
 
@@ -85,6 +87,9 @@ defmodule Archethic.BeaconChain.UpdateTest do
                  ]
 
           {:ok, nil}
+
+        _, %NewBeaconSlot{}, _ ->
+          {:ok, %Ok{}}
       end)
 
       nodes = [

@@ -1,15 +1,16 @@
 defmodule Archethic.BeaconChain.SubsetTest do
   use ArchethicCase, async: false
 
-  alias Archethic.BeaconChain.ReplicationAttestation
-  alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.Slot.EndOfNodeSync
-  alias Archethic.BeaconChain.SlotTimer
-  alias Archethic.BeaconChain.Summary
-  alias Archethic.BeaconChain.SummaryTimer
-  alias Archethic.BeaconChain.Subset.SummaryCache
-
-  alias Archethic.BeaconChain.Subset
+  alias Archethic.BeaconChain.{
+    ReplicationAttestation,
+    Slot,
+    Slot.EndOfNodeSync,
+    SlotTimer,
+    Summary,
+    SummaryTimer,
+    Subset.SummaryCache,
+    Subset
+  }
 
   alias Archethic.Crypto
 
@@ -222,7 +223,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
           {:ok, %Ok{}}
 
         _, %Ping{}, _ ->
-          Process.sleep(10)
           {:ok, %Ok{}}
       end)
 
@@ -250,7 +250,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
       MockClient
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
-          Process.sleep(10)
           {:ok, %Ok{}}
 
         _, %NewBeaconSlot{}, _ ->

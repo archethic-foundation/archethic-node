@@ -3,6 +3,20 @@ defmodule Archethic.BeaconChain.SummaryTimerTest do
   use ExUnitProperties
 
   alias Archethic.BeaconChain.SummaryTimer
+  alias Archethic.P2P.Message.NewBeaconSlot
+  alias Archethic.P2P.Message.Ok
+
+  import Mox
+
+  setup do
+    MockClient
+    |> stub(:send_message, fn
+      _node, %NewBeaconSlot{}, _timeout ->
+        {:ok, %Ok{}}
+    end)
+
+    :ok
+  end
 
   describe "next_summary/2" do
     test "should get the next summary time from a given date" do
