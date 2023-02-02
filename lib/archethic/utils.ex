@@ -60,27 +60,39 @@ defmodule Archethic.Utils do
   """
   @spec configurable_children(
           list(
-            process ::
-              atom()
-              | {process :: atom(), args :: list()}
-              | {process :: atom(), args :: list(), opts :: list()}
+            (process ::
+               any()
+               | {process :: atom(), args :: list()}
+               | {process :: atom(), args :: list(), opts :: list()})
+            | %{id: atom(), start: {process :: atom(), fx :: atom(), args :: list(any())}}
+            | Supervisor.child_spec()
           )
         ) ::
           list(Supervisor.child_spec())
   def configurable_children(children) when is_list(children) do
     children
     |> Enum.filter(fn
+      %{start: {process, _, _}} -> should_start?(process)
       {process, _, _} -> should_start?(process)
       {process, _} -> should_start?(process)
       process -> should_start?(process)
     end)
     |> Enum.map(fn
-      {process, args, opts} -> Supervisor.child_spec({process, args}, opts)
-      {process, args} -> Supervisor.child_spec({process, args}, [])
-      process -> Supervisor.child_spec({process, []}, [])
+      %{id: _, start: {_module, _method, _args}} = specs ->
+        specs
+
+      {process, args, opts} ->
+        Supervisor.child_spec({process, args}, opts)
+
+      {process, args} ->
+        Supervisor.child_spec({process, args}, [])
+
+      process ->
+        Supervisor.child_spec({process, []}, [])
     end)
   end
 
+  @spec should_start?(process :: atom() | nil) :: boolean()
   defp should_start?(nil), do: false
 
   defp should_start?(process) do
