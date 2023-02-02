@@ -4,7 +4,8 @@ set -e
 trap 'echo "******* FAILED *******" 1>&2' ERR
 
 SCRIPT_DIR=$(dirname $(readlink -f $0))
-INSTALL_DIR=$(readlink -f $SCRIPT_DIR/../test_release)
+INSTALL_DIR1=$(readlink -f $SCRIPT_DIR/../test_release_node1)
+INSTALL_DIR2=$(readlink -f $SCRIPT_DIR/../test_release_node2)
 
 UPGRADE=0
 INSTALL=0
@@ -45,7 +46,8 @@ cd $SCRIPT_DIR/..
 VERSION=$(grep 'version:' mix.exs | cut -d '"' -f2)
 echo ""
 echo "Version: ${VERSION}"
-echo "Installation dir: ${INSTALL_DIR}"
+echo "Installation dir node1: ${INSTALL_DIR1}"
+echo "Installation dir node2: ${INSTALL_DIR2}"
 
 export MIX_ENV=dev
 
@@ -53,7 +55,8 @@ if [[ $UPGRADE == 1 ]]
 then
   # Run upgrade
   echo "Run the upgrade"
-  $INSTALL_DIR/bin/archethic_node upgrade $VERSION
+  $INSTALL_DIR1/bin/archethic_node upgrade $VERSION &
+  $INSTALL_DIR2/bin/archethic_node upgrade $VERSION &
 
   exit
 fi
@@ -72,25 +75,47 @@ cd ..
 mix assets.saas
 mix assets.deploy
 
-mkdir -p $INSTALL_DIR
+mkdir -p $INSTALL_DIR1
+mkdir -p $INSTALL_DIR2
 
 if [[ $PREPARE == 1 ]]
 then
   # Build upgrade releases
-  echo "Build the upgrade release"
+  echo "Build the upgrade release for node1"
   MIX_ENV=dev mix distillery.release --upgrade
 
-  echo "Copy upgraded release into ${INSTALL_DIR}/releases/${VERSION}"
-  mkdir -p $INSTALL_DIR/releases/$VERSION
-  cp _build/dev/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz $INSTALL_DIR/releases/$VERSION/archethic_node.tar.gz
+  echo "Copy upgraded release into ${INSTALL_DIR1}/releases/${VERSION}"
+  mkdir -p $INSTALL_DIR1/releases/$VERSION
+  cp _build/dev/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz $INSTALL_DIR1/releases/$VERSION/archethic_node.tar.gz
+
+  echo "Build the upgrade release for node2"
+  sed -i 's/<%= release_name %>/archethic_node2/g' ./rel/vm.args
+  MIX_ENV=dev mix distillery.release --upgrade
+
+  echo "Copy upgraded release into ${INSTALL_DIR2}/releases/${VERSION}"
+  mkdir -p $INSTALL_DIR2/releases/$VERSION
+  cp _build/dev/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz $INSTALL_DIR2/releases/$VERSION/archethic_node.tar.gz
+
+  sed -i 's/archethic_node2/<%= release_name %>/g' ./rel/vm.args
 else
   # Build and install the releases
-  echo "Generate release"
+  echo "Generate release for node1"
   MIX_ENV=dev mix distillery.release
 
-  echo "Install release"
-  tar zxvf _build/dev/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz -C $INSTALL_DIR
-  echo "Release has been installed on ${INSTALL_DIR}"
+  echo "Install release for node1"
+  tar zxvf _build/dev/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz -C $INSTALL_DIR1
+  echo "Release has been installed on ${INSTALL_DIR1}"
+
+  echo "Generate release for node2"
+  sed -i 's/<%= release_name %>/archethic_node2/g' ./rel/vm.args
+  MIX_ENV=dev mix distillery.release
+
+  echo "Install release for node2"
+  tar zxvf _build/dev/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz -C $INSTALL_DIR2
+  echo "Release has been installed on ${INSTALL_DIR2}"
+
+  sed -i 's/archethic_node2/<%= release_name %>/g' ./rel/vm.args
+
   echo "To run the release: ./test_release/bin/archethic_node console"
   echo "To test the upgrade, change git branch, update mix.exs version and run ./script/test-release.sh -p to prepare release then ./script/test-release.sh -u to run the upgrade"
 fi
