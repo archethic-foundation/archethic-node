@@ -14,14 +14,16 @@ defmodule Archethic.BeaconChain.Supervisor do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)
   end
 
+  @spec init(any) :: {:ok, {Supervisor.sup_flags(), list(Supervisor.child_spec())}}
   def init(_args) do
-    schedulers =
-      Utils.configurable_children([
+    children =
+      [
         {SlotTimer, Application.get_env(:archethic, SlotTimer), []},
-        {SummaryTimer, Application.get_env(:archethic, SummaryTimer), []}
-      ])
-
-    children = schedulers ++ [SubsetSupervisor, Update]
+        {SummaryTimer, Application.get_env(:archethic, SummaryTimer), []},
+        {SubsetSupervisor, [], []},
+        {Update, [], []}
+      ]
+      |> Utils.configurable_children()
 
     Supervisor.init(children, strategy: :one_for_one)
   end
