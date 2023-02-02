@@ -26,6 +26,11 @@ defmodule Archethic.Election.ValidationConstraintsTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
     end)
+
+    # allocate time to ingest Node updates for HyperGeometric distribution server
+    Process.sleep(50)
+
+    :ok
   end
 
   property "validation_number return more than 3 validation nodes and less than 200 validation nodes" do
