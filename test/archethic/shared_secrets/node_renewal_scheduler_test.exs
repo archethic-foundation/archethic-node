@@ -134,6 +134,8 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
     end
 
     test "should wait for node up message to start the scheduler, node: authorized and available" do
+      :persistent_term.put(:archethic_up, nil)
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,
@@ -148,7 +150,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
       assert {:ok, pid} = Scheduler.start_link([interval: "*/4 * * * * *"], [])
 
       assert {:idle, %{interval: "*/4 * * * * *"}} = :sys.get_state(pid)
-
       send(pid, :node_up)
 
       assert {:scheduled,
