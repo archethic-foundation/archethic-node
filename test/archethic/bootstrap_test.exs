@@ -9,7 +9,6 @@ defmodule Archethic.BootstrapTest do
     P2P.Node,
     Replication,
     SharedSecrets,
-    SharedSecrets.NodeRenewalScheduler,
     TransactionChain,
     TransactionFactory
   }
@@ -63,7 +62,6 @@ defmodule Archethic.BootstrapTest do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
-    start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
 
     MockDB
     |> stub(:write_transaction, fn _, _ -> :ok end)

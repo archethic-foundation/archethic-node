@@ -266,6 +266,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
       File.mkdir_p!(Utils.mut_dir())
       pid = start_supervised!({Subset, subset: subset})
 
+      allow(MockClient, self(), NewBeaconSlot)
+
       tx_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
