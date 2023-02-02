@@ -283,7 +283,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     end)
     |> stub(:list_chain_addresses, fn _ -> [] end)
 
-    MockCrypto
+    MockCrypto.SharedSecretsKeystore
     |> stub(:unwrap_secrets, fn _, _, _ ->
       send(me, :set_daily_nonce)
       send(me, :set_transaction_seed)
@@ -388,7 +388,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     NetworkLookup.set_network_pool_address(Crypto.derive_address(pub))
 
-    MockCrypto
+    MockCrypto.SharedSecretsKeystore
     |> expect(:sign_with_network_pool_key, fn data, _ ->
       Crypto.sign(data, pv)
     end)

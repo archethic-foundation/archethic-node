@@ -140,7 +140,7 @@ defmodule Archethic.BootstrapTest do
       MockDB
       |> stub(:chain_size, fn _ -> 1 end)
 
-      MockCrypto
+      MockCrypto.SharedSecretsKeystore
       |> stub(:unwrap_secrets, fn encrypted_secrets, encrypted_secret_key, timestamp ->
         <<enc_daily_nonce_seed::binary-size(60), _enc_transaction_seed::binary-size(60),
           _enc_network_pool_seed::binary-size(60)>> = encrypted_secrets

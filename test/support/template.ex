@@ -73,12 +73,12 @@ defmodule ArchethicCase do
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
 
-    MockCrypto
-    |> stub(:last_public_key, fn ->
+    MockCrypto.NodeKeystore
+    |> stub(:first_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)
-    |> stub(:first_public_key, fn ->
+    |> stub(:last_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)
@@ -111,6 +111,8 @@ defmodule ArchethicCase do
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
     end)
+
+    MockCrypto.SharedSecretsKeystore
     |> stub(:sign_with_node_shared_secrets_key, fn data ->
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("shared_secret_seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
@@ -134,17 +136,6 @@ defmodule ArchethicCase do
     |> stub(:sign_with_daily_nonce_key, fn data, _ ->
       {_, pv} = Crypto.generate_deterministic_keypair("daily_nonce_seed")
       Crypto.sign(data, pv)
-    end)
-    |> stub(:sign_with_origin_key, fn data ->
-      {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      Crypto.sign(data, pv)
-    end)
-    |> stub(:origin_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      pub
-    end)
-    |> stub(:retrieve_node_seed, fn ->
-      "seed"
     end)
     |> stub(:node_shared_secrets_public_key, fn index ->
       {pub, _} = Crypto.derive_keypair("shared_secret_seed", index, :secp256r1)
@@ -171,6 +162,19 @@ defmodule ArchethicCase do
     end)
     |> stub(:get_storage_nonce, fn -> "nonce" end)
     |> stub(:set_storage_nonce, fn _ -> :ok end)
+
+    MockCrypto.NodeKeystore.Origin
+    |> stub(:sign_with_origin_key, fn data ->
+      {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      Crypto.sign(data, pv)
+    end)
+    |> stub(:origin_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+    |> stub(:retrieve_node_seed, fn ->
+      "seed"
+    end)
 
     MockClient
     |> stub(:new_connection, fn _, _, _, public_key ->

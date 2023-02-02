@@ -8,13 +8,17 @@ ExUnit.start(
 
 Mox.defmock(MockClient, for: Archethic.P2P.Client)
 
-Mox.defmock(MockCrypto,
-  for: [
-    Archethic.Crypto.NodeKeystore,
-    Archethic.Crypto.NodeKeystore.Origin,
-    Archethic.Crypto.SharedSecretsKeystore
-  ]
-)
+# Mox.defmock(MockCrypto,
+#   for: [
+#     Archethic.Crypto.NodeKeystore,
+#     Archethic.Crypto.NodeKeystore.Origin,
+#     Archethic.Crypto.SharedSecretsKeystore
+#   ]
+# )
+
+Mox.defmock(MockCrypto.NodeKeystore, for: Archethic.Crypto.NodeKeystore)
+Mox.defmock(MockCrypto.NodeKeystore.Origin, for: Archethic.Crypto.NodeKeystore.Origin)
+Mox.defmock(MockCrypto.SharedSecretsKeystore, for: Archethic.Crypto.SharedSecretsKeystore)
 
 Mox.defmock(MockDB, for: Archethic.DB)
 Mox.defmock(MockGeoIP, for: Archethic.P2P.GeoPatch.GeoIP)
