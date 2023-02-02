@@ -56,11 +56,13 @@ config :archethic, Archethic.Crypto,
     ]
   ]
 
-config :archethic, Archethic.Crypto.NodeKeystore, MockCrypto
-config :archethic, Archethic.Crypto.NodeKeystore.Origin, MockCrypto
-config :archethic, Archethic.Crypto.SharedSecretsKeystore, MockCrypto
+config :archethic, MockCrypto.NodeKeystore, enabled: false
+config :archethic, MockCrypto.NodeKeystore.Origin, enabled: false
+config :archethic, MockCrypto.SharedSecretsKeystore, enabled: false
 
-config :archethic, MockCrypto, enabled: false
+config :archethic, Archethic.Crypto.NodeKeystore, MockCrypto.NodeKeystore
+config :archethic, Archethic.Crypto.NodeKeystore.Origin, MockCrypto.NodeKeystore.Origin
+config :archethic, Archethic.Crypto.SharedSecretsKeystore, MockCrypto.SharedSecretsKeystore
 
 config :archethic, Archethic.DB, MockDB
 config :archethic, MockDB, enabled: false

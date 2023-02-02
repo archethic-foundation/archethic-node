@@ -278,7 +278,7 @@ defmodule Archethic.Bootstrap.SyncTest do
 
       {:ok, daily_nonce_agent} = Agent.start_link(fn -> %{} end)
 
-      MockCrypto
+      MockCrypto.SharedSecretsKeystore
       |> stub(:unwrap_secrets, fn encrypted_secrets, encrypted_secret_key, timestamp ->
         <<enc_daily_nonce_seed::binary-size(60), _enc_transaction_seed::binary-size(60),
           _enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
@@ -395,7 +395,7 @@ defmodule Archethic.Bootstrap.SyncTest do
       {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}}
     end)
 
-    MockCrypto
+    MockCrypto.SharedSecretsKeystore
     |> stub(:set_storage_nonce, fn nonce ->
       send(me, {:nonce, nonce})
       :ok

@@ -51,7 +51,7 @@ defmodule CryptoTest do
 
     me = self()
 
-    MockCrypto
+    MockCrypto.SharedSecretsKeystore
     |> stub(:set_storage_nonce, fn nonce ->
       send(me, {:nonce, nonce})
       :ok
@@ -79,7 +79,7 @@ defmodule CryptoTest do
     test "should create a new next keypair when the node transaction is validated" do
       me = self()
 
-      MockCrypto
+      MockCrypto.NodeKeystore
       |> expect(:persist_next_keypair, fn ->
         send(me, :new_keypair)
         :ok
@@ -94,7 +94,7 @@ defmodule CryptoTest do
     test "should update node shared secrets" do
       me = self()
 
-      MockCrypto
+      MockCrypto.SharedSecretsKeystore
       |> expect(:set_node_shared_secrets_key_index, fn _ ->
         send(me, :inc_node_shared_key_index)
         :ok
@@ -120,7 +120,7 @@ defmodule CryptoTest do
 
       me = self()
 
-      MockCrypto
+      MockCrypto.SharedSecretsKeystore
       |> stub(:unwrap_secrets, fn _, _, _ ->
         send(me, {:daily_nonce_seed, daily_nonce_seed})
         send(me, {:transaction_seed, transaction_seed})
