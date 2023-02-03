@@ -102,15 +102,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       # Register last addresses of genesis address
       {last_address, timestamp} = get_last_chain_address(genesis_address, db_path)
 
-      # Write fast lookup entry for this transaction on memory
       true =
         :ets.insert(
           @archethic_db_last_index,
           {genesis_address, last_address, DateTime.to_unix(timestamp, :millisecond)}
         )
-
-      ## We trigger the loading of the last address for this chain in the LRU cache
-      _ = search_tx_entry(last_address, db_path)
     end)
   end
 
