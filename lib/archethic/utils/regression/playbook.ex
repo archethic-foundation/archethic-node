@@ -222,6 +222,8 @@ defmodule Archethic.Utils.Regression.Playbook do
         Logger.error(
           "Transaction #{Base.encode16(tx.address)} submission fails - #{inspect(reason)}"
         )
+
+        {:error, reason}
     end
   end
 
