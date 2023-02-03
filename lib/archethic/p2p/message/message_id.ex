@@ -1,6 +1,6 @@
 defmodule Archethic.P2P.MessageId do
   @moduledoc """
-  Provide functions to convert struct to message id and message id to struct
+  Provide functions to encode or decode a message according to it's type
   """
 
   alias Archethic.P2P.Message.{
@@ -150,11 +150,26 @@ defmodule Archethic.P2P.MessageId do
     Ok => 254
   }
 
+  # Compiled macro functions looks like (for each message):
+  #
+  # def decode(<<25::8, rest::bitstring>>) do
+  #   Ping.deserialize(rest)
+  # end
+  #
+  # def encode(msg = %Ping{}) do
+  #   <<25::8, Ping.serialize(msg)::bitstring>>
+  # end
+
   defmacro __before_compile__(_env) do
     Enum.map(@message_ids, fn {msg, msg_id} ->
       quote do
-        def id_to_module(unquote(msg_id)), do: unquote(msg)
-        def module_to_id(unquote(msg)), do: unquote(msg_id)
+        def decode(<<unquote(msg_id)::8, rest::bitstring>>) do
+          unquote(msg).deserialize(rest)
+        end
+
+        def encode(msg = %unquote(msg){}) do
+          <<unquote(msg_id)::8, unquote(msg).serialize(msg)::bitstring>>
+        end
       end
     end)
   end

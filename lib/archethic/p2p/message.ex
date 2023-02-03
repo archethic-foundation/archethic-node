@@ -203,39 +203,10 @@ defmodule Archethic.P2P.Message do
   end
 
   @doc """
-  Serialize a message into binary
-  ## Examples
-      iex> Message.encode(%Ok{})
-      <<254>>
-      iex> %Message.GetTransaction{
-      ...>  address: <<0, 40, 71, 99, 6, 218, 243, 156, 193, 63, 176, 168, 22, 226, 31, 170, 119, 122,
-      ...>    13, 188, 75, 49, 171, 219, 222, 133, 86, 132, 188, 206, 233, 66, 7>>
-      ...> } |> Message.encode()
-      <<
-      # Message type
-      3,
-      # Address
-      0, 40, 71, 99, 6, 218, 243, 156, 193, 63, 176, 168, 22, 226, 31, 170, 119, 122,
-      13, 188, 75, 49, 171, 219, 222, 133, 86, 132, 188, 206, 233, 66, 7
-      >>
-  """
-  @spec encode(t()) :: bitstring()
-  def encode(msg) do
-    msg_id = module_to_id(msg.__struct__)
-    serialized = msg.__struct__.serialize(msg)
-    <<msg_id::8, serialized::bitstring>>
-  end
-
-  @doc """
   Decode an encoded message
   """
   @spec decode(bitstring()) :: {t(), bitstring}
   def decode(<<255::8>>), do: raise("255 message type is reserved for stream EOF")
-
-  def decode(<<message_id::8, rest::bitstring>>) do
-    msg_module = id_to_module(message_id)
-    msg_module.deserialize(rest)
-  end
 
   @doc """
   Handle a P2P message by processing it and return list of responses to be streamed back to the client
