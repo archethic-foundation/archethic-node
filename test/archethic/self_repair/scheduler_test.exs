@@ -64,7 +64,7 @@ defmodule Archethic.SelfRepair.SchedulerTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
+      enrollment_date: DateTime.utc_now() |> DateTime.add(-1, :day)
     })
 
     first_last_sync_date = Sync.last_sync_date()
