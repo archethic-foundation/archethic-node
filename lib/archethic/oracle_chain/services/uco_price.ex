@@ -23,36 +23,8 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     {:ok, fetching_tasks_supervisor} = Task.Supervisor.start_link()
     ## retrieve prices from configured providers and filter results marked as errors
     prices =
-      Enum.map(providers(), fn {provider, _, _} ->
-        case HydratingCache.get(
-               Archethic.Utils.HydratingCache.UcoPrice,
-               provider,
-               3_000
-             ) do
-          {:error, reason} ->
-            Logger.warning(
-              "Service UCOPrice cannot fetch values from provider: #{inspect(provider)} with reason : #{inspect(reason)}."
-            )
+      HydratingCache.get_all(Archethic.Utils.HydratingCache.UcoPrice)
 
-            []
-
-          {:ok, result} ->
-            {provider, result}
-        end
-      end)
-      |> List.flatten()
-      |> Enum.filter(fn
-        {_, %{}} ->
-          true
-
-        other ->
-          Logger.error("Service UCOPrice cannot fetch values from provider: #{inspect(other)}.")
-          false
-      end)
-      |> Enum.map(fn
-        {_, result = %{}} ->
-          result
-      end)
       ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
       |> Enum.reduce(%{}, &agregate_providers_data/2)
       |> Enum.reduce(%{}, fn {currency, values}, acc ->
@@ -154,8 +126,4 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   end
 
   def parse_data(_), do: {:error, :invalid_data}
-
-  defp providers do
-    Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:providers, [])
-  end
 end

@@ -72,6 +72,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
         data = %CacheEntry{value: :"$$undefined"}
       ) do
     previous_getters = data.getters
+    Logger.warning("Get Value but undefined #{inspect(data)}")
 
     {:keep_state, %CacheEntry{data | getters: previous_getters ++ [requester]},
      [{:reply, from, {:ok, :answer_delayed}}]}
@@ -111,10 +112,8 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
      }, [{:reply, from, :ok}]}
   end
 
-  def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, state, data) do
-    Logger.debug(
-      "Registering hydrating function for key :#{inspect(key)}  state:#{inspect(state)}  data: #{inspect(data)}"
-    )
+  def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, _state, data) do
+    Logger.info("Registering hydrating function for key :#{inspect(key)}")
 
     ## Setting hydrating function in other cases
     ## Hydrating function not running, we just stop the timers
@@ -150,6 +149,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   end
 
   def handle_event(:enter, _event, :running, data) do
+    Logger.info("Entering running state for key :#{inspect(data.key)}")
     ## At entering running state, we start the hydrating task
     me = self()
 
@@ -176,7 +176,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
   def handle_event(:cast, {:new_value, _key, {:ok, value}}, :running, data) do
     ## We got result from hydrating function
-    Logger.debug("Got new value for key :#{inspect(data.key)}")
+    Logger.debug("Got new value for key :#{inspect(data.key)}  #{inspect(value)}")
     ## Stop timer on value ttl
     _ = maybe_stop_timer(data.timer_discard)
 
@@ -185,7 +185,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
 
     ## notify waiting getters
     Enum.each(data.getters, fn {pid, _ref} ->
-      send(pid, {:ok, value})
+      send(pid, {:delayed_value, data.key, {:ok, value}})
     end)
 
     ## Start timer to discard new value if needed
@@ -247,6 +247,7 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   end
 
   defp maybe_stop_timer(tref = {_, _}) do
+    IO.puts("Cancelling timer #{inspect(tref)}")
     :timer.cancel(tref)
   end
 

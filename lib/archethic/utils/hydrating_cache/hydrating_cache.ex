@@ -85,8 +85,8 @@ defmodule Archethic.Utils.HydratingCache do
     case GenServer.call(hydrating_cache, {:get, key}, timeout) do
       {:ok, :answer_delayed} ->
         receive do
-          {:ok, value} ->
-            {:ok, value}
+          {:delayed_value, _, value} ->
+            value
 
           other ->
             Logger.warning("Unexpected return value #{inspect(other)}")
@@ -103,6 +103,10 @@ defmodule Archethic.Utils.HydratingCache do
       other_result ->
         other_result
     end
+  end
+
+  def get_all(hydrating_cache) do
+    GenServer.call(hydrating_cache, :get_all)
   end
 
   @impl GenServer
@@ -144,6 +148,58 @@ defmodule Archethic.Utils.HydratingCache do
         value = GenStateMachine.call(pid, {:get, from})
         {:reply, value, state}
     end
+  end
+
+  def handle_call(:get_all, from, state = %{keys: keys}) do
+    Logger.debug(
+      "Getting all keys from hydrating cache, current keys are #{inspect(keys)} sup: #{inspect(state.keys_sup)}"
+    )
+
+    {:ok, fetching_values_supervisor} = Task.Supervisor.start_link()
+
+    result =
+      Task.Supervisor.async_stream_nolink(
+        fetching_values_supervisor,
+        keys,
+        fn {key, pid} ->
+          IO.puts("Calling #{inspect(pid)} for key #{inspect(key)} from is #{inspect(from)}")
+
+          case GenStateMachine.call(pid, {:get, {self(), nil}}) do
+            {:ok, :answer_delayed} ->
+              receive do
+                {:delayed_value, _, {:ok, value}} ->
+                  Logger.debug(
+                    "Got delayed value for key #{inspect(value)} from hydrating cache #{inspect(self())}"
+                  )
+
+                  {:ok, value}
+
+                other ->
+                  Logger.warning("Unexpected return value #{inspect(other)}")
+                  {:error, :unexpected_value}
+              after
+                3_000 ->
+                  Logger.warning(
+                    "Timeout waiting for delayed value for key #{inspect(key)} from hydrating cache #{inspect(self())}"
+                  )
+
+                  {:error, :timeout}
+              end
+
+            other ->
+              other
+          end
+        end,
+        on_timeout: :kill_task
+      )
+      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
+      |> Stream.map(fn
+        {_, {_, result}} ->
+          result
+      end)
+      |> Enum.to_list()
+
+    {:reply, result, state}
   end
 
   def handle_call({:register, fun, key, refresh_interval, ttl}, _from, state = %{keys: keys}) do

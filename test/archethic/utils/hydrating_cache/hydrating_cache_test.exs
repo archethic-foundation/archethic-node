@@ -38,7 +38,6 @@ defmodule HydratingCacheTest do
       HydratingCache.register_function(
         pid,
         fn ->
-          IO.puts("Hydrating function incrementing value")
           value = :persistent_term.get("test")
           value = value + 1
           :persistent_term.put("test", value)
@@ -198,9 +197,7 @@ defmodule HydratingCacheTest do
       HydratingCache.register_function(
         pid,
         fn ->
-          IO.puts("Hydrating function Sleeping 3 secs")
-          :timer.sleep(3000)
-          IO.puts("Hydrating function done")
+          :timer.sleep(2_000)
           {:ok, :valid_result}
         end,
         "delayed_result",
@@ -214,7 +211,6 @@ defmodule HydratingCacheTest do
 
     assert Enum.all?(results, fn
              {:ok, {:ok, :valid_result}} -> true
-             other -> IO.puts("Unk #{inspect(other)}")
            end)
   end
 
@@ -280,5 +276,79 @@ defmodule HydratingCacheTest do
     :timer.sleep(1_100)
     result = HydratingCache.get(pid, :key, 3000)
     assert result == {:error, :discarded}
+  end
+
+  test "Can get a value while another request is waiting for results" do
+    {:ok, pid} = HydratingCache.start_link(:test_service)
+
+    _ =
+      HydratingCache.register_function(
+        pid,
+        fn ->
+          :timer.sleep(10_000)
+          {:ok, :value}
+        end,
+        :key1,
+        30_000,
+        40_000
+      )
+
+    :erlang.spawn(fn -> HydratingCache.get(pid, :key1, 35_000) end)
+
+    _ =
+      HydratingCache.register_function(
+        pid,
+        fn ->
+          {:ok, :value2}
+        end,
+        :key2,
+        500,
+        1_000
+      )
+
+    result = HydratingCache.get(pid, :key2, 3000)
+    assert result == {:ok, :value2}
+  end
+
+  test "can retrieve all values beside erroneous ones" do
+    {:ok, pid} =
+      HydratingCache.start_link(:test_service, [
+        {"key1", __MODULE__, :val_hydrating_function, [10], 30_000, 40_000},
+        {"key2", __MODULE__, :failval_hydrating_function, [20], 30_000, 40_000},
+        {"key3", __MODULE__, :val_hydrating_function, [30], 30_000, 40_000}
+      ])
+
+    :timer.sleep(1000)
+    values = HydratingCache.get_all(pid)
+    assert values == [10, 30]
+  end
+
+  test "Retrieving all values supports delayed values" do
+    {:ok, pid} =
+      HydratingCache.start_link(:test_service, [
+        {"key1", __MODULE__, :val_hydrating_function, [10], 30_000, 40_000},
+        {"key2", __MODULE__, :timed_hydrating_function, [2000, 20], 30_000, 40_000},
+        {"key3", __MODULE__, :failval_hydrating_function, [30], 30_000, 40_000}
+      ])
+
+    :timer.sleep(1000)
+    values = HydratingCache.get_all(pid)
+    assert values == [10, 20]
+  end
+
+  def val_hydrating_function(value) do
+    Logger.debug("Hydrating value #{value}")
+    {:ok, value}
+  end
+
+  def failval_hydrating_function(value) do
+    Logger.debug("Hydrating value #{value}")
+    {:error, value}
+  end
+
+  def timed_hydrating_function(delay, value) do
+    Logger.debug("Timed Hydrating value #{value}")
+    :timer.sleep(delay)
+    {:ok, value}
   end
 end
