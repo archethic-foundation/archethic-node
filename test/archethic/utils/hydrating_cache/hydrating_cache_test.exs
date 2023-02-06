@@ -9,7 +9,7 @@ defmodule HydratingCacheTest do
   end
 
   test "If value stored, it is returned immediatly" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_normal)
 
     result =
       HydratingCache.register_function(
@@ -30,7 +30,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Hydrating function runs periodically" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_periodic)
 
     :persistent_term.put("test", 1)
 
@@ -57,7 +57,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Update hydrating function while another one is running returns new hydrating value from new function" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_hydrating)
 
     result =
       HydratingCache.register_function(
@@ -91,7 +91,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Getting value while function is running and previous value is available returns value" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_running)
 
     _ =
       HydratingCache.register_function(
@@ -123,7 +123,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Two hydrating function can run at same time" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_simultaneous)
 
     _ =
       HydratingCache.register_function(
@@ -153,7 +153,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Querying key while first refreshed will block the calling process until refreshed and provide the value" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_refresh)
 
     _ =
       HydratingCache.register_function(
@@ -172,7 +172,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Querying key while first refreshed will block the calling process until timeout" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_block)
 
     _ =
       HydratingCache.register_function(
@@ -191,7 +191,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Multiple process can wait for a delayed value" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_delayed)
 
     _ =
       HydratingCache.register_function(
@@ -216,7 +216,7 @@ defmodule HydratingCacheTest do
 
   ## Resilience tests
   test "If hydrating function crash, key fsm will still be operationnal" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_crash)
 
     _ =
       HydratingCache.register_function(
@@ -279,7 +279,7 @@ defmodule HydratingCacheTest do
   end
 
   test "Can get a value while another request is waiting for results" do
-    {:ok, pid} = HydratingCache.start_link(:test_service)
+    {:ok, pid} = HydratingCache.start_link(:test_service_wait)
 
     _ =
       HydratingCache.register_function(
@@ -312,7 +312,7 @@ defmodule HydratingCacheTest do
 
   test "can retrieve all values beside erroneous ones" do
     {:ok, pid} =
-      HydratingCache.start_link(:test_service, [
+      HydratingCache.start_link(:test_service_get_all, [
         {"key1", __MODULE__, :val_hydrating_function, [10], 30_000, 40_000},
         {"key2", __MODULE__, :failval_hydrating_function, [20], 30_000, 40_000},
         {"key3", __MODULE__, :val_hydrating_function, [30], 30_000, 40_000}
@@ -325,7 +325,7 @@ defmodule HydratingCacheTest do
 
   test "Retrieving all values supports delayed values" do
     {:ok, pid} =
-      HydratingCache.start_link(:test_service, [
+      HydratingCache.start_link(:test_service_get_all_delayed, [
         {"key1", __MODULE__, :val_hydrating_function, [10], 30_000, 40_000},
         {"key2", __MODULE__, :timed_hydrating_function, [2000, 20], 30_000, 40_000},
         {"key3", __MODULE__, :failval_hydrating_function, [30], 30_000, 40_000}
