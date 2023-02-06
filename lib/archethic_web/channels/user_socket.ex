@@ -25,7 +25,7 @@ defmodule ArchethicWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
   def connect(_params, socket, _connect_info) do
-    if Bootstrap.done?() do
+    if Bootstrap.archethic_up?() do
       {:ok, socket}
     else
       Logger.debug("Received a websocket connect but node is bootstraping")

@@ -92,9 +92,7 @@ defmodule Archethic.SelfRepair.Scheduler do
       # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
       # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
       # at the end of loading (in case there is a crash during self repair)
-      start_date = DateTime.utc_now()
-      :ok = Sync.load_missed_transactions(last_sync_date)
-      {:ok, start_date}
+      Sync.load_missed_transactions(last_sync_date)
     end)
 
     timer = schedule_sync(interval)
@@ -107,11 +105,10 @@ defmodule Archethic.SelfRepair.Scheduler do
     {:noreply, new_state, :hibernate}
   end
 
-  def handle_info({ref, {:ok, date}}, state) do
+  def handle_info({ref, :ok}, state) do
     # If the node is still unavailable after self repair, we send the postpone the
     # end of node sync message
     if !P2P.available_node?(), do: BootstrapSync.publish_end_of_sync()
-    update_last_sync_date(date)
     Process.demonitor(ref, [:flush])
     {:noreply, state}
   end
@@ -133,11 +130,6 @@ defmodule Archethic.SelfRepair.Scheduler do
       new_interval ->
         {:noreply, Map.put(state, :interval, new_interval)}
     end
-  end
-
-  defp update_last_sync_date(date = %DateTime{}) do
-    next_sync_date = Utils.truncate_datetime(date)
-    :ok = Sync.store_last_sync_date(next_sync_date)
   end
 
   defp schedule_sync(interval) do

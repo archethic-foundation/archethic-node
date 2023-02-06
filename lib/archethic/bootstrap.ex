@@ -63,7 +63,7 @@ defmodule Archethic.Bootstrap do
     ])
   end
 
-  def done?() do
+  def archethic_up?() do
     :persistent_term.get(:archethic_up, nil) == :up
   end
 
@@ -220,7 +220,7 @@ defmodule Archethic.Bootstrap do
     SelfRepair.start_scheduler()
 
     :persistent_term.put(:archethic_up, :up)
-    Archethic.PubSub.notify_node_up()
+    Archethic.PubSub.notify_node_status(:node_up)
     Listener.listen()
   end
 

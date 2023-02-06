@@ -271,7 +271,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
 
-    if Bootstrap.done?() do
+    if Bootstrap.archethic_up?() do
       SelfRepair.start_notifier(
         previous_available_nodes,
         new_available_nodes,
@@ -282,6 +282,7 @@ defmodule Archethic.SelfRepair.Sync do
     update_statistics(summary_time, transaction_summaries)
 
     store_aggregate(aggregate, new_available_nodes)
+    store_last_sync_date(summary_time)
   end
 
   defp synchronize_transactions([], _), do: :ok

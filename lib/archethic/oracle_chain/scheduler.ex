@@ -61,7 +61,7 @@ defmodule Archethic.OracleChain.Scheduler do
       |> Map.put(:polling_interval, polling_interval)
       |> Map.put(:summary_interval, summary_interval)
 
-    if Bootstrap.done?() do
+    if Bootstrap.archethic_up?() do
       # when node is already bootstrapped, - handles scheduler crash
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}
@@ -69,7 +69,7 @@ defmodule Archethic.OracleChain.Scheduler do
       # node still bootstrapping , wait for it to finish Bootstrap
       Logger.info(" Oracle Scheduler: Waiting for Node to complete Bootstrap. ")
 
-      PubSub.register_to_node_up()
+      PubSub.register_to_node_status()
 
       {:ok, :idle, state_data}
     end
@@ -160,9 +160,26 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   def handle_event(:info, :node_up, :idle, state_data) do
-    PubSub.unregister_to_node_up()
+    PubSub.unregister_to_node_status()
     {:idle, new_state_data, events} = start_scheduler(state_data)
     {:keep_state, new_state_data, events}
+  end
+
+  def handle_event(:info, :node_down, :idle, state_data) do
+    case Map.get(state_data, :polling_timer) do
+      nil ->
+        :ok
+
+      timer ->
+        Process.cancel_timer(timer)
+    end
+
+    new_state_data =
+      state_data
+      |> Map.put(:indexes, %{})
+      |> Map.delete(:polling_timer)
+
+    {:idle, new_state_data, []}
   end
 
   def handle_event(

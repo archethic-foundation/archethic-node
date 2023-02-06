@@ -48,12 +48,12 @@ defmodule Archethic.SelfRepair do
     # Before the first summary date, synchronization is useless
     # as no data have been aggregated
     if DateTime.diff(DateTime.utc_now(), summary_time) >= 0 do
-      start_date = DateTime.utc_now()
       :ok = Sync.load_missed_transactions(date)
-      put_last_sync_date(start_date)
 
       # At the end of self repair, if a new beacon summary as been created
       # we run bootstrap_sync again until the last beacon summary is loaded
+      start_date = DateTime.utc_now()
+
       case DateTime.utc_now()
            |> BeaconChain.previous_summary_time()
            |> DateTime.compare(start_date) do

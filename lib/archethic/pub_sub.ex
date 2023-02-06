@@ -104,27 +104,26 @@ defmodule Archethic.PubSub do
   end
 
   @doc """
-  Notify that Node is Up
+  Notify Node status (up or down)
   """
-  @spec notify_node_up() :: :ok
-  def notify_node_up() do
-    dispatch(:node_up, :node_up)
-  end
+  @spec notify_node_status(:node_up | :node_down) :: :ok
+  def notify_node_status(:node_up), do: dispatch(:node_status, :node_up)
+  def notify_node_status(:node_down), do: dispatch(:node_status, :node_down)
 
-  @spec register_to_node_up :: {:error, {:already_registered, pid}} | {:ok, pid}
+  @spec register_to_node_status :: {:error, {:already_registered, pid}} | {:ok, pid}
   @doc """
   Register a process to notify node up
   """
-  def register_to_node_up() do
-    Registry.register(PubSubRegistry, :node_up, [])
+  def register_to_node_status() do
+    Registry.register(PubSubRegistry, :node_status, [])
   end
 
   @doc """
   UnRegister a process to notification node up
   """
-  @spec unregister_to_node_up :: :ok
-  def unregister_to_node_up() do
-    Registry.unregister(PubSubRegistry, :node_up)
+  @spec unregister_to_node_status :: :ok
+  def unregister_to_node_status() do
+    Registry.unregister(PubSubRegistry, :node_status)
   end
 
   @doc """
@@ -173,6 +172,11 @@ defmodule Archethic.PubSub do
   @spec register_to_node_update() :: {:ok, pid()}
   def register_to_node_update do
     Registry.register(PubSubRegistry, :node_update, [])
+  end
+
+  @spec unregister_to_node_update() :: :ok
+  def unregister_to_node_update do
+    Registry.unregister(PubSubRegistry, :node_update)
   end
 
   @doc """

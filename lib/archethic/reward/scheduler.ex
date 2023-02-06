@@ -30,13 +30,13 @@ defmodule Archethic.Reward.Scheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    if Bootstrap.done?() do
+    if Bootstrap.archethic_up?() do
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}
     else
       Logger.info(" Reward Scheduler: Waiting for Node to complete Bootstrap. ")
 
-      PubSub.register_to_node_up()
+      PubSub.register_to_node_status()
       {:ok, :idle, state_data}
     end
   end
@@ -72,9 +72,22 @@ defmodule Archethic.Reward.Scheduler do
 
   def handle_event(:info, :node_up, :idle, state_data) do
     # Node is up start Scheduler
-    PubSub.unregister_to_node_up()
+    PubSub.unregister_to_node_status()
     {:idle, new_state_data, events} = start_scheduler(state_data)
     {:keep_state, new_state_data, events}
+  end
+
+  def handle_event(:info, :node_down, :idle, state_data) do
+    # Node is down stop Scheduler
+    case Map.get(state_data, :timer) do
+      nil ->
+        state_data
+
+      timer ->
+        Process.cancel_timer(timer)
+    end
+
+    {:idle, Map.delete(state_data, :timer), []}
   end
 
   def handle_event(
