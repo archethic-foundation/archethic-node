@@ -101,7 +101,7 @@ defmodule HydratingCacheTest do
           {:ok, 1}
         end,
         "test_reregister",
-        10_000,
+        40_000,
         50_000
       )
 
@@ -109,11 +109,12 @@ defmodule HydratingCacheTest do
       HydratingCache.register_function(
         pid,
         fn ->
+          Logger.info("Hydrating function sleeping 5 secs")
           :timer.sleep(5000)
           {:ok, 2}
         end,
         "test_reregister",
-        10_000,
+        40_000,
         50_000
       )
 
@@ -218,14 +219,14 @@ defmodule HydratingCacheTest do
   end
 
   ## Resilience tests
-  test "If hydrating function crash, key fsm will still be oprationnal" do
+  test "If hydrating function crash, key fsm will still be operationnal" do
     {:ok, pid} = HydratingCache.start_link(:test_service)
 
     _ =
       HydratingCache.register_function(
         pid,
         fn ->
-          ## Trigger badmatch
+          ## Exit hydrating function
           exit(1)
           {:ok, :badmatch}
         end,

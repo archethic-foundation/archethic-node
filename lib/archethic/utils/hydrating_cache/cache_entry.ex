@@ -1,7 +1,18 @@
-defmodule Archethic.Utils.HydratingCache.CacheEntry.StateData do
+defmodule Archethic.Utils.HydratingCache.CacheEntry do
   @moduledoc """
-  Struct describing the state of a cache entry FSM
+  This module is a finite state machine implementing a cache entry.
+  There is one such Cache Entry FSM running per registered key.
+
+  It is responsible for :
+  - receiving request to get the value for the key it is associated with
+  - Run the hydrating function associated with this key
+  - Manage various timers
   """
+  alias Archethic.Utils.HydratingCache.CacheEntry
+  use GenStateMachine, callback_mode: [:handle_event_function, :state_enter]
+
+  use Task
+  require Logger
 
   defstruct([
     :running_func_task,
@@ -14,36 +25,20 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry.StateData do
     getters: [],
     value: :"$$undefined"
   ])
-end
 
-defmodule Archethic.Utils.HydratingCache.CacheEntry do
-  @moduledoc """
-  This module is a finite state machine implementing a cache entry.
-  There is one such Cache Entry FSM running per registered key.
-
-  It is responsible for :
-  - receiving request to get the value for the key it is associated with
-  - Run the hydrating function associated with this key
-  - Manage various timers
-  """
-  alias Archethic.Utils.HydratingCache.CacheEntry
-  @behaviour :gen_statem
-
-  use Task
-  require Logger
-
+  @spec start_link([...]) :: :ignore | {:error, any} | {:ok, pid}
   def start_link([fun, key, refresh_interval, ttl]) do
-    :gen_statem.start_link(__MODULE__, [fun, key, refresh_interval, ttl], [])
+    GenStateMachine.start_link(__MODULE__, [fun, key, refresh_interval, ttl], [])
   end
 
-  @impl :gen_statem
+  @impl GenStateMachine
   def init([fun, key, refresh_interval, ttl]) do
     # start hydrating at the needed refresh interval
-    {:ok, timer} = :timer.send_interval(refresh_interval, self(), :hydrate)
+    {:ok, timer} = :timer.send_after(refresh_interval, self(), :hydrate)
 
     ## Hydrate the value
     {:ok, :running,
-     %CacheEntry.StateData{
+     %CacheEntry{
        timer_func: timer,
        hydrating_func: fun,
        key: key,
@@ -52,19 +47,14 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
      }}
   end
 
-  @impl :gen_statem
-  def callback_mode, do: [:handle_event_function, :state_enter]
-
-  @impl :gen_statem
-
+  @impl GenStateMachine
   def handle_event(
         {:call, from},
         {:get, _requester},
         :idle,
-        data = %CacheEntry.StateData{:value => :"$$undefined"}
+        data = %CacheEntry{:value => :"$$undefined"}
       ) do
     ## Value is requested while fsm is iddle, return the value
-
     {:keep_state, data, [{:reply, from, {:error, :not_initialized}}]}
   end
 
@@ -73,23 +63,17 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     {:next_state, :idle, data, [{:reply, from, data.value}]}
   end
 
-  def handle_event(:cast, {:get, requester}, :idle, data) do
-    ## Value is requested while fsm is iddle, return the value
-    send(requester, {:ok, data.value})
-    {:next_state, :idle, data}
-  end
-
   ## Call for value while hydrating function is running and we have no previous value
   ## We register the caller to send value later on, and we indicate caller to block
   def handle_event(
         {:call, from},
         {:get, requester},
         :running,
-        data = %CacheEntry.StateData{value: :"$$undefined"}
+        data = %CacheEntry{value: :"$$undefined"}
       ) do
     previous_getters = data.getters
 
-    {:keep_state, %CacheEntry.StateData{data | getters: previous_getters ++ [requester]},
+    {:keep_state, %CacheEntry{data | getters: previous_getters ++ [requester]},
      [{:reply, from, {:ok, :answer_delayed}}]}
   end
 
@@ -97,20 +81,6 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
   ## We return the value to caller
   def handle_event({:call, from}, {:get, _requester}, :running, data) do
     {:next_state, :running, data, [{:reply, from, data.value}]}
-  end
-
-  ## Getting value when a function is running and no previous value is available
-  ## Register this getter to send value later on
-  def handle_event(:cast, {:get, from}, :running, data) when data.value == :"$$undefined" do
-    previous_getters = data.getters
-    {:next_state, :running, %CacheEntry.StateData{data | getters: previous_getters ++ [from]}}
-  end
-
-  def handle_event(:cast, {:get, from}, :running, data) do
-    ## Getting value while function is running but previous value is available
-    ## Return vurrent value
-    send(from, {:ok, data.value})
-    {:next_state, :running, data}
   end
 
   def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, :running, data) do
@@ -127,11 +97,11 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     _ = maybe_stop_timer(data.timer_discard)
 
     ## Start new timer to hydrate at refresh interval
-    {:ok, timer} = :timer.send_interval(refresh_interval, self(), :hydrate)
+    {:ok, timer} = :timer.send_after(refresh_interval, self(), :hydrate)
 
     ## We trigger the update ( to trigger or not could be set at registering option )
     {:repeat_state,
-     %CacheEntry.StateData{
+     %CacheEntry{
        data
        | hydrating_func: fun,
          key: key,
@@ -141,7 +111,11 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
      }, [{:reply, from, :ok}]}
   end
 
-  def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, _state, data) do
+  def handle_event({:call, from}, {:register, fun, key, refresh_interval, ttl}, state, data) do
+    Logger.debug(
+      "Registering hydrating function for key :#{inspect(key)}  state:#{inspect(state)}  data: #{inspect(data)}"
+    )
+
     ## Setting hydrating function in other cases
     ## Hydrating function not running, we just stop the timers
     _ = maybe_stop_timer(data.timer_func)
@@ -155,11 +129,11 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
         :refresh_interval => refresh_interval
       })
 
-    {:ok, timer} = :timer.send_interval(refresh_interval, self(), :hydrate)
+    {:ok, timer} = :timer.send_after(refresh_interval, self(), :hydrate)
 
     ## We trigger the update ( to trigger or not could be set at registering option )
     {:next_state, :running,
-     %CacheEntry.StateData{
+     %CacheEntry{
        data
        | hydrating_func: fun,
          key: key,
@@ -183,11 +157,11 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
       spawn(fn ->
         Logger.info("Running hydrating function for key :#{inspect(data.key)}")
         value = data.hydrating_func.()
-        :gen_statem.cast(me, {:new_value, data.key, value})
+        GenStateMachine.cast(me, {:new_value, data.key, value})
       end)
 
     ## we stay in running state
-    {:next_state, :running, %CacheEntry.StateData{data | running_func_task: hydrating_task}}
+    {:next_state, :running, %CacheEntry{data | running_func_task: hydrating_task}}
   end
 
   def handle_event(:info, :discarded, state, data) do
@@ -197,15 +171,17 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
       "Key :#{inspect(data.key)}, Hydrating func #{inspect(data.hydrating_func)} discarded"
     )
 
-    {:next_state, state,
-     %CacheEntry.StateData{data | value: {:error, :discarded}, timer_discard: nil}}
+    {:next_state, state, %CacheEntry{data | value: {:error, :discarded}, timer_discard: nil}}
   end
 
   def handle_event(:cast, {:new_value, _key, {:ok, value}}, :running, data) do
     ## We got result from hydrating function
-
+    Logger.debug("Got new value for key :#{inspect(data.key)}")
     ## Stop timer on value ttl
     _ = maybe_stop_timer(data.timer_discard)
+
+    ## Start hydrating timer
+    {:ok, timer_hydrate} = :timer.send_after(data.refresh_interval, self(), :hydrate)
 
     ## notify waiting getters
     Enum.each(data.getters, fn {pid, _ref} ->
@@ -215,23 +191,23 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     ## Start timer to discard new value if needed
     me = self()
 
-    new_timer =
+    {:ok, timer_ttl} =
       case data.ttl do
-        value when is_number(value) ->
-          {:ok, t} = :timer.send_after(value, me, :discarded)
-          t
+        ttl when is_number(ttl) ->
+          :timer.send_after(ttl, me, :discarded)
 
         _ ->
-          :ok
+          {:ok, nil}
       end
 
     {:next_state, :idle,
-     %CacheEntry.StateData{
+     %CacheEntry{
        data
        | running_func_task: :undefined,
          value: {:ok, value},
          getters: [],
-         timer_discard: new_timer
+         timer_func: timer_hydrate,
+         timer_discard: timer_ttl
      }}
   end
 
@@ -244,22 +220,25 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     ## Error values can be discarded
     me = self()
 
-    new_timer =
+    {:ok, timer_ttl} =
       case data.ttl do
-        value when is_number(value) ->
-          {:ok, t} = :timer.send_after(value, me, :discarded)
-          t
+        ttl when is_number(ttl) ->
+          :timer.send_after(ttl, me, :discarded)
 
         _ ->
-          :ok
+          {:ok, nil}
       end
 
+    ## Start hydrating timer
+    {:ok, timer_hydrate} = :timer.send_after(data.refresh_interval, self(), :hydrate)
+
     {:next_state, :idle,
-     %CacheEntry.StateData{
+     %CacheEntry{
        data
        | running_func_task: :undefined,
          getters: [],
-         timer_discard: new_timer
+         timer_func: timer_hydrate,
+         timer_discard: timer_ttl
      }}
   end
 
@@ -267,11 +246,11 @@ defmodule Archethic.Utils.HydratingCache.CacheEntry do
     {:keep_state, data}
   end
 
-  defp maybe_stop_timer(ref = {_, _}) do
-    :timer.cancel(ref)
+  defp maybe_stop_timer(tref = {_, _}) do
+    :timer.cancel(tref)
   end
 
-  defp maybe_stop_timer(_ref) do
+  defp maybe_stop_timer(_else) do
     :ok
   end
 end
