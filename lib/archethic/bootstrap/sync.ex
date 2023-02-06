@@ -182,9 +182,17 @@ defmodule Archethic.Bootstrap.Sync do
       {:ok, %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds}} ->
         :ok = P2P.new_bootstrapping_seeds(new_seeds)
 
-        (new_seeds ++ closest_nodes)
-        |> P2P.distinct_nodes()
-        |> Enum.each(&P2P.add_and_connect_node/1)
+        closest_nodes =
+          (new_seeds ++ closest_nodes)
+          |> P2P.distinct_nodes()
+          |> Task.async_stream(fn node ->
+            P2P.add_and_connect_node(node)
+            # Wait for connection time
+            Process.sleep(500)
+            P2P.get_node_info!(node.first_public_key)
+          end)
+          |> Enum.filter(&match?({:ok, _}, &1))
+          |> Enum.map(fn {:ok, node} -> node end)
 
         Logger.info("Closest nodes and seeds loaded in the P2P view")
 

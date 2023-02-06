@@ -115,7 +115,6 @@ defmodule Archethic.Bootstrap do
         http_port,
         transport,
         bootstrapping_seeds,
-        last_sync_date,
         network_patch,
         reward_address
       )
@@ -151,25 +150,31 @@ defmodule Archethic.Bootstrap do
          http_port,
          transport,
          bootstrapping_seeds,
-         last_sync_date,
          network_patch,
          reward_address
        ) do
     Logger.info("Bootstrapping starting")
 
-    if Sync.should_initialize_network?(bootstrapping_seeds) do
-      Logger.info("This node should initialize the network!!")
-      Logger.debug("Create first node transaction")
+    cond do
+      Sync.should_initialize_network?(bootstrapping_seeds) ->
+        Logger.info("This node should initialize the network!!")
+        Logger.debug("Create first node transaction")
 
-      tx =
-        TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
+        tx =
+          TransactionHandler.create_node_transaction(
+            ip,
+            port,
+            http_port,
+            transport,
+            reward_address
+          )
 
-      Sync.initialize_network(tx)
+        Sync.initialize_network(tx)
 
-      post_bootstrap(sync?: false)
-      SelfRepair.put_last_sync_date(DateTime.utc_now())
-    else
-      if Crypto.first_node_public_key() == Crypto.last_node_public_key() do
+        post_bootstrap(sync?: false)
+        SelfRepair.put_last_sync_date(DateTime.utc_now())
+
+      Crypto.first_node_public_key() == Crypto.previous_node_public_key() ->
         Logger.info("Node initialization...")
 
         first_initialization(
@@ -183,25 +188,21 @@ defmodule Archethic.Bootstrap do
         )
 
         post_bootstrap(sync?: true)
-      else
-        if Sync.require_update?(ip, port, http_port, transport, last_sync_date) do
-          Logger.info("Update node chain...")
 
-          update_node(
-            ip,
-            port,
-            http_port,
-            transport,
-            network_patch,
-            bootstrapping_seeds,
-            reward_address
-          )
+      true ->
+        Logger.info("Update node chain...")
 
-          post_bootstrap(sync?: true)
-        else
-          post_bootstrap(sync?: false)
-        end
-      end
+        update_node(
+          ip,
+          port,
+          http_port,
+          transport,
+          network_patch,
+          bootstrapping_seeds,
+          reward_address
+        )
+
+        post_bootstrap(sync?: true)
     end
   end
 
@@ -300,15 +301,12 @@ defmodule Archethic.Bootstrap do
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     # In case node had lose it's DB, we ask the network if the node chain already exists
-    case Crypto.next_node_public_key()
-         |> Crypto.derive_address()
-         |> TransactionChain.fetch_size_remotely(closest_nodes) do
-      {:ok, length} when length > 0 ->
-        Crypto.set_node_key_index(length)
+    {:ok, length} =
+      Crypto.first_node_public_key()
+      |> Crypto.derive_address()
+      |> TransactionChain.fetch_size_remotely(closest_nodes)
 
-      _ ->
-        :skip
-    end
+    Crypto.set_node_key_index(length)
 
     tx =
       TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
