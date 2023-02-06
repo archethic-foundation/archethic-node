@@ -150,7 +150,7 @@ defmodule Archethic.Utils.HydratingCache do
     end
   end
 
-  def handle_call(:get_all, from, state = %{keys: keys}) do
+  def handle_call(:get_all, _from, state = %{keys: keys}) do
     Logger.debug(
       "Getting all keys from hydrating cache, current keys are #{inspect(keys)} sup: #{inspect(state.keys_sup)}"
     )
