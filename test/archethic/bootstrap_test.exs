@@ -97,6 +97,9 @@ defmodule Archethic.BootstrapTest do
       ]
     end)
 
+    MockCrypto.NodeKeystore
+    |> stub(:set_node_key_index, fn _ -> :ok end)
+
     start_supervised!(RewardMemTable)
     start_supervised!(RewardTableLoader)
 
