@@ -7,8 +7,8 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConstants, as: Constants
-  alias Archethic.Contracts.ActionInterpreter
-  alias Archethic.Contracts.ConditionInterpreter
+  alias Archethic.Contracts.Interpreter.Version0.ActionInterpreter
+  alias Archethic.Contracts.Interpreter.Version0.ConditionInterpreter
 
   alias Archethic.Crypto
 

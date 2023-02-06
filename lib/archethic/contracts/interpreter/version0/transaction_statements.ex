@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.TransactionStatements do
+defmodule Archethic.Contracts.Interpreter.Version0.TransactionStatements do
   @moduledoc false
 
   alias Archethic.TransactionChain.Transaction
@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias Archethic.Contracts.Interpreter.Utils, as: SCUtils
+  alias Archethic.Contracts.Interpreter.Version0.UtilsInterpreter
 
   @doc """
   Set the transaction type
@@ -46,7 +46,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   @spec add_uco_transfer(Transaction.t(), list()) :: Transaction.t()
   def add_uco_transfer(tx = %Transaction{}, args) when is_list(args) do
     %{"to" => to, "amount" => amount} = Enum.into(args, %{})
-    to = SCUtils.get_address(to, :add_uco_transfer)
+    to = UtilsInterpreter.get_address(to, :add_uco_transfer)
 
     update_in(
       tx,
@@ -90,8 +90,10 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
     map_args =
       %{"to" => to, "amount" => amount, "token_address" => token_address} = Enum.into(args, %{})
 
-    to = SCUtils.get_address(to, :add_token_transfer_to)
-    token_address = SCUtils.get_address(token_address, :add_token_transfer_token_addresss)
+    to = UtilsInterpreter.get_address(to, :add_token_transfer_to)
+
+    token_address =
+      UtilsInterpreter.get_address(token_address, :add_token_transfer_token_addresss)
 
     update_in(
       tx,
@@ -180,9 +182,9 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
 
     ownership =
       Ownership.new(
-        SCUtils.maybe_decode_hex(secret),
-        SCUtils.maybe_decode_hex(secret_key),
-        Enum.map(authorized_public_keys, &SCUtils.get_public_key(&1, :add_ownership))
+        UtilsInterpreter.maybe_decode_hex(secret),
+        UtilsInterpreter.maybe_decode_hex(secret_key),
+        Enum.map(authorized_public_keys, &UtilsInterpreter.get_public_key(&1, :add_ownership))
       )
 
     update_in(
@@ -208,7 +210,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   @spec add_recipient(Transaction.t(), binary()) :: Transaction.t()
   def add_recipient(tx = %Transaction{}, recipient_address)
       when is_binary(recipient_address) do
-    recipient_address = SCUtils.get_address(recipient_address, :add_recipient)
+    recipient_address = UtilsInterpreter.get_address(recipient_address, :add_recipient)
 
     update_in(
       tx,

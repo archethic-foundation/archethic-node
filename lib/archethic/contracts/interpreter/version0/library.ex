@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.Library do
+defmodule Archethic.Contracts.Interpreter.Version0.Library do
   @moduledoc false
 
   alias Archethic.{
@@ -12,7 +12,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
     Utils
   }
 
-  alias Archethic.Contracts.Interpreter.Utils, as: SCUtils
+  alias Archethic.Contracts.Interpreter.Version0.UtilsInterpreter
 
   require Logger
 
@@ -145,7 +145,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
           :blake2b
       end
 
-    :crypto.hash(algo, SCUtils.maybe_decode_hex(content))
+    :crypto.hash(algo, UtilsInterpreter.maybe_decode_hex(content))
     |> Base.encode16()
   end
 
@@ -184,7 +184,9 @@ defmodule Archethic.Contracts.Interpreter.Library do
       2
   """
   @spec size(binary() | list()) :: non_neg_integer()
-  def size(binary) when is_binary(binary), do: binary |> SCUtils.maybe_decode_hex() |> byte_size()
+  def size(binary) when is_binary(binary),
+    do: binary |> UtilsInterpreter.maybe_decode_hex() |> byte_size()
+
   def size(list) when is_list(list), do: length(list)
   def size(map) when is_map(map), do: map_size(map)
 
@@ -196,7 +198,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_calls(binary()) :: list(map())
   def get_calls(contract_address) do
     contract_address
-    |> SCUtils.maybe_decode_hex()
+    |> UtilsInterpreter.maybe_decode_hex()
     |> TransactionLookup.list_contract_transactions()
     |> Enum.map(fn {address, _, _} ->
       # TODO: parallelize
@@ -210,7 +212,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_genesis_public_key(binary()) :: binary()
   def get_genesis_public_key(address) do
-    bin_address = SCUtils.maybe_decode_hex(address)
+    bin_address = UtilsInterpreter.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(bin_address, P2P.authorized_and_available_nodes())
     {:ok, key} = download_first_public_key(nodes, bin_address)
     Base.encode16(key)
@@ -237,7 +239,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @spec get_token_id(binary()) :: {:error, binary()} | {:ok, binary()}
   def get_token_id(address) do
-    address = SCUtils.get_address(address, :get_token_id)
+    address = UtilsInterpreter.get_address(address, :get_token_id)
     t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
     t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
@@ -276,7 +278,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_genesis_address(binary()) ::
           binary()
   def get_genesis_address(address) do
-    addr_bin = SCUtils.maybe_decode_hex(address)
+    addr_bin = UtilsInterpreter.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_genesis_address_remotely(addr_bin, nodes) do
@@ -291,7 +293,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   @spec get_first_transaction_address(address :: binary()) ::
           binary()
   def get_first_transaction_address(address) do
-    addr_bin = SCUtils.maybe_decode_hex(address)
+    addr_bin = UtilsInterpreter.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_first_transaction_address_remotely(addr_bin, nodes) do

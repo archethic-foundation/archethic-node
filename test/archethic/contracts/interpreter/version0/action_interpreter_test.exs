@@ -1,7 +1,7 @@
-defmodule Archethic.Contracts.ActionInterpreterTest do
+defmodule Archethic.Contracts.Interpreter.Version0.ActionInterpreterTest do
   use ArchethicCase
 
-  alias Archethic.Contracts.ActionInterpreter
+  alias Archethic.Contracts.Interpreter.Version0.ActionInterpreter
   alias Archethic.Contracts.Interpreter
   alias Archethic.Crypto
 
@@ -45,7 +45,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                              [
                                {:__aliases__,
                                 [
-                                  alias: Archethic.Contracts.Interpreter.TransactionStatements
+                                  alias:
+                                    Archethic.Contracts.Interpreter.Version0.TransactionStatements
                                 ], [:TransactionStatements]},
                                :set_type
                              ]}, [line: 2], [{:&, [line: 2], [1]}, "transfer"]}
@@ -74,7 +75,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                                [
                                  {:__aliases__,
                                   [
-                                    alias: Archethic.Contracts.Interpreter.TransactionStatements
+                                    alias:
+                                      Archethic.Contracts.Interpreter.Version0.TransactionStatements
                                   ], [:TransactionStatements]},
                                  :add_uco_transfer
                                ]},
@@ -114,7 +116,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                                [
                                  {:__aliases__,
                                   [
-                                    alias: Archethic.Contracts.Interpreter.TransactionStatements
+                                    alias:
+                                      Archethic.Contracts.Interpreter.Version0.TransactionStatements
                                   ], [:TransactionStatements]},
                                  :add_token_transfer
                                ]},
@@ -156,7 +159,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                               [
                                 {:__aliases__,
                                  [
-                                   alias: Archethic.Contracts.Interpreter.TransactionStatements
+                                   alias:
+                                     Archethic.Contracts.Interpreter.Version0.TransactionStatements
                                  ], [:TransactionStatements]},
                                 :set_content
                               ]}, [line: 5], [{:&, [line: 5], [1]}, "Receipt"]}
@@ -186,7 +190,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                                [
                                  {:__aliases__,
                                   [
-                                    alias: Archethic.Contracts.Interpreter.TransactionStatements
+                                    alias:
+                                      Archethic.Contracts.Interpreter.Version0.TransactionStatements
                                   ], [:TransactionStatements]},
                                  :add_ownership
                                ]},
@@ -229,7 +234,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
                                [
                                  {:__aliases__,
                                   [
-                                    alias: Archethic.Contracts.Interpreter.TransactionStatements
+                                    alias:
+                                      Archethic.Contracts.Interpreter.Version0.TransactionStatements
                                   ], [:TransactionStatements]},
                                  :add_recipient
                                ]},
@@ -323,7 +329,8 @@ defmodule Archethic.Contracts.ActionInterpreterTest do
 
     assert {{:., [line: 2],
              [
-               {:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]},
+               {:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.Library],
+                [:Library]},
                :get_calls
              ]}, [line: 2],
             [

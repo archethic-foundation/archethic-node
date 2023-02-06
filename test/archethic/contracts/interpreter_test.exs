@@ -2,76 +2,56 @@ defmodule Archethic.Contracts.InterpreterTest do
   @moduledoc false
   use ArchethicCase
 
-  alias Archethic.Contracts.Contract
-
   alias Archethic.Contracts.Interpreter
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
 
   doctest Interpreter
 
-  describe "parse/1" do
-    test "should return an error if not conditions or triggers are defined" do
-      assert {:error, _} =
-               """
-               abc
-               """
-               |> Interpreter.parse()
-
-      assert {:error, _} =
-               """
-               condition
-               """
-               |> Interpreter.parse()
+  describe "version/1" do
+    test "should return 0.0.1 if there is no interpreter tag" do
+      code = ~s(some code)
+      assert {{0, 0, 1}, ^code} = Interpreter.version(code)
     end
 
-    test "should return an error for unexpected term" do
-      assert {:error, "unexpected term - @1 - L1"} = "@1" |> Interpreter.parse()
+    test "should return the correct version if specified" do
+      assert {{0, 0, 1}, "\n my_code"} = Interpreter.version(~s(@version "0.0.1"\n my_code))
+      assert {{0, 1, 0}, " \n my_code"} = Interpreter.version(~s(@version "0.1.0" \n my_code))
+      assert {{0, 1, 1}, ""} = Interpreter.version(~s(@version "0.1.1"))
+      assert {{1, 0, 0}, _} = Interpreter.version(~s(@version "1.0.0"))
+      assert {{1, 0, 1}, _} = Interpreter.version(~s(@version "1.0.1"))
+      assert {{1, 1, 0}, _} = Interpreter.version(~s(@version "1.1.0"))
+      assert {{1, 1, 1}, _} = Interpreter.version(~s(@version "1.1.1"))
     end
-  end
 
-  test "ICO contract parsing" do
-    assert {:ok, _} =
-             """
-             condition inherit: [
-                token_transfers: size() == 1
-             ]
+    test "should work even if there are some whitespaces" do
+      assert {{0, 1, 0}, _} = Interpreter.version(~s(\n   \n   @version "0.1.0" \n  \n))
+      assert {{1, 1, 2}, _} = Interpreter.version(~s(\n   \n   @version "1.1.2" \n  \n))
+      assert {{3, 105, 0}, _} = Interpreter.version(~s(\n   \n   @version "3.105.0" \n  \n))
+    end
 
-             condition transaction: [
-                 uco_transfers: size() > 0,
-                 timestamp: transaction.timestamp < 1665750161
-             ]
+    test "should raise if version is not formatted as expected" do
+      assert_raise RuntimeError, fn ->
+        Interpreter.version(~s(@version "0"))
+      end
 
-             actions triggered_by: transaction do
-                # Get the amount of uco send to this contract
-                  amount_send = transaction.uco_transfers[contract.address]
-                  if amount_send > 0 do
-                    # Convert UCO to the number of tokens to credit. Each UCO worth 10 token
-                    token_to_credit = amount_send * 10
+      assert_raise RuntimeError, fn ->
+        Interpreter.version(~s(@version "1"))
+      end
 
-                    # Send the new transaction
-                    add_token_transfer to: transaction.address, token_address: contract.address, amount: token_to_credit
-                 end
-             end
-             """
-             |> Interpreter.parse()
-  end
+      assert_raise RuntimeError, fn ->
+        Interpreter.version(~s(@version "0.0"))
+      end
 
-  test "schedule transfers parsing" do
-    assert {:ok, _} =
-             """
-             condition inherit: [
-               type: transfer,
-               uco_transfers: 
-                  %{ "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC" => 100000000 }
-             ]
+      assert_raise RuntimeError, fn ->
+        Interpreter.version(~s(@version "1.1"))
+      end
 
-             actions triggered_by: interval, at: "* * * * *" do
-               set_type transfer
-               add_uco_transfer to: "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC", amount: 100000000
-             end
-             """
-             |> Interpreter.parse()
+      assert_raise RuntimeError, fn ->
+        Interpreter.version(~s(@version "0.0.0"))
+      end
+
+      assert_raise RuntimeError, fn ->
+        Interpreter.version(~s(@version 1.1.1))
+      end
+    end
   end
 end
