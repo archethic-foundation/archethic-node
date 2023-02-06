@@ -15,6 +15,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     P2P.Message.FirstPublicKey,
     P2P.Message.GetFirstPublicKey,
     P2P.Message.GetTransactionSummary,
+    P2P.Message.TransactionSummaryMessage,
     P2P.Message.NotFound,
     P2P.Node,
     Reward,
@@ -113,7 +114,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     conflict_resolver = fn results ->
       # Prioritize transactions results over not found
-      case Enum.filter(results, &match?(%TransactionSummary{}, &1)) do
+      case Enum.filter(results, &match?(%TransactionSummaryMessage{}, &1)) do
         [] ->
           %NotFound{}
 
@@ -128,7 +129,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            %GetTransactionSummary{address: address},
            conflict_resolver
          ) do
-      {:ok, %TransactionSummary{address: ^address}} ->
+      {:ok,
+       %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^address}}} ->
         {:error, "Transaction already exists"}
 
       {:ok, %NotFound{}} ->
