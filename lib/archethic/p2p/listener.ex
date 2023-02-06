@@ -6,6 +6,8 @@ defmodule Archethic.P2P.Listener do
 
   alias Archethic.P2P.ListenerProtocol
 
+  alias Archethic.PubSub
+
   require Logger
 
   def start_link(opts \\ []) do
@@ -16,14 +18,12 @@ defmodule Archethic.P2P.Listener do
     transport = Keyword.get(opts, :transport)
     port = Keyword.get(opts, :port)
 
-    {:ok, {transport, port}}
+    PubSub.register_to_node_status()
+
+    {:ok, %{transport: transport, port: port}}
   end
 
-  def listen() do
-    GenServer.cast(__MODULE__, :start_listener)
-  end
-
-  def handle_cast(:start_listener, {transport, port}) do
+  def handle_info(:node_up, %{transport: transport, port: port}) do
     ranch_transport =
       case transport do
         :tcp ->
@@ -43,7 +43,7 @@ defmodule Archethic.P2P.Listener do
       {:ok, listener_pid} ->
         Logger.info("P2P #{transport} Endpoint running on port #{port}")
 
-        {:noreply, %{listener_pid: listener_pid}}
+        {:noreply, %{listener_pid: listener_pid, port: port, transport: transport}}
 
       {:error, :eaddrinuse} ->
         Logger.error(
@@ -52,5 +52,15 @@ defmodule Archethic.P2P.Listener do
 
         System.stop(1)
     end
+  end
+
+  def handle_info(:node_down, state) do
+    listener_pid = state[:listener_pid]
+
+    if listener_pid do
+      :ranch.stop_listener(listener_pid)
+    end
+
+    {:noreply, %{transport: state.transport, port: state.port}, :hibernate}
   end
 end

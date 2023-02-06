@@ -25,6 +25,8 @@ defmodule Archethic.SelfRepair do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
+  alias Archethic.PubSub
+
   require Logger
 
   @doc """
@@ -48,7 +50,12 @@ defmodule Archethic.SelfRepair do
     # Before the first summary date, synchronization is useless
     # as no data have been aggregated
     if DateTime.diff(DateTime.utc_now(), summary_time) >= 0 do
-      :ok = Sync.load_missed_transactions(date)
+      try do
+        :ok = Sync.load_missed_transactions(date)
+      catch
+        _, _ ->
+          PubSub.notify_node_status(:node_down)
+      end
 
       # At the end of self repair, if a new beacon summary as been created
       # we run bootstrap_sync again until the last beacon summary is loaded

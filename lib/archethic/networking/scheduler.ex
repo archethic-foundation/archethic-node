@@ -21,6 +21,8 @@ defmodule Archethic.Networking.Scheduler do
 
   alias Archethic.Utils
 
+  alias Archethic.PubSub
+
   alias ArchethicWeb.Endpoint, as: WebEndpoint
 
   require Logger
@@ -31,8 +33,42 @@ defmodule Archethic.Networking.Scheduler do
 
   def init(arg) do
     interval = Keyword.fetch!(arg, :interval)
-    timer = schedule_update(interval)
-    {:ok, %{timer: timer, interval: interval}}
+
+    if Archethic.up?() do
+      timer = schedule_update(interval)
+      {:ok, %{timer: timer, interval: interval}}
+    else
+      # node still bootstrapping , wait for it to finish Bootstrap
+      Logger.info(" Networking Scheduler: Waiting for Node to complete Bootstrap. ")
+
+      PubSub.register_to_node_status()
+
+      {:ok, %{interval: interval}}
+    end
+  end
+
+  def handle_info(:node_up, state = %{interval: interval}) do
+    Logger.info("Networking Scheduler: Starting...")
+
+    new_state =
+      state
+      |> Map.put(:timer, schedule_update(interval))
+
+    {:noreply, new_state, :hibernate}
+  end
+
+  def handle_info(:node_down, state) do
+    Logger.info("Networking Scheduler: Stopping...")
+
+    case Map.get(state, :timer) do
+      nil ->
+        :ok
+
+      timer ->
+        Process.cancel_timer(timer)
+    end
+
+    {:noreply, %{interval: state[:interval]}, :hibernate}
   end
 
   def handle_info(:update, state = %{interval: interval}) do

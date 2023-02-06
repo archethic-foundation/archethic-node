@@ -14,6 +14,8 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   alias Archethic.Utils
 
+  alias Archethic.PubSub
+
   alias Archethic.Bootstrap.Sync, as: BootstrapSync
 
   require Logger
@@ -115,6 +117,7 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   def handle_info({:DOWN, _ref, _, _, reason}, state) do
     Logger.error("Failed to completed self-repair cycle: #{inspect(reason)}")
+    PubSub.notify_node_status(:node_down)
     {:noreply, state}
   end
 

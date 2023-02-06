@@ -11,7 +11,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   alias Archethic
 
-  alias Archethic.Bootstrap
   alias Archethic.Election
 
   alias Archethic.Crypto
@@ -53,7 +52,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    if Bootstrap.archethic_up?() do
+    if Archethic.up?() do
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}
     else
@@ -109,14 +108,13 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     {:next_state, :scheduled, new_data}
   end
 
-  def handle_event(:info, :node_up, :idle, state_data) do
-    PubSub.unregister_to_node_status()
+  def handle_event(:info, :node_up, _, state_data) do
     # Node is Up start Scheduler
     {:idle, new_state_data, events} = start_scheduler(state_data)
     {:keep_state, new_state_data, events}
   end
 
-  def handle_event(:info, :node_down, :idle, state_data) do
+  def handle_event(:info, :node_down, _, state_data) do
     case Map.get(state_data, :timer) do
       nil ->
         state_data
@@ -125,7 +123,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         Process.cancel_timer(timer)
     end
 
-    {:idle, Map.delete(state_data, :timer), []}
+    {:next_state, :idle, %{interval: state_data.interval}}
   end
 
   def handle_event(

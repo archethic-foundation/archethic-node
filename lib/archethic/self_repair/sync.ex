@@ -5,7 +5,6 @@ defmodule Archethic.SelfRepair.Sync do
   alias Archethic.BeaconChain.Subset.P2PSampling
   alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryAggregate
-  alias Archethic.Bootstrap
 
   alias Archethic.Crypto
 
@@ -271,7 +270,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     new_available_nodes = P2P.authorized_and_available_nodes(availability_update)
 
-    if Bootstrap.archethic_up?() do
+    if Archethic.up?() do
       SelfRepair.start_notifier(
         previous_available_nodes,
         new_available_nodes,

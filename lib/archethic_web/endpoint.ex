@@ -4,8 +4,6 @@ defmodule ArchethicWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :archethic
   use Absinthe.Phoenix.Endpoint
 
-  alias Archethic.Bootstrap
-
   require Logger
 
   plug(:archethic_up)
@@ -62,7 +60,7 @@ defmodule ArchethicWeb.Endpoint do
   # ps: this handle only HTTP(S) requests
   #     for WS, see archethic_web/channels/user_socket.ex
   defp archethic_up(conn, _opts) do
-    if Bootstrap.archethic_up?() do
+    if Archethic.up?() do
       conn
     else
       Logger.debug("Received a web request but node is bootstraping")

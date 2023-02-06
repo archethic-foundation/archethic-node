@@ -6,6 +6,27 @@ defmodule Archethic.PubSubTest do
   alias Archethic.PubSub
   alias Archethic.PubSubRegistry
 
+  test "register_to_node_status/0 should register the current process in the registry" do
+    assert {:ok, _pid} = PubSub.register_to_node_status()
+
+    pids = Enum.map(Registry.lookup(PubSubRegistry, :node_status), &elem(&1, 0))
+    assert self() in pids
+  end
+
+  test "notify_node_status with node_up should notify the processes in the registry" do
+    assert {:ok, _pid} = PubSub.register_to_node_status()
+    PubSub.notify_node_status(:node_up)
+
+    assert_receive :node_up
+  end
+
+  test "notify_node_status with node_down should notify the processes in the registry" do
+    assert {:ok, _pid} = PubSub.register_to_node_status()
+    PubSub.notify_node_status(:node_down)
+
+    assert_receive :node_down
+  end
+
   test "register_to_new_transaction/0 should register the current process in the registry" do
     assert {:ok, _} = PubSub.register_to_new_transaction()
     pids = Enum.map(Registry.lookup(PubSubRegistry, :new_transaction), &elem(&1, 0))

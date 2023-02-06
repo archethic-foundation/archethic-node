@@ -112,19 +112,9 @@ defmodule Archethic.PubSub do
 
   @spec register_to_node_status :: {:error, {:already_registered, pid}} | {:ok, pid}
   @doc """
-  Register a process to notify node up
+  Register a process to notify node status
   """
-  def register_to_node_status() do
-    Registry.register(PubSubRegistry, :node_status, [])
-  end
-
-  @doc """
-  UnRegister a process to notification node up
-  """
-  @spec unregister_to_node_status :: :ok
-  def unregister_to_node_status() do
-    Registry.unregister(PubSubRegistry, :node_status)
-  end
+  def register_to_node_status(), do: Registry.register(PubSubRegistry, :node_status, [])
 
   @doc """
   Register a process to a new transaction publication by type
