@@ -162,8 +162,6 @@ defmodule Archethic.Utils.HydratingCache do
         fetching_values_supervisor,
         keys,
         fn {key, pid} ->
-          IO.puts("Calling #{inspect(pid)} for key #{inspect(key)} from is #{inspect(from)}")
-
           case GenStateMachine.call(pid, {:get, {self(), nil}}) do
             {:ok, :answer_delayed} ->
               receive do
