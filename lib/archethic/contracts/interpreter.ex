@@ -20,11 +20,14 @@ defmodule Archethic.Contracts.Interpreter do
   @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, String.t()}
   def parse(code) when is_binary(code) do
     case version(code) do
-      {{0, _, _}, code_without_version} ->
+      {{0, 0, 1}, code_without_version} ->
         Version0.parse(code_without_version)
 
       {version = {1, _, _}, code_without_version} ->
         Version1.parse(code_without_version, version)
+
+      _ ->
+        {:error, "@version not supported"}
     end
   end
 
@@ -44,7 +47,7 @@ defmodule Archethic.Contracts.Interpreter do
   Return the version & the code where the version has been removed.
   (should be private, but there are unit tests)
   """
-  @spec version(String.t()) :: {version(), String.t()}
+  @spec version(String.t()) :: {version(), String.t()} | :error
   def version(code) do
     regex_opts = [capture: :all_but_first]
 
@@ -54,17 +57,17 @@ defmodule Archethic.Contracts.Interpreter do
       case Regex.run(version_attr_regex, code, regex_opts) do
         nil ->
           # there is a @version but syntax is invalid (probably the quotes missing)
-          raise "invalid @version"
+          :error
 
         [capture] ->
           case Regex.run(semver_regex(), capture, regex_opts) do
             nil ->
               # there is a @version but semver syntax is wrong
-              raise "invalid @version"
+              :error
 
             ["0", "0", "0"] ->
               # there is a @version but it's 0.0.0
-              raise "invalid @version"
+              :error
 
             [major, minor, patch] ->
               {

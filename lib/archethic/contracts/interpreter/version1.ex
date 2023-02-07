@@ -1,12 +1,21 @@
 defmodule Archethic.Contracts.Interpreter.Version1 do
   @moduledoc false
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions, as: Conditions
 
   alias Archethic.TransactionChain.Transaction
 
-  @spec parse(code :: binary(), {integer(), integer(), integer()}) :: {:error, binary()}
-  def parse(code, {1, _, _}), do: parse_v1(code)
+  @doc """
+  Parse the code and return the parsed contract.
+  """
+  @spec parse(binary(), {integer(), integer(), integer()}) ::
+          {:ok, Contract.t()} | {:error, String.t()}
+  def parse(code, {1, 0, 0}) when is_binary(code) do
+    {:ok, %Contract{version: {1, 0, 0}}}
+  end
+
+  def parse(_, _), do: {:error, "@version not supported"}
 
   @doc """
   Return true if the given conditions are valid on the given constants
@@ -23,9 +32,5 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
   @spec execute_trigger(Macro.t(), map()) :: Transaction.t() | nil
   def execute_trigger(_ast, _constants) do
     nil
-  end
-
-  defp parse_v1(code) when is_binary(code) do
-    {:error, "not implemented"}
   end
 end
