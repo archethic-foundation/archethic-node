@@ -9,6 +9,8 @@ defmodule Archethic.Contracts.Interpreter do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions, as: Conditions
 
+  alias Archethic.TransactionChain.Transaction
+
   @type version() :: {integer(), integer(), integer()}
 
   @doc """
@@ -87,6 +89,19 @@ defmodule Archethic.Contracts.Interpreter do
 
   def valid_conditions?({1, _, _}, conditions, constants) do
     Version1.valid_conditions?(conditions, constants)
+  end
+
+  @doc """
+  Execute the trigger/action code.
+  May return a new transaction or nil
+  """
+  @spec execute_trigger(version(), Macro.t(), map()) :: Transaction.t() | nil
+  def execute_trigger({0, _, _}, ast, constants) do
+    Version0.execute_trigger(ast, constants)
+  end
+
+  def execute_trigger({1, _, _}, ast, constants) do
+    Version1.execute_trigger(ast, constants)
   end
 
   @doc """

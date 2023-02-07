@@ -7,8 +7,7 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConstants, as: Constants
-  alias Archethic.Contracts.Interpreter.Version0.ActionInterpreter
-  alias Archethic.Contracts.Interpreter.Version0.ConditionInterpreter
+  alias Archethic.Contracts.Interpreter
 
   alias Archethic.Crypto
 
@@ -80,6 +79,7 @@ defmodule Archethic.Contracts.Worker do
         {:execute, incoming_tx = %Transaction{}},
         state = %{
           contract: %Contract{
+            version: version,
             triggers: triggers,
             constants: %Constants{
               contract: contract_constants = %{"address" => contract_address}
@@ -102,15 +102,15 @@ defmodule Archethic.Contracts.Worker do
 
       contract_transaction = Constants.to_transaction(contract_constants)
 
-      with true <- ConditionInterpreter.valid_conditions?(transaction_condition, constants),
+      with true <- Interpreter.valid_conditions?(version, transaction_condition, constants),
            next_tx = %Transaction{} <-
-             ActionInterpreter.execute(Map.fetch!(triggers, :transaction), constants),
+             Interpreter.execute_trigger(version, Map.fetch!(triggers, :transaction), constants),
            {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction) do
         handle_new_transaction(next_tx)
         {:noreply, state}
       else
         nil ->
-          # returned by ActionInterpreter.execute when contract did not create a next tx
+          # returned by Interpreter.execute_trigger when contract did not create a next tx
           {:noreply, state}
 
         false ->
@@ -140,6 +140,7 @@ defmodule Archethic.Contracts.Worker do
         {:trigger, {:datetime, timestamp}},
         state = %{
           contract: %Contract{
+            version: version,
             triggers: triggers,
             constants: %Constants{contract: contract_constants = %{"address" => address}}
           }
@@ -156,7 +157,11 @@ defmodule Archethic.Contracts.Worker do
     contract_tx = Constants.to_transaction(contract_constants)
 
     with next_tx = %Transaction{} <-
-           ActionInterpreter.execute(Map.fetch!(triggers, {:datetime, timestamp}), constants),
+           Interpreter.execute_trigger(
+             version,
+             Map.fetch!(triggers, {:datetime, timestamp}),
+             constants
+           ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx) do
       handle_new_transaction(next_tx)
     end
@@ -168,6 +173,7 @@ defmodule Archethic.Contracts.Worker do
         {:trigger, {:interval, interval}},
         state = %{
           contract: %Contract{
+            version: version,
             triggers: triggers,
             constants: %Constants{
               contract: contract_constants = %{"address" => address}
@@ -190,7 +196,11 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- enough_funds?(address),
          next_tx = %Transaction{} <-
-           ActionInterpreter.execute(Map.fetch!(triggers, {:interval, interval}), constants),
+           Interpreter.execute_trigger(
+             version,
+             Map.fetch!(triggers, {:interval, interval}),
+             constants
+           ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
          :ok <- ensure_enough_funds(next_tx, address) do
       handle_new_transaction(next_tx)
@@ -203,6 +213,7 @@ defmodule Archethic.Contracts.Worker do
         {:new_transaction, tx_address, :oracle, _timestamp},
         state = %{
           contract: %Contract{
+            version: version,
             triggers: triggers,
             constants: %Constants{contract: contract_constants = %{"address" => address}},
             conditions: %{oracle: oracle_condition}
@@ -224,21 +235,21 @@ defmodule Archethic.Contracts.Worker do
 
       if Conditions.empty?(oracle_condition) do
         with next_tx = %Transaction{} <-
-               ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
+               Interpreter.execute_trigger(version, Map.fetch!(triggers, :oracle), constants),
              {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
              :ok <- ensure_enough_funds(next_tx, address) do
           handle_new_transaction(next_tx)
         end
       else
-        with true <- ConditionInterpreter.valid_conditions?(oracle_condition, constants),
+        with true <- Interpreter.valid_conditions?(version, oracle_condition, constants),
              next_tx = %Transaction{} <-
-               ActionInterpreter.execute(Map.fetch!(triggers, :oracle), constants),
+               Interpreter.execute_trigger(version, Map.fetch!(triggers, :oracle), constants),
              {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
              :ok <- ensure_enough_funds(next_tx, address) do
           handle_new_transaction(next_tx)
         else
           nil ->
-            # returned by ActionInterpreter.execute when contract did not create a next tx
+            # returned by Interpreter.execute_trigger when contract did not create a next tx
             :ok
 
           false ->

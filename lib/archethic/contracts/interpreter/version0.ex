@@ -10,6 +10,8 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter
 
+  alias Archethic.TransactionChain.Transaction
+
   @doc ~S"""
   Parse a smart contract code and return the filtered AST representation.
 
@@ -190,6 +192,15 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
   @spec valid_conditions?(Conditions.t(), map()) :: bool()
   def valid_conditions?(conditions, constants) do
     ConditionInterpreter.valid_conditions?(conditions, constants)
+  end
+
+  @doc """
+  Execute the trigger/action code.
+  May return a new transaction or nil
+  """
+  @spec execute_trigger(Macro.t(), map()) :: Transaction.t() | nil
+  def execute_trigger(ast, constants) do
+    ActionInterpreter.execute(ast, constants)
   end
 
   defp parse_contract({:__block__, _, ast}, contract) do
