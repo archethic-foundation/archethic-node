@@ -3,8 +3,40 @@ defmodule Archethic.Contracts.InterpreterTest do
   use ArchethicCase
 
   alias Archethic.Contracts.Interpreter
+  alias Archethic.ContractFactory
 
   doctest Interpreter
+
+  describe "strict versionning" do
+    test "should return ok if version exists" do
+      assert {:ok, _} = Interpreter.parse(ContractFactory.valid_version1_contract())
+      assert {:ok, _} = Interpreter.parse(ContractFactory.valid_version0_contract())
+    end
+
+    test "should return an error if version does not exist yet" do
+      code_v0 = ~s"""
+      @version "0.144.233"
+      #{ContractFactory.valid_version0_contract()}
+      """
+
+      code_v1 = ~s"""
+      @version "1.377.610"
+      #{ContractFactory.valid_version1_contract(version_attribute: false)}
+      """
+
+      assert {:error, "@version not supported"} = Interpreter.parse(code_v0)
+      assert {:error, "@version not supported"} = Interpreter.parse(code_v1)
+    end
+
+    test "should return an error if version is invalid" do
+      code_v0 = ~s"""
+      @version 12
+      #{ContractFactory.valid_version0_contract()}
+      """
+
+      assert {:error, "@version not supported"} = Interpreter.parse(code_v0)
+    end
+  end
 
   describe "version/1" do
     test "should return 0.0.1 if there is no interpreter tag" do
@@ -28,30 +60,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {{3, 105, 0}, _} = Interpreter.version(~s(\n   \n   @version "3.105.0" \n  \n))
     end
 
-    test "should raise if version is not formatted as expected" do
-      assert_raise RuntimeError, fn ->
-        Interpreter.version(~s(@version "0"))
-      end
-
-      assert_raise RuntimeError, fn ->
-        Interpreter.version(~s(@version "1"))
-      end
-
-      assert_raise RuntimeError, fn ->
-        Interpreter.version(~s(@version "0.0"))
-      end
-
-      assert_raise RuntimeError, fn ->
-        Interpreter.version(~s(@version "1.1"))
-      end
-
-      assert_raise RuntimeError, fn ->
-        Interpreter.version(~s(@version "0.0.0"))
-      end
-
-      assert_raise RuntimeError, fn ->
-        Interpreter.version(~s(@version 1.1.1))
-      end
+    test "should return error if version is not formatted as expected" do
+      assert :error = Interpreter.version(~s(@version "0"))
+      assert :error = Interpreter.version(~s(@version "1"))
+      assert :error = Interpreter.version(~s(@version "0.0"))
+      assert :error = Interpreter.version(~s(@version "1.1"))
+      assert :error = Interpreter.version(~s(@version "0.0.0"))
+      assert :error = Interpreter.version(~s(@version 1.1.1))
     end
   end
 end
