@@ -3,6 +3,10 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
 
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.Interpreter
+
+  alias __MODULE__.ActionInterpreter
+  alias __MODULE__.ConditionInterpreter
 
   alias Archethic.TransactionChain.Transaction
 
@@ -11,8 +15,19 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
   """
   @spec parse(Macro.t(), integer()) ::
           {:ok, Contract.t()} | {:error, String.t()}
-  def parse(_ast, version = 1) do
-    {:ok, %Contract{version: version}}
+  def parse(ast, version = 1) do
+    case parse_contract(ast, %Contract{}) do
+      {:ok, contract} ->
+        {:ok, %{contract | version: version}}
+
+      # error comes from actionInterpreter or conditionInterpreter
+      {:error, node, reason} ->
+        {:error, Interpreter.format_error_reason(node, reason)}
+
+      # error comes from this module
+      {:error, {:unexpected_term, node}} ->
+        {:error, Interpreter.format_error_reason(node, "unexpected term")}
+    end
   end
 
   def parse(_, _), do: {:error, "@version not supported"}
@@ -33,4 +48,46 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
   def execute_trigger(_ast, _constants) do
     nil
   end
+
+  defp parse_contract({:__block__, _, ast}, contract) do
+    parse_ast_block(ast, contract)
+  end
+
+  defp parse_contract(ast, contract) do
+    parse_ast(ast, contract)
+  end
+
+  defp parse_ast_block([ast | rest], contract) do
+    case parse_ast(ast, contract) do
+      {:ok, contract} ->
+        parse_ast_block(rest, contract)
+
+      {:error, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast_block([], contract), do: {:ok, contract}
+
+  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract) do
+    case ConditionInterpreter.parse(ast) do
+      {:ok, condition_type, condition} ->
+        {:ok, Contract.add_condition(contract, condition_type, condition)}
+
+      {:error, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract) do
+    case ActionInterpreter.parse(ast) do
+      {:ok, trigger_type, actions} ->
+        {:ok, Contract.add_trigger(contract, trigger_type, actions)}
+
+      {:error, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast, _), do: {:error, {:unexpected_term, ast}}
 end
