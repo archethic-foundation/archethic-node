@@ -25,9 +25,9 @@ defmodule Archethic.SelfRepair do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias Archethic.PubSub
-
   require Logger
+
+  @max_retry_count 10
 
   @doc """
   Start the self repair synchronization scheduler
@@ -50,11 +50,24 @@ defmodule Archethic.SelfRepair do
     # Before the first summary date, synchronization is useless
     # as no data have been aggregated
     if DateTime.diff(DateTime.utc_now(), summary_time) >= 0 do
-      try do
-        :ok = Sync.load_missed_transactions(date)
-      catch
-        _, _ ->
-          PubSub.notify_node_status(:node_down)
+      loaded_missed_transactions? =
+        :ok ==
+          0..@max_retry_count
+          |> Enum.reduce_while(:error, fn _, _ ->
+            try do
+              :ok = Sync.load_missed_transactions(date)
+              {:halt, :ok}
+            catch
+              _, _ -> {:cont, :error}
+            end
+          end)
+
+      if loaded_missed_transactions? do
+        Logger.info("Bootstrap Sync succeded in loading missed transactions !")
+      else
+        Logger.error(
+          "Bootstrap Sync failed to load missed transactions after max retry of #{@max_retry_count} !"
+        )
       end
 
       # At the end of self repair, if a new beacon summary as been created

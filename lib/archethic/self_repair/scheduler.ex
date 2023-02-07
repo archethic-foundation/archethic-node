@@ -20,6 +20,8 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   require Logger
 
+  @max_retry_count 10
+
   @doc """
   Start the scheduler process
 
@@ -80,9 +82,7 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   def handle_info(
         :sync,
-        state = %{
-          interval: interval
-        }
+        state
       ) do
     last_sync_date = Sync.last_sync_date()
 
@@ -97,28 +97,47 @@ defmodule Archethic.SelfRepair.Scheduler do
       Sync.load_missed_transactions(last_sync_date)
     end)
 
+    {:noreply, state, :hibernate}
+  end
+
+  def handle_info({ref, :ok}, state = %{interval: interval}) do
+    # If the node is still unavailable after self repair, we send the postpone the
+    # end of node sync message
     timer = schedule_sync(interval)
     Logger.info("Self-Repair will be started in #{Utils.remaining_seconds_from_timer(timer)}")
 
     new_state =
       state
       |> Map.put(:timer, timer)
+      |> Map.delete(:retry_count)
 
-    {:noreply, new_state, :hibernate}
-  end
+    if !Archethic.up?() do
+      :persistent_term.put(:archethic_up, :up)
+      PubSub.notify_node_status(:node_up)
+    end
 
-  def handle_info({ref, :ok}, state) do
-    # If the node is still unavailable after self repair, we send the postpone the
-    # end of node sync message
     if !P2P.available_node?(), do: BootstrapSync.publish_end_of_sync()
     Process.demonitor(ref, [:flush])
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   def handle_info({:DOWN, _ref, _, _, reason}, state) do
     Logger.error("Failed to completed self-repair cycle: #{inspect(reason)}")
-    PubSub.notify_node_status(:node_down)
-    {:noreply, state}
+
+    if Archethic.up?() do
+      :persistent_term.put(:archethic_up, :down)
+      PubSub.notify_node_status(:node_down)
+    end
+
+    new_state = Map.update(state, :retry_count, 1, &(&1 + 1))
+
+    if new_state.retry_count > @max_retry_count do
+      schedule_sync(new_state.interval)
+    else
+      send(self(), :sync)
+    end
+
+    {:noreply, new_state}
   end
 
   def handle_info(_, state) do
