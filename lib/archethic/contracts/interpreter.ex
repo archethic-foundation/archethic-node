@@ -7,6 +7,9 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.Version1
 
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractConditions, as: Conditions
+
+  @type version() :: {integer(), integer(), integer()}
 
   @doc """
   Dispatch through the correct interpreter.
@@ -39,7 +42,7 @@ defmodule Archethic.Contracts.Interpreter do
   Return the version & the code where the version has been removed.
   (should be private, but there are unit tests)
   """
-  @spec version(String.t()) :: {{integer(), integer(), integer()}, String.t()}
+  @spec version(String.t()) :: {version(), String.t()}
   def version(code) do
     regex_opts = [capture: :all_but_first]
 
@@ -72,6 +75,18 @@ defmodule Archethic.Contracts.Interpreter do
       # no @version at all
       {{0, 0, 1}, code}
     end
+  end
+
+  @doc """
+  Return true if the given conditions are valid on the given constants
+  """
+  @spec valid_conditions?(version(), Conditions.t(), map()) :: bool()
+  def valid_conditions?({0, _, _}, conditions, constants) do
+    Version0.valid_conditions?(conditions, constants)
+  end
+
+  def valid_conditions?({1, _, _}, conditions, constants) do
+    Version1.valid_conditions?(conditions, constants)
   end
 
   @doc """
