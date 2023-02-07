@@ -218,6 +218,9 @@ defmodule Archethic.Utils.Regression.Playbook do
             {:error, :timeout}
         end
 
+      {:ok, %{"status" => "invalid", "errors" => errors}} ->
+        {:error, errors}
+
       {:error, reason} ->
         Logger.error(
           "Transaction #{Base.encode16(tx.address)} submission fails - #{inspect(reason)}"
