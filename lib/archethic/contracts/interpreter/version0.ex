@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
   alias __MODULE__.ConditionInterpreter
 
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter
 
   @doc ~S"""
@@ -167,7 +168,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
   def parse(code) when is_binary(code) do
     with {:ok, ast} <- Interpreter.sanitize_code(code),
          {:ok, contract} <- parse_contract(ast, %Contract{}) do
-      {:ok, contract}
+      {:ok, %{contract | version: {0, 0, 1}}}
     else
       {:error, {meta, {_, info}, token}} ->
         {:error, Interpreter.format_error_reason({token, meta, []}, info)}
@@ -181,6 +182,14 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  @doc """
+  Return true if the given conditions are valid on the given constants
+  """
+  @spec valid_conditions?(Conditions.t(), map()) :: bool()
+  def valid_conditions?(conditions, constants) do
+    ConditionInterpreter.valid_conditions?(conditions, constants)
   end
 
   defp parse_contract({:__block__, _, ast}, contract) do
