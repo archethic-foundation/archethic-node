@@ -56,4 +56,8 @@ release :archethic_node do
     :observer_cli,
     archethic: :permanent
   ]
+
+  set appup_transforms: [
+    {Archethic.Release.TransformPurge, []}
+  ]
 end
