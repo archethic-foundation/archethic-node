@@ -7,7 +7,6 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract
   alias __MODULE__.ContractConditions, as: Conditions
   alias __MODULE__.ContractConstants, as: Constants
-  alias __MODULE__.Interpreter.Version0.ConditionInterpreter
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
@@ -147,6 +146,7 @@ defmodule Archethic.Contracts do
       ) do
     {:ok,
      %Contract{
+       version: version,
        triggers: triggers,
        conditions: %{inherit: inherit_conditions}
      }} = Interpreter.parse(code)
@@ -156,7 +156,7 @@ defmodule Archethic.Contracts do
       "next" => Constants.from_transaction(next_tx)
     }
 
-    with :ok <- validate_conditions(inherit_conditions, constants),
+    with :ok <- validate_conditions(version, inherit_conditions, constants),
          :ok <- validate_triggers(triggers, next_tx, date) do
       true
     else
@@ -165,8 +165,8 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_conditions(inherit_conditions, constants) do
-    if ConditionInterpreter.valid_conditions?(inherit_conditions, constants) do
+  defp validate_conditions(version, inherit_conditions, constants) do
+    if Interpreter.valid_conditions?(version, inherit_conditions, constants) do
       :ok
     else
       Logger.error("Inherit constraints not respected")
