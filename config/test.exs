@@ -148,8 +148,11 @@ config :archethic, Archethic.TransactionChain.MemTables.PendingLedger, enabled: 
 config :archethic, Archethic.TransactionChain.MemTables.KOLedger, enabled: false
 config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
 
-config :archethic, ArchethicWeb.FaucetController, test_enabled: true
 config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 1_000
+
+config :archethic, ArchethicWeb.FaucetController, enabled: true
+config :archethic, ArchethicWeb.FaucetRateLimiter, enabled: false
+config :archethic, ArchethicWeb.TransactionSubscriber, enabled: false
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

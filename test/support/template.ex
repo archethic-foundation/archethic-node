@@ -2,30 +2,16 @@ defmodule ArchethicCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
-  alias Archethic.Account.MemTables.TokenLedger
-  alias Archethic.Account.MemTables.UCOLedger
+  alias ArchethicWeb.API.Schema.UCOLedger
+  alias ArchethicWeb.TransactionSubscriber
 
-  alias Archethic.Crypto
-  alias Archethic.Crypto.ECDSA
-
-  alias Archethic.Election.Constraints
-
+  alias Archethic.Account.MemTables.{TokenLedger, UCOLedger}
+  alias Archethic.{Crypto, Crypto.ECDSA, Election.Constraints, Mining, Utils}
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
-
   alias Archethic.OracleChain.MemTable, as: OracleMemTable
-
   alias Archethic.P2P.MemTable, as: P2PMemTable
-
-  alias Archethic.Mining
-
-  alias Archethic.SharedSecrets.MemTables.NetworkLookup
-  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.MemTables.KOLedger
-  alias Archethic.TransactionChain.MemTables.PendingLedger
-
-  alias Archethic.Utils
+  alias Archethic.SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
+  alias Archethic.TransactionChain.{Transaction, MemTables.KOLedger, MemTables.PendingLedger}
 
   import Mox
 
@@ -202,6 +188,8 @@ defmodule ArchethicCase do
     start_supervised!(PoolsMemTable)
     start_supervised!(NetworkLookup)
     start_supervised!(OracleMemTable)
+    start_supervised!(TransactionSubscriber)
+
     :ok
   end
 end

@@ -125,6 +125,7 @@ config :archethic, Archethic.P2P.Listener,
   port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
 
 config :archethic, ArchethicWeb.FaucetController, enabled: true
+config :archethic, ArchethicWeb.FaucetRateLimiter, enabled: true
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
