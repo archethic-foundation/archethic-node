@@ -40,11 +40,9 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
       true
     else
       Enum.any?(mvt_addresses, fn address ->
-        io_storage_nodes = Election.chain_storage_nodes(address, node_list)
-        node_pool_address = Crypto.hash(Crypto.last_node_public_key())
-
-        Utils.key_in_node_list?(io_storage_nodes, Crypto.first_node_public_key()) or
-          address == node_pool_address
+        address
+        |> Election.chain_storage_nodes(node_list)
+        |> Utils.key_in_node_list?(Crypto.first_node_public_key())
       end)
     end
   end
