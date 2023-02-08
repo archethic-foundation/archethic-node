@@ -92,7 +92,8 @@ defmodule Archethic.Utils.Regression.Playbook do
         transaction_data = %TransactionData{},
         host,
         port,
-        curve \\ Crypto.default_curve()
+        curve \\ Crypto.default_curve(),
+        proto \\ :http
       ) do
     chain_length = get_chain_size(transaction_seed, curve, host, port)
 
@@ -123,7 +124,8 @@ defmodule Archethic.Utils.Regression.Playbook do
     case WebClient.with_connection(
            host,
            port,
-           &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
+           &WebClient.json(&1, "/api/transaction", tx_to_json(tx)),
+           proto
          ) do
       {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
@@ -133,7 +135,7 @@ defmodule Archethic.Utils.Regression.Playbook do
     end
   end
 
-  defp get_origin_private_key(host, port) do
+  defp get_origin_private_key(host, port, proto \\ :http) do
     body = %{
       "origin_public_key" => Base.encode16(@genesis_origin_public_key)
     }
@@ -141,7 +143,8 @@ defmodule Archethic.Utils.Regression.Playbook do
     case WebClient.with_connection(
            host,
            port,
-           &WebClient.json(&1, "/api/origin_key", body)
+           &WebClient.json(&1, "/api/origin_key", body),
+           proto
          ) do
       {:ok,
        %{
@@ -166,7 +169,8 @@ defmodule Archethic.Utils.Regression.Playbook do
         transaction_data = %TransactionData{},
         host,
         port,
-        curve \\ Crypto.default_curve()
+        curve \\ Crypto.default_curve(),
+        proto \\ :http
       ) do
     chain_length = get_chain_size(transaction_seed, curve, host, port)
 
@@ -199,7 +203,8 @@ defmodule Archethic.Utils.Regression.Playbook do
     case WebClient.with_connection(
            host,
            port,
-           &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
+           &WebClient.json(&1, "/api/transaction", tx_to_json(tx)),
+           proto
          ) do
       {:ok, %{"status" => "pending"}} ->
         case Task.yield(replication_attestation, 5_000) || Task.shutdown(replication_attestation) do
@@ -218,10 +223,15 @@ defmodule Archethic.Utils.Regression.Playbook do
             {:error, :timeout}
         end
 
+      {:ok, %{"status" => "invalid", "errors" => errors}} ->
+        {:error, errors}
+
       {:error, reason} ->
         Logger.error(
           "Transaction #{Base.encode16(tx.address)} submission fails - #{inspect(reason)}"
         )
+
+        {:error, reason}
     end
   end
 
@@ -339,7 +349,7 @@ defmodule Archethic.Utils.Regression.Playbook do
     }
   end
 
-  def get_chain_size(seed, curve, host, port) do
+  def get_chain_size(seed, curve, host, port, proto \\ :http) do
     genesis_address =
       seed
       |> Crypto.derive_keypair(0, curve)
@@ -349,7 +359,7 @@ defmodule Archethic.Utils.Regression.Playbook do
     query =
       ~s|query {last_transaction(address: "#{Base.encode16(genesis_address)}"){ chainLength }}|
 
-    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query), proto) do
       {:ok, %{"errors" => [%{"message" => "transaction_not_exists"}]}} ->
         0
 
@@ -357,14 +367,14 @@ defmodule Archethic.Utils.Regression.Playbook do
         chain_length
 
       {:error, error_info} ->
-        raise "chain size failed #{error_info}"
+        raise "chain size failed #{inspect(error_info)}"
     end
   end
 
-  def get_uco_balance(address, host, port) do
+  def get_uco_balance(address, host, port, proto \\ :http) do
     query = ~s|query {lastTransaction(address: "#{Base.encode16(address)}"){ balance { uco }}}|
 
-    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query), proto) do
       {:ok, %{"data" => %{"lastTransaction" => %{"balance" => %{"uco" => uco}}}}} ->
         uco
 
@@ -378,16 +388,16 @@ defmodule Archethic.Utils.Regression.Playbook do
                "uco" => uco
              }
            }
-         }} = WebClient.with_connection(host, port, &WebClient.query(&1, balance_query))
+         }} = WebClient.with_connection(host, port, &WebClient.query(&1, balance_query), proto)
 
         uco
     end
   end
 
-  def storage_nonce_public_key(host, port) do
+  def storage_nonce_public_key(host, port, proto \\ :http) do
     query = ~s|query {sharedSecrets { storageNoncePublicKey}}|
 
-    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query), proto) do
       {:ok,
        %{
          "data" => %{
