@@ -332,14 +332,17 @@ defmodule Archethic.Bootstrap.SyncTest do
     end
   end
 
-  test "load_node_list/1 should request node list from the closest nodes" do
+  test "load_node_list/0 should request node list from the closest nodes" do
     node = %Node{
       ip: {80, 10, 101, 202},
       port: 4390,
       http_port: 4000,
       first_public_key: "key1",
       last_public_key: "key1",
-      availability_history: <<1::1>>
+      availability_history: <<1::1>>,
+      authorized?: true,
+      available?: true,
+      authorization_date: DateTime.utc_now()
     }
 
     :ok = P2P.add_and_connect_node(node)
@@ -361,7 +364,7 @@ defmodule Archethic.Bootstrap.SyncTest do
          }}
     end)
 
-    assert :ok = Sync.load_node_list([node])
+    assert :ok = Sync.load_node_list()
 
     assert [
              node,
