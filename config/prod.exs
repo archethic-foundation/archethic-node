@@ -228,6 +228,9 @@ config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 10_000
 config :archethic, ArchethicWeb.FaucetController,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
 
+config :archethic, ArchethicWeb.FaucetRateLimiter,
+  enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
+
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information
 # when generating URLs.

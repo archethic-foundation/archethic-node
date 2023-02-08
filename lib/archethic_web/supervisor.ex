@@ -5,11 +5,15 @@ defmodule ArchethicWeb.Supervisor do
 
   alias Archethic.Utils
 
-  alias ArchethicCache.LRU
-  alias ArchethicCache.LRUDisk
-  alias ArchethicWeb.Endpoint
-  alias ArchethicWeb.{FaucetRateLimiter, TransactionSubscriber, TransactionCache}
-  alias ArchethicWeb.ExplorerLive.TopTransactionsCache
+  alias ArchethicCache.{LRU, LRUDisk}
+
+  alias ArchethicWeb.{
+    Endpoint,
+    TransactionCache,
+    FaucetRateLimiter,
+    TransactionSubscriber,
+    ExplorerLive.TopTransactionsCache
+  }
 
   require Logger
 
@@ -17,33 +21,25 @@ defmodule ArchethicWeb.Supervisor do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @spec init(any) :: {:ok, {Supervisor.sup_flags(), list(Supervisor.child_spec())}}
   def init(_) do
     children =
       [
+        web_hosting_cache_ref_tx(),
+        web_hosting_cache_file(),
+        FaucetRateLimiter,
         TransactionCache,
         TopTransactionsCache,
-        {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
-        Endpoint,
-        {Absinthe.Subscription, Endpoint},
         TransactionSubscriber,
+        {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
         {PlugAttack.Storage.Ets, name: ArchethicWeb.PlugAttack.Storage, clean_period: 60_000},
-        web_hosting_cache_ref_tx(),
-        web_hosting_cache_file()
+        Endpoint,
+        {Absinthe.Subscription, Endpoint}
       ]
-      |> add_faucet_rate_limit_child()
+      |> Utils.configurable_children()
 
     opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
-  end
-
-  defp add_faucet_rate_limit_child(children) do
-    faucet_config = Application.get_env(:archethic, ArchethicWeb.FaucetController, [])
-
-    if faucet_config[:enabled] do
-      children ++ [FaucetRateLimiter]
-    else
-      children
-    end
   end
 
   # this is used in web_hosting_controller.ex
