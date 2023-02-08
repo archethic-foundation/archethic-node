@@ -133,19 +133,23 @@ defmodule Archethic.Bootstrap.Sync do
   @doc """
   Fetch and load the nodes list
   """
-  @spec load_node_list(list(Node.t())) :: :ok | {:error, :network_issue}
-  def load_node_list([node | rest]) do
-    case P2P.send_message(node, %ListNodes{}) do
+  @spec load_node_list() :: :ok | {:error, :network_issue}
+  def load_node_list() do
+    current_nodes = P2P.authorized_and_available_nodes()
+
+    conflict_resolver = fn results ->
+      Enum.max_by(results, fn %NodeList{nodes: nodes} -> length(nodes) end)
+    end
+
+    case P2P.quorum_read(current_nodes, %ListNodes{}, conflict_resolver) do
       {:ok, %NodeList{nodes: nodes}} ->
         Enum.each(nodes, &P2P.add_and_connect_node/1)
         Logger.info("Node list refreshed")
 
-      {:error, _} ->
-        load_node_list(rest)
+      error ->
+        error
     end
   end
-
-  def load_node_list([]), do: {:error, :network_issue}
 
   @doc """
   Fetch and load the storage nonce
