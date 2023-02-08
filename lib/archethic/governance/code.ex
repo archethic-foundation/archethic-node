@@ -67,13 +67,68 @@ defmodule Archethic.Governance.Code do
   - Git diff/patch must be valid.
   """
   @spec valid_proposal?(Proposal.t()) :: boolean()
-  def valid_proposal?(prop = %Proposal{version: version}) do
-    with true <- succeessor_version?(current_version(), version),
+  def valid_proposal?(prop = %Proposal{version: version, changes: changes}) do
+    current_version = current_version()
+
+    with true <- successor_version?(current_version, version),
+         true <- valid_appup?(changes, version, current_version),
          true <- applicable_proposal?(prop) do
       true
     else
       _ ->
         false
+    end
+  end
+
+  @doc """
+    Ensure the code proposal contains a valid appup file
+  """
+  @spec valid_appup?(binary(), binary(), binary()) :: boolean()
+  def valid_appup?(changes, version, current_version) do
+    with {:ok, patches} <- GitDiff.parse_patch(changes),
+         %GitDiff.Patch{chunks: chunks} <-
+           Enum.find(
+             patches,
+             &(String.starts_with?(&1.to, "rel/appups/archethic") and
+                 String.ends_with?(&1.to, ".appup"))
+           ),
+         %GitDiff.Chunk{lines: lines} <- Enum.at(chunks, 0),
+         code_txt <-
+           Enum.reduce(lines, "", fn
+             %GitDiff.Line{type: :add, text: "+" <> text}, acc ->
+               acc <> text
+
+             _, acc ->
+               acc
+           end),
+         {:ok, {version_char, instructions}} = eval_str(code_txt <> "\n"),
+         true <- version == to_string(version_char),
+         current_version_char <-
+           Enum.map(instructions, &elem(&1, 0))
+           |> Enum.uniq(),
+         true <- current_version == to_string(current_version_char),
+         :ok <-
+           instructions
+           |> Enum.map(&elem(&1, 1))
+           |> List.flatten()
+           |> Distillery.Releases.Appup.Utils.validate_instructions() do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  # working around a bug in typespecs for :erl_eval.eval_str
+  @spec eval_str(binary()) :: any
+  def eval_str(str) do
+    bin = :erlang.binary_to_list(str)
+
+    with {:done, {:ok, token, _}, []} <- :erl_scan.tokens([], bin, 0),
+         {:ok, expr} <- :erl_parse.parse_exprs(token),
+         {:value, val, _} <- :erl_eval.exprs(expr, :erl_eval.new_bindings()) do
+      {:ok, val}
+    else
+      _ -> :error
     end
   end
 
@@ -138,49 +193,49 @@ defmodule Archethic.Governance.Code do
 
   ## Examples
 
-    iex> Code.succeessor_version?("1.1.1", "1.1.2")
+    iex> Code.successor_version?("1.1.1", "1.1.2")
     true
 
-    iex> Code.succeessor_version?("1.1.1", "1.2.0")
+    iex> Code.successor_version?("1.1.1", "1.2.0")
     true
 
-    iex> Code.succeessor_version?("1.1.1", "2.0.0")
+    iex> Code.successor_version?("1.1.1", "2.0.0")
     true
 
-    iex> Code.succeessor_version?("1.1.1", "1.2.2")
+    iex> Code.successor_version?("1.1.1", "1.2.2")
     false
 
-    iex> Code.succeessor_version?("1.1.1", "1.2.1")
+    iex> Code.successor_version?("1.1.1", "1.2.1")
     false
 
-    iex> Code.succeessor_version?("1.1.1", "1.1.2-pre0")
+    iex> Code.successor_version?("1.1.1", "1.1.2-pre0")
     false
   """
-  @spec succeessor_version?(binary | Version.t(), binary | Version.t()) :: boolean
-  def succeessor_version?(version1, version2)
+  @spec successor_version?(binary | Version.t(), binary | Version.t()) :: boolean
+  def successor_version?(version1, version2)
       when is_binary(version1) and is_binary(version2) do
-    succeessor_version?(Version.parse!(version1), Version.parse!(version2))
+    successor_version?(Version.parse!(version1), Version.parse!(version2))
   end
 
-  def succeessor_version?(
+  def successor_version?(
         %Version{major: ma, minor: mi, patch: pa1, pre: [], build: nil},
         %Version{major: ma, minor: mi, patch: pa2, pre: [], build: nil}
       ),
       do: pa1 + 1 == pa2
 
-  def succeessor_version?(
+  def successor_version?(
         %Version{major: ma, minor: mi1, patch: _, pre: [], build: nil},
         %Version{major: ma, minor: mi2, patch: 0, pre: [], build: nil}
       ),
       do: mi1 + 1 == mi2
 
-  def succeessor_version?(
+  def successor_version?(
         %Version{major: ma1, minor: _, patch: _, pre: [], build: nil},
         %Version{major: ma2, minor: 0, patch: 0, pre: [], build: nil}
       ),
       do: ma1 + 1 == ma2
 
-  def succeessor_version?(%Version{}, %Version{}), do: false
+  def successor_version?(%Version{}, %Version{}), do: false
 
   defp current_version do
     :archethic |> Application.spec(:vsn) |> List.to_string()

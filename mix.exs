@@ -120,7 +120,8 @@ defmodule Archethic.MixProject do
       {:castore, "~> 1.0", override: true},
       {:floki, "~> 0.33"},
       {:ex_cldr, "~> 2.7"},
-      {:ex_cldr_numbers, "~> 2.29"}
+      {:ex_cldr_numbers, "~> 2.29"},
+      {:git_diff, "~> 0.6.4"}
     ]
   end
 
