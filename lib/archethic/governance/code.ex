@@ -101,7 +101,7 @@ defmodule Archethic.Governance.Code do
              _, acc ->
                acc
            end),
-         {:ok, {version_char, instructions}} = eval_str(code_txt <> "\n"),
+         {:ok, {version_char, instructions}} <- eval_str(code_txt <> "\n"),
          true <- version == to_string(version_char),
          current_version_char <-
            Enum.map(instructions, &elem(&1, 0))
@@ -119,8 +119,7 @@ defmodule Archethic.Governance.Code do
   end
 
   # working around a bug in typespecs for :erl_eval.eval_str
-  @spec eval_str(binary()) :: any
-  def eval_str(str) do
+  defp eval_str(str) do
     bin = :erlang.binary_to_list(str)
 
     with {:done, {:ok, token, _}, []} <- :erl_scan.tokens([], bin, 0),
