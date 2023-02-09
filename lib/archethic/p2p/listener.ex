@@ -58,7 +58,7 @@ defmodule Archethic.P2P.Listener do
     listener_pid = state[:listener_pid]
 
     if listener_pid do
-      :ranch.stop_listener(listener_pid)
+      :ranch.stop_listener(:archethic_p2p)
     end
 
     {:noreply, %{transport: state.transport, port: state.port}, :hibernate}
