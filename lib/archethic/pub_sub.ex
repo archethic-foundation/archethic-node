@@ -107,8 +107,7 @@ defmodule Archethic.PubSub do
   Notify Node status (up or down)
   """
   @spec notify_node_status(:node_up | :node_down) :: :ok
-  def notify_node_status(:node_up), do: dispatch(:node_status, :node_up)
-  def notify_node_status(:node_down), do: dispatch(:node_status, :node_down)
+  def notify_node_status(status), do: dispatch(:node_status, status)
 
   @spec register_to_node_status :: {:error, {:already_registered, pid}} | {:ok, pid}
   @doc """

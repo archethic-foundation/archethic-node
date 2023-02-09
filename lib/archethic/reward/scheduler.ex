@@ -75,17 +75,15 @@ defmodule Archethic.Reward.Scheduler do
     {:keep_state, new_state_data, events}
   end
 
-  def handle_event(:info, :node_down, _, state_data) do
+  def handle_event(:info, :node_down, _, %{interval: interval, timer: timer}) do
     # Node is down stop Scheduler
-    case Map.get(state_data, :timer) do
-      nil ->
-        state_data
+    Process.cancel_timer(timer)
+    {:next_state, :idle, %{interval: interval}}
+  end
 
-      timer ->
-        Process.cancel_timer(timer)
-    end
-
-    {:next_state, :idle, %{interval: state_data.interval}}
+  def handle_event(:info, :node_down, _, %{interval: interval}) do
+    # Node is down stop Scheduler
+    {:next_state, :idle, %{interval: interval}}
   end
 
   def handle_event(
@@ -391,6 +389,8 @@ defmodule Archethic.Reward.Scheduler do
         {:noreply, Map.put(data, :interval, new_interval)}
     end
   end
+
+  def handle_event(:info, _, :idle, _state), do: :keep_state_and_data
 
   defp mint_node_rewards(index) do
     case DB.get_latest_burned_fees() do

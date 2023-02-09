@@ -111,18 +111,15 @@ defmodule Archethic.BeaconChain.SlotTimer do
     {:noreply, new_state, :hibernate}
   end
 
-  def handle_info(:node_down, state) do
+  def handle_info(:node_down, %{interval: interval, timer: timer}) do
     Logger.info("Slot Timer: Stopping...")
+    Process.cancel_timer(timer)
+    {:noreply, %{interval: interval}, :hibernate}
+  end
 
-    case Map.get(state, :timer) do
-      nil ->
-        :ok
-
-      timer ->
-        Process.cancel_timer(timer)
-    end
-
-    {:noreply, %{interval: state[:interval]}, :hibernate}
+  def handle_info(:node_down, %{interval: interval}) do
+    Logger.info("Slot Timer: Stopping...")
+    {:noreply, %{interval: interval}, :hibernate}
   end
 
   def handle_info(

@@ -148,7 +148,8 @@ defmodule Archethic.SelfRepair.Sync do
     |> BeaconChain.next_summary_dates()
     # Take only the previous summaries before the last one
     |> Stream.take_while(fn date ->
-      DateTime.compare(date, last_summary_time) == :lt
+      DateTime.compare(date, last_summary_time) ==
+        :lt
     end)
     # Fetch the beacon summaries aggregate
     |> Task.async_stream(fn date ->

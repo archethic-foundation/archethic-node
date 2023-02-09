@@ -72,13 +72,13 @@ defmodule Archethic.SelfRepair do
 
       # At the end of self repair, if a new beacon summary as been created
       # we run bootstrap_sync again until the last beacon summary is loaded
-      start_date = DateTime.utc_now()
+      last_sync_date = last_sync_date()
 
       case DateTime.utc_now()
            |> BeaconChain.previous_summary_time()
-           |> DateTime.compare(start_date) do
+           |> DateTime.compare(last_sync_date) do
         :gt ->
-          bootstrap_sync(start_date)
+          bootstrap_sync(last_sync_date)
 
         _ ->
           :ok

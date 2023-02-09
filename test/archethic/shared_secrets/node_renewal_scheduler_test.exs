@@ -173,6 +173,16 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
 
       assert {:ok, pid} = Scheduler.start_link([interval: "*/4 * * * * *"], [])
 
+      assert {:idle, %{interval: "*/4 * * * * *"}} = :sys.get_state(pid)
+
+      send(pid, :node_up)
+
+      assert {:scheduled,
+              %{
+                interval: "*/4 * * * * *",
+                index: _
+              }} = :sys.get_state(pid)
+
       send(pid, :node_down)
 
       refute match?({:scheduled, _}, :sys.get_state(pid))

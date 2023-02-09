@@ -54,13 +54,17 @@ defmodule Archethic.P2P.Listener do
     end
   end
 
+  def handle_info(:node_down, %{
+        transport: transport,
+        port: port,
+        listener_pid: _
+      }) do
+    :ranch.stop_listener(:archethic_p2p)
+
+    {:noreply, %{transport: transport, port: port}, :hibernate}
+  end
+
   def handle_info(:node_down, state) do
-    listener_pid = state[:listener_pid]
-
-    if listener_pid do
-      :ranch.stop_listener(:archethic_p2p)
-    end
-
-    {:noreply, %{transport: state.transport, port: state.port}, :hibernate}
+    {:noreply, state, :hibernate}
   end
 end

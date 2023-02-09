@@ -3,7 +3,8 @@ File.rm_rf!(Archethic.Utils.mut_dir())
 ExUnit.start(
   exclude: [:infrastructure, :CI, :CD, :oracle_provider, :benchmark, :ratelimit],
   timeout: :infinity,
-  max_failures: 1
+  max_failures: 1,
+  capture_log: true
 )
 
 Mox.defmock(MockClient, for: Archethic.P2P.Client)

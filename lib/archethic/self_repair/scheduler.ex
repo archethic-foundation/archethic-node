@@ -121,7 +121,7 @@ defmodule Archethic.SelfRepair.Scheduler do
     {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, _, _, reason}, state) do
+  def handle_info({:DOWN, _ref, _, _, reason}, state = %{interval: interval}) do
     Logger.error("Failed to completed self-repair cycle: #{inspect(reason)}")
 
     if Archethic.up?() do
@@ -131,11 +131,17 @@ defmodule Archethic.SelfRepair.Scheduler do
 
     new_state = Map.update(state, :retry_count, 1, &(&1 + 1))
 
-    if new_state.retry_count > @max_retry_count do
-      schedule_sync(new_state.interval)
-    else
-      send(self(), :sync)
-    end
+    new_state =
+      if new_state.retry_count > @max_retry_count do
+        timer = schedule_sync(interval)
+
+        new_state
+        |> Map.delete(:retry_count)
+        |> Map.put(:timer, timer)
+      else
+        send(self(), :sync)
+        new_state
+      end
 
     {:noreply, new_state}
   end

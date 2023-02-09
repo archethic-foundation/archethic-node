@@ -171,6 +171,15 @@ defmodule Archethic.Reward.SchedulerTest do
       {:ok, pid} = Scheduler.start_link([interval: "*/3 * * * * *"], [])
 
       assert {:idle, %{interval: "*/3 * * * * *"}} = :sys.get_state(pid)
+      send(pid, :node_up)
+
+      assert {:scheduled,
+              %{
+                interval: "*/3 * * * * *",
+                index: _,
+                next_address: _
+              }} = :sys.get_state(pid)
+
       send(pid, :node_down)
 
       assert {:idle,

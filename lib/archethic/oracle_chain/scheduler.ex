@@ -163,19 +163,28 @@ defmodule Archethic.OracleChain.Scheduler do
     {:keep_state, new_state_data, events}
   end
 
-  def handle_event(:info, :node_down, _, state_data) do
-    case Map.get(state_data, :polling_timer) do
-      nil ->
-        :ok
-
-      timer ->
-        Process.cancel_timer(timer)
-    end
+  def handle_event(:info, :node_down, _, %{
+        polling_interval: polling_interval,
+        summary_interval: summary_interval,
+        polling_timer: polling_timer
+      }) do
+    Process.cancel_timer(polling_timer)
 
     {:next_state, :idle,
      %{
-       polling_interval: state_data.polling_interval,
-       summary_interval: state_data.summary_interval
+       polling_interval: polling_interval,
+       summary_interval: summary_interval
+     }}
+  end
+
+  def handle_event(:info, :node_down, _, %{
+        polling_interval: polling_interval,
+        summary_interval: summary_interval
+      }) do
+    {:next_state, :idle,
+     %{
+       polling_interval: polling_interval,
+       summary_interval: summary_interval
      }}
   end
 

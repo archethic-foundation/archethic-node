@@ -8,8 +8,11 @@ defmodule Archethic.SelfRepair.SchedulerTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
+
+  alias Archethic.BeaconChain.SummaryAggregate
 
   alias Archethic.SelfRepair.Scheduler
   alias Archethic.SelfRepair.Sync
@@ -46,6 +49,41 @@ defmodule Archethic.SelfRepair.SchedulerTest do
     :erlang.trace(pid, true, [:receive])
 
     assert_receive {:trace, ^pid, :receive, :sync}, 4_000
+    Process.cancel_timer(timer)
+  end
+
+  test "start_scheduler/1 should restart and send node_down if sync failed" do
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-2, :day),
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now() |> DateTime.add(-2, :day)
+    })
+
+    MockClient
+    |> expect(:send_message, fn _, %GetBeaconSummariesAggregate{}, _ ->
+      {:error, :network_issue}
+    end)
+    |> expect(:send_message, fn _, %GetBeaconSummariesAggregate{}, _ ->
+      {:ok, %SummaryAggregate{summary_time: DateTime.utc_now(), availability_adding_time: 1}}
+    end)
+
+    {:ok, pid} = Scheduler.start_link([interval: "* * * * * * *"], [])
+    assert :ok = Scheduler.start_scheduler(pid)
+    %{timer: timer} = :sys.get_state(pid)
+
+    :erlang.trace(pid, true, [:receive])
+
+    :persistent_term.put(:archethic_up, :up)
+    Archethic.PubSub.register_to_node_status()
+
+    assert_receive {:trace, ^pid, :receive, :sync}, 1_500
+    assert_receive :node_down, 1_500
+    assert_receive :node_up, 1_500
     Process.cancel_timer(timer)
   end
 
