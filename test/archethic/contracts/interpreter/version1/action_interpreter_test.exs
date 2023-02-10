@@ -9,6 +9,9 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
 
   doctest ActionInterpreter
 
+  # ----------------------------------------------
+  # parse/1
+  # ----------------------------------------------
   describe "parse/1" do
     test "should not be able to parse when there is a non-whitelisted module" do
       code = ~S"""
@@ -28,6 +31,21 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       code = ~S"""
       actions triggered_by: transaction do
         Contract.set_content "hello"
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to have comments" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        # this is a comment
+        "hello contract"
       end
       """
 
@@ -148,13 +166,58 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> elem(1)
                |> ActionInterpreter.parse()
     end
+
+    test "should not be able to use wrong types in common functions" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [1,2,3]
+        List.take_element_at_index(1, numbers)
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should not be able to use wrong types in contract functions" do
+      # I guess this will change in the near future (or we have create a json function)
+      code = ~S"""
+      actions triggered_by: transaction do
+        Contract.set_content [1,2,3]
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
   end
+
+  # ----------------------------------------------
+  # execute/2
+  # ----------------------------------------------
 
   describe "execute/2" do
     test "should be able to call the Contract module" do
       code = ~S"""
       actions triggered_by: transaction do
         Contract.set_content "hello"
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to change the contract even if there are code after" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        Contract.set_content "hello"
+        some = "code"
       end
       """
 

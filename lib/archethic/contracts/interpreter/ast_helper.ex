@@ -32,14 +32,53 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   def is_keyword_list?(_), do: false
 
   @doc """
-  Return wether the given ast is a variable
+  Return wether the given ast is an integer
 
-    iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("hello")
-    iex> ASTHelper.is_variable?(ast)
+    iex> ast = quote do: 1
+    iex> ASTHelper.is_integer?(ast)
     true
   """
+  @spec is_integer?(Macro.t()) :: boolean()
+  def is_integer?(node), do: is_integer(node)
+
+  @doc """
+  Return wether the given ast is an binary
+
+    iex> ast = quote do: "hello"
+    iex> ASTHelper.is_binary?(ast)
+    true
+  """
+  @spec is_binary?(Macro.t()) :: boolean()
+  def is_binary?(node), do: is_binary(node)
+
+  @doc """
+  Return wether the given ast is an float
+
+    iex> ast= quote do: 1.0
+    iex> ASTHelper.is_float?(ast)
+    true
+  """
+  @spec is_float?(Macro.t()) :: boolean()
+  def is_float?(node), do: is_float(node)
+
+  @doc """
+  Return wether the given ast is a a list
+
+    iex> ast = quote do: [1, 2]
+    iex> ASTHelper.is_list?(ast)
+    true
+  """
+  @spec is_list?(Macro.t()) :: boolean()
+  def is_list?(node), do: is_list(node)
+
+  @doc """
+  Return wether the given ast is a variable.
+  Variable are transformed into {:get_in, _, _} in our prewalks
+
+  TODO: find a elegant way to test this.
+  """
   @spec is_variable?(Macro.t()) :: boolean()
-  def is_variable?({{:atom, _}, _, nil}), do: true
+  def is_variable?({:get_in, _, _}), do: true
   def is_variable?(_), do: false
 
   @doc """

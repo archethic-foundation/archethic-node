@@ -240,6 +240,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
 
     functionAtom = String.to_existing_atom(functionName)
 
+    # check the type of the args
+    unless absoluteModuleAtom.check_types(functionAtom, args) do
+      throw({:error, node, "invalid arguments for function Contract.#{functionName}"})
+    end
+
     new_node =
       quote do
         Process.put(

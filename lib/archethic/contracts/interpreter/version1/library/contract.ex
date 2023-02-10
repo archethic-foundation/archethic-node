@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Contract do
   # this alias is used to create the atom :Contract required for the AST manipulation
   alias __MODULE__.{}
 
+  alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
 
   @doc """
@@ -21,4 +22,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Contract do
   def set_content(tx = %Transaction{}, content) when is_float(content) do
     put_in(tx, [Access.key(:data), Access.key(:content)], Float.to_string(content))
   end
+
+  def check_types(:set_content, [first]) do
+    AST.is_binary?(first) || AST.is_integer?(first) || AST.is_float?(first) ||
+      AST.is_variable?(first)
+  end
+
+  def check_types(_, _), do: false
 end

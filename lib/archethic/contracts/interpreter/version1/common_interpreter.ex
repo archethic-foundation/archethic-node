@@ -131,6 +131,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
 
     functionAtom = String.to_existing_atom(functionName)
 
+    # check the type of the args
+    unless absoluteModuleAtom.check_types(functionAtom, args) do
+      throw({:error, node, "invalid arguments for function #{moduleName}.#{functionName}"})
+    end
+
     meta_with_alias = Keyword.put(meta, :alias, absoluteModuleAtom)
 
     new_node =
