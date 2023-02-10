@@ -32,6 +32,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:<=, _, _}, acc), do: {node, acc}
   def prewalk(node = {:|>, _, _}, acc), do: {node, acc}
   def prewalk(node = {:==, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:++, _, _}, acc), do: {node, acc}
 
   # blocks
   def prewalk(node = {:__block__, _, _}, acc), do: {node, acc}
@@ -39,6 +40,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = :do, acc), do: {node, acc}
 
   # primitives
+  # it is fine allowing atoms since the users can't create them (this avoid whitelisting functions/modules we use in the prewalk)
+  def prewalk(node, acc) when is_atom(node), do: {node, acc}
   def prewalk(node, acc) when is_boolean(node), do: {node, acc}
   def prewalk(node, acc) when is_number(node), do: {node, acc}
   def prewalk(node, acc) when is_binary(node), do: {node, acc}
@@ -47,8 +50,6 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node, acc) when is_list(node) do
     if AST.is_keyword_list?(node) do
       new_node = AST.keyword_to_map(node)
-      IO.inspect(node, label: "node")
-      IO.inspect(new_node, label: "new_node")
       {new_node, acc}
     else
       {node, acc}
@@ -58,38 +59,45 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   # pairs (used in maps)
   def prewalk(node = {key, _}, acc) when is_binary(key), do: {node, acc}
 
+  # maps (required because we create maps for each scope in the ActionInterpreter's prewalk)
+  def prewalk(node = {:%{}, _, _}, acc), do: {node, acc}
+
   # variables
   def prewalk(node = {{:atom, varName}, _, nil}, acc) when is_binary(varName), do: {node, acc}
   def prewalk(node = {:atom, varName}, acc) when is_binary(varName), do: {node, acc}
-
-  # dot access (x.y)
-  def prewalk(
-        _node = {{:., _, [{{:atom, mapName}, _, nil}, {:atom, keyName}]}, _, _},
-        acc
-      ) do
-    # shoud also work: get_in(scope, [unquote(mapName), unquote(keyName)])
-    new_node =
-      quote context: SmartContract do
-        get_in(get_in(scope, [unquote(mapName)]), [unquote(keyName)])
-      end
-
-    {new_node, acc}
-  end
 
   # module call
   def prewalk(node = {{:., _, [{:__aliases__, _, _}, _]}, _, _}, acc), do: {node, acc}
   def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
 
+  # whitelisted modules
   def prewalk(node = {:__aliases__, _, [atom: moduleName]}, acc)
       when moduleName in @modules_whitelisted,
       do: {node, acc}
 
-  # scope assignation (because assignations are done in the ActionInterpreter's prewalk)
-  def prewalk(node = {:scope, _, SmartContract}, acc), do: {node, acc}
-  def prewalk(node = {:put_in, _, [{:scope, [], SmartContract} | _]}, acc), do: {node, acc}
+  # internal modules (Process/Scope)
+  def prewalk(node = {:__aliases__, _, [atom]}, acc) when is_atom(atom), do: {node, acc}
 
-  # dot access (because dot access is done in the CommonInterpreter's prewalk)
-  def prewalk(node = {:get_in, _, [{:scope, [], SmartContract} | _]}, acc), do: {node, acc}
+  # internal functions
+  def prewalk(node = {:put_in, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:get_in, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:update_in, _, _}, acc), do: {node, acc}
+
+  # if
+  def prewalk(_node = {:if, meta, [predicate, do_else_keyword]}, acc) do
+    # wrap the do/else blocks
+    do_else_keyword =
+      Enum.map(do_else_keyword, fn {key, value} ->
+        {key, AST.wrap_in_block(value)}
+      end)
+
+    new_node = {:if, meta, [predicate, do_else_keyword]}
+    {new_node, acc}
+  end
+
+  # else (no wrap needed since it's done in the if)
+  def prewalk(node = {:else, _}, acc), do: {node, acc}
+  def prewalk(node = :else, acc), do: {node, acc}
 
   # blacklist rest
   def prewalk(node, _acc), do: throw({:error, node, "unexpected term"})
@@ -119,6 +127,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
     moduleAtom = String.to_existing_atom(moduleName)
     functionAtom = String.to_existing_atom(functionName)
     meta_with_alias = Keyword.put(meta, :alias, aliasAtom)
+
+    # TODO easy: check arity
 
     new_node =
       {{:., meta, [{:__aliases__, meta_with_alias, [moduleAtom]}, functionAtom]}, meta, args}

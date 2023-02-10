@@ -126,19 +126,181 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       assert %Transaction{data: %TransactionData{content: "2"}} = sanitize_parse_execute(code)
     end
 
-    # test "should evaluate actions based on if statement" do
-    #   code = ~S"""
-    #   actions triggered_by: transaction do
-    #     if true do
-    #       Contract.set_content "yes"
-    #     else
-    #       Contract.set_content "no"
-    #     end
-    #   end
-    #   """
+    test "should evaluate actions based on if statement" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        if true do
+          Contract.set_content "yes"
+        else
+          Contract.set_content "no"
+        end
+      end
+      """
 
-    #   assert %Transaction{data: %TransactionData{content: "yes"}} = sanitize_parse_execute(code)
-    # end
+      assert %Transaction{data: %TransactionData{content: "yes"}} = sanitize_parse_execute(code)
+    end
+
+    test "should not parse if trying to access an undefined variable" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        if true do
+          content = "hello"
+        end
+        Contract.set_content content
+      end
+      """
+
+      # TODO: we want a parsing error not a runtime error
+      assert_raise FunctionClauseError, fn ->
+        sanitize_parse_execute(code)
+      end
+    end
+
+    test "should be able to access a parent scope variable" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = "hello"
+        if true do
+          Contract.set_content content
+        else
+          Contract.set_content "should not happen"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = "hello"
+        if true do
+          if true do
+            Contract.set_content content
+          end
+        else
+          Contract.set_content "should not happen"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to have variable in block" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        if true do
+          content = "hello"
+          Contract.set_content content
+        else
+          Contract.set_content "should not happen"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        if true do
+          content = "hello"
+          if true do
+            Contract.set_content content
+          end
+        else
+          Contract.set_content "should not happen"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to update a parent scope variable" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = ""
+
+        if true do
+          content = "hello"
+        end
+
+        Contract.set_content content
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = ""
+
+        if false do
+          content = "hello"
+        end
+
+        Contract.set_content content
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: ""}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = ""
+
+        if false do
+          content = "should not happen"
+        else
+          content = "hello"
+        end
+
+        Contract.set_content content
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = ""
+
+        if true do
+          content = "layer 1"
+          if true do
+            content = "layer 2"
+            if true do
+              content = "layer 3"
+            end
+          end
+        end
+
+        Contract.set_content content
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "layer 3"}} =
+               sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = ""
+
+        if true do
+          if true do
+            if true do
+              content = "layer 3"
+            end
+          end
+        end
+
+        Contract.set_content content
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "layer 3"}} =
+               sanitize_parse_execute(code)
+    end
   end
 
   defp sanitize_parse_execute(code, constants \\ %{}) do

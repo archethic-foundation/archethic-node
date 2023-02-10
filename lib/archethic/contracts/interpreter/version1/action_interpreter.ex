@@ -5,18 +5,21 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
-  alias Archethic.Contracts.Interpreter.Version1.CommonInterpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter.Version1.CommonInterpreter
+  alias Archethic.Contracts.Interpreter.Version1.Scope
 
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
   @spec parse(Macro.t()) :: {:ok, atom(), Macro.t()} | {:error, Macro.t(), String.t()}
   def parse({{:atom, "actions"}, _, [keyword, [do: block]]}) do
-    # We parse the outer block outside of the macro.traverse
-    # so we can keep a clean acc that is used only for scoping variables.
     trigger_type = extract_trigger(keyword)
+
+    # We only parse the do..end block with the macro.traverse
+    # this help us keep a clean accumulator that is used only for scoping.
     actions_ast = parse_block(AST.wrap_in_block(block))
+
     {:ok, trigger_type, actions_ast}
   catch
     {:error, node} ->
@@ -26,6 +29,10 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
       {:error, node, reason}
   end
 
+  def parse(node) do
+    {:error, node, "unexpected term"}
+  end
+
   @doc """
   Execute actions code and returns either the next transaction or nil
   """
@@ -33,28 +40,22 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   def execute(ast, constants \\ %{}) do
     :ok = Macro.validate(ast)
 
-    IO.inspect(ast, label: "RESULTING AST")
+    # we use the process dictionary to store our scope
+    # because it is mutable.
+    Process.put(
+      :scope,
+      Map.put(constants, "next_transaction", %Transaction{
+        data: %TransactionData{}
+      })
+    )
 
-    result =
-      Code.eval_quoted(
-        ast,
-        [
-          {
-            {:scope, SmartContract},
-            Map.put(constants, "next_transaction", %Transaction{
-              data: %TransactionData{}
-            })
-          }
-        ]
-      )
+    # we can ignore the result & binding
+    #   - `result` would be the returned value of the AST
+    #   - `binding` would be the variables (none since everything is written to the process dictionary)
+    {_result, _binding} = Code.eval_quoted(ast)
 
-    case result do
-      {%{"next_transaction" => next_transaction}, _} ->
-        next_transaction
-
-      _ ->
-        nil
-    end
+    # look at the next_transaction from the scope
+    Map.get(Process.get(:scope), "next_transaction")
   end
 
   # ----------------------------------------------------------------------
@@ -91,9 +92,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   end
 
   defp parse_block(ast) do
-    # here the accumulator is an list of reference
-    # each reference is a scope
-    # `acc = []` means read variable from scope
+    # here the accumulator is an list of parent scope & current scope
+    # where we can access variables from all of them
     # `acc = [ref1]` means read variable from scope.ref1 or scope
     # `acc = [ref1, ref2]` means read variable from scope.ref1.ref2 or scope.ref1 or scope
     acc = []
@@ -103,11 +103,9 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
         ast,
         acc,
         fn node, acc ->
-          IO.inspect({node, acc}, label: "action prewalk")
           prewalk(node, acc)
         end,
         fn node, acc ->
-          IO.inspect({node, acc}, label: "action postwalk")
           postwalk(node, acc)
         end
       )
@@ -123,8 +121,31 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
+  # enter block == new scope
+  defp prewalk(
+         _node = {:__block__, meta, expressions},
+         acc
+       ) do
+    # create a "ref" for each block
+    # references are not AST valid, so we convert them to charlist
+    ref = :erlang.ref_to_list(make_ref())
+    new_acc = acc ++ [ref]
 
-  # --------------- block -------------------
+    # create the child scope in parent scope
+    create_scope_ast =
+      quote do
+        Process.put(
+          :scope,
+          put_in(Process.get(:scope), unquote(new_acc), %{})
+        )
+      end
+
+    {
+      {:__block__, meta, [create_scope_ast | expressions]},
+      new_acc
+    }
+  end
+
   # whitelisted modules
   defp prewalk(
          node = {:__aliases__, _, [atom: moduleName]},
@@ -141,14 +162,39 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
          acc
        ) do
     new_node =
-      quote context: SmartContract do
-        scope = put_in(scope, [unquote(varName)], unquote(value))
+      quote do
+        Process.put(
+          :scope,
+          put_in(
+            Process.get(:scope),
+            Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(varName)) ++
+              [unquote(varName)],
+            unquote(value)
+          )
+        )
       end
 
     {
       new_node,
       acc
     }
+  end
+
+  # dot access non-nested (x.y)
+  defp prewalk(
+         _node = {{:., _, [{{:atom, mapName}, _, nil}, {:atom, keyName}]}, _, _},
+         acc
+       ) do
+    new_node =
+      quote do
+        get_in(
+          Process.get(:scope),
+          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(mapName)) ++
+            [unquote(mapName), unquote(keyName)]
+        )
+      end
+
+    {new_node, acc}
   end
 
   defp prewalk(
@@ -166,8 +212,13 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-
-  # --------------- block -------------------
+  # exit block == set parent scope
+  defp postwalk(
+         node = {:__block__, _, _},
+         acc
+       ) do
+    {node, List.delete_at(acc, -1)}
+  end
 
   # handle the Contract module
   # here we have 2 things to do:
@@ -183,13 +234,15 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     functionAtom = String.to_existing_atom(functionName)
 
     new_node =
-      quote context: SmartContract do
-        scope =
+      quote do
+        Process.put(
+          :scope,
           update_in(
-            scope,
+            Process.get(:scope),
             ["next_transaction"],
             &apply(unquote(moduleAtom), unquote(functionAtom), [&1 | unquote(args)])
           )
+        )
       end
 
     {new_node, acc}
@@ -224,8 +277,13 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
          acc
        ) do
     new_node =
-      quote context: SmartContract do
-        get_in(scope, [unquote(varName)])
+      quote do
+        # FIXME Map.fetch!
+        get_in(
+          Process.get(:scope),
+          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(varName)) ++
+            [unquote(varName)]
+        )
       end
 
     {new_node, acc}

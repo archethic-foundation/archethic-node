@@ -92,8 +92,10 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
             {:if, _, _}
           ]}
 
-  We use this in the ActionIntepreter's prewalk because we discard completely the rest of the code except the do..end block.
-  If we don't wrap in a block and the code is a single expression, it would be automatically whitelisted.
+  We use it:
+    - in if/else, in order to always have a __block__ to pattern match
+    - in the ActionIntepreter's prewalk because we discard completely the rest of the code except the do..end block.
+      If we don't wrap in a block and the code is a single expression, it would be automatically whitelisted.
 
     iex> ASTHelper.wrap_in_block({:if, [], [true, [do: 1, else: 2]]})
     iex> {:__block__, [], [{:if, [], [true, [do: 1, else: 2]]}]}
