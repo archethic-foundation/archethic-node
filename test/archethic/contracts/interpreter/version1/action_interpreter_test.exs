@@ -24,7 +24,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
-    test "should be able to use whitelisted module" do
+    test "should be able to use whitelisted module existing function" do
       code = ~S"""
       actions triggered_by: transaction do
         Contract.set_content "hello"
@@ -32,6 +32,32 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       """
 
       assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should not be able to use whitelisted module non existing function" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        Contract.non_existing_fn()
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        Contract.set_content("hello", "hola")
+      end
+      """
+
+      assert {:error, _, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -74,6 +100,49 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       """
 
       assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to use common functions" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [1,2,3]
+        List.take_element_at_index(numbers, 1)
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should not be able to use non existing functions" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [1,2,3]
+        List.take_element_at_index(numbers, 1, 2, 3)
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [1,2,3]
+        List.non_existing_function()
+      end
+      """
+
+      assert {:error, _, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)

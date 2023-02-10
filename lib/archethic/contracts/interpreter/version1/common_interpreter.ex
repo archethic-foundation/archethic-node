@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   """
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter.Version1.Library
 
   @modules_whitelisted ["Map", "List"]
 
@@ -111,24 +112,26 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   #  |_|
   # ----------------------------------------------------------------------
   def postwalk(
-        _node =
+        node =
           {{:., meta, [{:__aliases__, _, [atom: moduleName]}, {:atom, functionName}]}, _, args},
         acc
       )
       when moduleName in @modules_whitelisted do
-    aliasAtom =
+    moduleAtom = String.to_existing_atom(moduleName)
+
+    absoluteModuleAtom =
       String.to_existing_atom(
         "Elixir.Archethic.Contracts.Interpreter.Version1.Library.Common.#{moduleName}"
       )
 
-    # ensure module is loaded (so the atoms corresponding to the functions exist)
-    Code.ensure_loaded!(aliasAtom)
+    # check function is available with given arity
+    unless Library.function_exists?(absoluteModuleAtom, functionName, length(args)) do
+      throw({:error, node, "invalid arity for function #{moduleName}.#{functionName}"})
+    end
 
-    moduleAtom = String.to_existing_atom(moduleName)
     functionAtom = String.to_existing_atom(functionName)
-    meta_with_alias = Keyword.put(meta, :alias, aliasAtom)
 
-    # TODO easy: check arity
+    meta_with_alias = Keyword.put(meta, :alias, absoluteModuleAtom)
 
     new_node =
       {{:., meta, [{:__aliases__, meta_with_alias, [moduleAtom]}, functionAtom]}, meta, args}

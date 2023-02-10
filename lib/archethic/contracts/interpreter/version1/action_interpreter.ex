@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Version1.CommonInterpreter
+  alias Archethic.Contracts.Interpreter.Version1.Library
   alias Archethic.Contracts.Interpreter.Version1.Scope
 
   @doc """
@@ -225,12 +226,18 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   #   - feed the `next_transaction` as the 1st function parameter
   #   - update the `next_transaction` in scope
   defp postwalk(
-         _node =
+         node =
            {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, functionName}]}, _, args},
          acc
        ) do
-    # ensure module is loaded (so the atoms corresponding to the functions exist)
-    moduleAtom = Code.ensure_loaded!(Archethic.Contracts.Interpreter.Version1.Library.Contract)
+    absoluteModuleAtom = Archethic.Contracts.Interpreter.Version1.Library.Contract
+
+    # check function is available with given arity
+    # (we add 1 to arity because we add the contract as 1st argument implicitely)
+    unless Library.function_exists?(absoluteModuleAtom, functionName, length(args) + 1) do
+      throw({:error, node, "invalid arity for function Contract.#{functionName}"})
+    end
+
     functionAtom = String.to_existing_atom(functionName)
 
     new_node =
@@ -240,7 +247,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
           update_in(
             Process.get(:scope),
             ["next_transaction"],
-            &apply(unquote(moduleAtom), unquote(functionAtom), [&1 | unquote(args)])
+            &apply(unquote(absoluteModuleAtom), unquote(functionAtom), [&1 | unquote(args)])
           )
         )
       end
