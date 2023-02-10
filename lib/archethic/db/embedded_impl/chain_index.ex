@@ -41,6 +41,33 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     {:ok, %{db_path: db_path}}
   end
 
+  def code_change("1.0.7", state, _extra) do
+    index = :ets.first(:archethic_db_tx_index)
+    :ok = migrate_lru_cache(index)
+    :ets.delete(:archethic_db_tx_index)
+    {:ok, state}
+  end
+
+  defp migrate_lru_cache(:end_of_table) do
+    :ok
+  end
+
+  defp migrate_lru_cache(index) do
+    case :ets.lookup(:archethic_db_tx_index, index) do
+      [{key, %{size: size, offset: offset, genesis_address: genesis_address}}] ->
+        LRU.put(@archetic_db_tx_index_cache, key, %{
+          size: size,
+          offset: offset,
+          genesis_address: genesis_address
+        })
+
+      _ ->
+        :ok
+    end
+
+    migrate_lru_cache(:ets.next(:archethic_db_tx_index, index))
+  end
+
   defp fill_tables(db_path) do
     Enum.each(0..255, fn subset ->
       subset_summary_filename = index_summary_path(db_path, subset)
