@@ -56,6 +56,41 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
+    test "should return the correct trigger type" do
+      code = ~S"""
+      actions triggered_by: oracle do
+      end
+      """
+
+      assert {:ok, :oracle, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+
+      code = ~S"""
+      actions triggered_by: interval, at: "* * * * *"  do
+      end
+      """
+
+      assert {:ok, {:interval, "* * * * *"}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+
+      code = ~S"""
+      actions triggered_by: datetime, at: 1676282771 do
+      end
+      """
+
+      assert {:ok, {:datetime, ~U[2023-02-13 10:06:11Z]}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
     test "should not be able to use whitelisted module non existing function" do
       code = ~S"""
       actions triggered_by: transaction do
@@ -209,6 +244,23 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       """
 
       assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to use nested ." do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+        var = [numbers: numbers]
+
+        Contract.set_content var.numbers.one
+      end
+      """
+
+      assert {:ok, :transaction, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
