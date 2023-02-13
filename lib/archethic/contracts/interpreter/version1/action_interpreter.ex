@@ -156,6 +156,14 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     {node, acc}
   end
 
+  # forbid "if" as an expression
+  defp prewalk(
+         node = {:=, _, [_, {:if, _, _}]},
+         _acc
+       ) do
+    throw({:error, node, "Forbidden to use if as an expression."})
+  end
+
   # whitelist assignation & write them to scope
   # this is done in the prewalk because it must be done before the "variable are read from scope" step
   defp prewalk(

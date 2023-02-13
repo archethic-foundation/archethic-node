@@ -196,6 +196,24 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> elem(1)
                |> ActionInterpreter.parse()
     end
+
+    test "should not be able to use if as an expression" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        var = if true do
+          "foo"
+        else
+          "bar"
+        end
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
   end
 
   # ----------------------------------------------
