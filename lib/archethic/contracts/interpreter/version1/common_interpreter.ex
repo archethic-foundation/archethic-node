@@ -10,7 +10,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   alias Archethic.Contracts.Interpreter.Version1.Library
   alias Archethic.Contracts.Interpreter.Version1.Scope
 
-  @modules_whitelisted ["Map", "List"]
+  @modules_whitelisted Library.list_common_modules()
 
   # ----------------------------------------------------------------------
   #                                _ _
@@ -35,6 +35,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:|>, _, _}, acc), do: {node, acc}
   def prewalk(node = {:==, _, _}, acc), do: {node, acc}
   def prewalk(node = {:++, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:!, _, _}, acc), do: {node, acc}
 
   # blocks
   def prewalk(node = {:__block__, _, _}, acc), do: {node, acc}
@@ -65,16 +66,16 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:%{}, _, _}, acc), do: {node, acc}
 
   # variables
-  def prewalk(node = {{:atom, varName}, _, nil}, acc) when is_binary(varName), do: {node, acc}
-  def prewalk(node = {:atom, varName}, acc) when is_binary(varName), do: {node, acc}
+  def prewalk(node = {{:atom, var_name}, _, nil}, acc) when is_binary(var_name), do: {node, acc}
+  def prewalk(node = {:atom, var_name}, acc) when is_binary(var_name), do: {node, acc}
 
   # module call
   def prewalk(node = {{:., _, [{:__aliases__, _, _}, _]}, _, _}, acc), do: {node, acc}
   def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
 
   # whitelisted modules
-  def prewalk(node = {:__aliases__, _, [atom: moduleName]}, acc)
-      when moduleName in @modules_whitelisted,
+  def prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
+      when module_name in @modules_whitelisted,
       do: {node, acc}
 
   # dot access (x.y & x.y.z)
@@ -124,33 +125,34 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   # ----------------------------------------------------------------------
   def postwalk(
         node =
-          {{:., meta, [{:__aliases__, _, [atom: moduleName]}, {:atom, functionName}]}, _, args},
+          {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
         acc
       )
-      when moduleName in @modules_whitelisted do
-    moduleAtom = String.to_existing_atom(moduleName)
-
-    absoluteModuleAtom =
-      String.to_existing_atom(
-        "Elixir.Archethic.Contracts.Interpreter.Version1.Library.Common.#{moduleName}"
+      when module_name in @modules_whitelisted do
+    absolute_module_atom =
+      Code.ensure_loaded!(
+        String.to_existing_atom(
+          "Elixir.Archethic.Contracts.Interpreter.Version1.Library.Common.#{module_name}"
+        )
       )
 
     # check function is available with given arity
-    unless Library.function_exists?(absoluteModuleAtom, functionName, length(args)) do
-      throw({:error, node, "invalid arity for function #{moduleName}.#{functionName}"})
+    unless Library.function_exists?(absolute_module_atom, function_name, length(args)) do
+      throw({:error, node, "invalid arity for function #{module_name}.#{function_name}"})
     end
 
-    functionAtom = String.to_existing_atom(functionName)
+    module_atom = String.to_existing_atom(module_name)
+    function_atom = String.to_existing_atom(function_name)
 
     # check the type of the args
-    unless absoluteModuleAtom.check_types(functionAtom, args) do
-      throw({:error, node, "invalid arguments for function #{moduleName}.#{functionName}"})
+    unless absolute_module_atom.check_types(function_atom, args) do
+      throw({:error, node, "invalid arguments for function #{module_name}.#{function_name}"})
     end
 
-    meta_with_alias = Keyword.put(meta, :alias, absoluteModuleAtom)
+    meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
 
     new_node =
-      {{:., meta, [{:__aliases__, meta_with_alias, [moduleAtom]}, functionAtom]}, meta, args}
+      {{:., meta, [{:__aliases__, meta_with_alias, [module_atom]}, function_atom]}, meta, args}
 
     {new_node, acc}
   end
@@ -168,24 +170,24 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   # ----------------------------------------------------------------------
 
   # non-nested (x.y)
-  defp dot_access(_node = {{:., _, [{{:atom, mapName}, _, nil}, {:atom, keyName}]}, _, _}, acc) do
+  defp dot_access(_node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _}, acc) do
     quote do
       get_in(
         Process.get(:scope),
-        Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(mapName)) ++
-          [unquote(mapName), unquote(keyName)]
+        Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(map_name)) ++
+          [unquote(map_name), unquote(key_name)]
       )
     end
   end
 
   # nested (x.y.z)
-  defp dot_access({{:., _, [firstArg, {:atom, keyName}]}, _, []}, acc) do
-    nested = dot_access(firstArg, acc)
+  defp dot_access({{:., _, [first_arg, {:atom, key_name}]}, _, []}, acc) do
+    nested = dot_access(first_arg, acc)
 
     quote do
       get_in(
         unquote(nested),
-        [unquote(keyName)]
+        [unquote(key_name)]
       )
     end
   end

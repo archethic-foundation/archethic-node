@@ -20,13 +20,8 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
       {:ok, contract} ->
         {:ok, %{contract | version: version}}
 
-      # error comes from actionInterpreter or conditionInterpreter
       {:error, node, reason} ->
         {:error, Interpreter.format_error_reason(node, reason)}
-
-      # error comes from this module
-      {:error, {:unexpected_term, node}} ->
-        {:error, Interpreter.format_error_reason(node, "unexpected term")}
     end
   end
 
@@ -36,8 +31,8 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
   Return true if the given conditions are valid on the given constants
   """
   @spec valid_conditions?(Conditions.t(), map()) :: bool()
-  def valid_conditions?(_conditions, _constants) do
-    false
+  def valid_conditions?(conditions, constants) do
+    ConditionInterpreter.valid_conditions?(conditions, constants)
   end
 
   @doc """
@@ -45,10 +40,18 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
   May return a new transaction or nil
   """
   @spec execute_trigger(Macro.t(), map()) :: Transaction.t() | nil
-  def execute_trigger(_ast, _constants) do
-    nil
+  def execute_trigger(ast, constants \\ %{}) do
+    ActionInterpreter.execute(ast, constants)
   end
 
+  # ------------------------------------------------------------
+  #              _            _
+  #   _ __  _ __(___   ____ _| |_ ___
+  #  | '_ \| '__| \ \ / / _` | __/ _ \
+  #  | |_) | |  | |\ V | (_| | ||  __/
+  #  | .__/|_|  |_| \_/ \__,_|\__\___|
+  #  |_|
+  # ------------------------------------------------------------
   defp parse_contract({:__block__, _, ast}, contract) do
     parse_ast_block(ast, contract)
   end
@@ -62,7 +65,7 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
       {:ok, contract} ->
         parse_ast_block(rest, contract)
 
-      {:error, _} = e ->
+      {:error, _, _} = e ->
         e
     end
   end
@@ -74,7 +77,7 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
       {:ok, condition_type, condition} ->
         {:ok, Contract.add_condition(contract, condition_type, condition)}
 
-      {:error, _} = e ->
+      {:error, _, _} = e ->
         e
     end
   end
@@ -84,10 +87,10 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
       {:ok, trigger_type, actions} ->
         {:ok, Contract.add_trigger(contract, trigger_type, actions)}
 
-      {:error, _} = e ->
+      {:error, _, _} = e ->
         e
     end
   end
 
-  defp parse_ast(ast, _), do: {:error, {:unexpected_term, ast}}
+  defp parse_ast(ast, _), do: {:error, ast, "unexpected term"}
 end

@@ -9,52 +9,34 @@ defmodule Archethic.Contracts.Interpreter.Version1Test do
   doctest Version1
 
   describe "parse/1" do
-    # test "should return an error if no conditions or no triggers are defined" do
-    #   assert {:error, _} =
-    #            ~S"""
-    #            condition inherit: [
-    #             content: true
-    #            ]
-    #            """
-    #            |> Version1.parse(@version)
+    test "should return an error if there are unexpected terms" do
+      assert {:error, _} =
+               """
+               condition transaction: [
+                uco_transfers: List.size() > 0
+               ]
 
-    #   assert {:error, _} =
-    #            """
-    #            actions triggered_by: transaction do
-    #             set_content "hello"
-    #            end
-    #            """
-    #            |> Version1.parse(@version)
-    # end
+               some_unexpected_code
 
-    # test "should return an error if there are unexpected terms" do
-    #   assert {:error, _} =
-    #            """
-    #            condition transaction: [
-    #             uco_transfers: Map.size() > 0
-    #            ]
+               actions triggered_by: transaction do
+                set_content "hello"
+               end
+               """
+               |> Version1.parse(@version)
+    end
 
-    #            some_code
+    test "should return the contract if format is OK" do
+      assert {:ok, %Contract{}} =
+               """
+               condition transaction: [
+                uco_transfers: List.size() > 0
+               ]
 
-    #            actions triggered_by: transaction do
-    #             set_content "hello"
-    #            end
-    #            """
-    #            |> Version1.parse(@version)
-    # end
-
-    # test "should return the contract if format is OK" do
-    #   assert {:ok, %Contract{}} =
-    #            """
-    #            condition transaction: [
-    #             uco_transfers: Map.size() > 0
-    #            ]
-
-    #            actions triggered_by: transaction do
-    #             Contract.set_content "hello"
-    #            end
-    #            """
-    #            |> Version1.parse(@version)
-    # end
+               actions triggered_by: transaction do
+                Contract.set_content "hello"
+               end
+               """
+               |> Version1.parse(@version)
+    end
   end
 end

@@ -421,11 +421,7 @@ defmodule Archethic.Contracts.Interpreter.Version0.ConditionInterpreter do
   defp do_aggregate_condition(condition, subject_scope, subject) when is_list(condition) do
     {:==, [],
      [
-       {:get_in, [],
-        [
-          {:scope, [], nil},
-          [subject_scope, subject]
-        ]},
+       {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
        condition
      ]}
   end

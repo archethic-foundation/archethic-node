@@ -217,8 +217,21 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
+    test "should be able to use the result of a function call as a parameter" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        Contract.set_content Json.to_string([1,2,3])
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
     test "should not be able to use wrong types in contract functions" do
-      # I guess this will change in the near future (or we have create a json function)
       code = ~S"""
       actions triggered_by: transaction do
         Contract.set_content [1,2,3]
@@ -319,6 +332,18 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
     end
 
+    test "should be able to use a function call as parameter" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = "hello"
+        Contract.set_content Json.to_string(content)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "\"hello\""}} =
+               sanitize_parse_execute(code)
+    end
+
     test "should be able to use a keyword as a map" do
       code = ~S"""
       actions triggered_by: transaction do
@@ -346,6 +371,20 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       code = ~S"""
       actions triggered_by: transaction do
         if true do
+          Contract.set_content "yes"
+        else
+          Contract.set_content "no"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "yes"}} = sanitize_parse_execute(code)
+    end
+
+    test "should consider the ! (not) keyword" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        if !false do
           Contract.set_content "yes"
         else
           Contract.set_content "no"
@@ -459,7 +498,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: ""}} = sanitize_parse_execute(code)
+      assert nil == sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do

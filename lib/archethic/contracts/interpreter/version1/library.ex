@@ -12,6 +12,17 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library do
     )
   end
 
+  @doc """
+  Returns the list of common modules available.
+
+  This function is also used to create the atoms of the modules
+  """
+  def list_common_modules() do
+    [:Map, :List, :Regex, :Json, :Time, :Chain, :Crypto, :Token, :String]
+    |> Enum.map(&Atom.to_string/1)
+  end
+
+  # ----------------------------------------
   defp get_module_functions_as_string(module) do
     module.__info__(:functions)
     |> Enum.map(fn {name, arity} ->

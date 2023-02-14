@@ -84,6 +84,15 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   def is_list?(node), do: is_list(node)
 
   @doc """
+  Return wether the given ast is a variable or a function call.
+  Useful because we pretty much accept this everywhere
+  """
+  @spec is_variable_or_function_call?(Macro.t()) :: boolean()
+  def is_variable_or_function_call?(ast) do
+    is_variable?(ast) || is_function_call?(ast)
+  end
+
+  @doc """
   Return wether the given ast is a variable.
   Variable are transformed into {:get_in, _, _} in our prewalks
 
@@ -104,12 +113,17 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
     iex> ASTHelper.is_function_call?(ast)
     true
 
+    iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("Module.hello()")
+    iex> ASTHelper.is_function_call?(ast)
+    true
+
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("hello")
     iex> ASTHelper.is_function_call?(ast)
     false
   """
   @spec is_function_call?(Macro.t()) :: boolean()
   def is_function_call?({{:atom, _}, _, list}) when is_list(list), do: true
+  def is_function_call?({{:., _, [{:__aliases__, _, [_]}, _]}, _, _}), do: true
   def is_function_call?(_), do: false
 
   @doc """
@@ -122,8 +136,8 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   @spec keyword_to_map(Macro.t()) :: Macro.t()
   def keyword_to_map(ast) do
     proplist =
-      Enum.map(ast, fn {{:atom, atomName}, value} ->
-        {atomName, value}
+      Enum.map(ast, fn {{:atom, atom_name}, value} ->
+        {atom_name, value}
       end)
 
     {:%{}, [], proplist}
@@ -156,24 +170,4 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   """
   def wrap_in_block(ast = {:__block__, _, _}), do: ast
   def wrap_in_block(ast), do: {:__block__, [], [ast]}
-
-  # --------------
-  # DEBUG
-  # --------------
-
-  @doc """
-  Return the AST of IO.inspect(var)
-  """
-  @spec io_inspect(Macro.t()) :: Macro.t()
-  def io_inspect(var) do
-    quote do: IO.inspect(unquote(var))
-  end
-
-  @doc """
-  Return the AST of IO.inspect(var, label: label)
-  """
-  @spec io_inspect(Macro.t(), binary()) :: Macro.t()
-  def io_inspect(var, label) do
-    quote do: IO.inspect(unquote(var), label: unquote(label))
-  end
 end

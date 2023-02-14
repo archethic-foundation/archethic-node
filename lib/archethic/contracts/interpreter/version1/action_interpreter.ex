@@ -1,6 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   @moduledoc false
-  @modules_whitelisted ["Contract", "Transaction"]
+  @modules_whitelisted ["Contract"]
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -13,7 +13,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
-  @spec parse(Macro.t()) :: {:ok, atom(), Macro.t()} | {:error, Macro.t(), String.t()}
+  @spec parse(any()) :: {:ok, atom(), any()} | {:error, any(), String.t()}
   def parse({{:atom, "actions"}, _, [keyword, [do: block]]}) do
     trigger_type = extract_trigger(keyword)
 
@@ -37,17 +37,22 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   @doc """
   Execute actions code and returns either the next transaction or nil
   """
-  @spec execute(Macro.t(), map()) :: Transaction.t() | nil
+  @spec execute(any(), map()) :: Transaction.t() | nil
   def execute(ast, constants \\ %{}) do
     :ok = Macro.validate(ast)
 
+    # initiate a transaction that will be use by the "Contract" module
+    next_tx = %Transaction{data: %TransactionData{}}
+
     # we use the process dictionary to store our scope
     # because it is mutable.
+    #
+    # constants should already contains the "magic" variables
+    #   - "contract": current contract transaction
+    #   - "transaction": the incoming transaction (when trigger=transaction)
     Process.put(
       :scope,
-      Map.put(constants, "next_transaction", %Transaction{
-        data: %TransactionData{}
-      })
+      Map.put(constants, "next_transaction", next_tx)
     )
 
     # we can ignore the result & binding
@@ -56,7 +61,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     {_result, _binding} = Code.eval_quoted(ast)
 
     # look at the next_transaction from the scope
-    Map.get(Process.get(:scope), "next_transaction")
+    # return nil if it did not change
+    case Map.get(Process.get(:scope), "next_transaction") do
+      ^next_tx -> nil
+      result_next_transaction -> result_next_transaction
+    end
   end
 
   # ----------------------------------------------------------------------
@@ -77,10 +86,10 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
 
   defp extract_trigger([
          {{:atom, "triggered_by"}, {{:atom, "interval"}, _, nil}},
-         {{:atom, "at"}, cronInterval}
+         {{:atom, "at"}, cron_interval}
        ])
-       when is_binary(cronInterval) do
-    {:interval, cronInterval}
+       when is_binary(cron_interval) do
+    {:interval, cron_interval}
   end
 
   defp extract_trigger([
@@ -149,10 +158,10 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
 
   # whitelisted modules
   defp prewalk(
-         node = {:__aliases__, _, [atom: moduleName]},
+         node = {:__aliases__, _, [atom: module_name]},
          acc
        )
-       when moduleName in @modules_whitelisted do
+       when module_name in @modules_whitelisted do
     {node, acc}
   end
 
@@ -167,7 +176,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   # whitelist assignation & write them to scope
   # this is done in the prewalk because it must be done before the "variable are read from scope" step
   defp prewalk(
-         _node = {:=, _, [{{:atom, varName}, _, nil}, value]},
+         _node = {:=, _, [{{:atom, var_name}, _, nil}, value]},
          acc
        ) do
     new_node =
@@ -176,8 +185,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
           :scope,
           put_in(
             Process.get(:scope),
-            Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(varName)) ++
-              [unquote(varName)],
+            Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(var_name)) ++
+              [unquote(var_name)],
             unquote(value)
           )
         )
@@ -212,28 +221,49 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     {node, List.delete_at(acc, -1)}
   end
 
+  # Contract.get_calls() => Contract.get_calls(contract.address)
+  defp postwalk(
+         _node =
+           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, "get_calls"}]}, _, []},
+         acc
+       ) do
+    # contract is one of the "magic" variables that we expose to the user's code
+    # it is bound in the root scope
+    new_node =
+      quote do
+        Archethic.Contracts.Interpreter.Version1.Library.Contract.get_calls(
+          get_in(
+            Process.get(:scope),
+            ["contract", "address"]
+          )
+        )
+      end
+
+    {new_node, acc}
+  end
+
   # handle the Contract module
   # here we have 2 things to do:
   #   - feed the `next_transaction` as the 1st function parameter
   #   - update the `next_transaction` in scope
   defp postwalk(
          node =
-           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, functionName}]}, _, args},
+           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, function_name}]}, _, args},
          acc
        ) do
-    absoluteModuleAtom = Archethic.Contracts.Interpreter.Version1.Library.Contract
+    absolute_module_atom = Archethic.Contracts.Interpreter.Version1.Library.Contract
 
     # check function is available with given arity
     # (we add 1 to arity because we add the contract as 1st argument implicitely)
-    unless Library.function_exists?(absoluteModuleAtom, functionName, length(args) + 1) do
-      throw({:error, node, "invalid arity for function Contract.#{functionName}"})
+    unless Library.function_exists?(absolute_module_atom, function_name, length(args) + 1) do
+      throw({:error, node, "invalid arity for function Contract.#{function_name}"})
     end
 
-    functionAtom = String.to_existing_atom(functionName)
+    function_atom = String.to_existing_atom(function_name)
 
     # check the type of the args
-    unless absoluteModuleAtom.check_types(functionAtom, args) do
-      throw({:error, node, "invalid arguments for function Contract.#{functionName}"})
+    unless absolute_module_atom.check_types(function_atom, args) do
+      throw({:error, node, "invalid arguments for function Contract.#{function_name}"})
     end
 
     new_node =
@@ -243,7 +273,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
           update_in(
             Process.get(:scope),
             ["next_transaction"],
-            &apply(unquote(absoluteModuleAtom), unquote(functionAtom), [&1 | unquote(args)])
+            &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
           )
         )
       end
@@ -251,41 +281,17 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     {new_node, acc}
   end
 
-  # modify the alias of whitelisted modules
-  defp postwalk(
-         _node =
-           {{:., meta, [{:__aliases__, _, [atom: moduleName]}, {:atom, functionName}]}, _, args},
-         acc
-       )
-       when moduleName in @modules_whitelisted do
-    moduleAtom = String.to_existing_atom(moduleName)
-    functionAtom = String.to_existing_atom(functionName)
-
-    aliasAtom =
-      String.to_existing_atom(
-        "Elixir.Archethic.Contracts.Interpreter.Version1.Library.#{moduleName}"
-      )
-
-    meta_with_alias = Keyword.put(meta, :alias, aliasAtom)
-
-    new_node =
-      {{:., meta, [{:__aliases__, meta_with_alias, [moduleAtom]}, functionAtom]}, meta, args}
-
-    {new_node, acc}
-  end
-
   # variable are read from scope
   defp postwalk(
-         _node = {{:atom, varName}, _, nil},
+         _node = {{:atom, var_name}, _, nil},
          acc
        ) do
     new_node =
       quote do
-        # FIXME Map.fetch!
         get_in(
           Process.get(:scope),
-          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(varName)) ++
-            [unquote(varName)]
+          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(var_name)) ++
+            [unquote(var_name)]
         )
       end
 
