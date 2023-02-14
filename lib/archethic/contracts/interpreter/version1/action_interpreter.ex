@@ -93,7 +93,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   end
 
   defp parse_block(ast) do
-    # here the accumulator is an list of parent scope & current scope
+    # here the accumulator is an list of parent scopes & current scope
     # where we can access variables from all of them
     # `acc = [ref1]` means read variable from scope.ref1 or scope
     # `acc = [ref1, ref2]` means read variable from scope.ref1.ref2 or scope.ref1 or scope
@@ -187,23 +187,6 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
       new_node,
       acc
     }
-  end
-
-  # dot access non-nested (x.y)
-  defp prewalk(
-         _node = {{:., _, [{{:atom, mapName}, _, nil}, {:atom, keyName}]}, _, _},
-         acc
-       ) do
-    new_node =
-      quote do
-        get_in(
-          Process.get(:scope),
-          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(mapName)) ++
-            [unquote(mapName), unquote(keyName)]
-        )
-      end
-
-    {new_node, acc}
   end
 
   defp prewalk(

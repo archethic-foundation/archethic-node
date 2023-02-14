@@ -265,6 +265,20 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> ActionInterpreter.parse()
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        a = [b: [c: [d: [e: [f: [g: [h: "hello"]]]]]]]
+
+        Contract.set_content a.b.c.d.e.f.g.h
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
     end
   end
 
@@ -502,6 +516,43 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
 
       assert %Transaction{data: %TransactionData{content: "layer 3"}} =
                sanitize_parse_execute(code)
+    end
+
+    test "should be able to use nested ." do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+        var = [numbers: numbers]
+
+        Contract.set_content var.numbers.one
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        a = [b: [c: [d: [e: [f: [g: [h: "hello"]]]]]]]
+
+        Contract.set_content a.b.c.d.e.f.g.h
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+
+        if true do
+          a = [b: [c: [d: [e: [f: [g: [h: "hello"]]]]]]]
+          if true do
+            Contract.set_content a.b.c.d.e.f.g.h
+          end
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
     end
   end
 
