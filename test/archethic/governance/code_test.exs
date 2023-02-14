@@ -31,43 +31,85 @@ defmodule Archethic.Governance.CodeTest do
   end
 
   test "valid_appup? should pass" do
-    changes =
-      "diff --git a/mix.exs b/mix.exs\nindex c615ed94..d16e2d6f 100644\n--- a/mix.exs\n+++ b/mix.exs\n@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do\n   def project do\n     [\n       app: :archethic,\n-      version: \"1.0.7\",\n+      version: \"1.0.8\",\n       build_path: \"_build\",\n       config_path: \"config/config.exs\",\n       deps_path: \"deps\",\ndiff --git a/rel/appups/archethic/1.0.7_to_1.0.8.appup b/rel/appups/archethic/1.0.7_to_1.0.8.appup\nnew file mode 100644\nindex 00000000..0f18b8e1\n--- /dev/null\n+++ b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n@@ -0,0 +1,4 @@\n+{\"1.0.8\",\n+ [{\"1.0.7\",\n+   [{load_module,'TOTO', []}]}]\n+}.\n\\ No newline at end of file"
-
     current_version = "1.0.7"
-    version = "1.0.8"
+    appup_version = version = "1.0.8"
+
+    instruction = "load_module"
+
+    changes = generate_diff(version, current_version, appup_version, instruction)
 
     assert Code.valid_appup?(changes, version, current_version)
   end
 
   test "valid_appup? should fail because appup contains illegal instruction" do
-    changes =
-      "diff --git a/mix.exs b/mix.exs\nindex c615ed94..d16e2d6f 100644\n--- a/mix.exs\n+++ b/mix.exs\n@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do\n   def project do\n     [\n       app: :archethic,\n-      version: \"1.0.7\",\n+      version: \"1.0.8\",\n       build_path: \"_build\",\n       config_path: \"config/config.exs\",\n       deps_path: \"deps\",\ndiff --git a/rel/appups/archethic/1.0.7_to_1.0.8.appup b/rel/appups/archethic/1.0.7_to_1.0.8.appup\nnew file mode 100644\nindex 00000000..0f18b8e1\n--- /dev/null\n+++ b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n@@ -0,0 +1,4 @@\n+{\"1.0.8\",\n+ [{\"1.0.7\",\n+   [{load_module_toto,'TOTO', []}]}]\n+}.\n\\ No newline at end of file"
-
     current_version = "1.0.7"
-    version = "1.0.8"
+    appup_version = version = "1.0.8"
+
+    instruction = "invalid"
+
+    changes = generate_diff(version, current_version, appup_version, instruction)
 
     refute Code.valid_appup?(changes, version, current_version)
   end
 
   test "valid_appup? should fail because appup contains wrong version" do
-    changes =
-      "diff --git a/mix.exs b/mix.exs\nindex c615ed94..d16e2d6f 100644\n--- a/mix.exs\n+++ b/mix.exs\n@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do\n   def project do\n     [\n       app: :archethic,\n-      version: \"1.0.7\",\n+      version: \"1.0.8\",\n       build_path: \"_build\",\n       config_path: \"config/config.exs\",\n       deps_path: \"deps\",\ndiff --git a/rel/appups/archethic/1.0.7_to_1.0.8.appup b/rel/appups/archethic/1.0.7_to_1.0.8.appup\nnew file mode 100644\nindex 00000000..0f18b8e1\n--- /dev/null\n+++ b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n@@ -0,0 +1,4 @@\n+{\"1.0.9\",\n+ [{\"1.0.7\",\n+   [{load_module_toto,'TOTO', []}]}]\n+}.\n\\ No newline at end of file"
-
     current_version = "1.0.7"
     version = "1.0.8"
+    appup_version = "1.0.9"
+    instruction = "load_module"
+
+    changes = generate_diff(version, current_version, appup_version, instruction)
 
     refute Code.valid_appup?(changes, version, current_version)
   end
 
   test "valid_appup? should fail because it doens't contain appup" do
-    changes =
-      "diff --git a/mix.exs b/mix.exs\nindex c615ed94..d16e2d6f 100644\n--- a/mix.exs\n+++ b/mix.exs\n@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do\n   def project do\n     [\n       app: :archethic,\n-      version: \"1.0.7\",\n+      version: \"1.0.8\",\n       build_path: \"_build\",\n       config_path: \"config/config.exs\",\n       deps_path: \"deps\",\n"
-
     current_version = "1.0.7"
-    version = "1.0.8"
+    appup_version = version = "1.0.8"
+    instruction = "load_module"
+
+    changes = generate_diff(version, current_version, appup_version, instruction, false)
 
     refute Code.valid_appup?(changes, version, current_version)
+  end
+
+  defp generate_diff(
+         version,
+         current_version,
+         appup_version,
+         instruction,
+         should_add_appup? \\ true
+       ) do
+    "diff --git a/mix.exs b/mix.exs\n" <>
+      "index c615ed94..d16e2d6f 100644\n" <>
+      "--- a/mix.exs\n" <>
+      "+++ b/mix.exs\n" <>
+      "@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do\n" <>
+      "   def project do\n" <>
+      "     [\n" <>
+      "       app: :archethic,\n" <>
+      "-      version: \"#{current_version}\",\n" <>
+      "+      version: \"#{version}\",\n" <>
+      "       build_path: \"_build\",\n" <>
+      "       config_path: \"config/config.exs\",\n" <>
+      "       deps_path: \"deps\",\n" <>
+      maybe_add_appup(current_version, appup_version, instruction, should_add_appup?) <>
+      "\\ No newline at end of file"
+  end
+
+  defp maybe_add_appup(_, _, _, false), do: ""
+
+  defp maybe_add_appup(current_version, appup_version, instruction, true) do
+    "diff --git a/rel/appups/archethic/1.0.7_to_1.0.8.appup b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n" <>
+      "new file mode 100644\n" <>
+      "index 00000000..0f18b8e1\n" <>
+      "--- /dev/null\n" <>
+      "+++ b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n" <>
+      "@@ -0,0 +1,4 @@\n" <>
+      "+{\"#{appup_version}\",\n" <>
+      "+ [{\"#{current_version}\",\n" <>
+      "+   [{#{instruction},'TOTO', []}]}]\n" <>
+      "+}.\n"
   end
 
   doctest Code
