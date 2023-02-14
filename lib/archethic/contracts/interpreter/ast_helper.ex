@@ -4,7 +4,8 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   """
 
   @doc """
-  Return wether the given ast is a keyword list
+  Return wether the given ast is a keyword list.
+  Remember that we convert all keywords to maps in the prewalk.
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("[]")
     iex> ASTHelper.is_keyword_list?(ast)
@@ -30,6 +31,17 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   end
 
   def is_keyword_list?(_), do: false
+
+  @doc """
+  Return wether the given ast is a map
+
+    iex> ast = quote do: %{"sum" => 1, "product" => 10}
+    iex> ASTHelper.is_map?(ast)
+    true
+  """
+  @spec is_map?(Macro.t()) :: boolean()
+  def is_map?({:%{}, _, _}), do: true
+  def is_map?(_), do: false
 
   @doc """
   Return wether the given ast is an integer
