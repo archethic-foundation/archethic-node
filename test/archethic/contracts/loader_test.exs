@@ -1,21 +1,11 @@
 defmodule Archethic.Contracts.LoaderTest do
   use ArchethicCase
 
-  alias Archethic.ContractRegistry
-  alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConstants, as: Constants
-  alias Archethic.Contracts.Loader
-  alias Archethic.Contracts.Worker
-  alias Archethic.ContractSupervisor
-
-  alias Archethic.Crypto
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.{Crypto, ContractRegistry, Contracts, TransactionChain, ContractSupervisor}
+  alias Contracts.{Contract, ContractConstants, Loader, Worker}
+  alias TransactionChain.{Transaction, TransactionData, Transaction.ValidationStamp}
 
   import Mox
-
-  setup :set_mox_global
 
   describe "load_transaction/1" do
     test "should create a supervised worker for the given transaction with contract code" do
@@ -41,7 +31,11 @@ defmodule Archethic.Contracts.LoaderTest do
           end
           """
         },
-        previous_public_key: pub0
+        previous_public_key: pub0,
+        validation_stamp: %ValidationStamp{
+          recipients: [],
+          timestamp: DateTime.utc_now()
+        }
       }
 
       assert :ok = Loader.load_transaction(tx)
@@ -55,7 +49,7 @@ defmodule Archethic.Contracts.LoaderTest do
       assert %{
                contract: %Contract{
                  triggers: %{transaction: _},
-                 constants: %Constants{contract: %{"address" => ^contract_address}}
+                 constants: %ContractConstants{contract: %{"address" => ^contract_address}}
                }
              } = :sys.get_state(pid)
     end
@@ -82,7 +76,11 @@ defmodule Archethic.Contracts.LoaderTest do
           end
           """
         },
-        previous_public_key: pub0
+        previous_public_key: pub0,
+        validation_stamp: %ValidationStamp{
+          recipients: [],
+          timestamp: DateTime.utc_now()
+        }
       }
 
       tx2 = %Transaction{
@@ -102,7 +100,11 @@ defmodule Archethic.Contracts.LoaderTest do
           end
           """
         },
-        previous_public_key: pub1
+        previous_public_key: pub1,
+        validation_stamp: %ValidationStamp{
+          recipients: [],
+          timestamp: DateTime.utc_now()
+        }
       }
 
       assert :ok = Loader.load_transaction(tx1)
@@ -149,7 +151,11 @@ defmodule Archethic.Contracts.LoaderTest do
            end
            """
          },
-         previous_public_key: pub0
+         previous_public_key: pub0,
+         validation_stamp: %ValidationStamp{
+           recipients: [],
+           timestamp: DateTime.utc_now()
+         }
        }}
     end)
 
@@ -164,7 +170,7 @@ defmodule Archethic.Contracts.LoaderTest do
     assert %{
              contract: %Contract{
                triggers: %{transaction: _},
-               constants: %Constants{contract: %{"address" => ^contract_address}}
+               constants: %ContractConstants{contract: %{"address" => ^contract_address}}
              }
            } = :sys.get_state(pid)
   end
