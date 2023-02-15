@@ -1,7 +1,7 @@
 // We need to import the CSS so that webpack will load it.
 // The MiniCssExtractPlugin is used to separate it out into
 // its own CSS file.
-import {} from "./ui";
+import { } from "./ui";
 import {
   initializeNbTransactionGraph,
   updateNbTransactionGraph,
@@ -71,10 +71,11 @@ Hooks.Diff = {
     const diffHtml = diff2html(diff, {
       drawFileList: true,
       matching: "lines",
-      outputFormat: "side-by-side",
+      outputFormat: "line-by-line",
       highlight: true,
     });
-    document.querySelector("#diff").innerHTML = diffHtml;
+    this.el.innerHTML = diffHtml;
+
   },
 };
 
@@ -89,7 +90,7 @@ Hooks.network_charts = {
   mounted() {
     const nbTransactionEl = this.el.querySelector("#nb_transactions")
     const validationDurationEl = this.el.querySelector("#validation_duration")
-    
+
     const txGraph = initializeNbTransactionGraph(nbTransactionEl);
     const validationDurationGraph = initializeValidationDurationGraph(validationDurationEl);
 
