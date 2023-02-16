@@ -1,5 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Token do
   @moduledoc false
+  @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Version0

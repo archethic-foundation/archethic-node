@@ -1,5 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Time do
   @moduledoc false
+  @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   @doc """
   Returns current time in unix timestamp format.

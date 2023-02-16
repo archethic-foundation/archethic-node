@@ -5,9 +5,6 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Version1.ConditionInterpreter
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-
   doctest ConditionInterpreter
 
   describe "parse/1" do

@@ -2,6 +2,13 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library do
   @moduledoc false
 
   @doc """
+  Check the types of given parameters for the given function.
+  This is AST manipulation.
+  We cannot check everything (variable or return of fn), but we can at least forbid what's really wrong.
+  """
+  @callback check_types(atom(), list(Macro.t())) :: boolean()
+
+  @doc """
   Checks if a function with given arity exists in given module
   """
   @spec function_exists?(module(), binary(), integer) :: boolean()

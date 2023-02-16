@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Contract do
   This is fine as long as we don't need to change anything.
   If there's something to change for version 1, do the change in here, not in version 0.
   """
+  @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
@@ -69,13 +70,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Contract do
     TransactionStatements.add_ownerships(next_tx, casted_args)
   end
 
-  @doc """
-  Check the types of given parameters for the given function.
-  This is AST manipulation.
-  We cannot check everything, but we can at least forbid what's really wrong.
-
-  We do not need to check the transaction argument because _we_ are feeding it
-  """
+  # We do not need to check the transaction argument because _we_ are feeding it (after this step)
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:set_type, [first]) do
     AST.is_variable_or_function_call?(first) ||
