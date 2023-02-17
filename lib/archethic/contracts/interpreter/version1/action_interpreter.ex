@@ -198,6 +198,35 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     }
   end
 
+  # Dot access non-nested (x.y)
+  defp prewalk(_node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _}, acc) do
+    new_node =
+      quote do
+        get_in(
+          Process.get(:scope),
+          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(map_name)) ++
+            [unquote(map_name), unquote(key_name)]
+        )
+      end
+
+    {new_node, acc}
+  end
+
+  # Dot access nested (x.y.z)
+  defp prewalk({{:., _, [first_arg = {{:., _, _}, _, _}, {:atom, key_name}]}, _, []}, acc) do
+    {nested, new_acc} = prewalk(first_arg, acc)
+
+    new_node =
+      quote do
+        get_in(
+          unquote(nested),
+          [unquote(key_name)]
+        )
+      end
+
+    {new_node, new_acc}
+  end
+
   defp prewalk(
          node,
          acc

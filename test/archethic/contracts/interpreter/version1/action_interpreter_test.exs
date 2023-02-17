@@ -293,6 +293,26 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> elem(1)
                |> ActionInterpreter.parse()
     end
+
+    # test "should be able to use loop" do
+    #   code = ~S"""
+    #   actions triggered_by: transaction do
+    #     result = 0
+
+    #     for var of [1,2,3] do
+    #         result = var
+    #     end
+
+    #     Contract.set_content result
+    #   end
+    #   """
+
+    #   assert {:ok, :transaction, _} =
+    #            code
+    #            |> Interpreter.sanitize_code()
+    #            |> elem(1)
+    #            |> ActionInterpreter.parse()
+    # end
   end
 
   # ----------------------------------------------

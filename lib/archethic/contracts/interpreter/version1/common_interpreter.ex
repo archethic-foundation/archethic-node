@@ -8,7 +8,6 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Version1.Library
-  alias Archethic.Contracts.Interpreter.Version1.Scope
 
   @modules_whitelisted Library.list_common_modules()
 
@@ -77,16 +76,6 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
       when module_name in @modules_whitelisted,
       do: {node, acc}
-
-  # dot access (x.y & x.y.z)
-  def prewalk(
-        node = {{:., _, _}, _, _},
-        acc
-      ) do
-    new_node = dot_access(node, acc)
-
-    {new_node, acc}
-  end
 
   # internal modules (Process/Scope)
   def prewalk(node = {:__aliases__, _, [atom]}, acc) when is_atom(atom), do: {node, acc}
@@ -168,27 +157,4 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ----------------------------------------------------------------------
-
-  # non-nested (x.y)
-  defp dot_access(_node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _}, acc) do
-    quote do
-      get_in(
-        Process.get(:scope),
-        Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(map_name)) ++
-          [unquote(map_name), unquote(key_name)]
-      )
-    end
-  end
-
-  # nested (x.y.z)
-  defp dot_access({{:., _, [first_arg, {:atom, key_name}]}, _, []}, acc) do
-    nested = dot_access(first_arg, acc)
-
-    quote do
-      get_in(
-        unquote(nested),
-        [unquote(key_name)]
-      )
-    end
-  end
 end

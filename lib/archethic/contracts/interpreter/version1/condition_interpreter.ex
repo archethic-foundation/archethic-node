@@ -125,8 +125,28 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
     end
   end
 
+  # Dot access non-nested (x.y)
+  defp postwalk(
+         _node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _},
+         _subject
+       ) do
+    quote do
+      get_in(
+        var!(scope),
+        [unquote(map_name), unquote(key_name)]
+      )
+    end
+  end
+
+  # Dot access nested (x.y.z)
+  defp postwalk({{:., _, [first_arg, {:atom, key_name}]}, _, []}, _subject) do
+    quote do
+      get_in(unquote(first_arg), [unquote(key_name)])
+    end
+  end
+
   # pass through
-  defp postwalk(node, _key) do
+  defp postwalk(node, _subject) do
     node
   end
 end

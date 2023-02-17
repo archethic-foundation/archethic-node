@@ -246,6 +246,58 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              })
     end
 
+    test "should be able to use dot access" do
+      code = ~s"""
+      condition inherit: [
+        content: previous.content == next.content
+      ]
+      """
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "previous" => %{"content" => "zoubida"},
+               "next" => %{"content" => "zoubida"}
+             })
+
+      code = ~s"""
+      condition inherit: [
+        content: previous.content == next.content
+      ]
+      """
+
+      refute code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "previous" => %{"content" => "lavabo"},
+               "next" => %{"content" => "bidet"}
+             })
+    end
+
+    test "should be able to use nested dot access" do
+      code = ~s"""
+      condition inherit: [
+        content: previous.content.y == "foobar"
+      ]
+      """
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "previous" => %{"content" => %{"y" => "foobar"}},
+               "next" => %{}
+             })
+    end
+
     test "should evaluate AST" do
       code = ~s"""
       condition inherit: [
