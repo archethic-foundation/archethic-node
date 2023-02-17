@@ -75,7 +75,7 @@ Hooks.Diff = {
       highlight: true,
     });
     this.el.innerHTML = diffHtml;
-
+    this.el.style.display = "block";
   },
 };
 
