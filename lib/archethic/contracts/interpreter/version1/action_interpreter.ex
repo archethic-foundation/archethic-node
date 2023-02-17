@@ -113,12 +113,16 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
         ast,
         acc,
         fn node, acc ->
+          # IO.inspect(node, label: "prewalk")
           prewalk(node, acc)
         end,
         fn node, acc ->
+          # IO.inspect(node, label: "postwalk")
           postwalk(node, acc)
         end
       )
+
+    # IO.inspect(new_ast, label: "new_ast", limit: :infinity)
 
     new_ast
   end
@@ -137,8 +141,9 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
          acc
        ) do
     # create a "ref" for each block
-    # references are not AST valid, so we convert them to charlist
-    ref = :erlang.ref_to_list(make_ref())
+    # references are not AST valid, so we convert them to binary
+    # (ps: charlist is a slow alternative because the Macro.traverse will step into every character)
+    ref = :erlang.list_to_binary(:erlang.ref_to_list(make_ref()))
     new_acc = acc ++ [ref]
 
     # create the child scope in parent scope
@@ -225,6 +230,27 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
       end
 
     {new_node, new_acc}
+  end
+
+  # for var: list
+  defp prewalk(
+         _node =
+           {{:atom, "for"}, meta,
+            [
+              [{{:atom, var_name}, list}],
+              [do: block]
+            ]},
+         acc
+       ) do
+    # wrap in a block to be able to pattern match it to create a scope
+    ast =
+      {{:atom, "for"}, meta,
+       [
+         [{{:atom, var_name}, list}],
+         [do: AST.wrap_in_block(block)]
+       ]}
+
+    {ast, acc}
   end
 
   defp prewalk(
@@ -322,6 +348,41 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
           Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(var_name)) ++
             [unquote(var_name)]
         )
+      end
+
+    {new_node, acc}
+  end
+
+  # for var: list
+  defp postwalk(
+         _node =
+           {{:atom, "for"}, _,
+            [
+              {:%{}, _, [{var_name, list}]},
+              [do: block]
+            ]},
+         acc
+       ) do
+    # FIXME: here acc is already the parent acc, it is not the acc of the do block
+    # FIXME: this means that our `var_name` will live in the parent scope
+    # FIXME: it works (since we can read from parent) but it will override the parent binding if there's one
+
+    # transform the for-loop into Enum.each
+    # and create a variable in the scope
+    new_node =
+      quote do
+        Enum.each(unquote(list), fn x ->
+          Process.put(
+            :scope,
+            put_in(
+              Process.get(:scope),
+              unquote(acc) ++ [unquote(var_name)],
+              x
+            )
+          )
+
+          unquote(block)
+        end)
       end
 
     {new_node, acc}

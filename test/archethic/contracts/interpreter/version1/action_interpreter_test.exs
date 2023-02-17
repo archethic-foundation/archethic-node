@@ -294,25 +294,25 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
-    # test "should be able to use loop" do
-    #   code = ~S"""
-    #   actions triggered_by: transaction do
-    #     result = 0
+    test "should be able to use loop" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        result = 0
 
-    #     for var of [1,2,3] do
-    #         result = var
-    #     end
+        for i: [1,2,3] do
+            result = result + i
+        end
 
-    #     Contract.set_content result
-    #   end
-    #   """
+        Contract.set_content result
+      end
+      """
 
-    #   assert {:ok, :transaction, _} =
-    #            code
-    #            |> Interpreter.sanitize_code()
-    #            |> elem(1)
-    #            |> ActionInterpreter.parse()
-    # end
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
   end
 
   # ----------------------------------------------
@@ -612,6 +612,64 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use for loop" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        result = 0
+
+        for var: [1,2,3] do
+            result = result + var
+        end
+
+        Contract.set_content result
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "6"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        result = 0
+        list = [1,2,3]
+
+        for num: list do
+            result = result + num
+        end
+
+        Contract.set_content result
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "6"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        result = 0
+
+        for num: [1,2,3] do
+            y = num
+            result = result + num + y
+        end
+
+        Contract.set_content result
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "12"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        for num: [1,2,3] do
+          if num == 2 do
+            Contract.set_content "ok"
+          end
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
 
