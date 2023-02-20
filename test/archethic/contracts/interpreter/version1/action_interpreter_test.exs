@@ -263,6 +263,22 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
+    test "should not be able to use for as an expression" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        var = for i: [1,2] do
+          i
+        end
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
     test "should be able to use nested ." do
       code = ~S"""
       actions triggered_by: transaction do
