@@ -53,15 +53,22 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   @spec is_integer?(Macro.t()) :: boolean()
   def is_integer?(node), do: is_integer(node)
 
-  @doc """
+  @doc ~S"""
   Return wether the given ast is an binary
 
     iex> ast = quote do: "hello"
     iex> ASTHelper.is_binary?(ast)
     true
+
+    iex> _hello = "hello"
+    iex> ast = quote do: "#{_hello} world"
+    iex> ASTHelper.is_binary?(ast)
+    true
   """
   @spec is_binary?(Macro.t()) :: boolean()
-  def is_binary?(node), do: is_binary(node)
+  def is_binary?(node) when is_binary(node), do: true
+  def is_binary?({:<<>>, _, _}), do: true
+  def is_binary?(_), do: false
 
   @doc """
   Return wether the given ast is an float

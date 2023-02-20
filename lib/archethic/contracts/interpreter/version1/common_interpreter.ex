@@ -41,7 +41,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:do, _}, acc), do: {node, acc}
   def prewalk(node = :do, acc), do: {node, acc}
 
-  # primitives
+  # literals
   # it is fine allowing atoms since the users can't create them (this avoid whitelisting functions/modules we use in the prewalk)
   def prewalk(node, acc) when is_atom(node), do: {node, acc}
   def prewalk(node, acc) when is_boolean(node), do: {node, acc}
@@ -77,7 +77,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
       when module_name in @modules_whitelisted,
       do: {node, acc}
 
-  # internal modules (Process/Scope)
+  # internal modules (Process/Scope/Kernel)
   def prewalk(node = {:__aliases__, _, [atom]}, acc) when is_atom(atom), do: {node, acc}
 
   # internal functions
@@ -100,6 +100,35 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   # else (no wrap needed since it's done in the if)
   def prewalk(node = {:else, _}, acc), do: {node, acc}
   def prewalk(node = :else, acc), do: {node, acc}
+
+  # string interpolation
+  def prewalk(node = {{:., _, [Kernel, :to_string]}, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:., _, [Kernel, :to_string]}, acc), do: {node, acc}
+  def prewalk(node = {:binary, _, nil}, acc), do: {node, acc}
+
+  def prewalk(
+        node =
+          {:<<>>, _, [{:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}, _]},
+        acc
+      ) do
+    {node, acc}
+  end
+
+  def prewalk(
+        node =
+          {:<<>>, _,
+           [
+             _,
+             {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}
+           ]},
+        acc
+      ) do
+    {node, acc}
+  end
+
+  def prewalk(node = {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}, acc) do
+    {node, acc}
+  end
 
   # blacklist rest
   def prewalk(node, _acc), do: throw({:error, node, "unexpected term"})

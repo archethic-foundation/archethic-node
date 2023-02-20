@@ -449,6 +449,20 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       actions triggered_by: transaction do
         content = "hello"
         if true do
+          Contract.set_content "#{content} world"
+        else
+          Contract.set_content "should not happen"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello world"}} =
+               sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        content = "hello"
+        if true do
           if true do
             Contract.set_content content
           end
@@ -474,6 +488,20 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        if true do
+          content = "hello"
+          Contract.set_content "#{content} world"
+        else
+          Contract.set_content "should not happen"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello world"}} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
