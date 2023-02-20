@@ -6,6 +6,20 @@ defmodule Archethic.Contracts.Interpreter.Version1.ScopeTest do
   doctest Scope
 
   describe "where_to_assign_variable/3" do
+    test "should return [] when variable exists at root" do
+      ref1 = make_ref()
+      ref2 = make_ref()
+
+      scope = %{
+        "variableName" => %{},
+        ref1 => %{
+          ref2 => %{}
+        }
+      }
+
+      assert [] = Scope.where_to_assign_variable(scope, [ref1, ref2], "variableName")
+    end
+
     test "should return current_path when no match" do
       ref1 = make_ref()
       ref2 = make_ref()

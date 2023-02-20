@@ -89,8 +89,33 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   def format_error_reason(ast_node = {_, metadata, _}, reason) do
-    # FIXME: Macro.to_string will not work on all nodes due to {:atom, bin()}
-    do_format_error_reason(reason, Macro.to_string(ast_node), metadata)
+    node_msg =
+      try do
+        Macro.to_string(ast_node)
+      rescue
+        _ ->
+          # {:atom, _} is not an atom so it breaks the Macro.to_string/1
+          # here we replace it with :_var_
+          {sanified_ast, variables} =
+            Macro.traverse(
+              ast_node,
+              [],
+              fn node, acc -> {node, acc} end,
+              fn
+                {:atom, bin}, acc -> {:_var_, [bin | acc]}
+                node, acc -> {node, acc}
+              end
+            )
+
+          # then we will replace all instances of _var_ in the string with the binary
+          variables
+          |> Enum.reverse()
+          |> Enum.reduce(Macro.to_string(sanified_ast), fn variable, acc ->
+            String.replace(acc, "_var_", variable, global: false)
+          end)
+      end
+
+    do_format_error_reason(reason, node_msg, metadata)
   end
 
   def format_error_reason({{:atom, _}, {_, metadata, _}}, reason) do

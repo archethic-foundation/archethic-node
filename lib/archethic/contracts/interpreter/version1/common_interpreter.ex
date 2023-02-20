@@ -33,6 +33,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:<=, _, _}, acc), do: {node, acc}
   def prewalk(node = {:|>, _, _}, acc), do: {node, acc}
   def prewalk(node = {:==, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:!=, _, _}, acc), do: {node, acc}
   def prewalk(node = {:++, _, _}, acc), do: {node, acc}
   def prewalk(node = {:!, _, _}, acc), do: {node, acc}
 
@@ -105,30 +106,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {{:., _, [Kernel, :to_string]}, _, _}, acc), do: {node, acc}
   def prewalk(node = {:., _, [Kernel, :to_string]}, acc), do: {node, acc}
   def prewalk(node = {:binary, _, nil}, acc), do: {node, acc}
-
-  def prewalk(
-        node =
-          {:<<>>, _, [{:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}, _]},
-        acc
-      ) do
-    {node, acc}
-  end
-
-  def prewalk(
-        node =
-          {:<<>>, _,
-           [
-             _,
-             {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}
-           ]},
-        acc
-      ) do
-    {node, acc}
-  end
-
-  def prewalk(node = {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}, acc) do
-    {node, acc}
-  end
+  def prewalk(node = {:<<>>, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}, acc), do: {node, acc}
 
   # blacklist rest
   def prewalk(node, _acc), do: throw({:error, node, "unexpected term"})

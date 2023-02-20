@@ -113,16 +113,12 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
         ast,
         acc,
         fn node, acc ->
-          # IO.inspect(node, label: "prewalk")
           prewalk(node, acc)
         end,
         fn node, acc ->
-          # IO.inspect(node, label: "postwalk")
           postwalk(node, acc)
         end
       )
-
-    # IO.inspect(new_ast, label: "new_ast", limit: :infinity)
 
     new_ast
   end

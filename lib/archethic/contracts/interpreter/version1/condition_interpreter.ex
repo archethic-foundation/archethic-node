@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
-  @modules_whitelisted ["List", "Map"]
+  @modules_whitelisted Library.list_common_modules()
 
   @type condition_type :: :transaction | :inherit | :oracle
 
