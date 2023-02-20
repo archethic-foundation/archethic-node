@@ -105,6 +105,63 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.ListTest do
     end
   end
 
+  # ----------------------------------------
+  describe "concat/1" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        list = [1,2]
+        if true do
+          list = List.concat([list, [3,4]])
+        end
+
+        Contract.set_content Json.to_string(list)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "[1,2,3,4]"}} =
+               sanitize_parse_execute(code)
+    end
+  end
+
+  # ----------------------------------------
+  describe "append/2" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        list = [1,2]
+        if true do
+          list = List.append(list, 3)
+        end
+
+        Contract.set_content Json.to_string(list)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
+               sanitize_parse_execute(code)
+    end
+  end
+
+  # ----------------------------------------
+  describe "prepend/1" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        list = [1,2]
+        if true do
+          list = List.prepend(list, 0)
+        end
+
+        Contract.set_content Json.to_string(list)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "[0,1,2]"}} =
+               sanitize_parse_execute(code)
+    end
+  end
+
   defp sanitize_parse_execute(code, constants \\ %{}) do
     with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
          {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do

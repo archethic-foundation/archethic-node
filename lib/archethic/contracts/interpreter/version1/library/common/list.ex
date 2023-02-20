@@ -24,6 +24,21 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.List do
     to: Enum,
     as: :empty?
 
+  @spec concat(list(list())) :: list()
+  defdelegate concat(list),
+    to: Enum,
+    as: :concat
+
+  @spec append(list(), any()) :: list()
+  def append(list, element) do
+    list ++ [element]
+  end
+
+  @spec prepend(list(), any()) :: list()
+  def prepend(list, element) do
+    [element | list]
+  end
+
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:take_element_at_index, [first, second]) do
     (AST.is_list?(first) || AST.is_variable_or_function_call?(first)) &&
@@ -39,6 +54,18 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.List do
   end
 
   def check_types(:empty?, [first]) do
+    AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:concat, [first]) do
+    AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:append, [first, _second]) do
+    AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:prepend, [first, _second]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
   end
 
