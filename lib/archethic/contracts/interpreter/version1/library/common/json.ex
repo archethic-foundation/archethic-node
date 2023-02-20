@@ -5,19 +5,27 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Json do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Version0
 
-  @spec path_extract(binary(), binary()) :: binary()
+  @spec path_extract(String.t(), String.t()) :: String.t()
   defdelegate path_extract(text, path),
     to: Version0.Library,
     as: :json_path_extract
 
-  @spec path_match?(binary(), binary()) :: boolean()
+  @spec path_match?(String.t(), String.t()) :: boolean()
   defdelegate path_match?(text, path),
     to: Version0.Library,
     as: :json_path_match?
 
-  @spec to_string(any()) :: binary()
-  def to_string(term) do
-    Jason.encode!(term)
+  @spec to_string(any()) :: String.t()
+  defdelegate to_string(term),
+    to: Jason,
+    as: :encode!
+
+  @spec is_valid?(String.t()) :: boolean()
+  def is_valid?(str) do
+    case Jason.decode(str) do
+      {:ok, _} -> true
+      {:error, _} -> false
+    end
   end
 
   @spec check_types(atom(), list()) :: boolean()
@@ -38,6 +46,10 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Json do
       AST.is_list?(first) ||
       AST.is_float?(first) ||
       AST.is_integer?(first)
+  end
+
+  def check_types(:is_valid?, [first]) do
+    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 
   def check_types(_, _), do: false

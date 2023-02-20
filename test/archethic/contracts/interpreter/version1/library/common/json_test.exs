@@ -83,6 +83,22 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.JsonTest do
     end
   end
 
+  # ----------------------------------------
+  describe "is_valid?/1" do
+    test "should work" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        x = Json.to_string(hello: "world", foo: "bar")
+        if Json.is_valid?(x) do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+  end
+
   defp sanitize_parse_execute(code, constants \\ %{}) do
     with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
          {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
