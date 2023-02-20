@@ -317,6 +317,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
        ) do
     absolute_module_atom = Archethic.Contracts.Interpreter.Version1.Library.Contract
 
+    # check function exists
+    unless Library.function_exists?(absolute_module_atom, function_name) do
+      throw({:error, node, "unknown function: Contract.#{function_name}"})
+    end
+
     # check function is available with given arity
     # (we add 1 to arity because we add the contract as 1st argument implicitely)
     unless Library.function_exists?(absolute_module_atom, function_name, length(args) + 1) do

@@ -120,8 +120,12 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
         {new_node, nil} = CommonInterpreter.postwalk(node_with_key_appended, nil)
         new_node
 
-      true ->
+      # check function exists
+      Library.function_exists?(absolute_module_atom, function_name) ->
         throw({:error, node, "invalid arity for function #{module_name}.#{function_name}"})
+
+      true ->
+        throw({:error, node, "unknown function:  #{module_name}.#{function_name}"})
     end
   end
 

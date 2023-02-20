@@ -9,6 +9,14 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library do
   @callback check_types(atom(), list(Macro.t())) :: boolean()
 
   @doc """
+  Checks if a function exists in given module
+  """
+  @spec function_exists?(module(), binary()) :: boolean()
+  def function_exists?(module, functionName) do
+    functionName in Enum.map(get_module_functions_as_string(module), &elem(&1, 0))
+  end
+
+  @doc """
   Checks if a function with given arity exists in given module
   """
   @spec function_exists?(module(), binary(), integer) :: boolean()
