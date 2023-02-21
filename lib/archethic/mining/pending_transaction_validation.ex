@@ -502,6 +502,17 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp do_accept_transaction(
          %Transaction{
+           type: :code_approval,
+           data: %TransactionData{
+             recipients: []
+           }
+         },
+         _
+       ),
+       do: {:error, "No recipient specified in code approval"}
+
+  defp do_accept_transaction(
+         %Transaction{
            type: :keychain,
            data: %TransactionData{content: "", ownerships: []}
          },
@@ -707,7 +718,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         ) :: boolean
   defp validate_network_chain?(type, tx = %Transaction{})
        when type in [:oracle, :oracle_summary] do
-    # mulitpe txn chain based on summary date
+    # multipe txn chain based on summary date
 
     case OracleChain.genesis_address() do
       nil ->

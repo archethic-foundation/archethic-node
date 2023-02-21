@@ -1,6 +1,6 @@
 defmodule Archethic.Governance.Code.CICD.Docker do
   @moduledoc """
-  CICD service baked by docker.
+  CICD service backed by docker.
 
   The service relies on the `Dockerfile` with two targets: `archethic-ci` and
   `archethic-cd`.
