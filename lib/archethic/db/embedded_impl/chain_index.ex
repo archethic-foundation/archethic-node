@@ -48,7 +48,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     {:ok, state}
   end
 
-  defp migrate_lru_cache(:end_of_table) do
+  defp migrate_lru_cache(:"$end_of_table") do
     :ok
   end
 

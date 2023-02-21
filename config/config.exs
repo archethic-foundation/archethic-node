@@ -114,7 +114,7 @@ config :archethic, Archethic.SelfRepair.Sync, last_sync_file: "p2p/last_sync"
 # Default cachae size for the chain index is 300MB
 config :archethic,
        Archethic.DB.ChainIndex.MaxCacheSize,
-       System.get_env("CHAIN_INDEX_MAX_CACHE_SIZE", "300000000")
+       System.get_env("ARCHETHIC.CHAIN_INDEX_MAX_CACHE_SIZE", "300000000")
 
 # Configure the endpoint
 config :archethic, ArchethicWeb.Endpoint,
