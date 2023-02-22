@@ -85,7 +85,16 @@ To clean the data
 make clean
 ```
 
-To start multiple nodes, you can leverage: `docker-compose`
+To start mutiple node, you need to update some environment variables:
+```bash
+# Start the first node
+iex -S mix
+
+# Start second node
+ARCHETHIC_CRYPTO_SEED=node2 ARCHETHIC_P2P_PORT=3003 ARCHETHIC_HTTP_PORT=4001 ARCHETHIC_HTTPS_PORT=5001 iex -S mix
+
+# To start other node, increment the environment variables
+```
 
 ### Using docker
 
