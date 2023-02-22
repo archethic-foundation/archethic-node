@@ -101,14 +101,23 @@ defmodule Archethic.Governance.Code do
              _, acc ->
                acc
            end),
-         {:ok, {version_char, instructions}} <- eval_str(code_txt <> "\n"),
+         {:ok, {version_char, up_instructions, down_instructions}} <- eval_str(code_txt <> "\n"),
          true <- version == to_string(version_char),
-         current_version_char <-
-           Enum.map(instructions, &elem(&1, 0))
+         current_version_char_up <-
+           Enum.map(up_instructions, &elem(&1, 0))
            |> Enum.uniq(),
-         true <- current_version == to_string(current_version_char),
+         current_version_char_down <-
+           Enum.map(down_instructions, &elem(&1, 0))
+           |> Enum.uniq(),
+         true <- current_version == to_string(current_version_char_up),
+         true <- current_version == to_string(current_version_char_down),
          :ok <-
-           instructions
+           up_instructions
+           |> Enum.map(&elem(&1, 1))
+           |> List.flatten()
+           |> Distillery.Releases.Appup.Utils.validate_instructions(),
+         :ok <-
+           down_instructions
            |> Enum.map(&elem(&1, 1))
            |> List.flatten()
            |> Distillery.Releases.Appup.Utils.validate_instructions() do
@@ -122,14 +131,22 @@ defmodule Archethic.Governance.Code do
   defp eval_str(str) do
     bin = :erlang.binary_to_list(str)
 
-    with {:done, {:ok, token, _}, []} <- :erl_scan.tokens([], bin, 0),
-         {:ok, expr} <- :erl_parse.parse_exprs(token),
-         {:value, val, _} <- :erl_eval.exprs(expr, :erl_eval.new_bindings()) do
-      {:ok, val}
-    else
-      _ -> :error
-    end
+    {:done, {:ok, token, _}, []} = :erl_scan.tokens([], bin, 0)
+    {:ok, expr} = :erl_parse.parse_exprs(token)
+
+    {:value, val, _} =
+      :erl_eval.exprs(
+        expr,
+        :erl_eval.new_bindings(),
+        {:value, &catch_function_calls/2},
+        {:value, &catch_function_calls/2}
+      )
+
+    {:ok, val}
   end
+
+  defp catch_function_calls(_func_name, _args),
+    do: throw("Appup file contained calls to a function which is not permitted")
 
   @doc """
   Ensure the code proposal is an applicable on the current branch.

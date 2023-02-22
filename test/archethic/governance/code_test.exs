@@ -52,6 +52,16 @@ defmodule Archethic.Governance.CodeTest do
     refute Code.valid_appup?(changes, version, current_version)
   end
 
+  test "valid_appup? should throw an error because appup contains illegal function calls" do
+    current_version = "1.0.7"
+    appup_version = version = "1.0.8"
+
+    changes = generate_diff_with_function_call(version, current_version, appup_version)
+
+    assert catch_throw(Code.valid_appup?(changes, version, current_version)) ==
+             "Appup file contained calls to a function which is not permitted"
+  end
+
   test "valid_appup? should fail because appup contains wrong version" do
     current_version = "1.0.7"
     version = "1.0.8"
@@ -80,6 +90,22 @@ defmodule Archethic.Governance.CodeTest do
          instruction,
          should_add_appup? \\ true
        ) do
+    base_appup(current_version, version) <>
+      maybe_add_appup(current_version, appup_version, instruction, should_add_appup?) <>
+      end_base_appup()
+  end
+
+  defp generate_diff_with_function_call(
+         version,
+         current_version,
+         appup_version
+       ) do
+    base_appup(current_version, version) <>
+      appup_with_function_call(current_version, appup_version) <>
+      end_base_appup()
+  end
+
+  defp base_appup(current_version, version) do
     "diff --git a/mix.exs b/mix.exs\n" <>
       "index c615ed94..d16e2d6f 100644\n" <>
       "--- a/mix.exs\n" <>
@@ -92,9 +118,26 @@ defmodule Archethic.Governance.CodeTest do
       "+      version: \"#{version}\",\n" <>
       "       build_path: \"_build\",\n" <>
       "       config_path: \"config/config.exs\",\n" <>
-      "       deps_path: \"deps\",\n" <>
-      maybe_add_appup(current_version, appup_version, instruction, should_add_appup?) <>
-      "\\ No newline at end of file"
+      "       deps_path: \"deps\",\n"
+  end
+
+  defp end_base_appup() do
+    "\\ No newline at end of file"
+  end
+
+  defp appup_with_function_call(current_version, appup_version) do
+    "diff --git a/rel/appups/archethic/1.0.7_to_1.0.8.appup b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n" <>
+      "new file mode 100644\n" <>
+      "index 00000000..0f18b8e1\n" <>
+      "--- /dev/null\n" <>
+      "+++ b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n" <>
+      "@@ -0,0 +1,4 @@\n" <>
+      "+{\"#{appup_version}\",\n" <>
+      "+ [{\"#{current_version}\",\n" <>
+      "+   [{load_module, io:format(\"execute some code\"), []}]}],\n" <>
+      "+ [{\"#{current_version}\",\n" <>
+      "+   [{load_module, 'TOTO', []}]}]\n" <>
+      "+}.\n"
   end
 
   defp maybe_add_appup(_, _, _, false), do: ""
@@ -107,6 +150,8 @@ defmodule Archethic.Governance.CodeTest do
       "+++ b/rel/appups/archethic/1.0.7_to_1.0.8.appup\n" <>
       "@@ -0,0 +1,4 @@\n" <>
       "+{\"#{appup_version}\",\n" <>
+      "+ [{\"#{current_version}\",\n" <>
+      "+   [{#{instruction},'TOTO', []}]}],\n" <>
       "+ [{\"#{current_version}\",\n" <>
       "+   [{#{instruction},'TOTO', []}]}]\n" <>
       "+}.\n"
