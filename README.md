@@ -37,6 +37,10 @@ Current implemented features:
 - Internal oracles (UCO Price Feed)
 - Tailored embedded database
 
+## Running a node for development purpose
+
+### Using Elixir
+
 Requirements:
 
 - Libsodium: for the ed25519 to Curve25519 conversion
@@ -50,9 +54,14 @@ Platforms supported:
 - Linux (Ubuntu 18.04)
 - Mac OS X
 
-## Development
+At first, clone the repository:
 
-At first, get dependencies:
+```bash
+git clone https://github.com/archethic-foundation/archethic-node.git
+cd archethic-node
+```
+
+Get dependencies:
 
 ```bash
 mix deps.get
@@ -78,9 +87,16 @@ make clean
 
 To start multiple nodes, you can leverage: `docker-compose`
 
-### Development with `docker-compose`
+### Using docker
 
-Requires working `docker-compose`
+Requires docker compose plugin
+
+At first, clone the repository:
+
+```bash
+git clone https://github.com/archethic-foundation/archethic-node.git
+cd archethic-node
+```
 
 Build the image:
 
@@ -88,23 +104,39 @@ Build the image:
 docker build -t archethic-node .
 ```
 
-To start testnet:
+To start a single node:
 
 ```bash
-docker-compose up
+# You can run node up to node3
+docker compose up node1
+docker compose up node2
+docker compose up node3
+```
+
+To start all nodes at the same time:
+```bash
+docker compose up
 ```
 
 To run benchmarks:
 
 ```bash
-docker-compose up bench
+docker compose up bench
 ```
 
 To run the playbooks to validate non regression:
 
 ```bash
-docker-compose up validate
+docker compose up validate
 ```
+
+### Using snap
+
+Work in progress ..
+
+## Running a node for testnet / mainnet
+
+Will be opened regarding roadmap advancement
 
 ## Contribution
 
