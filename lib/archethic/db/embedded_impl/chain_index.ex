@@ -10,11 +10,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   alias Archethic.DB
   alias Archethic.DB.EmbeddedImpl.ChainWriter
   alias Archethic.TransactionChain.Transaction
+  alias ArchethicCache.LRU
 
-  @archethic_db_tx_index :archethic_db_tx_index
   @archethic_db_chain_stats :archethic_db_chain_stats
   @archethic_db_last_index :archethic_db_last_index
   @archethic_db_type_stats :archethic_db_type_stats
+  @archetic_db_tx_index_cache Archethic.Db.ChainIndex.LRU
+
+  require Logger
 
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -23,7 +26,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   def init(opts) do
     db_path = Keyword.fetch!(opts, :path)
 
-    :ets.new(@archethic_db_tx_index, [:set, :named_table, :public, read_concurrency: true])
+    ## Start the LRU cache for chain indexes. Default max size is 300 Mb
+    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
+
+    LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
+
     :ets.new(@archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
@@ -31,6 +38,43 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     fill_tables(db_path)
 
     {:ok, %{db_path: db_path}}
+  end
+
+  def code_change("1.0.7", state, _extra) do
+    ## We start the unstarted LRU cache
+    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
+    LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
+
+    ## We migrate the old ETS table to the LRU cache
+    index = :ets.first(:archethic_db_tx_index)
+    :ok = migrate_lru_cache(index)
+    :ets.delete(:archethic_db_tx_index)
+    {:ok, state}
+  end
+
+  # Stub clause to avoid crashes on unmatched version
+  def code_change(_, state, _extra) do
+    {:ok, state}
+  end
+
+  defp migrate_lru_cache(:"$end_of_table") do
+    :ok
+  end
+
+  defp migrate_lru_cache(index) do
+    case :ets.lookup(:archethic_db_tx_index, index) do
+      [{key, %{size: size, offset: offset, genesis_address: genesis_address}}] ->
+        LRU.put(@archetic_db_tx_index_cache, key, %{
+          size: size,
+          offset: offset,
+          genesis_address: genesis_address
+        })
+
+      _ ->
+        :ok
+    end
+
+    migrate_lru_cache(:ets.next(:archethic_db_tx_index, index))
   end
 
   defp fill_tables(db_path) do
@@ -64,12 +108,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
       genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
 
-      true =
-        :ets.insert(
-          @archethic_db_tx_index,
-          {current_address, %{size: size, offset: offset, genesis_address: genesis_address}}
-        )
-
       :ets.update_counter(
         @archethic_db_chain_stats,
         genesis_address,
@@ -79,6 +117,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         ],
         {genesis_address, 0, 0}
       )
+
+      ## Store each transaction in the LRU cache. If cache is full, the oldest entries will be evicted
+      LRU.put(@archetic_db_tx_index_cache, current_address, %{
+        size: size,
+        offset: offset,
+        genesis_address: genesis_address
+      })
 
       do_scan_summary_table(fd)
     else
@@ -145,12 +190,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       [:binary, :append]
     )
 
-    # Write fast lookup entry for this transaction on memory
-    true =
-      :ets.insert(
-        @archethic_db_tx_index,
-        {tx_address, %{size: size, offset: last_offset, genesis_address: genesis_address}}
-      )
+    # Write fast lookup entry for this transaction on LRU cache
+    :ok =
+      LRU.put(@archetic_db_tx_index_cache, tx_address, %{
+        size: size,
+        offset: last_offset,
+        genesis_address: genesis_address
+      })
 
     :ets.update_counter(
       @archethic_db_chain_stats,
@@ -210,13 +256,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   """
   @spec get_tx_entry(binary(), String.t()) :: {:ok, map()} | {:error, :not_exists}
   def get_tx_entry(address, db_path) do
-    case :ets.lookup(@archethic_db_tx_index, address) do
-      [] ->
+    case LRU.get(@archetic_db_tx_index_cache, address) do
+      nil ->
         # If the transaction is not found in the in memory lookup
         # we scan the index file for the subset of the transaction to find the relative information
+        # This will update the LRU cache if the transaction is found
         search_tx_entry(address, db_path)
 
-      [{_address, entry}] ->
+      entry = %{} ->
         {:ok, entry}
     end
   end
@@ -233,6 +280,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
           {genesis_address, size, offset} ->
             :file.close(fd)
+
+            LRU.put(@archetic_db_tx_index_cache, search_address, %{
+              size: size,
+              offset: offset,
+              genesis_address: genesis_address
+            })
+
             {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
         end
 

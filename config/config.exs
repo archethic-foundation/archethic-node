@@ -111,6 +111,11 @@ config :archethic, Archethic.P2P.Message, floor_upload_speed: 125_000
 
 config :archethic, Archethic.SelfRepair.Sync, last_sync_file: "p2p/last_sync"
 
+# Default cachae size for the chain index is 300MB
+config :archethic,
+       Archethic.DB.ChainIndex.MaxCacheSize,
+       String.to_integer(System.get_env("ARCHETHIC.CHAIN_INDEX_MAX_CACHE_SIZE", "300000000"))
+
 # Configure the endpoint
 config :archethic, ArchethicWeb.Endpoint,
   secret_key_base: "5mFu4p5cPMY5Ii0HvjkLfhYZYtC0JAJofu70bzmi5x3xzFIJNlXFgIY5g8YdDPMf",
