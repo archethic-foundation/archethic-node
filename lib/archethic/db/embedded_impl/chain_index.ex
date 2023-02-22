@@ -27,8 +27,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     db_path = Keyword.fetch!(opts, :path)
 
     ## Start the LRU cache for chain indexes. Default max size is 300 Mb
-    cache_max_size =
-      String.to_integer(Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize))
+    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
 
     LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
 
@@ -42,9 +41,19 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   def code_change("1.0.7", state, _extra) do
+    ## We start the unstarted LRU cache
+    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
+    LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
+
+    ## We migrate the old ETS table to the LRU cache
     index = :ets.first(:archethic_db_tx_index)
     :ok = migrate_lru_cache(index)
     :ets.delete(:archethic_db_tx_index)
+    {:ok, state}
+  end
+
+  # Stub clause to avoid crashes on unmatched version
+  def code_change(_, state, _extra) do
     {:ok, state}
   end
 
