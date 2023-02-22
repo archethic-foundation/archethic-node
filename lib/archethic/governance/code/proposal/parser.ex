@@ -51,7 +51,7 @@ defmodule Archethic.Governance.Code.Proposal.Parser do
        index 30787f1..6535f52 100644
        --- a/lib/archethic/governance.ex
        +++ b/lib/archethic/governance.ex
-       @@ -1,107 +1,107 @@" }
+       @@ -1,107 +1,107 @@\n" }
   """
   @spec get_changes(binary()) :: {:ok, binary()} | {:error, :missing_changes}
   def get_changes(content) when is_binary(content) do
@@ -61,6 +61,7 @@ defmodule Archethic.Governance.Code.Proposal.Parser do
           changes_match
           |> List.first()
           |> String.trim()
+          |> Kernel.<>("\n")
 
         {:ok, changes}
 
