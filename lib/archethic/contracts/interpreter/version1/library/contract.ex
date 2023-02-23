@@ -39,34 +39,34 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Contract do
 
   @spec add_uco_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_uco_transfer(next_tx, args) do
-    TransactionStatements.add_uco_transfer(next_tx, :proplists.from_map(args))
+    TransactionStatements.add_uco_transfer(next_tx, Map.to_list(args))
   end
 
   @spec add_uco_transfers(Transaction.t(), list(map())) :: Transaction.t()
   def add_uco_transfers(next_tx, args) do
-    casted_args = Enum.map(args, &:proplists.from_map/1)
+    casted_args = Enum.map(args, &Map.to_list/1)
     TransactionStatements.add_uco_transfers(next_tx, casted_args)
   end
 
   @spec add_token_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_token_transfer(next_tx, args) do
-    TransactionStatements.add_token_transfer(next_tx, :proplists.from_map(args))
+    TransactionStatements.add_token_transfer(next_tx, Map.to_list(args))
   end
 
   @spec add_token_transfers(Transaction.t(), list(map())) :: Transaction.t()
   def add_token_transfers(next_tx, args) do
-    casted_args = Enum.map(args, &:proplists.from_map/1)
+    casted_args = Enum.map(args, &Map.to_list/1)
     TransactionStatements.add_token_transfers(next_tx, casted_args)
   end
 
   @spec add_ownership(Transaction.t(), map()) :: Transaction.t()
   def add_ownership(next_tx, args) do
-    TransactionStatements.add_ownership(next_tx, :proplists.from_map(args))
+    TransactionStatements.add_ownership(next_tx, Map.to_list(args))
   end
 
   @spec add_ownerships(Transaction.t(), list(map())) :: Transaction.t()
   def add_ownerships(next_tx, args) do
-    casted_args = Enum.map(args, &:proplists.from_map/1)
+    casted_args = Enum.map(args, &Map.to_list/1)
     TransactionStatements.add_ownerships(next_tx, casted_args)
   end
 
