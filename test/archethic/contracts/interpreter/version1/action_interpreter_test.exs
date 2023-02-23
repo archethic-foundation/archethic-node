@@ -266,7 +266,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
     test "should not be able to use for as an expression" do
       code = ~S"""
       actions triggered_by: transaction do
-        var = for i: [1,2] do
+        var = for i in [1,2] do
           i
         end
       end
@@ -315,7 +315,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       actions triggered_by: transaction do
         result = 0
 
-        for i: [1,2,3] do
+        for i in [1,2,3] do
             result = result + i
         end
 
@@ -663,7 +663,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       actions triggered_by: transaction do
         result = 0
 
-        for var: [1,2,3] do
+        for var in [1,2,3] do
             result = result + var
         end
 
@@ -678,7 +678,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
         result = 0
         list = [1,2,3]
 
-        for num: list do
+        for num in list do
             result = result + num
         end
 
@@ -692,7 +692,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       actions triggered_by: transaction do
         result = 0
 
-        for num: [1,2,3] do
+        for num in [1,2,3] do
             y = num
             result = result + num + y
         end
@@ -705,7 +705,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
 
       code = ~S"""
       actions triggered_by: transaction do
-        for num: [1,2,3] do
+        for num in [1,2,3] do
           if num == 2 do
             Contract.set_content "ok"
           end

@@ -241,21 +241,27 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     {new_node, new_acc}
   end
 
-  # for var: list
+  # for var in list
   defp prewalk(
          _node =
            {{:atom, "for"}, meta,
             [
-              [{{:atom, var_name}, list}],
+              {:in, _,
+               [
+                 {{:atom, var_name}, _, nil},
+                 list
+               ]},
               [do: block]
             ]},
          acc
        ) do
-    # wrap in a block to be able to pattern match it to create a scope
     ast =
       {{:atom, "for"}, meta,
        [
+         # we change the "var in list" to "var: list" (which will be automatically converted to %{var => list})
+         # to avoid the "var" interpreted as a variable (which would have been converted to get_in/2)
          [{{:atom, var_name}, list}],
+         # wrap in a block to be able to pattern match it to create a scope
          [do: AST.wrap_in_block(block)]
        ]}
 
@@ -367,7 +373,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     {new_node, acc}
   end
 
-  # for var: list
+  # for var in list
   defp postwalk(
          _node =
            {{:atom, "for"}, _,
