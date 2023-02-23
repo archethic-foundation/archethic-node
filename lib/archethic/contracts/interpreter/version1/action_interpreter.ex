@@ -199,7 +199,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
           :scope,
           put_in(
             Process.get(:scope),
-            Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(var_name)) ++
+            Scope.where_is(Process.get(:scope), unquote(acc), unquote(var_name)) ++
               [unquote(var_name)],
             unquote(value)
           )
@@ -218,7 +218,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
       quote do
         get_in(
           Process.get(:scope),
-          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(map_name)) ++
+          Scope.where_is(Process.get(:scope), unquote(acc), unquote(map_name)) ++
             [unquote(map_name), unquote(key_name)]
         )
       end
@@ -365,7 +365,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
       quote do
         get_in(
           Process.get(:scope),
-          Scope.where_to_assign_variable(Process.get(:scope), unquote(acc), unquote(var_name)) ++
+          Scope.where_is(Process.get(:scope), unquote(acc), unquote(var_name)) ++
             [unquote(var_name)]
         )
       end

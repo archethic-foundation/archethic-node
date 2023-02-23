@@ -5,7 +5,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ScopeTest do
 
   doctest Scope
 
-  describe "where_to_assign_variable/3" do
+  describe "where_is/3" do
     test "should return [] when variable exists at root" do
       ref1 = make_ref()
       ref2 = make_ref()
@@ -17,7 +17,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ScopeTest do
         }
       }
 
-      assert [] = Scope.where_to_assign_variable(scope, [ref1, ref2], "variableName")
+      assert [] = Scope.where_is(scope, [ref1, ref2], "variableName")
     end
 
     test "should return current_path when no match" do
@@ -30,7 +30,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ScopeTest do
         }
       }
 
-      assert [^ref1, ^ref2] = Scope.where_to_assign_variable(scope, [ref1, ref2], "variableName")
+      assert [^ref1, ^ref2] = Scope.where_is(scope, [ref1, ref2], "variableName")
     end
 
     test "should return current_path when variable is in current scope" do
@@ -45,7 +45,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ScopeTest do
         }
       }
 
-      assert [^ref1, ^ref2] = Scope.where_to_assign_variable(scope, [ref1, ref2], "variableName")
+      assert [^ref1, ^ref2] = Scope.where_is(scope, [ref1, ref2], "variableName")
     end
 
     test "should return parent path when variable is in parent scope" do
@@ -59,7 +59,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ScopeTest do
         }
       }
 
-      assert [^ref1] = Scope.where_to_assign_variable(scope, [ref1, ref2], "variableName")
+      assert [^ref1] = Scope.where_is(scope, [ref1, ref2], "variableName")
     end
   end
 end
