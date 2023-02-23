@@ -88,6 +88,36 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.StringTest do
     end
   end
 
+  # ----------------------------------------
+  describe "to_float/1" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        if String.to_float("0.1") == 0.1 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+  end
+
+  # ----------------------------------------
+  describe "from_float/1" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        if String.from_float(0.1) == "0.1" do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+  end
+
   defp sanitize_parse_execute(code, constants \\ %{}) do
     with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
          {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
