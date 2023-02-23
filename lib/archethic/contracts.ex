@@ -134,7 +134,7 @@ defmodule Archethic.Contracts do
   Load transaction into the Smart Contract context leveraging the interpreter
   """
   @spec load_transaction(Transaction.t(), list()) :: :ok
-  defdelegate load_transaction(tx, opts \\ []), to: Loader
+  defdelegate load_transaction(tx, opts), to: Loader
 
   @spec accept_new_contract?(Transaction.t() | nil, Transaction.t(), DateTime.t()) :: boolean()
   def accept_new_contract?(nil, _, _), do: true
