@@ -23,9 +23,9 @@
         <div class="columns">
             <div class="column">
             <p class="heading">Code proposal</p>
-            <h1 class="subtitle text_wrap">
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(@address)) do%>
                 <%= Base.encode16(@address) %>
-            </h1>
+            <% end %>
             </div>
         </div>
 
@@ -46,14 +46,15 @@
         <div class="columns">
             <div class="column">
                 <p class="heading">Changes</p>
-                <div id="diff_src" style="display: none" phx-hook="Diff"></div>
-                <div id="diff"></div>
+                <div id="diff_src" style="display: none" phx-hook="Diff">
+                    <%= @changes %>
+                </div>
             </div>
         </div>
 
         <div class="columns">
             <div class="column">
-                <p class="heading">Approvals (2)</p>
+                <p class="heading"><%= "Approvals (#{Enum.count(@approvals)})" %></p>
                 <%= for approval <- @approvals do %>
                     <div class="columns">
                         <div class="column">

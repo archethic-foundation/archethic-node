@@ -21,10 +21,19 @@ defmodule ArchethicWeb.CodeProposalDetailsLive do
 
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(addr),
-         {:ok, prop} <- Governance.get_code_proposal(addr) do
+         {:ok,
+          %Proposal{
+            description: description,
+            version: version,
+            changes: changes,
+            approvals: approvals
+          }} <- Governance.get_code_proposal(addr) do
       new_socket =
         socket
-        |> assign(:proposal, prop)
+        |> assign(:description, description)
+        |> assign(:version, version)
+        |> assign(:changes, changes)
+        |> assign(:approvals, approvals)
         |> assign(:exists?, true)
         |> assign(:address, addr)
         |> assign(:deployed?, false)
