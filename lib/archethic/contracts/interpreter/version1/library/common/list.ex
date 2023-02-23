@@ -4,8 +4,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.List do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
-  @spec take_element_at_index(list(), integer()) :: any()
-  defdelegate take_element_at_index(list, idx),
+  @spec at(list(), integer()) :: any()
+  defdelegate at(list, idx),
     to: Enum,
     as: :at
 
@@ -40,7 +40,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.List do
   end
 
   @spec check_types(atom(), list()) :: boolean()
-  def check_types(:take_element_at_index, [first, second]) do
+  def check_types(:at, [first, second]) do
     (AST.is_list?(first) || AST.is_variable_or_function_call?(first)) &&
       (AST.is_integer?(second) || AST.is_variable_or_function_call?(second))
   end

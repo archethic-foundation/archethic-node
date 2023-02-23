@@ -163,7 +163,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       code = ~S"""
       actions triggered_by: transaction do
         numbers = [1,2,3]
-        List.take_element_at_index(numbers, 1)
+        List.at(numbers, 1)
       end
       """
 
@@ -178,7 +178,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       code = ~S"""
       actions triggered_by: transaction do
         numbers = [1,2,3]
-        List.take_element_at_index(numbers, 1, 2, 3)
+        List.at(numbers, 1, 2, 3)
       end
       """
 
@@ -206,7 +206,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       code = ~S"""
       actions triggered_by: transaction do
         numbers = [1,2,3]
-        List.take_element_at_index(1, numbers)
+        List.at(1, numbers)
       end
       """
 
@@ -395,7 +395,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       code = ~S"""
       actions triggered_by: transaction do
         content = [1,2,3]
-        two = List.take_element_at_index(content, 1)
+        two = List.at(content, 1)
         Contract.set_content two
       end
       """

@@ -16,12 +16,12 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.ListTest do
   doctest List
 
   # ----------------------------------------
-  describe "take_element_at_index/2" do
+  describe "at/2" do
     test "should work" do
       code = ~s"""
       actions triggered_by: transaction do
         list = ["Jennifer", "John", "Jean", "Julie"]
-        Contract.set_content List.take_element_at_index(list, 2)
+        Contract.set_content List.at(list, 2)
       end
       """
 
