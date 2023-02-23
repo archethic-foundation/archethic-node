@@ -64,24 +64,26 @@ defmodule Archethic.SelfRepair do
 
       if loaded_missed_transactions? do
         Logger.info("Bootstrap Sync succeded in loading missed transactions !")
+
+        # At the end of self repair, if a new beacon summary as been created
+        # we run bootstrap_sync again until the last beacon summary is loaded
+        last_sync_date = last_sync_date()
+
+        case DateTime.utc_now()
+             |> BeaconChain.previous_summary_time()
+             |> DateTime.compare(last_sync_date) do
+          :gt ->
+            bootstrap_sync(last_sync_date)
+
+          _ ->
+            :ok
+        end
       else
         Logger.error(
           "Bootstrap Sync failed to load missed transactions after max retry of #{@max_retry_count} !"
         )
-      end
 
-      # At the end of self repair, if a new beacon summary as been created
-      # we run bootstrap_sync again until the last beacon summary is loaded
-      last_sync_date = last_sync_date()
-
-      case DateTime.utc_now()
-           |> BeaconChain.previous_summary_time()
-           |> DateTime.compare(last_sync_date) do
-        :gt ->
-          bootstrap_sync(last_sync_date)
-
-        _ ->
-          :ok
+        :error
       end
     else
       Logger.info("Synchronization skipped (before first summary date)")

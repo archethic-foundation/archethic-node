@@ -1,7 +1,6 @@
 defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
   use ArchethicCase
 
-  alias Mint.Core.Util
   alias Archethic.DB.EmbeddedImpl.ChainIndex
   alias Archethic.DB.EmbeddedImpl.ChainWriter
   alias ArchethicCache.LRU
@@ -40,7 +39,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
     end
 
     test "should load transactions tables", %{db_path: db_path} do
-      {:ok, pid} = ChainIndex.start_link(path: db_path)
+      {:ok, _pid} = ChainIndex.start_link(path: db_path)
       tx_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       genesis_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
