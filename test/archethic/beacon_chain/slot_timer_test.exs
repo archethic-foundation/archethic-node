@@ -121,20 +121,24 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
   end
 
   describe "SlotTimer Behavior During start" do
-    test "should wait for node :up message" do
+    test "should wait for :node_up message" do
       :persistent_term.put(:archethic_up, nil)
 
       {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
       assert %{interval: "*/1 * * * * * *"} = :sys.get_state(pid)
     end
 
-    test "should start timer post node :up message" do
+    test "should start timer post node_up message and stop it after node_down" do
       :persistent_term.put(:archethic_up, nil)
 
       {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
       assert %{interval: "*/1 * * * * * *"} = :sys.get_state(pid)
       send(pid, :node_up)
       assert %{interval: "*/1 * * * * * *", timer: _} = :sys.get_state(pid)
+
+      send(pid, :node_down)
+      refute match?(%{interval: "*/1 * * * * * *", timer: _}, :sys.get_state(pid))
+      assert %{interval: "*/1 * * * * * *"} = :sys.get_state(pid)
     end
 
     test "should use :persistent_term archethic_up when slot timer crashes" do

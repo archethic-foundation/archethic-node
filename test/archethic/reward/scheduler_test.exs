@@ -119,7 +119,7 @@ defmodule Archethic.Reward.SchedulerTest do
       assert {:idle, %{interval: "*/1 * * * * *"}} = :sys.get_state(pid)
     end
 
-    test "should wait for node :up message to start the scheduler, when node is not authorized and available" do
+    test "should wait for :node_up message to start the scheduler, when node is not authorized and available" do
       :persistent_term.put(:archethic_up, nil)
 
       {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])
@@ -131,7 +131,7 @@ defmodule Archethic.Reward.SchedulerTest do
       assert {:idle, %{interval: "*/2 * * * * *"}} = :sys.get_state(pid)
     end
 
-    test "should wait for node :up message to start the scheduler, when node is authorized and available" do
+    test "should wait for :node_up message to start the scheduler, when node is authorized and available" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,
@@ -153,6 +153,38 @@ defmodule Archethic.Reward.SchedulerTest do
                 interval: "*/3 * * * * *",
                 index: _,
                 next_address: _
+              }} = :sys.get_state(pid)
+    end
+
+    test "should wait for :node_down message to stop the scheduler" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        geo_patch: "AAA",
+        available?: true
+      })
+
+      {:ok, pid} = Scheduler.start_link([interval: "*/3 * * * * *"], [])
+
+      assert {:idle, %{interval: "*/3 * * * * *"}} = :sys.get_state(pid)
+      send(pid, :node_up)
+
+      assert {:scheduled,
+              %{
+                interval: "*/3 * * * * *",
+                index: _,
+                next_address: _
+              }} = :sys.get_state(pid)
+
+      send(pid, :node_down)
+
+      assert {:idle,
+              %{
+                interval: "*/3 * * * * *"
               }} = :sys.get_state(pid)
     end
 

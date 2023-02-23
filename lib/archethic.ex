@@ -28,6 +28,14 @@ defmodule Archethic do
   require Logger
 
   @doc """
+    Returns true if a node is up and false if it is down
+  """
+  @spec up? :: boolean()
+  def up?() do
+    :persistent_term.get(:archethic_up, nil) == :up
+  end
+
+  @doc """
   Search a transaction by its address
   Check locally and fallback to a quorum read
   """

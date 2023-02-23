@@ -377,7 +377,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
               }} = :sys.get_state(pid)
     end
 
-    test "should wait for node up message to start the scheduler, node: authorized and available" do
+    test "should wait for node up message to start the scheduler and node_down to stop the scheduler, node: authorized and available" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,
@@ -403,6 +403,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
                 polling_interval: "0 */3 * * *",
                 summary_interval: "0 0 0 * *",
                 summary_date: _date_time = %DateTime{}
+              }} = :sys.get_state(pid)
+
+      send(pid, :node_down)
+
+      assert {:idle,
+              %{
+                polling_interval: "0 */3 * * *",
+                summary_interval: "0 0 0 * *"
               }} = :sys.get_state(pid)
     end
 

@@ -9,7 +9,6 @@ defmodule Archethic.BeaconChain.SlotTimer do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SubsetRegistry
   alias Archethic.BeaconChain.SummaryTimer
-  alias Archethic.Bootstrap
 
   alias Archethic.DB
 
@@ -88,7 +87,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
     interval = Keyword.get(opts, :interval)
     :ets.insert(@slot_timer_ets, {:interval, interval})
 
-    if Bootstrap.done?() do
+    if Archethic.up?() do
       Logger.info("Slot Timer: Starting...")
       next_time = next_slot(DateTime.utc_now())
 
@@ -96,20 +95,31 @@ defmodule Archethic.BeaconChain.SlotTimer do
     else
       Logger.info("Slot Timer:  Waiting for Node to complete Bootstrap.")
 
-      Archethic.PubSub.register_to_node_up()
+      Archethic.PubSub.register_to_node_status()
       {:ok, %{interval: interval}}
     end
   end
 
-  def handle_info(:node_up, server_data = %{interval: interval}) do
+  def handle_info(:node_up, state = %{interval: interval}) do
     Logger.info("Slot Timer: Starting...")
 
-    new_server_data =
-      server_data
+    new_state =
+      state
       |> Map.put(:timer, schedule_new_slot(interval))
       |> Map.put(:next_time, next_slot(DateTime.utc_now()))
 
-    {:noreply, new_server_data, :hibernate}
+    {:noreply, new_state, :hibernate}
+  end
+
+  def handle_info(:node_down, %{interval: interval, timer: timer}) do
+    Logger.info("Slot Timer: Stopping...")
+    Process.cancel_timer(timer)
+    {:noreply, %{interval: interval}, :hibernate}
+  end
+
+  def handle_info(:node_down, %{interval: interval}) do
+    Logger.info("Slot Timer: Stopping...")
+    {:noreply, %{interval: interval}, :hibernate}
   end
 
   def handle_info(

@@ -14,7 +14,6 @@ defmodule Archethic.Bootstrap do
     Networking,
     P2P,
     P2P.Node,
-    P2P.Listener,
     SelfRepair,
     TransactionChain,
     Replication
@@ -61,10 +60,6 @@ defmodule Archethic.Bootstrap do
       last_sync_date,
       reward_address
     ])
-  end
-
-  def done?() do
-    :persistent_term.get(:archethic_up, nil) == :up
   end
 
   @doc """
@@ -220,8 +215,7 @@ defmodule Archethic.Bootstrap do
     SelfRepair.start_scheduler()
 
     :persistent_term.put(:archethic_up, :up)
-    Archethic.PubSub.notify_node_up()
-    Listener.listen()
+    Archethic.PubSub.notify_node_status(:node_up)
   end
 
   def resync_network_chain() do

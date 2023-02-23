@@ -27,6 +27,8 @@ defmodule Archethic.SelfRepair do
 
   require Logger
 
+  @max_retry_count 10
+
   @doc """
   Start the self repair synchronization scheduler
   """
@@ -48,20 +50,40 @@ defmodule Archethic.SelfRepair do
     # Before the first summary date, synchronization is useless
     # as no data have been aggregated
     if DateTime.diff(DateTime.utc_now(), summary_time) >= 0 do
-      start_date = DateTime.utc_now()
-      :ok = Sync.load_missed_transactions(date)
-      put_last_sync_date(start_date)
+      loaded_missed_transactions? =
+        :ok ==
+          0..@max_retry_count
+          |> Enum.reduce_while(:error, fn _, _ ->
+            try do
+              :ok = Sync.load_missed_transactions(date)
+              {:halt, :ok}
+            catch
+              _, _ -> {:cont, :error}
+            end
+          end)
 
-      # At the end of self repair, if a new beacon summary as been created
-      # we run bootstrap_sync again until the last beacon summary is loaded
-      case DateTime.utc_now()
-           |> BeaconChain.previous_summary_time()
-           |> DateTime.compare(start_date) do
-        :gt ->
-          bootstrap_sync(start_date)
+      if loaded_missed_transactions? do
+        Logger.info("Bootstrap Sync succeded in loading missed transactions !")
 
-        _ ->
-          :ok
+        # At the end of self repair, if a new beacon summary as been created
+        # we run bootstrap_sync again until the last beacon summary is loaded
+        last_sync_date = last_sync_date()
+
+        case DateTime.utc_now()
+             |> BeaconChain.previous_summary_time()
+             |> DateTime.compare(last_sync_date) do
+          :gt ->
+            bootstrap_sync(last_sync_date)
+
+          _ ->
+            :ok
+        end
+      else
+        Logger.error(
+          "Bootstrap Sync failed to load missed transactions after max retry of #{@max_retry_count} !"
+        )
+
+        :error
       end
     else
       Logger.info("Synchronization skipped (before first summary date)")

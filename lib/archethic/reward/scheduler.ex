@@ -5,7 +5,6 @@ defmodule Archethic.Reward.Scheduler do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.{
-    Bootstrap,
     Crypto,
     PubSub,
     DB,
@@ -30,13 +29,13 @@ defmodule Archethic.Reward.Scheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    if Bootstrap.done?() do
+    if Archethic.up?() do
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}
     else
       Logger.info(" Reward Scheduler: Waiting for Node to complete Bootstrap. ")
 
-      PubSub.register_to_node_up()
+      PubSub.register_to_node_status()
       {:ok, :idle, state_data}
     end
   end
@@ -70,11 +69,21 @@ defmodule Archethic.Reward.Scheduler do
     end
   end
 
-  def handle_event(:info, :node_up, :idle, state_data) do
+  def handle_event(:info, :node_up, _, state_data) do
     # Node is up start Scheduler
-    PubSub.unregister_to_node_up()
     {:idle, new_state_data, events} = start_scheduler(state_data)
     {:keep_state, new_state_data, events}
+  end
+
+  def handle_event(:info, :node_down, _, %{interval: interval, timer: timer}) do
+    # Node is down stop Scheduler
+    Process.cancel_timer(timer)
+    {:next_state, :idle, %{interval: interval}}
+  end
+
+  def handle_event(:info, :node_down, _, %{interval: interval}) do
+    # Node is down stop Scheduler
+    {:next_state, :idle, %{interval: interval}}
   end
 
   def handle_event(
@@ -380,6 +389,8 @@ defmodule Archethic.Reward.Scheduler do
         {:noreply, Map.put(data, :interval, new_interval)}
     end
   end
+
+  def handle_event(:info, _, :idle, _state), do: :keep_state_and_data
 
   defp mint_node_rewards(index) do
     case DB.get_latest_burned_fees() do

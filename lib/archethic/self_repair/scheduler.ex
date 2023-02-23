@@ -14,9 +14,13 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   alias Archethic.Utils
 
+  alias Archethic.PubSub
+
   alias Archethic.Bootstrap.Sync, as: BootstrapSync
 
   require Logger
+
+  @max_retry_count 10
 
   @doc """
   Start the scheduler process
@@ -78,9 +82,7 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   def handle_info(
         :sync,
-        state = %{
-          interval: interval
-        }
+        state
       ) do
     last_sync_date = Sync.last_sync_date()
 
@@ -92,33 +94,56 @@ defmodule Archethic.SelfRepair.Scheduler do
       # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
       # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
       # at the end of loading (in case there is a crash during self repair)
-      start_date = DateTime.utc_now()
-      :ok = Sync.load_missed_transactions(last_sync_date)
-      {:ok, start_date}
+      Sync.load_missed_transactions(last_sync_date)
     end)
 
+    {:noreply, state, :hibernate}
+  end
+
+  def handle_info({ref, :ok}, state = %{interval: interval}) do
+    # If the node is still unavailable after self repair, we send the postpone the
+    # end of node sync message
     timer = schedule_sync(interval)
     Logger.info("Self-Repair will be started in #{Utils.remaining_seconds_from_timer(timer)}")
 
     new_state =
       state
       |> Map.put(:timer, timer)
+      |> Map.delete(:retry_count)
 
-    {:noreply, new_state, :hibernate}
-  end
+    if !Archethic.up?() do
+      :persistent_term.put(:archethic_up, :up)
+      PubSub.notify_node_status(:node_up)
+    end
 
-  def handle_info({ref, {:ok, date}}, state) do
-    # If the node is still unavailable after self repair, we send the postpone the
-    # end of node sync message
     if !P2P.available_node?(), do: BootstrapSync.publish_end_of_sync()
-    update_last_sync_date(date)
     Process.demonitor(ref, [:flush])
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, _, _, reason}, state) do
+  def handle_info({:DOWN, _ref, _, _, reason}, state = %{interval: interval}) do
     Logger.error("Failed to completed self-repair cycle: #{inspect(reason)}")
-    {:noreply, state}
+
+    if Archethic.up?() do
+      :persistent_term.put(:archethic_up, :down)
+      PubSub.notify_node_status(:node_down)
+    end
+
+    new_state = Map.update(state, :retry_count, 1, &(&1 + 1))
+
+    new_state =
+      if new_state.retry_count > @max_retry_count do
+        timer = schedule_sync(interval)
+
+        new_state
+        |> Map.delete(:retry_count)
+        |> Map.put(:timer, timer)
+      else
+        send(self(), :sync)
+        new_state
+      end
+
+    {:noreply, new_state}
   end
 
   def handle_info(_, state) do
@@ -133,11 +158,6 @@ defmodule Archethic.SelfRepair.Scheduler do
       new_interval ->
         {:noreply, Map.put(state, :interval, new_interval)}
     end
-  end
-
-  defp update_last_sync_date(date = %DateTime{}) do
-    next_sync_date = Utils.truncate_datetime(date)
-    :ok = Sync.store_last_sync_date(next_sync_date)
   end
 
   defp schedule_sync(interval) do

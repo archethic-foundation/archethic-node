@@ -11,7 +11,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   alias Archethic
 
-  alias Archethic.Bootstrap
   alias Archethic.Election
 
   alias Archethic.Crypto
@@ -53,13 +52,13 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     # Set trap_exit globally for the process
     Process.flag(:trap_exit, true)
 
-    if Bootstrap.done?() do
+    if Archethic.up?() do
       {state, new_state_data, events} = start_scheduler(state_data)
       {:ok, state, new_state_data, events}
     else
       Logger.info("Node Renewal Scheduler: Waiting for node to complete Bootstrap. ")
 
-      PubSub.register_to_node_up()
+      PubSub.register_to_node_status()
       {:ok, :idle, state_data}
     end
   end
@@ -109,11 +108,19 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     {:next_state, :scheduled, new_data}
   end
 
-  def handle_event(:info, :node_up, :idle, state_data) do
-    PubSub.unregister_to_node_up()
+  def handle_event(:info, :node_up, _, state_data) do
     # Node is Up start Scheduler
     {:idle, new_state_data, events} = start_scheduler(state_data)
     {:keep_state, new_state_data, events}
+  end
+
+  def handle_event(:info, :node_down, _, %{interval: interval, timer: timer}) do
+    Process.cancel_timer(timer)
+    {:next_state, :idle, %{interval: interval}}
+  end
+
+  def handle_event(:info, :node_down, _, %{interval: interval}) do
+    {:next_state, :idle, %{interval: interval}}
   end
 
   def handle_event(
@@ -301,6 +308,8 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
         {:keep_state, Map.put(data, :interval, new_interval)}
     end
   end
+
+  def handle_event(:info, _, :idle, _state), do: :keep_state_and_data
 
   defp make_renewal(tx) do
     Archethic.send_new_transaction(tx)
