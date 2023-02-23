@@ -26,14 +26,14 @@ defmodule Archethic.Contracts.Loader do
   def init(_opts) do
     TransactionChain.list_io_transactions([])
     |> Stream.filter(&(&1.data.recipients != []))
-    |> Stream.each(&load_transaction(&1, execute_contract?: false))
+    |> Stream.each(&load_transaction(&1, execute_contract?: false, io_transaction?: true))
     |> Stream.run()
 
     # Network transactions does not contains trigger or recipient
     TransactionChain.list_all([])
     |> Stream.reject(&Transaction.network_type?(&1.type))
     |> Stream.filter(&(&1.data.recipients != [] or &1.data.code != ""))
-    |> Stream.each(&load_transaction(&1, execute_contract?: false))
+    |> Stream.each(&load_transaction(&1, execute_contract?: false, io_transaction?: false))
     |> Stream.run()
 
     {:ok, []}
@@ -54,13 +54,14 @@ defmodule Archethic.Contracts.Loader do
             protocol_version: protocol_version
           }
         },
-        execute_contract?: execute_contract?
+        execute_contract?: execute_contract?,
+        io_transaction?: io_transaction?
       ) do
     # Stop previous transaction contract
     stop_contract(Transaction.previous_address(tx))
 
-    # If transaction contains code, start a new worker for it
-    if code != "" do
+    # If transaction contains code and we are storage node, start a new worker for it
+    if code != "" and not io_transaction? do
       %Contract{triggers: triggers} = Contracts.parse!(code)
       triggers = Enum.reject(triggers, fn {_, actions} -> actions == {:__block__, [], []} end)
 

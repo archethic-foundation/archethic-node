@@ -572,7 +572,12 @@ defmodule Archethic.Replication do
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx, io_transaction?)
-    Contracts.load_transaction(tx, execute_contract?: not self_repair?)
+
+    Contracts.load_transaction(tx,
+      execute_contract?: not self_repair?,
+      io_transaction?: io_transaction?
+    )
+
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)
     :ok
