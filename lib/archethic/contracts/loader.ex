@@ -9,8 +9,6 @@ defmodule Archethic.Contracts.Loader do
   alias Archethic.Contracts.TransactionLookup
   alias Archethic.Contracts.Worker
 
-  alias Archethic.DB
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -26,15 +24,16 @@ defmodule Archethic.Contracts.Loader do
   end
 
   def init(_opts) do
-    DB.list_last_transaction_addresses()
-    |> Stream.map(&DB.get_transaction(&1, []))
-    |> Stream.filter(fn
-      {:ok, %Transaction{data: %TransactionData{code: ""}}} -> false
-      {:error, _} -> false
-      _ -> true
-    end)
-    |> Stream.map(fn {:ok, tx} -> tx end)
-    |> Stream.each(&load_transaction(&1, from_db: true))
+    TransactionChain.list_io_transactions([])
+    |> Stream.filter(&(&1.data.recipients != []))
+    |> Stream.each(&load_transaction(&1, execute_contract?: false))
+    |> Stream.run()
+
+    # Network transactions does not contains trigger or recipient
+    TransactionChain.list_all([])
+    |> Stream.reject(&Transaction.network_type?(&1.type))
+    |> Stream.filter(&(&1.data.recipients != [] or &1.data.code != ""))
+    |> Stream.each(&load_transaction(&1, execute_contract?: false))
     |> Stream.run()
 
     {:ok, []}
@@ -55,16 +54,10 @@ defmodule Archethic.Contracts.Loader do
             protocol_version: protocol_version
           }
         },
-        opts \\ []
+        execute_contract?: execute_contract?
       ) do
-    from_db? = Keyword.get(opts, :from_db, false)
-    from_self_repair? = Keyword.get(opts, :from_self_repair, false)
-    if from_db? and from_self_repair?, do: raise("Cant have tx with db and self repair flag")
-
     # Stop previous transaction contract
-    unless from_db? do
-      stop_contract(Transaction.previous_address(tx))
-    end
+    stop_contract(Transaction.previous_address(tx))
 
     # If transaction contains code, start a new worker for it
     if code != "" do
@@ -95,7 +88,7 @@ defmodule Archethic.Contracts.Loader do
         protocol_version
       )
 
-      unless from_db? or from_self_repair? do
+      if execute_contract? do
         # execute contract asynchronously only if we are in live replication
         Logger.info(
           "Execute transaction on contract #{Base.encode16(contract_address)}",
