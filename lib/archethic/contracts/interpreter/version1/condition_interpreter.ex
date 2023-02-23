@@ -5,6 +5,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
   alias Archethic.Contracts.Interpreter.Version1.Library
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter.Version0
 
   @modules_whitelisted Library.list_common_modules()
 
@@ -57,7 +58,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
   """
   @spec valid_conditions?(Conditions.t(), map()) :: bool()
   def valid_conditions?(conditions, constants) do
-    Archethic.Contracts.Interpreter.Version0.ConditionInterpreter.valid_conditions?(
+    Version0.ConditionInterpreter.valid_conditions?(
       conditions,
       constants
     )
