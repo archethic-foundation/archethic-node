@@ -18,7 +18,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
   The distance between center of mass and each node is then reduced to this formula using law of cosine
   and center of mass:
-  `$$ dic^2 =  {1\over 2} \sum_{j=1}^{n} dij^2 - {1\over 2}\sum_{j=2}^{n}\sum_{k=1}^{j-1} djk^2 $$`
+  `$$ dic^2 =  {1\over n} \sum_{j=1}^{n} dij^2 - {1\over n^2}\sum_{j=2}^{n}\sum_{k=1}^{j-1} djk^2 $$`
 
   Then using the laws of Cosine, we can compute a gram matrix which would help to plot the nodes in a 2D plan:
   `$$ gij =  {1\over 2} (dic^2 + djc^2 - dij^2) $$`
