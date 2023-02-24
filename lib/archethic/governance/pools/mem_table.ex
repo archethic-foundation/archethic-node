@@ -5,7 +5,7 @@ defmodule Archethic.Governance.Pools.MemTable do
   alias Archethic.Governance.Pools
 
   @doc """
-  Initialize an memory table for the governance pool member distribution
+  Initialize a memory table for the governance pool member distribution
 
   ## Examples
 

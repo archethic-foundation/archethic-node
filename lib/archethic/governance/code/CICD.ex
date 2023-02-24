@@ -18,7 +18,7 @@ defmodule Archethic.Governance.Code.CICD do
 
   where
     * Code - a source code of archethic-node
-    * Propsal - a code proposal transaction
+    * Proposal - a code proposal transaction
     * Release - a release of archethic-node
     * Upgrade - an upgrade to a release of archethic-node
     * CiLog - unit tests and type checker logs

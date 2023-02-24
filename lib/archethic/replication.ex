@@ -31,6 +31,8 @@ defmodule Archethic.Replication do
 
   alias Archethic.Reward
 
+  alias Archethic.Governance
+
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionPool
   alias __MODULE__.TransactionValidator
@@ -575,6 +577,7 @@ defmodule Archethic.Replication do
     Contracts.load_transaction(tx, from_self_repair: self_repair?)
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)
+    Governance.load_transaction(tx)
     :ok
   end
 end
