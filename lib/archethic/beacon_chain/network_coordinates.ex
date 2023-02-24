@@ -67,7 +67,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
     a =
       tensor
-      |> Nx.power(2)
+      |> Nx.pow(2)
       |> Nx.sum(axes: [:column])
       |> Nx.multiply(Nx.tensor(1.0 / matrix_size, type: {:f, 64}))
 
@@ -78,7 +78,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
       |> Enum.map(fn i ->
         excluded_first_row_tensor
         |> Nx.slice([i - 1, 0], [1, i])
-        |> Nx.power(2)
+        |> Nx.pow(2)
         |> Nx.sum()
       end)
       |> Nx.stack()
@@ -101,9 +101,9 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
         dij = matrix_tensor[i][j]
 
         dic
-        |> Nx.power(2)
-        |> Nx.add(Nx.power(djc, 2))
-        |> Nx.subtract(Nx.power(dij, 2))
+        |> Nx.pow(2)
+        |> Nx.add(Nx.pow(djc, 2))
+        |> Nx.subtract(Nx.pow(dij, 2))
         |> Nx.multiply(Nx.tensor(0.5, type: {:f, 64}))
       end)
       |> Nx.stack()

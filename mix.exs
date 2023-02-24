@@ -124,8 +124,8 @@ defmodule Archethic.MixProject do
       {:git_diff, "~> 0.6.4"},
 
       # Numbering
-      {:nx, "~> 0.4.2"},
-      {:exla, "~> 0.2"}
+      {:nx, "~> 0.5"},
+      {:exla, "~> 0.5"}
     ]
   end
 
