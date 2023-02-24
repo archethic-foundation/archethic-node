@@ -10,7 +10,10 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   @doc """
   Compute the network patch based on the matrix latencies
 
-  The matrix must be an Hollow matrix, symmetric and all the latencies must be positive
+  The matrix must be an:
+  - Hollow matrix (all diagonal elements should all be 0)
+  - symmetric (for all i and for all j M[i][j] = M[j][i])
+  - all off-diagonal elements must be positive (i!=j)
 
   In physics, the center of mass for a distribution of masses in the space is the unique point where
   the weighted relative position of the distributed mass sums to zero. Here, the sum of vectors to
