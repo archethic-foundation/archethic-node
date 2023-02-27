@@ -16,6 +16,8 @@ defmodule Archethic.Bootstrap do
     P2P.Node,
     SelfRepair,
     TransactionChain,
+    TransactionChain.Transaction,
+    TransactionChain.TransactionData,
     Replication
   }
 
@@ -146,7 +148,7 @@ defmodule Archethic.Bootstrap do
          transport,
          bootstrapping_seeds,
          network_patch,
-         reward_address
+         configured_reward_address
        ) do
     Logger.info("Bootstrapping starting")
 
@@ -161,7 +163,7 @@ defmodule Archethic.Bootstrap do
             port,
             http_port,
             transport,
-            reward_address
+            configured_reward_address
           )
 
         Sync.initialize_network(tx)
@@ -179,13 +181,21 @@ defmodule Archethic.Bootstrap do
           transport,
           network_patch,
           bootstrapping_seeds,
-          reward_address
+          configured_reward_address
         )
 
         post_bootstrap(sync?: true)
 
       true ->
         Logger.info("Update node chain...")
+
+        {:ok, %Transaction{data: %TransactionData{content: content}}} =
+          TransactionChain.get_last_transaction(
+            Crypto.derive_address(Crypto.first_node_public_key())
+          )
+
+        {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
+         _key_certificate} = Node.decode_transaction_content(content)
 
         update_node(
           ip,
@@ -194,7 +204,7 @@ defmodule Archethic.Bootstrap do
           transport,
           network_patch,
           bootstrapping_seeds,
-          reward_address
+          last_reward_address
         )
 
         post_bootstrap(sync?: true)
@@ -284,7 +294,7 @@ defmodule Archethic.Bootstrap do
          transport,
          patch,
          bootstrapping_seeds,
-         reward_address
+         configured_reward_address
        ) do
     Enum.each(bootstrapping_seeds, &P2P.add_and_connect_node/1)
 
@@ -301,6 +311,21 @@ defmodule Archethic.Bootstrap do
       |> TransactionChain.fetch_size_remotely(closest_nodes)
 
     Crypto.set_node_key_index(length)
+
+    reward_address =
+      if length > 0 do
+        {:ok, %Transaction{data: %TransactionData{content: content}}} =
+          TransactionChain.get_last_transaction(
+            Crypto.derive_address(Crypto.first_node_public_key())
+          )
+
+        {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
+         _key_certificate} = Node.decode_transaction_content(content)
+
+        last_reward_address
+      else
+        configured_reward_address
+      end
 
     tx =
       TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
