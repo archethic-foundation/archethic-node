@@ -38,7 +38,7 @@ defmodule Archethic.Contracts.LoaderTest do
         }
       }
 
-      assert :ok = Loader.load_transaction(tx)
+      assert :ok = Loader.load_transaction(tx, execute_contract?: false, io_transaction?: false)
       [{pid, _}] = Registry.lookup(ContractRegistry, contract_address)
 
       assert Enum.any?(
@@ -107,9 +107,9 @@ defmodule Archethic.Contracts.LoaderTest do
         }
       }
 
-      assert :ok = Loader.load_transaction(tx1)
+      assert :ok = Loader.load_transaction(tx1, execute_contract?: false, io_transaction?: false)
       [{pid1, _}] = Registry.lookup(ContractRegistry, tx1.address)
-      assert :ok = Loader.load_transaction(tx2)
+      assert :ok = Loader.load_transaction(tx2, execute_contract?: false, io_transaction?: false)
       [{pid2, _}] = Registry.lookup(ContractRegistry, tx2.address)
 
       assert !Process.alive?(pid1)
@@ -128,36 +128,33 @@ defmodule Archethic.Contracts.LoaderTest do
 
     contract_address = Crypto.derive_address(pub1)
 
+    tx = %Transaction{
+      address: contract_address,
+      data: %TransactionData{
+        code: """
+        condition transaction: [
+          content: "hello"
+        ]
+
+        condition inherit: [
+          content: "hi"
+        ]
+
+        actions triggered_by: transaction do
+          set_content "hi"
+        end
+        """
+      },
+      previous_public_key: pub0,
+      validation_stamp: %ValidationStamp{
+        recipients: [],
+        timestamp: DateTime.utc_now()
+      }
+    }
+
     MockDB
-    |> stub(:list_last_transaction_addresses, fn ->
-      [contract_address]
-    end)
-    |> stub(:get_transaction, fn ^contract_address, _ ->
-      {:ok,
-       %Transaction{
-         address: contract_address,
-         data: %TransactionData{
-           code: """
-           condition transaction: [
-             content: "hello"
-           ]
-
-           condition inherit: [
-             content: "hi"
-           ]
-
-           actions triggered_by: transaction do
-             set_content "hi"
-           end
-           """
-         },
-         previous_public_key: pub0,
-         validation_stamp: %ValidationStamp{
-           recipients: [],
-           timestamp: DateTime.utc_now()
-         }
-       }}
-    end)
+    |> stub(:list_io_transactions, fn _ -> [] end)
+    |> stub(:list_transactions, fn _ -> [tx] end)
 
     assert {:ok, _} = Loader.start_link()
     [{pid, _}] = Registry.lookup(ContractRegistry, contract_address)
