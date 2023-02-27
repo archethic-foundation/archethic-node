@@ -121,7 +121,11 @@ defmodule Archethic.MixProject do
       {:floki, "~> 0.33"},
       {:ex_cldr, "~> 2.7"},
       {:ex_cldr_numbers, "~> 2.29"},
-      {:git_diff, "~> 0.6.4"}
+      {:git_diff, "~> 0.6.4"},
+
+      # Numbering
+      {:nx, "~> 0.5"},
+      {:exla, "~> 0.5"}
     ]
   end
 
