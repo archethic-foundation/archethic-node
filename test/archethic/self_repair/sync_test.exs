@@ -314,42 +314,35 @@ defmodule Archethic.SelfRepair.SyncTest do
     attestation1 = %ReplicationAttestation{
       transaction_summary: tx1_summary,
       confirmations:
-        Enum.reduce_while(
-          elected_storage_nodes,
-          %{confirmations: [], index: 0},
-          fn node, acc = %{confirmations: confirmations, index: index} ->
-            if index >= 4 do
-              {:halt, confirmations}
+        Enum.map(0..3, fn i ->
+          node = Enum.at(elected_storage_nodes, i)
+
+          signature =
+            if node.first_public_key == Crypto.first_node_public_key() do
+              tx1_summary
+              |> TransactionSummary.serialize()
+              |> Crypto.sign_with_first_node_key()
             else
-              signature =
-                if node.first_public_key == Crypto.first_node_public_key() do
-                  tx1_summary
-                  |> TransactionSummary.serialize()
-                  |> Crypto.sign_with_first_node_key()
-                else
-                  node_private_key =
-                    Enum.find_value(
-                      nodes_keypair,
-                      &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
-                    )
+              node_private_key =
+                Enum.find_value(
+                  nodes_keypair,
+                  &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
+                )
 
-                  tx1_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
-                end
-
-              new_acc =
-                Map.update!(acc, :confirmations, &[{index, signature} | &1])
-                |> Map.update!(:index, &(&1 + 1))
-
-              {:cont, new_acc}
+              tx1_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
             end
-          end
-        )
+
+          index =
+            ReplicationAttestation.get_node_index(node.first_public_key, tx1_summary.timestamp)
+
+          {index, signature}
+        end)
     }
 
     tx2 =
       TransactionFactory.create_valid_transaction([],
         index: 1,
-        timestamp: DateTime.utc_now() |> DateTime.add(-1, :hour)
+        timestamp: DateTime.utc_now() |> DateTime.add(-59, :minute)
       )
 
     tx2_summary = TransactionSummary.from_transaction(tx2)
@@ -361,12 +354,14 @@ defmodule Archethic.SelfRepair.SyncTest do
     attestation2 = %ReplicationAttestation{
       transaction_summary: tx2_summary,
       confirmations:
-        Enum.reduce_while(
-          elected_storage_nodes,
-          %{confirmations: [], index: 0},
-          fn node, acc = %{confirmations: confirmations, index: index} ->
-            if index >= 2 do
-              {:halt, confirmations}
+        Enum.map(0..1, fn i ->
+          node = Enum.at(elected_storage_nodes, i)
+
+          signature =
+            if node.first_public_key == Crypto.first_node_public_key() do
+              tx2_summary
+              |> TransactionSummary.serialize()
+              |> Crypto.sign_with_first_node_key()
             else
               node_private_key =
                 Enum.find_value(
@@ -374,23 +369,14 @@ defmodule Archethic.SelfRepair.SyncTest do
                   &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
                 )
 
-              signature =
-                if node_private_key != nil,
-                  do:
-                    tx2_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key),
-                  else:
-                    tx2_summary
-                    |> TransactionSummary.serialize()
-                    |> Crypto.sign_with_first_node_key()
-
-              new_acc =
-                Map.update!(acc, :confirmations, &[{index, signature} | &1])
-                |> Map.update!(:index, &(&1 + 1))
-
-              {:cont, new_acc}
+              tx2_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
             end
-          end
-        )
+
+          index =
+            ReplicationAttestation.get_node_index(node.first_public_key, tx2_summary.timestamp)
+
+          {index, signature}
+        end)
     }
 
     attestations = [attestation1, attestation2]

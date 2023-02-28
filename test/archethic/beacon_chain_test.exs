@@ -192,12 +192,7 @@ defmodule Archethic.BeaconChainTest do
         fee: 100_000_000
       }
 
-      storage_nodes =
-        Election.chain_storage_nodes_with_type(
-          addr1,
-          :transfer,
-          P2P.authorized_and_available_nodes()
-        )
+      nodes = P2P.authorized_and_available_nodes() |> Enum.sort_by(& &1.first_public_key)
 
       beacon_summary = %Summary{
         subset: "A",
@@ -209,7 +204,7 @@ defmodule Archethic.BeaconChainTest do
               [node1, node2, node3, node4]
               |> Enum.with_index(1)
               |> Enum.map(fn {node, index} ->
-                node_index = Enum.find_index(storage_nodes, &(&1 == node))
+                node_index = Enum.find_index(nodes, &(&1 == node))
                 {_, pv} = Crypto.derive_keypair("node_seed", index)
                 {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
               end)
