@@ -37,6 +37,9 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:++, _, _}, acc), do: {node, acc}
   def prewalk(node = {:!, _, _}, acc), do: {node, acc}
 
+  # ranges
+  def prewalk(node = {:.., _, _}, acc), do: {node, acc}
+
   # blocks
   def prewalk(node = {:__block__, _, _}, acc), do: {node, acc}
   def prewalk(node = {:do, _}, acc), do: {node, acc}

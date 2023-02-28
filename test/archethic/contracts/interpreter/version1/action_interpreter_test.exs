@@ -329,6 +329,20 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> elem(1)
                |> ActionInterpreter.parse()
     end
+
+    test "should be able to use ranges" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        range = 1..10
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
   end
 
   # ----------------------------------------------
@@ -714,6 +728,21 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use ranges" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        text = ""
+        for num in 1..4 do
+          text = "#{text}#{num}\n"
+        end
+        Contract.set_content text
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "1\n2\n3\n4\n"}} =
+               sanitize_parse_execute(code)
     end
   end
 
