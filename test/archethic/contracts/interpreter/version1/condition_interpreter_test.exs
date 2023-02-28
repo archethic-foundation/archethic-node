@@ -77,7 +77,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
     test "parse library functions" do
       code = ~s"""
       condition transaction: [
-        uco_transfers: List.size() > 0
+        uco_transfers: Map.size() > 0
       ]
       """
 
@@ -227,7 +227,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              })
     end
 
-    test "should be able to use boolean expression" do
+    test "should be able to use boolean expression in inherit" do
       code = ~s"""
       condition inherit: [
         uco_transfers: Map.size() == 1
@@ -241,6 +241,93 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(2)
              |> ConditionInterpreter.valid_conditions?(%{
                "next" => %{
+                 "uco_transfers" => %{"@addr" => 265_821}
+               }
+             })
+
+      code = ~s"""
+      condition inherit: [
+        uco_transfers: Map.size() == 3
+      ]
+      """
+
+      refute code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "next" => %{
+                 "uco_transfers" => %{}
+               }
+             })
+    end
+
+    test "should be able to use boolean expression in transaction" do
+      code = ~s"""
+      condition transaction: [
+        uco_transfers: Map.size() > 0
+      ]
+      """
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "uco_transfers" => %{"@addr" => 265_821}
+               }
+             })
+
+      code = ~s"""
+      condition transaction: [
+        uco_transfers: Map.size() == 1
+      ]
+      """
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "uco_transfers" => %{"@addr" => 265_821}
+               }
+             })
+
+      code = ~s"""
+      condition transaction: [
+        uco_transfers: Map.size() == 2
+      ]
+      """
+
+      refute code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "uco_transfers" => %{}
+               }
+             })
+
+      code = ~s"""
+      condition transaction: [
+        uco_transfers: Map.size() < 10
+      ]
+      """
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
                  "uco_transfers" => %{"@addr" => 265_821}
                }
              })
