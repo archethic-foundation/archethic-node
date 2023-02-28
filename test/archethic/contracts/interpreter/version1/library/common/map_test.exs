@@ -14,6 +14,18 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.MapTest do
   alias Archethic.TransactionChain.TransactionData
 
   doctest Map
+  # ----------------------------------------
+  describe "new/0" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        Contract.set_content Map.size(Map.new())
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "0"}} = sanitize_parse_execute(code)
+    end
+  end
 
   # ----------------------------------------
   describe "size/1" do

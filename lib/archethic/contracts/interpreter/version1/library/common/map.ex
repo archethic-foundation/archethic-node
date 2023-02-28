@@ -4,6 +4,10 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Map do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
+  @spec new() :: map()
+  defdelegate new(),
+    to: Map
+
   @spec size(map()) :: integer()
   def size(map) do
     length(Map.keys(map))
@@ -21,6 +25,10 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Map do
   end
 
   @spec check_types(atom(), list()) :: boolean()
+  def check_types(:new, []) do
+    true
+  end
+
   def check_types(:size, [first]) do
     AST.is_map?(first) || AST.is_variable_or_function_call?(first)
   end
