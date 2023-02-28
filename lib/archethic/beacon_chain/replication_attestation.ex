@@ -5,13 +5,9 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
   alias Archethic.Election.HypergeometricDistribution
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransactionSummary
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -164,48 +160,42 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   end
 
   @doc """
+  Return the index of the node based on the authorized node at this timestamp
+  """
+  @spec get_node_index(Crypto.key(), DateTime.t()) :: non_neg_integer()
+  def get_node_index(node_public_key, timestamp) do
+    P2P.authorized_and_available_nodes(timestamp)
+    |> Enum.sort_by(& &1.first_public_key)
+    |> Enum.find_index(&(&1.first_public_key == node_public_key))
+  end
+
+  @doc """
   Determine if the attestation is cryptographically valid
   """
-  @spec validate(attestation :: t(), check_tx_summary_consistency? :: boolean()) ::
+  @spec validate(attestation :: t()) ::
           :ok
           | {:error, :invalid_confirmations_signatures}
-  def validate(
-        %__MODULE__{
-          transaction_summary:
-            tx_summary = %TransactionSummary{
-              address: tx_address,
-              type: tx_type,
-              timestamp: timestamp
-            },
-          confirmations: confirmations
-        },
-        check_summary_consistency? \\ false
-      ) do
+  def validate(%__MODULE__{
+        transaction_summary: tx_summary = %TransactionSummary{timestamp: timestamp},
+        confirmations: confirmations
+      }) do
     tx_summary_payload = TransactionSummary.serialize(tx_summary)
 
-    authorized_nodes = P2P.authorized_and_available_nodes(timestamp)
+    node_public_keys =
+      P2P.authorized_and_available_nodes(timestamp)
+      |> Enum.map(& &1.first_public_key)
+      |> Enum.sort()
 
-    storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, authorized_nodes)
-
-    with true <- check_summary_consistency?,
-         :ok <- check_transaction_summary(storage_nodes, tx_summary) do
-      validate_confirmations(confirmations, tx_summary_payload, storage_nodes)
-    else
-      false ->
-        validate_confirmations(confirmations, tx_summary_payload, storage_nodes)
-
-      {:error, _} = e ->
-        e
-    end
+    validate_confirmations(confirmations, tx_summary_payload, node_public_keys)
   end
 
   defp validate_confirmations([], _, _), do: {:error, :invalid_confirmations_signatures}
 
-  defp validate_confirmations(confirmations, tx_summary_payload, storage_nodes) do
+  defp validate_confirmations(confirmations, tx_summary_payload, node_public_keys) do
     valid_confirmations? =
       Enum.all?(confirmations, fn {node_index, signature} ->
-        %Node{first_public_key: node_public_key} = Enum.at(storage_nodes, node_index)
-        Crypto.verify?(signature, tx_summary_payload, node_public_key)
+        public_key = Enum.at(node_public_keys, node_index)
+        Crypto.verify?(signature, tx_summary_payload, public_key)
       end)
 
     if valid_confirmations? do
@@ -261,56 +251,6 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
       length(confirmations) >= replicas_count * @confirmations_threshold
     else
       _ -> true
-    end
-  end
-
-  defp check_transaction_summary(nodes, expected_summary, timeout \\ 500)
-
-  defp check_transaction_summary([], _, _), do: {:error, :network_issue}
-
-  defp check_transaction_summary(
-         nodes,
-         expected_summary = %TransactionSummary{
-           address: address,
-           type: type
-         },
-         _timeout
-       ) do
-    conflict_resolver = fn results ->
-      case Enum.find(results, &match?(%TransactionSummary{address: ^address, type: ^type}, &1)) do
-        nil ->
-          %NotFound{}
-
-        tx_summary ->
-          tx_summary
-      end
-    end
-
-    case P2P.quorum_read(
-           nodes,
-           %GetTransactionSummary{address: address},
-           conflict_resolver
-         ) do
-      {:ok, ^expected_summary} ->
-        :ok
-
-      {:ok, recv = %TransactionSummary{}} ->
-        Logger.warning(
-          "Transaction summary received is different #{inspect(recv)} - expect #{inspect(expected_summary)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-      {:ok, %NotFound{}} ->
-        Logger.warning("Transaction summary was not found",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        {:error, :invalid_summary}
-
-      {:error, :network_issue} ->
-        {:error, :network_issue}
     end
   end
 end

@@ -63,7 +63,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         :transaction_summaries,
         fn prev ->
           transaction_attestations
-          |> Enum.filter(&(ReplicationAttestation.validate(&1, false) == :ok))
+          |> Enum.filter(&(ReplicationAttestation.validate(&1) == :ok))
           |> Enum.concat(prev)
         end
       )
