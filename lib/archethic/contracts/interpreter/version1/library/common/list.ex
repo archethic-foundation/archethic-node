@@ -29,6 +29,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.List do
     to: Enum,
     as: :concat
 
+  @spec join(list(), String.t()) :: String.t()
+  defdelegate join(list, separator),
+    to: Enum,
+    as: :join
+
   @spec append(list(), any()) :: list()
   def append(list, element) do
     list ++ [element]
@@ -59,6 +64,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.List do
 
   def check_types(:concat, [first]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:join, [first, second]) do
+    (AST.is_list?(first) || AST.is_variable_or_function_call?(first)) &&
+      (AST.is_binary?(second) || AST.is_variable_or_function_call?(second))
   end
 
   def check_types(:append, [first, _second]) do

@@ -162,6 +162,21 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.ListTest do
     end
   end
 
+  # ----------------------------------------
+  describe "join/2" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        list = ["Emma", "Joseph", "Emily"]
+        Contract.set_content List.join(list, ", ")
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "Emma, Joseph, Emily"}} =
+               sanitize_parse_execute(code)
+    end
+  end
+
   defp sanitize_parse_execute(code, constants \\ %{}) do
     with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
          {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
