@@ -272,11 +272,17 @@ defmodule Archethic.BeaconChain.Slot do
   end
 
   defp add_transaction_attestation_confirmations(slot, index, confirmations) do
-    Map.update!(slot, :transaction_attestations, fn attestations ->
-      List.update_at(attestations, index, fn attestation ->
-        Map.update!(attestation, :confirmations, &(&1 ++ confirmations))
+    updated_attestations =
+      Map.get(slot, :transaction_attestations)
+      |> List.update_at(index, fn attestation ->
+        Map.update!(
+          attestation,
+          :confirmations,
+          &((&1 ++ confirmations) |> Enum.uniq_by(fn {node_index, _signature} -> node_index end))
+        )
       end)
-    end)
+
+    Map.put(slot, :transaction_attestations, updated_attestations)
   end
 
   @doc """
