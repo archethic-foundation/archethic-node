@@ -8,9 +8,8 @@ defmodule Archethic.OracleChain.Supervisor do
   alias Archethic.OracleChain.Scheduler
 
   alias Archethic.Utils
-  alias ArchethicCache.HydratingCache
 
-  @pairs ["usd", "eur"]
+  alias ArchethicCache.HydratingCache
 
   def start_link(args \\ []) do
     Supervisor.start_link(__MODULE__, args)
@@ -19,22 +18,28 @@ defmodule Archethic.OracleChain.Supervisor do
   def init(_args) do
     scheduler_conf = Application.get_env(:archethic, Scheduler)
 
-    ## Cook hydrating cache parameters from configuration
-    uco_service_providers =
-      :archethic
-      |> Application.get_env(Archethic.OracleChain.Services.UCOPrice, [])
-      |> Keyword.get(:providers, [])
-      |> Enum.map(fn {mod, refresh_rate, ttl} ->
-        {mod, mod, :fetch, [@pairs], refresh_rate, ttl}
-      end)
-
-    children = [
-      {HydratingCache, [HydratingCache.UcoPrice, uco_service_providers]},
-      MemTable,
-      MemTableLoader,
-      {Scheduler, scheduler_conf}
-    ]
+    children =
+      [
+        MemTable,
+        MemTableLoader,
+        {Scheduler, scheduler_conf}
+      ] ++ self_hydrating_caches()
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)
+  end
+
+  # all oracle services should use a self-hydrating cache
+  defp self_hydrating_caches() do
+    Application.get_env(:archethic, Archethic.OracleChain, [])
+    |> Keyword.get(:services, [])
+    |> Keyword.values()
+    |> Enum.map(fn service_module ->
+      # we expect a list of providers in config for each services
+      providers =
+        Application.get_env(:archethic, service_module, [])
+        |> Keyword.get(:providers, [])
+
+      {HydratingCache, [service_module, providers]}
+    end)
   end
 end

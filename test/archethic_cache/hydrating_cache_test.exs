@@ -312,9 +312,9 @@ defmodule ArchethicCache.HydratingCacheTest do
   test "can retrieve all values beside erroneous ones" do
     {:ok, pid} =
       HydratingCache.start_link(:test_service_get_all, [
-        {"key1", __MODULE__, :val_hydrating_function, [10], 30_000, 40_000},
-        {"key2", __MODULE__, :failval_hydrating_function, [20], 30_000, 40_000},
-        {"key3", __MODULE__, :val_hydrating_function, [30], 30_000, 40_000}
+        {"key1", {__MODULE__, :val_hydrating_function, [10]}, 30_000, 40_000},
+        {"key2", {__MODULE__, :failval_hydrating_function, [20]}, 30_000, 40_000},
+        {"key3", {__MODULE__, :val_hydrating_function, [30]}, 30_000, 40_000}
       ])
 
     :timer.sleep(1000)
@@ -325,9 +325,9 @@ defmodule ArchethicCache.HydratingCacheTest do
   test "Retrieving all values supports delayed values" do
     {:ok, pid} =
       HydratingCache.start_link(:test_service_get_all_delayed, [
-        {"key1", __MODULE__, :val_hydrating_function, [10], 30_000, 40_000},
-        {"key2", __MODULE__, :timed_hydrating_function, [2000, 20], 30_000, 40_000},
-        {"key3", __MODULE__, :failval_hydrating_function, [30], 30_000, 40_000}
+        {"key1", {__MODULE__, :val_hydrating_function, [10]}, 30_000, 40_000},
+        {"key2", {__MODULE__, :timed_hydrating_function, [2000, 20]}, 30_000, 40_000},
+        {"key3", {__MODULE__, :failval_hydrating_function, [30]}, 30_000, 40_000}
       ])
 
     :timer.sleep(1000)

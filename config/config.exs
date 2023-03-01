@@ -137,14 +137,21 @@ config :archethic, Archethic.OracleChain,
     uco: Archethic.OracleChain.Services.UCOPrice
   ]
 
-## UCO Price Oracle configuration
-## Format : {key, refresh_interval_ms, ttl_ms}, ...]}
-## If ttl = :infinity, the cache will never expire
+currencies = ["eur", "usd"]
+
 config :archethic, Archethic.OracleChain.Services.UCOPrice,
   providers: [
-    {Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko, 60_000, :infinity},
-    {Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap, 60_000, :infinity},
-    {Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika, 60_000, :infinity}
+    # Format: {id, MFA, refresh_interval, ttl}
+    # Note: ID=MODULE only work as long as there isn't two providers using the same module
+    {Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
+     {Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko, :fetch, [currencies]}, 60_000,
+     :infinity},
+    {Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
+     {Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap, :fetch, [currencies]},
+     60_000, :infinity},
+    {Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
+     {Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika, :fetch, [currencies]},
+     60_000, :infinity}
   ]
 
 config :archethic, ArchethicWeb.FaucetController,

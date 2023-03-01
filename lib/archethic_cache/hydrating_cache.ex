@@ -1,7 +1,7 @@
 defmodule ArchethicCache.HydratingCache do
   @moduledoc """
   GenServer implementing the hydrating cache itself.
-  There should be one Hydrating per service ( ex : UCO price, meteo etc...)
+  There should be one Hydrating per service ( ex : UCO price, weather forecast etc...)
   It receives queries from clients requesting the cache, and manage the cache entries FSMs
   """
   alias __MODULE__.CacheEntry
@@ -120,18 +120,16 @@ defmodule ArchethicCache.HydratingCache do
         strategy: :one_for_one
       )
 
-    ## Create child for each initial key
-    child_specs =
-      initial_keys
-      |> Enum.map(fn {provider, mod, func, params, refresh_interval, ttl} ->
-        {CacheEntry, [fn -> apply(mod, func, params) end, provider, refresh_interval, ttl]}
-      end)
-
-    ## Registering initial keys
+    ## create child for each initial key
     keys =
-      Enum.reduce(child_specs, %{}, fn child = {_, [_, provider, _, _]}, acc ->
-        {:ok, cache_entry} = DynamicSupervisor.start_child(keys_sup, child)
-        Map.put(acc, provider, cache_entry)
+      Enum.reduce(initial_keys, %{}, fn {key, {mod, func, args}, refresh_interval, ttl}, acc ->
+        {:ok, cache_entry} =
+          DynamicSupervisor.start_child(
+            keys_sup,
+            {CacheEntry, [fn -> apply(mod, func, args) end, key, refresh_interval, ttl]}
+          )
+
+        Map.put(acc, key, cache_entry)
       end)
 
     {:ok, %{keys: keys, keys_sup: keys_sup}}
