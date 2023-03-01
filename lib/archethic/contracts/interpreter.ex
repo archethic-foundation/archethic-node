@@ -11,7 +11,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   alias Archethic.TransactionChain.Transaction
 
-  @type version() :: {integer(), integer(), integer()}
+  @type version() :: integer()
 
   @doc """
   Dispatch through the correct interpreter.
@@ -20,10 +20,10 @@ defmodule Archethic.Contracts.Interpreter do
   @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, String.t()}
   def parse(code) when is_binary(code) do
     case version(code) do
-      {{0, 0, 1}, code_without_version} ->
+      {0, code_without_version} ->
         Version0.parse(code_without_version)
 
-      {version = {1, _, _}, code_without_version} ->
+      {version = 1, code_without_version} ->
         Version1.parse(code_without_version, version)
 
       _ ->
@@ -51,34 +51,23 @@ defmodule Archethic.Contracts.Interpreter do
   def version(code) do
     regex_opts = [capture: :all_but_first]
 
-    version_attr_regex = ~r/^\s*@version\s+"(\S+)"/
+    version_attr_regex = ~r/^\s*@version\s+(\d+)\s/
 
     if Regex.match?(~r/^\s*@version/, code) do
       case Regex.run(version_attr_regex, code, regex_opts) do
         nil ->
-          # there is a @version but syntax is invalid (probably the quotes missing)
+          # there is a @version but syntax is invalid (probably the not an integer)
           :error
 
-        [capture] ->
-          case Regex.run(semver_regex(), capture, regex_opts) do
-            nil ->
-              # there is a @version but semver syntax is wrong
-              :error
-
-            ["0", "0", "0"] ->
-              # there is a @version but it's 0.0.0
-              :error
-
-            [major, minor, patch] ->
-              {
-                {String.to_integer(major), String.to_integer(minor), String.to_integer(patch)},
-                Regex.replace(version_attr_regex, code, "")
-              }
-          end
+        [version] ->
+          {
+            String.to_integer(version),
+            Regex.replace(version_attr_regex, code, "")
+          }
       end
     else
       # no @version at all
-      {{0, 0, 1}, code}
+      {0, code}
     end
   end
 
@@ -86,11 +75,11 @@ defmodule Archethic.Contracts.Interpreter do
   Return true if the given conditions are valid on the given constants
   """
   @spec valid_conditions?(version(), Conditions.t(), map()) :: bool()
-  def valid_conditions?({0, _, _}, conditions, constants) do
+  def valid_conditions?(0, conditions, constants) do
     Version0.valid_conditions?(conditions, constants)
   end
 
-  def valid_conditions?({1, _, _}, conditions, constants) do
+  def valid_conditions?(1, conditions, constants) do
     Version1.valid_conditions?(conditions, constants)
   end
 
@@ -99,11 +88,11 @@ defmodule Archethic.Contracts.Interpreter do
   May return a new transaction or nil
   """
   @spec execute_trigger(version(), Macro.t(), map()) :: Transaction.t() | nil
-  def execute_trigger({0, _, _}, ast, constants) do
+  def execute_trigger(0, ast, constants) do
     Version0.execute_trigger(ast, constants)
   end
 
-  def execute_trigger({1, _, _}, ast, constants) do
+  def execute_trigger(1, ast, constants) do
     Version1.execute_trigger(ast, constants)
   end
 
@@ -164,10 +153,5 @@ defmodule Archethic.Contracts.Interpreter do
     else
       {:ok, {:atom, atom}}
     end
-  end
-
-  # source: https://semver.org/
-  defp semver_regex() do
-    ~r/(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/
   end
 end

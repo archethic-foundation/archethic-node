@@ -14,7 +14,7 @@ defmodule Archethic.Contracts.Contract do
   alias Archethic.TransactionChain.TransactionData
 
   defstruct triggers: %{},
-            version: {0, 0, 1},
+            version: 0,
             conditions: %{
               transaction: %Conditions{},
               inherit: %Conditions{},
@@ -32,7 +32,7 @@ defmodule Archethic.Contracts.Contract do
           triggers: %{
             trigger_type() => Macro.t()
           },
-          version: {integer(), integer(), integer()},
+          version: integer(),
           conditions: %{
             transaction: Conditions.t(),
             inherit: Conditions.t(),

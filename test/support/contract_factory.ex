@@ -18,7 +18,7 @@ defmodule Archethic.ContractFactory do
 
     if Keyword.get(opts, :version_attribute, true) do
       """
-      @version "1.0.0"
+      @version 1
       #{code}
       """
     else

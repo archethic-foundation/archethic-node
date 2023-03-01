@@ -170,7 +170,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
   def parse(code) when is_binary(code) do
     with {:ok, ast} <- Interpreter.sanitize_code(code),
          {:ok, contract} <- parse_contract(ast, %Contract{}) do
-      {:ok, %{contract | version: {0, 0, 1}}}
+      {:ok, %{contract | version: 0}}
     else
       {:error, {meta, {_, info}, token}} ->
         {:error, Interpreter.format_error_reason({token, meta, []}, info)}
