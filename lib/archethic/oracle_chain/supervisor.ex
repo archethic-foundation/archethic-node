@@ -8,9 +8,7 @@ defmodule Archethic.OracleChain.Supervisor do
   alias Archethic.OracleChain.Scheduler
 
   alias Archethic.Utils
-  alias Archethic.Utils.HydratingCache
-
-  require Logger
+  alias ArchethicCache.HydratingCache
 
   @pairs ["usd", "eur"]
 
@@ -31,7 +29,7 @@ defmodule Archethic.OracleChain.Supervisor do
       end)
 
     children = [
-      {HydratingCache, [Archethic.Utils.HydratingCache.UcoPrice, uco_service_providers]},
+      {HydratingCache, [HydratingCache.UcoPrice, uco_service_providers]},
       MemTable,
       MemTableLoader,
       {Scheduler, scheduler_conf}

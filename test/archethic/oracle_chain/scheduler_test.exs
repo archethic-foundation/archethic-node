@@ -18,7 +18,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
-  alias Archethic.Utils.HydratingCache
+  alias ArchethicCache.HydratingCache
 
   import ArchethicCase, only: [setup_before_send_tx: 0]
 
@@ -110,7 +110,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       assert {:scheduled, _} = :sys.get_state(pid)
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
         30_000,
@@ -118,7 +118,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
         30_000,
@@ -126,7 +126,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
         30_000,
@@ -203,7 +203,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       end)
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
         30_000,
@@ -211,7 +211,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
         30_000,
@@ -219,7 +219,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
         30_000,
@@ -256,7 +256,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       })
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
         30_000,
@@ -264,7 +264,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
         30_000,
@@ -272,7 +272,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
         30_000,
@@ -380,7 +380,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       assert {:scheduled, %{polling_timer: timer1}} = :sys.get_state(pid)
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
         30_000,
@@ -388,7 +388,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
         30_000,
@@ -396,7 +396,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
         30_000,

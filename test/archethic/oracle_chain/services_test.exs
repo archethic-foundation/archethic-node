@@ -2,13 +2,13 @@ defmodule Archethic.OracleChain.ServicesTest do
   use ExUnit.Case
 
   alias Archethic.OracleChain.Services
-  alias Archethic.Utils.HydratingCache
+  alias ArchethicCache.HydratingCache
   import Mox
 
   describe "fetch_new_data/1" do
     test "should return the new data when no previous content" do
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
         30_000,
@@ -16,7 +16,7 @@ defmodule Archethic.OracleChain.ServicesTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
         30_000,
@@ -24,7 +24,7 @@ defmodule Archethic.OracleChain.ServicesTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
         30_000,
@@ -36,7 +36,7 @@ defmodule Archethic.OracleChain.ServicesTest do
 
     test "should not return the new data when the previous content is the same" do
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
         30_000,
@@ -44,7 +44,7 @@ defmodule Archethic.OracleChain.ServicesTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
         30_000,
@@ -52,7 +52,7 @@ defmodule Archethic.OracleChain.ServicesTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
         30_000,
@@ -64,7 +64,7 @@ defmodule Archethic.OracleChain.ServicesTest do
 
     test "should return the new data when the previous content is not the same" do
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
         30_000,
@@ -72,7 +72,7 @@ defmodule Archethic.OracleChain.ServicesTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
         30_000,
@@ -80,7 +80,7 @@ defmodule Archethic.OracleChain.ServicesTest do
       )
 
       HydratingCache.register_function(
-        Archethic.Utils.HydratingCache.UcoPrice,
+        HydratingCache.UcoPrice,
         fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
         Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
         30_000,
@@ -94,7 +94,7 @@ defmodule Archethic.OracleChain.ServicesTest do
 
   test "verify_correctness?/1 should true when the data is correct" do
     HydratingCache.register_function(
-      Archethic.Utils.HydratingCache.UcoPrice,
+      HydratingCache.UcoPrice,
       fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
       Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
       30_000,
@@ -102,7 +102,7 @@ defmodule Archethic.OracleChain.ServicesTest do
     )
 
     HydratingCache.register_function(
-      Archethic.Utils.HydratingCache.UcoPrice,
+      HydratingCache.UcoPrice,
       fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
       Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
       30_000,
@@ -110,7 +110,7 @@ defmodule Archethic.OracleChain.ServicesTest do
     )
 
     HydratingCache.register_function(
-      Archethic.Utils.HydratingCache.UcoPrice,
+      HydratingCache.UcoPrice,
       fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
       Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
       30_000,

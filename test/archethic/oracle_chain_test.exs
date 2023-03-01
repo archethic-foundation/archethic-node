@@ -6,13 +6,13 @@ defmodule Archethic.OracleChainTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.Utils.HydratingCache
+  alias ArchethicCache.HydratingCache
 
   import Mox
 
   test "valid_services_content?/1 should verify the oracle transaction's content correctness" do
     HydratingCache.register_function(
-      Archethic.Utils.HydratingCache.UcoPrice,
+      HydratingCache.UcoPrice,
       fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
       Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
       30_000,
@@ -20,7 +20,7 @@ defmodule Archethic.OracleChainTest do
     )
 
     HydratingCache.register_function(
-      Archethic.Utils.HydratingCache.UcoPrice,
+      HydratingCache.UcoPrice,
       fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
       Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
       30_000,
@@ -28,7 +28,7 @@ defmodule Archethic.OracleChainTest do
     )
 
     HydratingCache.register_function(
-      Archethic.Utils.HydratingCache.UcoPrice,
+      HydratingCache.UcoPrice,
       fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
       Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
       30_000,

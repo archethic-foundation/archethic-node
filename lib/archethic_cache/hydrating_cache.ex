@@ -1,10 +1,10 @@
-defmodule Archethic.Utils.HydratingCache do
+defmodule ArchethicCache.HydratingCache do
   @moduledoc """
   GenServer implementing the hydrating cache itself.
   There should be one Hydrating per service ( ex : UCO price, meteo etc...)
   It receives queries from clients requesting the cache, and manage the cache entries FSMs
   """
-  alias Archethic.Utils.HydratingCache.CacheEntry
+  alias __MODULE__.CacheEntry
 
   use GenServer
   @vsn Mix.Project.config()[:version]
@@ -116,7 +116,7 @@ defmodule Archethic.Utils.HydratingCache do
     ## start a dynamic supervisor for the cache entries/keys
     {:ok, keys_sup} =
       DynamicSupervisor.start_link(
-        name: :"Archethic.Utils.HydratingCache.CacheEntry.KeysSupervisor.#{name}",
+        name: :"ArchethicCache.HydratingCache.CacheEntry.KeysSupervisor.#{name}",
         strategy: :one_for_one
       )
 

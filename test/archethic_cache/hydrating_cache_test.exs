@@ -1,7 +1,7 @@
-defmodule HydratingCacheTest do
-  alias Archethic.Utils.HydratingCache
+defmodule ArchethicCache.HydratingCacheTest do
+  alias ArchethicCache.HydratingCache
+
   use ExUnit.Case
-  require Logger
 
   test "If `key` is not associated with any function, return `{:error, :not_registered}`" do
     {:ok, pid} = HydratingCache.start_link(:test_service)
@@ -108,7 +108,6 @@ defmodule HydratingCacheTest do
       HydratingCache.register_function(
         pid,
         fn ->
-          Logger.info("Hydrating function sleeping 5 secs")
           :timer.sleep(5000)
           {:ok, 2}
         end,
@@ -337,17 +336,14 @@ defmodule HydratingCacheTest do
   end
 
   def val_hydrating_function(value) do
-    Logger.debug("Hydrating value #{value}")
     {:ok, value}
   end
 
   def failval_hydrating_function(value) do
-    Logger.debug("Hydrating value #{value}")
     {:error, value}
   end
 
   def timed_hydrating_function(delay, value) do
-    Logger.debug("Timed Hydrating value #{value}")
     :timer.sleep(delay)
     {:ok, value}
   end

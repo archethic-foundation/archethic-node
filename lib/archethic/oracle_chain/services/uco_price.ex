@@ -8,7 +8,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   alias Archethic.OracleChain.Services.Impl
   alias Archethic.Utils
 
-  alias Archethic.Utils.HydratingCache
+  alias ArchethicCache.HydratingCache
 
   @behaviour Impl
 
@@ -23,7 +23,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
     {:ok, fetching_tasks_supervisor} = Task.Supervisor.start_link()
     ## retrieve prices from configured providers and filter results marked as errors
     prices =
-      HydratingCache.get_all(Archethic.Utils.HydratingCache.UcoPrice)
+      HydratingCache.get_all(HydratingCache.UcoPrice)
 
       ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
       |> Enum.reduce(%{}, &agregate_providers_data/2)
