@@ -315,7 +315,7 @@ defmodule Archethic.BeaconChain.Subset do
       current_slot = %{current_slot | slot_time: time}
 
       if summary_time?(time) do
-        SummaryCache.add_slot(subset, current_slot)
+        SummaryCache.add_slot(subset, current_slot, Crypto.first_node_public_key())
       else
         next_summary_time = SummaryTimer.next_summary(time)
         broadcast_beacon_slot(subset, next_summary_time, current_slot)

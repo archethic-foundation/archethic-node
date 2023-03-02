@@ -90,7 +90,7 @@ defmodule Archethic.BeaconChainTest do
         transaction_attestations: []
       }
 
-      assert :ok = BeaconChain.load_slot(slot)
+      assert :ok = BeaconChain.load_slot(slot, Crypto.first_node_public_key())
 
       Process.sleep(500)
 

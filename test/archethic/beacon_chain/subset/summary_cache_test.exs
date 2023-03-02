@@ -9,6 +9,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
 
   alias Archethic.BeaconChain.SummaryTimer
 
+  alias Archethic.Crypto
+
   alias Archethic.Utils
 
   alias Archethic.TransactionChain.TransactionSummary
@@ -61,9 +63,10 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
       }
     }
 
-    :ok = SummaryCache.add_slot(<<0>>, slot)
+    node_key = Crypto.first_node_public_key()
+    :ok = SummaryCache.add_slot(<<0>>, slot, node_key)
 
-    assert [^slot] = :ets.lookup_element(:archethic_summary_cache, <<0>>, 2)
+    assert [{^slot, ^node_key}] = :ets.lookup_element(:archethic_summary_cache, <<0>>, 2)
     assert File.exists?(path)
 
     GenServer.stop(pid)

@@ -108,8 +108,8 @@ defmodule Archethic.BeaconChain do
   @doc """
   Load a slot in summary cache
   """
-  @spec load_slot(Slot.t()) :: :ok | :error
-  def load_slot(slot = %Slot{subset: subset, slot_time: slot_time}) do
+  @spec load_slot(Slot.t(), Crypto.key()) :: :ok | :error
+  def load_slot(slot = %Slot{subset: subset, slot_time: slot_time}, node_public_key) do
     if slot_time == SlotTimer.previous_slot(DateTime.utc_now()) do
       Task.Supervisor.start_child(TaskSupervisor, fn ->
         case validate_slot(slot) do
@@ -118,7 +118,7 @@ defmodule Archethic.BeaconChain do
               beacon_subset: Base.encode16(subset)
             )
 
-            SummaryCache.add_slot(subset, slot)
+            SummaryCache.add_slot(subset, slot, node_public_key)
 
           {:error, reason} ->
             Logger.error("Invalid beacon slot - #{inspect(reason)}")
