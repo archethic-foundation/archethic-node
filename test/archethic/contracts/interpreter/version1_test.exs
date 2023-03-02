@@ -1,7 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.Version1Test do
   use ArchethicCase
 
-  @version {1, 0, 0}
+  @version 1
 
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter.Version1
