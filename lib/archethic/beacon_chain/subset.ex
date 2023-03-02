@@ -26,6 +26,7 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.P2P.Message.NewBeaconSlot
   alias Archethic.P2P.Message.BeaconUpdate
   alias Archethic.P2P.Message.TransactionSummaryMessage
+  alias Archethic.P2P.Message.ReplicationAttestationMessage
 
   alias Archethic.PubSub
 
@@ -178,11 +179,14 @@ defmodule Archethic.BeaconChain.Subset do
         state = %{
           current_slot: current_slot = %Slot{slot_time: slot_time},
           subset: subset,
-          subscribed_nodes: subscribed_nodes
+          subscribed_nodes: subscribed_nodes,
+          node_public_key: node_public_key
         }
       ) do
     with ^subset <- BeaconChain.subset_from_address(address),
-         true <- is_valid_time?(timestamp, slot_time) do
+         true <- is_valid_time?(timestamp, slot_time),
+         {:forward?, false} <-
+           {:forward?, forward_attestation?(slot_time, subset, node_public_key)} do
       {new_tx?, new_slot} =
         Slot.add_transaction_attestation(
           current_slot,
@@ -229,6 +233,10 @@ defmodule Archethic.BeaconChain.Subset do
         {:noreply, %{state | current_slot: new_slot}}
       end
     else
+      {:forward?, true} ->
+        forward_attestation(attestation, subset, slot_time)
+        {:noreply, state}
+
       false ->
         Logger.warning(
           "Transaction #{type}@#{Base.encode16(address)} is refused as it is not in the expected range time (in #{DateTime.to_string(slot_time)} slot)",
@@ -254,6 +262,22 @@ defmodule Archethic.BeaconChain.Subset do
 
     DateTime.compare(timestamp, previous_summary) in [:eq, :gt] and
       DateTime.compare(timestamp, next_summary) == :lt
+  end
+
+  defp forward_attestation?(slot_time, subset, node_public_key) do
+    # We need to forward the transaction if this is the last slot of a summary 
+    # and we are not a summary node because the current slot will not be sent to summary node
+    summary_time?(slot_time) and not beacon_summary_node?(subset, slot_time, node_public_key)
+  end
+
+  defp forward_attestation(attestation, subset, slot_time) do
+    nodes = P2P.authorized_and_available_nodes(slot_time, true)
+
+    subset
+    |> Election.beacon_storage_nodes(slot_time, nodes)
+    |> P2P.broadcast_message(
+      ReplicationAttestationMessage.from_replication_attestation(attestation)
+    )
   end
 
   defp notify_subscribed_nodes(nodes, %ReplicationAttestation{
