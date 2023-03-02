@@ -91,8 +91,7 @@ defmodule Archethic.BeaconChain.Subset do
          subset: subset,
          slot_time: SlotTimer.next_slot(DateTime.utc_now())
        },
-       subscribed_nodes: [],
-       postponed: %{end_of_sync: [], transaction_attestations: []}
+       subscribed_nodes: []
      }}
   end
 
@@ -183,7 +182,7 @@ defmodule Archethic.BeaconChain.Subset do
         }
       ) do
     with ^subset <- BeaconChain.subset_from_address(address),
-         ^slot_time <- SlotTimer.next_slot(timestamp) do
+         true <- is_valid_time?(timestamp, slot_time) do
       {new_tx?, new_slot} =
         Slot.add_transaction_attestation(
           current_slot,
@@ -230,21 +229,31 @@ defmodule Archethic.BeaconChain.Subset do
         {:noreply, %{state | current_slot: new_slot}}
       end
     else
-      next_slot_time = %DateTime{} ->
-        new_state = update_in(state, [:postponed, :transaction_attestations], &[attestation | &1])
-
-        Logger.info(
-          "Transaction #{type}@#{Base.encode16(address)} will be added to the next beacon chain (#{DateTime.to_string(next_slot_time)} slot) - tx timestamp: #{timestamp} - current slot time: #{slot_time}",
+      false ->
+        Logger.warning(
+          "Transaction #{type}@#{Base.encode16(address)} is refused as it is not in the expected range time (in #{DateTime.to_string(slot_time)} slot)",
           beacon_subset: Base.encode16(subset)
         )
 
-        notify_subscribed_nodes(subscribed_nodes, attestation)
-
-        {:noreply, new_state}
+        {:noreply, state}
 
       _ ->
         {:noreply, state}
     end
+  end
+
+  defp is_valid_time?(timestamp, slot_time) do
+    # We verify if the transaction timestamp is over than the current and 2 previous summary time
+    # We check previous summary time in case of remainder tx due to latency
+    # S1 ----------- S2 -----n----- S3
+    # We want to verify the transaction is between S1 and S3, "n" is the current time
+    next_summary = SummaryTimer.next_summary(slot_time)
+
+    previous_summary =
+      slot_time |> SummaryTimer.previous_summary() |> SummaryTimer.previous_summary()
+
+    DateTime.compare(timestamp, previous_summary) in [:eq, :gt] and
+      DateTime.compare(timestamp, next_summary) == :lt
   end
 
   defp notify_subscribed_nodes(nodes, %ReplicationAttestation{
@@ -296,16 +305,7 @@ defmodule Archethic.BeaconChain.Subset do
 
   defp update_p2p_view?(_), do: true
 
-  defp next_state(
-         state = %{
-           subset: subset,
-           postponed: %{
-             transaction_attestations: transaction_attestations,
-             end_of_sync: end_of_sync
-           }
-         },
-         time
-       ) do
+  defp next_state(state = %{subset: subset}, time) do
     next_time = SlotTimer.next_slot(time)
 
     state
@@ -314,15 +314,11 @@ defmodule Archethic.BeaconChain.Subset do
       %Slot{
         subset: subset,
         slot_time: next_time,
-        transaction_attestations: transaction_attestations,
-        end_of_node_synchronizations: end_of_sync
+        transaction_attestations: [],
+        end_of_node_synchronizations: []
       }
     )
-    |> Map.put(:postponed, %{transaction_attestations: [], end_of_sync: []})
-    |> Map.put(
-      :subscribed_nodes,
-      []
-    )
+    |> Map.put(:subscribed_nodes, [])
   end
 
   defp broadcast_beacon_slot(subset, next_time, slot) do

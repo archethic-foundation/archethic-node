@@ -159,6 +159,73 @@ defmodule Archethic.BeaconChain.SubsetTest do
       assert Enum.count(confirmations) == 2
     end
 
+    test "new transaction summary's should be refused if it is too old",
+         %{subset: subset} do
+      MockClient
+      |> stub(:send_message, fn
+        _, %TransactionSummary{}, _ ->
+          {:ok, %Ok{}}
+
+        _, %NewBeaconSlot{}, _ ->
+          {:ok, %Ok{}}
+      end)
+
+      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
+      pid = start_supervised!({Subset, subset: subset})
+
+      # Tx from last summary should pass
+      tx_time = DateTime.utc_now() |> DateTime.add(-1, :hour)
+      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+
+      tx_summary = %TransactionSummary{
+        address: tx_address,
+        timestamp: tx_time,
+        type: :node,
+        fee: 0
+      }
+
+      sig = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
+
+      send(
+        pid,
+        {:new_replication_attestation,
+         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig}]}}
+      )
+
+      # Tx from 2 last summary should not pass
+      tx_time = DateTime.utc_now() |> DateTime.add(-2, :hour)
+      tx_address2 = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+
+      tx_summary = %TransactionSummary{
+        address: tx_address2,
+        timestamp: tx_time,
+        type: :node,
+        fee: 0
+      }
+
+      sig2 = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
+
+      send(
+        pid,
+        {:new_replication_attestation,
+         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig2}]}}
+      )
+
+      assert %{
+               current_slot: %Slot{
+                 transaction_attestations: [
+                   %ReplicationAttestation{
+                     transaction_summary: %TransactionSummary{
+                       address: ^tx_address
+                     },
+                     confirmations: [{0, ^sig}]
+                   }
+                 ]
+               }
+             } = :sys.get_state(pid)
+    end
+
     test "new slot is created when receive a :create_slot message", %{subset: subset} do
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
@@ -252,16 +319,17 @@ defmodule Archethic.BeaconChain.SubsetTest do
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
 
-        _, %NewBeaconSlot{}, _ ->
+        _, %NewBeaconSlot{slot: slot = %Slot{subset: subset}}, _ ->
+          SummaryCache.add_slot(subset, slot)
           {:ok, %Ok{}}
       end)
 
       MockClient
       |> stub(:get_availability_timer, fn _, _ -> 0 end)
 
-      summary_interval = "*/5 * * * *"
+      summary_interval = "*/3 * * * *"
       start_supervised!({SummaryTimer, interval: summary_interval})
-      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "*/1 * * * *"})
       start_supervised!(SummaryCache)
       File.mkdir_p!(Utils.mut_dir())
       pid = start_supervised!({Subset, subset: subset})
