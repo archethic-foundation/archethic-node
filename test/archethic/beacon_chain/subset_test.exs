@@ -28,6 +28,18 @@ defmodule Archethic.BeaconChain.SubsetTest do
   import Mox
 
   setup do
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.first_node_public_key(),
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+    })
+
     {:ok, subset: <<0>>}
   end
 
@@ -237,18 +249,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
         first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         geo_patch: "AAA",
@@ -346,19 +346,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
           <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
         last_public_key:
           <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: ~U[2020-09-01 00:00:00Z],
-        enrollment_date: ~U[2020-09-01 00:00:00Z]
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
         geo_patch: "AAA",
         network_patch: "AAA",
         available?: true,
