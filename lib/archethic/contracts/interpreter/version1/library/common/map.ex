@@ -8,6 +8,14 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Map do
   defdelegate new(),
     to: Map
 
+  @spec keys(map()) :: list(String.t())
+  defdelegate keys(map),
+    to: Map
+
+  @spec values(map()) :: list(any())
+  defdelegate values(map),
+    to: Map
+
   @spec size(map()) :: integer()
   def size(map) do
     length(Map.keys(map))
@@ -27,6 +35,14 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Map do
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:new, []) do
     true
+  end
+
+  def check_types(:keys, [first]) do
+    AST.is_map?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:values, [first]) do
+    AST.is_map?(first) || AST.is_variable_or_function_call?(first)
   end
 
   def check_types(:size, [first]) do

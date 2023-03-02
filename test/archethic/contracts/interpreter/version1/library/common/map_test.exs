@@ -108,6 +108,37 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.MapTest do
     end
   end
 
+  # ----------------------------------------
+  describe "keys/1" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2]
+        keys = Map.keys(numbers)
+        Contract.set_content Json.to_string(keys)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "[\"one\",\"two\"]"}} =
+               sanitize_parse_execute(code)
+    end
+  end
+
+  # ----------------------------------------
+  describe "values/1" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2]
+        values = Map.values(numbers)
+        Contract.set_content Json.to_string(values)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "[1,2]"}} = sanitize_parse_execute(code)
+    end
+  end
+
   defp sanitize_parse_execute(code, constants \\ %{}) do
     with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
          {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
