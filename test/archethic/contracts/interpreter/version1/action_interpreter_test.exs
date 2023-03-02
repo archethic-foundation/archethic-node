@@ -310,6 +310,88 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
+    test "should be able to use [] access with a string" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+
+        Contract.set_content numbers["one"]
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to use [] access with a variable" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+        x = "one"
+
+        Contract.set_content numbers[x]
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to use [] access with a dot access" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+        x = [value: "one"]
+
+        Contract.set_content numbers[x.value]
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to use [] access with a fn call" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = ["1": 1, two: 2, three: 3]
+
+        Contract.set_content numbers[String.from_int 1]
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to use nested [] access" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        a = [b: [c: [d: [e: [f: [g: [h: "hello"]]]]]]]
+
+        Contract.set_content a["b"]["c"]["d"]["e"]["f"]["g"]["h"]
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
     test "should be able to use loop" do
       code = ~S"""
       actions triggered_by: transaction do
@@ -743,6 +825,69 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreterTest do
 
       assert %Transaction{data: %TransactionData{content: "1\n2\n3\n4\n"}} =
                sanitize_parse_execute(code)
+    end
+
+    test "should be able to use [] access with a string" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+
+        Contract.set_content numbers["one"]
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use [] access with a variable" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+        x = "one"
+
+        Contract.set_content numbers[x]
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use [] access with a dot access" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2, three: 3]
+        x = [value: "one"]
+
+        Contract.set_content numbers[x.value]
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use [] access with a fn call" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        numbers = ["1": 1, two: 2, three: 3]
+
+        Contract.set_content numbers[String.from_int 1]
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use nested [] access" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        a = [b: [c: [d: [e: [f: [g: [h: "hello"]]]]]]]
+        d = "d"
+
+        Contract.set_content a["b"]["c"][d]["e"]["f"]["g"]["h"]
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
     end
   end
 
