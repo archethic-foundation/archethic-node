@@ -413,4 +413,112 @@ defmodule Archethic.BeaconChain do
         e
     end
   end
+
+  @spec fetch_network_stats(DateTime.t()) :: list(Slot.net_stats())
+  def fetch_network_stats(summary_time = %DateTime{}) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    Enum.map(list_subsets(), fn subset ->
+      _beacon_nodes = Election.beacon_storage_nodes(subset, summary_time, authorized_nodes)
+    end)
+  end
+
+  @doc """
+  Retrieve the network stats for a given subset from the cached slots
+  """
+  @spec get_network_stats(binary()) :: %{Crypto.key() => Slot.net_stats()}
+  def get_network_stats(subset) do
+    subset
+    |> SummaryCache.stream_current_slots()
+    |> Stream.filter(&match?({_, _}, &1))
+    |> Stream.map(fn
+      {%Slot{p2p_view: %{network_stats: net_stats}}, node} ->
+        {node, net_stats}
+    end)
+    |> Stream.reject(fn
+      {_, %{latencies: []}} ->
+        true
+
+      _ ->
+        false
+    end)
+    |> Enum.reduce(%{}, fn {node, net_stats}, acc ->
+      Map.update(acc, node, [net_stats], &(&1 ++ [net_stats]))
+    end)
+    |> Enum.map(fn {node, net_stats} ->
+      aggregated_stats =
+        net_stats
+        |> Enum.zip()
+        |> Enum.map(fn stats ->
+          aggregated_latency =
+            stats
+            |> Tuple.to_list()
+            |> Enum.map(& &1.latency)
+            # The logistic regression is used to avoid impact of outliers
+            # while providing a weighted approach to priorize the latest samples.
+            |> weighted_logistic_regression()
+            |> trunc()
+
+          %{latency: aggregated_latency}
+        end)
+
+      {node, aggregated_stats}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp weighted_logistic_regression(list) do
+    %{sum_weight: sum_weight, sum_weighted_list: sum_weighted_list} =
+      list
+      |> clean_outliers()
+      |> Utils.chunk_list_in(3)
+      |> weight_list()
+      |> Enum.reduce(%{sum_weight: 0.0, sum_weighted_list: 0.0}, fn {weight, weighted_list},
+                                                                    acc ->
+        acc
+        |> Map.update!(:sum_weighted_list, &(&1 + Enum.sum(weighted_list)))
+        |> Map.update!(:sum_weight, &(&1 + weight * Enum.count(weighted_list)))
+      end)
+
+    sum_weighted_list / sum_weight
+  end
+
+  defp clean_outliers(list) do
+    list_size = Enum.count(list)
+
+    # Compute percentiles (P80, P20) to remove the outliers
+    p1 = (0.8 * list_size) |> trunc()
+    p2 = (0.2 * list_size) |> trunc()
+
+    max = Enum.at(list, p1)
+    min = Enum.at(list, p2)
+
+    Enum.map(list, fn x ->
+      cond do
+        x < min ->
+          min
+
+        x > max ->
+          max
+
+        true ->
+          x
+      end
+    end)
+  end
+
+  defp weight_list(list) do
+    list
+    |> Enum.with_index()
+    |> Enum.map(fn {list, i} ->
+      weight = (i + 1) * (1 / 3)
+
+      weighted_list =
+        list
+        |> Enum.reverse()
+        |> Enum.map(&(&1 * weight))
+
+      {weight, weighted_list}
+    end)
+  end
 end

@@ -514,4 +514,74 @@ defmodule Archethic.BeaconChainTest do
       assert [0.925, 0.8, 0.925, 0.85] == node_average_availabilities
     end
   end
+
+  describe "get_network_stats/1" do
+    test "should get the slot latencies aggregated by node" do
+      node1_slots = [
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now(),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 100}, %{latency: 200}, %{latency: 50}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(10),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 110}, %{latency: 150}, %{latency: 70}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(20),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 130}, %{latency: 110}, %{latency: 80}]
+          }
+        }
+      ]
+
+      node2_slots = [
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now(),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 80}, %{latency: 110}, %{latency: 150}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(10),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 70}, %{latency: 140}, %{latency: 100}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(20),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 70}, %{latency: 100}, %{latency: 120}]
+          }
+        }
+      ]
+
+      File.mkdir_p!(Utils.mut_dir())
+      SummaryCache.start_link()
+      SummaryTimer.start_link(interval: "0 0 0 * *")
+
+      Enum.map(node1_slots, &SummaryCache.add_slot(<<0>>, &1, "node1"))
+      Enum.map(node2_slots, &SummaryCache.add_slot(<<0>>, &1, "node2"))
+
+      assert %{
+               "node1" => [%{latency: 118}, %{latency: 185}, %{latency: 71}],
+               "node2" => [%{latency: 75}, %{latency: 108}, %{latency: 135}]
+             } = BeaconChain.get_network_stats(<<0>>)
+    end
+  end
 end
