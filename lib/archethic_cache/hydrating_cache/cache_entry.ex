@@ -33,7 +33,7 @@ defmodule ArchethicCache.HydratingCache.CacheEntry do
   @impl GenStateMachine
   def init([fun, key, refresh_interval, ttl]) do
     # start hydrating at the needed refresh interval
-    {:ok, timer} = :timer.send_after(refresh_interval, self(), :hydrate)
+    timer = Process.send_after(self(), :hydrate, refresh_interval)
 
     ## Hydrate the value
     {:ok, :running,
@@ -97,7 +97,7 @@ defmodule ArchethicCache.HydratingCache.CacheEntry do
     _ = maybe_stop_timer(data.timer_discard)
 
     ## Start new timer to hydrate at refresh interval
-    {:ok, timer} = :timer.send_after(refresh_interval, self(), :hydrate)
+    timer = Process.send_after(self(), :hydrate, refresh_interval)
 
     ## We trigger the update ( to trigger or not could be set at registering option )
     {:repeat_state,
@@ -127,7 +127,7 @@ defmodule ArchethicCache.HydratingCache.CacheEntry do
         :refresh_interval => refresh_interval
       })
 
-    {:ok, timer} = :timer.send_after(refresh_interval, self(), :hydrate)
+    timer = Process.send_after(self(), :hydrate, refresh_interval)
 
     ## We trigger the update ( to trigger or not could be set at registering option )
     {:next_state, :running,
@@ -180,7 +180,7 @@ defmodule ArchethicCache.HydratingCache.CacheEntry do
     _ = maybe_stop_timer(data.timer_discard)
 
     ## Start hydrating timer
-    {:ok, timer_hydrate} = :timer.send_after(data.refresh_interval, self(), :hydrate)
+    timer_hydrate = Process.send_after(self(), :hydrate, data.refresh_interval)
 
     ## notify waiting getters
     Enum.each(data.getters, fn {pid, _ref} ->
@@ -190,13 +190,13 @@ defmodule ArchethicCache.HydratingCache.CacheEntry do
     ## Start timer to discard new value if needed
     me = self()
 
-    {:ok, timer_ttl} =
+    timer_ttl =
       case data.ttl do
         ttl when is_number(ttl) ->
-          :timer.send_after(ttl, me, :discarded)
+          Process.send_after(me, :discarded, ttl)
 
         _ ->
-          {:ok, nil}
+          nil
       end
 
     {:next_state, :idle,
@@ -219,17 +219,17 @@ defmodule ArchethicCache.HydratingCache.CacheEntry do
     ## Error values can be discarded
     me = self()
 
-    {:ok, timer_ttl} =
+    timer_ttl =
       case data.ttl do
         ttl when is_number(ttl) ->
-          :timer.send_after(ttl, me, :discarded)
+          Process.send_after(me, :discarded, ttl)
 
         _ ->
-          {:ok, nil}
+          nil
       end
 
     ## Start hydrating timer
-    {:ok, timer_hydrate} = :timer.send_after(data.refresh_interval, self(), :hydrate)
+    timer_hydrate = Process.send_after(self(), :hydrate, data.refresh_interval)
 
     {:next_state, :idle,
      %__MODULE__{
@@ -245,11 +245,6 @@ defmodule ArchethicCache.HydratingCache.CacheEntry do
     {:keep_state, data}
   end
 
-  defp maybe_stop_timer(tref = {_, _}) do
-    :timer.cancel(tref)
-  end
-
-  defp maybe_stop_timer(_else) do
-    :ok
-  end
+  defp maybe_stop_timer(tref) when is_reference(tref), do: Process.cancel_timer(tref)
+  defp maybe_stop_timer(_), do: :ok
 end
