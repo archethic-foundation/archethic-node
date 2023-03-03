@@ -57,10 +57,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
     # create the child scope in parent scope
     create_scope_ast =
       quote do
-        Process.put(
-          :scope,
-          put_in(Process.get(:scope), unquote(new_acc), %{})
-        )
+        Scope.create(unquote(new_acc))
       end
 
     {
@@ -169,15 +166,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
       ) do
     new_node =
       quote do
-        Process.put(
-          :scope,
-          put_in(
-            Process.get(:scope),
-            Scope.where_is(Process.get(:scope), unquote(acc), unquote(var_name)) ++
-              [unquote(var_name)],
-            unquote(value)
-          )
-        )
+        Scope.write_cascade(unquote(acc), unquote(var_name), unquote(value))
       end
 
     {
@@ -190,11 +179,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(_node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _}, acc) do
     new_node =
       quote do
-        get_in(
-          Process.get(:scope),
-          Scope.where_is(Process.get(:scope), unquote(acc), unquote(map_name)) ++
-            [unquote(map_name), unquote(key_name)]
-        )
+        Scope.read(unquote(acc), unquote(map_name), unquote(key_name))
       end
 
     {new_node, acc}
@@ -206,10 +191,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
 
     new_node =
       quote do
-        get_in(
-          unquote(nested),
-          [unquote(key_name)]
-        )
+        get_in(unquote(nested), [unquote(key_name)])
       end
 
     {new_node, new_acc}
@@ -223,11 +205,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
     # accessor can be a variable, a function call, a dot access, a string
     new_node =
       quote do
-        get_in(
-          Process.get(:scope),
-          Scope.where_is(Process.get(:scope), unquote(acc), unquote(map_name)) ++
-            [unquote(map_name), unquote(accessor)]
-        )
+        Scope.read(unquote(acc), unquote(map_name), unquote(accessor))
       end
 
     {new_node, acc}
@@ -242,10 +220,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
 
     new_node =
       quote do
-        get_in(
-          unquote(nested),
-          [unquote(accessor)]
-        )
+        get_in(unquote(nested), [unquote(accessor)])
       end
 
     {new_node, new_acc}
@@ -344,11 +319,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
       ) do
     new_node =
       quote do
-        get_in(
-          Process.get(:scope),
-          Scope.where_is(Process.get(:scope), unquote(acc), unquote(var_name)) ++
-            [unquote(var_name)]
-        )
+        Scope.read(unquote(acc), unquote(var_name))
       end
 
     {new_node, acc}
@@ -373,14 +344,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
     new_node =
       quote do
         Enum.each(unquote(list), fn x ->
-          Process.put(
-            :scope,
-            put_in(
-              Process.get(:scope),
-              unquote(acc) ++ [unquote(var_name)],
-              x
-            )
-          )
+          Scope.write_at(unquote(acc), unquote(var_name), x)
 
           unquote(block)
         end)

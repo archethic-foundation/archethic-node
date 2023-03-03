@@ -3,6 +3,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
 
   alias Archethic.Contracts.Interpreter.Version1.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Version1.Library
+  alias Archethic.Contracts.Interpreter.Version1.Scope
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
@@ -74,11 +75,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
   defp to_boolean_expression(subject, value)
        when is_binary(value) or is_integer(value) or is_float(value) do
     quote do
-      unquote(value) ==
-        get_in(
-          Process.get(:scope),
-          unquote(subject)
-        )
+      unquote(value) == Scope.read_global(unquote(subject))
     end
   end
 
@@ -152,10 +149,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
         Library.function_exists?(absolute_module_atom, function_name, arity + 1) ->
           ast =
             quote do
-              get_in(
-                Process.get(:scope),
-                unquote(subject)
-              )
+              Scope.read_global(unquote(subject))
             end
 
           # add it as first function argument
@@ -179,22 +173,20 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
 
   # Override Contract.get_calls()
   defp postwalk(
-         _subject = [global_variable, _],
-         _node =
+         _subject = [_global_variable, _],
+         node =
            {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, "get_calls"}]}, _, []},
-         acc
+         _acc
        ) do
-    new_node =
-      quote do
-        Archethic.Contracts.Interpreter.Version1.Library.Contract.get_calls(
-          get_in(
-            Process.get(:scope),
-            [unquote(global_variable), "address"]
-          )
-        )
-      end
+    # new_node =
+    #   quote do
+    #     Archethic.Contracts.Interpreter.Version1.Library.Contract.get_calls(
+    #       Scope.read_global([unquote(global_variable), "address"])
+    #     )
+    #   end
 
-    {new_node, acc}
+    # {new_node, acc}
+    throw({:error, node, "Contract.get_calls() not yet implemented in the conditions"})
   end
 
   defp postwalk(_subject, node, acc) do

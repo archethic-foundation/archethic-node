@@ -5,61 +5,55 @@ defmodule Archethic.Contracts.Interpreter.Version1.ScopeTest do
 
   doctest Scope
 
-  describe "where_is/3" do
-    test "should return [] when variable exists at root" do
-      ref1 = make_ref()
-      ref2 = make_ref()
+  test "global variables" do
+    Scope.init(%{"var1" => %{"prop" => 1}})
+    Scope.write_at([], "var2", 2)
+    assert Scope.read_global(["var1", "prop"]) == 1
+    assert Scope.read_global(["var2"]) == 2
+  end
 
-      scope = %{
-        "variableName" => %{},
-        ref1 => %{
-          ref2 => %{}
-        }
-      }
+  test "write_at/3" do
+    Scope.init()
 
-      assert [] = Scope.where_is(scope, [ref1, ref2], "variableName")
-    end
+    hierarchy = ["depth1"]
+    Scope.create(hierarchy)
+    Scope.write_at(hierarchy, "var1", 1)
+    assert Scope.read(hierarchy, "var1") == 1
 
-    test "should return current_path when no match" do
-      ref1 = make_ref()
-      ref2 = make_ref()
+    hierarchy = ["depth1", "depth2"]
+    Scope.create(hierarchy)
+    Scope.write_at(hierarchy, "var2", 2)
+    assert Scope.read(hierarchy, "var2") == 2
+  end
 
-      scope = %{
-        ref1 => %{
-          ref2 => %{}
-        }
-      }
+  test "write_cascade/3" do
+    Scope.init()
 
-      assert [^ref1, ^ref2] = Scope.where_is(scope, [ref1, ref2], "variableName")
-    end
+    hierarchy1 = ["depth1"]
+    Scope.create(hierarchy1)
+    Scope.write_cascade(hierarchy1, "var1", 1)
 
-    test "should return current_path when variable is in current scope" do
-      ref1 = make_ref()
-      ref2 = make_ref()
+    hierarchy2 = ["depth1", "depth2"]
+    Scope.create(hierarchy2)
+    Scope.write_cascade(hierarchy2, "var1", 2)
 
-      scope = %{
-        ref1 => %{
-          ref2 => %{
-            "variableName" => 1
-          }
-        }
-      }
+    assert Scope.read(hierarchy1, "var1") == 2
+    assert Scope.read(hierarchy2, "var1") == 2
+  end
 
-      assert [^ref1, ^ref2] = Scope.where_is(scope, [ref1, ref2], "variableName")
-    end
+  test "read/3" do
+    Scope.init(%{"map" => %{"key" => 1}})
+    assert Scope.read([], "map", "key") == 1
 
-    test "should return parent path when variable is in parent scope" do
-      ref1 = make_ref()
-      ref2 = make_ref()
+    hierarchy = ["xx"]
+    Scope.create(hierarchy)
+    Scope.write_at(hierarchy, "map2", %{"key2" => 2})
+    assert Scope.read(hierarchy, "map2", "key2") == 2
+  end
 
-      scope = %{
-        ref1 => %{
-          "variableName" => 1,
-          ref2 => %{}
-        }
-      }
-
-      assert [^ref1] = Scope.where_is(scope, [ref1, ref2], "variableName")
-    end
+  test "update_global/2" do
+    Scope.init(%{"transaction" => %{"content" => "cat"}})
+    Scope.update_global(["transaction"], fn t -> %{t | "content" => "dog"} end)
+    assert Scope.read_global(["transaction", "content"]) == "dog"
   end
 end

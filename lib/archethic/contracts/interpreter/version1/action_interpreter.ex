@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Version1.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Version1.Library
+  alias Archethic.Contracts.Interpreter.Version1.Scope
 
   @doc """
   Parse the given node and return the trigger and the actions block.
@@ -48,10 +49,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     # constants should already contains the global variables:
     #   - "contract": current contract transaction
     #   - "transaction": the incoming transaction (when trigger=transaction)
-    Process.put(
-      :scope,
-      Map.put(constants, "next_transaction", next_tx)
-    )
+    Scope.init(Map.put(constants, "next_transaction", next_tx))
 
     # we can ignore the result & binding
     #   - `result` would be the returned value of the AST
@@ -60,7 +58,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
 
     # look at the next_transaction from the scope
     # return nil if it did not change
-    case Map.get(Process.get(:scope), "next_transaction") do
+    case Scope.read_global(["next_transaction"]) do
       ^next_tx -> nil
       result_next_transaction -> result_next_transaction
     end
@@ -163,10 +161,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
     new_node =
       quote do
         Archethic.Contracts.Interpreter.Version1.Library.Contract.get_calls(
-          get_in(
-            Process.get(:scope),
-            ["contract", "address"]
-          )
+          Scope.read_global(["contract", "address"])
         )
       end
 
@@ -204,13 +199,9 @@ defmodule Archethic.Contracts.Interpreter.Version1.ActionInterpreter do
 
     new_node =
       quote do
-        Process.put(
-          :scope,
-          update_in(
-            Process.get(:scope),
-            ["next_transaction"],
-            &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
-          )
+        Scope.update_global(
+          ["next_transaction"],
+          &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
         )
       end
 

@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionValidator do
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Version1.Scope
 
   require Logger
 
@@ -134,7 +135,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionValidator do
 
   defp evaluate_condition(ast, constants) do
     # reset scope and set constants
-    Process.put(:scope, constants)
+    Scope.init(constants)
 
     {result, _} = Code.eval_quoted(ast)
     result
