@@ -18,11 +18,11 @@ git apply ${PROPOSAL_FILENAME}
 echo "=== git add files"
 git add --all
 
-echo "=== git commit "
+echo "=== git commit"
 git commit -m "${PROPOSAL_DESCRIPTION}"
 
 echo "=== Run CI"
 mix git_hooks.run pre_push
 
-echo "=== Create upgrade"
-mix distillery.release --upgrade
+echo "=== Create upgrade release"
+MIX_ENV=prod mix distillery.release --upgrade

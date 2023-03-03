@@ -170,8 +170,45 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     :ok
   end
 
-  @releases "/opt/code/_build/dev/rel/archethic_node/releases"
+  @marker Application.compile_env(:archethic, :marker)
+  @releases "/opt/code/_build/prod/rel/archethic_node/releases"
   @release "archethic_node.tar.gz"
+
+  defp do_run_docker_testnet(%Proposal{address: address, version: version}) do
+    address_encoded = Base.encode16(address)
+    Logger.info("Running proposal", address: address_encoded)
+
+    dir = temp_dir("utn-#{address_encoded}-")
+    nb_nodes = 5
+
+    compose_prefix =
+      dir
+      |> Path.basename()
+      |> String.downcase()
+
+    validator_container = "#{compose_prefix}-validator-1"
+
+    nodes = 1..nb_nodes |> Enum.map(&"#{compose_prefix}-node#{&1}-1")
+
+    with :ok <- Logger.info("#{dir} Prepare", address: address_encoded),
+         :ok <- testnet_prepare(dir, address, version),
+         :ok <- Logger.info("#{dir} Start", address: address_encoded),
+         %{cmd: {_, 0}, testnet: _testnet} <- testnet_start(dir, nb_nodes),
+         # wait until the validator is ready for upgrade
+         :ok <- Logger.info("#{dir} Part I", address: address_encoded),
+         {:ok, _} <- wait_for_marker(validator_container, @marker),
+         :ok <- Logger.info("#{dir} Upgrade", address: address_encoded),
+         true <- testnet_upgrade(dir, nodes, version),
+         :ok <- Logger.info("#{dir} Part II", address: address_encoded),
+         #  {_, 0} <- validator_continue(validator_container, testnet),
+         0 <-
+           docker_wait(validator_container, System.monotonic_time(:second)) do
+      testnet_cleanup(dir, 0, address_encoded)
+    else
+      _ ->
+        testnet_cleanup(dir, 1, address_encoded)
+    end
+  end
 
   defp testnet_prepare(dir, address, version) do
     ci = container_name(address)
@@ -184,45 +221,26 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     end
   end
 
-  @marker Application.compile_env(:archethic, :marker)
+  @subnet "172.16.100.0/24"
 
-  defp do_run_docker_testnet(%Proposal{address: address, version: version}) do
-    address_encoded = Base.encode16(address)
-    Logger.info("Running proposal", address: address_encoded)
+  defp testnet_start(dir, nb_nodes) do
+    compose = compose_file(dir)
+    options = [image: "archethic-cd", dir: dir, src: @src_dir, persist: false]
 
-    dir = temp_dir("utn-#{address_encoded}-")
-    nb_nodes = 5
+    Stream.iterate(@subnet, &Subnet.next/1)
+    |> Stream.take(123)
+    |> Stream.map(fn subnet ->
+      testnet = Testnet.from(nb_nodes, Keyword.put(options, :subnet, subnet))
 
-    compose_prefix = Path.basename(dir)
-    validator_container = "#{compose_prefix}_validator_1"
-    validator_continue = ["ash", "-c", "echo 'yes' > /proc/1/fd/0"]
-
-    nodes = 1..nb_nodes |> Enum.map(&"#{compose_prefix}_node#{&1}_1")
-
-    with :ok <- Logger.info("#{dir} Prepare", address: address_encoded),
-         :ok <- testnet_prepare(dir, address, version),
-         :ok <- Logger.info("#{dir} Start", address: address_encoded),
-         {_, 0} <- testnet_start(dir, nb_nodes),
-         # wait until the validator is ready for upgrade
-         :ok <- Logger.info("#{dir} Part I", address: address_encoded),
-         {:ok, _} <- wait_for_marker(validator_container, @marker),
-         :ok <- Logger.info("#{dir} Upgrade", address: address_encoded),
-         true <- testnet_upgrade(dir, nodes, version),
-         :ok <- Logger.info("#{dir} Part II", address: address_encoded),
-         {_, 0} <- docker_exec(validator_container, validator_continue),
-         0 <- docker_wait(validator_container, System.monotonic_time(:second)) do
-      testnet_cleanup(dir, 0, address_encoded)
-    else
-      _ ->
-        testnet_cleanup(dir, 1, address_encoded)
-    end
-  end
-
-  defp testnet_cleanup(dir, code, address_encoded) do
-    Logger.info("#{dir} Cleanup", address: address_encoded)
-    System.cmd("docker-compose", ["-f", compose_file(dir), "down"], @cmd_options)
-    File.rm_rf!(dir)
-    code
+      with :ok <- Testnet.create!(testnet, dir) do
+        %{
+          testnet: testnet,
+          cmd: System.cmd("docker-compose", ["-f", compose, "up", "-d"], @cmd_options)
+        }
+      end
+    end)
+    |> Stream.filter(&(elem(&1[:cmd], 1) == 0))
+    |> Enum.at(0)
   end
 
   defp testnet_upgrade(dir, containers, version) do
@@ -255,26 +273,7 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     result
   end
 
-  @subnet "172.16.100.0/24"
-
-  defp testnet_start(dir, nb_nodes) do
-    compose = compose_file(dir)
-    options = [image: "archethic-cd", dir: dir, src: @src_dir, persist: false]
-
-    Stream.iterate(@subnet, &Subnet.next/1)
-    |> Stream.take(123)
-    |> Stream.map(fn subnet ->
-      testnet = Testnet.from(nb_nodes, Keyword.put(options, :subnet, subnet))
-
-      with :ok <- Testnet.create!(testnet, dir) do
-        System.cmd("docker-compose", ["-f", compose, "up", "-d"], @cmd_options)
-      end
-    end)
-    |> Stream.filter(&(elem(&1, 1) == 0))
-    |> Enum.at(0)
-  end
-
-  defp wait_for_marker(container_name, marker, timeout \\ 600_000) do
+  defp wait_for_marker(container_name, marker, timeout \\ 60_000) do
     args = ["logs", container_name, "--follow", "--tail", "10"]
     opts = [:binary, :use_stdio, :stderr_to_stdout, line: 8192, args: args]
 
@@ -311,9 +310,14 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     end
   end
 
-  defp compose_file(dir), do: Path.join(dir, "docker-compose.json")
+  defp testnet_cleanup(dir, code, address_encoded) do
+    Logger.info("#{dir} Cleanup", address: address_encoded)
+    System.cmd("docker-compose", ["-f", compose_file(dir), "down", "--volumes"], @cmd_options)
+    File.rm_rf!(dir)
+    code
+  end
 
-  defp docker_exec(container_name, cmd), do: docker(["exec", container_name] ++ cmd)
+  defp compose_file(dir), do: Path.join(dir, "docker-compose.json")
 
   defp temp_dir(prefix, tmp \\ System.tmp_dir!()) do
     {_mega, sec, micro} = :os.timestamp()

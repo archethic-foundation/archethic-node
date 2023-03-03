@@ -19,7 +19,9 @@ defmodule Archethic.Election.HypergeometricDistribution do
   alias Archethic.P2P.Node
   alias Archethic.PubSub
 
-  @executable Application.app_dir(:archethic, "/priv/c_dist/hypergeometric_distribution")
+  defp executable() do
+    Application.app_dir(:archethic, "/priv/c_dist/hypergeometric_distribution")
+  end
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -114,7 +116,7 @@ defmodule Archethic.Election.HypergeometricDistribution do
 
   defp start_simulation_task(nb_nodes) do
     Task.async(fn ->
-      pid = Port.open({:spawn_executable, @executable}, args: [Integer.to_string(nb_nodes)])
+      pid = Port.open({:spawn_executable, executable()}, args: [Integer.to_string(nb_nodes)])
 
       receive do
         {^pid, {:data, data}} ->
@@ -134,10 +136,10 @@ defmodule Archethic.Election.HypergeometricDistribution do
 
       iex> HypergeometricDistribution.run_simulation(5)
       5
-      
+
       iex> HypergeometricDistribution.run_simulation(20)
       19
-      
+
       iex> HypergeometricDistribution.run_simulation(40)
       37
 
