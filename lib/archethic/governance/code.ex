@@ -153,9 +153,49 @@ defmodule Archethic.Governance.Code do
   """
   @spec applicable_proposal?(Proposal.t()) :: boolean()
   def applicable_proposal?(
-        %Proposal{changes: changes, address: address},
+        proposal,
         src_dir \\ @src_dir
       ) do
+    res = apply_diff(proposal, src_dir, false)
+    match?({_, 0}, res)
+  end
+
+  # @spec apply_proposal(Proposal.t()) :: :ok
+  # def apply_proposal(
+  #       proposal = %Proposal{description: description, address: address},
+  #       src_dir \\ @src_dir
+  #     ) do
+  #   random = :crypto.strong_rand_bytes(4) |> Base.encode16()
+  #   branch_name = "prop_#{random}_#{Base.encode16(address)}"
+
+  #   cmd_options = [stderr_to_stdout: true, cd: src_dir]
+  #   git_fn = fn args -> System.cmd("git", args, cmd_options) end
+
+  #   with {:apply_diff, {_, 0}} <- {:apply_diff, apply_diff(proposal, src_dir, true)},
+  #        {:git_checkout, {_, 0}} <- {:git_checkout, git_fn.(["checkout", "-b", branch_name])},
+  #        {:git_add, {_, 0}} <- {:git_add, git_fn.(["add", "--all"])},
+  #        {:git_commit, {_, 0}} <- {:git_commit, git_fn.(["commit", "-m", description])} do
+  #     :ok
+  #   else
+  #     {:apply_diff, {_, error_code}} ->
+  #       raise "apply_diff_to_current_branch failed with error code #{error_code}"
+
+  #     {:git_checkout, {_, error_code}} ->
+  #       raise "git_checkout failed with error code #{error_code}"
+
+  #     {:git_add, {_, error_code}} ->
+  #       raise "git_add failed with error code #{error_code}"
+
+  #     {:git_commit, {_, error_code}} ->
+  #       raise "git_commit failed with error code #{error_code}"
+  #   end
+  # end
+
+  defp apply_diff(
+         %Proposal{changes: changes, address: address},
+         src_dir,
+         persist?
+       ) do
     random = :crypto.strong_rand_bytes(4) |> Base.encode16()
     prop_file = Path.join(System.tmp_dir!(), "prop_#{random}_#{Base.encode16(address)}")
     File.write!(prop_file, changes)
@@ -163,18 +203,24 @@ defmodule Archethic.Governance.Code do
     cmd_options = [stderr_to_stdout: true, cd: src_dir]
     git = fn args -> System.cmd("git", args, cmd_options) end
 
+    git_args =
+      if persist? do
+        ["apply", prop_file]
+      else
+        ["apply", "--check", prop_file]
+      end
+
     res =
       case status() do
         {:clean, _} ->
-          git.(["apply", "--check", prop_file])
+          git.(git_args)
 
         otherwise ->
           {:error, otherwise}
       end
 
     File.rm(prop_file)
-
-    match?({_, 0}, res)
+    res
   end
 
   @doc """

@@ -56,8 +56,10 @@ defmodule Archethic.Governance.Code.CICD.Docker do
   end
 
   @impl CICD
-  def run_ci!(prop = %Proposal{}) do
+  def run_ci!(prop = %Proposal{changes: changes}) do
+    File.write!("./proposal.diff", changes)
     run!(prop, @ci_image, @ci_conductor, &do_run_docker_ci/1, "CI failed")
+    File.rm!("./proposal.diff")
   end
 
   @impl CICD
@@ -127,10 +129,23 @@ defmodule Archethic.Governance.Code.CICD.Docker do
 
   @ci_script "/opt/code/scripts/governance/proposal_ci_job.sh"
 
-  defp do_run_docker_ci(%Proposal{address: address, changes: changes}) do
+  defp do_run_docker_ci(%Proposal{address: address, changes: changes, description: description}) do
     Logger.info("Verify proposal", address: Base.encode16(address))
     name = container_name(address)
-    args = ["run", "--entrypoint", @ci_script, "-i", "--name", name, "archethic-ci", name]
+
+    args = [
+      "run",
+      "--entrypoint",
+      @ci_script,
+      "-i",
+      "--name",
+      name,
+      "archethic-ci",
+      name,
+      description,
+      address
+    ]
+
     port = Port.open({:spawn_executable, System.find_executable("docker")}, [:binary, args: args])
 
     # wait 250 ms or fail sooner
