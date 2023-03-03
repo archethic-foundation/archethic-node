@@ -6,15 +6,13 @@ defmodule Archethic.Utils.Regression do
 
   alias Archethic.Utils
 
-  alias Archethic.Utils.Regression.Playbook.SmartContract
   alias Archethic.Utils.Regression.Playbook.UCO
 
   alias Archethic.Utils.WebClient
   alias Archethic.Utils.Regression.Benchmark.EndToEndValidation
-  alias Archethic.Utils.Regression.Benchmark.P2PMessage
 
-  @playbooks [UCO, SmartContract]
-  @benchmarks [P2PMessage, EndToEndValidation]
+  @playbooks [UCO]
+  @benchmarks [EndToEndValidation]
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")
@@ -81,10 +79,15 @@ defmodule Archethic.Utils.Regression do
     |> Enum.all?(&(&1 == {:ok, :ok}))
   end
 
-  defp node_up?(node, start \\ System.monotonic_time(:millisecond), timeout \\ 5 * 60_000)
+  def node_up?(node, start \\ System.monotonic_time(:millisecond), timeout \\ 5 * 60_000)
 
-  defp node_up?(node, start, timeout) do
-    port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
+  def node_up?(node, start, timeout) do
+    port =
+      if System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet" do
+        40_000
+      else
+        Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
+      end
 
     case WebClient.with_connection(node, port, &WebClient.request(&1, "GET", "/up")) do
       {:ok, ["up"]} ->

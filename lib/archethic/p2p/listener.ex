@@ -17,9 +17,9 @@ defmodule Archethic.P2P.Listener do
   def init(opts) do
     transport = Keyword.get(opts, :transport)
     port = Keyword.get(opts, :port)
-
     PubSub.register_to_node_status()
 
+    # test(transport, port)
     {:ok, %{transport: transport, port: port}}
   end
 

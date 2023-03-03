@@ -20,7 +20,6 @@ ifeq ($(TPM_INSTALLED),0)
 	$(CC) src/c/crypto/tpm/keygen.c src/c/crypto/tpm/lib.c -o priv/c_dist/tpm_keygen -I src/c/crypto/tpm/lib.h $(TPMFLAGS)
 endif
 
-
 clean:
 	rm -f priv/c_dist/*
 	mix archethic.clean_db

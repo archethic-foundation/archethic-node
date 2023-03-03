@@ -3,11 +3,13 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
 
   require Logger
 
-  @upnpc Application.app_dir(:archethic, "priv/c_dist/upnpc")
+  def upnpc() do
+    Application.app_dir(:archethic, "priv/c_dist/upnpc")
+  end
 
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, any()}
   def get_node_ip do
-    case System.cmd(@upnpc, ["-s"]) do
+    case System.cmd(upnpc(), ["-s"]) do
       {output, 0} ->
         [[_, ip]] = Regex.scan(~r/ExternalIPAddress = ([0-9.]*)/, output, capture: :all)
 
@@ -29,7 +31,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   end
 
   defp get_local_ip do
-    case System.cmd(@upnpc, ["-s"]) do
+    case System.cmd(upnpc(), ["-s"]) do
       {output, 0} ->
         [[_, ip]] = Regex.scan(~r/Local LAN ip address : ([0-9.]*)/, output, capture: :all)
 
@@ -49,7 +51,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   defp do_open_port(_local_ip, _port, 0), do: :error
 
   defp do_open_port(local_ip, port, retries) do
-    case System.cmd(@upnpc, map_query(local_ip, port)) do
+    case System.cmd(upnpc(), map_query(local_ip, port)) do
       {_, 0} ->
         :ok
 
@@ -87,7 +89,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
   defp handle_error(reason, _local_ip, port) do
     if Regex.scan(~r/ConflictInMappingEntry/, reason, capture: :all) != [] do
       Logger.warning("Port is employed to another host.")
-      System.cmd(@upnpc, revoke_query(port))
+      System.cmd(upnpc(), revoke_query(port))
     end
   end
 
