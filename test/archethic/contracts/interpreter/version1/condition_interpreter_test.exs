@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Version1.ConditionInterpreter
+  alias Archethic.Contracts.Interpreter.Version1.ConditionValidator
 
   doctest ConditionInterpreter
 
@@ -125,7 +126,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, :transaction, %Conditions{content: {:if, _, _}}} =
+      assert {:ok, :transaction, %Conditions{content: {:__block__, _, _}}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -146,7 +147,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "transaction" => %{
                  "type" => "transfer"
                }
@@ -165,7 +166,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "next" => %{
                  "content" => "Hello"
                }
@@ -184,7 +185,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "transaction" => %{
                  "content" => "Hello"
                }
@@ -203,7 +204,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "next" => %{
                  "content" => "Hello"
                }
@@ -220,7 +221,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "next" => %{
                  "content" => "Hello"
                }
@@ -239,7 +240,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "next" => %{
                  "uco_transfers" => %{"@addr" => 265_821}
                }
@@ -256,7 +257,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "next" => %{
                  "uco_transfers" => %{}
                }
@@ -275,7 +276,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "transaction" => %{
                  "uco_transfers" => %{"@addr" => 265_821}
                }
@@ -292,7 +293,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "transaction" => %{
                  "uco_transfers" => %{"@addr" => 265_821}
                }
@@ -309,7 +310,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "transaction" => %{
                  "uco_transfers" => %{}
                }
@@ -326,7 +327,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "transaction" => %{
                  "uco_transfers" => %{"@addr" => 265_821}
                }
@@ -336,7 +337,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
     test "should be able to use dot access" do
       code = ~s"""
       condition inherit: [
-        content: previous.content == next.content
+          content: previous.content == next.content
       ]
       """
 
@@ -345,7 +346,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "previous" => %{"content" => "zoubida"},
                "next" => %{"content" => "zoubida"}
              })
@@ -361,7 +362,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "previous" => %{"content" => "lavabo"},
                "next" => %{"content" => "bidet"}
              })
@@ -379,7 +380,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
                "previous" => %{"content" => %{"y" => "foobar"}},
                "next" => %{}
              })
@@ -397,7 +398,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
+               "previous" => %{},
                "next" => %{
                  "content" => "Hello"
                }
@@ -414,7 +416,8 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
+               "previous" => %{},
                "next" => %{
                  "content" => "World"
                }
@@ -431,9 +434,68 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreterTest do
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
-             |> ConditionInterpreter.valid_conditions?(%{
+             |> ConditionValidator.valid_conditions?(%{
+               "previous" => %{},
                "next" => %{
                  "content" => "Hello"
+               }
+             })
+    end
+
+    test "should be able to use variables in the AST" do
+      code = ~s"""
+      condition inherit: [
+        content: (
+          x = 1
+          if true do
+            x == 1
+          end
+        )
+      ]
+      """
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionValidator.valid_conditions?(%{
+               "previous" => %{},
+               "next" => %{}
+             })
+    end
+
+    test "should be able to use for loops" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      condition inherit: [
+        uco_transfers: (
+          found = false
+
+          # search for a transfer of 1 uco to address
+          for address in Map.keys(next.uco_transfers) do
+            if address == "#{Base.encode16(address)}" && next.uco_transfers[address] == 1 do
+              found = true
+            end
+          end
+
+          found
+        )
+      ]
+      """
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionValidator.valid_conditions?(%{
+               "previous" => %{},
+               "next" => %{
+                 "uco_transfers" => %{
+                   address => 1
+                 }
                }
              })
     end

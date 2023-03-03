@@ -8,6 +8,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Version1.Library
+  alias Archethic.Contracts.Interpreter.Version1.Scope
 
   @modules_whitelisted Library.list_common_modules()
 
@@ -36,12 +37,39 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:!=, _, _}, acc), do: {node, acc}
   def prewalk(node = {:++, _, _}, acc), do: {node, acc}
   def prewalk(node = {:!, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:&&, _, _}, acc), do: {node, acc}
+  def prewalk(node = {:||, _, _}, acc), do: {node, acc}
 
   # ranges
   def prewalk(node = {:.., _, _}, acc), do: {node, acc}
 
+  # enter block == new scope
+  def prewalk(
+        _node = {:__block__, meta, expressions},
+        acc
+      ) do
+    # create a "ref" for each block
+    # references are not AST valid, so we convert them to binary
+    # (ps: charlist is a slow alternative because the Macro.traverse will step into every character)
+    ref = :erlang.list_to_binary(:erlang.ref_to_list(make_ref()))
+    new_acc = acc ++ [ref]
+
+    # create the child scope in parent scope
+    create_scope_ast =
+      quote do
+        Process.put(
+          :scope,
+          put_in(Process.get(:scope), unquote(new_acc), %{})
+        )
+      end
+
+    {
+      {:__block__, meta, [create_scope_ast | expressions]},
+      new_acc
+    }
+  end
+
   # blocks
-  def prewalk(node = {:__block__, _, _}, acc), do: {node, acc}
   def prewalk(node = {:do, _}, acc), do: {node, acc}
   def prewalk(node = :do, acc), do: {node, acc}
 
@@ -112,6 +140,144 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   def prewalk(node = {:<<>>, _, _}, acc), do: {node, acc}
   def prewalk(node = {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}, acc), do: {node, acc}
 
+  # forbid "if" as an expression
+  def prewalk(
+        node = {:=, _, [_, {:if, _, _}]},
+        _acc
+      ) do
+    throw({:error, node, "Forbidden to use if as an expression."})
+  end
+
+  # forbid "for" as an expression
+  def prewalk(
+        node =
+          {:=, _,
+           [
+             {{:atom, _}, _, nil},
+             {{:atom, "for"}, _, _}
+           ]},
+        _acc
+      ) do
+    throw({:error, node, "Forbidden to use for as an expression."})
+  end
+
+  # whitelist assignation & write them to scope
+  # this is done in the prewalk because it must be done before the "variable are read from scope" step
+  def prewalk(
+        _node = {:=, _, [{{:atom, var_name}, _, nil}, value]},
+        acc
+      ) do
+    new_node =
+      quote do
+        Process.put(
+          :scope,
+          put_in(
+            Process.get(:scope),
+            Scope.where_is(Process.get(:scope), unquote(acc), unquote(var_name)) ++
+              [unquote(var_name)],
+            unquote(value)
+          )
+        )
+      end
+
+    {
+      new_node,
+      acc
+    }
+  end
+
+  # Dot access non-nested (x.y)
+  def prewalk(_node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _}, acc) do
+    new_node =
+      quote do
+        get_in(
+          Process.get(:scope),
+          Scope.where_is(Process.get(:scope), unquote(acc), unquote(map_name)) ++
+            [unquote(map_name), unquote(key_name)]
+        )
+      end
+
+    {new_node, acc}
+  end
+
+  # Dot access nested (x.y.z)
+  def prewalk({{:., _, [first_arg = {{:., _, _}, _, _}, {:atom, key_name}]}, _, []}, acc) do
+    {nested, new_acc} = prewalk(first_arg, acc)
+
+    new_node =
+      quote do
+        get_in(
+          unquote(nested),
+          [unquote(key_name)]
+        )
+      end
+
+    {new_node, new_acc}
+  end
+
+  # Map access non-nested (x[y])
+  def prewalk(
+        _node = {{:., _, [Access, :get]}, _, [{{:atom, map_name}, _, nil}, accessor]},
+        acc
+      ) do
+    # accessor can be a variable, a function call, a dot access, a string
+    new_node =
+      quote do
+        get_in(
+          Process.get(:scope),
+          Scope.where_is(Process.get(:scope), unquote(acc), unquote(map_name)) ++
+            [unquote(map_name), unquote(accessor)]
+        )
+      end
+
+    {new_node, acc}
+  end
+
+  # Map access nested (x[y][z])
+  def prewalk(
+        _node = {{:., _, [Access, :get]}, _, [first_arg = {{:., _, _}, _, _}, accessor]},
+        acc
+      ) do
+    {nested, new_acc} = prewalk(first_arg, acc)
+
+    new_node =
+      quote do
+        get_in(
+          unquote(nested),
+          [unquote(accessor)]
+        )
+      end
+
+    {new_node, new_acc}
+  end
+
+  # for var in list
+  def prewalk(
+        _node =
+          {{:atom, "for"}, meta,
+           [
+             {:in, _,
+              [
+                {{:atom, var_name}, _, nil},
+                list
+              ]},
+             [do: block]
+           ]},
+        acc
+      ) do
+    ast =
+      {{:atom, "for"}, meta,
+       [
+         # we change the "var in list" to "var: list" (which will be automatically converted to %{var => list})
+         # to avoid the "var" interpreted as a variable (which would have been converted to get_in/2)
+         [{{:atom, var_name}, list}],
+         # wrap in a block to be able to pattern match it to create a scope
+         [do: AST.wrap_in_block(block)]
+       ]}
+
+    {ast, acc}
+  end
+
   # blacklist rest
   def prewalk(node, _acc), do: throw({:error, node, "unexpected term"})
 
@@ -123,6 +289,15 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
+  # exit block == set parent scope
+  def postwalk(
+        node = {:__block__, _, _},
+        acc
+      ) do
+    {node, List.delete_at(acc, -1)}
+  end
+
+  # common modules call
   def postwalk(
         node =
           {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
@@ -158,6 +333,58 @@ defmodule Archethic.Contracts.Interpreter.Version1.CommonInterpreter do
 
     new_node =
       {{:., meta, [{:__aliases__, meta_with_alias, [module_atom]}, function_atom]}, meta, args}
+
+    {new_node, acc}
+  end
+
+  # variable are read from scope
+  def postwalk(
+        _node = {{:atom, var_name}, _, nil},
+        acc
+      ) do
+    new_node =
+      quote do
+        get_in(
+          Process.get(:scope),
+          Scope.where_is(Process.get(:scope), unquote(acc), unquote(var_name)) ++
+            [unquote(var_name)]
+        )
+      end
+
+    {new_node, acc}
+  end
+
+  # for var in list
+  def postwalk(
+        _node =
+          {{:atom, "for"}, _,
+           [
+             {:%{}, _, [{var_name, list}]},
+             [do: block]
+           ]},
+        acc
+      ) do
+    # FIXME: here acc is already the parent acc, it is not the acc of the do block
+    # FIXME: this means that our `var_name` will live in the parent scope
+    # FIXME: it works (since we can read from parent) but it will override the parent binding if there's one
+
+    # transform the for-loop into Enum.each
+    # and create a variable in the scope
+    new_node =
+      quote do
+        Enum.each(unquote(list), fn x ->
+          Process.put(
+            :scope,
+            put_in(
+              Process.get(:scope),
+              unquote(acc) ++ [unquote(var_name)],
+              x
+            )
+          )
+
+          unquote(block)
+        end)
+      end
 
     {new_node, acc}
   end

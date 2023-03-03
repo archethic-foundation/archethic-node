@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
 
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
+  alias __MODULE__.ConditionValidator
 
   alias Archethic.TransactionChain.Transaction
 
@@ -32,7 +33,7 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
   """
   @spec valid_conditions?(Conditions.t(), map()) :: bool()
   def valid_conditions?(conditions, constants) do
-    ConditionInterpreter.valid_conditions?(conditions, constants)
+    ConditionValidator.valid_conditions?(conditions, constants)
   end
 
   @doc """

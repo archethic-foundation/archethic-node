@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
   alias Archethic.Contracts.Interpreter.Version1.Library
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Version0
 
   @modules_whitelisted Library.list_common_modules()
 
@@ -17,8 +16,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
   @spec parse(any()) ::
           {:ok, condition_type(), Conditions.t()} | {:error, any(), String.t()}
   def parse({{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]}) do
-    # scope_key is used because we are using version0 conditionInterpreter
-    {condition_type, scope_key} =
+    {condition_type, global_variable} =
       case condition_name do
         "transaction" -> {:transaction, "transaction"}
         "inherit" -> {:inherit, "next"}
@@ -33,7 +31,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
     conditions =
       Enum.reduce(proplist, %Conditions{}, fn {key, value}, acc ->
         # todo: throw if unknown key
-        new_value = to_boolean_expression([scope_key, key], value)
+        new_value = to_boolean_expression([global_variable, key], value)
         Map.put(acc, String.to_existing_atom(key), new_value)
       end)
 
@@ -50,44 +48,89 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
     {:error, node, "unexpected term"}
   end
 
-  @doc """
-  Return true if the given conditions are valid on the given constants
-  Here we can use version0 because the validation logic does not change.
-
-  We'll just need to use the same scope as version0 to make it work. (to_boolean_expression does this)
-  """
-  @spec valid_conditions?(Conditions.t(), map()) :: bool()
-  def valid_conditions?(conditions, constants) do
-    Version0.ConditionInterpreter.valid_conditions?(
-      conditions,
-      constants
-    )
+  # ----------------------------------------------------------------------
+  #              _            _
+  #   _ __  _ __(___   ____ _| |_ ___
+  #  | '_ \| '__| \ \ / / _` | __/ _ \
+  #  | |_) | |  | |\ V | (_| | ||  __/
+  #  | .__/|_|  |_| \_/ \__,_|\__\___|
+  #  |_|
+  # ----------------------------------------------------------------------
+  defp to_boolean_expression(_subject, bool) when is_boolean(bool) do
+    bool
   end
 
-  # ----------------------------------------
-  # We keep the scope similar to Version0 because there's no need for multiple scopes in the
-  # condition block. Here we assume we have a `scope` variable in our bindings.
+  # `subject` is the "accessor" to the transaction's property for this expression
   #
-  # `subject` is the "accessor" to the transaction for this condition
+  # Example:
+  #
+  #   condition inherit: [
+  #     content: "ciao"
+  #   ]
+  #
+  #   - `subject == ["next", "content"]`
+  #   - `value == "ciao"`
+  #
   defp to_boolean_expression(subject, value)
        when is_binary(value) or is_integer(value) or is_float(value) do
-    # var!(scope) is used to say that scope variable is in the context=nil
-    # (version0 use context=nil to store the bindings)
     quote do
-      unquote(value) == get_in(var!(scope), unquote(subject))
+      unquote(value) ==
+        get_in(
+          Process.get(:scope),
+          unquote(subject)
+        )
     end
   end
 
-  defp to_boolean_expression(subject, value) do
-    Macro.postwalk(value, &postwalk(&1, subject))
+  defp to_boolean_expression(subject, ast) do
+    # here the accumulator is an list of parent scopes & current scope
+    # where we can access variables from all of them
+    # `acc = [ref1]` means read variable from scope.ref1 or scope
+    # `acc = [ref1, ref2]` means read variable from scope.ref1.ref2 or scope.ref1 or scope
+    acc = []
+
+    {new_ast, _} =
+      Macro.traverse(
+        AST.wrap_in_block(ast),
+        acc,
+        fn node, acc ->
+          prewalk(subject, node, acc)
+        end,
+        fn node, acc ->
+          postwalk(subject, node, acc)
+        end
+      )
+
+    new_ast
   end
 
-  # Module.function call
-  # we override the CommonInterpreter behaviour to add the contract as first argument
+  # ----------------------------------------------------------------------
+  #                                _ _
+  #   _ __  _ __ _____      ____ _| | | __
+  #  | '_ \| '__/ _ \ \ /\ / / _` | | |/ /
+  #  | |_) | | |  __/\ V  V | (_| | |   <
+  #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
+  #  |_|
+  # ----------------------------------------------------------------------
+  defp prewalk(_subject, node, acc) do
+    CommonInterpreter.prewalk(node, acc)
+  end
+
+  # ----------------------------------------------------------------------
+  #                   _                 _ _
+  #   _ __   ___  ___| |___      ____ _| | | __
+  #  | '_ \ / _ \/ __| __\ \ /\ / / _` | | |/ /
+  #  | |_) | (_) \__ | |_ \ V  V | (_| | |   <
+  #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
+  #  |_|
+  # ----------------------------------------------------------------------
+  # Override Module.function call
+  # because we might need to inject the contract as first argument
   defp postwalk(
+         subject,
          node =
            {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
-         subject
+         acc
        )
        when module_name in @modules_whitelisted do
     # if function exist with arity => node
@@ -98,60 +141,63 @@ defmodule Archethic.Contracts.Interpreter.Version1.ConditionInterpreter do
         "Elixir.Archethic.Contracts.Interpreter.Version1.Library.Common.#{module_name}"
       )
 
-    cond do
-      # check function is available with given arity
-      Library.function_exists?(absolute_module_atom, function_name, arity) ->
-        {new_node, nil} = CommonInterpreter.postwalk(node, nil)
-        new_node
+    new_node =
+      cond do
+        # check function is available with given arity
+        Library.function_exists?(absolute_module_atom, function_name, arity) ->
+          {new_node, _} = CommonInterpreter.postwalk(node, acc)
+          new_node
 
-      # if function exist with arity+1 => prepend the key to args
-      Library.function_exists?(absolute_module_atom, function_name, arity + 1) ->
-        ast =
-          quote do
-            # var!(scope) is used to say that scope variable is in the context=nil
-            # (version0 use context=nil to store the bindings)
-            get_in(var!(scope), unquote(subject))
-          end
+        # if function exist with arity+1 => prepend the key to args
+        Library.function_exists?(absolute_module_atom, function_name, arity + 1) ->
+          ast =
+            quote do
+              get_in(
+                Process.get(:scope),
+                unquote(subject)
+              )
+            end
 
-        # add it as first function argument
-        node_with_key_appended =
-          {{:., meta, [{:__aliases__, meta, [atom: module_name]}, {:atom, function_name}]}, meta,
-           [ast | args]}
+          # add it as first function argument
+          node_with_key_appended =
+            {{:., meta, [{:__aliases__, meta, [atom: module_name]}, {:atom, function_name}]},
+             meta, [ast | args]}
 
-        {new_node, nil} = CommonInterpreter.postwalk(node_with_key_appended, nil)
-        new_node
+          {new_node, _} = CommonInterpreter.postwalk(node_with_key_appended, acc)
+          new_node
 
-      # check function exists
-      Library.function_exists?(absolute_module_atom, function_name) ->
-        throw({:error, node, "invalid arity for function #{module_name}.#{function_name}"})
+        # check function exists
+        Library.function_exists?(absolute_module_atom, function_name) ->
+          throw({:error, node, "invalid arity for function #{module_name}.#{function_name}"})
 
-      true ->
-        throw({:error, node, "unknown function:  #{module_name}.#{function_name}"})
-    end
+        true ->
+          throw({:error, node, "unknown function:  #{module_name}.#{function_name}"})
+      end
+
+    {new_node, acc}
   end
 
-  # Dot access non-nested (x.y)
+  # Override Contract.get_calls()
   defp postwalk(
-         _node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _},
-         _subject
+         _subject = [global_variable, _],
+         _node =
+           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, "get_calls"}]}, _, []},
+         acc
        ) do
-    quote do
-      get_in(
-        var!(scope),
-        [unquote(map_name), unquote(key_name)]
-      )
-    end
+    new_node =
+      quote do
+        Archethic.Contracts.Interpreter.Version1.Library.Contract.get_calls(
+          get_in(
+            Process.get(:scope),
+            [unquote(global_variable), "address"]
+          )
+        )
+      end
+
+    {new_node, acc}
   end
 
-  # Dot access nested (x.y.z)
-  defp postwalk({{:., _, [first_arg, {:atom, key_name}]}, _, []}, _subject) do
-    quote do
-      get_in(unquote(first_arg), [unquote(key_name)])
-    end
-  end
-
-  # pass through
-  defp postwalk(node, _subject) do
-    node
+  defp postwalk(_subject, node, acc) do
+    CommonInterpreter.postwalk(node, acc)
   end
 end
