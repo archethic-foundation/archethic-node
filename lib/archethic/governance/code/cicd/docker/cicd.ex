@@ -210,13 +210,11 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     end
   end
 
-  @logfile_name "ci_logfile.txt"
   defp testnet_prepare(dir, address, version) do
     ci = container_name(address)
 
     with :ok <- File.mkdir_p!(dir),
-         {_, 0} <- docker(["cp", "#{ci}:#{@releases}/#{version}/#{@release}", dir]),
-         {_, 0} <- docker(["cp", "#{ci}:/opt/code/#{@logfile_name}", dir <> "/#{@logfile_name}"]) do
+         {_, 0} <- docker(["cp", "#{ci}:#{@releases}/#{version}/#{@release}", dir]) do
       :ok
     else
       _ -> :error
@@ -224,7 +222,6 @@ defmodule Archethic.Governance.Code.CICD.Docker do
   end
 
   @subnet "172.16.100.0/24"
-
   defp testnet_start(dir, nb_nodes) do
     compose = compose_file(dir)
     options = [image: "archethic-cd", dir: dir, src: @src_dir, persist: false]

@@ -61,7 +61,6 @@ RUN git config user.name aebot \
 # build release
 RUN mix assets.deploy
 RUN MIX_ENV=prod mix distillery.release
-
 # Install
 RUN mkdir -p /opt/app \
   && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz -C  /opt/app

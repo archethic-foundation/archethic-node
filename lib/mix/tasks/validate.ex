@@ -38,12 +38,16 @@ defmodule Mix.Tasks.Archethic.Proposal.Validator do
         if parsed[:help] do
           Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
         else
-          :ok =
-            Utils.apply_function_if_key_exists(parsed, :phase, &Validator.run/2, [
-              nodes,
-              parsed[:phase]
-            ])
+          :ok = maybe(parsed, :phase, &Validator.run/2, [nodes, parsed[:phase]])
         end
+    end
+  end
+
+  defp maybe(opts, key, func, args) do
+    if opts[key] do
+      apply(func, args)
+    else
+      :ok
     end
   end
 end
