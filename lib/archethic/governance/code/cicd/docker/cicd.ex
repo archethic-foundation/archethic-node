@@ -252,6 +252,7 @@ defmodule Archethic.Governance.Code.CICD.Docker do
   end
 
   @subnet "172.16.100.0/24"
+
   defp testnet_start(dir, nb_nodes) do
     compose = compose_file(dir)
     options = [image: "archethic-cd", dir: dir, src: @src_dir, persist: false]

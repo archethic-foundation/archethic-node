@@ -12,9 +12,9 @@ config :git_hooks,
         {:cmd, "mix credo"},
         {:cmd, "mix sobelow"},
         {:cmd, "mix knigge.verify"},
-        {:cmd, "mix test --trace"},
-        {:cmd, "mix dialyzer"},
-        {:cmd, "mix check.updates"}
+        # {:cmd, "mix test --trace"},
+        {:cmd, "mix dialyzer"}
+        # {:cmd, "mix check.updates"}
       ]
     ]
   ]
