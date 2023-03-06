@@ -7,6 +7,17 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
   @type latency_patch :: {String.t(), String.t()}
 
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.Subset.P2PSampling
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetNetworkStats
+  alias Archethic.P2P.Message.NetworkStats
+
+  alias Archethic.TaskSupervisor
+
   @doc """
   Compute the network patch based on the matrix latencies
 
@@ -193,4 +204,139 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   end
 
   defp get_digit(acc, _, _, _, _, _), do: acc
+
+  @doc """
+  Fetch remotely the network stats for a given summary time  
+
+  This request all the subsets to gather the aggregated network stats.
+  A NxN latency matrix is then computed based on the network stats origins and targets
+  """
+  @spec fetch_network_stats(DateTime.t()) :: Nx.Tensor.t()
+  def fetch_network_stats(summary_time = %DateTime{}) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    sorted_node_list = P2P.list_nodes() |> Enum.sort_by(& &1.first_public_key)
+    nb_nodes = length(sorted_node_list)
+
+    matrix = Nx.broadcast(0, {nb_nodes, nb_nodes})
+
+    Task.async_stream(
+      BeaconChain.list_subsets(),
+      fn subset ->
+        beacon_nodes = Election.beacon_storage_nodes(subset, summary_time, authorized_nodes)
+
+        stats =
+          Task.Supervisor.async_stream_nolink(
+            TaskSupervisor,
+            beacon_nodes,
+            &P2P.send_message(&1, %GetNetworkStats{subset: subset}),
+            on_timeout: :kill_task,
+            ordered: false
+          )
+          |> Stream.filter(fn
+            # Filter slots without P2P view
+            {:ok, {:ok, %NetworkStats{stats: stats}}} when map_size(stats) > 0 ->
+              true
+
+            _ ->
+              false
+          end)
+          |> Stream.map(fn {:ok, {:ok, %NetworkStats{stats: stats}}} -> Map.to_list(stats) end)
+          |> Enum.to_list()
+          |> List.flatten()
+          |> Enum.reduce(%{}, fn {node, stats}, acc ->
+            Map.put(acc, node, stats)
+          end)
+
+        {subset, stats}
+      end,
+      on_timeout: :kill_task,
+      ordered: false
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.reduce(matrix, fn {:ok, {subset, stats}}, acc ->
+      sampling_nodes = P2PSampling.list_nodes_to_sample(subset)
+
+      Enum.reduce(stats, acc, fn {node_public_key, stats}, acc ->
+        beacon_node_index =
+          Enum.find_index(sorted_node_list, &(&1.first_public_key == node_public_key))
+
+        set_matrix_latency(acc, beacon_node_index, sampling_nodes, sorted_node_list, stats)
+      end)
+    end)
+  end
+
+  defp set_matrix_latency(
+         matrix,
+         beacon_node_index,
+         sampling_nodes,
+         sorted_node_list,
+         stats
+       ) do
+    stats
+    |> Enum.with_index()
+    |> Enum.reduce(matrix, fn {%{latency: latency}, index}, acc ->
+      sample_node = Enum.at(sampling_nodes, index)
+
+      sample_node_index =
+        Enum.find_index(
+          sorted_node_list,
+          &(&1.first_public_key == sample_node.first_public_key)
+        )
+
+      # Avoid update if it's the matrix diagonal
+      if sample_node_index == beacon_node_index do
+        acc
+      else
+        update_matrix(acc, beacon_node_index, sample_node_index, latency)
+      end
+    end)
+  end
+
+  defp update_matrix(matrix, beacon_node_index, sample_node_index, latency) do
+    existing_points =
+      matrix
+      |> Nx.gather(
+        Nx.tensor([
+          [beacon_node_index, sample_node_index],
+          [sample_node_index, beacon_node_index]
+        ])
+      )
+      |> Nx.to_list()
+
+    # Build symmetric matrix
+    case existing_points do
+      # Initialize cell
+      [0, 0] ->
+        Nx.indexed_put(
+          matrix,
+          Nx.tensor([
+            [beacon_node_index, sample_node_index],
+            [sample_node_index, beacon_node_index]
+          ]),
+          Nx.tensor([latency, latency])
+        )
+
+      # Take mean when latency differs
+      [x, y] when (x >= 0 or y >= 0) and (latency != x or latency != y) ->
+        mean_latency =
+          if x > 0 do
+            Archethic.Utils.mean([x, latency]) |> trunc()
+          else
+            Archethic.Utils.mean([latency, y]) |> trunc()
+          end
+
+        Nx.indexed_put(
+          matrix,
+          Nx.tensor([
+            [beacon_node_index, sample_node_index],
+            [sample_node_index, beacon_node_index]
+          ]),
+          Nx.tensor([mean_latency, mean_latency])
+        )
+
+      [^latency, ^latency] ->
+        matrix
+    end
+  end
 end

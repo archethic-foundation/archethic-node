@@ -26,6 +26,7 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.NotFound
+
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain.TransactionSummary
@@ -412,15 +413,6 @@ defmodule Archethic.BeaconChain do
       {:error, :network_issue} = e ->
         e
     end
-  end
-
-  @spec fetch_network_stats(DateTime.t()) :: list(Slot.net_stats())
-  def fetch_network_stats(summary_time = %DateTime{}) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
-
-    Enum.map(list_subsets(), fn subset ->
-      _beacon_nodes = Election.beacon_storage_nodes(subset, summary_time, authorized_nodes)
-    end)
   end
 
   @doc """

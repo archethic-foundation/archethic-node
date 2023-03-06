@@ -76,7 +76,9 @@ defmodule Archethic.P2P.Message do
     TransactionSummaryMessage,
     AcknowledgeStorage,
     ReplicationAttestationMessage,
-    GetTransactionSummary
+    GetTransactionSummary,
+    GetNetworkStats,
+    NetworkStats
   }
 
   require Logger
@@ -127,6 +129,7 @@ defmodule Archethic.P2P.Message do
           | NotifyReplicationValidation.t()
           | AcknowledgeStorage.t()
           | GetTransactionSummary.t()
+          | GetNetworkStats.t()
 
   @type response ::
           Ok.t()
@@ -152,6 +155,7 @@ defmodule Archethic.P2P.Message do
           | ReplicationError.t()
           | SummaryAggregate.t()
           | AddressList.t()
+          | NetworkStats.t()
 
   @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
