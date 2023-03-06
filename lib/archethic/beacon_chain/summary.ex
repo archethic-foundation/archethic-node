@@ -205,11 +205,7 @@ defmodule Archethic.BeaconChain.Summary do
     transaction_attestations =
       slots
       |> Stream.flat_map(& &1.transaction_attestations)
-      |> Stream.uniq_by(fn %ReplicationAttestation{
-                             transaction_summary: %TransactionSummary{address: address}
-                           } ->
-        address
-      end)
+      |> ReplicationAttestation.reduce_confirmations()
       |> Enum.sort_by(
         fn %ReplicationAttestation{
              transaction_summary: %TransactionSummary{timestamp: timestamp}

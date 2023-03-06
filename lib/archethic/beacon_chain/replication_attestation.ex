@@ -209,6 +209,37 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
     end
   end
 
+  @doc """
+  Take a list of attestations and reduce them to return a list of unique attestation
+  for a transaction with all the confirmations
+  """
+  @spec reduce_confirmations(Enumerable.t(t())) :: Stream.t(t())
+  def reduce_confirmations(attestations) do
+    attestations
+    |> Stream.transform(
+      # start function, init acc
+      fn -> %{} end,
+      # reducer function, return empty enum, accumulate replication attestation by address in acc
+      fn attestation = %__MODULE__{
+           transaction_summary: %TransactionSummary{address: address},
+           confirmations: confirmations
+         },
+         acc ->
+        # Accumulate distinct confirmations in a replication attestation
+        acc =
+          Map.update(acc, address, attestation, fn reduced_attest ->
+            Map.update!(reduced_attest, :confirmations, &((&1 ++ confirmations) |> Enum.uniq()))
+          end)
+
+        {[], acc}
+      end,
+      # last function, return acc in the enumeration
+      fn acc -> {Map.values(acc), acc} end,
+      # after function, do nothing
+      fn _ -> :ok end
+    )
+  end
+
   defp check_transaction_summary(nodes, expected_summary, timeout \\ 500)
 
   defp check_transaction_summary([], _, _), do: {:error, :network_issue}
