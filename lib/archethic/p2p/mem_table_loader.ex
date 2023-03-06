@@ -64,9 +64,10 @@ defmodule Archethic.P2P.MemTableLoader do
     {:ok, %{}}
   end
 
-  defp load_p2p_view(nil), do: :ok
+  @spec load_p2p_view(DateTime.t() | nil) :: :ok
+  def load_p2p_view(nil), do: :ok
 
-  defp load_p2p_view(last_repair_time) do
+  def load_p2p_view(last_repair_time) do
     next_repair_time =
       :archethic
       |> Application.get_env(SelfRepairScheduler, [])
