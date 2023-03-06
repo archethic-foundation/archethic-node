@@ -103,11 +103,6 @@ defmodule Archethic.Contracts.Loader do
         transaction_type: tx_type
       )
 
-      unless from_self_repair? do
-        # execute asynchronously the contract
-        Worker.execute(contract_address, tx)
-      end
-
       TransactionLookup.add_contract_transaction(
         contract_address,
         tx_address,
@@ -115,7 +110,10 @@ defmodule Archethic.Contracts.Loader do
         protocol_version
       )
 
-      Worker.execute(contract_address, tx)
+      unless from_self_repair? do
+        # execute asynchronously the contract
+        Worker.execute(contract_address, tx)
+      end
 
       Logger.info("Transaction towards contract ingested",
         transaction_address: Base.encode16(tx_address),
