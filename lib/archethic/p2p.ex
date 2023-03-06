@@ -55,6 +55,12 @@ defmodule Archethic.P2P do
   end
 
   @doc """
+  Reload last P2P view from DB
+  """
+  @spec reload_last_view(last_sync_date :: DateTime.t() | nil) :: :ok
+  defdelegate reload_last_view(last_sync_date), to: MemTableLoader, as: :load_p2p_view
+
+  @doc """
   List the nodes registered.
   """
   @spec list_nodes() :: list(Node.t())

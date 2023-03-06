@@ -18,6 +18,8 @@ defmodule Archethic.Bootstrap.Sync do
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
   alias Archethic.P2P.Node
 
+  alias Archethic.SelfRepair
+
   alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
@@ -144,6 +146,9 @@ defmodule Archethic.Bootstrap.Sync do
     case P2P.quorum_read(current_nodes, %ListNodes{}, conflict_resolver) do
       {:ok, %NodeList{nodes: nodes}} ->
         Enum.each(nodes, &P2P.add_and_connect_node/1)
+        # After loading all current nodes, we update the p2p view with the last one stored in DB
+        # to have a proper view for the next beacon summary to self repair
+        SelfRepair.last_sync_date() |> P2P.reload_last_view()
         Logger.info("Node list refreshed")
 
       error ->
