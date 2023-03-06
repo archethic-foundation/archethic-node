@@ -6,6 +6,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   alias Archethic.Crypto
 
   alias Archethic.Election
+  alias Archethic.Election.HypergeometricDistribution
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransactionSummary
@@ -22,6 +23,11 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           transaction_summary: TransactionSummary.t(),
           confirmations: list({position :: non_neg_integer(), signature :: binary()})
         }
+
+  # Minimum 10 nodes to start verifying the threshold
+  @minimum_nodes_for_threshold 10
+  # Minimum 35% of the expected confirmations must be present
+  @confirmations_threshold 0.35
 
   @doc """
   Serialize a replication attestation
@@ -213,7 +219,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   Take a list of attestations and reduce them to return a list of unique attestation
   for a transaction with all the confirmations
   """
-  @spec reduce_confirmations(Enumerable.t(t())) :: Stream.t(t())
+  @spec reduce_confirmations(Enumerable.t(t())) :: Enumerable.t(t())
   def reduce_confirmations(attestations) do
     attestations
     |> Stream.transform(
@@ -238,6 +244,24 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
       # after function, do nothing
       fn _ -> :ok end
     )
+  end
+
+  @doc """
+  Return true if the attestation reached the minimum confirmations threshold
+  """
+  @spec reached_threshold?(t()) :: boolean()
+  def reached_threshold?(%__MODULE__{
+        transaction_summary: %TransactionSummary{timestamp: timestamp},
+        confirmations: confirmations
+      }) do
+    # For security reason we reject the attestation with less than 35% of expected confirmations
+    with nb_nodes when nb_nodes > 0 <- P2P.authorized_and_available_nodes(timestamp) |> length(),
+         replicas_count <- HypergeometricDistribution.run_simulation(nb_nodes),
+         true <- replicas_count > @minimum_nodes_for_threshold do
+      length(confirmations) >= replicas_count * @confirmations_threshold
+    else
+      _ -> true
+    end
   end
 
   defp check_transaction_summary(nodes, expected_summary, timeout \\ 500)

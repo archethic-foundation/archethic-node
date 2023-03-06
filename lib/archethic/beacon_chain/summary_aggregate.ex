@@ -22,6 +22,8 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   alias Archethic.Utils
 
+  require Logger
+
   @availability_adding_time :archethic
                             |> Application.compile_env!(Archethic.SelfRepair.Scheduler)
                             |> Keyword.fetch!(:availability_application)
@@ -62,9 +64,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         fn prev ->
           transaction_attestations
           |> Enum.filter(&(ReplicationAttestation.validate(&1, false) == :ok))
-          |> Enum.map(& &1.transaction_summary)
           |> Enum.concat(prev)
-          |> Enum.uniq_by(& &1.address)
         end
       )
       |> Map.update!(:availability_adding_time, &[availability_adding_time | &1])
@@ -106,12 +106,14 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   Aggregate summaries batch
   """
   @spec aggregate(t()) :: t()
-  def aggregate(agg = %__MODULE__{}) do
+  def aggregate(agg) do
     agg
-    |> Map.update!(:transaction_summaries, fn transactions ->
-      transactions
-      |> Enum.uniq_by(& &1.address)
-      |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
+    |> Map.update!(:transaction_summaries, fn attestations ->
+      # Aggregate all confirmations, then filter the attestations that reached
+      # the threshold. Postpone to next summary the attestations that didn't reach the threshold
+      attestations
+      |> ReplicationAttestation.reduce_confirmations()
+      |> Enum.sort_by(& &1.transaction_summary.timestamp, {:asc, DateTime})
     end)
     |> Map.update!(:availability_adding_time, fn
       [] ->
@@ -131,6 +133,38 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       end)
       |> Enum.into(%{})
     end)
+  end
+
+  @doc """
+  Filter replication attestations list of a summary to keep only the one that reached the
+  minimum confirmations threshold and return the refused ones
+  """
+  @spec filter_reached_threshold(t()) :: {t(), list(ReplicationAttestation.t())}
+  def filter_reached_threshold(aggregate = %__MODULE__{transaction_summaries: attestations}) do
+    %{accepted: accepted_attestations, refused: refused_attestations} =
+      Enum.reduce(
+        attestations,
+        %{accepted: [], refused: []},
+        fn attestation, acc ->
+          if ReplicationAttestation.reached_threshold?(attestation) do
+            # Confirmations reached threshold we accept the attestation in the summary
+            Map.update!(acc, :accepted, &[attestation | &1])
+          else
+            # Confirmations didn't reached threshold, we postpone attestation in next summary
+            Map.update!(acc, :refused, &[attestation | &1])
+          end
+        end
+      )
+      |> Map.update!(:accepted, &Enum.reverse/1)
+
+    filtered_aggregate =
+      Map.put(
+        aggregate,
+        :transaction_summaries,
+        Enum.map(accepted_attestations, & &1.transaction_summary)
+      )
+
+    {filtered_aggregate, refused_attestations}
   end
 
   defp aggregate_node_availabilities(node_availabilities) do

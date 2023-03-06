@@ -1,12 +1,31 @@
 defmodule Archethic.SelfRepair.Sync do
   @moduledoc false
-  alias Archethic
+  alias Archethic.{
+    BeaconChain,
+    Crypto,
+    DB,
+    Election,
+    P2P,
+    PubSub,
+    SelfRepair,
+    TaskSupervisor,
+    TransactionChain,
+    Utils
+  }
 
-  alias Archethic.{BeaconChain, Crypto, DB, Election, P2P, P2P.Node, P2P.Message}
-  alias Archethic.{SelfRepair, TaskSupervisor, TransactionChain, Utils, PubSub}
-  alias Archethic.{TaskSupervisor, TransactionChain.TransactionSummary}
+  alias Archethic.BeaconChain.{
+    ReplicationAttestation,
+    Summary,
+    SummaryAggregate
+  }
 
-  alias BeaconChain.{Subset.P2PSampling, Summary, SummaryAggregate}
+  alias Archethic.P2P.{
+    Node,
+    Message
+  }
+
+  alias Archethic.BeaconChain.Subset.P2PSampling
+  alias Archethic.TransactionChain.TransactionSummary
 
   alias __MODULE__.TransactionHandler
 
@@ -114,7 +133,9 @@ defmodule Archethic.SelfRepair.Sync do
     last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time, download_nodes)
     ensure_download_last_aggregate(last_aggregate, download_nodes)
 
-    last_aggregate = aggregate_with_local_summaries(last_aggregate, last_summary_time)
+    last_aggregate =
+      aggregate_with_local_summaries(last_aggregate, last_summary_time)
+      |> verify_attestations_threshold()
 
     summaries_aggregates
     |> Stream.concat([last_aggregate])
@@ -184,6 +205,50 @@ defmodule Archethic.SelfRepair.Sync do
         acc
     end)
     |> SummaryAggregate.aggregate()
+  end
+
+  defp verify_attestations_threshold(summary_aggregate) do
+    {filtered_summary_aggregate, refused_attestations} =
+      SummaryAggregate.filter_reached_threshold(summary_aggregate)
+
+    postpone_refused_attestations(refused_attestations)
+
+    filtered_summary_aggregate
+  end
+
+  defp postpone_refused_attestations(attestations) do
+    slot_time = DateTime.utc_now() |> BeaconChain.next_slot()
+    nodes = P2P.authorized_and_available_nodes(slot_time)
+
+    Enum.each(
+      attestations,
+      fn attestation = %ReplicationAttestation{
+           transaction_summary: %TransactionSummary{address: address, type: type},
+           confirmations: confirmations
+         } ->
+        # Postpone only if we are the current beacon slot node
+        # (otherwise all nodes would postpone as the self repair is run on all nodes)
+        slot_node? =
+          BeaconChain.subset_from_address(address)
+          |> Election.beacon_storage_nodes(
+            slot_time,
+            nodes,
+            Election.get_storage_constraints()
+          )
+          |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+
+        if slot_node? do
+          Logger.debug(
+            "Attestation postponed to next summary with #{length(confirmations)} confirmations",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
+          # Notification will be catched by subset and add the attestation in current Slot
+          PubSub.notify_replication_attestation(attestation)
+        end
+      end
+    )
   end
 
   @doc """

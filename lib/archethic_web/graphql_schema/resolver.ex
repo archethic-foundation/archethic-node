@@ -211,8 +211,15 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
           end
 
         :eq ->
-          BeaconChain.fetch_and_aggregate_summaries(next_datetime_summary_time, authorized_nodes)
-          |> SummaryAggregate.aggregate()
+          {summary_aggregate, _} =
+            BeaconChain.fetch_and_aggregate_summaries(
+              next_datetime_summary_time,
+              authorized_nodes
+            )
+            |> SummaryAggregate.aggregate()
+            |> SummaryAggregate.filter_reached_threshold()
+
+          summary_aggregate
 
         :lt ->
           case BeaconChain.fetch_summaries_aggregate(next_datetime_summary_time, authorized_nodes) do

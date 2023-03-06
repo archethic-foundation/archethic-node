@@ -6,6 +6,7 @@ defmodule Archethic.BeaconChainTest do
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
   alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.BeaconChain.Subset
   alias Archethic.BeaconChain.Subset.SummaryCache
   alias Archethic.BeaconChain.SubsetRegistry
@@ -33,6 +34,7 @@ defmodule Archethic.BeaconChainTest do
 
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
+    start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
     Enum.each(BeaconChain.list_subsets(), &Subset.start_link(subset: &1))
     :ok
@@ -67,7 +69,6 @@ defmodule Archethic.BeaconChainTest do
 
   describe "load_slot/1" do
     test "should fetch the transaction chain from the beacon involved nodes" do
-      SummaryTimer.start_link([interval: "0 0 * * * * *"], [])
       SummaryCache.start_link()
       File.mkdir_p!(Utils.mut_dir())
 
@@ -228,8 +229,9 @@ defmodule Archethic.BeaconChainTest do
           summary_time,
           P2P.authorized_and_available_nodes()
         )
+        |> SummaryAggregate.aggregate()
 
-      assert [addr1] == Enum.map(transaction_summaries, & &1.address)
+      assert [addr1] == Enum.map(transaction_summaries, & &1.transaction_summary.address)
     end
 
     test "should find other beacon summaries and aggregate missing summaries", %{
@@ -328,8 +330,9 @@ defmodule Archethic.BeaconChainTest do
           summary_time,
           P2P.authorized_and_available_nodes()
         )
+        |> SummaryAggregate.aggregate()
 
-      transaction_addresses = Enum.map(transaction_summaries, & &1.address)
+      transaction_addresses = Enum.map(transaction_summaries, & &1.transaction_summary.address)
 
       assert Enum.all?(transaction_addresses, &(&1 in [addr1, addr2]))
     end
@@ -418,17 +421,9 @@ defmodule Archethic.BeaconChainTest do
                  summary_time,
                  P2P.authorized_and_available_nodes()
                )
+               |> SummaryAggregate.aggregate()
 
-      expected_availabilities =
-        [summary_v1, summary_v2, summary_v3, summary_v4]
-        |> Enum.map(& &1.node_availabilities)
-        |> Enum.flat_map(&Utils.bitstring_to_integer_list/1)
-        |> Enum.sort()
-
-      assert node_availabilities
-             |> Enum.flat_map(& &1)
-             |> Enum.sort() ==
-               expected_availabilities
+      assert <<1::1, 1::1, 1::1>> == node_availabilities
     end
 
     test "should find other beacon summaries and accumulate node P2P avg availabilities", %{
@@ -514,17 +509,9 @@ defmodule Archethic.BeaconChainTest do
                  summary_time,
                  P2P.authorized_and_available_nodes()
                )
+               |> SummaryAggregate.aggregate()
 
-      expected_average_availabilities =
-        [summary_v1, summary_v2, summary_v3, summary_v4]
-        |> Enum.map(& &1.node_average_availabilities)
-        |> Enum.flat_map(& &1)
-        |> Enum.sort()
-
-      assert node_average_availabilities
-             |> Enum.flat_map(& &1)
-             |> Enum.sort() ==
-               expected_average_availabilities
+      assert [0.925, 0.8, 0.925, 0.85] == node_average_availabilities
     end
   end
 end
