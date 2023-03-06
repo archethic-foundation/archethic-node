@@ -8,6 +8,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot, as: BeaconSlot
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
   alias Archethic.BeaconChain.Subset, as: BeaconSubset
   alias Archethic.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
 
@@ -62,6 +63,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
   setup do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+    start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
 
