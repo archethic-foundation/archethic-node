@@ -5,8 +5,6 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
   @digits ["F", "E", "D", "C", "B", "A", "9", "8", "7", "6", "5", "4", "3", "2", "1", "0"]
 
-  @type latency_patch :: {String.t(), String.t()}
-
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Subset.P2PSampling
 
@@ -48,30 +46,23 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
       ...>  [150, 200, 0]
       ...> ], names: [:line, :column], type: {:f, 64}))
       [
-        {"B", "8"},
-        {"0", "8"},
-        {"C", "8"}
+        "B8",
+        "08",
+        "C8"
       ]
   """
-  @spec get_patch_from_latencies(Nx.Tensor.t()) :: list(latency_patch())
+  @spec get_patch_from_latencies(Nx.Tensor.t()) :: list(String.t())
   def get_patch_from_latencies(matrix) do
-    center_mass = compute_distance_from_center_mass(matrix)
-    gram_matrix = get_gram_matrix(matrix, center_mass)
+    formated_matrix =
+      matrix
+      |> Nx.as_type(:f64)
+      |> Nx.rename([:line, :column])
+
+    center_mass = compute_distance_from_center_mass(formated_matrix)
+    gram_matrix = get_gram_matrix(formated_matrix, center_mass)
     {x, y} = get_coordinates(gram_matrix)
     get_patch_digits(x, y)
   end
-
-  # defp get_matrix_tensor() do
-  #  "distance_matrix.dat"
-  #  |> File.read!
-  #  |> String.split("\n", trim: true)
-  #  |> Enum.map(fn line ->
-  #    line
-  #    |> String.split(",", trim: true)
-  #    |> Enum.map(&String.to_float/1)
-  #  end)
-  #  |> Nx.tensor(names: [:line, :column], type: {:f, 64})
-  # end
 
   defp compute_distance_from_center_mass(tensor) do
     matrix_size = Nx.size(tensor[0])
@@ -181,7 +172,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   end
 
   defp get_patch(x_elem, y_elem, v, max) do
-    %{x: x_patch, y: y_patch} =
+    %{x: x, y: y} =
       Enum.reduce_while(0..15, %{x: "", y: ""}, fn j, acc ->
         if acc.x != "" and acc.y != "" do
           {:halt, acc}
@@ -195,7 +186,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
         end
       end)
 
-    {x_patch, y_patch}
+    "#{x}#{y}"
   end
 
   defp get_digit(acc, coord_name, coord, digit_index, max, v)

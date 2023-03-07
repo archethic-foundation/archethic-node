@@ -5,6 +5,7 @@ defmodule Archethic.BeaconChain.Subset do
   """
 
   alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.NetworkCoordinates
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
@@ -363,14 +364,51 @@ defmodule Archethic.BeaconChain.Subset do
         beacon_subset: Base.encode16(subset)
       )
 
+      patch_task = Task.async(fn -> get_network_patches(subset, time) end)
+
       summary =
         %Summary{
           subset: subset,
           summary_time: Utils.truncate_datetime(time, second?: true, microsecond?: true)
         }
-        |> Summary.aggregate_slots(beacon_slots, P2PSampling.list_nodes_to_sample(subset))
+        |> Summary.aggregate_slots(
+          beacon_slots,
+          P2PSampling.list_nodes_to_sample(subset)
+        )
 
-      BeaconChain.write_beacon_summary(summary)
+      network_patches = Task.await(patch_task)
+      BeaconChain.write_beacon_summary(%{summary | network_patches: network_patches})
+
+      :ok
+    end
+  end
+
+  defp get_network_patches(subset, summary_time) do
+    with true <- length(P2P.authorized_and_available_nodes()) > 1,
+         sampling_nodes when sampling_nodes != [] <- P2PSampling.list_nodes_to_sample(subset) do
+      sampling_nodes_indexes =
+        P2P.list_nodes()
+        |> Enum.sort_by(& &1.first_public_key)
+        |> Enum.with_index()
+        |> Enum.filter(fn {node, _index} ->
+          Utils.key_in_node_list?(sampling_nodes, node.first_public_key)
+        end)
+        |> Enum.map(fn {_, index} -> index end)
+
+      summary_time
+      |> NetworkCoordinates.fetch_network_stats()
+      |> NetworkCoordinates.get_patch_from_latencies()
+      |> Enum.with_index()
+      |> Enum.filter(fn {_, index} ->
+        index in sampling_nodes_indexes
+      end)
+      |> Enum.map(fn {patch, _} ->
+        # TODO: define the bandwidth digits. We take "A" as medium value for now.
+        "#{patch}A"
+      end)
+    else
+      _ ->
+        []
     end
   end
 
