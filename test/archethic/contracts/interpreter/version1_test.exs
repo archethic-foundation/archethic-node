@@ -3,6 +3,7 @@ defmodule Archethic.Contracts.Interpreter.Version1Test do
 
   @version 1
 
+  alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter.Version1
 
@@ -22,6 +23,8 @@ defmodule Archethic.Contracts.Interpreter.Version1Test do
                 set_content "hello"
                end
                """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
                |> Version1.parse(@version)
     end
 
@@ -36,6 +39,8 @@ defmodule Archethic.Contracts.Interpreter.Version1Test do
                 Contract.set_content "hello"
                end
                """
+               |> Interpreter.sanitize_code()
+               |> elem(1)
                |> Version1.parse(@version)
     end
   end
