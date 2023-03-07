@@ -4,23 +4,11 @@ defmodule Archethic.SelfRepair do
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
 
-  alias __MODULE__.Notifier
-  alias __MODULE__.NotifierSupervisor
-  alias __MODULE__.RepairRegistry
-  alias __MODULE__.RepairWorker
-  alias __MODULE__.Scheduler
-  alias __MODULE__.Sync
+  alias __MODULE__.{Notifier, NotifierSupervisor, RepairRegistry, RepairWorker}
+  alias __MODULE__.{Scheduler, Sync}
 
-  alias Archethic.{
-    BeaconChain,
-    Crypto,
-    Utils,
-    Contracts,
-    TransactionChain,
-    Election
-  }
-
-  alias Archethic.P2P.Node
+  alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
+  alias Archethic.{P2P.Node, SharedSecrets, OracleChain, Reward, Replication}
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -217,4 +205,55 @@ defmodule Archethic.SelfRepair do
         :ok
     end
   end
+
+  def resync(last_address) do
+    first_address = get_genesis_address(:node_shared_secrets)
+
+    case repair_in_progress?(first_address) do
+      false ->
+        start_worker(
+          first_address: first_address,
+          storage_address: last_address,
+          io_addresses: []
+        )
+
+      pid ->
+        add_repair_addresses(pid, first_address, [])
+    end
+
+    :ok
+  end
+
+  @spec resync_network_chain(atom(), list(Node.t()) | []) :: :ok | :error
+  def resync_network_chain(_, []),
+    do: Logger.notice("Enforce Resync of Network Txs: No-Nodes")
+
+  def resync_network_chain(type, nodes) do
+    with addr when is_binary(addr) <- get_genesis_address(type),
+         {:ok, rem_last_addr} <- TransactionChain.resolve_last_address(addr),
+         {local_last_addr, _} <- TransactionChain.get_last_address(addr),
+         false <- rem_last_addr == local_last_addr,
+         {:ok, tx} <- TransactionChain.fetch_transaction_remotely(rem_last_addr, nodes),
+         :ok <- Replication.validate_and_store_transaction_chain(tx) do
+      Logger.info("Enforced Resync: Success", transaction_type: type)
+      :ok
+    else
+      nil ->
+        Logger.warning("Node is out of sync, wait for self repair to complete succesfully.")
+
+      true ->
+        Logger.info("Enforced Resync: No new transaction to sync", transaction_type: type)
+        :ok
+
+      e ->
+        Logger.debug("Enforced Resync: Error #{inspect(e)}", transaction_type: type)
+    end
+  end
+
+  defp get_genesis_address(:node_shared_secrets),
+    do: SharedSecrets.genesis_address(:node_shared_secrets)
+
+  defp get_genesis_address(:oracle), do: OracleChain.genesis_address()
+
+  defp get_genesis_address(:reward), do: Reward.genesis_address()
 end

@@ -1,19 +1,12 @@
 defmodule Archethic.SharedSecrets do
   @moduledoc false
 
-  alias Archethic.Crypto
+  alias Archethic.{Crypto, TransactionChain, Utils}
 
-  alias __MODULE__.MemTables.NetworkLookup
-  alias __MODULE__.MemTables.OriginKeyLookup
-  alias __MODULE__.MemTablesLoader
-  alias __MODULE__.NodeRenewal
-  alias __MODULE__.NodeRenewalScheduler
+  alias __MODULE__.{MemTables.NetworkLookup, MemTables.OriginKeyLookup, MemTablesLoader}
+  alias __MODULE__.{NodeRenewal, NodeRenewalScheduler}
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain
-
-  alias Archethic.Utils
-
+  alias Archethic.TransactionChain.{Transaction, Transaction.ValidationStamp}
   alias Crontab.CronExpression.Parser, as: CronParser
 
   require Logger
@@ -143,7 +136,9 @@ defmodule Archethic.SharedSecrets do
     |> Utils.previous_date(date_from)
   end
 
-  @nss_gen_key :node_shared_secrets_gen_addr
+  @persistent_keys %{nss: :node_shared_secrets_gen_addr, origin: :origin_gen_addr}
+  def genesis_address_keys(), do: @persistent_keys
+
   @spec persist_gen_addr(:node_shared_secrets) :: :ok | :error
   def persist_gen_addr(:node_shared_secrets) do
     try do
@@ -154,7 +149,7 @@ defmodule Archethic.SharedSecrets do
           :error
 
         addr ->
-          :persistent_term.put(@nss_gen_key, TransactionChain.get_genesis_address(addr))
+          :persistent_term.put(@persistent_keys.nss, TransactionChain.get_genesis_address(addr))
           :ok
       end
     rescue
@@ -164,7 +159,6 @@ defmodule Archethic.SharedSecrets do
     end
   end
 
-  @origin_gen_key :origin_gen_addr
   @spec persist_gen_addr(:origin) :: :ok
   def persist_gen_addr(:origin) do
     try do
@@ -186,7 +180,12 @@ defmodule Archethic.SharedSecrets do
         |> elem(0)
         |> Crypto.derive_address()
 
-      :persistent_term.put(@origin_gen_key, [software_gen_addr, usb_gen_addr, biometric_gen_addr])
+      :persistent_term.put(@persistent_keys.origin, [
+        software_gen_addr,
+        usb_gen_addr,
+        biometric_gen_addr
+      ])
+
       :ok
     rescue
       error ->
@@ -197,12 +196,12 @@ defmodule Archethic.SharedSecrets do
 
   @spec genesis_address(:origin) :: binary() | nil
   def genesis_address(:origin) do
-    :persistent_term.get(@origin_gen_key, nil)
+    :persistent_term.get(@persistent_keys.origin, nil)
   end
 
   @spec genesis_address(:node_shared_secrets) :: binary() | nil
   def genesis_address(:node_shared_secrets) do
-    :persistent_term.get(@nss_gen_key, nil)
+    :persistent_term.get(@persistent_keys.nss, nil)
   end
 
   @doc """
@@ -211,5 +210,78 @@ defmodule Archethic.SharedSecrets do
   @spec origin_family_from_public_key(<<_::16, _::_*8>>) :: origin_family()
   def origin_family_from_public_key(<<_curve_id::8, origin_id::8, _public_key::binary>>) do
     get_origin_family_from_origin_id(origin_id)
+  end
+
+  @doc """
+  Determines the synchronization status of the protocol chain "node shared secrets".
+
+  Whether a node is synchronised or not is determined by whether the protocol chain node
+  shared secrets are in sync. When a new node renewal tx is produced, it is feasible that
+  a node does not have that tx, resulting in an anomaly in election.
+
+  The synchronization status can be determined thorugh mathematically, with fallback of
+  manual verification.  If chain is in sync a :ok atom is returned otherwise a :error atom
+  is returned.If there is possiblity to repair chain An :error atom with last address to
+  repair is returned.
+
+
+  The mathematical method involves comparing the expected last scheduling date with the observed
+  validation timestamp.  For instance, If the expected last scheduling date is 15th Jan 23:50 and
+  the observed validation timestamp is also 15th Jan 23:50,
+  the condition the validation time >= last scheduling date,results true, and we dont proceed for
+  manual verification.
+
+  However, if the chain is not in sync, a false value is returned. For example, if the expected last
+  scheduling date is 16th Jan 23:50, but the observed validation timestamp is 15th Jan 23:50, as of
+  the current time (16th Jan 23:58), the validation timestamp will not be greater than or equal to
+  the last scheduling date, resulting in a false value.  The manual verification method involves
+  obtaining the quorum last address from the network and comparing it with last  local address for NSS
+  protocol Chain. If the last address is the same, the chain is in sync, otherwise it is not. we either
+   return a last address to repair or if any other error occurs, we return an error atom.
+
+
+  It should be noted that the validation time is the same as the time at which the transaction was created
+  (technically when scheduler intiated creation of tx)
+  """
+  @spec verify_synchronization() ::
+          :ok | :error | {:error, binary()}
+  def verify_synchronization() do
+    case validate_scheduling_time() do
+      true ->
+        :ok
+
+      false ->
+        validate_last_address()
+    end
+  end
+
+  @spec validate_scheduling_time() :: boolean()
+  def validate_scheduling_time() do
+    with genesis_address when is_binary(genesis_address) <- genesis_address(:node_shared_secrets),
+         last_scheduling_date <- get_last_scheduling_date(DateTime.utc_now()),
+         {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_timestamp}}} <-
+           TransactionChain.get_last_transaction(genesis_address, validation_stamp: [:timestamp]) do
+      validation_timestamp >= last_scheduling_date
+    else
+      _ -> false
+    end
+  end
+
+  @spec validate_last_address() :: :ok | :error | {:error, binary()}
+  def validate_last_address() do
+    with genesis_address when is_binary(genesis_address) <-
+           genesis_address(:node_shared_secrets),
+         {:ok, quroum_last_address} when is_binary(quroum_last_address) <-
+           TransactionChain.resolve_last_address(genesis_address),
+         {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
+         {true, _} <- {quroum_last_address == local_last_address, quroum_last_address} do
+      :ok
+    else
+      {false, quroum_last_address} ->
+        {:error, quroum_last_address}
+
+      _ ->
+        :error
+    end
   end
 end

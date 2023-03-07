@@ -2,17 +2,18 @@ defmodule ArchethicCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
-  alias ArchethicWeb.API.Schema.UCOLedger
-  alias ArchethicWeb.TransactionSubscriber
+  alias ArchethicWeb.{API.Schema.UCOLedger, TransactionSubscriber}
 
-  alias Archethic.Account.MemTables.{TokenLedger, UCOLedger}
-  alias Archethic.{Crypto, Crypto.ECDSA, Election.Constraints, Mining, Utils}
+  alias Archethic.{Crypto, Crypto.ECDSA, Mining, Utils, SharedSecrets, TransactionChain}
+  alias Archethic.{Account, Election.Constraints}
+
+  alias Account.MemTables.{TokenLedger, UCOLedger}
+  alias SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
+  alias TransactionChain.{Transaction, MemTables.KOLedger, MemTables.PendingLedger}
+
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
   alias Archethic.OracleChain.MemTable, as: OracleMemTable
   alias Archethic.P2P.MemTable, as: P2PMemTable
-  alias Archethic.SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
-  alias Archethic.TransactionChain.{Transaction, MemTables.KOLedger, MemTables.PendingLedger}
-
   import Mox
 
   def current_protocol_version(), do: Mining.protocol_version()
@@ -195,5 +196,35 @@ defmodule ArchethicCase do
     start_supervised!(TransactionSubscriber)
 
     :ok
+  end
+
+  def setup_before_send_tx() do
+    nss_key = SharedSecrets.genesis_address_keys().nss
+
+    nss_genesis_address = "nss_genesis_address"
+    nss_last_address = "nss_last_address"
+    :persistent_term.put(nss_key, nss_genesis_address)
+
+    MockDB
+    |> stub(:get_last_chain_address, fn ^nss_genesis_address ->
+      {nss_last_address, DateTime.utc_now()}
+    end)
+    |> stub(
+      :get_transaction,
+      fn
+        ^nss_last_address, [validation_stamp: [:timestamp]], :chain ->
+          {:ok,
+           %Transaction{
+             validation_stamp: %Transaction.ValidationStamp{timestamp: DateTime.utc_now()}
+           }}
+
+        _, _, _ ->
+          {:error, :transaction_not_exists}
+      end
+    )
+
+    on_exit(:unpersist_data, fn ->
+      :persistent_term.put(nss_key, nil)
+    end)
   end
 end

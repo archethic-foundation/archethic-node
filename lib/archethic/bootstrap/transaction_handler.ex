@@ -36,7 +36,10 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   @spec do_send_transaction(list(Node.t()), Transaction.t()) ::
           :ok
   defp do_send_transaction([node | rest], tx) do
-    case P2P.send_message(node, %NewTransaction{transaction: tx}) do
+    case P2P.send_message(node, %NewTransaction{
+           transaction: tx,
+           welcome_node: node.first_public_key
+         }) do
       {:ok, %Ok{}} ->
         Logger.info("Waiting transaction validation",
           transaction_address: Base.encode16(tx.address),

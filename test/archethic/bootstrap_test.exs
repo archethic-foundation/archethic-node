@@ -1,52 +1,19 @@
 defmodule Archethic.BootstrapTest do
   use ArchethicCase
 
-  alias Archethic.{
-    Bootstrap,
-    Crypto,
-    P2P,
-    P2P.BootstrappingSeeds,
-    P2P.Node,
-    Replication,
-    SharedSecrets,
-    TransactionChain,
-    TransactionFactory
-  }
+  alias Archethic.{Bootstrap, Crypto, Replication, SharedSecrets, TransactionChain}
+  alias Archethic.{P2P, P2P.BootstrappingSeeds, P2P.Node, TransactionChain, P2P.Message}
+  alias Archethic.{TransactionFactory, SelfRepair}
 
-  alias Archethic.P2P.Message.{
-    GetTransactionChainLength,
-    TransactionChainLength,
-    BootstrappingNodes,
-    EncryptedStorageNonce,
-    GetBootstrappingNodes,
-    GetLastTransactionAddress,
-    GetStorageNonce,
-    GetTransaction,
-    GetTransactionChain,
-    GetTransactionSummary,
-    GetTransactionInputs,
-    GetGenesisAddress,
-    GenesisAddress,
-    LastTransactionAddress,
-    ListNodes,
-    NewTransaction,
-    NodeList,
-    NotFound,
-    NotifyEndOfNodeSync,
-    TransactionList,
-    TransactionInputList,
-    TransactionSummaryMessage,
-    Ok,
-    GetGenesisAddress,
-    NotFound
-  }
+  alias Message.{GetGenesisAddress, GetTransactionChainLength, GetBootstrappingNodes, Ok}
+  alias Message.{GetTransactionSummary, GetTransactionInputs, GetGenesisAddress, GetStorageNonce}
+  alias Message.{GetLastTransactionAddress, GetTransactionChain, GetTransaction, NotFound}
+  alias Message.{GenesisAddress, LastTransactionAddress, NewTransaction, NotifyEndOfNodeSync}
+  alias Message.{TransactionList, TransactionInputList, TransactionSummaryMessage, NodeList}
+  alias Message.{TransactionChainLength, BootstrappingNodes, EncryptedStorageNonce, ListNodes}
 
-  alias TransactionChain.{
-    Transaction,
-    TransactionSummary,
-    Transaction.ValidationStamp,
-    Transaction.ValidationStamp.LedgerOperations
-  }
+  alias TransactionChain.{Transaction, TransactionSummary}
+  alias Transaction.{ValidationStamp, ValidationStamp.LedgerOperations}
 
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
@@ -501,7 +468,7 @@ defmodule Archethic.BootstrapTest do
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
 
       assert :ok =
-               Bootstrap.do_resync_network_chain(
+               SelfRepair.resync_network_chain(
                  :node_shared_secrets,
                  _nodes = P2P.authorized_and_available_nodes()
                )
@@ -529,7 +496,7 @@ defmodule Archethic.BootstrapTest do
       end)
 
       assert :ok =
-               Bootstrap.do_resync_network_chain(
+               SelfRepair.resync_network_chain(
                  :node_shared_secrets,
                  _nodes = P2P.authorized_and_available_nodes()
                )
@@ -600,7 +567,7 @@ defmodule Archethic.BootstrapTest do
       end)
 
       assert :ok =
-               Bootstrap.do_resync_network_chain(
+               SelfRepair.resync_network_chain(
                  :node_shared_secrets,
                  _nodes = P2P.authorized_and_available_nodes()
                )

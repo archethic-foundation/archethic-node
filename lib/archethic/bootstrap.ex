@@ -3,23 +3,12 @@ defmodule Archethic.Bootstrap do
   Manage Archethic Node Bootstrapping
   """
 
-  alias Archethic.Bootstrap.{
-    NetworkInit,
-    Sync,
-    TransactionHandler
-  }
+  alias Archethic
+  alias Archethic.{Bootstrap, Crypto, Networking, P2P, P2P.Node}
+  alias Archethic.{SelfRepair, SelfRepair, TransactionChain}
 
-  alias Archethic.{
-    Crypto,
-    Networking,
-    P2P,
-    P2P.Node,
-    SelfRepair,
-    TransactionChain,
-    TransactionChain.Transaction,
-    TransactionChain.TransactionData,
-    Replication
-  }
+  alias Bootstrap.{NetworkInit, Sync, TransactionHandler}
+  alias TransactionChain.{Transaction, TransactionData}
 
   require Logger
 
@@ -239,52 +228,10 @@ defmodule Archethic.Bootstrap do
           &(&1.first_public_key == Crypto.first_node_public_key())
         )
 
+      # blocking code
       [:oracle, :node_shared_secrets, :reward]
-      |> Enum.each(&do_resync_network_chain(&1, nodes))
+      |> Enum.each(&SelfRepair.resync_network_chain(&1, nodes))
     end
-  end
-
-  @spec do_resync_network_chain(list(atom), list(P2P.Node.t()) | []) :: :ok
-  def do_resync_network_chain(_type_list, _nodes = []),
-    do: Logger.info("Enforce Reync of Network Txs: failure, No-Nodes")
-
-  # by type: Get gen addr, get last address (remotely  & locally)
-  # compare, if dont match, fetch last tx remotely
-  def do_resync_network_chain(type, nodes) when is_list(nodes) do
-    with addr when is_binary(addr) <- get_genesis_addr(type),
-         {:ok, rem_last_addr} <- TransactionChain.resolve_last_address(addr),
-         {local_last_addr, _} <- TransactionChain.get_last_address(addr),
-         false <- rem_last_addr == local_last_addr,
-         {:ok, tx} <- TransactionChain.fetch_transaction_remotely(rem_last_addr, nodes),
-         :ok <- Replication.validate_and_store_transaction_chain(tx) do
-      Logger.info("Enforced Resync: Success", transaction_type: type)
-      :ok
-    else
-      true ->
-        Logger.info("Enforced Resync: No new transaction to sync", transaction_type: type)
-        :ok
-
-      e when e in [nil, []] ->
-        Logger.debug("Enforced Resync: Transaction not available", transaction_type: type)
-        :ok
-
-      e ->
-        Logger.debug("Enforced Resync: Unexpected Error", transaction_type: type)
-        Logger.debug(e)
-    end
-  end
-
-  @spec get_genesis_addr(:node_shared_secrets | :oracle | :reward) :: binary() | nil
-  defp get_genesis_addr(:oracle) do
-    Archethic.OracleChain.genesis_address().current |> elem(0)
-  end
-
-  defp get_genesis_addr(:node_shared_secrets) do
-    Archethic.SharedSecrets.genesis_address(:node_shared_secrets)
-  end
-
-  defp get_genesis_addr(:reward) do
-    Archethic.Reward.genesis_address()
   end
 
   defp first_initialization(

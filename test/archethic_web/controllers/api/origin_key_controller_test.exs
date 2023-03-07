@@ -2,14 +2,10 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
   use ArchethicCase
   use ArchethicWeb.ConnCase
 
-  alias Archethic.{
-    Crypto,
-    P2P,
-    P2P.Node,
-    SharedSecrets,
-    SharedSecrets.MemTables.OriginKeyLookup,
-    P2P.Message.Ok
-  }
+  alias Archethic.{Crypto, P2P, P2P.Node, SharedSecrets}
+  alias Archethic.{SharedSecrets.MemTables.OriginKeyLookup, P2P.Message.Ok}
+
+  import ArchethicCase, only: [setup_before_send_tx: 0]
 
   import Mox
 
@@ -28,6 +24,7 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
 
     OriginKeyLookup.start_link()
 
+    setup_before_send_tx()
     :ok
   end
 

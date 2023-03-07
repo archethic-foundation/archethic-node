@@ -1,41 +1,31 @@
 defmodule Archethic.Contracts.WorkerTest do
   use ArchethicCase
 
-  alias Archethic.{
-    Account,
-    Contracts,
-    ContractRegistry,
-    Crypto,
-    P2P,
-    P2P.Node,
-    PubSub,
-    TransactionChain
-  }
+  alias Archethic.{Account, Contracts, ContractRegistry, Crypto, P2P}
+  alias Archethic.{P2P.Node, PubSub, TransactionChain}
 
   alias Contracts.{Contract, Interpreter, Worker, ContractConstants}
 
   alias P2P.Message.{Ok, StartMining}
 
-  alias TransactionChain.{
-    Transaction,
-    TransactionData,
-    TransactionData.Ledger,
-    TransactionData.Ownership,
-    TransactionData.UCOLedger,
-    TransactionData.UCOLedger.Transfer,
-    TransactionData.TokenLedger,
-    Transaction.ValidationStamp,
-    Transaction.ValidationStamp.LedgerOperations.UnspentOutput,
-    Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-  }
+  alias TransactionChain.{Transaction, TransactionData, Transaction.ValidationStamp}
+  alias ValidationStamp.{LedgerOperations.UnspentOutput, LedgerOperations.VersionedUnspentOutput}
+  alias TransactionData.{Ledger, Ownership, UCOLedger, UCOLedger.Transfer, TokenLedger}
+  alias TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
-  alias TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  import ArchethicCase, only: [setup_before_send_tx: 0]
 
   import Mox
 
   @bob_address <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
+  def load_send_tx_constraints() do
+    setup_before_send_tx()
+  end
+
   setup do
+    load_send_tx_constraints()
+
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -437,17 +427,6 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
-
-      {:ok, _pid} = Worker.start_link(contract)
-
-      Process.sleep(100)
-
       oracle_tx = %Transaction{
         address: "@Oracle1",
         type: :oracle,
@@ -457,10 +436,39 @@ defmodule Archethic.Contracts.WorkerTest do
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
 
-      PubSub.notify_new_transaction("@Oracle1", :oracle, DateTime.utc_now())
+      nss_last_address = "nss_last_address"
+      nss_genesis_address = "nss_genesis_address"
 
       MockDB
-      |> expect(:get_transaction, fn "@Oracle1", _, _ -> {:ok, oracle_tx} end)
+      |> stub(:get_last_chain_address, fn ^nss_genesis_address ->
+        {nss_last_address, DateTime.utc_now()}
+      end)
+      |> stub(
+        :get_transaction,
+        fn
+          "@Oracle1", [], :chain ->
+            {:ok, oracle_tx}
+
+          ^nss_last_address, [validation_stamp: [:timestamp]], :chain ->
+            {:ok,
+             %Transaction{
+               validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+             }}
+        end
+      )
+
+      {:ok, contract} = Interpreter.parse(code)
+
+      contract = %{
+        contract
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
+      }
+
+      {:ok, pid} = Worker.start_link(contract)
+      allow(MockDB, self(), pid)
+      # Process.sleep(100)
+
+      PubSub.notify_new_transaction("@Oracle1", :oracle, DateTime.utc_now())
 
       receive do
         {:transaction_sent, tx} ->

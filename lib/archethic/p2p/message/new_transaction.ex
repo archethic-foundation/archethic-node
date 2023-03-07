@@ -4,20 +4,20 @@ defmodule Archethic.P2P.Message.NewTransaction do
 
   This message is used locally within a node during the bootstrap
   """
-  defstruct [:transaction]
+  @enforce_keys [:transaction, :welcome_node]
+  defstruct [:transaction, :welcome_node]
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.Error
-  alias Archethic.Crypto
+  alias Archethic.{TransactionChain.Transaction, Crypto, Utils, P2P.Message}
+  alias Message.{Ok, Error}
 
   @type t :: %__MODULE__{
-          transaction: Transaction.t()
+          transaction: Transaction.t(),
+          welcome_node: Crypto.key()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
-  def process(%__MODULE__{transaction: tx}, sender_public_key) do
-    case Archethic.send_new_transaction(tx, sender_public_key) do
+  def process(%__MODULE__{transaction: tx, welcome_node: node_pbkey}, _) do
+    case Archethic.send_new_transaction(tx, node_pbkey) do
       :ok ->
         %Ok{}
 
@@ -27,13 +27,14 @@ defmodule Archethic.P2P.Message.NewTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{transaction: tx}) do
-    <<Transaction.serialize(tx)::bitstring>>
+  def serialize(%__MODULE__{transaction: tx, welcome_node: node_pbkey}) do
+    <<Transaction.serialize(tx)::bitstring, node_pbkey::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<rest::bitstring>>) do
     {tx, rest} = Transaction.deserialize(rest)
-    {%__MODULE__{transaction: tx}, rest}
+    {node_pbkey, rest} = Utils.deserialize_public_key(rest)
+    {%__MODULE__{transaction: tx, welcome_node: node_pbkey}, rest}
   end
 end
