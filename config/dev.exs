@@ -117,8 +117,9 @@ config :archethic, Archethic.SelfRepair.Scheduler,
   availability_application: 10
 
 config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,
-  # At 40th second
+  # At 40th second Create a new node renewal tx
   interval: "40 * * * * * *",
+  # At every minute, Make use of the new node renewal tx
   application_interval: "0 * * * * * *"
 
 config :archethic, Archethic.P2P.Listener,

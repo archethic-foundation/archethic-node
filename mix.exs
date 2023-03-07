@@ -131,6 +131,16 @@ defmodule Archethic.MixProject do
 
   defp aliases do
     [
+      "check.updates": ["cmd mix hex.outdated --within-requirements || echo 'Updates available!'"],
+      compile: ["git_hooks.install", "compile"],
+      "dev.update_deps": [
+        "hex.outdated --within-requirements",
+        "deps.update --all --only",
+        "deps.clean --all --only",
+        "deps.get",
+        "deps.compile",
+        "hex.outdated --within-requirements"
+      ],
       # Intial developer Setup
       "dev.setup": ["deps.get", "cmd npm install --prefix assets"],
       # When Changes are not registered by compiler | any()
