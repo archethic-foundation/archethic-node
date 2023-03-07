@@ -7,15 +7,14 @@ config :git_hooks,
     pre_push: [
       tasks: [
         {:cmd, "mix clean"},
-        {:cmd, "mix git_hooks.install"},
-        {:cmd, "mix hex.outdated --within-requirements"},
         {:cmd, "mix format --check-formatted"},
         {:cmd, "mix compile --warnings-as-errors"},
         {:cmd, "mix credo"},
         {:cmd, "mix sobelow"},
         {:cmd, "mix knigge.verify"},
         {:cmd, "mix test --trace"},
-        {:cmd, "mix dialyzer"}
+        {:cmd, "mix dialyzer"},
+        {:cmd, "mix check.updates"}
       ]
     ]
   ]
