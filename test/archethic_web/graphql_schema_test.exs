@@ -865,6 +865,9 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       |> stub(:send_message, fn
         _, %GetCurrentSummaries{}, _ ->
           {:ok, []}
+
+        _, %GetBeaconSummariesAggregate{}, _ ->
+          {:ok, %SummaryAggregate{version: version}}
       end)
 
       conn =

@@ -4,17 +4,10 @@ defmodule Archethic.Reward.Scheduler do
   use GenStateMachine, callback_mode: [:handle_event_function]
   @vsn Mix.Project.config()[:version]
 
-  alias Archethic.{
-    Crypto,
-    PubSub,
-    DB,
-    P2P,
-    P2P.Node,
-    Reward,
-    Election,
-    Utils,
-    Utils.DetectNodeResponsiveness
-  }
+  alias Archethic
+
+  alias Archethic.{Crypto, PubSub, DB, P2P, P2P.Node}
+  alias Archethic.{Reward, Election, Utils, Utils.DetectNodeResponsiveness}
 
   require Logger
 
