@@ -383,6 +383,8 @@ defmodule Archethic.OracleChain.SchedulerTest do
     end
 
     test "should wait for node up message to start the scheduler and node_down to stop the scheduler, node: authorized and available" do
+      :persistent_term.put(:archethic_up, nil)
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,

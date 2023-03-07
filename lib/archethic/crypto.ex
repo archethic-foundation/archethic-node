@@ -30,21 +30,11 @@ defmodule Archethic.Crypto do
   According to the implementation, keys can be stored and regenerated on the fly
   """
 
-  alias __MODULE__.ECDSA
-  alias __MODULE__.Ed25519
-  alias __MODULE__.ID
-  alias __MODULE__.NodeKeystore
-  alias __MODULE__.SharedSecretsKeystore
+  alias __MODULE__.{ECDSA, Ed25519, ID, NodeKeystore, SharedSecretsKeystore}
 
-  alias Archethic.SharedSecrets
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ownership
-
-  alias Archethic.Utils
+  alias Archethic.{SharedSecrets, Utils, TransactionChain}
+  alias Archethic.TransactionChain.{Transaction, Transaction.ValidationStamp}
+  alias Archethic.TransactionChain.{TransactionData, TransactionData.Ownership}
 
   require Logger
 

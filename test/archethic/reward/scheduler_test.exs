@@ -138,6 +138,8 @@ defmodule Archethic.Reward.SchedulerTest do
     end
 
     test "should wait for :node_up message to start the scheduler, when node is authorized and available" do
+      :persistent_term.put(:archethic_up, nil)
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,

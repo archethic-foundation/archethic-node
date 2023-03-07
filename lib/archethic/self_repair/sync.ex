@@ -1,33 +1,14 @@
 defmodule Archethic.SelfRepair.Sync do
   @moduledoc false
+  alias Archethic
 
-  alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.Subset.P2PSampling
-  alias Archethic.BeaconChain.Summary
-  alias Archethic.BeaconChain.SummaryAggregate
+  alias Archethic.{BeaconChain, Crypto, DB, Election, P2P, P2P.Node, P2P.Message}
+  alias Archethic.{SelfRepair, TaskSupervisor, TransactionChain, Utils, PubSub}
+  alias Archethic.{TaskSupervisor, TransactionChain.TransactionSummary}
 
-  alias Archethic.Crypto
-
-  alias Archethic.DB
-
-  alias Archethic.Election
-
-  alias Archethic.PubSub
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-  alias Archethic.P2P.Message
+  alias BeaconChain.{Subset.P2PSampling, Summary, SummaryAggregate}
 
   alias __MODULE__.TransactionHandler
-
-  alias Archethic.TaskSupervisor
-  alias Archethic.TransactionChain
-
-  alias Archethic.TransactionChain.TransactionSummary
-
-  alias Archethic.SelfRepair
-
-  alias Archethic.Utils
 
   require Logger
 

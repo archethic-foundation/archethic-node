@@ -2,26 +2,11 @@ defmodule Archethic.OracleChain.Scheduler do
   @moduledoc """
   Manage the scheduling of the oracle transactions
   """
-
-  alias Archethic.Crypto
-
-  alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-
-  alias Archethic.PubSub
-
-  alias Archethic.OracleChain
-  alias Archethic.OracleChain.Services
-  alias Archethic.OracleChain.Summary
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-
-  alias Archethic.Utils
-  alias Archethic.Utils.DetectNodeResponsiveness
+  alias Archethic
+  alias Archethic.{Crypto, Election, P2P, P2P.Node, PubSub, Utils}
+  alias Archethic.{OracleChain, TransactionChain, Utils.DetectNodeResponsiveness}
+  alias OracleChain.{Services, Summary}
+  alias TransactionChain.{Transaction, TransactionData}
 
   alias Crontab.CronExpression.Parser, as: CronParser
 

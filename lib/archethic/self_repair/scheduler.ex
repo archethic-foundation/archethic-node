@@ -5,16 +5,8 @@ defmodule Archethic.SelfRepair.Scheduler do
   """
   use GenServer
   @vsn Mix.Project.config()[:version]
-
-  alias Archethic.P2P
-
-  alias Archethic.SelfRepair.Sync
-
-  alias Archethic.TaskSupervisor
-
-  alias Archethic.Utils
-
-  alias Archethic.PubSub
+  alias Archethic
+  alias Archethic.{P2P, SelfRepair.Sync, TaskSupervisor, Utils, PubSub}
 
   alias Archethic.Bootstrap.Sync, as: BootstrapSync
 
