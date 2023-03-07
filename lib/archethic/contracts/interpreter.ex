@@ -19,15 +19,18 @@ defmodule Archethic.Contracts.Interpreter do
   """
   @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, String.t()}
   def parse(code) when is_binary(code) do
-    case version(code) do
-      {0, code_without_version} ->
-        Version0.parse(code_without_version)
+    case sanitize_code(code) do
+      {:ok, block} ->
+        case block do
+          {:__block__, [], [{:@, _, [{{:atom, "version"}, _, [version]}]} | rest]} ->
+            Version1.parse({:__block__, [], rest}, version)
 
-      {version = 1, code_without_version} ->
-        Version1.parse(code_without_version, version)
+          _ ->
+            Version0.parse(block)
+        end
 
-      _ ->
-        {:error, "@version not supported"}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -40,35 +43,6 @@ defmodule Archethic.Contracts.Interpreter do
     code
     |> String.trim()
     |> Code.string_to_quoted(static_atoms_encoder: &atom_encoder/2)
-  end
-
-  @doc """
-  Determine from the code, the version to use.
-  Return the version & the code where the version has been removed.
-  (should be private, but there are unit tests)
-  """
-  @spec version(String.t()) :: {version(), String.t()} | :error
-  def version(code) do
-    regex_opts = [capture: :all_but_first]
-
-    version_attr_regex = ~r/^\s*@version\s+(\d+)\s/
-
-    if Regex.match?(~r/^\s*@version/, code) do
-      case Regex.run(version_attr_regex, code, regex_opts) do
-        nil ->
-          # there is a @version but syntax is invalid (probably the not an integer)
-          :error
-
-        [version] ->
-          {
-            String.to_integer(version),
-            Regex.replace(version_attr_regex, code, "")
-          }
-      end
-    else
-      # no @version at all
-      {0, code}
-    end
   end
 
   @doc """

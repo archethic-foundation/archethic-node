@@ -19,7 +19,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
 
   ## Examples
 
-      iex> Version0.parse("
+      iex> {:ok, ast} = Interpreter.sanitize_code("
       ...>    condition transaction: [
       ...>      content: regex_match?(\"^Mr.Y|Mr.X{1}$\"),
       ...>      origin_family: biometric
@@ -44,6 +44,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
       ...>      set_content \"uco price changed\"
       ...>    end
       ...> ")
+      ...> Version0.parse(ast)
       {:ok,
         %Contract{
           conditions: %{
@@ -151,32 +152,28 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
 
      Returns an error when there are invalid trigger options
 
-       iex> Version0.parse("
+       iex> {:ok, ast} = Interpreter.sanitize_code("
        ...>    actions triggered_by: datetime, at: 0000000 do
        ...>    end
        ...> ")
+       ...> Version0.parse(ast)
        {:error, "invalid datetime's trigger"}
 
      Returns an error when a invalid term is provided
 
-       iex> Version0.parse("
+       iex> {:ok, ast} = Interpreter.sanitize_code("
        ...>    actions triggered_by: transaction do
        ...>       System.user_home
        ...>    end
        ...> ")
+       ...> Version0.parse(ast)
        {:error, "unexpected term - System - L2"}
   """
-  @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, reason :: binary()}
-  def parse(code) when is_binary(code) do
-    with {:ok, ast} <- Interpreter.sanitize_code(code),
-         {:ok, contract} <- parse_contract(ast, %Contract{}) do
-      {:ok, %{contract | version: 0}}
-    else
-      {:error, {meta, {_, info}, token}} ->
-        {:error, Interpreter.format_error_reason({token, meta, []}, info)}
-
-      {:error, {meta, info, token}} ->
-        {:error, Interpreter.format_error_reason({token, meta, []}, info)}
+  @spec parse(ast :: Macro.t()) :: {:ok, Contract.t()} | {:error, reason :: binary()}
+  def parse(ast) do
+    case parse_contract(ast, %Contract{}) do
+      {:ok, contract} ->
+        {:ok, %{contract | version: 0}}
 
       {:error, {:unexpected_term, ast}} ->
         {:error, Interpreter.format_error_reason(ast, "unexpected term")}

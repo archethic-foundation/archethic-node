@@ -9,9 +9,9 @@ defmodule Archethic.Contracts.Interpreter.Version1 do
   @doc """
   Parse the code and return the parsed contract.
   """
-  @spec parse(binary(), integer()) ::
+  @spec parse(Macro.t(), integer()) ::
           {:ok, Contract.t()} | {:error, String.t()}
-  def parse(code, version = 1) when is_binary(code) do
+  def parse(_ast, version = 1) do
     {:ok, %Contract{version: version}}
   end
 

@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Version0Test do
 
   alias Archethic.Contracts.Contract
 
+  alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Version0
 
   alias Archethic.TransactionChain.Transaction
@@ -17,17 +18,17 @@ defmodule Archethic.Contracts.Interpreter.Version0Test do
                """
                abc
                """
-               |> Version0.parse()
+               |> sanitize_and_parse()
 
       assert {:error, _} =
                """
                condition
                """
-               |> Version0.parse()
+               |> sanitize_and_parse()
     end
 
     test "should return an error for unexpected term" do
-      assert {:error, "unexpected term - @1 - L1"} = "@1" |> Version0.parse()
+      assert {:error, "unexpected term - @1 - L1"} = "@1" |> sanitize_and_parse()
     end
   end
 
@@ -55,7 +56,7 @@ defmodule Archethic.Contracts.Interpreter.Version0Test do
                  end
              end
              """
-             |> Version0.parse()
+             |> sanitize_and_parse()
   end
 
   test "schedule transfers parsing" do
@@ -72,6 +73,13 @@ defmodule Archethic.Contracts.Interpreter.Version0Test do
                add_uco_transfer to: "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC", amount: 100000000
              end
              """
-             |> Version0.parse()
+             |> sanitize_and_parse()
+  end
+
+  defp sanitize_and_parse(code) do
+    code
+    |> Interpreter.sanitize_code()
+    |> elem(1)
+    |> Version0.parse()
   end
 end
