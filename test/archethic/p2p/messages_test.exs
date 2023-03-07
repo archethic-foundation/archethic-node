@@ -145,8 +145,8 @@ defmodule Archethic.P2P.MessageTest do
     test "NewTransaction message" do
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
-      assert %NewTransaction{transaction: tx} ==
-               %NewTransaction{transaction: tx}
+      assert %NewTransaction{transaction: tx, welcome_node: Crypto.first_node_public_key()} ==
+               %NewTransaction{transaction: tx, welcome_node: Crypto.first_node_public_key()}
                |> Message.encode()
                |> Message.decode()
                |> elem(0)

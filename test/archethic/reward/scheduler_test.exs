@@ -1,19 +1,23 @@
 defmodule Archethic.Reward.SchedulerTest do
   use ArchethicCase, async: false
 
-  alias Archethic.{
-    Crypto,
-    P2P,
-    P2P.Node,
-    P2P.Message.StartMining,
-    Reward.Scheduler,
-    TransactionChain.Transaction
-  }
+  alias Archethic.{Crypto, P2P, P2P.Node, P2P.Message.StartMining}
+  alias Archethic.{Reward.Scheduler, TransactionChain.Transaction}
+
+  import ArchethicCase, only: [setup_before_send_tx: 0]
 
   import Mox
 
+  setup do
+    setup_before_send_tx()
+
+    :ok
+  end
+
   describe "Trigger mint Reward" do
     test "should initiate the reward scheduler and trigger mint reward" do
+      :persistent_term.put(:archethic_up, nil)
+
       P2P.add_and_connect_node(%Node{
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
@@ -52,6 +56,8 @@ defmodule Archethic.Reward.SchedulerTest do
 
   describe "Scheduler" do
     setup do
+      :persistent_term.put(:archethic_up, nil)
+
       P2P.add_and_connect_node(%Node{
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),

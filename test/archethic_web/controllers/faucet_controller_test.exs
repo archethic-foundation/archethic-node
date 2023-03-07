@@ -2,36 +2,18 @@ defmodule ArchethicWeb.FaucetControllerTest do
   use ArchethicCase, async: false
   use ArchethicWeb.ConnCase
 
-  alias Archethic.{
-    Crypto,
-    P2P,
-    P2P.Node,
-    PubSub
-  }
+  alias Archethic.{Crypto, P2P, P2P.Node, PubSub, P2P.Message, TransactionChain}
+  alias Archethic.{BeaconChain.ReplicationAttestation, TransactionChain.TransactionData}
 
-  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Message.{GetLastTransactionAddress, GetTransactionChainLength, LastTransactionAddress, Ok}
+  alias Message.{StartMining, TransactionChainLength, GetGenesisAddress, GenesisAddress}
 
-  alias Archethic.P2P.Message.{
-    GetLastTransactionAddress,
-    GetTransactionChainLength,
-    LastTransactionAddress,
-    Ok,
-    StartMining,
-    TransactionChainLength,
-    GetGenesisAddress,
-    GenesisAddress
-  }
-
-  alias Archethic.TransactionChain.{
-    Transaction,
-    TransactionData,
-    TransactionData.Ledger,
-    TransactionData.UCOLedger,
-    TransactionSummary
-  }
+  alias TransactionData.{Ledger, UCOLedger}
+  alias TransactionChain.{Transaction, TransactionSummary}
 
   alias ArchethicWeb.FaucetRateLimiter
 
+  import ArchethicCase, only: [setup_before_send_tx: 0]
   import Mox
 
   @pool_seed Application.compile_env(:archethic, [ArchethicWeb.FaucetController, :seed])
@@ -49,6 +31,7 @@ defmodule ArchethicWeb.FaucetControllerTest do
       authorization_date: DateTime.utc_now()
     })
 
+    setup_before_send_tx()
     :ok
   end
 

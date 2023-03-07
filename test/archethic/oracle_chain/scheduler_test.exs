@@ -18,10 +18,15 @@ defmodule Archethic.OracleChain.SchedulerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
+  import ArchethicCase, only: [setup_before_send_tx: 0]
+
   import Mox
 
   setup do
     SelfRepairScheduler.start_link([interval: "0 0 * * *"], [])
+
+    setup_before_send_tx()
+
     :ok
   end
 

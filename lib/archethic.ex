@@ -3,27 +3,15 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
-  alias __MODULE__.Account
-  alias __MODULE__.BeaconChain
-  alias __MODULE__.Crypto
-  alias __MODULE__.Election
-  alias __MODULE__.P2P
-  alias __MODULE__.P2P.Node
-  alias __MODULE__.P2P.Message.Balance
-  alias __MODULE__.P2P.Message.GetBalance
-  alias __MODULE__.P2P.Message.GetCurrentSummaries
-  alias __MODULE__.P2P.Message.GetTransactionSummary
-  alias __MODULE__.P2P.Message.TransactionSummaryMessage
-  alias __MODULE__.P2P.Message.NewTransaction
-  alias __MODULE__.P2P.Message.NotFound
-  alias __MODULE__.P2P.Message.Ok
-  alias __MODULE__.P2P.Message.StartMining
-  alias __MODULE__.P2P.Message.TransactionSummaryList
+  alias Archethic.SharedSecrets
+  alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
+  alias __MODULE__.{SelfRepair, TransactionChain}
 
-  alias __MODULE__.TransactionChain
-  alias __MODULE__.TransactionChain.Transaction
-  alias __MODULE__.TransactionChain.TransactionInput
-  alias __MODULE__.TransactionChain.TransactionSummary
+  alias Message.{NewTransaction, NotFound, StartMining, TransactionSummaryList}
+  alias Message.{Balance, GetBalance, GetCurrentSummaries, GetTransactionSummary}
+  alias Message.{StartMining, Ok, TransactionSummaryMessage}
+
+  alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
 
   require Logger
 
@@ -69,26 +57,42 @@ defmodule Archethic do
         welcome_node_key \\ Crypto.first_node_public_key()
       ) do
     if P2P.authorized_and_available_node?() do
-      do_send_transaction(tx, welcome_node_key)
+      case SharedSecrets.verify_synchronization() do
+        :ok ->
+          do_send_transaction(tx, welcome_node_key)
+
+        :error ->
+          forward_transaction(tx, welcome_node_key)
+
+        {:error, last_address_to_sync} ->
+          SelfRepair.resync(last_address_to_sync)
+          forward_transaction(tx, welcome_node_key)
+      end
     else
-      P2P.authorized_and_available_nodes()
-      |> Enum.filter(&Node.locally_available?/1)
-      |> P2P.nearest_nodes()
-      |> forward_transaction(tx)
+      # node not authorized
+      forward_transaction(tx, welcome_node_key)
     end
   end
 
-  defp forward_transaction([node | rest], tx) do
-    case P2P.send_message(node, %NewTransaction{transaction: tx}) do
+  defp forward_transaction(
+         tx,
+         welcome_node_key,
+         nodes \\ P2P.authorized_and_available_nodes()
+         |> Enum.filter(&Node.locally_available?/1)
+         |> P2P.nearest_nodes()
+       )
+
+  defp forward_transaction(tx, welcome_node_key, [node | rest]) do
+    case P2P.send_message(node, %NewTransaction{transaction: tx, welcome_node: welcome_node_key}) do
       {:ok, %Ok{}} ->
         :ok
 
       {:error, _} ->
-        forward_transaction(rest, tx)
+        forward_transaction(tx, welcome_node_key, rest)
     end
   end
 
-  defp forward_transaction([], _), do: {:error, :network_issue}
+  defp forward_transaction(_, _, []), do: {:error, :network_issue}
 
   defp do_send_transaction(tx = %Transaction{type: tx_type}, welcome_node_key) do
     current_date = DateTime.utc_now()
