@@ -27,7 +27,7 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
           (node_public_key :: Crypto.key()) => {
             available? :: boolean(),
             average_availability :: float(),
-            network_patch :: String.t()
+            network_patch :: String.t() | nil
           }
         }
   def get_views do
@@ -74,11 +74,19 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
 
     available_bit = if available?, do: 1, else: 0
     avg_availability_int = (avg_availability * 100) |> trunc()
-    network_patch_bin = String.to_integer(network_patch, 16)
+
+    network_patch_bin =
+      case network_patch do
+        nil ->
+          <<0::8>>
+
+        _ ->
+          <<1::8, String.to_integer(network_patch, 16)::16>>
+      end
 
     acc =
       <<acc::bitstring, node_key::binary, available_bit::8, avg_availability_int::8,
-        DateTime.to_unix(availability_update)::32, network_patch_bin::16>>
+        DateTime.to_unix(availability_update)::32, network_patch_bin::binary>>
 
     serialize(rest, acc)
   end
@@ -92,11 +100,14 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
 
     {network_patch, rest} =
       case rest do
-        <<network_patch_bin::16, rest::bitstring>> ->
+        <<1::8, network_patch_bin::16, rest::bitstring>> ->
           {Integer.to_string(network_patch_bin, 16), rest}
 
+        <<0::8, rest::bitstring>> ->
+          {nil, rest}
+
         _ ->
-          {"", rest}
+          {nil, rest}
       end
 
     available? = if available_bit == 1, do: true, else: false
