@@ -11,7 +11,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   alias Archethic.TransactionChain.Transaction
 
-  @type version() :: {integer(), integer(), integer()}
+  @type version() :: integer()
 
   @doc """
   Dispatch through the correct interpreter.
@@ -19,15 +19,18 @@ defmodule Archethic.Contracts.Interpreter do
   """
   @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, String.t()}
   def parse(code) when is_binary(code) do
-    case version(code) do
-      {{0, 0, 1}, code_without_version} ->
-        Version0.parse(code_without_version)
+    case sanitize_code(code) do
+      {:ok, block} ->
+        case block do
+          {:__block__, [], [{:@, _, [{{:atom, "version"}, _, [version]}]} | rest]} ->
+            Version1.parse({:__block__, [], rest}, version)
 
-      {version = {1, _, _}, code_without_version} ->
-        Version1.parse(code_without_version, version)
+          _ ->
+            Version0.parse(block)
+        end
 
-      _ ->
-        {:error, "@version not supported"}
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -43,54 +46,14 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   @doc """
-  Determine from the code, the version to use.
-  Return the version & the code where the version has been removed.
-  (should be private, but there are unit tests)
-  """
-  @spec version(String.t()) :: {version(), String.t()} | :error
-  def version(code) do
-    regex_opts = [capture: :all_but_first]
-
-    version_attr_regex = ~r/^\s*@version\s+"(\S+)"/
-
-    if Regex.match?(~r/^\s*@version/, code) do
-      case Regex.run(version_attr_regex, code, regex_opts) do
-        nil ->
-          # there is a @version but syntax is invalid (probably the quotes missing)
-          :error
-
-        [capture] ->
-          case Regex.run(semver_regex(), capture, regex_opts) do
-            nil ->
-              # there is a @version but semver syntax is wrong
-              :error
-
-            ["0", "0", "0"] ->
-              # there is a @version but it's 0.0.0
-              :error
-
-            [major, minor, patch] ->
-              {
-                {String.to_integer(major), String.to_integer(minor), String.to_integer(patch)},
-                Regex.replace(version_attr_regex, code, "")
-              }
-          end
-      end
-    else
-      # no @version at all
-      {{0, 0, 1}, code}
-    end
-  end
-
-  @doc """
   Return true if the given conditions are valid on the given constants
   """
   @spec valid_conditions?(version(), Conditions.t(), map()) :: bool()
-  def valid_conditions?({0, _, _}, conditions, constants) do
+  def valid_conditions?(0, conditions, constants) do
     Version0.valid_conditions?(conditions, constants)
   end
 
-  def valid_conditions?({1, _, _}, conditions, constants) do
+  def valid_conditions?(1, conditions, constants) do
     Version1.valid_conditions?(conditions, constants)
   end
 
@@ -99,11 +62,11 @@ defmodule Archethic.Contracts.Interpreter do
   May return a new transaction or nil
   """
   @spec execute_trigger(version(), Macro.t(), map()) :: Transaction.t() | nil
-  def execute_trigger({0, _, _}, ast, constants) do
+  def execute_trigger(0, ast, constants) do
     Version0.execute_trigger(ast, constants)
   end
 
-  def execute_trigger({1, _, _}, ast, constants) do
+  def execute_trigger(1, ast, constants) do
     Version1.execute_trigger(ast, constants)
   end
 
@@ -126,8 +89,33 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   def format_error_reason(ast_node = {_, metadata, _}, reason) do
-    # FIXME: Macro.to_string will not work on all nodes due to {:atom, bin()}
-    do_format_error_reason(reason, Macro.to_string(ast_node), metadata)
+    node_msg =
+      try do
+        Macro.to_string(ast_node)
+      rescue
+        _ ->
+          # {:atom, _} is not an atom so it breaks the Macro.to_string/1
+          # here we replace it with :_var_
+          {sanified_ast, variables} =
+            Macro.traverse(
+              ast_node,
+              [],
+              fn node, acc -> {node, acc} end,
+              fn
+                {:atom, bin}, acc -> {:_var_, [bin | acc]}
+                node, acc -> {node, acc}
+              end
+            )
+
+          # then we will replace all instances of _var_ in the string with the binary
+          variables
+          |> Enum.reverse()
+          |> Enum.reduce(Macro.to_string(sanified_ast), fn variable, acc ->
+            String.replace(acc, "_var_", variable, global: false)
+          end)
+      end
+
+    do_format_error_reason(reason, node_msg, metadata)
   end
 
   def format_error_reason({{:atom, _}, {_, metadata, _}}, reason) do
@@ -164,10 +152,5 @@ defmodule Archethic.Contracts.Interpreter do
     else
       {:ok, {:atom, atom}}
     end
-  end
-
-  # source: https://semver.org/
-  defp semver_regex() do
-    ~r/(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?/
   end
 end
