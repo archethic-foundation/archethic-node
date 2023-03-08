@@ -84,10 +84,11 @@ defmodule Archethic.P2P.MemTableLoader do
 
     case previously_available do
       # Ensure the only single node is globally available after a delayed bootstrap
-      [{^node_key, _, avg_availability, availability_update}] ->
+      [{^node_key, _, avg_availability, availability_update, network_patch}] ->
         P2P.set_node_globally_synced(node_key)
         P2P.set_node_globally_available(node_key, availability_update)
         P2P.set_node_average_availability(node_key, avg_availability)
+        P2P.update_node_network_patch(node_key, network_patch)
 
       [] ->
         P2P.set_node_globally_synced(node_key)

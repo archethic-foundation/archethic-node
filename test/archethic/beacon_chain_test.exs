@@ -514,6 +514,101 @@ defmodule Archethic.BeaconChainTest do
 
       assert [0.925, 0.8, 0.925, 0.85] == node_average_availabilities
     end
+
+    test "should find other beacon summaries and accumulate network patches", %{
+      summary_time: summary_time,
+      nodes: [node1, node2, node3, node4]
+    } do
+      summary_v1 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      summary_v2 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      summary_v3 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      summary_v4 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      subset_address = Crypto.derive_beacon_chain_address("A", summary_time, true)
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v1]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node2, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v2]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node3, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v3]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node4, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v4]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+      end)
+
+      assert %SummaryAggregate{
+               p2p_availabilities: %{
+                 "A" => %{
+                   network_patches: [
+                     ["ABC", "DEF"],
+                     ["ABC", "DEF"],
+                     ["ABC", "DEF"],
+                     ["ABC", "DEF"]
+                   ]
+                 }
+               }
+             } =
+               BeaconChain.fetch_and_aggregate_summaries(
+                 summary_time,
+                 P2P.authorized_and_available_nodes()
+               )
+    end
   end
 
   describe "get_network_stats/1" do

@@ -750,4 +750,10 @@ defmodule Archethic.P2P do
       conflict_resolver.(distinct_elems)
     end
   end
+
+  @doc """
+  Update the node's network patch
+  """
+  @spec update_node_network_patch(Crypto.key(), String.t()) :: :ok
+  defdelegate update_node_network_patch(node_public_key, network_patch), to: MemTable
 end
