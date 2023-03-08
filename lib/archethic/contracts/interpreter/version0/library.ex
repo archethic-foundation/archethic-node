@@ -237,7 +237,7 @@ defmodule Archethic.Contracts.Interpreter.Version0.Library do
   @doc """
   Provide a token id which uniquely identify the token base on it's properties and genesis address.
   """
-  @spec get_token_id(binary()) :: {:error, binary()} | {:ok, binary()}
+  @spec get_token_id(binary()) :: {:error, binary()} | binary()
   def get_token_id(address) do
     address = UtilsInterpreter.get_address(address, :get_token_id)
     t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
