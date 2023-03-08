@@ -203,11 +203,11 @@ defmodule Archethic.OracleChain do
   @spec get_current_genesis_address() :: binary() | nil
   def get_current_genesis_address() do
     case genesis_address() do
-      nil ->
-        nil
+      %{current: {address, _time}} ->
+        address
 
-      map ->
-        elem(map.current, 0)
+      _ ->
+        nil
     end
   end
 end
