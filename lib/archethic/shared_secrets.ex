@@ -194,12 +194,11 @@ defmodule Archethic.SharedSecrets do
     end
   end
 
-  @spec genesis_address(:origin) :: binary() | nil
+  @spec genesis_address(:origin | :node_shared_secrets) :: list(binary()) | binary() | nil
   def genesis_address(:origin) do
-    :persistent_term.get(@persistent_keys.origin, nil)
+    :persistent_term.get(@persistent_keys.origin, [])
   end
 
-  @spec genesis_address(:node_shared_secrets) :: binary() | nil
   def genesis_address(:node_shared_secrets) do
     :persistent_term.get(@persistent_keys.nss, nil)
   end

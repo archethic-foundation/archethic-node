@@ -196,4 +196,18 @@ defmodule Archethic.OracleChain do
   defdelegate genesis_address(),
     to: MemTable,
     as: :get_addr
+
+  @doc """
+  Returns current genesis address of oracle chain
+  """
+  @spec get_current_genesis_address() :: binary() | nil
+  def get_current_genesis_address() do
+    case genesis_address() do
+      nil ->
+        nil
+
+      map ->
+        elem(map.current, 0)
+    end
+  end
 end

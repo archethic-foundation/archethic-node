@@ -4,6 +4,7 @@ defmodule Archethic.SelfRepair.Supervisor do
   use Supervisor
 
   alias Archethic.SelfRepair.Scheduler
+  alias Archethic.SelfRepair.NetworkChainView
   alias Archethic.Utils
 
   def start_link(arg) do
@@ -17,7 +18,8 @@ defmodule Archethic.SelfRepair.Supervisor do
       {Registry,
        name: Archethic.SelfRepair.RepairRegistry,
        keys: :unique,
-       partitions: System.schedulers_online()}
+       partitions: System.schedulers_online()},
+      NetworkChainView
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)

@@ -227,4 +227,8 @@ defmodule ArchethicCase do
       :persistent_term.put(nss_key, nil)
     end)
   end
+
+  def random_address() do
+    <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+  end
 end
