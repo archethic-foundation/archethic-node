@@ -1,4 +1,4 @@
-defmodule Archethic.SelfRepair.NetworkChainViewTest do
+defmodule Archethic.SelfRepair.NetworkViewTest do
   # can't have async tests with the persistent_term
   use ArchethicCase, async: false
 
@@ -7,10 +7,10 @@ defmodule Archethic.SelfRepair.NetworkChainViewTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.PubSub
-  alias Archethic.SelfRepair.NetworkChainView
+  alias Archethic.SelfRepair.NetworkView
   alias Archethic.TransactionChain.Transaction
 
-  doctest NetworkChainView
+  doctest NetworkView
 
   @persistent_keys Archethic.SharedSecrets.genesis_address_keys()
 
@@ -20,27 +20,16 @@ defmodule Archethic.SelfRepair.NetworkChainViewTest do
       :persistent_term.put(@persistent_keys.origin, [])
       :persistent_term.put(@persistent_keys.nss, nil)
 
-      Supervisor.terminate_child(
-        Archethic.SelfRepair.Supervisor,
-        Archethic.SelfRepair.NetworkChainView
-      )
-
-      {:ok, _} =
-        Supervisor.restart_child(
-          Archethic.SelfRepair.Supervisor,
-          Archethic.SelfRepair.NetworkChainView
-        )
-
+      start_supervised!(NetworkView)
       :ok
     end
 
-    test "get_scheduled_chains_hash should return an error if called before node is up" do
-      :error = NetworkChainView.get_scheduled_chains_hash()
+    test "get_chains_hash should return an error if called before node is up" do
+      :error = NetworkView.get_chains_hash()
     end
 
     test "load_transaction should return ok even if called before node is up" do
-      :ok =
-        NetworkChainView.load_transaction(%Transaction{type: :origin, address: random_address()})
+      :ok = NetworkView.load_transaction(%Transaction{type: :origin, address: random_address()})
     end
 
     test "init is triggered when node bootstrap is done" do
@@ -57,23 +46,23 @@ defmodule Archethic.SelfRepair.NetworkChainViewTest do
       # trigger the node_up event
       PubSub.notify_node_status(:node_up)
 
-      assert hash = NetworkChainView.get_scheduled_chains_hash()
+      assert hash = NetworkView.get_chains_hash()
       assert is_binary(hash)
 
       :ok =
-        NetworkChainView.load_transaction(%Transaction{
+        NetworkView.load_transaction(%Transaction{
           type: :node_shared_secrets,
           address: random_address()
         })
 
-      assert hash2 = NetworkChainView.get_scheduled_chains_hash()
+      assert hash2 = NetworkView.get_chains_hash()
       assert is_binary(hash2)
 
       assert hash != hash2
     end
 
-    test "get_node_chain_hash should change return value on every node modification" do
-      hash = NetworkChainView.get_node_chain_hash()
+    test "get_p2p_hash should change return value on every node modification" do
+      hash = NetworkView.get_p2p_hash()
       assert is_binary(hash)
 
       P2P.add_and_connect_node(%Node{
@@ -88,7 +77,7 @@ defmodule Archethic.SelfRepair.NetworkChainViewTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
-      hash2 = NetworkChainView.get_node_chain_hash()
+      hash2 = NetworkView.get_p2p_hash()
       assert is_binary(hash2)
 
       assert hash != hash2
@@ -109,58 +98,46 @@ defmodule Archethic.SelfRepair.NetworkChainViewTest do
       :persistent_term.put(@persistent_keys.nss, random_address())
       Archethic.OracleChain.MemTable.put_addr(random_address(), DateTime.utc_now())
 
-      Supervisor.terminate_child(
-        Archethic.SelfRepair.Supervisor,
-        Archethic.SelfRepair.NetworkChainView
-      )
-
-      {:ok, _} =
-        Supervisor.restart_child(
-          Archethic.SelfRepair.Supervisor,
-          Archethic.SelfRepair.NetworkChainView
-        )
-
+      start_supervised!(NetworkView)
       :ok
     end
 
-    test "get_scheduled_chains_hash should work" do
-      assert hash = NetworkChainView.get_scheduled_chains_hash()
+    test "get_chains_hash should work" do
+      assert hash = NetworkView.get_chains_hash()
       assert is_binary(hash)
     end
 
-    test "load_transaction change the return value of get_scheduled_chains_hash" do
+    test "load_transaction change the return value of get_chains_hash" do
       :ok =
-        NetworkChainView.load_transaction(%Transaction{
+        NetworkView.load_transaction(%Transaction{
           type: :node_shared_secrets,
           address: random_address()
         })
 
-      assert hash = NetworkChainView.get_scheduled_chains_hash()
+      assert hash = NetworkView.get_chains_hash()
       assert is_binary(hash)
 
       :ok =
-        NetworkChainView.load_transaction(%Transaction{
+        NetworkView.load_transaction(%Transaction{
           type: :node_shared_secrets,
           address: random_address()
         })
 
-      assert hash2 = NetworkChainView.get_scheduled_chains_hash()
+      assert hash2 = NetworkView.get_chains_hash()
       assert is_binary(hash2)
 
       assert hash != hash2
 
-      :ok =
-        NetworkChainView.load_transaction(%Transaction{type: :origin, address: random_address()})
+      :ok = NetworkView.load_transaction(%Transaction{type: :origin, address: random_address()})
 
-      assert hash3 = NetworkChainView.get_scheduled_chains_hash()
+      assert hash3 = NetworkView.get_chains_hash()
       assert is_binary(hash3)
 
       assert hash3 != hash2 && hash3 != hash
 
-      :ok =
-        NetworkChainView.load_transaction(%Transaction{type: :oracle, address: random_address()})
+      :ok = NetworkView.load_transaction(%Transaction{type: :oracle, address: random_address()})
 
-      assert hash4 = NetworkChainView.get_scheduled_chains_hash()
+      assert hash4 = NetworkView.get_chains_hash()
       assert is_binary(hash4)
 
       assert hash4 != hash3 && hash4 != hash2 && hash4 != hash

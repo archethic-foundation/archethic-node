@@ -1,7 +1,11 @@
-defmodule Archethic.SelfRepair.NetworkChainView do
+defmodule Archethic.SelfRepair.NetworkView do
   @moduledoc """
-  The network chain view is a local view on the network chains.
+  The network view is 2 things:
+  - the P2P view (list of available & authorized nodes)
+  - the Network chains view (oracle/origin/nodesharedsecrets)
+
   It is useful to compare with other nodes to detect desynchronization.
+  The P2P view is handled by the P2P module, we just do the hash here for convenience.
   """
 
   use GenServer
@@ -36,7 +40,7 @@ defmodule Archethic.SelfRepair.NetworkChainView do
   #        |_|
 
   @doc """
-  Start the NetworkChainView server
+  Start the NetworkView server
   """
   @spec start_link(list()) :: GenServer.on_start()
   def start_link([]) do
@@ -44,10 +48,10 @@ defmodule Archethic.SelfRepair.NetworkChainView do
   end
 
   @doc """
-  Return the hash of the node chain view
+  Return the hash of the P2P view
   """
-  @spec get_node_chain_hash() :: binary()
-  def get_node_chain_hash() do
+  @spec get_p2p_hash() :: binary()
+  def get_p2p_hash() do
     # this is not using the genserver
     # since the nodes' state is already in the P2P module
     P2P.authorized_and_available_nodes()
@@ -56,11 +60,11 @@ defmodule Archethic.SelfRepair.NetworkChainView do
   end
 
   @doc """
-  Return the hash of the scheduled chains (& origin)
+  Return the hash of the network chains view
   """
-  @spec get_scheduled_chains_hash() :: binary()
-  def get_scheduled_chains_hash() do
-    GenServer.call(__MODULE__, :get_scheduled_chains_hash)
+  @spec get_chains_hash() :: binary()
+  def get_chains_hash() do
+    GenServer.call(__MODULE__, :get_chains_hash)
   end
 
   @doc """
@@ -90,7 +94,7 @@ defmodule Archethic.SelfRepair.NetworkChainView do
       if Archethic.up?() do
         fetch_initial_state()
       else
-        Logger.info("NetworkChainView: Waiting for Node to complete Bootstrap. ")
+        Logger.info("NetworkView: Waiting for Node to complete Bootstrap. ")
         PubSub.register_to_node_status()
         :not_initialized
       end
@@ -98,7 +102,7 @@ defmodule Archethic.SelfRepair.NetworkChainView do
     {:ok, state}
   end
 
-  def handle_call(:get_scheduled_chains_hash, _from, state = %State{}) do
+  def handle_call(:get_chains_hash, _from, state = %State{}) do
     hash =
       [
         state.node_shared_secrets,
@@ -128,6 +132,10 @@ defmodule Archethic.SelfRepair.NetworkChainView do
     {:noreply, new_state}
   end
 
+  def handle_cast(_msg, state) do
+    {:noreply, state}
+  end
+
   def handle_info(:node_up, _state) do
     state = fetch_initial_state()
     {:noreply, state}
@@ -146,26 +154,33 @@ defmodule Archethic.SelfRepair.NetworkChainView do
   #
 
   defp fetch_initial_state() do
-    {last_known_nss_address, _} =
+    last_known_nss_address =
       SharedSecrets.genesis_address(:node_shared_secrets)
-      |> TransactionChain.get_last_address()
+      |> get_last_address()
 
     # There are 1 genesis address per origin (for now 3 origins)
     last_known_origin_addresses =
       SharedSecrets.genesis_address(:origin)
       |> Enum.map(fn genesis_address ->
-        {last_known_origin_address, _} = TransactionChain.get_last_address(genesis_address)
-        last_known_origin_address
+        get_last_address(genesis_address)
       end)
 
-    {last_known_oracle_address, _} =
+    last_known_oracle_address =
       OracleChain.get_current_genesis_address()
-      |> TransactionChain.get_last_address()
+      |> get_last_address()
 
     %State{
       node_shared_secrets: last_known_nss_address,
       origin: last_known_origin_addresses,
       oracle: last_known_oracle_address
     }
+  end
+
+  # FIXME I HAVE NO IDEA WHY AT START OF NODE 2, I GET NIL NSS GENESIS ADDRESS
+  defp get_last_address(nil), do: ""
+
+  defp get_last_address(genesis_address) do
+    {last_known_origin_address, _} = TransactionChain.get_last_address(genesis_address)
+    last_known_origin_address
   end
 end

@@ -27,7 +27,7 @@ defmodule Archethic.Replication do
 
   alias Archethic.OracleChain
 
-  alias Archethic.SelfRepair.NetworkChainView
+  alias Archethic.SelfRepair.NetworkView
 
   alias Archethic.SharedSecrets
 
@@ -588,7 +588,7 @@ defmodule Archethic.Replication do
 
     unless self_repair? do
       # this module will automatically update its state at the end of self repair
-      NetworkChainView.load_transaction(tx)
+      NetworkView.load_transaction(tx)
     end
 
     :ok

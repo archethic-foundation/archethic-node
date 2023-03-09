@@ -1,7 +1,7 @@
 defmodule Archethic.Reward.SchedulerTest do
   use ArchethicCase, async: false
 
-  alias Archethic.{Crypto, P2P, P2P.Node, P2P.Message.StartMining}
+  alias Archethic.{Crypto, P2P, P2P.Node, P2P.Message.StartMining, P2P.Message.Ok}
   alias Archethic.{Reward.Scheduler, TransactionChain.Transaction}
 
   import ArchethicCase, only: [setup_before_send_tx: 0]
@@ -62,6 +62,7 @@ defmodule Archethic.Reward.SchedulerTest do
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
         geo_patch: "AAA",
+        network_patch: "AAA",
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
@@ -86,6 +87,7 @@ defmodule Archethic.Reward.SchedulerTest do
         _, %StartMining{transaction: %Transaction{address: address, type: type}}, _ ->
           send(pid, {:new_transaction, address, type, DateTime.utc_now()})
           send(me, type)
+          {:ok, %Ok{}}
       end)
 
       assert_receive :mint_rewards, 1_500
@@ -106,6 +108,7 @@ defmodule Archethic.Reward.SchedulerTest do
         _, %StartMining{transaction: %Transaction{address: address, type: type}}, _ ->
           send(pid, {:new_transaction, address, type, DateTime.utc_now()})
           send(me, type)
+          {:ok, %Ok{}}
       end)
 
       send(pid, :node_up)

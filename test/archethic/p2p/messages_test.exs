@@ -162,15 +162,22 @@ defmodule Archethic.P2P.MessageTest do
           pub
         end)
 
+      network_hash = :crypto.hash(:sha256, "networkview")
+      p2p_hash = :crypto.hash(:sha256, "p2pview")
+
       assert %StartMining{
                transaction: tx,
                welcome_node_public_key: welcome_node_public_key,
-               validation_node_public_keys: validation_node_public_keys
+               validation_node_public_keys: validation_node_public_keys,
+               network_chains_view_hash: network_hash,
+               p2p_view_hash: p2p_hash
              } ==
                %StartMining{
                  transaction: tx,
                  welcome_node_public_key: welcome_node_public_key,
-                 validation_node_public_keys: validation_node_public_keys
+                 validation_node_public_keys: validation_node_public_keys,
+                 network_chains_view_hash: network_hash,
+                 p2p_view_hash: p2p_hash
                }
                |> Message.encode()
                |> Message.decode()

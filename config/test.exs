@@ -131,6 +131,7 @@ config :archethic, Archethic.SelfRepair.Scheduler,
   interval: "0 0 * * * * *",
   availability_application: 1
 
+config :archethic, Archethic.SelfRepair.NetworkView, enabled: false
 config :archethic, Archethic.SelfRepair.Notifier, enabled: false
 
 config :archethic, Archethic.SelfRepair.Sync,

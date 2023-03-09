@@ -182,6 +182,10 @@ defmodule ArchethicCase do
       P2PMemTable.increase_node_availability(public_key)
       {:ok, make_ref()}
     end)
+    |> stub(:send_message, fn
+      _, %Archethic.P2P.Message.ListNodes{}, _ ->
+        {:ok, %Archethic.P2P.Message.NodeList{nodes: Archethic.P2P.list_nodes()}}
+    end)
 
     start_supervised!(TokenLedger)
     start_supervised!(UCOLedger)
@@ -199,6 +203,7 @@ defmodule ArchethicCase do
   end
 
   def setup_before_send_tx() do
+    start_supervised!(Archethic.SelfRepair.NetworkView)
     nss_key = SharedSecrets.genesis_address_keys().nss
 
     nss_genesis_address = "nss_genesis_address"

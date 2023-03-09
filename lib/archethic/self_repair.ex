@@ -8,7 +8,7 @@ defmodule Archethic.SelfRepair do
   alias __MODULE__.{Scheduler, Sync}
 
   alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
-  alias Archethic.{P2P.Node, SharedSecrets, OracleChain, Reward, Replication}
+  alias Archethic.{P2P, P2P.Node, SharedSecrets, OracleChain, Reward, Replication}
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -206,32 +206,98 @@ defmodule Archethic.SelfRepair do
     end
   end
 
-  def resync(last_address) do
-    first_address = get_genesis_address(:node_shared_secrets)
-
-    case repair_in_progress?(first_address) do
+  def resync(genesis_address, storage_address) do
+    case repair_in_progress?(genesis_address) do
       false ->
         start_worker(
-          first_address: first_address,
-          storage_address: last_address,
+          first_address: genesis_address,
+          storage_address: storage_address,
           io_addresses: []
         )
 
       pid ->
-        add_repair_addresses(pid, first_address, [])
+        add_repair_addresses(pid, storage_address, [])
     end
 
     :ok
   end
 
-  @spec resync_network_chain(atom(), list(Node.t()) | []) :: :ok | :error
+  @spec resync_p2p() :: :ok
+  def resync_p2p() do
+    spawn(fn ->
+      # avoid running it multiple times concurrently
+      unless :persistent_term.get(:resync_p2p_running, false) do
+        try do
+          :persistent_term.put(:resync_p2p_running, true)
+
+          nearest_nodes =
+            P2P.authorized_and_available_nodes()
+            |> Enum.filter(&Node.locally_available?/1)
+            |> P2P.nearest_nodes()
+            |> Enum.take(3)
+
+          Archethic.Bootstrap.Sync.load_node_list(nearest_nodes)
+        after
+          :persistent_term.put(:resync_p2p_running, false)
+        end
+      end
+    end)
+
+    :ok
+  end
+
+  @spec resync_all_network_chains() :: :ok
+  def resync_all_network_chains() do
+    spawn(fn ->
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        [:node_shared_secrets, :oracle, :origin],
+        &resync_network_chain(&1, P2P.authorized_and_available_nodes()),
+        ordered: false,
+        on_timeout: :kill_task,
+        timeout: 5000
+      )
+      |> Stream.run()
+    end)
+
+    :ok
+  end
+
+  @spec resync_network_chain(atom(), list(Node.t()) | []) :: :ok
   def resync_network_chain(_, []),
     do: Logger.notice("Enforce Resync of Network Txs: No-Nodes")
 
   def resync_network_chain(type, nodes) do
-    with addr when is_binary(addr) <- get_genesis_address(type),
-         {:ok, rem_last_addr} <- TransactionChain.resolve_last_address(addr),
-         {local_last_addr, _} <- TransactionChain.get_last_address(addr),
+    addresses =
+      case type do
+        :node_shared_secrets ->
+          [SharedSecrets.genesis_address(:node_shared_secrets)]
+
+        :oracle ->
+          [OracleChain.get_current_genesis_address()]
+
+        :reward ->
+          [Reward.genesis_address()]
+
+        :origin ->
+          SharedSecrets.genesis_address(:origin)
+      end
+
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      addresses,
+      &do_resync_network_chain(&1, type, nodes),
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: 5000
+    )
+    |> Stream.run()
+  end
+
+  # FIXME: why is it not using the repair worker?
+  def do_resync_network_chain(genesis_address, type, nodes) do
+    with {:ok, rem_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
+         {local_last_addr, _} <- TransactionChain.get_last_address(genesis_address),
          false <- rem_last_addr == local_last_addr,
          {:ok, tx} <- TransactionChain.fetch_transaction_remotely(rem_last_addr, nodes),
          :ok <- Replication.validate_and_store_transaction_chain(tx) do
@@ -249,11 +315,4 @@ defmodule Archethic.SelfRepair do
         Logger.debug("Enforced Resync: Error #{inspect(e)}", transaction_type: type)
     end
   end
-
-  defp get_genesis_address(:node_shared_secrets),
-    do: SharedSecrets.genesis_address(:node_shared_secrets)
-
-  defp get_genesis_address(:oracle), do: OracleChain.genesis_address()
-
-  defp get_genesis_address(:reward), do: Reward.genesis_address()
 end

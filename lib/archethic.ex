@@ -3,13 +3,14 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
-  alias Archethic.SharedSecrets
+  alias __MODULE__.SelfRepair.NetworkView
+  alias __MODULE__.SharedSecrets
   alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
   alias __MODULE__.{SelfRepair, TransactionChain}
 
   alias Message.{NewTransaction, NotFound, StartMining, TransactionSummaryList}
   alias Message.{Balance, GetBalance, GetCurrentSummaries, GetTransactionSummary}
-  alias Message.{StartMining, Ok, TransactionSummaryMessage}
+  alias Message.{StartMining, Ok, Error, TransactionSummaryMessage}
 
   alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
 
@@ -65,7 +66,11 @@ defmodule Archethic do
           forward_transaction(tx, welcome_node_key)
 
         {:error, last_address_to_sync} ->
-          SelfRepair.resync(last_address_to_sync)
+          SelfRepair.resync(
+            SharedSecrets.genesis_address(:node_shared_secrets),
+            last_address_to_sync
+          )
+
           forward_transaction(tx, welcome_node_key)
       end
     else
@@ -116,10 +121,68 @@ defmodule Archethic do
     message = %StartMining{
       transaction: tx,
       welcome_node_public_key: get_welcome_node_public_key(tx_type, welcome_node_key),
-      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
+      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
+      network_chains_view_hash: NetworkView.get_chains_hash(),
+      p2p_view_hash: NetworkView.get_p2p_hash()
     }
 
-    P2P.broadcast_message(validation_nodes, message)
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      validation_nodes,
+      &P2P.send_message(&1, message),
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: Message.get_timeout(message) + 2000
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.map(fn {:ok, res} -> res end)
+    |> Enum.reduce(
+      %{
+        ok: 0,
+        network_chains_resync_needed: false,
+        p2p_resync_needed: false
+      },
+      fn
+        {:ok, %Ok{}}, acc ->
+          %{acc | ok: acc.ok + 1}
+
+        {:ok, %Error{reason: :network_chains_sync}}, acc ->
+          %{acc | network_chains_resync_needed: true}
+
+        {:ok, %Error{reason: :p2p_sync}}, acc ->
+          %{acc | p2p_resync_needed: true}
+
+        {:ok, %Error{reason: :both_sync}}, acc ->
+          %{
+            acc
+            | network_chains_resync_needed: true,
+              p2p_resync_needed: true
+          }
+
+        _, acc ->
+          acc
+      end
+    )
+    |> then(fn result ->
+      if result.network_chains_resync_needed do
+        SelfRepair.resync_all_network_chains()
+      end
+
+      if result.p2p_resync_needed do
+        SelfRepair.resync_p2p()
+      end
+
+      cond do
+        result.ok == length(validation_nodes) ->
+          :ok
+
+        result.ok < 2 ->
+          forward_transaction(tx, welcome_node_key)
+
+        true ->
+          :ok
+      end
+    end)
   end
 
   # Since welcome node is not anymore constant, as we want unauthorised
