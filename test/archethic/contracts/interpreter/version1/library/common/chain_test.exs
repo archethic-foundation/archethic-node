@@ -100,7 +100,7 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.ChainTest do
     end
 
     test "should raise if there are no transaction" do
-      # DISCUSS: I don't like this behaviour but it's what's done in version0
+      # DISCUSS: I don't like this behaviour but it's what's done in legacy
       tx_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       code = ~s"""

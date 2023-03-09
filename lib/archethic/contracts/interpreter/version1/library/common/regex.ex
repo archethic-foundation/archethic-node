@@ -3,16 +3,16 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Regex do
   @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Version0
+  alias Archethic.Contracts.Interpreter.Legacy
 
   @spec match?(binary(), binary()) :: boolean()
   defdelegate match?(text, pattern),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :regex_match?
 
   @spec extract(binary(), binary()) :: binary()
   defdelegate extract(text, pattern),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :regex_extract
 
   @doc """

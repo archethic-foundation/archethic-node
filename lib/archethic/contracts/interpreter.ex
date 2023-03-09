@@ -3,7 +3,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   require Logger
 
-  alias __MODULE__.Version0
+  alias __MODULE__.Legacy
   alias __MODULE__.Version1
 
   alias Archethic.Contracts.Contract
@@ -26,7 +26,7 @@ defmodule Archethic.Contracts.Interpreter do
             Version1.parse({:__block__, [], rest}, version)
 
           _ ->
-            Version0.parse(block)
+            Legacy.parse(block)
         end
 
       {:error, reason} ->
@@ -50,7 +50,7 @@ defmodule Archethic.Contracts.Interpreter do
   """
   @spec valid_conditions?(version(), Conditions.t(), map()) :: bool()
   def valid_conditions?(0, conditions, constants) do
-    Version0.valid_conditions?(conditions, constants)
+    Legacy.valid_conditions?(conditions, constants)
   end
 
   def valid_conditions?(1, conditions, constants) do
@@ -63,7 +63,7 @@ defmodule Archethic.Contracts.Interpreter do
   """
   @spec execute_trigger(version(), Macro.t(), map()) :: Transaction.t() | nil
   def execute_trigger(0, ast, constants) do
-    Version0.execute_trigger(ast, constants)
+    Legacy.execute_trigger(ast, constants)
   end
 
   def execute_trigger(1, ast, constants) do

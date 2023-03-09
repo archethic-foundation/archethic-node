@@ -3,16 +3,16 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Json do
   @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Version0
+  alias Archethic.Contracts.Interpreter.Legacy
 
   @spec path_extract(String.t(), String.t()) :: String.t()
   defdelegate path_extract(text, path),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :json_path_extract
 
   @spec path_match?(String.t(), String.t()) :: boolean()
   defdelegate path_match?(text, path),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :json_path_match?
 
   @spec to_string(any()) :: String.t()

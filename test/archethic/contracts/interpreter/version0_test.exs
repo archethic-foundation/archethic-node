@@ -1,16 +1,16 @@
-defmodule Archethic.Contracts.Interpreter.Version0Test do
+defmodule Archethic.Contracts.Interpreter.LegacyTest do
   @moduledoc false
   use ArchethicCase
 
   alias Archethic.Contracts.Contract
 
   alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.Interpreter.Version0
+  alias Archethic.Contracts.Interpreter.Legacy
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
-  doctest Version0
+  doctest Legacy
 
   describe "parse/1" do
     test "should return an error if not conditions or triggers are defined" do
@@ -80,6 +80,6 @@ defmodule Archethic.Contracts.Interpreter.Version0Test do
     code
     |> Interpreter.sanitize_code()
     |> elem(1)
-    |> Version0.parse()
+    |> Legacy.parse()
   end
 end

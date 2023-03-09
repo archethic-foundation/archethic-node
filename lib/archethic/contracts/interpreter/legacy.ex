@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.Version0 do
+defmodule Archethic.Contracts.Interpreter.Legacy do
   @moduledoc false
 
   require Logger
@@ -44,7 +44,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
       ...>      set_content \"uco price changed\"
       ...>    end
       ...> ")
-      ...> Version0.parse(ast)
+      ...> Legacy.parse(ast)
       {:ok,
         %Contract{
           conditions: %{
@@ -54,7 +54,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
                       [line: 7],
                       [
                         true,
-                        {{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.Library], [:Library]}, :regex_match?]}, [line: 7], [{:get_in, [line: 7], [{:scope, [line: 7], nil}, ["next", "content"]]}, "hello"]}
+                        {{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 7], [{:get_in, [line: 7], [{:scope, [line: 7], nil}, ["next", "content"]]}, "hello"]}
                       ]
                 },
                 authorized_keys: nil,
@@ -75,7 +75,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
                           [line: 11],
                           [
                             {:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]},
-                            {{:., [line: 11], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.Library], [:Library]}, :json_path_extract]}, [line: 11], [{:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]}, "$.uco.eur"]}
+                            {{:., [line: 11], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :json_path_extract]}, [line: 11], [{:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]}, "$.uco.eur"]}
                           ]
                         },
                         1
@@ -95,7 +95,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
                       [line: 2],
                       [
                         true,
-                        {{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["transaction", "content"]]}, "^Mr.Y|Mr.X{1}$"]}
+                        {{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["transaction", "content"]]}, "^Mr.Y|Mr.X{1}$"]}
                       ]
                  },
                  origin_family: :biometric,
@@ -118,7 +118,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
                   [line: 16],
                   [
                     {:scope, [line: 16], nil},
-                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["next_transaction"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
+                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["next_transaction"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
                   ]
                 },
                 {
@@ -126,7 +126,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
                   [line: 17],
                   [
                     {:scope, [line: 17], nil},
-                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["next_transaction"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
+                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["next_transaction"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
                   ]
                 },
                 {
@@ -134,7 +134,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
                   [line: 18],
                   [
                     {:scope, [line: 18], nil},
-                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1040000000}]]}]}]}
+                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1040000000}]]}]}]}
                   ]
                 }
               ]},
@@ -143,7 +143,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
               [line: 22],
               [
                 {:scope, [line: 22], nil},
-                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["next_transaction"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
+                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["next_transaction"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
               ]
            }
           }
@@ -156,7 +156,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
        ...>    actions triggered_by: datetime, at: 0000000 do
        ...>    end
        ...> ")
-       ...> Version0.parse(ast)
+       ...> Legacy.parse(ast)
        {:error, "invalid datetime's trigger"}
 
      Returns an error when a invalid term is provided
@@ -166,7 +166,7 @@ defmodule Archethic.Contracts.Interpreter.Version0 do
        ...>       System.user_home
        ...>    end
        ...> ")
-       ...> Version0.parse(ast)
+       ...> Legacy.parse(ast)
        {:error, "unexpected term - System - L2"}
   """
   @spec parse(ast :: Macro.t()) :: {:ok, Contract.t()} | {:error, reason :: binary()}

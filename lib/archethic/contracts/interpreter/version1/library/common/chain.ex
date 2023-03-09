@@ -3,21 +3,21 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Chain do
   @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Version0
+  alias Archethic.Contracts.Interpreter.Legacy
 
   @spec get_genesis_address(binary()) :: binary()
   defdelegate get_genesis_address(address),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :get_genesis_address
 
   @spec get_first_transaction_address(binary()) :: binary()
   defdelegate get_first_transaction_address(address),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :get_first_transaction_address
 
   @spec get_genesis_public_key(binary()) :: binary()
   defdelegate get_genesis_public_key(public_key),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :get_genesis_public_key
 
   @spec check_types(atom(), list()) :: boolean()

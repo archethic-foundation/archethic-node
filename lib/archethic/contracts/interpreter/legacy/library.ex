@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.Version0.Library do
+defmodule Archethic.Contracts.Interpreter.Legacy.Library do
   @moduledoc false
 
   alias Archethic.{
@@ -12,7 +12,7 @@ defmodule Archethic.Contracts.Interpreter.Version0.Library do
     Utils
   }
 
-  alias Archethic.Contracts.Interpreter.Version0.UtilsInterpreter
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
   require Logger
 

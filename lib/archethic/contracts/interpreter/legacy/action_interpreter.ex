@@ -1,9 +1,9 @@
-defmodule Archethic.Contracts.Interpreter.Version0.ActionInterpreter do
+defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
   @moduledoc false
 
   alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.Interpreter.Version0.TransactionStatements
-  alias Archethic.Contracts.Interpreter.Version0.UtilsInterpreter
+  alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -37,7 +37,7 @@ defmodule Archethic.Contracts.Interpreter.Version0.ActionInterpreter do
       ...>      ]}
       ...>   ]
       ...> ]})
-      {:ok, :transaction, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}]}}
+      {:ok, :transaction, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}]}}
 
       Usage with trigger accepting parameters
 
@@ -53,7 +53,7 @@ defmodule Archethic.Contracts.Interpreter.Version0.ActionInterpreter do
       ...>      ["0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}
       ...>   ]
       ...> ]})
-      {:ok, {:datetime, ~U[2014-02-02 02:43:50Z]}, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.TransactionStatements], [:TransactionStatements]}, :add_recipient]}, [line: 2], [{:&, [line: 2], [1]}, "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}]}]}]}}
+      {:ok, {:datetime, ~U[2014-02-02 02:43:50Z]}, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_recipient]}, [line: 2], [{:&, [line: 2], [1]}, "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}]}]}]}}
 
 
       Prevent usage of not authorized functions
