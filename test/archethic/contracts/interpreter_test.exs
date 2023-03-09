@@ -2,6 +2,7 @@ defmodule Archethic.Contracts.InterpreterTest do
   @moduledoc false
   use ArchethicCase
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter
   alias Archethic.ContractFactory
 
@@ -35,6 +36,72 @@ defmodule Archethic.Contracts.InterpreterTest do
       """
 
       assert {:error, "@version not supported"} = Interpreter.parse(code_v0)
+    end
+  end
+
+  describe "parse code v1" do
+    test "should return an error if there are unexpected terms" do
+      assert {:error, _} =
+               """
+               @version 1
+               condition transaction: [
+                uco_transfers: List.size() > 0
+               ]
+
+               some_unexpected_code
+
+               actions triggered_by: transaction do
+                Contract.set_content "hello"
+               end
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return the contract if format is OK" do
+      assert {:ok, %Contract{}} =
+               """
+               @version 1
+               condition transaction: [
+                uco_transfers: List.size() > 0
+               ]
+
+               actions triggered_by: transaction do
+                Contract.set_content "hello"
+               end
+               """
+               |> Interpreter.parse()
+    end
+  end
+
+  describe "parse code v0" do
+    test "should return an error if there are unexpected terms" do
+      assert {:error, _} =
+               """
+               condition transaction: [
+                uco_transfers: size() > 0
+               ]
+
+               some_unexpected_code
+
+               actions triggered_by: transaction do
+                set_content "hello"
+               end
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return the contract if format is OK" do
+      assert {:ok, %Contract{}} =
+               """
+               condition transaction: [
+                uco_transfers: size() > 0
+               ]
+
+               actions triggered_by: transaction do
+                set_content "hello"
+               end
+               """
+               |> Interpreter.parse()
     end
   end
 end

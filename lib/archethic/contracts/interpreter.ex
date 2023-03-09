@@ -4,7 +4,9 @@ defmodule Archethic.Contracts.Interpreter do
   require Logger
 
   alias __MODULE__.Legacy
-  alias __MODULE__.Version1
+  alias __MODULE__.ActionInterpreter
+  alias __MODULE__.ConditionInterpreter
+  alias __MODULE__.ConditionValidator
 
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions, as: Conditions
@@ -23,7 +25,7 @@ defmodule Archethic.Contracts.Interpreter do
       {:ok, block} ->
         case block do
           {:__block__, [], [{:@, _, [{{:atom, "version"}, _, [version]}]} | rest]} ->
-            Version1.parse({:__block__, [], rest}, version)
+            parse_contract(version, rest)
 
           _ ->
             Legacy.parse(block)
@@ -54,7 +56,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   def valid_conditions?(1, conditions, constants) do
-    Version1.valid_conditions?(conditions, constants)
+    ConditionValidator.valid_conditions?(conditions, constants)
   end
 
   @doc """
@@ -67,7 +69,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   def execute_trigger(1, ast, constants) do
-    Version1.execute_trigger(ast, constants)
+    ActionInterpreter.execute(ast, constants)
   end
 
   @doc """
@@ -126,6 +128,14 @@ defmodule Archethic.Contracts.Interpreter do
     do_format_error_reason(reason, key, [])
   end
 
+  # ------------------------------------------------------------
+  #              _            _
+  #   _ __  _ __(___   ____ _| |_ ___
+  #  | '_ \| '__| \ \ / / _` | __/ _ \
+  #  | |_) | |  | |\ V | (_| | ||  __/
+  #  | .__/|_|  |_| \_/ \__,_|\__\___|
+  #  |_|
+  # ------------------------------------------------------------
   defp do_format_error_reason(message, cause, metadata) do
     message = prepare_message(message)
 
@@ -153,4 +163,52 @@ defmodule Archethic.Contracts.Interpreter do
       {:ok, {:atom, atom}}
     end
   end
+
+  defp parse_contract(1, ast) do
+    case parse_ast_block(ast, %Contract{}) do
+      {:ok, contract} ->
+        {:ok, %{contract | version: 1}}
+
+      {:error, node, reason} ->
+        {:error, format_error_reason(node, reason)}
+    end
+  end
+
+  defp parse_contract(_version, _ast) do
+    {:error, "@version not supported"}
+  end
+
+  defp parse_ast_block([ast | rest], contract) do
+    case parse_ast(ast, contract) do
+      {:ok, contract} ->
+        parse_ast_block(rest, contract)
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast_block([], contract), do: {:ok, contract}
+
+  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract) do
+    case ConditionInterpreter.parse(ast) do
+      {:ok, condition_type, condition} ->
+        {:ok, Contract.add_condition(contract, condition_type, condition)}
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract) do
+    case ActionInterpreter.parse(ast) do
+      {:ok, trigger_type, actions} ->
+        {:ok, Contract.add_trigger(contract, trigger_type, actions)}
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast, _), do: {:error, ast, "unexpected term"}
 end
