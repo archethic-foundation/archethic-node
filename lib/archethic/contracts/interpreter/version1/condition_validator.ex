@@ -1,6 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.Version1.ConditionValidator do
   @moduledoc """
-  This is pretty much a copy of Version0.ConditionInterpreter.
+  This is pretty much a copy of Legacy.ConditionInterpreter.
   The difference is where the scope is stored (process dict VS global variable)
 
   """

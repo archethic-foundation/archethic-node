@@ -1,11 +1,11 @@
-defmodule Archethic.Contracts.Interpreter.Version0.ConditionInterpreter do
+defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   @moduledoc false
 
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.Interpreter.Version0.Library
-  alias Archethic.Contracts.Interpreter.Version0.UtilsInterpreter
+  alias Archethic.Contracts.Interpreter.Legacy.Library
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
   alias Archethic.SharedSecrets
 
@@ -75,7 +75,7 @@ defmodule Archethic.Contracts.Interpreter.Version0.ConditionInterpreter do
              ]},
              {
                {:., [line: 2], [
-                 {:__aliases__, [alias: Archethic.Contracts.Interpreter.Version0.Library], [:Library]},
+                 {:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]},
                  :hash
                ]}, [line: 2], [
                  {:get_in, [line: 2], [

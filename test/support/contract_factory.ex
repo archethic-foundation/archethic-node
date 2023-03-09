@@ -26,7 +26,7 @@ defmodule Archethic.ContractFactory do
     end
   end
 
-  def valid_version0_contract() do
+  def valid_legacy_contract() do
     ~S"""
     condition inherit: [
       content: true

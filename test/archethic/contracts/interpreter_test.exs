@@ -10,13 +10,13 @@ defmodule Archethic.Contracts.InterpreterTest do
   describe "strict versionning" do
     test "should return ok if version exists" do
       assert {:ok, _} = Interpreter.parse(ContractFactory.valid_version1_contract())
-      assert {:ok, _} = Interpreter.parse(ContractFactory.valid_version0_contract())
+      assert {:ok, _} = Interpreter.parse(ContractFactory.valid_legacy_contract())
     end
 
     test "should return an error if version does not exist yet" do
       code_v0 = ~s"""
       @version 20
-      #{ContractFactory.valid_version0_contract()}
+      #{ContractFactory.valid_legacy_contract()}
       """
 
       code_v1 = ~s"""
@@ -31,7 +31,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return an error if version is invalid" do
       code_v0 = ~s"""
       @version 1.5
-      #{ContractFactory.valid_version0_contract()}
+      #{ContractFactory.valid_legacy_contract()}
       """
 
       assert {:error, "@version not supported"} = Interpreter.parse(code_v0)

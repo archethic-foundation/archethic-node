@@ -1,7 +1,7 @@
-defmodule Archethic.Contracts.Interpreter.Version0.LibraryTest do
+defmodule Archethic.Contracts.Interpreter.Legacy.LibraryTest do
   use ArchethicCase
 
-  alias Archethic.Contracts.Interpreter.Version0.Library
+  alias Archethic.Contracts.Interpreter.Legacy.Library
 
   alias Archethic.P2P.Message.GetFirstTransactionAddress
   alias Archethic.P2P.Message.FirstTransactionAddress

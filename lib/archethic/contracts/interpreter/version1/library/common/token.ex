@@ -3,11 +3,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Token do
   @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Version0
+  alias Archethic.Contracts.Interpreter.Legacy
 
   @spec fetch_id_from_address(binary()) :: binary()
   defdelegate fetch_id_from_address(address),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :get_token_id
 
   @spec check_types(atom(), list()) :: boolean()

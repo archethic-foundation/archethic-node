@@ -1,9 +1,9 @@
-defmodule Archethic.Contracts.Interpreter.Version0.UtilsInterpreter do
+defmodule Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter do
   @moduledoc false
 
   alias Archethic.Crypto
-  alias Archethic.Contracts.Interpreter.Version0.Library
-  alias Archethic.Contracts.Interpreter.Version0.TransactionStatements
+  alias Archethic.Contracts.Interpreter.Legacy.Library
+  alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
 
   @library_functions_names Library.__info__(:functions)
                            |> Enum.map(&Atom.to_string(elem(&1, 0)))

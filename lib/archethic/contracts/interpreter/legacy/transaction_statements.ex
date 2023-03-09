@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.Version0.TransactionStatements do
+defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
   @moduledoc false
 
   alias Archethic.TransactionChain.Transaction
@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.Interpreter.Version0.TransactionStatements do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias Archethic.Contracts.Interpreter.Version0.UtilsInterpreter
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
   @doc """
   Set the transaction type

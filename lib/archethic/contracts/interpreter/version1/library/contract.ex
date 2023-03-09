@@ -1,21 +1,21 @@
 defmodule Archethic.Contracts.Interpreter.Version1.Library.Contract do
   @moduledoc """
-  We are delegating to the version 0 transaction statements.
+  We are delegating to the legacy transaction statements.
   This is fine as long as we don't need to change anything.
-  If there's something to change for version 1, do the change in here, not in version 0.
+  If there's something to change for version 1, do the change in here, not in legacy.
   """
   @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.Contracts.Interpreter.Version0
-  alias Archethic.Contracts.Interpreter.Version0.TransactionStatements
+  alias Archethic.Contracts.Interpreter.Legacy
+  alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
 
   # get_calls has it's own postwalk (to inject the address),
   # it does not require a check_types
   @spec get_calls(binary()) :: list(map())
   defdelegate get_calls(contract_address),
-    to: Version0.Library
+    to: Legacy.Library
 
   @spec set_type(Transaction.t(), binary()) :: Transaction.t()
   defdelegate set_type(next_tx, type),

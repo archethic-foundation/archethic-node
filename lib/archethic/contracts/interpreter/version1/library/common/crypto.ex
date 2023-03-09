@@ -3,11 +3,11 @@ defmodule Archethic.Contracts.Interpreter.Version1.Library.Common.Crypto do
   @behaviour Archethic.Contracts.Interpreter.Version1.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Version0
+  alias Archethic.Contracts.Interpreter.Legacy
 
   @spec hash(binary(), binary()) :: binary()
   defdelegate hash(content, algo \\ "sha256"),
-    to: Version0.Library,
+    to: Legacy.Library,
     as: :hash
 
   @spec check_types(atom(), list()) :: boolean()
