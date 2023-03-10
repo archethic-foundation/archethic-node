@@ -6,9 +6,9 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   require Logger
 
   alias Archethic.OracleChain.Services.Impl
-  alias Archethic.Utils
+  alias Archethic.OracleChain.Services.ProviderCacheSupervisor
 
-  alias ArchethicCache.HydratingCache
+  alias Archethic.Utils
 
   @behaviour Impl
 
@@ -17,15 +17,24 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @pairs ["usd", "eur"]
 
   @impl Impl
+  def cache_child_spec do
+    Supervisor.child_spec({ProviderCacheSupervisor, providers: providers(), fetch_args: @pairs},
+      id: CacheSupervisor
+    )
+  end
+
+  defp providers do
+    Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:providers)
+  end
+
+  @impl Impl
   @spec fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}
   def fetch do
-    ## Start a supervisor for the feching tasks
-    {:ok, fetching_tasks_supervisor} = Task.Supervisor.start_link()
-    ## retrieve prices from configured providers and filter results marked as errors
+    # retrieve prices from configured providers and filter results marked as errors
+    # Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
     prices =
-      HydratingCache.get_all(__MODULE__)
-
-      ## Here stream looks like : [%{"eur"=>[0.44], "usd"=[0.32]}, ..., %{"eur"=>[0.42, 0.43], "usd"=[0.35]}]
+      providers()
+      |> ProviderCacheSupervisor.get_values()
       |> Enum.reduce(%{}, &agregate_providers_data/2)
       |> Enum.reduce(%{}, fn {currency, values}, acc ->
         price =
@@ -41,11 +50,9 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         Map.put(acc, currency, price)
       end)
 
-    Supervisor.stop(fetching_tasks_supervisor, :normal, 3_000)
     {:ok, prices}
   end
 
-  @spec agregate_providers_data(map(), map()) :: map()
   defp agregate_providers_data(provider_results, acc) do
     provider_results
     |> Enum.reduce(acc, fn

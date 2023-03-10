@@ -6,32 +6,12 @@ defmodule Archethic.OracleChainTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
-  alias ArchethicCache.HydratingCache
+
+  import Mox
 
   test "valid_services_content?/1 should verify the oracle transaction's content correctness" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
+    MockUCOPrice
+    |> expect(:verify?, fn _ -> true end)
 
     content =
       %{
@@ -69,10 +49,11 @@ defmodule Archethic.OracleChainTest do
       }
     ]
 
-    assert true == OracleChain.valid_summary?(content, chain)
-  end
+    MockUCOPrice
+    |> expect(:parse_data, fn _ ->
+      {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+    end)
 
-  def fetch(values) do
-    values
+    assert true == OracleChain.valid_summary?(content, chain)
   end
 end

@@ -1,290 +1,243 @@
 defmodule Archethic.OracleChain.Services.UCOPriceTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
+  alias Archethic.OracleChain.Services.HydratingCache
   alias Archethic.OracleChain.Services.UCOPrice
 
-  alias ArchethicCache.HydratingCache
+  import Mox
+  import ExUnit.CaptureLog
 
-  test "fetch/0 should retrieve some data and build a map with the oracle name in it" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
-    )
+  setup :verify_on_exit!
+  setup :set_mox_global
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
+  describe "fetch/0" do
+    test "should retrieve some data and build a map with the oracle name in it" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.12], "eur" => [0.20]}}
+      end)
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.12], "eur" => [0.20]}}
+      end)
 
-    assert {:ok, %{"eur" => _, "usd" => _}} = UCOPrice.fetch()
-  end
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
 
-  test "fetch/0 should retrieve some data and build a map with the oracle name in it and keep the precision to 5" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
-    )
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
+      Process.sleep(1)
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
+      assert {:ok, %{"eur" => 0.20, "usd" => 0.12}} = UCOPrice.fetch()
+    end
 
-    assert {:ok, %{"eur" => 0.12346, "usd" => 0.12345}} = UCOPrice.fetch()
+    test "should retrieve some data and build a map with the oracle name in it and keep the precision to 5" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.123454789], "eur" => [0.123456789]}}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.123454789], "eur" => [0.123456789]}}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert {:ok, %{"eur" => 0.12346, "usd" => 0.12345}} = UCOPrice.fetch()
+    end
+
+    test "should handle a service timing out" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.20], "eur" => [0.20]}}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        :timer.sleep(5_000)
+        {:ok, {:error, :error_message}}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert {:ok, %{"eur" => 0.20, "usd" => 0.20}} = UCOPrice.fetch()
+    end
+
+    test "should return the median value when multiple providers queried" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.20], "eur" => [0.10]}}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.30], "eur" => [0.40]}}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert {:ok, %{"eur" => 0.25, "usd" => 0.25}} = UCOPrice.fetch()
+    end
   end
 
   describe "verify/1" do
     test "should return true if the prices are the good one" do
-      HydratingCache.register_function(
-        Archethic.OracleChain.Services.UCOPrice,
-        fn -> {:ok, %{"eur" => [0.10], "usd" => [0.20]}} end,
-        Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-        30_000,
-        :infinity
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.20], "eur" => [0.10]}}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.30], "eur" => [0.40]}}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
       )
 
-      HydratingCache.register_function(
-        Archethic.OracleChain.Services.UCOPrice,
-        fn -> {:ok, %{"eur" => [0.20], "usd" => [0.30]}} end,
-        Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-        30_000,
-        :infinity
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      HydratingCache.register_function(
-        Archethic.OracleChain.Services.UCOPrice,
-        fn -> {:ok, %{"eur" => [0.30], "usd" => [0.40]}} end,
-        Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-        30_000,
-        :infinity
-      )
+      Process.sleep(1)
 
-      assert {:ok, %{"eur" => 0.20, "usd" => 0.30}} == UCOPrice.fetch()
+      assert UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
     end
 
     test "should return false if the prices have deviated" do
-      HydratingCache.register_function(
-        Archethic.OracleChain.Services.UCOPrice,
-        fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-        Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-        30_000,
-        :infinity
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.30], "eur" => [0.20]}}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.40], "eur" => [0.50]}}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
       )
 
-      HydratingCache.register_function(
-        Archethic.OracleChain.Services.UCOPrice,
-        fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-        Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-        30_000,
-        :infinity
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
       )
 
-      HydratingCache.register_function(
-        Archethic.OracleChain.Services.UCOPrice,
-        fn -> {:ok, %{"usd" => [0.12], "eur" => [0.20]}} end,
-        Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-        30_000,
-        :infinity
-      )
+      Process.sleep(1)
 
-      assert false == UCOPrice.verify?(%{"eur" => 0.10, "usd" => 0.14})
+      refute UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
     end
   end
 
-  test "should return the median value when multiple providers queried" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.20], "eur" => [0.20]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.30], "eur" => [0.30]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.40], "eur" => [0.40]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
-
-    assert true == UCOPrice.verify?(%{"eur" => 0.30, "usd" => 0.30})
-  end
-
-  test "should return the average of median values when a even number of providers queried" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.10], "eur" => [0.10]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.20, 0.30], "eur" => [0.20, 0.30]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.40], "eur" => [0.40]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
-
-    assert {:ok, %{"eur" => 0.25, "usd" => 0.25}} == UCOPrice.fetch()
-  end
-
   test "verify?/1 should return false when no data are returned from all providers" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [], "eur" => []}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
+    MockUCOProvider1
+    |> expect(:fetch, fn _ ->
+      {:error, ""}
+    end)
+
+    MockUCOProvider2
+    |> expect(:fetch, fn _ ->
+      {:error, ""}
+    end)
+
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider1Cache,
+      mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
     )
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [], "eur" => []}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider2Cache,
+      mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
     )
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [], "eur" => []}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
+    Process.sleep(1)
 
-    assert false == UCOPrice.verify?(%{})
+    {result, log} = with_log(fn -> UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25}) end)
+    assert result == false
+    assert log =~ "Cannot fetch UCO price - reason: no data from any service."
   end
 
   test "should report values even if a provider returns an error" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.10], "eur" => [0.10]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
+    MockUCOProvider1
+    |> expect(:fetch, fn _ ->
+      {:error, ""}
+    end)
+
+    MockUCOProvider2
+    |> expect(:fetch, fn _ ->
+      {:ok, %{"eur" => [0.25], "usd" => [0.25]}}
+    end)
+
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider1Cache,
+      mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
     )
 
-    ## If service returns an error, old value will be returned
-    ## we are so inserting a previous value
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn ->
-        {:ok, %{"usd" => [0.20], "eur" => [0.20]}}
-      end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider2Cache,
+      mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
     )
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:error, :error_message} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
+    Process.sleep(1)
 
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.30], "eur" => [0.30]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
-
-    assert {:ok, %{"eur" => 0.20, "usd" => 0.20}} = UCOPrice.fetch()
-  end
-
-  test "should handle a service timing out" do
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.10], "eur" => [0.10]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn ->
-        {:ok, %{"usd" => [0.20], "eur" => [0.20]}}
-      end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn ->
-        :timer.sleep(5_000)
-        {:ok, {:error, :error_message}}
-      end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-      30_000,
-      :infinity
-    )
-
-    HydratingCache.register_function(
-      Archethic.OracleChain.Services.UCOPrice,
-      fn -> {:ok, %{"usd" => [0.30], "eur" => [0.30]}} end,
-      Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika,
-      30_000,
-      :infinity
-    )
-
-    assert {:ok, %{"eur" => 0.20, "usd" => 0.20}} == UCOPrice.fetch()
-  end
-
-  def fetch(values) do
-    values
+    assert UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
   end
 end
