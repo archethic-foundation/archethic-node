@@ -222,20 +222,24 @@ defmodule ArchethicWeb.BeaconChainLive do
   end
 
   defp list_transactions_from_summaries(date = %DateTime{}) do
-    {%SummaryAggregate{transaction_summaries: tx_summaries}, _} =
+    {%SummaryAggregate{replication_attestations: attestations}, _} =
       Archethic.fetch_and_aggregate_summaries(date)
       |> SummaryAggregate.aggregate()
       |> SummaryAggregate.filter_reached_threshold()
 
-    Enum.sort_by(tx_summaries, & &1.timestamp, {:desc, DateTime})
+    attestations
+    |> Enum.map(& &1.transaction_summary)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 
   defp list_transactions_from_summaries(nil), do: []
 
   defp list_transactions_from_aggregate(date = %DateTime{}) do
     case Archethic.fetch_summaries_aggregate(date) do
-      {:ok, %SummaryAggregate{transaction_summaries: tx_summaries}} ->
-        Enum.sort_by(tx_summaries, & &1.timestamp, {:desc, DateTime})
+      {:ok, %SummaryAggregate{replication_attestations: attestations}} ->
+        attestations
+        |> Enum.map(& &1.transaction_summary)
+        |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
 
       _ ->
         []

@@ -219,14 +219,14 @@ defmodule Archethic.BeaconChainTest do
           {:ok, tx_summary}
       end)
 
-      %SummaryAggregate{transaction_summaries: transaction_summaries} =
+      %SummaryAggregate{replication_attestations: attestations} =
         BeaconChain.fetch_and_aggregate_summaries(
           summary_time,
           P2P.authorized_and_available_nodes()
         )
         |> SummaryAggregate.aggregate()
 
-      assert [addr1] == Enum.map(transaction_summaries, & &1.transaction_summary.address)
+      assert [addr1] == Enum.map(attestations, & &1.transaction_summary.address)
     end
 
     test "should find other beacon summaries and aggregate missing summaries", %{
@@ -315,14 +315,14 @@ defmodule Archethic.BeaconChainTest do
           {:ok, tx_summary}
       end)
 
-      %SummaryAggregate{transaction_summaries: transaction_summaries} =
+      %SummaryAggregate{replication_attestations: attestations} =
         BeaconChain.fetch_and_aggregate_summaries(
           summary_time,
           P2P.authorized_and_available_nodes()
         )
         |> SummaryAggregate.aggregate()
 
-      transaction_addresses = Enum.map(transaction_summaries, & &1.transaction_summary.address)
+      transaction_addresses = Enum.map(attestations, & &1.transaction_summary.address)
 
       assert Enum.all?(transaction_addresses, &(&1 in [addr1, addr2]))
     end

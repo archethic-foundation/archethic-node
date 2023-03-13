@@ -1,6 +1,7 @@
 defmodule Archethic.DB.EmbeddedTest do
   use ArchethicCase, async: false
 
+  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryAggregate
 
@@ -240,12 +241,15 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should retrieve a beacon summaries aggregate" do
       aggregate = %SummaryAggregate{
         summary_time: ~U[2020-09-01 00:00:00Z],
-        transaction_summaries: [
-          %TransactionSummary{
-            type: :transfer,
-            address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-            fee: 100_000_000,
-            timestamp: ~U[2020-08-31 20:00:00.232Z]
+        replication_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: %TransactionSummary{
+              type: :transfer,
+              address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+              fee: 100_000_000,
+              timestamp: ~U[2020-08-31 20:00:00.232Z]
+            },
+            confirmations: Enum.map(0..2, &{&1, "signature#{&1}"})
           }
         ],
         p2p_availabilities: %{

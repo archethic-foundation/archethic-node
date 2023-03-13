@@ -496,12 +496,15 @@ defmodule Archethic.SelfRepair.SyncTest do
                Sync.process_summary_aggregate(
                  %SummaryAggregate{
                    summary_time: DateTime.utc_now(),
-                   transaction_summaries: [
-                     %TransactionSummary{
-                       address: tx_address,
-                       type: :transfer,
-                       timestamp: DateTime.utc_now(),
-                       fee: 0
+                   replication_attestations: [
+                     %ReplicationAttestation{
+                       transaction_summary: %TransactionSummary{
+                         address: tx_address,
+                         type: :transfer,
+                         timestamp: DateTime.utc_now(),
+                         fee: 0
+                       },
+                       confirmations: []
                      }
                    ],
                    availability_adding_time: 10

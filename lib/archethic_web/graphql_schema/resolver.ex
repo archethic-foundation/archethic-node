@@ -8,6 +8,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   alias Archethic.P2P
 
   alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.Subset.P2PSampling
 
@@ -232,11 +233,17 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   end
 
   defp create_empty_beacon_summary_aggregate(transactions_list, datetime = %DateTime{}) do
+    attestations =
+      Enum.map(
+        transactions_list,
+        &%ReplicationAttestation{transaction_summary: &1, confirmations: []}
+      )
+
     %SummaryAggregate{
       summary_time: datetime,
       availability_adding_time: [],
       version: 1,
-      transaction_summaries: transactions_list,
+      replication_attestations: attestations,
       p2p_availabilities: %{}
     }
   end

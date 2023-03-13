@@ -772,38 +772,40 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         |> DateTime.add(-1, :day)
         |> DateTime.to_unix()
 
-      transaction_summaries = [
-        %TransactionSummary{
-          timestamp: ~U[2022-12-06 23:56:00.006Z],
-          address:
-            <<0, 0, 206, 240, 245, 203, 197, 124, 94, 244, 159, 116, 250, 33, 156, 45, 76, 218,
-              205, 36, 102, 210, 113, 143, 12, 21, 228, 164, 14, 115, 91, 21, 80, 247>>,
-          type: :oracle_summary,
-          fee: 0,
-          movements_addresses: []
-        },
-        %TransactionSummary{
-          timestamp: ~U[2022-12-06 23:56:00.042Z],
-          address:
-            <<0, 0, 93, 87, 204, 21, 164, 60, 42, 148, 90, 78, 173, 11, 77, 189, 104, 15, 120, 6,
-              54, 35, 203, 176, 246, 200, 100, 215, 101, 150, 29, 59, 225, 65>>,
-          type: :oracle,
-          fee: 0,
-          movements_addresses: []
-        },
-        %TransactionSummary{
-          timestamp: ~U[2022-12-06 23:56:30.865Z],
-          address:
-            <<0, 0, 234, 152, 107, 255, 80, 152, 50, 245, 184, 183, 134, 17, 162, 71, 41, 203, 94,
-              81, 174, 188, 75, 128, 218, 110, 53, 11, 68, 5, 242, 31, 191, 202>>,
-          type: :node_rewards,
-          fee: 0,
-          movements_addresses: [
-            <<0, 0, 238, 157, 220, 82, 41, 235, 255, 225, 151, 39, 112, 88, 241, 26, 65, 226, 34,
-              82, 216, 106, 144, 76, 140, 188, 243, 140, 30, 252, 66, 171, 80, 101>>
-          ]
-        }
-      ]
+      attestations =
+        [
+          %TransactionSummary{
+            timestamp: ~U[2022-12-06 23:56:00.006Z],
+            address:
+              <<0, 0, 206, 240, 245, 203, 197, 124, 94, 244, 159, 116, 250, 33, 156, 45, 76, 218,
+                205, 36, 102, 210, 113, 143, 12, 21, 228, 164, 14, 115, 91, 21, 80, 247>>,
+            type: :oracle_summary,
+            fee: 0,
+            movements_addresses: []
+          },
+          %TransactionSummary{
+            timestamp: ~U[2022-12-06 23:56:00.042Z],
+            address:
+              <<0, 0, 93, 87, 204, 21, 164, 60, 42, 148, 90, 78, 173, 11, 77, 189, 104, 15, 120,
+                6, 54, 35, 203, 176, 246, 200, 100, 215, 101, 150, 29, 59, 225, 65>>,
+            type: :oracle,
+            fee: 0,
+            movements_addresses: []
+          },
+          %TransactionSummary{
+            timestamp: ~U[2022-12-06 23:56:30.865Z],
+            address:
+              <<0, 0, 234, 152, 107, 255, 80, 152, 50, 245, 184, 183, 134, 17, 162, 71, 41, 203,
+                94, 81, 174, 188, 75, 128, 218, 110, 53, 11, 68, 5, 242, 31, 191, 202>>,
+            type: :node_rewards,
+            fee: 0,
+            movements_addresses: [
+              <<0, 0, 238, 157, 220, 82, 41, 235, 255, 225, 151, 39, 112, 88, 241, 26, 65, 226,
+                34, 82, 216, 106, 144, 76, 140, 188, 243, 140, 30, 252, 66, 171, 80, 101>>
+            ]
+          }
+        ]
+        |> Enum.map(&%ReplicationAttestation{transaction_summary: &1, confirmations: []})
 
       str_filtered_transaction_summaries = %{
         "data" => %{
@@ -827,7 +829,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       MockClient
       |> expect(:send_message, fn
         _, %GetBeaconSummariesAggregate{}, _ ->
-          {:ok, %SummaryAggregate{transaction_summaries: transaction_summaries}}
+          {:ok, %SummaryAggregate{replication_attestations: attestations}}
       end)
 
       conn =
