@@ -23,15 +23,17 @@ defmodule ArchethicWeb.GraphQLSchema.BeaconChainSummary do
       resolve(fn args,
                  %{
                    source: %SummaryAggregate{
-                     transaction_summaries: transaction_summaries
+                     replication_attestations: attestations
                    }
                  } ->
         limit = Map.get(args, :limit, @default_limit)
         paging_offset = Map.get(args, :paging_offset, 0)
 
+        # TODO: Replace transaction summaries by attestations
         result =
-          transaction_summaries
-          |> Enum.drop(paging_offset)
+          attestations
+          |> Stream.map(& &1.transaction_summary)
+          |> Stream.drop(paging_offset)
           |> Enum.take(limit)
 
         {:ok, result}

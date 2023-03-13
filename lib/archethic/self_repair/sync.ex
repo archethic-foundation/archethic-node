@@ -267,13 +267,15 @@ defmodule Archethic.SelfRepair.Sync do
   def process_summary_aggregate(
         aggregate = %SummaryAggregate{
           summary_time: summary_time,
-          transaction_summaries: transaction_summaries,
+          replication_attestations: attestations,
           p2p_availabilities: p2p_availabilities,
           availability_adding_time: availability_adding_time
         },
         download_nodes
       ) do
     start_time = System.monotonic_time()
+
+    transaction_summaries = attestations |> Enum.map(& &1.transaction_summary)
 
     transactions_to_sync =
       transaction_summaries
