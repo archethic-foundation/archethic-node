@@ -24,8 +24,10 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetBeaconSummariesAggregate
+  alias Archethic.P2P.Message.GetCurrentSummaries
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.TransactionSummaryList
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain.TransactionSummary
@@ -260,29 +262,13 @@ defmodule Archethic.BeaconChain do
   end
 
   @doc """
-  Request from the beacon chains all the summaries for the given dates and aggregate them
+  Request from the beacon chains all the summaries for the given date and aggregate them.
 
-  ```
-   [0, 1, ...]    Subsets
-      / | \
-     /  |  \
-  [ ]  [ ]  [ ]  Node election for each dates to sync
-   |\  /|\  /|
-   | \/ | \/ |
-   | /\ | /\ |
-  [ ]  [ ]  [ ] Partition by node
-   |    |    |
-  [ ]  [ ]  [ ] Aggregate addresses
-   |    |    |
-  [ ]  [ ]  [ ] Fetch summaries
-   |    |    |
-  [ ]  [ ]  [ ] Aggregate and consolidate summaries
-   \    |    /
-    \   |   /
-     \  |  /
-      \ | /
-       [ ]
-  ```
+  There are 256 concurrent requests (at worst there might be subsets_count(=256) * storage_nodes_count(=197) requests to do here)
+  Then there is a trick to reduce the summaries while still in a stream to avoid the need to store a list of all summaries in memory.
+
+  (The SummaryAggregate is much smaller than the entire list of summaries because of the mechanism that removes duplicate)
+  FYI: We used to use Flow here, but we noticed a very high memory footprint.
   """
   @spec fetch_and_aggregate_summaries(DateTime.t(), list(Node.t())) :: SummaryAggregate.t()
   def fetch_and_aggregate_summaries(date = %DateTime{}, download_nodes) do
@@ -290,32 +276,83 @@ defmodule Archethic.BeaconChain do
       download_nodes
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
+    # get the summaries addresses to download per node
     list_subsets()
-    |> Flow.from_enumerable(stages: 256)
-    |> Flow.flat_map(fn subset ->
-      # Foreach subset we compute concurrently the node election
+    |> Enum.map(fn subset ->
       get_summary_address_by_node(date, subset, authorized_nodes)
     end)
-    # We partition by node
-    |> Flow.partition(key: {:elem, 0})
-    |> Flow.reduce(fn -> %{} end, fn {node, summary_address}, acc ->
-      # We aggregate the addresses for a given node
-      Map.update(acc, node, [summary_address], &[summary_address | &1])
+    |> Enum.reduce(%{}, fn address_by_node, acc0 ->
+      Enum.reduce(address_by_node, acc0, fn {node, address}, acc1 ->
+        Map.update(acc1, node, [address], &[address | &1])
+      end)
     end)
-    |> Flow.flat_map(fn {node, addresses} ->
-      # For this node we fetch the summaries
-      fetch_summaries(node, addresses)
-    end)
-    # We departition to build the final summarie aggregate
-    |> Flow.departition(
+
+    # download the summaries
+    |> Task.async_stream(
+      fn {node, addresses} ->
+        fetch_beacon_summaries(node, addresses)
+      end,
+      ordered: false,
+      max_concurrency: 256
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.map(fn {:ok, summaries} -> summaries end)
+
+    # aggregate the summaries
+    # this transform here is equivalent to a Stream.reduce
+    |> Stream.transform(
       fn -> %SummaryAggregate{summary_time: date} end,
       fn summaries, acc ->
-        Enum.reduce(summaries, acc, &SummaryAggregate.add_summary(&2, &1))
+        {[], Enum.reduce(summaries, acc, &SummaryAggregate.add_summary(&2, &1))}
       end,
+      fn acc -> {[acc], nil} end,
       & &1
     )
     |> Enum.to_list()
     |> Enum.at(0)
+  end
+
+  @doc """
+  Function only used by the explorer to retrieve current slot transactions.
+  We only ask 3 nodes because it's OK if it's not 100% accurate.
+  """
+  @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
+          list(TransactionSummary.t())
+  def list_transactions_summaries_from_current_slot(date = %DateTime{} \\ DateTime.utc_now()) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    next_summary_date = next_summary_date(DateTime.truncate(date, :millisecond))
+
+    # get the subsets to request per node
+    list_subsets()
+    |> Enum.map(fn subset ->
+      subset
+      |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
+      |> Enum.filter(&Node.locally_available?/1)
+      |> P2P.nearest_nodes()
+      |> Enum.take(3)
+      |> Enum.map(&{&1, subset})
+    end)
+    |> Enum.reduce(%{}, fn subset_by_node, acc0 ->
+      Enum.reduce(subset_by_node, acc0, fn {node, subset}, acc1 ->
+        Map.update(acc1, node, [subset], &[subset | &1])
+      end)
+    end)
+
+    # download the summaries
+    |> Task.async_stream(
+      fn {node, subsets} ->
+        fetch_current_summaries(node, subsets)
+      end,
+      ordered: false,
+      max_concurrency: 256
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(fn {:ok, summaries} -> summaries end)
+
+    # remove duplicates & sort
+    |> Stream.uniq_by(& &1.address)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 
   defp get_summary_address_by_node(date, subset, authorized_nodes) do
@@ -328,7 +365,24 @@ defmodule Archethic.BeaconChain do
     end)
   end
 
-  defp fetch_summaries(node, addresses) do
+  defp fetch_current_summaries(node, subsets) do
+    subsets
+    |> Stream.chunk_every(10)
+    |> Task.async_stream(fn subsets ->
+      case P2P.send_message(node, %GetCurrentSummaries{subsets: subsets}) do
+        {:ok, %TransactionSummaryList{transaction_summaries: transaction_summaries}} ->
+          transaction_summaries
+
+        _ ->
+          []
+      end
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(&elem(&1, 1))
+    |> Enum.to_list()
+  end
+
+  defp fetch_beacon_summaries(node, addresses) do
     Logger.info(
       "Self repair start download #{Enum.count(addresses)} summaries on node #{Base.encode16(node.first_public_key)}"
     )

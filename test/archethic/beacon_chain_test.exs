@@ -22,6 +22,8 @@ defmodule Archethic.BeaconChainTest do
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.BeaconSummaryList
+  alias Archethic.P2P.Message.GetCurrentSummaries
+  alias Archethic.P2P.Message.TransactionSummaryList
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
@@ -512,6 +514,46 @@ defmodule Archethic.BeaconChainTest do
                |> SummaryAggregate.aggregate()
 
       assert [0.925, 0.8, 0.925, 0.85] == node_average_availabilities
+    end
+  end
+
+  describe "list_transactions_summaries_from_current_slot/0" do
+    test "should work" do
+      SummaryTimer.start_link([interval: "0 0 * * * * *"], [])
+      now = DateTime.utc_now()
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        last_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: now |> DateTime.add(-10)
+      })
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetCurrentSummaries{}, _ ->
+          {:ok,
+           %TransactionSummaryList{
+             transaction_summaries: [
+               %TransactionSummary{
+                 address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 timestamp: now
+               }
+             ]
+           }}
+      end)
+
+      summaries = BeaconChain.list_transactions_summaries_from_current_slot()
+
+      # there are 256 subsets, and we query the summaries 10 by 10
+      # so we call the GetCurrentSummaries 26 times
+      # each call to GetCurrentSummaries return a list of 1 transactionSummary (mock above)
+      assert length(summaries) == 26
     end
   end
 end
