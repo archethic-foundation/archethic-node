@@ -97,10 +97,15 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   end
 
   test "download_transaction?/1 should return true when the node is a chain storage node" do
+    nodes = [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
+
     assert true =
-             TransactionHandler.download_transaction?(%TransactionSummary{
-               address: "@Alice2"
-             })
+             TransactionHandler.download_transaction?(
+               %TransactionSummary{
+                 address: "@Alice2"
+               },
+               nodes
+             )
   end
 
   test "download_transaction/2 should download the transaction" do

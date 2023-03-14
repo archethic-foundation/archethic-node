@@ -9,7 +9,6 @@ defmodule Archethic.SelfRepair.Sync do
     PubSub,
     SelfRepair,
     TaskSupervisor,
-    TransactionChain,
     Utils
   }
 
@@ -276,11 +275,14 @@ defmodule Archethic.SelfRepair.Sync do
     start_time = System.monotonic_time()
 
     transaction_summaries = attestations |> Enum.map(& &1.transaction_summary)
+    previous_available_nodes = P2P.authorized_and_available_nodes()
+
+    nodes_including_self =
+      [P2P.get_node_info() | previous_available_nodes] |> P2P.distinct_nodes()
 
     transactions_to_sync =
       transaction_summaries
-      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address, :io))
-      |> Enum.filter(&TransactionHandler.download_transaction?/1)
+      |> Enum.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
 
     synchronize_transactions(transactions_to_sync, download_nodes)
 
@@ -291,8 +293,6 @@ defmodule Archethic.SelfRepair.Sync do
     )
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
-
-    previous_available_nodes = P2P.authorized_and_available_nodes()
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
