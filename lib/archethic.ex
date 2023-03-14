@@ -102,7 +102,7 @@ defmodule Archethic do
     # If new nodes have been authorized, they only will be selected at the application date
     node_list = P2P.authorized_and_available_nodes(current_date)
 
-    storage_nodes = Election.chain_storage_nodes_with_type(tx.address, tx.type, node_list)
+    storage_nodes = Election.chain_storage_nodes(tx.address, node_list)
 
     validation_nodes =
       Election.validation_nodes(

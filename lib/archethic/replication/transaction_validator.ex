@@ -189,7 +189,6 @@ defmodule Archethic.Replication.TransactionValidator do
   defp valid_election?(
          tx = %Transaction{
            address: tx_address,
-           type: tx_type,
            validation_stamp:
              validation_stamp = %ValidationStamp{
                timestamp: tx_timestamp,
@@ -208,12 +207,7 @@ defmodule Archethic.Replication.TransactionValidator do
         daily_nonce_public_key == SharedSecrets.genesis_daily_nonce_public_key()
 
       _ ->
-        storage_nodes =
-          Election.chain_storage_nodes_with_type(
-            tx_address,
-            tx_type,
-            authorized_nodes
-          )
+        storage_nodes = Election.chain_storage_nodes(tx_address, authorized_nodes)
 
         validation_nodes =
           Election.validation_nodes(
