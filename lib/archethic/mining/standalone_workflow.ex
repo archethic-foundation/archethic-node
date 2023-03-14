@@ -66,12 +66,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
     authorized_nodes = [current_node]
 
-    chain_storage_nodes =
-      Election.chain_storage_nodes_with_type(
-        tx.address,
-        tx.type,
-        authorized_nodes
-      )
+    chain_storage_nodes = Election.chain_storage_nodes(tx.address, authorized_nodes)
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(

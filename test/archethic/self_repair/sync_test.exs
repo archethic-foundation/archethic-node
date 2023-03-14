@@ -182,11 +182,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       }
 
       elected_storage_nodes =
-        Election.chain_storage_nodes_with_type(
-          tx.address,
-          :transfer,
-          P2P.authorized_and_available_nodes()
-        )
+        Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes())
 
       welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
       storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
@@ -312,11 +308,7 @@ defmodule Archethic.SelfRepair.SyncTest do
     tx1_summary = TransactionSummary.from_transaction(tx1)
 
     elected_storage_nodes =
-      Election.chain_storage_nodes_with_type(
-        tx1.address,
-        :transfer,
-        P2P.authorized_and_available_nodes(tx_timestamp)
-      )
+      Election.chain_storage_nodes(tx1.address, P2P.authorized_and_available_nodes(tx_timestamp))
 
     # First Replication with enough threshold
     attestation1 = %ReplicationAttestation{
@@ -363,11 +355,7 @@ defmodule Archethic.SelfRepair.SyncTest do
     tx2_summary = TransactionSummary.from_transaction(tx2)
 
     elected_storage_nodes =
-      Election.chain_storage_nodes_with_type(
-        tx2.address,
-        :transfer,
-        P2P.authorized_and_available_nodes()
-      )
+      Election.chain_storage_nodes(tx2.address, P2P.authorized_and_available_nodes())
 
     # Second Replication without enough threshold
     attestation2 = %ReplicationAttestation{

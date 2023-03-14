@@ -190,12 +190,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
-    chain_storage_nodes =
-      Election.chain_storage_nodes_with_type(
-        tx.address,
-        tx.type,
-        authorized_nodes
-      )
+    chain_storage_nodes = Election.chain_storage_nodes(tx.address, authorized_nodes)
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(

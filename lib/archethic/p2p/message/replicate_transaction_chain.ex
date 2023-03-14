@@ -39,20 +39,16 @@ defmodule Archethic.P2P.Message.ReplicateTransactionChain do
     # We don't check the election for network transactions because all the nodes receive the chain replication message
     # The chain storage nodes election is all the authorized nodes but during I/O replication, we send this message to enforce
     # the synchronization of the network chains
-    if Transaction.network_type?(tx_type) do
-      process_replication_chain(tx, replying_node_public_key)
-    else
-      storage_nodes =
-        Election.chain_storage_nodes_with_type(
-          tx_address,
-          tx_type,
-          P2P.authorized_and_available_nodes(timestamp)
-        )
+    storage_nodes =
+      Election.chain_storage_nodes_with_type(
+        tx_address,
+        tx_type,
+        P2P.authorized_and_available_nodes(timestamp)
+      )
 
-      # Replicate transaction chain only if the current node is one of the chain storage nodes
-      if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
-        process_replication_chain(tx, replying_node_public_key)
-      end
+    # Replicate transaction chain only if the current node is one of the chain storage nodes
+    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
+      process_replication_chain(tx, replying_node_public_key)
     end
 
     %Ok{}
