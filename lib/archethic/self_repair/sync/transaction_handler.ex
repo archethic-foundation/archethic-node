@@ -6,6 +6,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   alias Archethic.P2P.Message
 
@@ -25,25 +26,28 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   Verify firstly the chain storage nodes election.
   If not successful, perform storage nodes election based on the transaction movements.
   """
-  @spec download_transaction?(TransactionSummary.t()) :: boolean()
-  def download_transaction?(%TransactionSummary{
-        address: address,
-        type: type,
-        movements_addresses: mvt_addresses
-      }) do
-    node_list =
-      [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
-
+  @spec download_transaction?(TransactionSummary.t(), list(Node.t())) :: boolean()
+  def download_transaction?(
+        %TransactionSummary{
+          address: address,
+          type: type,
+          movements_addresses: mvt_addresses
+        },
+        node_list
+      ) do
     chain_storage_nodes = Election.chain_storage_nodes_with_type(address, type, node_list)
 
     if Utils.key_in_node_list?(chain_storage_nodes, Crypto.first_node_public_key()) do
-      true
+      not TransactionChain.transaction_exists?(address)
     else
-      Enum.any?(mvt_addresses, fn address ->
-        address
-        |> Election.chain_storage_nodes(node_list)
-        |> Utils.key_in_node_list?(Crypto.first_node_public_key())
-      end)
+      io_node? =
+        Enum.any?(mvt_addresses, fn address ->
+          address
+          |> Election.chain_storage_nodes(node_list)
+          |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+        end)
+
+      io_node? and not TransactionChain.transaction_exists?(address, :io)
     end
   end
 
