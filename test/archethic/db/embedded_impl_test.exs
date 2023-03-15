@@ -247,7 +247,8 @@ defmodule Archethic.DB.EmbeddedTest do
               type: :transfer,
               address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
               fee: 100_000_000,
-              timestamp: ~U[2020-08-31 20:00:00.232Z]
+              timestamp: ~U[2020-08-31 20:00:00.232Z],
+              validation_stamp_checksum: :crypto.strong_rand_bytes(32)
             },
             confirmations: Enum.map(0..2, &{&1, "signature#{&1}"})
           }

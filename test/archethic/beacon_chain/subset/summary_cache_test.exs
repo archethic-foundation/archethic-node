@@ -33,7 +33,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
             timestamp: ~U[2020-06-25 15:11:53.000Z],
             type: :transfer,
             movements_addresses: [],
-            fee: 10_000_000
+            fee: 10_000_000,
+            validation_stamp_checksum: :crypto.strong_rand_bytes(32)
           },
           confirmations: [
             {0,
