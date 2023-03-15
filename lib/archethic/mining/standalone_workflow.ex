@@ -26,7 +26,6 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.ReplicationAttestationMessage
   alias Archethic.P2P.Message.ReplicateTransaction
-  alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.ValidationError
@@ -361,13 +360,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         transaction_type: validated_tx.type
       )
     end)
-    |> P2P.broadcast_message(
-      if Transaction.network_type?(validated_tx.type),
-        do: %ReplicateTransactionChain{
-          transaction: validated_tx
-        },
-        else: %ReplicateTransaction{transaction: validated_tx}
-    )
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
   end
 
   defp notify_previous_chain(
