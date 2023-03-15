@@ -65,7 +65,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
      }}
   end
 
-  describe "validate/2" do
+  describe "validate/1" do
     test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached" do
       unspent_outputs = [
         %UnspentOutput{
@@ -78,31 +78,31 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert {:error, :invalid_atomic_commitment} =
                TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
-               |> TransactionValidator.validate(false)
+               |> TransactionValidator.validate()
     end
 
     test "should return {:error, :invalid_proof_of_work} when an invalid proof of work" do
       assert {:error, :invalid_proof_of_work} =
                TransactionFactory.create_transaction_with_invalid_proof_of_work()
-               |> TransactionValidator.validate(false)
+               |> TransactionValidator.validate()
     end
 
     test "should return {:error, :invalid_node_election} when the validation stamp signature is invalid" do
       assert {:error, :invalid_node_election} =
                TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
-               |> TransactionValidator.validate(false)
+               |> TransactionValidator.validate()
     end
 
     test "should return {:error, :invalid_transaction_fee} when the fees are invalid" do
       assert {:error, :invalid_transaction_fee} =
                TransactionFactory.create_transaction_with_invalid_fee()
-               |> TransactionValidator.validate(false)
+               |> TransactionValidator.validate()
     end
 
     test "should return {:error, :invalid_transaction_movements} when the transaction movements are invalid" do
       assert {:error, :invalid_transaction_movements} =
                TransactionFactory.create_transaction_with_invalid_transaction_movements()
-               |> TransactionValidator.validate(false)
+               |> TransactionValidator.validate()
     end
 
     test "should return {:error, :invalid_transaction_with_inconsistencies} when there is an atomic commitment but with inconsistencies" do
@@ -117,7 +117,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert {:error, :invalid_transaction_with_inconsistencies} =
                TransactionFactory.create_valid_transaction_with_inconsistencies(unspent_outputs)
-               |> TransactionValidator.validate(false)
+               |> TransactionValidator.validate()
     end
 
     test "should return :ok when the transaction is valid" do
@@ -132,7 +132,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert :ok =
                TransactionFactory.create_valid_transaction(unspent_outputs)
-               |> TransactionValidator.validate(false)
+               |> TransactionValidator.validate()
     end
   end
 
@@ -149,7 +149,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert :ok =
                TransactionFactory.create_valid_transaction(unspent_outputs)
-               |> TransactionValidator.validate(nil, unspent_outputs, false)
+               |> TransactionValidator.validate(nil, unspent_outputs)
     end
   end
 end

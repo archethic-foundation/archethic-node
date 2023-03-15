@@ -45,8 +45,7 @@ defmodule Archethic.Replication.TransactionContextTest do
       authorization_date: DateTime.utc_now()
     })
 
-    assert %Transaction{} =
-             TransactionContext.fetch_transaction("@Alice1", P2P.authorized_and_available_nodes())
+    assert %Transaction{} = TransactionContext.fetch_transaction("@Alice1")
   end
 
   test "stream_transaction_chain/1 should retrieve the previous transaction chain" do
@@ -152,10 +151,6 @@ defmodule Archethic.Replication.TransactionContextTest do
     })
 
     assert [%TransactionInput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
-             TransactionContext.fetch_transaction_inputs(
-               "@Alice1",
-               DateTime.utc_now(),
-               P2P.authorized_and_available_nodes()
-             )
+             TransactionContext.fetch_transaction_inputs("@Alice1", DateTime.utc_now())
   end
 end
