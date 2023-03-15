@@ -643,10 +643,7 @@ defmodule Archethic.TransactionChain do
     case get_transaction(address, [
            :address,
            :type,
-           validation_stamp: [
-             :timestamp,
-             ledger_operations: [:fee, :transaction_movements]
-           ]
+           :validation_stamp
          ]) do
       {:ok, tx} ->
         {:ok, TransactionSummary.from_transaction(tx)}

@@ -189,7 +189,8 @@ defmodule Archethic.BeaconChainTest do
         address: addr1,
         timestamp: DateTime.utc_now(),
         type: :transfer,
-        fee: 100_000_000
+        fee: 100_000_000,
+        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
       }
 
       nodes = P2P.authorized_and_available_nodes() |> Enum.sort_by(& &1.first_public_key)
@@ -244,7 +245,8 @@ defmodule Archethic.BeaconChainTest do
         address: addr1,
         timestamp: DateTime.utc_now(),
         type: :transfer,
-        fee: 100_000_000
+        fee: 100_000_000,
+        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
       }
 
       summary_v1 = %Summary{
@@ -285,7 +287,8 @@ defmodule Archethic.BeaconChainTest do
               address: addr2,
               timestamp: DateTime.utc_now(),
               type: :transfer,
-              fee: 100_000_000
+              fee: 100_000_000,
+              validation_stamp_checksum: :crypto.strong_rand_bytes(32)
             },
             confirmations:
               [node1, node2, node3, node4]
