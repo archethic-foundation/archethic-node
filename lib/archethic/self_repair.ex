@@ -224,7 +224,7 @@ defmodule Archethic.SelfRepair do
 
   @spec resync_p2p() :: :ok
   def resync_p2p() do
-    spawn(fn ->
+    Task.async(fn ->
       # avoid running it multiple times concurrently
       unless :persistent_term.get(:resync_p2p_running, false) do
         try do
