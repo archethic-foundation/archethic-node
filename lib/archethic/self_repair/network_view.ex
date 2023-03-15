@@ -28,16 +28,19 @@ defmodule Archethic.SelfRepair.NetworkView do
       # binary()
       oracle: nil,
       # list(binary())
-      origin: []
+      origin: [],
+      chains_hash: <<>>
     ]
   end
 
+  # ------------------------------------------------------
   #               _
   #    __ _ _ __ (_)
   #   / _` | '_ \| |
   #  | (_| | |_) | |
   #   \__,_| .__/|_|
   #        |_|
+  # ------------------------------------------------------
 
   @doc """
   Start the NetworkView server
@@ -82,12 +85,14 @@ defmodule Archethic.SelfRepair.NetworkView do
 
   def load_transaction(_), do: :ok
 
+  # ------------------------------------------------------
   #            _ _ _                _
   #   ___ __ _| | | |__   __ _  ___| | _____
   #  / __/ _` | | | '_ \ / _` |/ __| |/ / __|
   # | (_| (_| | | | |_) | (_| | (__|   <\__ \
   #  \___\__,_|_|_|_.__/ \__,_|\___|_|\_|___/
   #
+  # ------------------------------------------------------
 
   def init([]) do
     state =
@@ -99,24 +104,19 @@ defmodule Archethic.SelfRepair.NetworkView do
         :not_initialized
       end
 
-    {:ok, state}
+    {:ok, state, {:continue, :update_hash}}
   end
 
+  # ------------------------------------------------------
   def handle_call(:get_chains_hash, _from, state = %State{}) do
-    hash =
-      Crypto.hash([
-        state.node_shared_secrets,
-        state.oracle,
-        state.origin
-      ])
-
-    {:reply, hash, state}
+    {:reply, state.chains_hash, state}
   end
 
-  def handle_call(_msg, _from, state) do
+  def handle_call(_msg, _from, state = :not_initialized) do
     {:reply, :error, state}
   end
 
+  # ------------------------------------------------------
   def handle_cast({:load_transaction, transaction_type, address}, state = %State{}) do
     new_state =
       case transaction_type do
@@ -127,22 +127,40 @@ defmodule Archethic.SelfRepair.NetworkView do
           Map.put(state, transaction_type, address)
       end
 
-    {:noreply, new_state}
+    {:noreply, new_state, {:continue, :update_hash}}
   end
 
-  def handle_cast(_msg, state) do
+  def handle_cast(_msg, state = :not_initialized) do
     {:noreply, state}
   end
 
+  # ------------------------------------------------------
   def handle_info(:node_up, _state) do
     state = fetch_initial_state()
-    {:noreply, state}
+    {:noreply, state, {:continue, :update_hash}}
   end
 
   def handle_info(:node_down, state) do
     {:noreply, state}
   end
 
+  # ------------------------------------------------------
+  def handle_continue(:update_hash, state = :not_initialized) do
+    {:noreply, state}
+  end
+
+  def handle_continue(:update_hash, state = %State{}) do
+    hash =
+      Crypto.hash([
+        state.node_shared_secrets,
+        state.oracle,
+        state.origin
+      ])
+
+    {:noreply, %State{state | chains_hash: hash}}
+  end
+
+  # ------------------------------------------------------
   #              _            _
   #   _ __  _ __(___   ____ _| |_ ___
   #  | '_ \| '__| \ \ / / _` | __/ _ \
@@ -150,6 +168,7 @@ defmodule Archethic.SelfRepair.NetworkView do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   #
+  # ------------------------------------------------------
 
   defp fetch_initial_state() do
     last_known_nss_address =
