@@ -192,11 +192,10 @@ defmodule ArchethicWeb.API.TransactionController do
                 "recipient_address" => Base.encode16(recipient)
               }
 
-            {{:exit, _reason}, recipient} ->
-              # TODO: find a way to prettify the error and remove the stacktrace
+            {{:exit, reason}, recipient} ->
               %{
                 "valid" => false,
-                "reason" => "A contract exited while simulating",
+                "reason" => format_exit_reason(reason),
                 "recipient_address" => Base.encode16(recipient)
               }
           end)
@@ -227,5 +226,23 @@ defmodule ArchethicWeb.API.TransactionController do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp format_exit_reason({error_atom, stacktrace}) do
+    Enum.reduce_while(
+      stacktrace,
+      "A contract exited with error: #{error_atom}",
+      fn
+        {:elixir_eval, _, _, [file: 'nofile', line: line]}, acc ->
+          {:halt, acc <> " (line: #{line})"}
+
+        _, acc ->
+          {:cont, acc}
+      end
+    )
+  end
+
+  defp format_exit_reason(_) do
+    "A contract exited with an unknown error"
   end
 end

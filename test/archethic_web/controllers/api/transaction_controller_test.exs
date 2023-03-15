@@ -192,11 +192,13 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
           [
             %{
               "valid" => true,
-              "address" => "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D66"
+              "recipient_address" =>
+                "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D66"
             },
             %{
               "valid" => true,
-              "address" => "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D67"
+              "recipient_address" =>
+                "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D67"
             }
           ],
           json_response(conn, 200)
