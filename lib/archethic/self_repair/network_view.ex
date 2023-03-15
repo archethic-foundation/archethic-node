@@ -55,7 +55,7 @@ defmodule Archethic.SelfRepair.NetworkView do
     # this is not using the genserver
     # since the nodes' state is already in the P2P module
     P2P.authorized_and_available_nodes()
-    |> Enum.map_join(& &1.last_public_key)
+    |> Enum.map(& &1.last_public_key)
     |> Crypto.hash()
   end
 
@@ -104,13 +104,11 @@ defmodule Archethic.SelfRepair.NetworkView do
 
   def handle_call(:get_chains_hash, _from, state = %State{}) do
     hash =
-      [
+      Crypto.hash([
         state.node_shared_secrets,
         state.oracle,
-        state.origin |> Enum.join()
-      ]
-      |> Enum.join()
-      |> Crypto.hash()
+        state.origin
+      ])
 
     {:reply, hash, state}
   end
