@@ -3,186 +3,158 @@ defmodule Archethic.Contracts.Interpreter do
 
   require Logger
 
-  alias Archethic.Contracts.ActionInterpreter
-  alias Archethic.Contracts.ConditionInterpreter
-
-  alias __MODULE__.Utils, as: InterpreterUtils
+  alias __MODULE__.Legacy
+  alias __MODULE__.ActionInterpreter
+  alias __MODULE__.ConditionInterpreter
+  alias __MODULE__.ConditionValidator
 
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractConditions, as: Conditions
 
-  @doc ~S"""
-  Parse a smart contract code and return the filtered AST representation.
+  alias Archethic.TransactionChain.Transaction
 
-  The parser uses a whitelist of instructions, the rest will be rejected
+  @type version() :: integer()
 
-  ## Examples
-
-      iex> Interpreter.parse("
-      ...>    condition transaction: [
-      ...>      content: regex_match?(\"^Mr.Y|Mr.X{1}$\"),
-      ...>      origin_family: biometric
-      ...>    ]
-      ...>
-      ...>    condition inherit: [
-      ...>       content: regex_match?(\"hello\")
-      ...>    ]
-      ...>
-      ...>    condition oracle: [
-      ...>      content: json_path_extract(\"$.uco.eur\") > 1
-      ...>    ]
-      ...>
-      ...>    actions triggered_by: datetime, at: 1603270603 do
-      ...>      new_content = \"Sent #{1_040_000_000}\"
-      ...>      set_type transfer
-      ...>      set_content new_content
-      ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 1_040_000_000
-      ...>    end
-      ...>
-      ...>    actions triggered_by: oracle do
-      ...>      set_content \"uco price changed\"
-      ...>    end
-      ...> ")
-      {:ok,
-        %Contract{
-          conditions: %{
-             inherit: %Archethic.Contracts.ContractConditions{
-                content: {
-                      :==,
-                      [line: 7],
-                      [
-                        true,
-                        {{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]}, :regex_match?]}, [line: 7], [{:get_in, [line: 7], [{:scope, [line: 7], nil}, ["next", "content"]]}, "hello"]}
-                      ]
-                },
-                authorized_keys: nil,
-                code: nil,
-                token_transfers: nil,
-                origin_family: :all,
-                previous_public_key: nil,
-                type: nil,
-                uco_transfers: nil
-             },
-            oracle: %Archethic.Contracts.ContractConditions{
-                 content: {
-                      :>,
-                      [line: 11],
-                      [
-                        {
-                          :==,
-                          [line: 11],
-                          [
-                            {:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]},
-                            {{:., [line: 11], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]}, :json_path_extract]}, [line: 11], [{:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]}, "$.uco.eur"]}
-                          ]
-                        },
-                        1
-                      ]
-                  },
-                 authorized_keys: nil,
-              code: nil,
-                 token_transfers: nil,
-                 origin_family: :all,
-                 previous_public_key: nil,
-                 type: nil,
-                 uco_transfers: nil
-             },
-             transaction: %Archethic.Contracts.ContractConditions{
-                 content: {
-                      :==,
-                      [line: 2],
-                      [
-                        true,
-                        {{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["transaction", "content"]]}, "^Mr.Y|Mr.X{1}$"]}
-                      ]
-                 },
-                 origin_family: :biometric,
-                 authorized_keys: nil,
-                 code: nil,
-                 token_transfers: nil,
-                 previous_public_key: nil,
-                 type: nil,
-                 uco_transfers: nil
-             }
-         },
-         constants: %Archethic.Contracts.ContractConstants{},
-         next_transaction: %Transaction{ data: %TransactionData{}},
-         triggers: %{
-           {:datetime, ~U[2020-10-21 08:56:43Z]} => {:__block__, [],
-              [
-                {:=, [line: 15], [{:scope, [line: 15], nil}, {{:., [line: 15], [{:__aliases__, [line: 15], [:Map]}, :put]}, [line: 15], [{:scope, [line: 15], nil}, "new_content", "Sent 1040000000"]}]},
-                {
-                  :=,
-                  [line: 16],
-                  [
-                    {:scope, [line: 16], nil},
-                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["next_transaction"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
-                  ]
-                },
-                {
-                  :=,
-                  [line: 17],
-                  [
-                    {:scope, [line: 17], nil},
-                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["next_transaction"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
-                  ]
-                },
-                {
-                  :=,
-                  [line: 18],
-                  [
-                    {:scope, [line: 18], nil},
-                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1040000000}]]}]}]}
-                  ]
-                }
-              ]},
-           :oracle => {
-              :=,
-              [line: 22],
-              [
-                {:scope, [line: 22], nil},
-                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["next_transaction"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
-              ]
-           }
-          }
-        }
-      }
-
-     Returns an error when there are invalid trigger options
-
-       iex> Interpreter.parse("
-       ...>    actions triggered_by: datetime, at: 0000000 do
-       ...>    end
-       ...> ")
-       {:error, "invalid datetime's trigger"}
-
-     Returns an error when a invalid term is provided
-
-       iex> Interpreter.parse("
-       ...>    actions triggered_by: transaction do
-       ...>       System.user_home
-       ...>    end
-       ...> ")
-       {:error, "unexpected term - System - L2"}
+  @doc """
+  Dispatch through the correct interpreter.
+  This return a filled contract structure or an human-readable error.
   """
-  @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, reason :: binary()}
+  @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, String.t()}
   def parse(code) when is_binary(code) do
-    with {:ok, ast} <- sanitize_code(code),
-         {:ok, contract} <- parse_contract(ast, %Contract{}) do
-      {:ok, contract}
-    else
-      {:error, {meta, {_, info}, token}} ->
-        {:error, InterpreterUtils.format_error_reason({token, meta, []}, info)}
+    case sanitize_code(code) do
+      {:ok, block} ->
+        case block do
+          {:__block__, [], [{:@, _, [{{:atom, "version"}, _, [version]}]} | rest]} ->
+            parse_contract(version, rest)
 
-      {:error, {meta, info, token}} ->
-        {:error, InterpreterUtils.format_error_reason({token, meta, []}, info)}
-
-      {:error, {:unexpected_term, ast}} ->
-        {:error, InterpreterUtils.format_error_reason(ast, "unexpected term")}
+          _ ->
+            Legacy.parse(block)
+        end
 
       {:error, reason} ->
         {:error, reason}
     end
   end
+
+  @doc """
+  Sanitize code takes care of converting atom to {:atom, bin()}.
+  This way the user cannot create atoms at all. (which is mandatory to avoid atoms-table exhaustion)
+  """
+  @spec sanitize_code(binary()) :: {:ok, Macro.t()} | {:error, any()}
+  def sanitize_code(code) when is_binary(code) do
+    code
+    |> String.trim()
+    |> Code.string_to_quoted(static_atoms_encoder: &atom_encoder/2)
+  end
+
+  @doc """
+  Return true if the given conditions are valid on the given constants
+  """
+  @spec valid_conditions?(version(), Conditions.t(), map()) :: bool()
+  def valid_conditions?(0, conditions, constants) do
+    Legacy.valid_conditions?(conditions, constants)
+  end
+
+  def valid_conditions?(1, conditions, constants) do
+    ConditionValidator.valid_conditions?(conditions, constants)
+  end
+
+  @doc """
+  Execute the trigger/action code.
+  May return a new transaction or nil
+  """
+  @spec execute_trigger(version(), Macro.t(), map()) :: Transaction.t() | nil
+  def execute_trigger(0, ast, constants) do
+    Legacy.execute_trigger(ast, constants)
+  end
+
+  def execute_trigger(1, ast, constants) do
+    ActionInterpreter.execute(ast, constants)
+  end
+
+  @doc """
+  Format an error message from the failing ast node
+
+  It returns message with metadata if possible to indicate the line of the error
+  """
+  @spec format_error_reason(any(), String.t()) :: String.t()
+  def format_error_reason({:atom, _key}, reason) do
+    do_format_error_reason(reason, "", [])
+  end
+
+  def format_error_reason({{:atom, key}, metadata, _}, reason) do
+    do_format_error_reason(reason, key, metadata)
+  end
+
+  def format_error_reason({_, metadata, [{:__aliases__, _, [atom: module]} | _]}, reason) do
+    do_format_error_reason(reason, module, metadata)
+  end
+
+  def format_error_reason(ast_node = {_, metadata, _}, reason) do
+    node_msg =
+      try do
+        Macro.to_string(ast_node)
+      rescue
+        _ ->
+          # {:atom, _} is not an atom so it breaks the Macro.to_string/1
+          # here we replace it with :_var_
+          {sanified_ast, variables} =
+            Macro.traverse(
+              ast_node,
+              [],
+              fn node, acc -> {node, acc} end,
+              fn
+                {:atom, bin}, acc -> {:_var_, [bin | acc]}
+                node, acc -> {node, acc}
+              end
+            )
+
+          # then we will replace all instances of _var_ in the string with the binary
+          variables
+          |> Enum.reverse()
+          |> Enum.reduce(Macro.to_string(sanified_ast), fn variable, acc ->
+            String.replace(acc, "_var_", variable, global: false)
+          end)
+      end
+
+    do_format_error_reason(reason, node_msg, metadata)
+  end
+
+  def format_error_reason({{:atom, _}, {_, metadata, _}}, reason) do
+    do_format_error_reason(reason, "", metadata)
+  end
+
+  def format_error_reason({{:atom, key}, _}, reason) do
+    do_format_error_reason(reason, key, [])
+  end
+
+  # ------------------------------------------------------------
+  #              _            _
+  #   _ __  _ __(___   ____ _| |_ ___
+  #  | '_ \| '__| \ \ / / _` | __/ _ \
+  #  | |_) | |  | |\ V | (_| | ||  __/
+  #  | .__/|_|  |_| \_/ \__,_|\__\___|
+  #  |_|
+  # ------------------------------------------------------------
+  defp do_format_error_reason(message, cause, metadata) do
+    message = prepare_message(message)
+
+    [prepare_message(message), cause, metadata_to_string(metadata)]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" - ")
+  end
+
+  defp prepare_message(message) when is_atom(message) do
+    message |> Atom.to_string() |> String.replace("_", " ")
+  end
+
+  defp prepare_message(message) when is_binary(message) do
+    String.trim_trailing(message, ":")
+  end
+
+  defp metadata_to_string(line: line, column: column), do: "L#{line}:C#{column}"
+  defp metadata_to_string(line: line), do: "L#{line}"
+  defp metadata_to_string(_), do: ""
 
   defp atom_encoder(atom, _) do
     if atom in ["if"] do
@@ -192,19 +164,18 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  @spec sanitize_code(binary()) :: {:ok, Macro.t()} | {:error, any()}
-  def sanitize_code(code) when is_binary(code) do
-    code
-    |> String.trim()
-    |> Code.string_to_quoted(static_atoms_encoder: &atom_encoder/2)
+  defp parse_contract(1, ast) do
+    case parse_ast_block(ast, %Contract{}) do
+      {:ok, contract} ->
+        {:ok, %{contract | version: 1}}
+
+      {:error, node, reason} ->
+        {:error, format_error_reason(node, reason)}
+    end
   end
 
-  defp parse_contract({:__block__, _, ast}, contract) do
-    parse_ast_block(ast, contract)
-  end
-
-  defp parse_contract(ast, contract) do
-    parse_ast(ast, contract)
+  defp parse_contract(_version, _ast) do
+    {:error, "@version not supported"}
   end
 
   defp parse_ast_block([ast | rest], contract) do
@@ -212,7 +183,7 @@ defmodule Archethic.Contracts.Interpreter do
       {:ok, contract} ->
         parse_ast_block(rest, contract)
 
-      {:error, _} = e ->
+      {:error, _, _} = e ->
         e
     end
   end
@@ -224,7 +195,7 @@ defmodule Archethic.Contracts.Interpreter do
       {:ok, condition_type, condition} ->
         {:ok, Contract.add_condition(contract, condition_type, condition)}
 
-      {:error, _} = e ->
+      {:error, _, _} = e ->
         e
     end
   end
@@ -234,10 +205,10 @@ defmodule Archethic.Contracts.Interpreter do
       {:ok, trigger_type, actions} ->
         {:ok, Contract.add_trigger(contract, trigger_type, actions)}
 
-      {:error, _} = e ->
+      {:error, _, _} = e ->
         e
     end
   end
 
-  defp parse_ast(ast, _), do: {:error, {:unexpected_term, ast}}
+  defp parse_ast(ast, _), do: {:error, ast, "unexpected term"}
 end

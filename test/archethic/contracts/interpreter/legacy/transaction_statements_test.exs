@@ -1,8 +1,8 @@
-defmodule Archethic.Contracts.Interpreter.TransactionStatementsTest do
+defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatementsTest do
   @moduledoc false
   use ExUnit.Case
 
-  alias Archethic.Contracts.Interpreter.TransactionStatements
+  alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData

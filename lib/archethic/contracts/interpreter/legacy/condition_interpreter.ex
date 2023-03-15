@@ -1,10 +1,12 @@
-defmodule Archethic.Contracts.ConditionInterpreter do
+defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   @moduledoc false
 
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConstants, as: Constants
-  alias Archethic.Contracts.Interpreter.Library
-  alias Archethic.Contracts.Interpreter.Utils, as: InterpreterUtils
+  alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Legacy.Library
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
+
   alias Archethic.SharedSecrets
 
   @condition_fields Conditions.__struct__()
@@ -12,7 +14,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
                     |> Enum.reject(&(&1 == :__struct__))
                     |> Enum.map(&Atom.to_string/1)
 
-  @transaction_fields InterpreterUtils.transaction_fields()
+  @transaction_fields UtilsInterpreter.transaction_fields()
 
   @exported_library_functions Library.__info__(:functions)
 
@@ -73,7 +75,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
              ]},
              {
                {:., [line: 2], [
-                 {:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]},
+                 {:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]},
                  :hash
                ]}, [line: 2], [
                  {:get_in, [line: 2], [
@@ -141,14 +143,14 @@ defmodule Archethic.Contracts.ConditionInterpreter do
         {:ok, condition_name, conditions}
 
       {node, _} ->
-        {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
+        {:error, Interpreter.format_error_reason(node, "unexpected term")}
     end
   catch
     {:error, node} ->
-      {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
+      {:error, Interpreter.format_error_reason(node, "unexpected term")}
 
     {:error, reason, node} ->
-      {:error, InterpreterUtils.format_error_reason(node, reason)}
+      {:error, Interpreter.format_error_reason(node, reason)}
   end
 
   # Whitelist the DSL for conditions
@@ -289,7 +291,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   end
 
   defp prewalk(node, acc) do
-    InterpreterUtils.prewalk(node, acc)
+    UtilsInterpreter.prewalk(node, acc)
   end
 
   defp postwalk(node, :error), do: {node, :error}
@@ -366,7 +368,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   end
 
   defp postwalk(node, acc) do
-    InterpreterUtils.postwalk(node, acc)
+    UtilsInterpreter.postwalk(node, acc)
   end
 
   defp build_conditions(condition_name, conditions) do
@@ -390,7 +392,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
     subject_scope = if condition_name == "inherit", do: "next", else: "transaction"
 
     conditions
-    |> InterpreterUtils.inject_bindings_and_functions(
+    |> UtilsInterpreter.inject_bindings_and_functions(
       bindings: bindings,
       subject: subject_scope
     )
@@ -419,11 +421,7 @@ defmodule Archethic.Contracts.ConditionInterpreter do
   defp do_aggregate_condition(condition, subject_scope, subject) when is_list(condition) do
     {:==, [],
      [
-       {:get_in, [],
-        [
-          {:scope, [], nil},
-          [subject_scope, subject]
-        ]},
+       {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
        condition
      ]}
   end

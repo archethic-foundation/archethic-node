@@ -1,15 +1,16 @@
-defmodule Archethic.Contracts.ActionInterpreter do
+defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
   @moduledoc false
 
-  alias Archethic.Contracts.Interpreter.TransactionStatements
-  alias Archethic.Contracts.Interpreter.Utils, as: InterpreterUtils
+  alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
   alias Crontab.CronExpression.Parser, as: CronParser
 
-  @transaction_fields InterpreterUtils.transaction_fields()
+  @transaction_fields UtilsInterpreter.transaction_fields()
 
   @transaction_statements_functions_names TransactionStatements.__info__(:functions)
                                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
@@ -36,7 +37,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
       ...>      ]}
       ...>   ]
       ...> ]})
-      {:ok, :transaction, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}]}}
+      {:ok, :transaction, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}]}}
 
       Usage with trigger accepting parameters
 
@@ -52,7 +53,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
       ...>      ["0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}
       ...>   ]
       ...> ]})
-      {:ok, {:datetime, ~U[2014-02-02 02:43:50Z]}, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_recipient]}, [line: 2], [{:&, [line: 2], [1]}, "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}]}]}]}}
+      {:ok, {:datetime, ~U[2014-02-02 02:43:50Z]}, {:=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_recipient]}, [line: 2], [{:&, [line: 2], [1]}, "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"]}]}]}]}}
 
 
       Prevent usage of not authorized functions
@@ -82,14 +83,14 @@ defmodule Archethic.Contracts.ActionInterpreter do
         {:ok, trigger, actions}
 
       {node, _} ->
-        {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
+        {:error, Interpreter.format_error_reason(node, "unexpected term")}
     end
   catch
     {:error, reason, node} ->
-      {:error, InterpreterUtils.format_error_reason(node, reason)}
+      {:error, Interpreter.format_error_reason(node, reason)}
 
     {:error, node} ->
-      {:error, InterpreterUtils.format_error_reason(node, "unexpected term")}
+      {:error, Interpreter.format_error_reason(node, "unexpected term")}
   end
 
   # Whitelist the actions DSL
@@ -258,7 +259,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
   end
 
   defp prewalk(node, acc) do
-    InterpreterUtils.prewalk(node, acc)
+    UtilsInterpreter.prewalk(node, acc)
   end
 
   defp postwalk(
@@ -268,7 +269,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
          {:ok, _}
        ) do
     actions =
-      InterpreterUtils.inject_bindings_and_functions(actions,
+      UtilsInterpreter.inject_bindings_and_functions(actions,
         bindings: %{
           "contract" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{}),
           "transaction" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
@@ -314,7 +315,7 @@ defmodule Archethic.Contracts.ActionInterpreter do
   end
 
   defp postwalk(node, acc) do
-    InterpreterUtils.postwalk(node, acc)
+    UtilsInterpreter.postwalk(node, acc)
   end
 
   @doc """

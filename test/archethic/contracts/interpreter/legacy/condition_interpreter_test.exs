@@ -1,8 +1,8 @@
-defmodule Archethic.Contracts.ConditionInterpreterTest do
+defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
   use ArchethicCase
 
   alias Archethic.Contracts.ContractConditions, as: Conditions
-  alias Archethic.Contracts.ConditionInterpreter
+  alias Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter
   alias Archethic.Contracts.Interpreter
 
   alias Archethic.P2P
@@ -82,7 +82,7 @@ defmodule Archethic.Contracts.ConditionInterpreterTest do
                  [
                    {{:., [line: 2],
                      [
-                       {:__aliases__, [alias: Archethic.Contracts.Interpreter.Library],
+                       {:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library],
                         [:Library]},
                        :size
                      ]}, [line: 2],
