@@ -136,7 +136,21 @@ defmodule Archethic do
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.map(fn {:ok, res} -> res end)
-    |> Enum.reduce(
+    |> aggregate_start_mining_responses()
+    |> then(fn aggregated_responses ->
+      maybe_start_resync(aggregated_responses)
+
+      if should_forward_transaction?(aggregated_responses, length(validation_nodes)) do
+        forward_transaction(tx, welcome_node_key)
+      else
+        :ok
+      end
+    end)
+  end
+
+  defp aggregate_start_mining_responses(responses) do
+    Enum.reduce(
+      responses,
       %{
         ok: 0,
         network_chains_resync_needed: false,
@@ -163,27 +177,20 @@ defmodule Archethic do
           acc
       end
     )
-    |> then(fn result ->
-      if result.network_chains_resync_needed do
-        SelfRepair.resync_all_network_chains()
-      end
-
-      if result.p2p_resync_needed do
-        SelfRepair.resync_p2p()
-      end
-
-      cond do
-        result.ok == length(validation_nodes) ->
-          :ok
-
-        result.ok < 2 ->
-          forward_transaction(tx, welcome_node_key)
-
-        true ->
-          :ok
-      end
-    end)
   end
+
+  defp maybe_start_resync(aggregated_responses) do
+    if aggregated_responses.network_chains_resync_needed do
+      SelfRepair.resync_all_network_chains()
+    end
+
+    if aggregated_responses.p2p_resync_needed do
+      SelfRepair.resync_p2p()
+    end
+  end
+
+  defp should_forward_transaction?(_, 1), do: false
+  defp should_forward_transaction?(%{ok: ok_count}, _), do: ok_count < 2
 
   # Since welcome node is not anymore constant, as we want unauthorised
   # nodes to do some labor. Following bootstrapping, the txn of a new node
