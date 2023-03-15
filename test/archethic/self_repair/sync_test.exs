@@ -12,15 +12,11 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
   alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetGenesisAddress
@@ -29,7 +25,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   alias Archethic.TransactionFactory
 
-  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -174,12 +169,7 @@ defmodule Archethic.SelfRepair.SyncTest do
         :ok
       end)
 
-      tx_summary = %TransactionSummary{
-        address: tx.address,
-        type: :transfer,
-        timestamp: DateTime.utc_now(),
-        fee: 100_000_000
-      }
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       elected_storage_nodes =
         Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes())
@@ -238,12 +228,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
         _, %GetTransaction{address: ^tx_address}, _ ->
           {:ok, tx}
-
-        _, %GetTransaction{address: _}, _ ->
-          {:ok, %NotFound{}}
-
-        _, %GetTransactionChain{}, _ ->
-          {:ok, %TransactionList{transactions: []}}
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
@@ -468,21 +452,6 @@ defmodule Archethic.SelfRepair.SyncTest do
         _, %GetTransaction{address: _}, _ ->
           {:ok, %NotFound{}}
 
-        _, %GetTransactionChain{}, _ ->
-          {:ok, %TransactionList{transactions: []}}
-
-        _, %GetTransactionInputs{address: _}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs:
-               Enum.map(inputs, fn input ->
-                 %VersionedTransactionInput{input: input, protocol_version: 1}
-               end)
-           }}
-
-        _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
-
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
       end)
@@ -492,19 +461,25 @@ defmodule Archethic.SelfRepair.SyncTest do
         :ok
       end)
 
+      tx_summary = TransactionSummary.from_transaction(transfer_tx)
+
+      index =
+        ReplicationAttestation.get_node_index(
+          Crypto.first_node_public_key(),
+          tx_summary.timestamp
+        )
+
+      signature =
+        tx_summary |> TransactionSummary.serialize() |> Crypto.sign_with_first_node_key()
+
       assert :ok =
                Sync.process_summary_aggregate(
                  %SummaryAggregate{
                    summary_time: DateTime.utc_now(),
                    replication_attestations: [
                      %ReplicationAttestation{
-                       transaction_summary: %TransactionSummary{
-                         address: tx_address,
-                         type: :transfer,
-                         timestamp: DateTime.utc_now(),
-                         fee: 0
-                       },
-                       confirmations: []
+                       transaction_summary: tx_summary,
+                       confirmations: [{index, signature}]
                      }
                    ],
                    availability_adding_time: 10

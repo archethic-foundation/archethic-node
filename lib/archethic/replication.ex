@@ -225,11 +225,7 @@ defmodule Archethic.Replication do
   @spec validate_and_store_transaction(Transaction.t(), boolean()) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
   def validate_and_store_transaction(
-        tx = %Transaction{
-          address: address,
-          type: type,
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        },
+        tx = %Transaction{address: address, type: type},
         self_repair? \\ false
       ) do
     if TransactionChain.transaction_exists?(address, :io) do
@@ -249,15 +245,7 @@ defmodule Archethic.Replication do
 
       case TransactionValidator.validate(tx, self_repair?) do
         :ok ->
-          :ok = TransactionChain.write_transaction(tx, :io)
-          ingest_transaction(tx, true, self_repair?)
-
-          Logger.info("Replication finished",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
-
-          PubSub.notify_new_transaction(address, type, timestamp)
+          synchronize_io_transaction(tx, self_repair?)
 
           :telemetry.execute(
             [:archethic, :replication, :validation],
@@ -280,6 +268,29 @@ defmodule Archethic.Replication do
           {:error, reason}
       end
     end
+  end
+
+  @doc """
+  Synchronize an io transaction into DB an memory table
+  """
+  @spec synchronize_io_transaction(Transaction.t(), boolean()) :: :ok
+  def synchronize_io_transaction(
+        tx = %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        },
+        self_repair?
+      ) do
+    :ok = TransactionChain.write_transaction(tx, :io)
+    ingest_transaction(tx, true, self_repair?)
+
+    Logger.info("Replication finished",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
+
+    PubSub.notify_new_transaction(address, type, timestamp)
   end
 
   defp fetch_context(tx = %Transaction{}, self_repair?, download_nodes) do
