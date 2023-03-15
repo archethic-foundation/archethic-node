@@ -2,23 +2,15 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   use ArchethicCase
 
   alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.Subset, as: BeaconSubset
 
   alias Archethic.Crypto
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetGenesisAddress
-  # alias Archethic.P2P.Message.GenesisAddress
 
   alias Archethic.SelfRepair.Sync.TransactionHandler
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -26,7 +18,6 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   alias Archethic.TransactionFactory
 
   alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
   doctest TransactionHandler
@@ -99,11 +90,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   test "download_transaction?/1 should return true when the node is a chain storage node" do
     nodes = [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
 
+    attestation = %ReplicationAttestation{
+      transaction_summary: %TransactionSummary{address: "@Alice2"}
+    }
+
     assert true =
              TransactionHandler.download_transaction?(
-               %TransactionSummary{
-                 address: "@Alice2"
-               },
+               attestation,
                nodes
              )
   end
@@ -126,13 +119,49 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
         {:ok, tx}
     end)
 
-    tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
+    attestation = %ReplicationAttestation{
+      transaction_summary: TransactionSummary.from_transaction(tx)
+    }
 
     assert ^tx =
              TransactionHandler.download_transaction(
-               tx_summary,
+               attestation,
                P2P.authorized_and_available_nodes()
              )
+  end
+
+  test "download_transaction/2 should raise an error if the downloaded transaction is not the expected one" do
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+    ]
+
+    tx = TransactionFactory.create_valid_transaction(inputs)
+
+    modified_tx = %{tx | address: "@Bob"}
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, modified_tx}
+    end)
+
+    attestation = %ReplicationAttestation{
+      transaction_summary: TransactionSummary.from_transaction(tx)
+    }
+
+    message = "Transaction downloaded is different than expected"
+
+    assert_raise RuntimeError, message, fn ->
+      TransactionHandler.download_transaction(
+        attestation,
+        P2P.authorized_and_available_nodes()
+      )
+    end
   end
 
   test "download_transaction/2 should download the transaction even after a first failure" do
@@ -199,16 +228,18 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
         {:ok, tx}
     end)
 
-    tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
+    attestation = %ReplicationAttestation{
+      transaction_summary: TransactionSummary.from_transaction(tx)
+    }
 
     assert ^tx =
              TransactionHandler.download_transaction(
-               tx_summary,
+               attestation,
                P2P.authorized_and_available_nodes()
              )
   end
 
-  test "process_transaction/1 should handle the transaction and replicate it" do
+  test "process_transaction/3 should handle the transaction and replicate it" do
     me = self()
 
     inputs = [
@@ -221,34 +252,6 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     ]
 
     tx = TransactionFactory.create_valid_transaction(inputs)
-    tx_address = tx.address
-
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetTransaction{address: ^tx_address}, _ ->
-        {:ok, tx}
-
-      _, %GetTransaction{}, _ ->
-        {:ok, %NotFound{}}
-
-      _, %GetTransactionInputs{}, _ ->
-        {:ok,
-         %TransactionInputList{
-           inputs:
-             Enum.map(inputs, fn input ->
-               %VersionedTransactionInput{input: input, protocol_version: 1}
-             end)
-         }}
-
-      _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
-
-      _, %GetTransactionChainLength{}, _ ->
-        %TransactionChainLength{length: 1}
-
-      _, %GetGenesisAddress{}, _ ->
-        {:ok, %NotFound{}}
-    end)
 
     MockDB
     |> stub(:write_transaction, fn ^tx, _ ->
@@ -256,8 +259,72 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       :ok
     end)
 
-    assert :ok = TransactionHandler.process_transaction(tx, P2P.authorized_and_available_nodes())
+    tx_summary = TransactionSummary.from_transaction(tx)
+
+    index =
+      ReplicationAttestation.get_node_index(
+        Crypto.first_node_public_key(),
+        tx_summary.timestamp
+      )
+
+    signature =
+      tx_summary
+      |> TransactionSummary.serialize()
+      |> Crypto.sign_with_first_node_key()
+
+    attestation = %ReplicationAttestation{
+      transaction_summary: tx_summary,
+      confirmations: [{index, signature}]
+    }
+
+    assert :ok =
+             TransactionHandler.process_transaction(
+               attestation,
+               tx,
+               P2P.authorized_and_available_nodes()
+             )
 
     assert_received :transaction_replicated
+  end
+
+  test "process_transaction/3 should handle raise an error when attestation is invalid" do
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+    ]
+
+    tx = TransactionFactory.create_valid_transaction(inputs)
+
+    tx_summary = TransactionSummary.from_transaction(tx)
+
+    index =
+      ReplicationAttestation.get_node_index(
+        Crypto.first_node_public_key(),
+        tx_summary.timestamp
+      )
+
+    signature =
+      tx_summary
+      |> TransactionSummary.serialize()
+      |> Crypto.sign(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+
+    attestation = %ReplicationAttestation{
+      transaction_summary: tx_summary,
+      confirmations: [{index, signature}]
+    }
+
+    message = "Attestation error in self repair"
+
+    assert_raise RuntimeError, message, fn ->
+      TransactionHandler.process_transaction(
+        attestation,
+        tx,
+        P2P.authorized_and_available_nodes()
+      )
+    end
   end
 end
