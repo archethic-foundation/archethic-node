@@ -46,7 +46,9 @@ defmodule Archethic.SelfRepair do
               :ok = Sync.load_missed_transactions(date)
               {:halt, :ok}
             catch
-              _, _ -> {:cont, :error}
+              error, message ->
+                Logger.error("Error during self repair #{error} #{message}")
+                {:cont, :error}
             end
           end)
 
