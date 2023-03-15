@@ -2,13 +2,8 @@ defmodule Archethic.Contracts.Interpreter.LegacyTest do
   @moduledoc false
   use ArchethicCase
 
-  alias Archethic.Contracts.Contract
-
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Legacy
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
 
   doctest Legacy
 

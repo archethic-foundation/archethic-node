@@ -453,7 +453,14 @@ defmodule Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter do
        ]}
 
     {
-      {:=, metadata, [{:scope, metadata, nil}, update_ast]},
+      {:__block__, [],
+       [
+         {:=, metadata, [{:scope, metadata, nil}, update_ast]},
+
+         # Remove warnings about unused scope by calling Function.identity(scope)
+         {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [],
+          [{:scope, [], nil}]}
+       ]},
       acc
     }
   end

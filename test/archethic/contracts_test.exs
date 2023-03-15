@@ -3,10 +3,6 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.Contracts
 
-  alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConditions, as: Conditions
-  alias Archethic.Contracts.ContractConstants, as: Constants
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
