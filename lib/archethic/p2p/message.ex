@@ -59,7 +59,6 @@ defmodule Archethic.P2P.Message do
     Ping,
     RegisterBeaconUpdates,
     ReplicateTransaction,
-    ReplicateTransactionChain,
     ReplicationError,
     ShardRepair,
     StartMining,
@@ -97,7 +96,6 @@ defmodule Archethic.P2P.Message do
           | CrossValidate.t()
           | CrossValidationDone.t()
           | ReplicateTransaction.t()
-          | ReplicateTransactionChain.t()
           | GetLastTransaction.t()
           | GetBalance.t()
           | GetTransactionInputs.t()
@@ -177,7 +175,6 @@ defmodule Archethic.P2P.Message do
   def get_timeout(%NewTransaction{}), do: get_max_timeout()
   def get_timeout(%StartMining{}), do: get_max_timeout()
   def get_timeout(%ReplicateTransaction{}), do: get_max_timeout()
-  def get_timeout(%ReplicateTransactionChain{}), do: get_max_timeout()
   def get_timeout(%ValidateTransaction{}), do: get_max_timeout()
 
   def get_timeout(%GetTransactionChain{}) do

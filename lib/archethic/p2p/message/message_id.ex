@@ -15,7 +15,6 @@ defmodule Archethic.P2P.MessageId do
     AddMiningContext,
     CrossValidate,
     CrossValidationDone,
-    ReplicateTransactionChain,
     ReplicateTransaction,
     AcknowledgeStorage,
     NotifyEndOfNodeSync,
@@ -91,7 +90,7 @@ defmodule Archethic.P2P.MessageId do
     AddMiningContext => 8,
     CrossValidate => 9,
     CrossValidationDone => 10,
-    ReplicateTransactionChain => 11,
+    # Message number 11 is available
     ReplicateTransaction => 12,
     AcknowledgeStorage => 13,
     NotifyEndOfNodeSync => 14,

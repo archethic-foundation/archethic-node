@@ -29,7 +29,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Message.NotifyReplicationValidation
-  alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.ValidationError
@@ -874,7 +874,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
           {:ok, %Ok{}}
 
-        _, %ReplicateTransactionChain{}, _ ->
+        _, %ReplicateTransaction{}, _ ->
           {:ok, %Ok{}}
 
         _, %ReplicationAttestationMessage{}, _ ->
