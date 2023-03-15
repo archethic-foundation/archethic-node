@@ -9,15 +9,17 @@ defmodule Archethic.Replication.TransactionContext do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
 
+  alias Archethic.P2P
+
   require Logger
 
   @doc """
   Fetch transaction
   """
-  @spec fetch_transaction(address :: Crypto.versioned_hash(), list(Node.t())) ::
+  @spec fetch_transaction(address :: Crypto.versioned_hash()) ::
           Transaction.t() | nil
-  def fetch_transaction(address, node_list) when is_binary(address) do
-    storage_nodes = Election.chain_storage_nodes(address, node_list)
+  def fetch_transaction(address) when is_binary(address) do
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
       {:ok, tx} ->
@@ -50,11 +52,11 @@ defmodule Archethic.Replication.TransactionContext do
   @doc """
   Fetch the transaction inputs for a transaction address at a given time
   """
-  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), DateTime.t(), list(Node.t())) ::
+  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), DateTime.t()) ::
           list(TransactionInput.t())
-  def fetch_transaction_inputs(address, timestamp = %DateTime{}, node_list)
+  def fetch_transaction_inputs(address, timestamp = %DateTime{})
       when is_binary(address) do
-    storage_nodes = Election.chain_storage_nodes(address, node_list)
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     address
     |> TransactionChain.stream_inputs_remotely(storage_nodes, timestamp)

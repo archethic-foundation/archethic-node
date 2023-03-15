@@ -52,17 +52,9 @@ defmodule Archethic.Replication do
 
   It will download the transaction chain and unspents to validate the new transaction and store the new transaction in the pool awaiting commitment
   """
-  @spec validate_transaction(
-          tx :: Transaction.t(),
-          self_repair? :: boolean(),
-          download_nodes :: list(Node.t())
-        ) ::
+  @spec validate_transaction(tx :: Transaction.t()) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_transaction(
-        tx = %Transaction{address: address, type: type},
-        self_repair? \\ false,
-        download_nodes \\ P2P.authorized_and_available_nodes()
-      ) do
+  def validate_transaction(tx = %Transaction{address: address, type: type}) do
     if TransactionChain.transaction_exists?(address) do
       Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
@@ -78,14 +70,9 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      {previous_tx, inputs} = fetch_context(tx, self_repair?, download_nodes)
+      {previous_tx, inputs} = fetch_context(tx)
       # Validate the transaction and check integrity from the previous transaction
-      case TransactionValidator.validate(
-             tx,
-             previous_tx,
-             inputs,
-             self_repair?
-           ) do
+      case TransactionValidator.validate(tx, previous_tx, inputs) do
         :ok ->
           Logger.info("Replication validation finished",
             transaction_address: Base.encode16(address),
@@ -189,23 +176,12 @@ defmodule Archethic.Replication do
   It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
   and update the internal ledger and views
   """
-  @spec validate_and_store_transaction_chain(
-          validated_tx :: Transaction.t(),
-          self_repair? :: boolean(),
-          download_nodes :: list(Node.t())
-        ) ::
+  @spec validate_and_store_transaction_chain(validated_tx :: Transaction.t()) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_and_store_transaction_chain(
-        tx = %Transaction{
-          address: address,
-          type: type
-        },
-        self_repair? \\ false,
-        download_nodes \\ P2P.authorized_and_available_nodes()
-      ) do
-    case validate_transaction(tx, self_repair?, download_nodes) do
+  def validate_and_store_transaction_chain(tx = %Transaction{address: address, type: type}) do
+    case validate_transaction(tx) do
       :ok ->
-        sync_transaction_chain(tx, download_nodes, self_repair?)
+        sync_transaction_chain(tx)
 
       {:error, reason} ->
         Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
@@ -222,12 +198,9 @@ defmodule Archethic.Replication do
 
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
   """
-  @spec validate_and_store_transaction(Transaction.t(), boolean()) ::
+  @spec validate_and_store_transaction(Transaction.t()) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_and_store_transaction(
-        tx = %Transaction{address: address, type: type},
-        self_repair? \\ false
-      ) do
+  def validate_and_store_transaction(tx = %Transaction{address: address, type: type}) do
     if TransactionChain.transaction_exists?(address, :io) do
       Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
@@ -243,9 +216,9 @@ defmodule Archethic.Replication do
         transaction_type: type
       )
 
-      case TransactionValidator.validate(tx, self_repair?) do
+      case TransactionValidator.validate(tx) do
         :ok ->
-          synchronize_io_transaction(tx, self_repair?)
+          synchronize_io_transaction(tx)
 
           :telemetry.execute(
             [:archethic, :replication, :validation],
@@ -280,7 +253,7 @@ defmodule Archethic.Replication do
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        self_repair?
+        self_repair? \\ false
       ) do
     :ok = TransactionChain.write_transaction(tx, :io)
     ingest_transaction(tx, true, self_repair?)
@@ -293,7 +266,7 @@ defmodule Archethic.Replication do
     PubSub.notify_new_transaction(address, type, timestamp)
   end
 
-  defp fetch_context(tx = %Transaction{}, self_repair?, download_nodes) do
+  defp fetch_context(tx = %Transaction{}) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -317,11 +290,11 @@ defmodule Archethic.Replication do
               transaction_type: tx.type
             )
 
-            TransactionContext.fetch_transaction(previous_address, download_nodes)
+            TransactionContext.fetch_transaction(previous_address)
         end
       end)
 
-    inputs = if self_repair?, do: [], else: fetch_inputs(tx, download_nodes)
+    inputs = fetch_inputs(tx)
     previous_transaction = Task.await(previous_transaction_task, Message.get_max_timeout() + 1000)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
@@ -332,10 +305,7 @@ defmodule Archethic.Replication do
     {previous_transaction, inputs}
   end
 
-  defp fetch_inputs(
-         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}},
-         download_nodes
-       ) do
+  defp fetch_inputs(tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}}) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -345,7 +315,7 @@ defmodule Archethic.Replication do
     )
 
     previous_address
-    |> TransactionContext.fetch_transaction_inputs(tx_time, download_nodes)
+    |> TransactionContext.fetch_transaction_inputs(tx_time)
     |> tap(fn inputs ->
       Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
         transaction_address: Base.encode16(tx.address),

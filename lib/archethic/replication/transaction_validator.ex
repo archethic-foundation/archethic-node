@@ -53,28 +53,19 @@ defmodule Archethic.Replication.TransactionValidator do
   @spec validate(
           validated_transaction :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
-          inputs_outputs :: list(TransactionInput.t()),
-          self_repair? :: boolean()
+          inputs_outputs :: list(TransactionInput.t())
         ) ::
           :ok | {:error, error()}
-  def validate(
-        tx = %Transaction{},
-        previous_transaction,
-        inputs,
-        self_repair?
-      ) do
-    with :ok <- valid_transaction(tx, inputs, true, self_repair?),
-         :ok <- validate_inheritance(tx, previous_transaction, self_repair?) do
+  def validate(tx = %Transaction{}, previous_transaction, inputs) do
+    with :ok <- valid_transaction(tx, inputs, true),
+         :ok <- validate_inheritance(tx, previous_transaction) do
       validate_chain(tx, previous_transaction)
     end
   end
 
-  defp validate_inheritance(_, _, true), do: :ok
-
   defp validate_inheritance(
          tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
-         prev_tx,
-         false
+         prev_tx
        ) do
     if Contracts.accept_new_contract?(prev_tx, tx, timestamp) do
       :ok
@@ -96,11 +87,11 @@ defmodule Archethic.Replication.TransactionValidator do
 
   This function called by the replication nodes which are involved in the chain storage
   """
-  @spec validate(Transaction.t(), boolean()) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}, self_repair? \\ false),
-    do: valid_transaction(tx, [], false, self_repair?)
+  @spec validate(Transaction.t()) :: :ok | {:error, error()}
+  def validate(tx = %Transaction{}),
+    do: valid_transaction(tx, [], false)
 
-  defp valid_transaction(tx = %Transaction{}, inputs, chain_node?, false) when is_list(inputs) do
+  defp valid_transaction(tx = %Transaction{}, inputs, chain_node?) when is_list(inputs) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx) do
       if chain_node? do
@@ -108,18 +99,6 @@ defmodule Archethic.Replication.TransactionValidator do
       else
         :ok
       end
-    else
-      {:error, _} = e ->
-        # TODO: start malicious detection
-        e
-    end
-  end
-
-  defp valid_transaction(tx = %Transaction{}, _, _, true) do
-    with :ok <- validate_consensus(tx),
-         :ok <- validate_node_election(tx),
-         :ok <- validate_no_additional_error(tx) do
-      :ok
     else
       {:error, _} = e ->
         # TODO: start malicious detection
