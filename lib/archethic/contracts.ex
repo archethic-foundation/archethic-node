@@ -85,7 +85,11 @@ defmodule Archethic.Contracts do
   @doc """
   Simulate the execution of the given contract's trigger.
   """
-  @spec simulate_contract_execution(atom(), Transaction.t(), nil | Transaction.t()) ::
+  @spec simulate_contract_execution(
+          Contract.trigger_type(),
+          Transaction.t(),
+          nil | Transaction.t()
+        ) ::
           {:ok, nil | Transaction.t()}
           | {:error,
              :invalid_triggers_execution
