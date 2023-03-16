@@ -446,5 +446,84 @@ defmodule Archethic.ContractsTest do
                Contracts.simulate_contract_execution(:transaction, contract_tx, incoming_tx)
              )
     end
+
+    test "should be able to simulate a trigger: datetime" do
+      code = """
+        @version 1
+        condition inherit: [
+          content: "hello"
+        ]
+
+        actions triggered_by: datetime, at: 1678984136 do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      assert {:ok, %Transaction{}} =
+               Contracts.simulate_contract_execution(
+                 {:datetime, ~U[2023-03-16 16:28:56Z]},
+                 contract_tx,
+                 nil
+               )
+    end
+
+    test "should be able to simulate a trigger: interval" do
+      code = """
+        @version 1
+        condition inherit: [
+          content: "hello"
+        ]
+
+        actions triggered_by: interval, at: "* * * * *" do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      assert {:ok, %Transaction{}} =
+               Contracts.simulate_contract_execution(
+                 {:interval, "* * * * *"},
+                 contract_tx,
+                 nil
+               )
+    end
+
+    test "should be able to simulate a trigger: oracle" do
+      code = """
+        @version 1
+        condition inherit: [
+          content: "hello"
+        ]
+
+        condition oracle: []
+
+        actions triggered_by: oracle do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      assert {:ok, %Transaction{}} =
+               Contracts.simulate_contract_execution(:oracle, contract_tx, nil)
+    end
   end
 end

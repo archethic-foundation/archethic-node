@@ -237,9 +237,6 @@ defmodule Archethic.Contracts.Interpreter do
       Map.has_key?(triggers, :oracle) and !Map.has_key?(conditions, :oracle) ->
         {:error, "missing oracle conditions"}
 
-      Map.has_key?(triggers, :oracle) and Conditions.empty?(conditions.oracle) ->
-        {:error, "empty oracle conditions"}
-
       !Map.has_key?(conditions, :inherit) ->
         {:error, "missing inherit conditions"}
 
