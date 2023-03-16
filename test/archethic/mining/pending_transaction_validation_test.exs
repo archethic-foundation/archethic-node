@@ -1,34 +1,17 @@
 defmodule Archethic.Mining.PendingTransactionValidationTest do
   use ArchethicCase, async: false
 
-  alias Archethic.{
-    Crypto,
-    Mining.PendingTransactionValidation,
-    P2P,
-    P2P.Node,
-    Reward.Scheduler,
-    SharedSecrets,
-    TransactionChain
-  }
+  alias Archethic.{Crypto, P2P, P2P.Node, P2P.Message, SharedSecrets, TransactionChain}
+  alias Archethic.{Mining.PendingTransactionValidation, Reward.Scheduler}
+
+  alias SharedSecrets.{MemTables.NetworkLookup, MemTables.OriginKeyLookup}
+  alias Message.{FirstPublicKey, GetFirstPublicKey, GetTransactionSummary, NotFound}
+  alias TransactionChain.{Transaction, TransactionData}
+  alias TransactionData.{Ledger, Ownership, TokenLedger, UCOLedger}
 
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
-  alias Archethic.SharedSecrets.{MemTables.NetworkLookup, MemTables.OriginKeyLookup}
-
-  alias Archethic.P2P.Message.{
-    FirstPublicKey,
-    GetFirstPublicKey,
-    GetTransactionSummary,
-    NotFound
-  }
-
-  alias TransactionChain.{
-    Transaction,
-    TransactionData,
-    TransactionData.Ledger,
-    TransactionData.UCOLedger,
-    TransactionData.UCOLedger.Transfer,
-    TransactionData.Ownership
-  }
+  alias TokenLedger.Transfer, as: TokenTransfer
+  alias UCOLedger.Transfer, as: UCOTransfer
 
   import Mox
 
@@ -914,7 +897,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
             ledger: %Ledger{
               uco: %UCOLedger{
                 transfers: [
-                  %Transfer{to: :crypto.strong_rand_bytes(32), amount: 100_000}
+                  %UCOTransfer{to: :crypto.strong_rand_bytes(32), amount: 100_000}
                 ]
               }
             },
@@ -942,6 +925,225 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       assert :ok = PendingTransactionValidation.validate(tx)
+    end
+  end
+
+  describe "Keychain Transaction" do
+    test "should reject empty content in keychain transaction" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :keychain,
+          %TransactionData{
+            content: ""
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain transaction"} = PendingTransactionValidation.validate(tx)
+    end
+
+    test "Should Reject keychain tx with empty Ownerships list in keychain transaction" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :keychain,
+          %TransactionData{
+            content: "content",
+            ownerships: []
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain transaction"} = PendingTransactionValidation.validate(tx)
+    end
+
+    test "Should Reject keychain tx with UCO tranfers" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :keychain,
+          %TransactionData{
+            content: "content",
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ],
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %UCOTransfer{to: :crypto.strong_rand_bytes(32), amount: 100_000}
+                ]
+              }
+            }
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain transaction"} = PendingTransactionValidation.validate(tx)
+
+      tx =
+        Transaction.new(
+          :keychain,
+          %TransactionData{
+            content: "content",
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ],
+            ledger: %Ledger{
+              token: %TokenLedger{
+                transfers: [
+                  %TokenTransfer{
+                    to: :crypto.strong_rand_bytes(32),
+                    amount: 100_000_000,
+                    token_address: "0123"
+                  }
+                ]
+              }
+            }
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain transaction"} = PendingTransactionValidation.validate(tx)
+
+      tx =
+        Transaction.new(
+          :keychain,
+          %TransactionData{
+            content: "content",
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ],
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %UCOTransfer{to: :crypto.strong_rand_bytes(32), amount: 100_000}
+                ]
+              },
+              token: %TokenLedger{
+                transfers: [
+                  %TokenTransfer{
+                    to: :crypto.strong_rand_bytes(32),
+                    amount: 100_000_000,
+                    token_address: "0123"
+                  }
+                ]
+              }
+            }
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain transaction"} = PendingTransactionValidation.validate(tx)
+    end
+  end
+
+  describe "Keychain Acesss Transaction" do
+    test "should reject tx with more than one ownership" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :keychain_access,
+          %TransactionData{
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ]),
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ]
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate(tx)
+
+      tx =
+        Transaction.new(
+          :keychain_access,
+          %TransactionData{
+            ownerships: []
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate(tx)
+
+      tx =
+        Transaction.new(
+          :keychain_access,
+          %TransactionData{
+            content: "content",
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ]
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate(tx)
+
+      tx =
+        Transaction.new(
+          :keychain_access,
+          %TransactionData{
+            content: "",
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ]
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error,
+              "Invalid Keychain access transaction - Previous public key must be authorized"} =
+               PendingTransactionValidation.validate(tx)
+
+      tx =
+        Transaction.new(
+          :keychain_access,
+          %TransactionData{
+            recipients: ["sendtoSAM"],
+            content: "",
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ]
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate(tx)
     end
   end
 end
