@@ -20,20 +20,33 @@ defmodule Archethic.Contracts.Interpreter do
   This return a filled contract structure or an human-readable error.
   """
   @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, String.t()}
+  def parse(""), do: {:error, "Not a contract"}
+
   def parse(code) when is_binary(code) do
-    case sanitize_code(code) do
-      {:ok, block} ->
-        case block do
-          {:__block__, [], [{:@, _, [{{:atom, "version"}, _, [version]}]} | rest]} ->
-            parse_contract(version, rest)
+    start = System.monotonic_time()
 
-          _ ->
-            Legacy.parse(block)
-        end
+    result =
+      case sanitize_code(code) do
+        {:ok, block} ->
+          case block do
+            {:__block__, [], [{:@, _, [{{:atom, "version"}, _, [version]}]} | rest]} ->
+              parse_contract(version, rest)
+              |> check_contract_blocks()
 
-      {:error, {[line: line, column: column], _msg_info, _token}} ->
-        {:error, "Parse error at line #{line} column #{column}"}
-    end
+            _ ->
+              Legacy.parse(block)
+              |> check_contract_blocks()
+          end
+
+        {:error, {[line: line, column: column], _msg_info, _token}} ->
+          {:error, "Parse error at line #{line} column #{column}"}
+      end
+
+    :telemetry.execute([:archethic, :contract, :parsing], %{
+      duration: System.monotonic_time() - start
+    })
+
+    result
   end
 
   @doc """
@@ -211,4 +224,27 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_ast(ast, _), do: {:error, ast, "unexpected term"}
+
+  defp check_contract_blocks({:error, reason}), do: {:error, reason}
+
+  defp check_contract_blocks(
+         {:ok, contract = %Contract{triggers: triggers, conditions: conditions}}
+       ) do
+    cond do
+      Map.has_key?(triggers, :transaction) and !Map.has_key?(conditions, :transaction) ->
+        {:error, "missing transaction conditions"}
+
+      Map.has_key?(triggers, :oracle) and !Map.has_key?(conditions, :oracle) ->
+        {:error, "missing oracle conditions"}
+
+      Map.has_key?(triggers, :oracle) and Conditions.empty?(conditions.oracle) ->
+        {:error, "empty oracle conditions"}
+
+      !Map.has_key?(conditions, :inherit) ->
+        {:error, "missing inherit conditions"}
+
+      true ->
+        {:ok, contract}
+    end
+  end
 end

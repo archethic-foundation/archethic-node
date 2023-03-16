@@ -14,8 +14,7 @@ defmodule Archethic do
   alias TransactionChain.{
     Transaction,
     TransactionInput,
-    TransactionSummary,
-    TransactionData
+    TransactionSummary
   }
 
   require Logger
@@ -308,26 +307,20 @@ defmodule Archethic do
   end
 
   @doc """
-  Assert the transaction holds a contract and then simulate its execution.
-  Return an error if the transaction holds no contract.
+  Simulate the execution of the given contract's trigger.
   """
-  @spec simulate_contract_execution(Transaction.t(), Transaction.t()) ::
-          :ok | {:error, reason :: term()}
-  def simulate_contract_execution(
-        prev_tx = %Transaction{data: %TransactionData{code: code}},
-        incoming_tx
-      )
-      when code != "" do
-    Contracts.simulate_contract_execution(prev_tx, incoming_tx, DateTime.utc_now())
-  end
-
-  ## Empty contracts are considered invalid
-  def simulate_contract_execution(
-        _prev_tx,
-        _next_tx
-      ) do
-    {:error, :no_contract}
-  end
+  @spec simulate_contract_execution(atom(), Transaction.t(), nil | Transaction.t()) ::
+          {:ok, nil | Transaction.t()}
+          | {:error,
+             :invalid_triggers_execution
+             | :invalid_transaction_constraints
+             | :invalid_inherit_constraints}
+  defdelegate simulate_contract_execution(
+                trigger_type,
+                contract_transaction,
+                incoming_transaction
+              ),
+              to: Contracts
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes

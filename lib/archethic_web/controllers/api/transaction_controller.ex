@@ -221,17 +221,47 @@ defmodule ArchethicWeb.API.TransactionController do
   defp fetch_recipient_tx_and_simulate(recipient_address, tx) do
     case Archethic.search_transaction(recipient_address) do
       {:ok, prev_tx} ->
-        Archethic.simulate_contract_execution(prev_tx, tx)
+        # this endpoint is only used for transaction triggers
+        case Archethic.simulate_contract_execution(:transaction, prev_tx, tx) do
+          {:ok, _} ->
+            # contract may have returned a transaction or not, in both case it's valid
+            :ok
+
+          {:error, :invalid_triggers_execution} ->
+            {:error, "Contract does not have a `actions triggered_by: transaction` block."}
+
+          {:error, :invalid_transaction_constraints} ->
+            {:error,
+             "Contract refused incoming transaction. Check the `conditon transaction` block."}
+
+          {:error, :invalid_inherit_constraints} ->
+            {:error,
+             "Contract refused outcoming transaction. Check the `condition inherit` block."}
+        end
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp format_exit_reason({error_atom, stacktrace}) do
+  defp format_exit_reason({error, stacktrace}) do
+    formatted_error =
+      case error do
+        atom when is_atom(atom) ->
+          # ex: :badarith
+          inspect(atom)
+
+        {atom, _} when is_atom(atom) ->
+          # ex: :badmatch
+          inspect(atom)
+
+        _ ->
+          "unknown error"
+      end
+
     Enum.reduce_while(
       stacktrace,
-      "A contract exited with error: #{error_atom}",
+      "A contract exited with error: #{formatted_error}",
       fn
         {:elixir_eval, _, _, [file: 'nofile', line: line]}, acc ->
           {:halt, acc <> " (line: #{line})"}

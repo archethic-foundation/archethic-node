@@ -5,7 +5,6 @@ defmodule Archethic.Contracts do
   """
 
   alias __MODULE__.Contract
-  alias __MODULE__.ContractConditions, as: Conditions
   alias __MODULE__.ContractConstants, as: Constants
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
@@ -24,130 +23,12 @@ defmodule Archethic.Contracts do
 
   @extended_mode? Mix.env() != :prod
 
-  @doc ~S"""
-  Parse a smart contract code and return its representation
-
-  ## Examples
-
-      iex> "
-      ...>    condition inherit: [
-      ...>       content: regex_match?(\"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\"),
-      ...>       origin_family: biometric
-      ...>    ]
-      ...>
-      ...>    actions triggered_by: datetime, at: 1601039923 do
-      ...>      set_type hosting
-      ...>      set_content \"Mr.X: 10, Mr.Y: 8\"
-      ...>    end
-      ...> "
-      ...> |> Contracts.parse()
-      {
-              :ok,
-              %Archethic.Contracts.Contract{
-                conditions: %{
-                  inherit: %Archethic.Contracts.ContractConditions{
-                    address: nil,
-                    authorized_keys: nil,
-                    code: nil,
-                    content: {
-                      :==,
-                      [line: 2],
-                      [true, {{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "content"]]}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]}]
-                    },
-                    origin_family: :biometric,
-                    previous_public_key: nil,
-                    secrets: nil,
-                    timestamp: nil,
-                    token_transfers: nil,
-                    type: nil,
-                    uco_transfers: nil
-                  },
-                  oracle: %Archethic.Contracts.ContractConditions{address: nil, authorized_keys: nil, code: nil, content: nil, origin_family: :all, previous_public_key: nil, secrets: nil, timestamp: nil, token_transfers: nil, type: nil, uco_transfers: nil},
-                  transaction: %Archethic.Contracts.ContractConditions{address: nil, authorized_keys: nil, code: nil, content: nil, origin_family: :all, previous_public_key: nil, secrets: nil, timestamp: nil, token_transfers: nil, type: nil, uco_transfers: nil}
-                },
-                constants: %Archethic.Contracts.ContractConstants{contract: nil, transaction: nil},
-                next_transaction: %Archethic.TransactionChain.Transaction{
-                  address: nil,
-                  cross_validation_stamps: [],
-                  data: %Archethic.TransactionChain.TransactionData{
-                    code: "",
-                    content: "",
-                    ledger: %Archethic.TransactionChain.TransactionData.Ledger{token: %Archethic.TransactionChain.TransactionData.TokenLedger{transfers: []}, uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}},
-                    ownerships: [],
-                    recipients: []
-                  },
-                  origin_signature: nil,
-                  previous_public_key: nil,
-                  previous_signature: nil,
-                  type: nil,
-                  validation_stamp: nil,
-                  version: 1
-                },
-                triggers: %{
-                  {:datetime, ~U[2020-09-25 13:18:43Z]} => {
-                    :__block__,
-                    [],
-                    [
-                      {
-                        :__block__,
-                        [],
-                        [
-                          {
-                            :=,
-                            [line: 7],
-                            [{:scope, [line: 7], nil}, {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["next_transaction"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}]
-                          },
-                          {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
-                        ]
-                      },
-                      {
-                        :__block__,
-                        [],
-                        [
-                          {
-                            :=,
-                            [line: 8],
-                            [{:scope, [line: 8], nil}, {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["next_transaction"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}]
-                          },
-                          {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
-                        ]
-                      }
-                    ]
-                  }
-                },
-                version: 0
-              }
-            }
+  @doc """
+  Parse a smart contract code and return a contract struct
   """
   @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
-  def parse(contract_code) when is_binary(contract_code) do
-    start = System.monotonic_time()
-
-    case Interpreter.parse(contract_code) do
-      {:ok,
-       contract = %Contract{
-         triggers: triggers,
-         conditions: %{transaction: transaction_conditions, oracle: oracle_conditions}
-       }} ->
-        :telemetry.execute([:archethic, :contract, :parsing], %{
-          duration: System.monotonic_time() - start
-        })
-
-        cond do
-          Map.has_key?(triggers, :transaction) and Conditions.empty?(transaction_conditions) ->
-            {:error, "missing transaction conditions"}
-
-          Map.has_key?(triggers, :oracle) and Conditions.empty?(oracle_conditions) ->
-            {:error, "missing oracle conditions"}
-
-          true ->
-            {:ok, contract}
-        end
-
-      {:error, _} = e ->
-        e
-    end
-  end
+  defdelegate parse(contract_code),
+    to: Interpreter
 
   @doc """
   Same a `parse/1` but raise if the contract is not valid
@@ -202,132 +83,119 @@ defmodule Archethic.Contracts do
   end
 
   @doc """
-  Simulate the execution of the contract hold in prev_tx with the inputs of next_tx, at a certain date
+  Simulate the execution of the given contract's trigger.
   """
-
-  @spec simulate_contract_execution(Transaction.t(), Transaction.t(), DateTime.t()) ::
-          :ok | {:error, reason :: term()}
+  @spec simulate_contract_execution(atom(), Transaction.t(), nil | Transaction.t()) ::
+          {:ok, nil | Transaction.t()}
+          | {:error,
+             :invalid_triggers_execution
+             | :invalid_transaction_constraints
+             | :invalid_inherit_constraints}
   def simulate_contract_execution(
-        prev_tx = %Transaction{data: %TransactionData{code: code}},
-        incoming_tx = %Transaction{},
-        date = %DateTime{}
+        trigger_type,
+        contract_tx = %Transaction{data: %TransactionData{code: code}},
+        maybe_incoming_tx
       ) do
-    case Interpreter.parse(code) do
-      {:ok,
-       %Contract{
-         version: version,
-         triggers: triggers,
-         conditions: conditions
-       }} ->
-        triggers
-        |> Enum.find_value(:ok, fn {trigger_type, trigger_code} ->
-          do_simulate_contract(
-            version,
-            trigger_code,
-            trigger_type,
-            conditions,
-            prev_tx,
-            incoming_tx,
-            date
-          )
-        end)
+    # the contract transaction exists, no need to check again for parse error
+    contract = parse!(code)
 
-      {:error, reason} ->
-        {:error, reason}
+    case contract.triggers[trigger_type] do
+      nil ->
+        {:error, :invalid_triggers_execution}
+
+      trigger_code ->
+        do_simulate_contract_execution(
+          trigger_type,
+          trigger_code,
+          contract_tx,
+          maybe_incoming_tx,
+          contract
+        )
     end
   end
 
-  defp do_simulate_contract(
-         version,
+  defp do_simulate_contract_execution(
+         :transaction,
          trigger_code,
-         trigger_type,
-         conditions,
-         prev_tx,
-         incoming_tx,
-         date
+         contract_tx,
+         incoming_tx = %Transaction{},
+         %Contract{version: version, conditions: conditions}
        ) do
-    case valid_from_trigger?(trigger_type, incoming_tx, date) do
-      true ->
-        case validate_transaction_conditions(
-               version,
-               trigger_type,
-               conditions,
-               prev_tx,
-               incoming_tx
-             ) do
-          :ok ->
-            validate_inherit_conditions(version, trigger_code, conditions, prev_tx, incoming_tx)
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      false ->
-        {:error, :invalid_trigger}
-    end
-  end
-
-  defp validate_transaction_conditions(
-         version,
-         trigger_type,
-         %{transaction: transaction_conditions},
-         prev_tx,
-         incoming_tx
-       ) do
-    case trigger_type do
-      :transaction ->
-        constants_prev = %{
-          "transaction" => Constants.from_transaction(incoming_tx),
-          "contract" => Constants.from_transaction(prev_tx)
-        }
-
-        case Interpreter.valid_conditions?(version, transaction_conditions, constants_prev) do
-          true ->
-            :ok
-
-          false ->
-            {:error, :invalid_transaction_conditions}
-        end
-
-      _ ->
-        :ok
-    end
-  end
-
-  defp validate_inherit_conditions(
-         version,
-         trigger_code,
-         %{inherit: inherit_conditions},
-         prev_tx,
-         incoming_tx
-       ) do
-    prev_constants = %{
+    constants = %{
       "transaction" => Constants.from_transaction(incoming_tx),
-      "contract" => Constants.from_transaction(prev_tx)
+      "contract" => Constants.from_transaction(contract_tx)
     }
 
-    case Interpreter.execute_trigger(version, trigger_code, prev_constants) do
-      nil ->
-        :ok
+    if Interpreter.valid_conditions?(version, conditions.transaction, constants) do
+      execute_trigger_and_validate_inherit_condition(
+        version,
+        trigger_code,
+        contract_tx,
+        incoming_tx,
+        conditions.inherit
+      )
+    else
+      {:error, :invalid_transaction_constraints}
+    end
+  end
 
-      next_transaction = %Transaction{} ->
-        %{next_transaction: next_transaction} =
-          %{next_transaction: next_transaction, previous_transaction: prev_tx}
+  defp do_simulate_contract_execution(
+         _trigger_type,
+         trigger_code,
+         contract_tx,
+         nil,
+         %Contract{
+           version: version,
+           conditions: conditions
+         }
+       ) do
+    execute_trigger_and_validate_inherit_condition(
+      version,
+      trigger_code,
+      contract_tx,
+      nil,
+      conditions.inherit
+    )
+  end
+
+  defp execute_trigger_and_validate_inherit_condition(
+         version,
+         trigger_code,
+         contract_tx,
+         maybe_incoming_tx,
+         inherit_condition
+       ) do
+    constants_trigger = %{
+      "transaction" =>
+        case maybe_incoming_tx do
+          nil -> nil
+          tx -> Constants.from_transaction(tx)
+        end,
+      "contract" => Constants.from_transaction(contract_tx)
+    }
+
+    case Interpreter.execute_trigger(version, trigger_code, constants_trigger) do
+      nil ->
+        # contract did not produce a next_tx
+        {:ok, nil}
+
+      next_tx ->
+        # contract produce a next_tx but we need to fill it in with the previous values
+        %{next_transaction: next_tx} =
+          %{next_transaction: next_tx, previous_transaction: contract_tx}
           |> Worker.chain_type()
           |> Worker.chain_code()
           |> Worker.chain_ownerships()
 
-        constants_both = %{
-          "previous" => Constants.from_transaction(prev_tx),
-          "next" => Constants.from_transaction(next_transaction)
+        constants_inherit = %{
+          "previous" => Constants.from_transaction(contract_tx),
+          "next" => Constants.from_transaction(next_tx)
         }
 
-        case Interpreter.valid_conditions?(version, inherit_conditions, constants_both) do
-          true ->
-            :ok
-
-          false ->
-            {:error, :invalid_inherit_conditions}
+        if Interpreter.valid_conditions?(version, inherit_condition, constants_inherit) do
+          {:ok, next_tx}
+        else
+          {:error, :invalid_inherit_constraints}
         end
     end
   end

@@ -90,6 +90,8 @@ defmodule Archethic.ContractsTest do
         type: transfer
       ]
 
+      condition transaction: []
+
       actions triggered_by: transaction do
         add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 1000000000
         set_content "hello"
@@ -316,71 +318,132 @@ defmodule Archethic.ContractsTest do
   end
 
   describe "simulate_contract_execution?/3" do
-    test "should return true when simulating execution of a valid contract" do
+    test "should return a transaction if the contract is correct and there was a Contract.* call" do
       code = """
+        @version 1
         condition inherit: [
           content: "hello"
         ]
 
+        condition transaction: []
+
         actions triggered_by: transaction do
-          set_content "hello"
+          Contract.set_content "hello"
         end
       """
 
-      previous_tx = %Transaction{
+      contract_tx = %Transaction{
+        type: :contract,
         data: %TransactionData{
           code: code
         }
       }
-
-      {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:00.000999], "Etc/UTC")
 
       incoming_tx = %Transaction{
         type: :transfer,
+        data: %TransactionData{}
+      }
+
+      assert {:ok, %Transaction{}} =
+               Contracts.simulate_contract_execution(:transaction, contract_tx, incoming_tx)
+    end
+
+    test "should return nil when the contract is correct but no Contract.* call" do
+      code = """
+        @version 1
+        condition inherit: [
+          content: "hello"
+        ]
+
+        condition transaction: []
+
+        actions triggered_by: transaction do
+          if false do
+            Contract.set_content "hello"
+          end
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
         data: %TransactionData{
-          content: "hello",
           code: code
         }
       }
 
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{}
+      }
+
+      assert {:ok, nil} =
+               Contracts.simulate_contract_execution(:transaction, contract_tx, incoming_tx)
+    end
+
+    test "should return inherit constraints error when condition inherit fails" do
+      code = """
+        @version 1
+        condition inherit: [
+          content: "hello",
+          type: "data"
+        ]
+
+        condition transaction: []
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{}
+      }
+
       assert match?(
-               :ok,
-               Contracts.simulate_contract_execution(previous_tx, incoming_tx, time)
+               {:error, :invalid_inherit_constraints},
+               Contracts.simulate_contract_execution(:transaction, contract_tx, incoming_tx)
              )
     end
 
-    test "should return false when simulating execution of a contract where
-    conditions aren't filled" do
+    test "should return transaction constraints error when condition inherit fails" do
       code = """
+        @version 1
         condition inherit: [
-          content: "hello",
-          type: data
+          content: true
+        ]
+
+        condition transaction: [
+          type: "data"
         ]
 
         actions triggered_by: transaction do
-          set_content "hello"
+          Contract.set_content "hello"
         end
       """
 
-      previous_tx = %Transaction{
+      contract_tx = %Transaction{
+        type: :contract,
         data: %TransactionData{
           code: code
         }
       }
-
-      {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:00.000999], "Etc/UTC")
 
       incoming_tx = %Transaction{
         type: :transfer,
-        data: %TransactionData{
-          content: "hola",
-          code: code
-        }
+        data: %TransactionData{}
       }
 
       assert match?(
-               {:error, :invalid_inherit_conditions},
-               Contracts.simulate_contract_execution(previous_tx, incoming_tx, time)
+               {:error, :invalid_transaction_constraints},
+               Contracts.simulate_contract_execution(:transaction, contract_tx, incoming_tx)
              )
     end
   end

@@ -246,6 +246,8 @@ defmodule Archethic.Contracts.WorkerTest do
         uco_transfers: %{ "#{address}" => 1_040_000_000}
       ]
 
+      condition transaction: []
+
       actions triggered_by: transaction do
         set_type transfer
         add_uco_transfer to:  "#{address}", amount: 1_040_000_000
