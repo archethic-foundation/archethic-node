@@ -197,7 +197,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         )
 
       {:error, _} ->
-        {[], false, nil}
+        []
     end
   end
 
