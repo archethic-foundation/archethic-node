@@ -10,10 +10,13 @@ defmodule Archethic.Contracts.Interpreter do
 
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   @type version() :: integer()
+  @type execute_opts :: [skip_inherit_check?: boolean()]
 
   @doc """
   Dispatch through the correct interpreter.
@@ -76,13 +79,58 @@ defmodule Archethic.Contracts.Interpreter do
   Execute the trigger/action code.
   May return a new transaction or nil
   """
-  @spec execute_trigger(version(), Macro.t(), map()) :: Transaction.t() | nil
-  def execute_trigger(0, ast, constants) do
+  @spec execute_trigger_code(version(), Macro.t(), map()) :: Transaction.t() | nil
+  def execute_trigger_code(0, ast, constants) do
     Legacy.execute_trigger(ast, constants)
   end
 
-  def execute_trigger(1, ast, constants) do
+  def execute_trigger_code(1, ast, constants) do
     ActionInterpreter.execute(ast, constants)
+  end
+
+  @doc """
+  Execution the given contract's trigger.
+  Checks all conditions block.
+
+  `maybe_tx` must be
+    - the incoming transaction when trigger_type: transaction
+    - the oracle transaction when trigger_type: oracle
+    - nil for the other trigger_types
+
+  /!\ The transaction returned is not complete, only the `type` and `data` are filled-in.
+  """
+  @spec execute(
+          Contract.trigger_type(),
+          Contract.t(),
+          nil | Transaction.t(),
+          execute_opts()
+        ) ::
+          {:ok, nil | Transaction.t()}
+          | {:error,
+             :invalid_triggers_execution
+             | :invalid_transaction_constraints
+             | :invalid_oracle_constraints
+             | :invalid_inherit_constraints}
+  def execute(
+        trigger_type,
+        contract = %Contract{triggers: triggers},
+        maybe_tx,
+        opts \\ []
+      ) do
+    case triggers[trigger_type] do
+      nil ->
+        {:error, :invalid_triggers_execution}
+
+      trigger_code ->
+        do_execute(
+          trigger_type,
+          trigger_code,
+          contract,
+          maybe_tx,
+          contract,
+          opts
+        )
+    end
   end
 
   @doc """
@@ -149,6 +197,179 @@ defmodule Archethic.Contracts.Interpreter do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ------------------------------------------------------------
+
+  defp do_execute(
+         :transaction,
+         trigger_code,
+         contract,
+         incoming_tx = %Transaction{},
+         %Contract{version: version, conditions: conditions},
+         opts
+       ) do
+    constants = %{
+      "transaction" => Constants.from_transaction(incoming_tx),
+      "contract" => contract.constants.contract
+    }
+
+    if valid_conditions?(version, conditions.transaction, constants) do
+      execute_trigger_and_validate_inherit_condition(
+        version,
+        trigger_code,
+        contract,
+        incoming_tx,
+        conditions.inherit,
+        opts
+      )
+    else
+      {:error, :invalid_transaction_constraints}
+    end
+  end
+
+  defp do_execute(
+         :oracle,
+         trigger_code,
+         contract,
+         oracle_tx = %Transaction{},
+         %Contract{version: version, conditions: conditions},
+         opts
+       ) do
+    constants = %{
+      "transaction" => Constants.from_transaction(oracle_tx),
+      "contract" => contract.constants.contract
+    }
+
+    if valid_conditions?(version, conditions.oracle, constants) do
+      execute_trigger_and_validate_inherit_condition(
+        version,
+        trigger_code,
+        contract,
+        oracle_tx,
+        conditions.inherit,
+        opts
+      )
+    else
+      {:error, :invalid_oracle_constraints}
+    end
+  end
+
+  defp do_execute(
+         _trigger_type,
+         trigger_code,
+         contract,
+         nil,
+         %Contract{version: version, conditions: conditions},
+         opts
+       ) do
+    execute_trigger_and_validate_inherit_condition(
+      version,
+      trigger_code,
+      contract,
+      nil,
+      conditions.inherit,
+      opts
+    )
+  end
+
+  defp execute_trigger_and_validate_inherit_condition(
+         version,
+         trigger_code,
+         contract,
+         maybe_tx,
+         inherit_condition,
+         opts
+       ) do
+    constants_trigger = %{
+      "transaction" =>
+        case maybe_tx do
+          nil -> nil
+          tx -> Constants.from_transaction(tx)
+        end,
+      "contract" => contract.constants.contract
+    }
+
+    case execute_trigger_code(version, trigger_code, constants_trigger) do
+      nil ->
+        # contract did not produce a next_tx
+        {:ok, nil}
+
+      next_tx_to_prepare ->
+        # contract produce a next_tx but we need to feed previous values to it
+        next_tx =
+          chain_transaction(
+            Constants.to_transaction(contract.constants.contract),
+            next_tx_to_prepare
+          )
+
+        constants_inherit = %{
+          "previous" => contract.constants.contract,
+          "next" => Constants.from_transaction(next_tx)
+        }
+
+        skip_inherit_check? = Keyword.get(opts, :skip_inherit_check?, false)
+
+        if skip_inherit_check? or valid_conditions?(version, inherit_condition, constants_inherit) do
+          {:ok, next_tx}
+        else
+          {:error, :invalid_inherit_constraints}
+        end
+    end
+  end
+
+  # -----------------------------------------
+  # chain next tx
+  # -----------------------------------------
+  defp chain_transaction(previous_transaction, next_transaction) do
+    %{next_transaction: next_tx} =
+      %{next_transaction: next_transaction, previous_transaction: previous_transaction}
+      |> chain_type()
+      |> chain_code()
+      |> chain_ownerships()
+
+    next_tx
+  end
+
+  defp chain_type(
+         acc = %{
+           next_transaction: %Transaction{type: nil},
+           previous_transaction: _
+         }
+       ) do
+    put_in(acc, [:next_transaction, Access.key(:type)], :contract)
+  end
+
+  defp chain_type(acc), do: acc
+
+  defp chain_code(
+         acc = %{
+           next_transaction: %Transaction{data: %TransactionData{code: ""}},
+           previous_transaction: %Transaction{data: %TransactionData{code: previous_code}}
+         }
+       ) do
+    put_in(acc, [:next_transaction, Access.key(:data, %{}), Access.key(:code)], previous_code)
+  end
+
+  defp chain_code(acc), do: acc
+
+  defp chain_ownerships(
+         acc = %{
+           next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
+           previous_transaction: %Transaction{
+             data: %TransactionData{ownerships: previous_ownerships}
+           }
+         }
+       ) do
+    put_in(
+      acc,
+      [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],
+      previous_ownerships
+    )
+  end
+
+  defp chain_ownerships(acc), do: acc
+
+  # -----------------------------------------
+  # format errors
+  # -----------------------------------------
   defp do_format_error_reason(message, cause, metadata) do
     message = prepare_message(message)
 
@@ -169,6 +390,9 @@ defmodule Archethic.Contracts.Interpreter do
   defp metadata_to_string(line: line), do: "L#{line}"
   defp metadata_to_string(_), do: ""
 
+  # -----------------------------------------
+  # parsing
+  # -----------------------------------------
   defp atom_encoder(atom, _) do
     if atom in ["if"] do
       {:ok, String.to_atom(atom)}
@@ -224,6 +448,10 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_ast(ast, _), do: {:error, ast, "unexpected term"}
+
+  # -----------------------------------------
+  # contract validation
+  # -----------------------------------------
 
   defp check_contract_blocks({:error, reason}), do: {:error, reason}
 

@@ -484,6 +484,20 @@ defmodule Archethic.Contracts.WorkerTest do
     test "ICO crowdsale", %{
       constants: constants = %{"address" => contract_address}
     } do
+      # the contract need uco to be executed
+      Archethic.Account.MemTables.TokenLedger.add_unspent_output(
+        contract_address,
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Bob3",
+            amount: 100_000_000 * 10_000,
+            type: {:token, contract_address, 0},
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          },
+          protocol_version: ArchethicCase.current_protocol_version()
+        }
+      )
+
       code = """
 
       # Ensure the next transaction will be a transfer

@@ -4,8 +4,10 @@ defmodule Archethic do
   """
 
   alias Archethic.SharedSecrets
-  alias __MODULE__.{Account, BeaconChain, Contracts, Crypto, Election, P2P, P2P.Node, P2P.Message}
+  alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
   alias __MODULE__.{SelfRepair, TransactionChain}
+  alias __MODULE__.Contracts.Interpreter
+  alias __MODULE__.Contracts.Contract
 
   alias Message.{NewTransaction, NotFound, StartMining}
   alias Message.{Balance, GetBalance, GetTransactionSummary}
@@ -307,20 +309,27 @@ defmodule Archethic do
   end
 
   @doc """
-  Simulate the execution of the given contract's trigger.
+  Parse and execute the contract in the given transaction.
+  We assume the contract is parse-able.
   """
-  @spec simulate_contract_execution(atom(), Transaction.t(), nil | Transaction.t()) ::
+  @spec parse_and_execute_contract_at(
+          Contract.trigger_type(),
+          Transaction.t(),
+          nil | Transaction.t()
+        ) ::
           {:ok, nil | Transaction.t()}
           | {:error,
              :invalid_triggers_execution
              | :invalid_transaction_constraints
+             | :invalid_oracle_constraints
              | :invalid_inherit_constraints}
-  defdelegate simulate_contract_execution(
-                trigger_type,
-                contract_transaction,
-                incoming_transaction
-              ),
-              to: Contracts
+  def parse_and_execute_contract_at(
+        trigger_type,
+        contract_tx,
+        maybe_tx
+      ) do
+    Interpreter.execute(trigger_type, Contract.from_transaction!(contract_tx), maybe_tx)
+  end
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes

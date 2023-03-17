@@ -220,9 +220,9 @@ defmodule ArchethicWeb.API.TransactionController do
 
   defp fetch_recipient_tx_and_simulate(recipient_address, tx) do
     case Archethic.search_transaction(recipient_address) do
-      {:ok, prev_tx} ->
+      {:ok, contract_tx} ->
         # this endpoint is only used for transaction triggers
-        case Archethic.simulate_contract_execution(:transaction, prev_tx, tx) do
+        case Archethic.parse_and_execute_contract_at(:transaction, contract_tx, tx) do
           {:ok, _} ->
             # contract may have returned a transaction or not, in both case it's valid
             :ok
@@ -232,7 +232,10 @@ defmodule ArchethicWeb.API.TransactionController do
 
           {:error, :invalid_transaction_constraints} ->
             {:error,
-             "Contract refused incoming transaction. Check the `conditon transaction` block."}
+             "Contract refused incoming transaction. Check the `condition transaction` block."}
+
+          {:error, :invalid_oracle_constraints} ->
+            {:error, "Contract refused incoming transaction. Check the `condition oracle` block."}
 
           {:error, :invalid_inherit_constraints} ->
             {:error,
