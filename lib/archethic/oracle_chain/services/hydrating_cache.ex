@@ -7,15 +7,18 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   """
   use GenServer
 
+  require Logger
+
   defmodule State do
     @moduledoc false
     defstruct([
       :mfa,
       :ttl,
-      :ttl_ref,
+      :ttl_timer,
       :refresh_interval,
       :value,
-      :hydrating_task
+      :hydrating_task,
+      :hydrating_timer
     ])
   end
 
@@ -41,14 +44,15 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
     ttl = Keyword.get(options, :ttl, :infinity)
 
     # start hydrating as soon as init is done
-    Process.send_after(self(), :hydrate, 0)
+    hydrating_timer = Process.send_after(self(), :hydrate, 0)
 
     ## Hydrate the value
     {:ok,
      %State{
        mfa: mfa,
        ttl: ttl,
-       refresh_interval: refresh_interval
+       refresh_interval: refresh_interval,
+       hydrating_timer: hydrating_timer
      }}
   end
 
@@ -63,7 +67,6 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   def handle_info(
         :hydrate,
         state = %State{
-          refresh_interval: refresh_interval,
           mfa: {m, f, a}
         }
       ) do
@@ -72,42 +75,54 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
         try do
           {:ok, apply(m, f, a)}
         rescue
-          _ ->
-            :error
+          e ->
+            {:error, e}
         end
       end)
-
-    # start a new hydrate timer
-    Process.send_after(self(), :hydrate, refresh_interval)
 
     {:noreply, %State{state | hydrating_task: hydrating_task}}
   end
 
   def handle_info(
         {ref, result},
-        state = %State{ttl_ref: ttl_ref, ttl: ttl, hydrating_task: %Task{ref: ref_task}}
+        state = %State{
+          mfa: {m, f, a},
+          refresh_interval: refresh_interval,
+          ttl_timer: ttl_timer,
+          ttl: ttl,
+          hydrating_task: %Task{ref: ref_task}
+        }
       )
       when ref == ref_task do
     # cancel current ttl if any
-    if is_reference(ttl_ref) do
-      Process.cancel_timer(ttl_ref)
+    if is_reference(ttl_timer) do
+      Process.cancel_timer(ttl_timer)
     end
 
     # start new ttl timer
-    ttl_ref =
+    ttl_timer =
       if is_integer(ttl) do
         Process.send_after(self(), :discard_value, ttl)
       else
         nil
       end
 
-    new_state = %{state | ttl_ref: ttl_ref, hydrating_task: nil}
+    # start a new hydrate timer
+    hydrating_timer = Process.send_after(self(), :hydrate, refresh_interval)
+
+    new_state = %{
+      state
+      | ttl_timer: ttl_timer,
+        hydrating_task: nil,
+        hydrating_timer: hydrating_timer
+    }
 
     case result do
       {:ok, value} ->
         {:noreply, %{new_state | value: value}}
 
-      _ ->
+      {:error, reason} ->
+        Logger.error("#{m}.#{f}.#{inspect(a)} returns an error: #{inspect(reason)}")
         {:noreply, new_state}
     end
   end
@@ -115,6 +130,6 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   def handle_info({:DOWN, _ref, :process, _, _}, state), do: {:noreply, state}
 
   def handle_info(:discard_value, state) do
-    {:noreply, %State{state | value: nil, ttl_ref: nil}}
+    {:noreply, %State{state | value: nil, ttl_timer: nil}}
   end
 end

@@ -2,6 +2,7 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
   alias Archethic.OracleChain.Services.HydratingCache
 
   use ExUnit.Case
+  @moduletag capture_log: true
 
   test "should receive the same value until next refresh" do
     {:ok, pid} =
@@ -11,7 +12,8 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
         ttl: :infinity
       )
 
-    # 1ms required just so it has the time to receive the :hydrate msg
+    :erlang.trace(pid, true, [:receive])
+    assert_receive {:trace, ^pid, :receive, :hydrate}
     Process.sleep(1)
     {:ok, date} = HydratingCache.get(pid)
 
@@ -27,7 +29,9 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
     Process.sleep(10)
     assert {:ok, ^date} = HydratingCache.get(pid)
 
-    Process.sleep(100)
+    assert_receive {:trace, ^pid, :receive, {:DOWN, _, _, _, _}}
+    assert_receive {:trace, ^pid, :receive, :hydrate}
+    Process.sleep(1)
     {:ok, date2} = HydratingCache.get(pid)
     assert date != date2
   end
@@ -40,9 +44,11 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
         ttl: 50
       )
 
-    # 1ms required just so it has the time to receive the :hydrate msg
+    :erlang.trace(pid, true, [:receive])
+    assert_receive {:trace, ^pid, :receive, :hydrate}
     Process.sleep(1)
-    {:ok, _date} = HydratingCache.get(pid)
+
+    assert {:ok, _date} = HydratingCache.get(pid)
 
     Process.sleep(50)
     assert :error = HydratingCache.get(pid)
@@ -56,7 +62,8 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
         ttl: 50
       )
 
-    # 1ms required just so it has the time to receive the :hydrate msg
+    :erlang.trace(pid, true, [:receive])
+    assert_receive {:trace, ^pid, :receive, :hydrate}
     Process.sleep(1)
     {:ok, date} = HydratingCache.get(pid)
 
@@ -77,11 +84,9 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
         ttl: 50
       )
 
-    # 1ms required just so it has the time to receive the :hydrate msg
-    Process.sleep(1)
-    assert :error = HydratingCache.get(pid)
-
-    Process.sleep(50)
+    :erlang.trace(pid, true, [:receive])
+    assert_receive {:trace, ^pid, :receive, :hydrate}
+    assert_receive {:trace, ^pid, :receive, {_ref, {:error, %UndefinedFunctionError{}}}}
     assert :error = HydratingCache.get(pid)
 
     Process.sleep(100)
@@ -96,7 +101,8 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
         ttl: :infinity
       )
 
-    # 1ms required just so it has the time to receive the :hydrate msg
+    :erlang.trace(pid, true, [:receive])
+    assert_receive {:trace, ^pid, :receive, :hydrate}
     Process.sleep(1)
 
     assert :error = HydratingCache.get(pid, 1)
