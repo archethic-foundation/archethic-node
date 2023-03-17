@@ -40,6 +40,22 @@ defmodule Archethic.BeaconChain.SubsetTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
+    MockClient
+    |> stub(:send_message, fn
+      _, %NewBeaconSlot{}, _ ->
+        {:ok, %Ok{}}
+
+      _, %TransactionSummary{}, _ ->
+        {:ok, %Ok{}}
+
+      _, %Ping{}, _ ->
+        {:ok, %Ok{}}
+
+      _, %ReplicationAttestation{}, _ ->
+        {:ok, %Ok{}}
+    end)
+    |> stub(:get_availability_timer, fn _, _ -> 0 end)
+
     {:ok, subset: <<0>>}
   end
 
@@ -54,31 +70,18 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
     :ok = Subset.add_end_of_node_sync(subset, %EndOfNodeSync{public_key: public_key})
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %NewBeaconSlot{}, _ ->
-        {:ok, %Ok{}}
-    end)
-
     assert %{
              current_slot: %Slot{
                end_of_node_synchronizations: [%EndOfNodeSync{public_key: ^public_key}]
              }
            } = :sys.get_state(pid)
+
+    Process.sleep(100)
   end
 
   describe "handle_info/1" do
     test "new transaction summary is added to the slot and include the storage node confirmation",
          %{subset: subset} do
-      MockClient
-      |> stub(:send_message, fn
-        _, %TransactionSummary{}, _ ->
-          {:ok, %Ok{}}
-
-        _, %NewBeaconSlot{}, _ ->
-          {:ok, %Ok{}}
-      end)
-
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
       pid = start_supervised!({Subset, subset: subset})
@@ -113,6 +116,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
                  ]
                }
              } = :sys.get_state(pid)
+
+      Process.sleep(100)
     end
 
     test "new transaction summary's confirmation added to the slot",
@@ -120,11 +125,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
       pid = start_supervised!({Subset, subset: subset})
-
-      MockClient
-      |> stub(:send_message, fn _, %NewBeaconSlot{}, _ ->
-        {:ok, %Ok{}}
-      end)
 
       tx_time = DateTime.utc_now()
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
@@ -169,6 +169,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
              } = :sys.get_state(pid)
 
       assert Enum.count(confirmations) == 2
+      Process.sleep(100)
     end
 
     test "new transaction summary's should be refused if it is too old",
@@ -288,9 +289,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
         _, %NewBeaconSlot{slot: slot}, _ ->
           send(me, {:beacon_slot, slot})
           {:ok, %Ok{}}
-
-        _, %Ping{}, _ ->
-          {:ok, %Ok{}}
       end)
 
       Process.sleep(200)
@@ -309,6 +307,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
                  }
                ]
              } = slot
+
+      Process.sleep(200)
     end
 
     test "new summary is created when the slot time is the summary time", %{
@@ -333,8 +333,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
       start_supervised!(SummaryCache)
       File.mkdir_p!(Utils.mut_dir())
       pid = start_supervised!({Subset, subset: subset})
-
-      allow(MockClient, self(), NewBeaconSlot)
 
       tx_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
@@ -395,6 +393,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
       send(pid, {:create_slot, now})
       assert_receive :beacon_transaction_summary_stored
+      Process.sleep(100)
     end
   end
 
@@ -416,6 +415,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
     Subset.subscribe_for_beacon_updates(subset, public_key2)
 
     assert %{subscribed_nodes: [^public_key2, ^public_key1]} = :sys.get_state(pid)
+    Process.sleep(100)
   end
 
   test "subscribed nodes are being getting subscribed & added to beacon pool via Beacon chain", %{
@@ -470,20 +470,12 @@ defmodule Archethic.BeaconChain.SubsetTest do
       _, %BeaconUpdate{transaction_attestations: transaction_attestations}, _ ->
         send(me, {:transaction_attestations, transaction_attestations})
         {:ok, %Ok{}}
-
-      _, %ReplicationAttestation{}, _ ->
-        {:ok, %Ok{}}
-
-      _, %NewBeaconSlot{}, _ ->
-        {:ok, %Ok{}}
-
-      _, %Ping{}, _ ->
-        {:ok, %Ok{}}
     end)
 
     Subset.subscribe_for_beacon_updates(subset, first_public_key)
 
     assert [^first_public_key] = Map.get(:sys.get_state(pid), :subscribed_nodes)
     assert_receive {:transaction_attestations, [%ReplicationAttestation{}]}
+    Process.sleep(100)
   end
 end
