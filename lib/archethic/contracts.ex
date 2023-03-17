@@ -39,49 +39,83 @@ defmodule Archethic.Contracts do
       ...>    end
       ...> "
       ...> |> Contracts.parse()
-      {:ok,
-        %Contract{
-          conditions: %{
-            inherit: %Conditions{
-              content: {:==, [line: 2], [
-                true,
-                {
-                  {:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]},
-                  [line: 2],
-                  [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "content"]]}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]
-                }
-              ]},
-              origin_family: :biometric
-            },
-            transaction: %Conditions{},
-            oracle: %Conditions{}
-          },
-          constants: %Constants{
-            contract: nil,
-            transaction: nil
-          },
-          triggers: %{
-            {:datetime, ~U[2020-09-25 13:18:43Z]} => {:__block__, [], [
-                {
-                  :=,
-                  [line: 7],
-                  [
-                    {:scope, [line: 7], nil},
-                    {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["next_transaction"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}
-                  ]
+      {
+              :ok,
+              %Archethic.Contracts.Contract{
+                conditions: %{
+                  inherit: %Archethic.Contracts.ContractConditions{
+                    address: nil,
+                    authorized_keys: nil,
+                    code: nil,
+                    content: {
+                      :==,
+                      [line: 2],
+                      [true, {{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "content"]]}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]}]
+                    },
+                    origin_family: :biometric,
+                    previous_public_key: nil,
+                    secrets: nil,
+                    timestamp: nil,
+                    token_transfers: nil,
+                    type: nil,
+                    uco_transfers: nil
+                  },
+                  oracle: %Archethic.Contracts.ContractConditions{address: nil, authorized_keys: nil, code: nil, content: nil, origin_family: :all, previous_public_key: nil, secrets: nil, timestamp: nil, token_transfers: nil, type: nil, uco_transfers: nil},
+                  transaction: %Archethic.Contracts.ContractConditions{address: nil, authorized_keys: nil, code: nil, content: nil, origin_family: :all, previous_public_key: nil, secrets: nil, timestamp: nil, token_transfers: nil, type: nil, uco_transfers: nil}
                 },
-                {
-                  :=,
-                  [line: 8],
-                  [
-                    {:scope, [line: 8], nil},
-                    {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["next_transaction"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}
-                  ]
-                }
-              ]},
+                constants: %Archethic.Contracts.ContractConstants{contract: nil, transaction: nil},
+                next_transaction: %Archethic.TransactionChain.Transaction{
+                  address: nil,
+                  cross_validation_stamps: [],
+                  data: %Archethic.TransactionChain.TransactionData{
+                    code: "",
+                    content: "",
+                    ledger: %Archethic.TransactionChain.TransactionData.Ledger{token: %Archethic.TransactionChain.TransactionData.TokenLedger{transfers: []}, uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}},
+                    ownerships: [],
+                    recipients: []
+                  },
+                  origin_signature: nil,
+                  previous_public_key: nil,
+                  previous_signature: nil,
+                  type: nil,
+                  validation_stamp: nil,
+                  version: 1
+                },
+                triggers: %{
+                  {:datetime, ~U[2020-09-25 13:18:43Z]} => {
+                    :__block__,
+                    [],
+                    [
+                      {
+                        :__block__,
+                        [],
+                        [
+                          {
+                            :=,
+                            [line: 7],
+                            [{:scope, [line: 7], nil}, {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["next_transaction"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}]
+                          },
+                          {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
+                        ]
+                      },
+                      {
+                        :__block__,
+                        [],
+                        [
+                          {
+                            :=,
+                            [line: 8],
+                            [{:scope, [line: 8], nil}, {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["next_transaction"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}]
+                          },
+                          {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
+                        ]
+                      }
+                    ]
+                  }
+                },
+                version: 0
+              }
             }
-          }
-        }
   """
   @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
   def parse(contract_code) when is_binary(contract_code) do
