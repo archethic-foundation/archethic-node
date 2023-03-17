@@ -1,5 +1,5 @@
 defmodule Archethic.TransactionChain.TransactionData.OwnershipTest do
-  use ArchethicCase
+  use ExUnit.Case, async: true
 
   import ArchethicCase, only: [current_transaction_version: 0]
   use ExUnitProperties
@@ -27,6 +27,16 @@ defmodule Archethic.TransactionChain.TransactionData.OwnershipTest do
     secret_key = Crypto.ec_decrypt!(encrypted_key, pv2)
     assert "important message" == Crypto.aes_decrypt!(secret, secret_key)
   end
+end
+
+defmodule Archethic.TransactionChain.TransactionData.OwnershipPropertyTest do
+  use ExUnit.Case, async: true
+  import ArchethicCase, only: [current_transaction_version: 0]
+
+  use ExUnitProperties
+
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   property "symmetric serialization/deserialization" do
     check all(

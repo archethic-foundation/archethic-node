@@ -1,11 +1,28 @@
 defmodule Archethic.Metrics.PollerTest do
-  use ArchethicCase
+  use ExUnit.Case, async: true
 
   alias Archethic.Metrics.Poller
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
+  alias Archethic.{P2P, Crypto, P2P.Node}
 
   import Mox
+
+  setup do
+    start_supervised!(P2P.MemTable)
+
+    MockCrypto.NodeKeystore
+    |> stub(:first_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+
+    MockClient
+    |> stub(:new_connection, fn _, _, _, public_key ->
+      P2P.MemTable.increase_node_availability(public_key)
+      {:ok, make_ref()}
+    end)
+
+    :ok
+  end
 
   test "start_link/1 should start the process starts a timer" do
     {:ok, pid} = Poller.start_link(interval: 10_000)
@@ -36,16 +53,16 @@ defmodule Archethic.Metrics.PollerTest do
     child_pid =
       spawn(fn ->
         Poller.monitor(pid)
-        Process.sleep(2_000)
+        Process.sleep(200)
       end)
 
-    Process.sleep(200)
+    Process.sleep(20)
     assert %{pid_refs: pid_refs, timer: timer} = :sys.get_state(pid)
     assert Map.has_key?(pid_refs, child_pid)
 
     Process.cancel_timer(timer)
 
-    Process.sleep(2_000)
+    Process.sleep(200)
 
     assert %{pid_refs: pid_refs} = :sys.get_state(pid)
     assert !Map.has_key?(pid_refs, child_pid)
@@ -77,7 +94,9 @@ defmodule Archethic.Metrics.PollerTest do
        """}
     end)
 
-    {:ok, pid} = Poller.start_link(interval: 1_000)
+    {:ok, pid} = Poller.start_link(interval: 250)
+    allow(MockCrypto.NodeKeystore, self(), pid)
+    allow(MockMetricsCollector, self(), pid)
     Poller.monitor(pid)
 
     assert_receive {:update_data,
@@ -87,6 +106,6 @@ defmodule Archethic.Metrics.PollerTest do
                         count: 50
                       }
                     }, ^node_public_key},
-                   2_000
+                   500
   end
 end
