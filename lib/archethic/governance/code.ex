@@ -165,8 +165,7 @@ defmodule Archethic.Governance.Code do
          src_dir,
          persist?
        ) do
-    random = :crypto.strong_rand_bytes(4) |> Base.encode16()
-    prop_file = Path.join(System.tmp_dir!(), "prop_#{random}_#{Base.encode16(address)}")
+    prop_file = Path.join(System.tmp_dir!(), "prop_#{Base.encode16(address)}")
     File.write!(prop_file, changes)
 
     cmd_options = [stderr_to_stdout: true, cd: src_dir]

@@ -22,7 +22,21 @@ ARG MIX_ENV=prod
 # running TESTNET with release upgrade should ???
 
 RUN apk add --no-cache --update \
-  build-base bash gcc git npm python3 wget openssl libsodium-dev gmp-dev
+  build-base \
+  bash \
+  gcc \
+  make \
+  g++ \
+  libexecinfo-dev \
+  libexecinfo \
+  git \
+  npm \
+  python3 \
+  wget \
+  openssl \
+  libsodium-dev \
+  gmp-dev 
+
 
 # Install hex and rebar
 RUN mix local.rebar --force \
@@ -51,7 +65,7 @@ RUN npm install -g sass
 
 # build Sass -> CSS
 RUN cd assets && \
- sass --no-source-map --style=compressed css/app.scss ../priv/static/css/app.css && cd -
+  sass --no-source-map --style=compressed css/app.scss ../priv/static/css/app.css && cd -
 
 # build release
 RUN mix do assets.deploy, distillery.release
