@@ -225,7 +225,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
             ordered: false
           )
           |> Stream.filter(fn
-            # Filter slots without P2P view
+            # Filter slots with P2P view
             {:ok, {:ok, %NetworkStats{stats: stats}}} when map_size(stats) > 0 ->
               true
 

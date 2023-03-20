@@ -675,8 +675,8 @@ defmodule Archethic.BeaconChainTest do
       Enum.map(node2_slots, &SummaryCache.add_slot(<<0>>, &1, "node2"))
 
       assert %{
-               "node1" => [%{latency: 118}, %{latency: 185}, %{latency: 71}],
-               "node2" => [%{latency: 75}, %{latency: 108}, %{latency: 135}]
+               "node1" => [%{latency: 118}, %{latency: 138}, %{latency: 71}],
+               "node2" => [%{latency: 75}, %{latency: 118}, %{latency: 128}]
              } = BeaconChain.get_network_stats(<<0>>)
     end
   end

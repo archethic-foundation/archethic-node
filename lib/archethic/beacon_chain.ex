@@ -463,6 +463,7 @@ defmodule Archethic.BeaconChain do
     %{sum_weight: sum_weight, sum_weighted_list: sum_weighted_list} =
       list
       |> clean_outliers()
+      # We want to apply a weight based on the tier of the latency
       |> Utils.chunk_list_in(3)
       |> weight_list()
       |> Enum.reduce(%{sum_weight: 0.0, sum_weighted_list: 0.0}, fn {weight, weighted_list},
@@ -478,24 +479,24 @@ defmodule Archethic.BeaconChain do
   defp clean_outliers(list) do
     list_size = Enum.count(list)
 
+    sorted_list = Enum.sort(list)
+
     # Compute percentiles (P80, P20) to remove the outliers
     p1 = (0.8 * list_size) |> trunc()
     p2 = (0.2 * list_size) |> trunc()
 
-    max = Enum.at(list, p1)
-    min = Enum.at(list, p2)
+    max = Enum.at(sorted_list, p1)
+    min = Enum.at(sorted_list, p2)
 
-    Enum.map(list, fn x ->
-      cond do
-        x < min ->
-          min
+    Enum.map(list, fn
+      x when x < min ->
+        min
 
-        x > max ->
-          max
+      x when x > max ->
+        max
 
-        true ->
-          x
-      end
+      x ->
+        x
     end)
   end
 
@@ -503,12 +504,10 @@ defmodule Archethic.BeaconChain do
     list
     |> Enum.with_index()
     |> Enum.map(fn {list, i} ->
+      # Apply weight of the tier
       weight = (i + 1) * (1 / 3)
 
-      weighted_list =
-        list
-        |> Enum.reverse()
-        |> Enum.map(&(&1 * weight))
+      weighted_list = Enum.map(list, &(&1 * weight))
 
       {weight, weighted_list}
     end)
