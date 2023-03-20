@@ -268,7 +268,7 @@ defmodule Archethic.TransactionChain do
   Get the first transaction Address from a genesis/chain address
   """
   @spec get_first_transaction_address(address :: binary()) ::
-          {:ok, address :: binary()} | {:error, :transaction_not_exists}
+          {:ok, {address :: binary(), DateTime.t()}} | {:error, :transaction_not_exists}
   def get_first_transaction_address(address) when is_binary(address) do
     address =
       address
@@ -278,7 +278,7 @@ defmodule Archethic.TransactionChain do
 
     case address do
       nil -> {:error, :transaction_not_exists}
-      {address, _datetime} -> {:ok, address}
+      {address, datetime} -> {:ok, {address, datetime}}
     end
   end
 
@@ -1013,7 +1013,11 @@ defmodule Archethic.TransactionChain do
   @spec fetch_genesis_address_remotely(address :: binary(), list(Node.t())) ::
           {:ok, binary()} | {:error, :network_issue}
   def fetch_genesis_address_remotely(address, nodes) when is_binary(address) do
-    case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}) do
+    conflict_resolver = fn results ->
+      Enum.min_by(results, &DateTime.to_unix(&1.timestamp, :millisecond))
+    end
+
+    case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}, conflict_resolver) do
       {:ok, %GenesisAddress{address: genesis_address}} ->
         {:ok, genesis_address}
 
@@ -1029,7 +1033,26 @@ defmodule Archethic.TransactionChain do
           {:ok, binary()} | {:error, :network_issue} | {:error, :does_not_exist}
   def fetch_first_transaction_address_remotely(address, nodes)
       when is_binary(address) and is_list(nodes) do
-    case P2P.quorum_read(nodes, %GetFirstTransactionAddress{address: address}) do
+    conflict_resolver = fn results ->
+      results
+      |> Enum.reduce(%NotFound{}, fn
+        res = %FirstTransactionAddress{}, %NotFound{} ->
+          res
+
+        res = %FirstTransactionAddress{timestamp: t},
+        acc = %FirstTransactionAddress{timestamp: t_acc} ->
+          if t < t_acc do
+            res
+          else
+            acc
+          end
+
+        %NotFound{}, acc ->
+          acc
+      end)
+    end
+
+    case P2P.quorum_read(nodes, %GetFirstTransactionAddress{address: address}, conflict_resolver) do
       {:ok, %NotFound{}} ->
         {:error, :does_not_exist}
 

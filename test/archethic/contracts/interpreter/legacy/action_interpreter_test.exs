@@ -369,7 +369,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
 
     MockClient
     |> expect(:send_message, fn _, _, _ ->
-      {:ok, %GenesisAddress{address: b_address}}
+      {:ok, %GenesisAddress{address: b_address, timestamp: DateTime.utc_now()}}
     end)
 
     assert %Transaction{data: %TransactionData{content: "yes"}} =
@@ -455,7 +455,11 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
     MockClient
     |> stub(:send_message, fn
       _, %GetFirstTransactionAddress{address: ^first_address_bin}, _ ->
-        {:ok, %FirstTransactionAddress{address: second_address_bin}}
+        {:ok,
+         %FirstTransactionAddress{
+           address: second_address_bin,
+           timestamp: DateTime.utc_now()
+         }}
 
       _, _, _ ->
         {:error, :network_error}

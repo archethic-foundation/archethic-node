@@ -130,7 +130,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   test "self_validation/2 should return a validated transaction" do
     MockClient
     |> stub(:send_message, fn _, %GetGenesisAddress{address: address}, _ ->
-      address
+      {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
     end)
 
     tx =
@@ -270,10 +270,10 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %TransactionInputList{inputs: []}}
 
       _, %GetTransactionChainLength{}, _ ->
-        %TransactionChainLength{length: 1}
+        {:ok, %TransactionChainLength{length: 1}}
 
       _, %GetGenesisAddress{address: address}, _ ->
-        {:ok, %GenesisAddress{address: address}}
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
     end)
 
     me = self()
