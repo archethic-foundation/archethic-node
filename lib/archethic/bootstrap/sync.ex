@@ -139,8 +139,30 @@ defmodule Archethic.Bootstrap.Sync do
   def load_node_list() do
     current_nodes = P2P.authorized_and_available_nodes()
 
+    last_updated_nodes =
+      fn new_node = %Node{
+           first_public_key: public_key,
+           last_update_date: update_date
+         },
+         acc ->
+        previous_node =
+          %Node{last_update_date: previous_update_date} = Map.get(acc, public_key, new_node)
+
+        node =
+          if DateTime.compare(update_date, previous_update_date) == :gt,
+            do: new_node,
+            else: previous_node
+
+        Map.put(acc, public_key, node)
+      end
+
     conflict_resolver = fn results ->
-      Enum.max_by(results, fn %NodeList{nodes: nodes} -> length(nodes) end)
+      nodes =
+        Enum.flat_map(results, fn %NodeList{nodes: nodes} -> nodes end)
+        |> Enum.reduce(%{}, fn node, acc -> last_updated_nodes.(node, acc) end)
+        |> Map.values()
+
+      %NodeList{nodes: nodes}
     end
 
     case P2P.quorum_read(current_nodes, %ListNodes{}, conflict_resolver) do
