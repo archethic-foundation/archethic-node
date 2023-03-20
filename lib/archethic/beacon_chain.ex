@@ -272,44 +272,49 @@ defmodule Archethic.BeaconChain do
   """
   @spec fetch_and_aggregate_summaries(DateTime.t(), list(Node.t())) :: SummaryAggregate.t()
   def fetch_and_aggregate_summaries(date = %DateTime{}, download_nodes) do
+    start_time = System.monotonic_time()
+
     authorized_nodes =
       download_nodes
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     # get the summaries addresses to download per node
-    list_subsets()
-    |> Enum.map(fn subset ->
-      get_summary_address_by_node(date, subset, authorized_nodes)
-    end)
-    |> Enum.reduce(%{}, fn address_by_node, acc0 ->
-      Enum.reduce(address_by_node, acc0, fn {node, address}, acc1 ->
-        Map.update(acc1, node, [address], &[address | &1])
+    result =
+      list_subsets()
+      |> Enum.flat_map(&get_summary_address_by_node(date, &1, authorized_nodes))
+      |> Enum.reduce(%{}, fn {node, address}, acc ->
+        Map.update(acc, node, [address], &[address | &1])
       end)
-    end)
 
-    # download the summaries
-    |> Task.async_stream(
-      fn {node, addresses} ->
-        fetch_beacon_summaries(node, addresses)
-      end,
-      ordered: false,
-      max_concurrency: 256
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.map(fn {:ok, summaries} -> summaries end)
+      # download the summaries
+      |> Task.async_stream(
+        fn {node, addresses} ->
+          fetch_beacon_summaries(node, addresses)
+        end,
+        ordered: false,
+        max_concurrency: 256
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.map(fn {:ok, summaries} -> summaries end)
 
-    # aggregate the summaries
-    # this transform here is equivalent to a Stream.reduce
-    |> Stream.transform(
-      fn -> %SummaryAggregate{summary_time: date} end,
-      fn summaries, acc ->
-        {[], Enum.reduce(summaries, acc, &SummaryAggregate.add_summary(&2, &1))}
-      end,
-      fn acc -> {[acc], nil} end,
-      & &1
-    )
-    |> Enum.to_list()
-    |> Enum.at(0)
+      # aggregate the summaries
+      # this transform here is equivalent to a Stream.reduce
+      |> Stream.transform(
+        fn -> %SummaryAggregate{summary_time: date} end,
+        fn summaries, acc ->
+          {[], Enum.reduce(summaries, acc, &SummaryAggregate.add_summary(&2, &1))}
+        end,
+        fn acc -> {[acc], nil} end,
+        & &1
+      )
+      |> Enum.to_list()
+      |> Enum.at(0)
+
+    :telemetry.execute([:archethic, :self_repair, :fetch_and_aggregate_summaries], %{
+      duration: System.monotonic_time() - start_time
+    })
+
+    result
   end
 
   @doc """
