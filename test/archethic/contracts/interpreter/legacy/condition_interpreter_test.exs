@@ -221,7 +221,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
 
       MockClient
       |> expect(:send_message, fn _, _, _ ->
-        {:ok, %GenesisAddress{address: b_address}}
+        {:ok, %GenesisAddress{address: b_address, timestamp: DateTime.utc_now()}}
       end)
 
       assert true =
@@ -261,7 +261,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
 
       MockClient
       |> expect(:send_message, 1, fn _, _, _ ->
-        {:ok, %FirstTransactionAddress{address: b_address}}
+        {:ok, %FirstTransactionAddress{address: b_address, timestamp: DateTime.utc_now()}}
       end)
 
       assert true =

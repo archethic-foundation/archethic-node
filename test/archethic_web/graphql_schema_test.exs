@@ -162,7 +162,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: token_addr}}
+          {:ok, %GenesisAddress{address: token_addr, timestamp: DateTime.utc_now()}}
 
         _, %GetTransaction{}, _ ->
           aes_key = :crypto.strong_rand_bytes(32)
@@ -322,7 +322,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
            }}
 
         _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
+          {:ok, %TransactionChainLength{length: 1}}
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
@@ -365,7 +365,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
            }}
 
         _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
+          {:ok, %TransactionChainLength{length: 1}}
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
@@ -517,7 +517,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn _, %GetGenesisAddress{}, _ ->
-        {:ok, %GenesisAddress{address: genesis_addr}}
+        {:ok, %GenesisAddress{address: genesis_addr, timestamp: DateTime.utc_now()}}
       end)
 
       conn =
@@ -541,7 +541,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn _, %GetGenesisAddress{}, _ ->
-        {:ok, %GenesisAddress{address: addr}}
+        {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
       end)
 
       conn =

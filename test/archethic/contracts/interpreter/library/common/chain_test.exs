@@ -69,7 +69,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetGenesisAddress{address: ^tx_address}, _ ->
-          {:ok, %GenesisAddress{address: genesis_address}}
+          {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
 
       assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
@@ -92,7 +92,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetFirstTransactionAddress{address: ^tx_address}, _ ->
-          {:ok, %FirstTransactionAddress{address: first_address}}
+          {:ok, %FirstTransactionAddress{address: first_address, timestamp: DateTime.utc_now()}}
       end)
 
       assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)

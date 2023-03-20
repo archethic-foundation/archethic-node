@@ -555,7 +555,7 @@ defmodule Archethic.BootstrapTest do
           {:ok, %TransactionInputList{inputs: []}}
 
         _, %GetGenesisAddress{address: ^addr3}, _ ->
-          {:ok, %GenesisAddress{address: addr0}}
+          {:ok, %GenesisAddress{address: addr0, timestamp: DateTime.utc_now()}}
 
         _, %GetTransactionChain{address: ^addr3, paging_state: ^addr2}, _ ->
           {:ok,

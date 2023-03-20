@@ -19,33 +19,14 @@ defmodule Archethic.P2P.Message.GetFirstTransactionAddress do
         }
 
   @doc """
-         Serialize GetFirstTransactionAddress Struct
-
-        iex> %GetFirstTransactionAddress{
-        ...> address: <<0, 0, 94, 5, 249, 103, 126, 31, 43, 57, 25, 14, 187, 133, 59, 234, 201, 172,
-        ...>  3, 195, 43, 81, 81, 146, 164, 202, 147, 218, 207, 204, 31, 185, 73, 251>>
-        ...> } |> GetFirstTransactionAddress.serialize()
-        #address
-        <<0, 0, 94, 5, 249, 103, 126, 31, 43, 57, 25, 14, 187, 133, 59, 234, 201, 172,
-        3, 195, 43, 81, 81, 146, 164, 202, 147, 218, 207, 204, 31, 185, 73, 251>>
+  Serialize GetFirstTransactionAddress struct
   """
   def serialize(%__MODULE__{address: address}) do
     <<address::binary>>
   end
 
   @doc """
-        DeSerialize GetFirstTransactionAddress Struct
-
-        iex> # First address
-        ...> <<0, 0, 94, 5, 249, 103, 126, 31, 43, 57, 25, 14, 187, 133, 59, 234, 201, 172,
-        ...> 3, 195, 43, 81, 81, 146, 164, 202, 147, 218, 207, 204, 31, 185, 73, 251>>
-        ...> |> GetFirstTransactionAddress.deserialize()
-        {
-        %GetFirstTransactionAddress{
-        address: <<0, 0, 94, 5, 249, 103, 126, 31, 43, 57, 25, 14, 187, 133, 59, 234, 201, 172,
-         3, 195, 43, 81, 81, 146, 164, 202, 147, 218, 207, 204, 31, 185, 73, 251>>
-        }, ""}
-
+  Deserialize GetFirstTransactionAddress struct
   """
   def deserialize(bin) do
     {address, <<rest::bitstring>>} = Utils.deserialize_address(bin)
@@ -58,8 +39,8 @@ defmodule Archethic.P2P.Message.GetFirstTransactionAddress do
       {:error, :transaction_not_exists} ->
         %NotFound{}
 
-      {:ok, first_address} ->
-        %FirstTransactionAddress{address: first_address}
+      {:ok, {first_address, timestamp}} ->
+        %FirstTransactionAddress{address: first_address, timestamp: timestamp}
     end
   end
 end
