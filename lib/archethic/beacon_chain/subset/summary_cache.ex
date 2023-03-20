@@ -4,12 +4,13 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   """
 
   alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
+
+  alias Archethic.PubSub
 
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
-
-  alias Archethic.BeaconChain.SummaryTimer
 
   use GenServer
   @vsn Mix.Project.config()[:version]
@@ -30,7 +31,44 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
 
     :ok = recover_slots()
 
+    PubSub.register_to_current_epoch_of_slot_time()
+
     {:ok, %{}}
+  end
+
+  def handle_info({:current_epoch_of_slot_timer, slot_time}, state) do
+    Enum.each(BeaconChain.list_subsets(), &ensure_clean_cache(&1, slot_time))
+    {:noreply, state}
+  end
+
+  defp ensure_clean_cache(subset, slot_time) do
+    # Check if the slot in the first one of the summary interval
+    previous_summary_time = SummaryTimer.previous_summary(slot_time)
+    previous_slot_time = SlotTimer.previous_slot(slot_time)
+    first_slot_time? = previous_slot_time == previous_summary_time
+
+    if first_slot_time? do
+      # Check if there are slots for the next summary
+      contains_next_summary_slots? =
+        subset
+        |> SummaryCache.stream_current_slots()
+        |> Enum.any?(fn
+          {%Slot{slot_time: slot_time}, _} ->
+            DateTime.diff(slot_time, previous_summary_time) >= 0
+
+          %Slot{slot_time: slot_time} ->
+            DateTime.diff(slot_time, previous_summary_time) >= 0
+        end)
+
+      # Clean the slots if there is previous cache information
+      unless contains_next_summary_slots?, do: clean_slots(subset)
+    end
+  end
+
+  defp clean_slots(subset) do
+    :ets.delete(@table_name, subset)
+    File.rm(recover_path())
+    :ok
   end
 
   @doc """

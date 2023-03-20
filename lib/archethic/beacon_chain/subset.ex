@@ -355,7 +355,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp handle_summary(time, subset) do
-    beacon_slots = SummaryCache.pop_slots(subset)
+    beacon_slots = SummaryCache.stream_current_slots(subset)
 
     if Enum.empty?(beacon_slots) do
       :ok
