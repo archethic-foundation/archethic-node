@@ -136,7 +136,14 @@ defmodule Archethic do
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.map(fn {:ok, res} -> res end)
-    |> aggregate_start_mining_responses()
+    |> Enum.reduce(
+      %{
+        ok: 0,
+        network_chains_resync_needed: false,
+        p2p_resync_needed: false
+      },
+      &reduce_start_mining_responses/2
+    )
     |> then(fn aggregated_responses ->
       maybe_start_resync(aggregated_responses)
 
@@ -148,35 +155,24 @@ defmodule Archethic do
     end)
   end
 
-  defp aggregate_start_mining_responses(responses) do
-    Enum.reduce(
-      responses,
-      %{
-        ok: 0,
-        network_chains_resync_needed: false,
-        p2p_resync_needed: false
-      },
-      fn
-        {:ok, %Ok{}}, acc ->
-          %{acc | ok: acc.ok + 1}
+  defp reduce_start_mining_responses({:ok, %Ok{}}, acc) do
+    %{acc | ok: acc.ok + 1}
+  end
 
-        {:ok, %Error{reason: :network_chains_sync}}, acc ->
-          %{acc | network_chains_resync_needed: true}
+  defp reduce_start_mining_responses({:ok, %Error{reason: :network_chains_sync}}, acc) do
+    %{acc | network_chains_resync_needed: true}
+  end
 
-        {:ok, %Error{reason: :p2p_sync}}, acc ->
-          %{acc | p2p_resync_needed: true}
+  defp reduce_start_mining_responses({:ok, %Error{reason: :p2p_sync}}, acc) do
+    %{acc | p2p_resync_needed: true}
+  end
 
-        {:ok, %Error{reason: :both_sync}}, acc ->
-          %{
-            acc
-            | network_chains_resync_needed: true,
-              p2p_resync_needed: true
-          }
+  defp reduce_start_mining_responses({:ok, %Error{reason: :both_sync}}, acc) do
+    %{acc | network_chains_resync_needed: true, p2p_resync_needed: true}
+  end
 
-        _, acc ->
-          acc
-      end
-    )
+  defp reduce_start_mining_responses(_, acc) do
+    acc
   end
 
   defp maybe_start_resync(aggregated_responses) do
