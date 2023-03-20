@@ -322,20 +322,19 @@ defmodule Archethic.BeaconChain.SubsetTest do
           {:ok, %Ok{}}
 
         _, %NewBeaconSlot{slot: slot = %Slot{subset: subset}}, _ ->
-          SummaryCache.add_slot(subset, slot)
+          SummaryCache.add_slot(subset, slot, Crypto.first_node_public_key())
           {:ok, %Ok{}}
 
-        _, %GetNetworkStats{subset: ^subset}, _ ->
+        _, %GetNetworkStats{subsets: _}, _ ->
           {:ok,
            %NetworkStats{
              stats: %{
-               Crypto.first_node_public_key() => [%{latency: 90}, %{latency: 100}],
-               <<0::8, 0::8, "key_beacon_node2">> => [%{latency: 90}, %{latency: 100}]
+               <<subset>> => %{
+                 Crypto.first_node_public_key() => [%{latency: 90}, %{latency: 100}],
+                 <<0::8, 0::8, "key_beacon_node2">> => [%{latency: 90}, %{latency: 100}]
+               }
              }
            }}
-
-        _, %GetNetworkStats{}, _ ->
-          {:ok, %NetworkStats{}}
       end)
 
       MockClient

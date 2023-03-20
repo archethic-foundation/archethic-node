@@ -43,26 +43,29 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetNetworkStats{subset: <<0>>}, _ ->
+        _, %GetNetworkStats{subsets: _}, _ ->
           {:ok,
            %NetworkStats{
              stats: %{
-               <<0::8, 0::8, 1::8, "key_b0">> => [
-                 %{latency: 100},
-                 %{latency: 110},
-                 %{latency: 90}
-               ],
-               <<0::8, 0::8, 1::8, "key_b1">> => [
-                 %{latency: 100},
-                 %{latency: 105},
-                 %{latency: 90}
-               ],
-               <<0::8, 0::8, 1::8, "key_b2">> => [%{latency: 90}, %{latency: 105}, %{latency: 90}]
+               <<0>> => %{
+                 <<0::8, 0::8, 1::8, "key_b0">> => [
+                   %{latency: 100},
+                   %{latency: 110},
+                   %{latency: 90}
+                 ],
+                 <<0::8, 0::8, 1::8, "key_b1">> => [
+                   %{latency: 100},
+                   %{latency: 105},
+                   %{latency: 90}
+                 ],
+                 <<0::8, 0::8, 1::8, "key_b2">> => [
+                   %{latency: 90},
+                   %{latency: 105},
+                   %{latency: 90}
+                 ]
+               }
              }
            }}
-
-        _, _, _ ->
-          {:ok, %NetworkStats{stats: %{}}}
       end)
 
       assert Nx.tensor([

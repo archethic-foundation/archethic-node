@@ -3,7 +3,9 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   Handle the caching of the beacon slots defined for the summary
   """
 
+  alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
 
@@ -51,7 +53,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
       # Check if there are slots for the next summary
       contains_next_summary_slots? =
         subset
-        |> SummaryCache.stream_current_slots()
+        |> stream_current_slots()
         |> Enum.any?(fn
           {%Slot{slot_time: slot_time}, _} ->
             DateTime.diff(slot_time, previous_summary_time) >= 0

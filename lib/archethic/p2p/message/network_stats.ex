@@ -3,7 +3,7 @@ defmodule Archethic.P2P.Message.NetworkStats do
   Represents network stats from the aggregated beacon chain summary's cache
   """
 
-  defstruct stats: []
+  defstruct stats: %{}
 
   alias Archethic.BeaconChain.Slot
   alias Archethic.Crypto
@@ -12,7 +12,9 @@ defmodule Archethic.P2P.Message.NetworkStats do
 
   @type t :: %__MODULE__{
           stats: %{
-            Crypto.key() => Slot.net_stats()
+            (subset :: binary) => %{
+              Crypto.key() => Slot.net_stats()
+            }
           }
         }
 
@@ -21,11 +23,15 @@ defmodule Archethic.P2P.Message.NetworkStats do
 
   ## Examples
 
-      iex> %NetworkStats{stats: %{
+      iex> %NetworkStats{stats: %{ <<0>> => %{
       ...>   <<0, 0, 75, 23, 134, 64, 221, 117, 107, 77, 233, 123, 201, 244, 18, 151, 8, 255,
       ...>   53, 137, 251, 197, 67, 25, 38, 95, 2, 62, 216, 131, 112, 116, 238, 180>> => [%{latency: 100}, %{latency: 110}, %{latency: 80}]
-      ...> }} |> NetworkStats.serialize()
+      ...> }}} |> NetworkStats.serialize()
       <<
+      # Nb subsets
+      1,
+      # Subset
+      0,
       # Nb node stats
       1, 1,
       # Node public key
@@ -41,6 +47,18 @@ defmodule Archethic.P2P.Message.NetworkStats do
   """
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{stats: stats}) do
+    nb_subsets = map_size(stats)
+
+    stats_binary =
+      Enum.map(stats, fn {subset, stats} ->
+        serialize_subset_stats(subset, stats)
+      end)
+      |> :erlang.list_to_binary()
+
+    <<nb_subsets::8, stats_binary::binary>>
+  end
+
+  defp serialize_subset_stats(subset, stats) do
     stats_bin =
       stats
       |> Enum.map(fn {node_public_key, latencies} ->
@@ -57,8 +75,7 @@ defmodule Archethic.P2P.Message.NetworkStats do
 
     nb_stats = map_size(stats)
     nb_stats_bin = VarInt.from_value(nb_stats)
-
-    <<nb_stats_bin::binary, stats_bin::binary>>
+    <<subset::binary-size(1), nb_stats_bin::binary, stats_bin::binary>>
   end
 
   @doc """
@@ -66,28 +83,38 @@ defmodule Archethic.P2P.Message.NetworkStats do
 
   ## Examples
 
-      iex> <<1, 1, 0, 0, 75, 23, 134, 64, 221, 117, 107, 77, 233, 123, 201, 244, 18, 151,
+      iex> <<1, 0, 1, 1, 0, 0, 75, 23, 134, 64, 221, 117, 107, 77, 233, 123, 201, 244, 18, 151,
       ...> 8, 255, 53, 137, 251, 197, 67, 25, 38, 95, 2, 62, 216, 131, 112, 116, 238,
       ...> 180, 1, 3, 1, 100, 1, 110, 1, 80>> |> NetworkStats.deserialize()
       {
         %NetworkStats{
           stats: %{
-            <<0, 0, 75, 23, 134, 64, 221, 117, 107, 77, 233, 123, 201, 244, 18, 151, 8, 255,
-            53, 137, 251, 197, 67, 25, 38, 95, 2, 62, 216, 131, 112, 116, 238, 180>> => [%{latency: 100}, %{latency: 110}, %{latency: 80}]
+            <<0>> => %{
+              <<0, 0, 75, 23, 134, 64, 221, 117, 107, 77, 233, 123, 201, 244, 18, 151, 8, 255,
+              53, 137, 251, 197, 67, 25, 38, 95, 2, 62, 216, 131, 112, 116, 238, 180>> => [%{latency: 100}, %{latency: 110}, %{latency: 80}]
+            }
           }
         },
         ""
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(data) when is_bitstring(data) do
-    {nb_stats, rest} = VarInt.get_value(data)
-    {stats, rest} = get_stats(rest, nb_stats, %{})
+  def deserialize(<<nb_subsets::8, rest::bitstring>>) do
+    {stats, rest} = get_subsets_stats(rest, nb_subsets, %{})
 
     {
       %__MODULE__{stats: stats},
       rest
     }
+  end
+
+  defp get_subsets_stats(<<>>, _nb_subsets, acc), do: {acc, <<>>}
+  defp get_subsets_stats(rest, nb_subsets, acc) when map_size(acc) == nb_subsets, do: {acc, rest}
+
+  defp get_subsets_stats(<<subset::binary-size(1), data::bitstring>>, nb_subsets, acc) do
+    {nb_stats, rest} = VarInt.get_value(data)
+    {stats, rest} = get_stats(rest, nb_stats, %{})
+    get_subsets_stats(rest, nb_subsets, Map.put(acc, subset, stats))
   end
 
   defp get_stats(<<>>, _nb_stats, acc), do: {acc, <<>>}

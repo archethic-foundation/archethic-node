@@ -355,7 +355,13 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp handle_summary(time, subset) do
-    beacon_slots = SummaryCache.stream_current_slots(subset)
+    beacon_slots =
+      subset
+      |> SummaryCache.stream_current_slots()
+      |> Stream.map(fn
+        {slot, _} -> slot
+        slot -> slot
+      end)
 
     if Enum.empty?(beacon_slots) do
       :ok
