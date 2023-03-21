@@ -111,8 +111,6 @@ defmodule Archethic.MixProject do
       {:rand_compat, "~> 0.0.3"},
       {:gen_state_machine, "~> 3.0"},
       {:retry, "~> 0.17"},
-      {:gen_stage, "~> 1.1"},
-      {:flow, "~> 1.2"},
       {:knigge, "~> 1.4"},
       {:ex_json_schema, "~> 0.9", override: true},
       {:pathex, "~> 2.4"},
