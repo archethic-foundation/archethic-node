@@ -229,14 +229,7 @@ defmodule Archethic.SelfRepair do
       unless :persistent_term.get(:resync_p2p_running, false) do
         try do
           :persistent_term.put(:resync_p2p_running, true)
-
-          nearest_nodes =
-            P2P.authorized_and_available_nodes()
-            |> Enum.filter(&Node.locally_available?/1)
-            |> P2P.nearest_nodes()
-            |> Enum.take(3)
-
-          Archethic.Bootstrap.Sync.load_node_list(nearest_nodes)
+          Archethic.Bootstrap.Sync.load_node_list()
         after
           :persistent_term.put(:resync_p2p_running, false)
         end
