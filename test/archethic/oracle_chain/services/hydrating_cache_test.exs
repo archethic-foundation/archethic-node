@@ -36,6 +36,25 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
     assert date != date2
   end
 
+  test "should work with cron interval" do
+    {:ok, pid} =
+      HydratingCache.start_link(
+        mfa: {DateTime, :utc_now, []},
+        refresh_interval: "* * * * *",
+        ttl: :infinity
+      )
+
+    :erlang.trace(pid, true, [:receive])
+    assert_receive {:trace, ^pid, :receive, :hydrate}
+    Process.sleep(1)
+    {:ok, date} = HydratingCache.get(pid)
+
+    # minimum interval is 1s
+    Process.sleep(1005)
+    {:ok, date2} = HydratingCache.get(pid)
+    assert date != date2
+  end
+
   test "should discard the value after the ttl is reached" do
     {:ok, pid} =
       HydratingCache.start_link(

@@ -7,6 +7,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   """
   use GenServer
 
+  alias Archethic.Utils
   require Logger
 
   defmodule State do
@@ -15,6 +16,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
       :mfa,
       :ttl,
       :ttl_timer,
+      # refresh_interval :: Int | CronInterval
       :refresh_interval,
       :value,
       :hydrating_task,
@@ -108,7 +110,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
       end
 
     # start a new hydrate timer
-    hydrating_timer = Process.send_after(self(), :hydrate, refresh_interval)
+    hydrating_timer = Process.send_after(self(), :hydrate, next_tick_in_seconds(refresh_interval))
 
     new_state = %{
       state
@@ -131,5 +133,13 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
 
   def handle_info(:discard_value, state) do
     {:noreply, %State{state | value: nil, ttl_timer: nil}}
+  end
+
+  defp next_tick_in_seconds(refresh_interval) do
+    if is_binary(refresh_interval) do
+      Utils.time_offset(refresh_interval) * 1000
+    else
+      refresh_interval
+    end
   end
 end
