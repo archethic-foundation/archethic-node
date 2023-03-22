@@ -20,7 +20,8 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
       :refresh_interval,
       :value,
       :hydrating_task,
-      :hydrating_timer
+      :hydrating_timer,
+      :hydrating_function_timeout
     ])
   end
 
@@ -44,6 +45,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
     refresh_interval = Keyword.fetch!(options, :refresh_interval)
     mfa = Keyword.fetch!(options, :mfa)
     ttl = Keyword.get(options, :ttl, :infinity)
+    hydrating_function_timeout = Keyword.get(options, :hydrating_function_timeout, 5000)
 
     # start hydrating as soon as init is done
     hydrating_timer = Process.send_after(self(), :hydrate, 0)
@@ -53,6 +55,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
      %State{
        mfa: mfa,
        ttl: ttl,
+       hydrating_function_timeout: hydrating_function_timeout,
        refresh_interval: refresh_interval,
        hydrating_timer: hydrating_timer
      }}
@@ -69,6 +72,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   def handle_info(
         :hydrate,
         state = %State{
+          hydrating_function_timeout: hydrating_function_timeout,
           mfa: {m, f, a}
         }
       ) do
@@ -82,7 +86,16 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
         end
       end)
 
+    # we make sure that our hydrating function does not hang
+    Process.send_after(self(), {:kill_hydrating_task, hydrating_task}, hydrating_function_timeout)
+
     {:noreply, %State{state | hydrating_task: hydrating_task}}
+  end
+
+  def handle_info({:kill_hydrating_task, task}, state) do
+    Task.shutdown(task, :brutal_kill)
+
+    {:noreply, state}
   end
 
   def handle_info(
