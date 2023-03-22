@@ -241,15 +241,8 @@ defmodule Archethic.SelfRepair do
 
   @spec resync_all_network_chains() :: :ok
   def resync_all_network_chains() do
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      [:node_shared_secrets, :oracle, :reward, :origin],
-      &resync_network_chain(&1),
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: 5000
-    )
-    |> Stream.run()
+    [:node_shared_secrets, :oracle, :reward, :origin]
+    |> Enum.each(&resync_network_chain(&1))
   end
 
   @spec resync_network_chain(atom()) :: :ok
