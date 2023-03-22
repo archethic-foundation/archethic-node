@@ -20,19 +20,6 @@ defmodule Archethic.SelfRepair.NetworkView do
 
   require Logger
 
-  defmodule State do
-    defstruct [
-      # binary()
-      node_shared_secrets: nil,
-      # binary()
-      oracle: nil,
-      # list(binary())
-      origin: [],
-      chains_hash: <<>>,
-      p2p_hash: <<>>
-    ]
-  end
-
   # ------------------------------------------------------
   #               _
   #    __ _ _ __ (_)
@@ -104,12 +91,12 @@ defmodule Archethic.SelfRepair.NetworkView do
   end
 
   # ------------------------------------------------------
-  def handle_call(:get_chains_hash, _from, state = %State{}) do
-    {:reply, state.chains_hash, state}
+  def handle_call(:get_chains_hash, _from, state = %{chains_hash: chains_hash}) do
+    {:reply, chains_hash, state}
   end
 
-  def handle_call(:get_p2p_hash, _from, state = %State{}) do
-    {:reply, state.p2p_hash, state}
+  def handle_call(:get_p2p_hash, _from, state = %{p2p_hash: p2p_hash}) do
+    {:reply, p2p_hash, state}
   end
 
   def handle_call(_msg, _from, state = :not_initialized) do
@@ -117,13 +104,13 @@ defmodule Archethic.SelfRepair.NetworkView do
   end
 
   # ------------------------------------------------------
-  def handle_cast({:load_transaction, :node, _address}, state = %State{}) do
+  def handle_cast({:load_transaction, :node, _address}, state) do
     new_state = Map.put(state, :p2p_hash, do_get_p2p_hash())
 
     {:noreply, new_state}
   end
 
-  def handle_cast({:load_transaction, transaction_type, address}, state = %State{}) do
+  def handle_cast({:load_transaction, transaction_type, address}, state) do
     new_state =
       case transaction_type do
         :origin ->
@@ -155,15 +142,22 @@ defmodule Archethic.SelfRepair.NetworkView do
     {:noreply, state}
   end
 
-  def handle_continue(:update_chains_hash, state = %State{}) do
+  def handle_continue(
+        :update_chains_hash,
+        state = %{
+          node_shared_secrets: node_shared_secrets,
+          oracle: oracle,
+          origin: origin
+        }
+      ) do
     chains_hash =
       :crypto.hash(:sha256, [
-        state.node_shared_secrets,
-        state.oracle,
-        state.origin
+        node_shared_secrets,
+        oracle,
+        origin
       ])
 
-    {:noreply, %State{state | chains_hash: chains_hash}}
+    {:noreply, %{state | chains_hash: chains_hash}}
   end
 
   # ------------------------------------------------------
@@ -197,7 +191,8 @@ defmodule Archethic.SelfRepair.NetworkView do
       OracleChain.get_current_genesis_address()
       |> get_last_address()
 
-    %State{
+    %{
+      chains_hash: <<>>,
       p2p_hash: do_get_p2p_hash(),
       node_shared_secrets: last_known_nss_address,
       origin: last_known_origin_addresses,
