@@ -206,6 +206,11 @@ defmodule Archethic.SelfRepair do
     end
   end
 
+  @doc """
+  Starts a RepairWorker to synchronize the given address.
+  If the worker already is started for this chain, append the given address.
+  """
+  @spec resync(binary(), binary()) :: :ok
   def resync(genesis_address, storage_address) do
     case repair_in_progress?(genesis_address) do
       false ->
@@ -222,6 +227,11 @@ defmodule Archethic.SelfRepair do
     :ok
   end
 
+  @doc """
+  Resync the nodes list from closest nodes (in memory).
+
+  ps: this will _NOT_ resync the `Node` transaction chains
+  """
   @spec resync_p2p() :: :ok
   def resync_p2p() do
     Task.async(fn ->
@@ -239,13 +249,21 @@ defmodule Archethic.SelfRepair do
     :ok
   end
 
+  @doc """
+  Resync the network chains (= fetch latest transaction for each)
+
+  ps: this will _NOT_ resync the `Node` transaction chains
+  """
   @spec resync_all_network_chains() :: :ok
   def resync_all_network_chains() do
     [:node_shared_secrets, :oracle, :reward, :origin]
     |> Enum.each(&resync_network_chain(&1))
   end
 
-  @spec resync_network_chain(atom()) :: :ok
+  @doc """
+  Resync the given network chain (= fetch latest transaction)
+  """
+  @spec resync_network_chain(:node_shared_secrets | :oracle | :reward | :origin) :: :ok
   def resync_network_chain(type) do
     addresses =
       case type do
