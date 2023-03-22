@@ -45,108 +45,144 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
       ...>    end
       ...> ")
       ...> Legacy.parse(ast)
-      {:ok,
-        %Contract{
+      {
+        :ok,
+        %Archethic.Contracts.Contract{
           conditions: %{
-             inherit: %Archethic.Contracts.ContractConditions{
-                content: {
-                      :==,
-                      [line: 7],
-                      [
-                        true,
-                        {{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 7], [{:get_in, [line: 7], [{:scope, [line: 7], nil}, ["next", "content"]]}, "hello"]}
-                      ]
-                },
-                authorized_keys: nil,
-                code: nil,
-                token_transfers: nil,
-                origin_family: :all,
-                previous_public_key: nil,
-                type: nil,
-                uco_transfers: nil
-             },
-            oracle: %Archethic.Contracts.ContractConditions{
-                 content: {
-                      :>,
-                      [line: 11],
-                      [
-                        {
-                          :==,
-                          [line: 11],
-                          [
-                            {:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]},
-                            {{:., [line: 11], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :json_path_extract]}, [line: 11], [{:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]}, "$.uco.eur"]}
-                          ]
-                        },
-                        1
-                      ]
-                  },
-                 authorized_keys: nil,
+            inherit: %Archethic.Contracts.ContractConditions{
+              address: nil,
+              authorized_keys: nil,
               code: nil,
-                 token_transfers: nil,
-                 origin_family: :all,
-                 previous_public_key: nil,
-                 type: nil,
-                 uco_transfers: nil
-             },
-             transaction: %Archethic.Contracts.ContractConditions{
-                 content: {
-                      :==,
-                      [line: 2],
-                      [
-                        true,
-                        {{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["transaction", "content"]]}, "^Mr.Y|Mr.X{1}$"]}
-                      ]
-                 },
-                 origin_family: :biometric,
-                 authorized_keys: nil,
-                 code: nil,
-                 token_transfers: nil,
-                 previous_public_key: nil,
-                 type: nil,
-                 uco_transfers: nil
-             }
-         },
-         constants: %Archethic.Contracts.ContractConstants{},
-         next_transaction: %Transaction{ data: %TransactionData{}},
-         triggers: %{
-           {:datetime, ~U[2020-10-21 08:56:43Z]} => {:__block__, [],
+              content: {:==, [line: 7], [true, {{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 7], [{:get_in, [line: 7], [{:scope, [line: 7], nil}, ["next", "content"]]}, "hello"]}]},
+              origin_family: :all,
+              previous_public_key: nil,
+              secrets: nil,
+              timestamp: nil,
+              token_transfers: nil,
+              type: nil,
+              uco_transfers: nil
+            },
+            oracle: %Archethic.Contracts.ContractConditions{
+              address: nil,
+              authorized_keys: nil,
+              code: nil,
+              content: {
+                :>,
+                [line: 11],
+                [
+                  {
+                    :==,
+                    [line: 11],
+                    [
+                      {:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]},
+                      {{:., [line: 11], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :json_path_extract]}, [line: 11], [{:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]}, "$.uco.eur"]}
+                    ]
+                  },
+                  1
+                ]
+              },
+              origin_family: :all,
+              previous_public_key: nil,
+              secrets: nil,
+              timestamp: nil,
+              token_transfers: nil,
+              type: nil,
+              uco_transfers: nil
+            },
+            transaction: %Archethic.Contracts.ContractConditions{
+              address: nil,
+              authorized_keys: nil,
+              code: nil,
+              content: {
+                :==,
+                [line: 2],
+                [true, {{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["transaction", "content"]]}, "^Mr.Y|Mr.X{1}$"]}]
+              },
+              origin_family: :biometric,
+              previous_public_key: nil,
+              secrets: nil,
+              timestamp: nil,
+              token_transfers: nil,
+              type: nil,
+              uco_transfers: nil
+            }
+          },
+          constants: %Archethic.Contracts.ContractConstants{contract: nil, transaction: nil},
+          next_transaction: %Archethic.TransactionChain.Transaction{
+            address: nil,
+            cross_validation_stamps: [],
+            data: %Archethic.TransactionChain.TransactionData{
+              code: "",
+              content: "",
+              ledger: %Archethic.TransactionChain.TransactionData.Ledger{token: %Archethic.TransactionChain.TransactionData.TokenLedger{transfers: []}, uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}},
+              ownerships: [],
+              recipients: []
+            },
+            origin_signature: nil,
+            previous_public_key: nil,
+            previous_signature: nil,
+            type: nil,
+            validation_stamp: nil,
+            version: 1
+          },
+          triggers: %{
+            :oracle => {
+              :__block__,
+              [],
+              [
+                {
+                  :=,
+                  [line: 22],
+                  [{:scope, [line: 22], nil}, {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["next_transaction"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}]
+                },
+                {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
+              ]
+            },
+            {:datetime, ~U[2020-10-21 08:56:43Z]} => {
+              :__block__,
+              [],
               [
                 {:=, [line: 15], [{:scope, [line: 15], nil}, {{:., [line: 15], [{:__aliases__, [line: 15], [:Map]}, :put]}, [line: 15], [{:scope, [line: 15], nil}, "new_content", "Sent 1040000000"]}]},
                 {
-                  :=,
-                  [line: 16],
+                  :__block__,
+                  [],
                   [
-                    {:scope, [line: 16], nil},
-                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["next_transaction"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
+                    {
+                      :=,
+                      [line: 16],
+                      [{:scope, [line: 16], nil}, {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["next_transaction"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}]
+                    },
+                    {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
                   ]
                 },
                 {
-                  :=,
-                  [line: 17],
+                  :__block__,
+                  [],
                   [
-                    {:scope, [line: 17], nil},
-                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["next_transaction"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
+                    {
+                      :=,
+                      [line: 17],
+                      [{:scope, [line: 17], nil}, {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["next_transaction"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}]
+                    },
+                    {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
                   ]
                 },
                 {
-                  :=,
-                  [line: 18],
+                  :__block__,
+                  [],
                   [
-                    {:scope, [line: 18], nil},
-                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1040000000}]]}]}]}
+                    {
+                      :=,
+                      [line: 18],
+                      [{:scope, [line: 18], nil}, {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1040000000}]]}]}]}]
+                    },
+                    {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]}
                   ]
                 }
-              ]},
-           :oracle => {
-              :=,
-              [line: 22],
-              [
-                {:scope, [line: 22], nil},
-                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["next_transaction"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
               ]
-           }
-          }
+            }
+          },
+          version: 0
         }
       }
 

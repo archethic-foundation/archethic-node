@@ -127,19 +127,17 @@ defmodule Archethic.SelfRepair.Sync do
 
     download_nodes = P2P.authorized_and_available_nodes(last_summary_time, true)
 
-    summaries_aggregates =
-      fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)
+    # Process first the old aggregates
+    fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)
+    |> Enum.each(&process_summary_aggregate(&1, download_nodes))
 
+    # Then process the last one to have the last P2P view
     last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time, download_nodes)
     ensure_download_last_aggregate(last_aggregate, download_nodes)
 
-    last_aggregate =
-      aggregate_with_local_summaries(last_aggregate, last_summary_time)
-      |> verify_attestations_threshold()
-
-    summaries_aggregates
-    |> Stream.concat([last_aggregate])
-    |> Enum.each(&process_summary_aggregate(&1, download_nodes))
+    aggregate_with_local_summaries(last_aggregate, last_summary_time)
+    |> verify_attestations_threshold()
+    |> process_summary_aggregate(download_nodes)
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()

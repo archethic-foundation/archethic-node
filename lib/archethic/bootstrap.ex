@@ -203,6 +203,8 @@ defmodule Archethic.Bootstrap do
   defp post_bootstrap(opts) do
     if Keyword.get(opts, :sync?, true) do
       Logger.info("Synchronization started")
+      # Always load the current node list to have the current view for downloading transaction
+      :ok = Sync.load_node_list()
       :ok = SelfRepair.bootstrap_sync(SelfRepair.last_sync_date())
       Logger.info("Synchronization finished")
     end
@@ -261,10 +263,12 @@ defmodule Archethic.Bootstrap do
 
     reward_address =
       if length > 0 do
+        {:ok, last_address} =
+          Crypto.derive_address(Crypto.first_node_public_key())
+          |> TransactionChain.fetch_last_address_remotely(closest_nodes)
+
         {:ok, %Transaction{data: %TransactionData{content: content}}} =
-          TransactionChain.get_last_transaction(
-            Crypto.derive_address(Crypto.first_node_public_key())
-          )
+          TransactionChain.fetch_transaction_remotely(last_address, closest_nodes)
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
          _key_certificate} = Node.decode_transaction_content(content)
@@ -280,7 +284,6 @@ defmodule Archethic.Bootstrap do
     :ok = TransactionHandler.send_transaction(tx, closest_nodes)
 
     :ok = Sync.load_storage_nonce(closest_nodes)
-    :ok = Sync.load_node_list(closest_nodes)
   end
 
   defp update_node(ip, port, http_port, transport, patch, bootstrapping_seeds, reward_address) do

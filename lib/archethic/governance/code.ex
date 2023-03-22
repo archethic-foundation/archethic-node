@@ -153,28 +153,42 @@ defmodule Archethic.Governance.Code do
   """
   @spec applicable_proposal?(Proposal.t()) :: boolean()
   def applicable_proposal?(
-        %Proposal{changes: changes, address: address},
+        proposal,
         src_dir \\ @src_dir
       ) do
-    random = :crypto.strong_rand_bytes(4) |> Base.encode16()
-    prop_file = Path.join(System.tmp_dir!(), "prop_#{random}_#{Base.encode16(address)}")
+    res = apply_diff(proposal, src_dir, false)
+    match?({_, 0}, res)
+  end
+
+  defp apply_diff(
+         %Proposal{changes: changes, address: address},
+         src_dir,
+         persist?
+       ) do
+    prop_file = Path.join(System.tmp_dir!(), "prop_#{Base.encode16(address)}")
     File.write!(prop_file, changes)
 
     cmd_options = [stderr_to_stdout: true, cd: src_dir]
     git = fn args -> System.cmd("git", args, cmd_options) end
 
+    git_args =
+      if persist? do
+        ["apply", prop_file]
+      else
+        ["apply", "--check", prop_file]
+      end
+
     res =
       case status() do
         {:clean, _} ->
-          git.(["apply", "--check", prop_file])
+          git.(git_args)
 
         otherwise ->
           {:error, otherwise}
       end
 
     File.rm(prop_file)
-
-    match?({_, 0}, res)
+    res
   end
 
   @doc """

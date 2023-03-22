@@ -1,40 +1,18 @@
 defmodule Archethic.Mining.PendingTransactionValidation do
   @moduledoc false
 
-  alias Archethic.{
-    Contracts,
-    Contracts.Contract,
-    Crypto,
-    DB,
-    SharedSecrets,
-    Election,
-    Governance,
-    Networking,
-    OracleChain,
-    P2P,
-    P2P.Message.FirstPublicKey,
-    P2P.Message.GetFirstPublicKey,
-    P2P.Message.GetTransactionSummary,
-    P2P.Message.TransactionSummaryMessage,
-    P2P.Message.NotFound,
-    P2P.Node,
-    Reward,
-    SharedSecrets.NodeRenewal,
-    Utils,
-    TransactionChain
-  }
+  alias Archethic.{Contracts, Contracts.Contract, Crypto, DB, SharedSecrets, Election}
+  alias Archethic.{Governance, Networking, OracleChain, P2P, Reward, P2P.Message, P2P.Node}
+  alias Archethic.{SharedSecrets.NodeRenewal, Utils, TransactionChain}
 
-  alias Archethic.TransactionChain.{
-    Transaction,
-    TransactionData,
-    TransactionData.Ledger,
-    TransactionData.Ownership,
-    TransactionData.UCOLedger,
-    TransactionData.TokenLedger,
-    TransactionSummary
-  }
+  alias Message.{FirstPublicKey, GetFirstPublicKey, GetTransactionSummary}
+  alias Message.{TransactionSummaryMessage, NotFound}
+
+  alias TransactionChain.{Transaction, TransactionData, TransactionSummary}
+  alias TransactionData.{Ledger, Ownership, UCOLedger, TokenLedger}
 
   alias Archethic.Governance.Code.Proposal, as: CodeProposal
+
   require Logger
 
   @unit_uco 100_000_000
@@ -514,20 +492,20 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp do_accept_transaction(
          %Transaction{
            type: :keychain,
-           data: %TransactionData{content: "", ownerships: []}
+           data: %TransactionData{
+             ownerships: ownerships,
+             content: content,
+             ledger: %Ledger{
+               uco: %UCOLedger{transfers: []},
+               token: %TokenLedger{transfers: []}
+             },
+             recipients: []
+           }
          },
          _
-       ) do
-    {:error, "Invalid Keychain transaction"}
-  end
-
-  defp do_accept_transaction(
-         %Transaction{
-           type: :keychain,
-           data: %TransactionData{content: content, ownerships: _ownerships}
-         },
-         _
-       ) do
+       )
+       when content != "" and ownerships != [] do
+    # ownerships validate in :ok <- validate_ownerships(tx),
     with {:ok, json_did} <- Jason.decode(content),
          :ok <- ExJsonSchema.Validator.validate(@did_schema, json_did) do
       :ok
@@ -541,30 +519,36 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(
-         %Transaction{
-           type: :keychain_access,
-           data: %TransactionData{ownerships: []}
-         },
-         _
-       ) do
-    {:error, "Invalid Keychain access transaction"}
-  end
+  defp do_accept_transaction(%Transaction{type: :keychain, data: _}, _),
+    do: {:error, "Invalid Keychain transaction"}
 
   defp do_accept_transaction(
          %Transaction{
            type: :keychain_access,
-           data: %TransactionData{ownerships: ownerships},
-           previous_public_key: previous_public_key
+           previous_public_key: previous_public_key,
+           data: %TransactionData{
+             content: "",
+             ownerships: [ownership = %Ownership{secret: _, authorized_keys: _}],
+             ledger: %Ledger{
+               uco: %UCOLedger{transfers: []},
+               token: %TokenLedger{transfers: []}
+             },
+             recipients: []
+           }
          },
          _
        ) do
-    if Enum.any?(ownerships, &Ownership.authorized_public_key?(&1, previous_public_key)) do
+    # ownerships validate in :ok <- validate_ownerships(tx),
+    # forbid empty ownership or more than one secret, content, uco & token transfers
+    if Ownership.authorized_public_key?(ownership, previous_public_key) do
       :ok
     else
       {:error, "Invalid Keychain access transaction - Previous public key must be authorized"}
     end
   end
+
+  defp do_accept_transaction(%Transaction{type: :keychain_access}, _),
+    do: {:error, "Invalid Keychain Access transaction"}
 
   defp do_accept_transaction(
          %Transaction{
