@@ -116,8 +116,7 @@ defmodule Archethic.P2P.Message.StartMining do
     <<Transaction.serialize(tx)::binary, welcome_node_public_key::binary,
       length(validation_node_public_keys)::8,
       :erlang.list_to_binary(validation_node_public_keys)::binary,
-      byte_size(network_chains_view_hash)::8, network_chains_view_hash::binary,
-      byte_size(p2p_view_hash)::8, p2p_view_hash::binary>>
+      network_chains_view_hash::binary, p2p_view_hash::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
@@ -130,13 +129,8 @@ defmodule Archethic.P2P.Message.StartMining do
     {validation_node_public_keys, rest} =
       Utils.deserialize_public_key_list(rest, nb_validation_nodes, [])
 
-    <<
-      network_chains_view_hash_bytes::8,
-      network_chains_view_hash::binary-size(network_chains_view_hash_bytes),
-      p2p_view_hash_bytes::8,
-      p2p_view_hash::binary-size(p2p_view_hash_bytes),
-      rest::bitstring
-    >> = rest
+    <<network_chains_view_hash::binary-size(32), p2p_view_hash::binary-size(32), rest::bitstring>> =
+      rest
 
     {%__MODULE__{
        transaction: tx,

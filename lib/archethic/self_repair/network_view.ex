@@ -12,7 +12,6 @@ defmodule Archethic.SelfRepair.NetworkView do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.OracleChain
-  alias Archethic.Crypto
   alias Archethic.P2P
   alias Archethic.PubSub
   alias Archethic.SharedSecrets
@@ -57,9 +56,11 @@ defmodule Archethic.SelfRepair.NetworkView do
   def get_p2p_hash() do
     # this is not using the genserver
     # since the nodes' state is already in the P2P module
-    P2P.authorized_and_available_nodes()
-    |> Enum.map(& &1.last_public_key)
-    |> Crypto.hash()
+    keys =
+      P2P.authorized_and_available_nodes()
+      |> Enum.map(& &1.last_public_key)
+
+    :crypto.hash(:sha256, keys)
   end
 
   @doc """
@@ -151,7 +152,7 @@ defmodule Archethic.SelfRepair.NetworkView do
 
   def handle_continue(:update_hash, state = %State{}) do
     hash =
-      Crypto.hash([
+      :crypto.hash(:sha256, [
         state.node_shared_secrets,
         state.oracle,
         state.origin
@@ -193,7 +194,6 @@ defmodule Archethic.SelfRepair.NetworkView do
     }
   end
 
-  # FIXME I HAVE NO IDEA WHY AT START OF NODE 2, I GET NIL NSS GENESIS ADDRESS
   defp get_last_address(nil), do: ""
 
   defp get_last_address(genesis_address) do
