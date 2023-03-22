@@ -8,7 +8,7 @@ defmodule Archethic.SelfRepair do
   alias __MODULE__.{Scheduler, Sync}
 
   alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
-  alias Archethic.{P2P, P2P.Node, SharedSecrets, OracleChain, Reward, Replication}
+  alias Archethic.{P2P.Node, SharedSecrets, OracleChain, Reward}
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -243,8 +243,8 @@ defmodule Archethic.SelfRepair do
   def resync_all_network_chains() do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
-      [:node_shared_secrets, :oracle, :origin],
-      &resync_network_chain(&1, P2P.authorized_and_available_nodes()),
+      [:node_shared_secrets, :oracle, :reward, :origin],
+      &resync_network_chain(&1),
       ordered: false,
       on_timeout: :kill_task,
       timeout: 5000
@@ -252,11 +252,8 @@ defmodule Archethic.SelfRepair do
     |> Stream.run()
   end
 
-  @spec resync_network_chain(atom(), list(Node.t()) | []) :: :ok
-  def resync_network_chain(_, []),
-    do: Logger.notice("Enforce Resync of Network Txs: No-Nodes")
-
-  def resync_network_chain(type, nodes) do
+  @spec resync_network_chain(atom()) :: :ok
+  def resync_network_chain(type) do
     addresses =
       case type do
         :node_shared_secrets ->
@@ -275,33 +272,18 @@ defmodule Archethic.SelfRepair do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
       addresses,
-      &do_resync_network_chain(&1, type, nodes),
+      fn genesis_address ->
+        with false <- repair_in_progress?(genesis_address),
+             {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
+             {:ok, remote_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
+             false <- remote_last_addr == local_last_address do
+          resync(genesis_address, remote_last_addr)
+        end
+      end,
       ordered: false,
       on_timeout: :kill_task,
       timeout: 5000
     )
     |> Stream.run()
-  end
-
-  # FIXME: why is it not using the repair worker?
-  def do_resync_network_chain(genesis_address, type, nodes) do
-    with {:ok, rem_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
-         {local_last_addr, _} <- TransactionChain.get_last_address(genesis_address),
-         false <- rem_last_addr == local_last_addr,
-         {:ok, tx} <- TransactionChain.fetch_transaction_remotely(rem_last_addr, nodes),
-         :ok <- Replication.validate_and_store_transaction_chain(tx) do
-      Logger.info("Enforced Resync: Success", transaction_type: type)
-      :ok
-    else
-      nil ->
-        Logger.warning("Node is out of sync, wait for self repair to complete succesfully.")
-
-      true ->
-        Logger.info("Enforced Resync: No new transaction to sync", transaction_type: type)
-        :ok
-
-      e ->
-        Logger.debug("Enforced Resync: Error #{inspect(e)}", transaction_type: type)
-    end
   end
 end

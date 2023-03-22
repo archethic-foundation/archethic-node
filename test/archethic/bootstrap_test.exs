@@ -418,7 +418,7 @@ defmodule Archethic.BootstrapTest do
     end
   end
 
-  describe "resync_network_chain/2 nss_chain" do
+  describe "resync_network_chain/1 nss_chain" do
     setup do
       p2p_context()
 
@@ -467,11 +467,7 @@ defmodule Archethic.BootstrapTest do
       # first time boot no txns exits yet
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
 
-      assert :ok =
-               SelfRepair.resync_network_chain(
-                 :node_shared_secrets,
-                 _nodes = P2P.authorized_and_available_nodes()
-               )
+      assert :ok = SelfRepair.resync_network_chain(:node_shared_secrets)
     end
 
     test "Should return :ok when last address match (locally and remotely)", nss_chain do
@@ -495,11 +491,7 @@ defmodule Archethic.BootstrapTest do
           send(me, :fetch_last_txn)
       end)
 
-      assert :ok =
-               SelfRepair.resync_network_chain(
-                 :node_shared_secrets,
-                 _nodes = P2P.authorized_and_available_nodes()
-               )
+      assert :ok = SelfRepair.resync_network_chain(:node_shared_secrets)
 
       assert_receive(:local_last_addr_request)
       assert_receive(:remote_last_addr_request)
@@ -566,11 +558,7 @@ defmodule Archethic.BootstrapTest do
            }}
       end)
 
-      assert :ok =
-               SelfRepair.resync_network_chain(
-                 :node_shared_secrets,
-                 _nodes = P2P.authorized_and_available_nodes()
-               )
+      assert :ok = SelfRepair.resync_network_chain(:node_shared_secrets)
 
       # flow
       # get_gen_addr(:pers_term) -> resolve_last_address ->   get_last_address
