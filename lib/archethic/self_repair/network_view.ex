@@ -28,7 +28,8 @@ defmodule Archethic.SelfRepair.NetworkView do
       oracle: nil,
       # list(binary())
       origin: [],
-      chains_hash: <<>>
+      chains_hash: <<>>,
+      p2p_hash: <<>>
     ]
   end
 
@@ -54,13 +55,7 @@ defmodule Archethic.SelfRepair.NetworkView do
   """
   @spec get_p2p_hash() :: binary()
   def get_p2p_hash() do
-    # this is not using the genserver
-    # since the nodes' state is already in the P2P module
-    keys =
-      P2P.authorized_and_available_nodes()
-      |> Enum.map(& &1.last_public_key)
-
-    :crypto.hash(:sha256, keys)
+    GenServer.call(__MODULE__, :get_p2p_hash)
   end
 
   @doc """
@@ -80,7 +75,7 @@ defmodule Archethic.SelfRepair.NetworkView do
         type: type,
         address: address
       })
-      when type in [:node_shared_secrets, :oracle, :origin] do
+      when type in [:node_shared_secrets, :oracle, :origin, :node] do
     GenServer.cast(__MODULE__, {:load_transaction, type, address})
   end
 
@@ -105,7 +100,7 @@ defmodule Archethic.SelfRepair.NetworkView do
         :not_initialized
       end
 
-    {:ok, state, {:continue, :update_hash}}
+    {:ok, state, {:continue, :update_chains_hash}}
   end
 
   # ------------------------------------------------------
@@ -113,11 +108,21 @@ defmodule Archethic.SelfRepair.NetworkView do
     {:reply, state.chains_hash, state}
   end
 
+  def handle_call(:get_p2p_hash, _from, state = %State{}) do
+    {:reply, state.p2p_hash, state}
+  end
+
   def handle_call(_msg, _from, state = :not_initialized) do
     {:reply, :error, state}
   end
 
   # ------------------------------------------------------
+  def handle_cast({:load_transaction, :node, _address}, state = %State{}) do
+    new_state = Map.put(state, :p2p_hash, do_get_p2p_hash())
+
+    {:noreply, new_state}
+  end
+
   def handle_cast({:load_transaction, transaction_type, address}, state = %State{}) do
     new_state =
       case transaction_type do
@@ -128,7 +133,7 @@ defmodule Archethic.SelfRepair.NetworkView do
           Map.put(state, transaction_type, address)
       end
 
-    {:noreply, new_state, {:continue, :update_hash}}
+    {:noreply, new_state, {:continue, :update_chains_hash}}
   end
 
   def handle_cast(_msg, state = :not_initialized) do
@@ -138,7 +143,7 @@ defmodule Archethic.SelfRepair.NetworkView do
   # ------------------------------------------------------
   def handle_info(:node_up, _state) do
     state = fetch_initial_state()
-    {:noreply, state, {:continue, :update_hash}}
+    {:noreply, state, {:continue, :update_chains_hash}}
   end
 
   def handle_info(:node_down, state) do
@@ -146,19 +151,19 @@ defmodule Archethic.SelfRepair.NetworkView do
   end
 
   # ------------------------------------------------------
-  def handle_continue(:update_hash, state = :not_initialized) do
+  def handle_continue(:update_chains_hash, state = :not_initialized) do
     {:noreply, state}
   end
 
-  def handle_continue(:update_hash, state = %State{}) do
-    hash =
+  def handle_continue(:update_chains_hash, state = %State{}) do
+    chains_hash =
       :crypto.hash(:sha256, [
         state.node_shared_secrets,
         state.oracle,
         state.origin
       ])
 
-    {:noreply, %State{state | chains_hash: hash}}
+    {:noreply, %State{state | chains_hash: chains_hash}}
   end
 
   # ------------------------------------------------------
@@ -170,6 +175,11 @@ defmodule Archethic.SelfRepair.NetworkView do
   #  |_|
   #
   # ------------------------------------------------------
+  defp do_get_p2p_hash() do
+    P2P.authorized_and_available_nodes()
+    |> Enum.map(& &1.last_public_key)
+    |> then(&:crypto.hash(:sha256, &1))
+  end
 
   defp fetch_initial_state() do
     last_known_nss_address =
@@ -188,6 +198,7 @@ defmodule Archethic.SelfRepair.NetworkView do
       |> get_last_address()
 
     %State{
+      p2p_hash: do_get_p2p_hash(),
       node_shared_secrets: last_known_nss_address,
       origin: last_known_origin_addresses,
       oracle: last_known_oracle_address

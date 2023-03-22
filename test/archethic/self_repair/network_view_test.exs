@@ -24,12 +24,14 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
       :ok
     end
 
-    test "get_chains_hash should return an error if called before node is up" do
-      :error = NetworkView.get_chains_hash()
+    test "get_xxx_hash should return an error if called before node is up" do
+      assert :error = NetworkView.get_chains_hash()
+      assert :error = NetworkView.get_p2p_hash()
     end
 
     test "load_transaction should return ok even if called before node is up" do
-      :ok = NetworkView.load_transaction(%Transaction{type: :origin, address: random_address()})
+      assert :ok =
+               NetworkView.load_transaction(%Transaction{type: :origin, address: random_address()})
     end
 
     test "init is triggered when node bootstrap is done" do
@@ -46,45 +48,14 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
       # trigger the node_up event
       PubSub.notify_node_status(:node_up)
 
-      assert hash = NetworkView.get_chains_hash()
-      assert is_binary(hash)
+      assert chains_hash = NetworkView.get_chains_hash()
+      assert is_binary(chains_hash)
 
-      :ok =
-        NetworkView.load_transaction(%Transaction{
-          type: :node_shared_secrets,
-          address: random_address()
-        })
-
-      assert hash2 = NetworkView.get_chains_hash()
-      assert is_binary(hash2)
-
-      assert hash != hash2
-    end
-
-    test "get_p2p_hash should change return value on every node modification" do
-      hash = NetworkView.get_p2p_hash()
-      assert is_binary(hash)
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "pubkey0",
-        last_public_key: "pubkeylast",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-
-      hash2 = NetworkView.get_p2p_hash()
-      assert is_binary(hash2)
-
-      assert hash != hash2
+      assert p2p_hash = NetworkView.get_p2p_hash()
+      assert is_binary(p2p_hash)
     end
   end
 
-  # ---------------
   describe "when node is already up" do
     setup do
       :persistent_term.put(:archethic_up, :up)
@@ -102,9 +73,31 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
       :ok
     end
 
-    test "get_chains_hash should work" do
-      assert hash = NetworkView.get_chains_hash()
+    test "load_transaction change the return value of get_p2p_hash" do
+      hash = NetworkView.get_p2p_hash()
       assert is_binary(hash)
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "pubkey0",
+        last_public_key: "pubkeylast",
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+      })
+
+      NetworkView.load_transaction(%Transaction{
+        type: :node,
+        address: random_address()
+      })
+
+      hash2 = NetworkView.get_p2p_hash()
+      assert is_binary(hash2)
+
+      assert hash != hash2
     end
 
     test "load_transaction change the return value of get_chains_hash" do
