@@ -224,7 +224,7 @@ defmodule Archethic.SelfRepair do
     :ok
   end
 
-  @spec resync_network_chain(atom(), list(Node.t()) | []) :: :ok | :error
+  @spec resync_network_chain(type :: atom(), nodes :: list(Node.t()) | []) :: :ok | :error
   def resync_network_chain(_, []),
     do: Logger.notice("Enforce Resync of Network Txs: No-Nodes")
 
