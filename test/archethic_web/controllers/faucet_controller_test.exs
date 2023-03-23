@@ -31,6 +31,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
       authorization_date: DateTime.utc_now()
     })
 
+    start_supervised(ArchethicWeb.FaucetRateLimiter)
+
     setup_before_send_tx()
     :ok
   end
