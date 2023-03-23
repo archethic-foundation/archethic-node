@@ -519,7 +519,6 @@ defmodule Archethic.BeaconChainTest do
 
   describe "list_transactions_summaries_from_current_slot/0" do
     test "should work" do
-      SummaryTimer.start_link([interval: "0 0 * * * * *"], [])
       now = DateTime.utc_now()
 
       P2P.add_and_connect_node(%Node{
