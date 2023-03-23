@@ -8,7 +8,7 @@ defmodule Archethic.SelfRepair do
   alias __MODULE__.{Scheduler, Sync}
 
   alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
-  alias Archethic.{P2P.Node, SharedSecrets, OracleChain, Reward}
+  alias Archethic.{P2P, P2P.Node, SharedSecrets, OracleChain, Reward}
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -228,21 +228,38 @@ defmodule Archethic.SelfRepair do
   end
 
   @doc """
-  Resync the nodes list from closest nodes (in memory).
-
-  ps: this will _NOT_ resync the `Node` transaction chains
+  Asynchronously resync the nodes list from closest nodes.
+  Skip if there is already a concurrent run
   """
   @spec resync_p2p() :: :ok
   def resync_p2p() do
-    Task.async(fn ->
-      # avoid running it multiple times concurrently
-      unless :persistent_term.get(:resync_p2p_running, false) do
-        try do
-          :persistent_term.put(:resync_p2p_running, true)
-          Archethic.Bootstrap.Sync.load_node_list()
-        after
-          :persistent_term.put(:resync_p2p_running, false)
-        end
+    timeout = 30_000
+
+    Utils.fire_and_forget_with_timeout(timeout, fn ->
+      now = DateTime.utc_now()
+
+      # avoid concurrent runs by using a timed lock
+      last_resync_p2p =
+        :persistent_term.get(:last_resync_p2p, DateTime.add(now, -timeout, :millisecond))
+
+      if DateTime.diff(now, last_resync_p2p, :millisecond) >= timeout do
+        :persistent_term.put(:last_resync_p2p, now)
+
+        Logger.info("Resync P2P started")
+
+        # Refresh the local P2P view (load the nodes in memory)
+        Archethic.Bootstrap.Sync.load_node_list()
+
+        # Load the latest node transactions
+        Task.Supervisor.async_stream_nolink(
+          Archethic.TaskSupervisor,
+          P2P.authorized_and_available_nodes(),
+          &resync_chain_if_needed(&1.last_address, &1.last_address),
+          ordered: false,
+          on_timeout: :kill_task,
+          timeout: 5000
+        )
+        |> Stream.run()
       end
     end)
 
@@ -250,7 +267,7 @@ defmodule Archethic.SelfRepair do
   end
 
   @doc """
-  Resync the network chains (= fetch latest transaction for each)
+  Asynchronously resync the network chains (= fetch latest transaction for each)
 
   ps: this will _NOT_ resync the `Node` transaction chains
   """
@@ -261,40 +278,52 @@ defmodule Archethic.SelfRepair do
   end
 
   @doc """
-  Resync the given network chain (= fetch latest transaction)
+  Asynchronously resync the given network chain (= fetch latest transaction)
   """
   @spec resync_network_chain(:node_shared_secrets | :oracle | :reward | :origin) :: :ok
   def resync_network_chain(type) do
-    addresses =
-      case type do
-        :node_shared_secrets ->
-          [SharedSecrets.genesis_address(:node_shared_secrets)]
+    Task.start(fn ->
+      Logger.info("Resync network chain #{type} started")
 
-        :oracle ->
-          [OracleChain.get_current_genesis_address()]
+      addresses =
+        case type do
+          :node_shared_secrets ->
+            [SharedSecrets.genesis_address(:node_shared_secrets)]
 
-        :reward ->
-          [Reward.genesis_address()]
+          :oracle ->
+            [OracleChain.get_current_genesis_address()]
 
-        :origin ->
-          SharedSecrets.genesis_address(:origin)
-      end
+          :reward ->
+            [Reward.genesis_address()]
 
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      addresses,
-      fn genesis_address ->
-        with false <- repair_in_progress?(genesis_address),
-             {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
-             {:ok, remote_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
-             false <- remote_last_addr == local_last_address do
-          resync(genesis_address, remote_last_addr)
+          :origin ->
+            SharedSecrets.genesis_address(:origin)
         end
-      end,
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: 5000
-    )
-    |> Stream.run()
+
+      Ut
+
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        addresses,
+        fn genesis_address ->
+          {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
+          resync_chain_if_needed(genesis_address, local_last_address)
+        end,
+        ordered: false,
+        on_timeout: :kill_task,
+        timeout: 5000
+      )
+      |> Stream.run()
+    end)
+
+    :ok
+  end
+
+  defp resync_chain_if_needed(genesis_address, local_last_address) do
+    with false <- repair_in_progress?(genesis_address),
+         {:ok, remote_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
+         false <- remote_last_addr == local_last_address do
+      resync(genesis_address, remote_last_addr)
+    end
   end
 end

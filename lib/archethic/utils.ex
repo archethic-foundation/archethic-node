@@ -977,6 +977,24 @@ defmodule Archethic.Utils do
 
   def get_token_properties(_, _), do: {:error, :not_a_token_transaction}
 
+  @doc """
+  Start a task that can run for a maximum of `timeout` milliseconds.
+  """
+  @spec fire_and_forget_with_timeout(integer(), fun() | mfa()) :: {:ok, pid()}
+  def fire_and_forget_with_timeout(timeout, fun_or_mfa) do
+    Task.start(fn ->
+      :timer.kill_after(timeout)
+
+      case fun_or_mfa do
+        {m, f, a} ->
+          apply(m, f, a)
+
+        fun ->
+          fun.()
+      end
+    end)
+  end
+
   defp get_token_id(genesis_address, %{
          genesis: genesis_address,
          name: name,
