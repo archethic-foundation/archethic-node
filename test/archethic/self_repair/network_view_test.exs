@@ -30,8 +30,14 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
     end
 
     test "load_transaction should return ok even if called before node is up" do
+      software_public_key = <<0::8, 1::8, :crypto.strong_rand_bytes(32)::binary>>
+
       assert :ok =
-               NetworkView.load_transaction(%Transaction{type: :origin, address: random_address()})
+               NetworkView.load_transaction(%Transaction{
+                 type: :origin,
+                 address: random_address(),
+                 previous_public_key: software_public_key
+               })
     end
 
     test "init is triggered when node bootstrap is done" do
@@ -74,6 +80,7 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
     end
 
     test "load_transaction change the return value of get_p2p_hash" do
+      software_public_key = <<0::8, 1::8, :crypto.strong_rand_bytes(32)::binary>>
       hash = NetworkView.get_p2p_hash()
       assert is_binary(hash)
 
@@ -91,7 +98,8 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
 
       NetworkView.load_transaction(%Transaction{
         type: :node,
-        address: random_address()
+        address: random_address(),
+        previous_public_key: software_public_key
       })
 
       hash2 = NetworkView.get_p2p_hash()
@@ -101,6 +109,8 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
     end
 
     test "load_transaction change the return value of get_chains_hash" do
+      software_public_key = <<0::8, 1::8, :crypto.strong_rand_bytes(32)::binary>>
+
       :ok =
         NetworkView.load_transaction(%Transaction{
           type: :node_shared_secrets,
@@ -113,7 +123,8 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
       :ok =
         NetworkView.load_transaction(%Transaction{
           type: :node_shared_secrets,
-          address: random_address()
+          address: random_address(),
+          previous_public_key: software_public_key
         })
 
       assert hash2 = NetworkView.get_chains_hash()
@@ -121,19 +132,62 @@ defmodule Archethic.SelfRepair.NetworkViewTest do
 
       assert hash != hash2
 
-      :ok = NetworkView.load_transaction(%Transaction{type: :origin, address: random_address()})
+      :ok =
+        NetworkView.load_transaction(%Transaction{
+          type: :origin,
+          address: random_address(),
+          previous_public_key: software_public_key
+        })
 
       assert hash3 = NetworkView.get_chains_hash()
       assert is_binary(hash3)
 
-      assert hash3 != hash2 && hash3 != hash
+      refute hash3 in [hash, hash2]
 
-      :ok = NetworkView.load_transaction(%Transaction{type: :oracle, address: random_address()})
+      :ok =
+        NetworkView.load_transaction(%Transaction{
+          type: :oracle,
+          address: random_address(),
+          previous_public_key: software_public_key
+        })
 
       assert hash4 = NetworkView.get_chains_hash()
       assert is_binary(hash4)
 
-      assert hash4 != hash3 && hash4 != hash2 && hash4 != hash
+      refute hash4 in [hash, hash2, hash3]
+    end
+
+    test "load_transaction of type origin will change the correct state" do
+      tpm_public_key = <<0::8, 2::8, :crypto.strong_rand_bytes(32)::binary>>
+      software_public_key = <<0::8, 1::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      state = :sys.get_state(NetworkView)
+
+      :ok =
+        NetworkView.load_transaction(%Transaction{
+          type: :origin,
+          address: random_address(),
+          previous_public_key: tpm_public_key
+        })
+
+      state2 = :sys.get_state(NetworkView)
+
+      assert state.origin.biometric == state2.origin.biometric
+      assert state.origin.software == state2.origin.software
+      refute state.origin.hardware == state2.origin.hardware
+
+      :ok =
+        NetworkView.load_transaction(%Transaction{
+          type: :origin,
+          address: random_address(),
+          previous_public_key: software_public_key
+        })
+
+      state3 = :sys.get_state(NetworkView)
+
+      assert state3.origin.biometric == state2.origin.biometric
+      refute state3.origin.software == state2.origin.software
+      assert state3.origin.hardware == state2.origin.hardware
     end
   end
 end

@@ -11,6 +11,7 @@ defmodule Archethic.SelfRepair.NetworkView do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
+  alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.P2P
   alias Archethic.PubSub
@@ -58,12 +59,9 @@ defmodule Archethic.SelfRepair.NetworkView do
   GenServer is called only on relevant transactions.
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(%Transaction{
-        type: type,
-        address: address
-      })
+  def load_transaction(tx = %Transaction{type: type})
       when type in [:node_shared_secrets, :oracle, :origin, :node] do
-    GenServer.cast(__MODULE__, {:load_transaction, type, address})
+    GenServer.cast(__MODULE__, {:load_transaction, tx})
   end
 
   def load_transaction(_), do: :ok
@@ -104,20 +102,26 @@ defmodule Archethic.SelfRepair.NetworkView do
   end
 
   # ------------------------------------------------------
-  def handle_cast({:load_transaction, :node, _address}, state) do
+  def handle_cast({:load_transaction, %Transaction{type: :node}}, state = %{}) do
     new_state = Map.put(state, :p2p_hash, do_get_p2p_hash())
 
     {:noreply, new_state}
   end
 
-  def handle_cast({:load_transaction, transaction_type, address}, state) do
+  def handle_cast(
+        {:load_transaction,
+         %Transaction{type: type, address: address, previous_public_key: previous_public_key}},
+        state = %{origin: origin}
+      ) do
     new_state =
-      case transaction_type do
+      case type do
         :origin ->
-          Map.update(state, transaction_type, [address], &[address | &1])
+          # update the correct origin family
+          origin_family = SharedSecrets.origin_family_from_public_key(previous_public_key)
+          Map.put(state, type, Map.put(origin, origin_family, address))
 
         _ ->
-          Map.put(state, transaction_type, address)
+          Map.put(state, type, address)
       end
 
     {:noreply, new_state, {:continue, :update_chains_hash}}
@@ -154,7 +158,7 @@ defmodule Archethic.SelfRepair.NetworkView do
       :crypto.hash(:sha256, [
         node_shared_secrets,
         oracle,
-        origin
+        Map.values(origin)
       ])
 
     {:noreply, %{state | chains_hash: chains_hash}}
@@ -182,10 +186,20 @@ defmodule Archethic.SelfRepair.NetworkView do
 
     # There are 1 genesis address per origin (for now 3 origins)
     last_known_origin_addresses =
-      SharedSecrets.genesis_address(:origin)
-      |> Enum.map(fn genesis_address ->
-        get_last_address(genesis_address)
+      SharedSecrets.list_origin_families()
+      |> Enum.map(fn origin_family ->
+        genesis_address =
+          SharedSecrets.get_origin_family_seed(origin_family)
+          |> Crypto.derive_keypair(0)
+          |> elem(0)
+          |> Crypto.derive_address()
+
+        {origin_family, genesis_address}
       end)
+      |> Enum.map(fn {origin_family, genesis_address} ->
+        {origin_family, get_last_address(genesis_address)}
+      end)
+      |> Enum.into(%{})
 
     last_known_oracle_address =
       OracleChain.get_current_genesis_address()
@@ -203,7 +217,7 @@ defmodule Archethic.SelfRepair.NetworkView do
   defp get_last_address(nil), do: ""
 
   defp get_last_address(genesis_address) do
-    {last_known_origin_address, _} = TransactionChain.get_last_address(genesis_address)
-    last_known_origin_address
+    {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
+    local_last_address
   end
 end
