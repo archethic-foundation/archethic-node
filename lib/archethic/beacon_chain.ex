@@ -29,7 +29,7 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionSummaryList
-  
+
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain.TransactionSummary
