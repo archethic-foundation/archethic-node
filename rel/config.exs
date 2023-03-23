@@ -26,7 +26,6 @@ environment Mix.env() do
   set include_src: false
   set vm_args: "rel/vm.args"
   set pre_configure_hooks: "rel/pre_configure"
-  set pre_start_hooks: "rel/pre_start"
 
   set config_providers: [
     {Distillery.Releases.Config.Providers.Elixir, ["${REL_DIR}/runtime_config.exs"]}
@@ -58,6 +57,7 @@ release :archethic_node do
   ]
 
   set appup_transforms: [
-    {Archethic.Release.TransformPurge, []}
+    {Archethic.Release.TransformPurge, []},
+    {Archethic.Release.CallMigrateScript, []}
   ]
 end

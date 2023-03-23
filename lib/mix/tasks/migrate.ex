@@ -1,33 +1,85 @@
 defmodule Mix.Tasks.Archethic.Migrate do
   @moduledoc "Handle data migration"
 
-  use Mix.Task
-
   alias Archethic.DB.EmbeddedImpl
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
-  def run(_arg) do
-    version =
-      :archethic
-      |> Application.spec(:vsn)
-      |> List.to_string()
+  @doc """
+  Run migration available migration scripts since last updated version
+  """
+  # Called by migrate.sh scripts
+  def run(new_version) do
+    migration_file_path = EmbeddedImpl.db_path() |> ChainWriter.migration_file_path()
 
-    file_path = EmbeddedImpl.db_path() |> ChainWriter.migration_file_path()
-
-    migration_done? =
-      if File.exists?(file_path) do
-        file_path |> File.read!() |> String.split(";") |> Enum.member?(version)
+    migrations_to_run =
+      if File.exists?(migration_file_path) do
+        read_file(migration_file_path) |> filter_migrations_to_run()
       else
-        File.write(file_path, "#{version};", [:append])
-        true
+        # File does not exist when it's the first time the node is started
+        # We create the folder to write the migration file on first start
+        migration_file_path |> Path.dirname() |> File.mkdir_p!()
+        []
       end
 
-    unless migration_done? do
-      migrate(version)
+    Enum.each(migrations_to_run, fn module ->
+      :erlang.apply(module, :run, [])
+      unload_module(module)
+    end)
 
-      File.write!(file_path, "#{version};", [:append])
-    end
+    File.write(migration_file_path, new_version)
   end
 
-  defp migrate(_), do: :ok
+  defp filter_migrations_to_run(last_version) do
+    # List migration files, name must be [version]-description.exs
+    # Then filter version higher than the last one runned
+    # Eval the migration code and filter migration with function to call
+    get_migrations_path()
+    |> Enum.map(fn migration_path ->
+      file_name = Path.basename(migration_path)
+      migration_version = Regex.run(~r/[0-9\.]*(?=-)/, file_name) |> List.first()
+      {migration_version, migration_path}
+    end)
+    |> Enum.filter(fn {migration_version, _} -> last_version < migration_version end)
+    |> Enum.map(fn {_version, path} -> Code.eval_file(path) end)
+    |> Enum.filter(fn
+      {{:module, module, _, _}, _} ->
+        if function_exported?(module, :run, 0) do
+          true
+        else
+          unload_module(module)
+          false
+        end
+
+      _ ->
+        false
+    end)
+    |> Enum.map(fn {{_, module, _, _}, _} -> module end)
+  end
+
+  defp get_migrations_path() do
+    env = Application.fetch_env!(:archethic, :env)
+
+    Application.app_dir(:archethic)
+    |> Path.join("priv/migration_tasks/#{env}/*")
+    |> Path.wildcard()
+  end
+
+  defp unload_module(module) do
+    # Unload the module from code memory
+    :code.delete(module)
+    :code.purge(module)
+  end
+
+  defp read_file(path) do
+    # handle old migration file format
+    file_content = File.read!(path)
+
+    if String.contains?(file_content, ";") do
+      last_version = file_content |> String.split(";") |> Enum.reject(&(&1 == "")) |> List.last()
+      File.write(path, last_version)
+      last_version
+    else
+      file_content
+    end
+  end
 end
