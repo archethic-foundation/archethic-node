@@ -55,6 +55,12 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {:noreply, state}
   end
 
+  def code_change("1.0.7", state, _extra) do
+    next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
+    File.rename("slot_backup", "slot_backup-#{DateTime.to_unix(next_summary_time)}")
+    {:ok, state}
+  end
+
   defp clean_previous_summary_cache(subset, previous_summary_time) do
     subset
     |> stream_current_slots()
