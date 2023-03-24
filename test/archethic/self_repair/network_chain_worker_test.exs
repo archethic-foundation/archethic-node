@@ -18,12 +18,6 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
 
   import Mox
 
-  describe "fsm" do
-    test "should return a task when " do
-      # TODO
-    end
-  end
-
   describe "resync_network_chain (non-node)" do
     setup do
       start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
@@ -41,6 +35,23 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
+    end
+
+    test "fsm should be able to concurrently call the same sync" do
+      MockDB
+      |> expect(:get_last_chain_address, fn address ->
+        {address, DateTime.utc_now()}
+      end)
+
+      # even if we call the resync multiple times
+      # the above expect tell us that only one sync is running
+      :ok = NetworkChainWorker.resync(:oracle, true)
+      :ok = NetworkChainWorker.resync(:oracle, true)
+      :ok = NetworkChainWorker.resync(:oracle, true)
+      :ok = NetworkChainWorker.resync(:oracle, true)
+
+      # this sleep is necessary for the worker to start the task
+      Process.sleep(10)
     end
 
     test "should start a resync when remote /= local" do
