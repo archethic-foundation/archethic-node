@@ -6,6 +6,7 @@ defmodule Archethic.OracleChain.Supervisor do
   alias Archethic.OracleChain.MemTable
   alias Archethic.OracleChain.MemTableLoader
   alias Archethic.OracleChain.Scheduler
+  alias Archethic.OracleChain.ServiceCacheSupervisor
 
   alias Archethic.Utils
 
@@ -19,7 +20,8 @@ defmodule Archethic.OracleChain.Supervisor do
     children = [
       MemTable,
       MemTableLoader,
-      {Scheduler, scheduler_conf}
+      {Scheduler, scheduler_conf},
+      ServiceCacheSupervisor
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)
