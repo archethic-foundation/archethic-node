@@ -5,7 +5,7 @@ defmodule Archethic.Bootstrap do
 
   alias Archethic
   alias Archethic.{Bootstrap, Crypto, Networking, P2P, P2P.Node}
-  alias Archethic.{SelfRepair, SelfRepair, TransactionChain}
+  alias Archethic.{SelfRepair, SelfRepair.NetworkChain, TransactionChain}
 
   alias Bootstrap.{NetworkInit, Sync, TransactionHandler}
   alias TransactionChain.{Transaction, TransactionData}
@@ -212,7 +212,7 @@ defmodule Archethic.Bootstrap do
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
 
     Logger.info("Enforced Resync: Started!")
-    SelfRepair.resync_all_network_chains()
+    NetworkChain.resync_many([:oracle, :reward, :origin, :node_shared_secrets])
 
     Sync.publish_end_of_sync()
     SelfRepair.start_scheduler()

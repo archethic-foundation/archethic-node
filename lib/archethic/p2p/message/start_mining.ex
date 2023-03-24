@@ -25,7 +25,7 @@ defmodule Archethic.P2P.Message.StartMining do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Error
-  alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.NetworkChain
   alias Archethic.SelfRepair.NetworkView
 
   require Logger
@@ -91,14 +91,13 @@ defmodule Archethic.P2P.Message.StartMining do
 
         case sync_issue do
           :network_chains_sync ->
-            SelfRepair.resync_all_network_chains()
+            NetworkChain.resync_many([:oracle, :reward, :origin, :node_shared_secrets])
 
           :p2p_sync ->
-            SelfRepair.resync_p2p()
+            NetworkChain.resync(:node)
 
           :both_sync ->
-            SelfRepair.resync_all_network_chains()
-            SelfRepair.resync_p2p()
+            NetworkChain.resync_many([:node, :oracle, :reward, :origin, :node_shared_secrets])
         end
 
         %Error{reason: sync_issue}

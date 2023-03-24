@@ -3,7 +3,7 @@ defmodule Archethic.BootstrapTest do
 
   alias Archethic.{Bootstrap, Crypto, Replication, SharedSecrets, TransactionChain}
   alias Archethic.{P2P, P2P.BootstrappingSeeds, P2P.Node, TransactionChain, P2P.Message}
-  alias Archethic.{TransactionFactory, SelfRepair}
+  alias Archethic.{TransactionFactory}
 
   alias Message.{GetGenesisAddress, GetTransactionChainLength, GetBootstrappingNodes, Ok}
   alias Message.{GetTransactionSummary, GetTransactionInputs, GetGenesisAddress, GetStorageNonce}
@@ -18,6 +18,7 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
   alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
+  alias Archethic.SelfRepair.NetworkChain
 
   alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
   alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
@@ -467,7 +468,7 @@ defmodule Archethic.BootstrapTest do
       # first time boot no txns exits yet
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
 
-      assert :ok = SelfRepair.resync_network_chain(:node_shared_secrets)
+      assert :ok = NetworkChain.resync(:node_shared_secrets)
     end
 
     test "Should return :ok when last address match (locally and remotely)", nss_chain do
@@ -491,7 +492,7 @@ defmodule Archethic.BootstrapTest do
           send(me, :fetch_last_txn)
       end)
 
-      assert :ok = SelfRepair.resync_network_chain(:node_shared_secrets)
+      assert :ok = NetworkChain.resync(:node_shared_secrets)
 
       assert_receive(:local_last_addr_request)
       assert_receive(:remote_last_addr_request)
@@ -558,7 +559,7 @@ defmodule Archethic.BootstrapTest do
            }}
       end)
 
-      assert :ok = SelfRepair.resync_network_chain(:node_shared_secrets)
+      assert :ok = NetworkChain.resync(:node_shared_secrets)
 
       # flow
       # get_gen_addr(:pers_term) -> resolve_last_address ->   get_last_address

@@ -3,10 +3,12 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
-  alias __MODULE__.SelfRepair.NetworkView
   alias __MODULE__.SharedSecrets
   alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
   alias __MODULE__.{SelfRepair, TransactionChain}
+
+  alias SelfRepair.NetworkView
+  alias SelfRepair.NetworkChain
 
   alias Message.{NewTransaction, NotFound, StartMining, TransactionSummaryList}
   alias Message.{Balance, GetBalance, GetCurrentSummaries, GetTransactionSummary}
@@ -177,11 +179,11 @@ defmodule Archethic do
 
   defp maybe_start_resync(aggregated_responses) do
     if aggregated_responses.network_chains_resync_needed do
-      SelfRepair.resync_all_network_chains()
+      NetworkChain.resync_many([:reward, :origin, :oracle, :node_shared_secrets])
     end
 
     if aggregated_responses.p2p_resync_needed do
-      SelfRepair.resync_p2p()
+      NetworkChain.resync(:node)
     end
   end
 
