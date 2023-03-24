@@ -18,6 +18,12 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
 
   import Mox
 
+  describe "fsm" do
+    test "should return a task when " do
+      # TODO
+    end
+  end
+
   describe "resync_network_chain (non-node)" do
     setup do
       start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
@@ -47,7 +53,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
       |> expect(:transaction_exists?, fn _, _ ->
         # we add a sleep here to be sure the RepairWorker is running for enough time
         # so the repair is still in progress when we assert it
-        Process.sleep(500)
+        Process.sleep(:infinity)
         false
       end)
 
@@ -56,7 +62,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
         {:ok, %LastTransactionAddress{address: last_address}}
       end)
 
-      :ok = NetworkChainWorker.resync_network_chain(:oracle)
+      :ok = NetworkChainWorker.resync(:oracle, false)
       assert SelfRepair.repair_in_progress?(OracleChain.get_current_genesis_address())
 
       # this sleep is necessary to give time to the RepairWorker to start its task
@@ -80,7 +86,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
         {:ok, %LastTransactionAddress{address: last_address}}
       end)
 
-      :ok = NetworkChainWorker.resync_network_chain(:oracle)
+      :ok = NetworkChainWorker.resync(:oracle, false)
       refute SelfRepair.repair_in_progress?(OracleChain.get_current_genesis_address())
     end
   end
@@ -112,7 +118,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
       |> expect(:transaction_exists?, fn _, _ ->
         # we add a sleep here to be sure the RepairWorker is running for enough time
         # so the repair is still in progress when we assert it
-        Process.sleep(500)
+        Process.sleep(:infinity)
         false
       end)
 
@@ -124,7 +130,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorkerTest do
         {:ok, %LastTransactionAddress{address: remote_node_last_address}}
       end)
 
-      :ok = NetworkChainWorker.resync_network_chain(:node)
+      :ok = NetworkChainWorker.resync(:node, false)
       assert SelfRepair.repair_in_progress?(local_node_last_address)
 
       # this sleep is necessary to give time to the RepairWorker to start its task

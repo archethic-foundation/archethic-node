@@ -27,13 +27,10 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
   end
 
   @doc """
-  Resync a network chain.
-  You should never call this function directly, use NetworkChain.resync/1 instead
-
-  ps: the `async: false` is here only to be able to unit-test
+  Resync a network chain. Asynchronous by default.
   """
   @spec resync(type(), boolean()) :: :ok
-  def resync(type, async \\ true) do
+  def resync(type, async) do
     if async do
       GenStateMachine.cast(via_tuple(type), :resync)
     else
@@ -105,8 +102,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
     {:via, Registry, {Archethic.SelfRepair.WorkerRegistry, type}}
   end
 
-  # public just for unit tests
-  def resync_network_chain(:node) do
+  defp resync_network_chain(:node) do
     # Refresh the local P2P view (load the nodes in memory)
     Archethic.Bootstrap.Sync.load_node_list()
 
@@ -122,7 +118,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
     |> Stream.run()
   end
 
-  def resync_network_chain(type) do
+  defp resync_network_chain(type) do
     addresses =
       case type do
         :node_shared_secrets ->
