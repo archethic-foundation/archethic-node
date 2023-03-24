@@ -236,4 +236,13 @@ defmodule ArchethicCase do
   def random_address() do
     <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
   end
+
+  def random_public_key() do
+    <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+  end
+
+  # sugar for readability
+  def expect_not(mock, function_name, function) do
+    expect(mock, function_name, 0, function)
+  end
 end

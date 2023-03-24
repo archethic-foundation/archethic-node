@@ -11,7 +11,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
 
   require Logger
 
-  @type network_type() :: :origin | :reward | :oracle | :node | :node_shared_secrets
+  @type type() :: :origin | :reward | :oracle | :node | :node_shared_secrets
 
   # ------------------------------------------------------
   #               _
@@ -21,14 +21,24 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
   #   \__,_| .__/|_|
   #        |_|
   # ------------------------------------------------------
-  @spec start_link(network_type()) :: {:ok, pid()} | {:error, {:already_started, pid()}}
-  def start_link(network_type) do
-    GenStateMachine.start_link(__MODULE__, network_type, name: via_tuple(network_type))
+  @spec start_link(type()) :: {:ok, pid()} | {:error, {:already_started, pid()}}
+  def start_link(type) do
+    GenStateMachine.start_link(__MODULE__, type, name: via_tuple(type))
   end
 
-  @spec resync(network_type()) :: :ok
-  def resync(network_type) do
-    GenStateMachine.cast(via_tuple(network_type), :resync)
+  @doc """
+  Resync a network chain.
+  You should never call this function directly, use NetworkChain.resync/1 instead
+
+  ps: the `async: false` is here only to be able to unit-test
+  """
+  @spec resync(type(), boolean()) :: :ok
+  def resync(type, async \\ true) do
+    if async do
+      GenStateMachine.cast(via_tuple(type), :resync)
+    else
+      resync_network_chain(type)
+    end
   end
 
   # ------------------------------------------------------
@@ -40,16 +50,16 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
   #
   # ------------------------------------------------------
 
-  def init(network_type) do
-    {:ok, :idle, %{network_type: network_type}}
+  def init(type) do
+    {:ok, :idle, %{type: type}}
   end
 
   # ------------------------------------------------------
-  def handle_event(:cast, :resync, :idle, data = %{network_type: network_type}) do
-    task = Task.async(fn -> resync_network_chain(network_type) end)
+  def handle_event(:cast, :resync, :idle, data = %{type: type}) do
+    task = Task.async(fn -> resync_network_chain(type) end)
     new_data = Map.put(data, :task, task)
 
-    Logger.info("SelfRepair: network chain #{network_type} synchronization started")
+    Logger.info("SelfRepair: network chain #{type} synchronization started")
 
     {:next_state, :running, new_data}
   end
@@ -68,16 +78,14 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
         :info,
         {:DOWN, _ref, :process, _pid, reason},
         :running,
-        data = %{network_type: network_type}
+        data = %{type: type}
       ) do
     case reason do
       :normal ->
-        Logger.info("SelfRepair: network chain #{network_type} synchronization success")
+        Logger.info("SelfRepair: network chain #{type} synchronization success")
 
       _ ->
-        Logger.info(
-          "SelfRepair: network chain #{network_type} synchronization failure: #{reason}"
-        )
+        Logger.info("SelfRepair: network chain #{type} synchronization failure: #{reason}")
     end
 
     new_data = Map.put(data, :task, nil)
@@ -93,11 +101,12 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
   #  |_|
   #
   # ------------------------------------------------------
-  defp via_tuple(network_type) do
-    {:via, Registry, {Archethic.SelfRepair.WorkerRegistry, network_type}}
+  defp via_tuple(type) do
+    {:via, Registry, {Archethic.SelfRepair.WorkerRegistry, type}}
   end
 
-  defp resync_network_chain(:node) do
+  # public just for unit tests
+  def resync_network_chain(:node) do
     # Refresh the local P2P view (load the nodes in memory)
     Archethic.Bootstrap.Sync.load_node_list()
 
@@ -113,7 +122,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
     |> Stream.run()
   end
 
-  defp resync_network_chain(type) do
+  def resync_network_chain(type) do
     addresses =
       case type do
         :node_shared_secrets ->
@@ -128,8 +137,6 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
         :origin ->
           SharedSecrets.genesis_address(:origin)
       end
-
-    Ut
 
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,
