@@ -314,7 +314,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       # Nb replication attestations
       1, 1,
       # Replication attestations version
-      1, 
+      2, 
       # Transaction summary version
       1,
       # Address
@@ -425,7 +425,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
 
   ## Examples
 
-    iex> SummaryAggregate.deserialize(<<1, 98, 29, 98, 0, 1, 1, 1, 1, 0, 0, 120, 123, 229, 13, 144,
+    iex> SummaryAggregate.deserialize(<<1, 98, 29, 98, 0, 1, 1, 2, 1, 0, 0, 120, 123, 229, 13, 144,
     ...> 130, 230, 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69,
     ...> 131, 97, 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128,
     ...> 1, 0, 17, 8, 18, 246, 127, 161, 225, 240, 17, 127, 111, 61, 112, 36, 28, 26, 66,
@@ -478,7 +478,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       ""
     }
 
-    iex> SummaryAggregate.deserialize(<<2, 98, 29, 98, 0, 1, 1, 1, 1, 0, 0, 120, 123, 229, 13, 144,
+    iex> SummaryAggregate.deserialize(<<2, 98, 29, 98, 0, 1, 1, 2, 1, 0, 0, 120, 123, 229, 13, 144,
     ...> 130, 230, 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69,
     ...> 131, 97, 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128,
     ...> 1, 0, 17, 8, 18, 246, 127, 161, 225, 240, 17, 127, 111, 61, 112, 36, 28, 26, 66,
