@@ -61,6 +61,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {:ok, state}
   end
 
+  def code_change(_, state, _), do: {:ok, state}
+
   defp clean_previous_summary_cache(subset, previous_summary_time) do
     subset
     |> stream_current_slots()
