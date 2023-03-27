@@ -348,7 +348,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
       MockClient
       |> stub(:get_availability_timer, fn _, _ -> 0 end)
 
-      summary_interval = "*/5 * * * *"
+      summary_interval = "*/3 * * * *"
 
       start_supervised!({SummaryTimer, interval: summary_interval})
       start_supervised!({SlotTimer, interval: "*/1 * * * *"})

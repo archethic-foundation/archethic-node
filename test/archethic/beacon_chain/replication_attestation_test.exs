@@ -101,4 +101,26 @@ defmodule Archethic.BeaconChain.ReplicationAttestationTest do
       refute ReplicationAttestation.reached_threshold?(attestation)
     end
   end
+
+  describe "valid_attestation" do
+    test "should return :ok if attestation V1 is before the limit date" do
+      assert :ok =
+               ReplicationAttestation.validate(%ReplicationAttestation{
+                 version: 1,
+                 transaction_summary: %TransactionSummary{
+                   timestamp: ~U[2022-01-01 00:00:00.000Z]
+                 }
+               })
+    end
+
+    test "should return an error if attestation V1 is after the limit date" do
+      assert {:error, _} =
+               ReplicationAttestation.validate(%ReplicationAttestation{
+                 version: 1,
+                 transaction_summary: %TransactionSummary{
+                   timestamp: ~U[2025-01-01 00:00:00.000Z]
+                 }
+               })
+    end
+  end
 end
