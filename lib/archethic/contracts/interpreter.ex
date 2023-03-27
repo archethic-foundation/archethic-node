@@ -222,23 +222,32 @@ defmodule Archethic.Contracts.Interpreter do
          trigger_code,
          contract,
          incoming_tx = %Transaction{},
-         %Contract{version: version, conditions: conditions},
+         %Contract{
+           version: version,
+           conditions: conditions,
+           constants: %Constants{
+             contract: contract_constants
+           }
+         },
          opts
        ) do
     constants = %{
       "transaction" => Constants.from_transaction(incoming_tx),
-      "contract" => contract.constants.contract
+      "contract" => contract_constants
     }
 
     if valid_conditions?(version, conditions.transaction, constants) do
-      execute_trigger_and_validate_inherit_condition(
-        version,
-        trigger_code,
-        contract,
-        incoming_tx,
-        conditions.inherit,
-        opts
-      )
+      case execute_trigger(version, trigger_code, contract, incoming_tx) do
+        nil ->
+          {:ok, nil}
+
+        next_tx ->
+          if valid_inherit_condition?(contract, next_tx, opts) do
+            {:ok, next_tx}
+          else
+            {:error, :invalid_inherit_constraints}
+          end
+      end
     else
       {:error, :invalid_transaction_constraints}
     end
@@ -249,23 +258,32 @@ defmodule Archethic.Contracts.Interpreter do
          trigger_code,
          contract,
          oracle_tx = %Transaction{},
-         %Contract{version: version, conditions: conditions},
+         %Contract{
+           version: version,
+           conditions: conditions,
+           constants: %Constants{
+             contract: contract_constants
+           }
+         },
          opts
        ) do
     constants = %{
       "transaction" => Constants.from_transaction(oracle_tx),
-      "contract" => contract.constants.contract
+      "contract" => contract_constants
     }
 
     if valid_conditions?(version, conditions.oracle, constants) do
-      execute_trigger_and_validate_inherit_condition(
-        version,
-        trigger_code,
-        contract,
-        oracle_tx,
-        conditions.inherit,
-        opts
-      )
+      case execute_trigger(version, trigger_code, contract, oracle_tx) do
+        nil ->
+          {:ok, nil}
+
+        next_tx ->
+          if valid_inherit_condition?(contract, next_tx, opts) do
+            {:ok, next_tx}
+          else
+            {:error, :invalid_inherit_constraints}
+          end
+      end
     else
       {:error, :invalid_oracle_constraints}
     end
@@ -276,26 +294,27 @@ defmodule Archethic.Contracts.Interpreter do
          trigger_code,
          contract,
          nil,
-         %Contract{version: version, conditions: conditions},
+         %Contract{version: version},
          opts
        ) do
-    execute_trigger_and_validate_inherit_condition(
-      version,
-      trigger_code,
-      contract,
-      nil,
-      conditions.inherit,
-      opts
-    )
+    case execute_trigger(version, trigger_code, contract) do
+      nil ->
+        {:ok, nil}
+
+      next_tx ->
+        if valid_inherit_condition?(contract, next_tx, opts) do
+          {:ok, next_tx}
+        else
+          {:error, :invalid_inherit_constraints}
+        end
+    end
   end
 
-  defp execute_trigger_and_validate_inherit_condition(
+  defp execute_trigger(
          version,
          trigger_code,
          contract,
-         maybe_tx,
-         inherit_condition,
-         opts
+         maybe_tx \\ nil
        ) do
     constants_trigger = %{
       "transaction" =>
@@ -309,28 +328,35 @@ defmodule Archethic.Contracts.Interpreter do
     case execute_trigger_code(version, trigger_code, constants_trigger) do
       nil ->
         # contract did not produce a next_tx
-        {:ok, nil}
+        nil
 
       next_tx_to_prepare ->
         # contract produce a next_tx but we need to feed previous values to it
-        next_tx =
-          chain_transaction(
-            Constants.to_transaction(contract.constants.contract),
-            next_tx_to_prepare
-          )
+        chain_transaction(
+          Constants.to_transaction(contract.constants.contract),
+          next_tx_to_prepare
+        )
+    end
+  end
 
-        constants_inherit = %{
-          "previous" => contract.constants.contract,
-          "next" => Constants.from_transaction(next_tx)
-        }
+  defp valid_inherit_condition?(
+         %Contract{
+           version: version,
+           conditions: %{inherit: condition_inherit},
+           constants: %{contract: contract_constants}
+         },
+         next_tx,
+         opts
+       ) do
+    if Keyword.get(opts, :skip_inherit_check?, false) do
+      true
+    else
+      constants_inherit = %{
+        "previous" => contract_constants,
+        "next" => Constants.from_transaction(next_tx)
+      }
 
-        skip_inherit_check? = Keyword.get(opts, :skip_inherit_check?, false)
-
-        if skip_inherit_check? or valid_conditions?(version, inherit_condition, constants_inherit) do
-          {:ok, next_tx}
-        else
-          {:error, :invalid_inherit_constraints}
-        end
+      valid_conditions?(version, condition_inherit, constants_inherit)
     end
   end
 
