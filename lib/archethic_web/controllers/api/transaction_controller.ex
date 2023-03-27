@@ -160,11 +160,9 @@ defmodule ArchethicWeb.API.TransactionController do
           |> TransactionPayload.to_map()
           |> Transaction.cast()
 
-        {:ok, sup} = Task.Supervisor.start_link(strategy: :one_for_one)
-
         results =
           Task.Supervisor.async_stream_nolink(
-            sup,
+            Archethic.TaskSupervisor,
             recipients,
             &fetch_recipient_tx_and_simulate(&1, tx),
             on_timeout: :kill_task,
