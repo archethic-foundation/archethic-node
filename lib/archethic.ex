@@ -309,12 +309,20 @@ defmodule Archethic do
   end
 
   @doc """
-  Parse and execute the contract in the given transaction.
+  Parse the given transaction and return a contract if successful
+  """
+  @spec parse_contract(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
+  defdelegate parse_contract(contract_tx),
+    to: Interpreter,
+    as: :parse_transaction
+
+  @doc """
+  Execute the contract in the given transaction.
   We assume the contract is parse-able.
   """
-  @spec parse_and_execute_contract_at(
+  @spec execute_contract(
           Contract.trigger_type(),
-          Transaction.t(),
+          Contract.t(),
           nil | Transaction.t()
         ) ::
           {:ok, nil | Transaction.t()}
@@ -323,13 +331,9 @@ defmodule Archethic do
              | :invalid_transaction_constraints
              | :invalid_oracle_constraints
              | :invalid_inherit_constraints}
-  def parse_and_execute_contract_at(
-        trigger_type,
-        contract_tx,
-        maybe_tx
-      ) do
-    Interpreter.execute(trigger_type, Contract.from_transaction!(contract_tx), maybe_tx)
-  end
+  defdelegate execute_contract(trigger_type, contract, maybe_tx),
+    to: Interpreter,
+    as: :execute
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes

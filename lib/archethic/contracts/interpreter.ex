@@ -53,6 +53,25 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   @doc """
+  Parse a transaction and return a contract.
+  This return a filled contract structure or an human-readable error.
+  """
+  @spec parse_transaction(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
+  def parse_transaction(contract_tx = %Transaction{data: %TransactionData{code: code}}) do
+    case parse(code) do
+      {:ok, contract} ->
+        {:ok,
+         %Contract{
+           contract
+           | constants: %Constants{contract: Constants.from_transaction(contract_tx)}
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Sanitize code takes care of converting atom to {:atom, bin()}.
   This way the user cannot create atoms at all. (which is mandatory to avoid atoms-table exhaustion)
   """

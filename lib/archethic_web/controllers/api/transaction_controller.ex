@@ -217,30 +217,37 @@ defmodule ArchethicWeb.API.TransactionController do
   end
 
   defp fetch_recipient_tx_and_simulate(recipient_address, tx) do
-    case Archethic.search_transaction(recipient_address) do
-      {:ok, contract_tx} ->
-        # this endpoint is only used for transaction triggers
-        case Archethic.parse_and_execute_contract_at(:transaction, contract_tx, tx) do
-          {:ok, _} ->
-            # contract may have returned a transaction or not, in both case it's valid
-            :ok
+    with {:ok, contract_tx} <- Archethic.search_transaction(recipient_address),
+         {:ok, contract} <- Archethic.parse_contract(contract_tx),
+         {:ok, _} <- Archethic.execute_contract(:transaction, contract, tx) do
+      :ok
+    else
+      # search_transaction errors
+      {:error, :transaction_not_exists} ->
+        {:error, "There is no transaction at recipient address."}
 
-          {:error, :invalid_triggers_execution} ->
-            {:error, "Contract does not have a `actions triggered_by: transaction` block."}
+      {:error, :transaction_invalid} ->
+        {:error, "The transaction is marked as invalid."}
 
-          {:error, :invalid_transaction_constraints} ->
-            {:error,
-             "Contract refused incoming transaction. Check the `condition transaction` block."}
+      {:error, :network_issue} ->
+        {:error, "Network issue, please try again later."}
 
-          {:error, :invalid_oracle_constraints} ->
-            {:error, "Contract refused incoming transaction. Check the `condition oracle` block."}
+      # execute_contract errors
+      {:error, :invalid_triggers_execution} ->
+        {:error, "Contract does not have a `actions triggered_by: transaction` block."}
 
-          {:error, :invalid_inherit_constraints} ->
-            {:error,
-             "Contract refused outcoming transaction. Check the `condition inherit` block."}
-        end
+      {:error, :invalid_transaction_constraints} ->
+        {:error,
+         "Contract refused incoming transaction. Check the `condition transaction` block."}
 
-      {:error, reason} ->
+      {:error, :invalid_oracle_constraints} ->
+        {:error, "Contract refused incoming transaction. Check the `condition oracle` block."}
+
+      {:error, :invalid_inherit_constraints} ->
+        {:error, "Contract refused outcoming transaction. Check the `condition inherit` block."}
+
+      # parse_contract errors
+      {:error, reason} when is_binary(reason) ->
         {:error, reason}
     end
   end
