@@ -91,13 +91,24 @@ defmodule Archethic.P2P.Message.StartMining do
 
         case sync_issue do
           :network_chains_sync ->
-            NetworkChain.resync_many([:oracle, :reward, :origin, :node_shared_secrets])
+            NetworkChain.asynchronous_resync_many([
+              :oracle,
+              :reward,
+              :origin,
+              :node_shared_secrets
+            ])
 
           :p2p_sync ->
-            NetworkChain.resync(:node)
+            NetworkChain.asynchronous_resync(:node)
 
           :both_sync ->
-            NetworkChain.resync_many([:node, :oracle, :reward, :origin, :node_shared_secrets])
+            NetworkChain.asynchronous_resync_many([
+              :node,
+              :oracle,
+              :reward,
+              :origin,
+              :node_shared_secrets
+            ])
         end
 
         %Error{reason: sync_issue}

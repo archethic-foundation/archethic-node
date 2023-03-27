@@ -2,12 +2,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
   @moduledoc false
   use GenStateMachine, callback_mode: [:handle_event_function]
 
-  alias Archethic.OracleChain
-  alias Archethic.P2P
-  alias Archethic.Reward
-  alias Archethic.SelfRepair
-  alias Archethic.SharedSecrets
-  alias Archethic.TransactionChain
+  alias Archethic.SelfRepair.NetworkChain
 
   require Logger
 
@@ -27,15 +22,12 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
   end
 
   @doc """
-  Resync a network chain. Asynchronous by default.
+  Asynchronously synchronize a network chain.
+  Concurrent runs use the same worker.
   """
-  @spec resync(type(), boolean()) :: :ok
-  def resync(type, async) do
-    if async do
-      GenStateMachine.cast(via_tuple(type), :resync)
-    else
-      resync_network_chain(type)
-    end
+  @spec resync(type()) :: :ok
+  def resync(type) do
+    GenStateMachine.cast(via_tuple(type), :resync)
   end
 
   # ------------------------------------------------------
@@ -53,7 +45,7 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
 
   # ------------------------------------------------------
   def handle_event(:cast, :resync, :idle, data = %{type: type}) do
-    task = Task.async(fn -> resync_network_chain(type) end)
+    task = Task.async(fn -> NetworkChain.synchronous_resync(type) end)
     new_data = Map.put(data, :task, task)
 
     Logger.info("SelfRepair: network chain #{type} synchronization started")
@@ -100,58 +92,5 @@ defmodule Archethic.SelfRepair.NetworkChainWorker do
   # ------------------------------------------------------
   defp via_tuple(type) do
     {:via, Registry, {Archethic.SelfRepair.WorkerRegistry, type}}
-  end
-
-  defp resync_network_chain(:node) do
-    # Refresh the local P2P view (load the nodes in memory)
-    Archethic.Bootstrap.Sync.load_node_list()
-
-    # Load the latest node transactions
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      P2P.authorized_and_available_nodes(),
-      &resync_chain_if_needed(&1.last_address, &1.last_address),
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: 5000
-    )
-    |> Stream.run()
-  end
-
-  defp resync_network_chain(type) do
-    addresses =
-      case type do
-        :node_shared_secrets ->
-          [SharedSecrets.genesis_address(:node_shared_secrets)]
-
-        :oracle ->
-          [OracleChain.get_current_genesis_address()]
-
-        :reward ->
-          [Reward.genesis_address()]
-
-        :origin ->
-          SharedSecrets.genesis_address(:origin)
-      end
-
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      addresses,
-      fn genesis_address ->
-        {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
-        resync_chain_if_needed(genesis_address, local_last_address)
-      end,
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: 5000
-    )
-    |> Stream.run()
-  end
-
-  defp resync_chain_if_needed(genesis_address, local_last_address) do
-    with {:ok, remote_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
-         false <- remote_last_addr == local_last_address do
-      SelfRepair.resync(genesis_address, remote_last_addr)
-    end
   end
 end

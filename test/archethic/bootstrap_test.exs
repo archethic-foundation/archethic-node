@@ -468,7 +468,7 @@ defmodule Archethic.BootstrapTest do
       # first time boot no txns exits yet
       :persistent_term.put(:node_shared_secrets_gen_addr, nil)
 
-      assert :ok = NetworkChain.resync(:node_shared_secrets)
+      assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
     end
 
     test "Should return :ok when last address match (locally and remotely)", nss_chain do
@@ -492,7 +492,7 @@ defmodule Archethic.BootstrapTest do
           send(me, :fetch_last_txn)
       end)
 
-      assert :ok = NetworkChain.resync(:node_shared_secrets)
+      assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
 
       assert_receive(:local_last_addr_request)
       assert_receive(:remote_last_addr_request)
@@ -559,7 +559,7 @@ defmodule Archethic.BootstrapTest do
            }}
       end)
 
-      assert :ok = NetworkChain.resync(:node_shared_secrets)
+      assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
 
       # flow
       # get_gen_addr(:pers_term) -> resolve_last_address ->   get_last_address

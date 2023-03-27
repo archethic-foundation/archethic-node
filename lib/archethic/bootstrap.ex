@@ -212,7 +212,7 @@ defmodule Archethic.Bootstrap do
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
 
     Logger.info("Enforced Resync: Started!")
-    NetworkChain.resync_many([:oracle, :reward, :origin, :node_shared_secrets], false)
+    NetworkChain.synchronous_resync_many([:oracle, :reward, :origin, :node_shared_secrets])
 
     Sync.publish_end_of_sync()
     SelfRepair.start_scheduler()

@@ -1,39 +1,108 @@
 defmodule Archethic.SelfRepair.NetworkChain do
   @moduledoc """
-  Facade for the network chain synchronization
+  Synchronization of one or multiple network chains.
+  May or may not use a Worker.
   """
-
+  alias Archethic.OracleChain
+  alias Archethic.P2P
+  alias Archethic.Reward
+  alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChainWorker
+  alias Archethic.SharedSecrets
+  alias Archethic.TransactionChain
 
   @doc """
   Synchronize the network chain of given type.
-  Concurrent runs use the same worker.
+  It runs in a worker. Skips if worker is already running.
   """
-  @spec resync(NetworkChainWorker.type(), boolean()) :: :ok
-  def resync(network_chain_type, async \\ true) do
-    NetworkChainWorker.resync(network_chain_type, async)
+  @spec asynchronous_resync(NetworkChainWorker.type()) :: :ok
+  def asynchronous_resync(network_chain_type) do
+    NetworkChainWorker.resync(network_chain_type)
   end
 
   @doc """
   Synchronize the network chains of given types.
-  Every sync is done in its own worker, concurrent runs use the same worker.
+  Every sync is done in its own worker, skip those already running.
   """
-  @spec resync_many(list(NetworkChainWorker.type()), boolean()) :: :ok
-  def resync_many(network_chain_types, async \\ true) do
-    if async do
-      # run all synch in parallel
-      Enum.each(network_chain_types, &NetworkChainWorker.resync(&1, async))
-    else
-      # run all synch in parallel and then wait
-      Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
-        network_chain_types,
-        &NetworkChainWorker.resync(&1, async),
-        ordered: false,
-        on_timeout: :kill_task,
-        timeout: 5_000
-      )
-      |> Stream.run()
+  @spec asynchronous_resync_many(list(NetworkChainWorker.type())) :: :ok
+  def asynchronous_resync_many(network_chain_types) do
+    Enum.each(
+      network_chain_types,
+      &NetworkChainWorker.resync(&1)
+    )
+  end
+
+  @doc """
+  Synchronize the network chain of given type.
+  Blocks the caller.
+  """
+  def synchronous_resync(:node) do
+    # Refresh the local P2P view (load the nodes in memory)
+    Archethic.Bootstrap.Sync.load_node_list()
+
+    # Load the latest node transactions
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      P2P.authorized_and_available_nodes(),
+      &resync_chain_if_needed(&1.last_address, &1.last_address),
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: 5000
+    )
+    |> Stream.run()
+  end
+
+  def synchronous_resync(type) do
+    addresses =
+      case type do
+        :node_shared_secrets ->
+          [SharedSecrets.genesis_address(:node_shared_secrets)]
+
+        :oracle ->
+          [OracleChain.get_current_genesis_address()]
+
+        :reward ->
+          [Reward.genesis_address()]
+
+        :origin ->
+          SharedSecrets.genesis_address(:origin)
+      end
+
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      addresses,
+      fn genesis_address ->
+        {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
+        resync_chain_if_needed(genesis_address, local_last_address)
+      end,
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: 5000
+    )
+    |> Stream.run()
+  end
+
+  @doc """
+  Synchronize multiple network chains
+  They all run in parallel but we block caller until they are all done.
+  """
+  @spec synchronous_resync_many(list(NetworkChainWorker.type())) :: :ok
+  def synchronous_resync_many(network_chain_types) do
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      network_chain_types,
+      &synchronous_resync(&1),
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: 5_000
+    )
+    |> Stream.run()
+  end
+
+  defp resync_chain_if_needed(genesis_address, local_last_address) do
+    with {:ok, remote_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
+         false <- remote_last_addr == local_last_address do
+      SelfRepair.resync(genesis_address, remote_last_addr)
     end
   end
 end
