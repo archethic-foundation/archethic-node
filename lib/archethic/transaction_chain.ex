@@ -1031,22 +1031,13 @@ defmodule Archethic.TransactionChain do
   def fetch_first_transaction_address_remotely(address, nodes)
       when is_binary(address) and is_list(nodes) do
     conflict_resolver = fn results ->
-      results
-      |> Enum.reduce(%NotFound{}, fn
-        res = %FirstTransactionAddress{}, %NotFound{} ->
-          res
+      case results |> Enum.reject(&match?(%NotFound{}, &1)) do
+        [] ->
+          %NotFound{}
 
-        res = %FirstTransactionAddress{timestamp: t},
-        acc = %FirstTransactionAddress{timestamp: t_acc} ->
-          if t < t_acc do
-            res
-          else
-            acc
-          end
-
-        %NotFound{}, acc ->
-          acc
-      end)
+        results_filtered ->
+          Enum.min_by(results_filtered, &DateTime.to_unix(&1.timestamp, :millisecond))
+      end
     end
 
     case P2P.quorum_read(nodes, %GetFirstTransactionAddress{address: address}, conflict_resolver) do
