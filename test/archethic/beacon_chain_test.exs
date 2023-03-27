@@ -97,7 +97,8 @@ defmodule Archethic.BeaconChainTest do
 
       Process.sleep(500)
 
-      assert [%Slot{subset: <<0>>}] = SummaryCache.pop_slots(<<0>>)
+      assert [{%Slot{subset: <<0>>}, _}] =
+               SummaryCache.stream_current_slots(<<0>>) |> Enum.to_list()
     end
   end
 
@@ -685,7 +686,6 @@ defmodule Archethic.BeaconChainTest do
 
   describe "list_transactions_summaries_from_current_slot/0" do
     test "should work" do
-      SummaryTimer.start_link([interval: "0 0 * * * * *"], [])
       now = DateTime.utc_now()
 
       P2P.add_and_connect_node(%Node{
