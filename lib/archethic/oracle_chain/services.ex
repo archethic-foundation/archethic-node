@@ -12,7 +12,7 @@ defmodule Archethic.OracleChain.Services do
   def fetch_new_data(previous_content \\ %{}) do
     Enum.map(services(), fn {service, handler} ->
       Logger.debug("Fetching #{service} oracle data...")
-      {service, apply(handler, :fetch, [])}
+      {service, handler.fetch()}
     end)
     |> Enum.filter(fn
       {service, {:ok, data}} ->
@@ -81,5 +81,15 @@ defmodule Archethic.OracleChain.Services do
 
   defp services do
     Application.get_env(:archethic, Archethic.OracleChain) |> Keyword.fetch!(:services)
+  end
+
+  @doc """
+  List all the service cache supervisor specs
+  """
+  @spec cache_service_supervisor_specs() :: list(Supervisor.child_spec())
+  def cache_service_supervisor_specs do
+    Enum.map(services(), fn {_service_name, handler} ->
+      handler.cache_child_spec()
+    end)
   end
 end

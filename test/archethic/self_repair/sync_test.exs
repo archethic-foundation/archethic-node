@@ -12,15 +12,11 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
   alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetGenesisAddress
@@ -29,7 +25,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   alias Archethic.TransactionFactory
 
-  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -174,19 +169,10 @@ defmodule Archethic.SelfRepair.SyncTest do
         :ok
       end)
 
-      tx_summary = %TransactionSummary{
-        address: tx.address,
-        type: :transfer,
-        timestamp: DateTime.utc_now(),
-        fee: 100_000_000
-      }
+      tx_summary = TransactionSummary.from_transaction(tx)
 
       elected_storage_nodes =
-        Election.chain_storage_nodes_with_type(
-          tx.address,
-          :transfer,
-          P2P.authorized_and_available_nodes()
-        )
+        Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes())
 
       welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
       storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
@@ -242,12 +228,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
         _, %GetTransaction{address: ^tx_address}, _ ->
           {:ok, tx}
-
-        _, %GetTransaction{address: _}, _ ->
-          {:ok, %NotFound{}}
-
-        _, %GetTransactionChain{}, _ ->
-          {:ok, %TransactionList{transactions: []}}
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
@@ -312,73 +292,20 @@ defmodule Archethic.SelfRepair.SyncTest do
     tx1_summary = TransactionSummary.from_transaction(tx1)
 
     elected_storage_nodes =
-      Election.chain_storage_nodes_with_type(
-        tx1.address,
-        :transfer,
-        P2P.authorized_and_available_nodes(tx_timestamp)
-      )
+      Election.chain_storage_nodes(tx1.address, P2P.authorized_and_available_nodes(tx_timestamp))
 
     # First Replication with enough threshold
     attestation1 = %ReplicationAttestation{
       transaction_summary: tx1_summary,
       confirmations:
-        Enum.reduce_while(
-          elected_storage_nodes,
-          %{confirmations: [], index: 0},
-          fn node, acc = %{confirmations: confirmations, index: index} ->
-            if index >= 4 do
-              {:halt, confirmations}
-            else
-              signature =
-                if node.first_public_key == Crypto.first_node_public_key() do
-                  tx1_summary
-                  |> TransactionSummary.serialize()
-                  |> Crypto.sign_with_first_node_key()
-                else
-                  node_private_key =
-                    Enum.find_value(
-                      nodes_keypair,
-                      &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
-                    )
+        Enum.map(0..3, fn i ->
+          node = Enum.at(elected_storage_nodes, i)
 
-                  tx1_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
-                end
-
-              new_acc =
-                Map.update!(acc, :confirmations, &[{index, signature} | &1])
-                |> Map.update!(:index, &(&1 + 1))
-
-              {:cont, new_acc}
-            end
-          end
-        )
-    }
-
-    tx2 =
-      TransactionFactory.create_valid_transaction([],
-        index: 1,
-        timestamp: DateTime.utc_now() |> DateTime.add(-1, :hour)
-      )
-
-    tx2_summary = TransactionSummary.from_transaction(tx2)
-
-    elected_storage_nodes =
-      Election.chain_storage_nodes_with_type(
-        tx2.address,
-        :transfer,
-        P2P.authorized_and_available_nodes()
-      )
-
-    # Second Replication without enough threshold
-    attestation2 = %ReplicationAttestation{
-      transaction_summary: tx2_summary,
-      confirmations:
-        Enum.reduce_while(
-          elected_storage_nodes,
-          %{confirmations: [], index: 0},
-          fn node, acc = %{confirmations: confirmations, index: index} ->
-            if index >= 2 do
-              {:halt, confirmations}
+          signature =
+            if node.first_public_key == Crypto.first_node_public_key() do
+              tx1_summary
+              |> TransactionSummary.serialize()
+              |> Crypto.sign_with_first_node_key()
             else
               node_private_key =
                 Enum.find_value(
@@ -386,23 +313,54 @@ defmodule Archethic.SelfRepair.SyncTest do
                   &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
                 )
 
-              signature =
-                if node_private_key != nil,
-                  do:
-                    tx2_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key),
-                  else:
-                    tx2_summary
-                    |> TransactionSummary.serialize()
-                    |> Crypto.sign_with_first_node_key()
-
-              new_acc =
-                Map.update!(acc, :confirmations, &[{index, signature} | &1])
-                |> Map.update!(:index, &(&1 + 1))
-
-              {:cont, new_acc}
+              tx1_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
             end
-          end
-        )
+
+          index =
+            ReplicationAttestation.get_node_index(node.first_public_key, tx1_summary.timestamp)
+
+          {index, signature}
+        end)
+    }
+
+    tx2 =
+      TransactionFactory.create_valid_transaction([],
+        index: 1,
+        timestamp: DateTime.utc_now() |> DateTime.add(-59, :minute)
+      )
+
+    tx2_summary = TransactionSummary.from_transaction(tx2)
+
+    elected_storage_nodes =
+      Election.chain_storage_nodes(tx2.address, P2P.authorized_and_available_nodes())
+
+    # Second Replication without enough threshold
+    attestation2 = %ReplicationAttestation{
+      transaction_summary: tx2_summary,
+      confirmations:
+        Enum.map(0..1, fn i ->
+          node = Enum.at(elected_storage_nodes, i)
+
+          signature =
+            if node.first_public_key == Crypto.first_node_public_key() do
+              tx2_summary
+              |> TransactionSummary.serialize()
+              |> Crypto.sign_with_first_node_key()
+            else
+              node_private_key =
+                Enum.find_value(
+                  nodes_keypair,
+                  &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
+                )
+
+              tx2_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
+            end
+
+          index =
+            ReplicationAttestation.get_node_index(node.first_public_key, tx2_summary.timestamp)
+
+          {index, signature}
+        end)
     }
 
     attestations = [attestation1, attestation2]
@@ -494,21 +452,6 @@ defmodule Archethic.SelfRepair.SyncTest do
         _, %GetTransaction{address: _}, _ ->
           {:ok, %NotFound{}}
 
-        _, %GetTransactionChain{}, _ ->
-          {:ok, %TransactionList{transactions: []}}
-
-        _, %GetTransactionInputs{address: _}, _ ->
-          {:ok,
-           %TransactionInputList{
-             inputs:
-               Enum.map(inputs, fn input ->
-                 %VersionedTransactionInput{input: input, protocol_version: 1}
-               end)
-           }}
-
-        _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
-
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
       end)
@@ -518,16 +461,25 @@ defmodule Archethic.SelfRepair.SyncTest do
         :ok
       end)
 
+      tx_summary = TransactionSummary.from_transaction(transfer_tx)
+
+      index =
+        ReplicationAttestation.get_node_index(
+          Crypto.first_node_public_key(),
+          tx_summary.timestamp
+        )
+
+      signature =
+        tx_summary |> TransactionSummary.serialize() |> Crypto.sign_with_first_node_key()
+
       assert :ok =
                Sync.process_summary_aggregate(
                  %SummaryAggregate{
                    summary_time: DateTime.utc_now(),
-                   transaction_summaries: [
-                     %TransactionSummary{
-                       address: tx_address,
-                       type: :transfer,
-                       timestamp: DateTime.utc_now(),
-                       fee: 0
+                   replication_attestations: [
+                     %ReplicationAttestation{
+                       transaction_summary: tx_summary,
+                       confirmations: [{index, signature}]
                      }
                    ],
                    availability_adding_time: 10

@@ -10,20 +10,8 @@ defmodule Archethic.OracleChainTest do
   import Mox
 
   test "valid_services_content?/1 should verify the oracle transaction's content correctness" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-    end)
-
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-    end)
-
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-    end)
+    MockUCOPrice
+    |> expect(:verify?, fn _ -> true end)
 
     content =
       %{
@@ -60,6 +48,11 @@ defmodule Archethic.OracleChainTest do
         }
       }
     ]
+
+    MockUCOPrice
+    |> expect(:parse_data, fn _ ->
+      {:ok, %{"eur" => 0.20, "usd" => 0.12}}
+    end)
 
     assert true == OracleChain.valid_summary?(content, chain)
   end

@@ -60,7 +60,7 @@ defmodule Archethic.Mining do
   """
   @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
   def valid_election?(
-        tx = %Transaction{address: tx_address, type: tx_type, validation_stamp: nil},
+        tx = %Transaction{address: tx_address, validation_stamp: nil},
         validation_node_public_keys
       )
       when is_list(validation_node_public_keys) do
@@ -69,7 +69,7 @@ defmodule Archethic.Mining do
 
     node_list = P2P.authorized_and_available_nodes(current_date)
 
-    storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
+    storage_nodes = Election.chain_storage_nodes(tx_address, node_list)
 
     validation_nodes =
       Election.validation_nodes(

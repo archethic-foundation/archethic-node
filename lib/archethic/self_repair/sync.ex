@@ -9,7 +9,6 @@ defmodule Archethic.SelfRepair.Sync do
     PubSub,
     SelfRepair,
     TaskSupervisor,
-    TransactionChain,
     Utils
   }
 
@@ -267,7 +266,7 @@ defmodule Archethic.SelfRepair.Sync do
   def process_summary_aggregate(
         aggregate = %SummaryAggregate{
           summary_time: summary_time,
-          transaction_summaries: transaction_summaries,
+          replication_attestations: attestations,
           p2p_availabilities: p2p_availabilities,
           availability_adding_time: availability_adding_time
         },
@@ -275,22 +274,24 @@ defmodule Archethic.SelfRepair.Sync do
       ) do
     start_time = System.monotonic_time()
 
-    transactions_to_sync =
-      transaction_summaries
-      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address, :io))
-      |> Enum.filter(&TransactionHandler.download_transaction?/1)
+    previous_available_nodes = P2P.authorized_and_available_nodes()
 
-    synchronize_transactions(transactions_to_sync, download_nodes)
+    nodes_including_self =
+      [P2P.get_node_info() | previous_available_nodes] |> P2P.distinct_nodes()
+
+    attestations_to_sync =
+      attestations
+      |> Enum.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
+
+    synchronize_transactions(attestations_to_sync, download_nodes)
 
     :telemetry.execute(
       [:archethic, :self_repair, :process_aggregate],
       %{duration: System.monotonic_time() - start_time},
-      %{nb_transactions: length(transactions_to_sync)}
+      %{nb_transactions: length(attestations_to_sync)}
     )
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
-
-    previous_available_nodes = P2P.authorized_and_available_nodes()
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
@@ -325,7 +326,7 @@ defmodule Archethic.SelfRepair.Sync do
       )
     end
 
-    update_statistics(summary_time, transaction_summaries)
+    update_statistics(summary_time, attestations)
 
     store_aggregate(aggregate, new_available_nodes)
     store_last_sync_date(summary_time)
@@ -333,21 +334,20 @@ defmodule Archethic.SelfRepair.Sync do
 
   defp synchronize_transactions([], _), do: :ok
 
-  defp synchronize_transactions(transaction_summaries, download_nodes) do
-    Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
-    Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
+  defp synchronize_transactions(attestations, download_nodes) do
+    Logger.info("Need to synchronize #{Enum.count(attestations)} transactions")
+    Logger.debug("Transaction to sync #{inspect(attestations)}")
 
     Task.Supervisor.async_stream(
       TaskSupervisor,
-      transaction_summaries,
-      &TransactionHandler.download_transaction(&1, download_nodes),
+      attestations,
+      &{&1, TransactionHandler.download_transaction(&1, download_nodes)},
       on_timeout: :kill_task,
       timeout: Message.get_max_timeout() + 2000,
       max_concurrency: 100
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.each(fn {:ok, tx} ->
-      :ok = TransactionHandler.process_transaction(tx, download_nodes)
+    |> Stream.each(fn {:ok, {attestation, tx}} ->
+      :ok = TransactionHandler.process_transaction(attestation, tx, download_nodes)
     end)
     |> Stream.run()
   end
@@ -418,8 +418,8 @@ defmodule Archethic.SelfRepair.Sync do
     DB.register_stats(date, tps, 0, 0)
   end
 
-  defp update_statistics(date, transaction_summaries) do
-    nb_transactions = length(transaction_summaries)
+  defp update_statistics(date, attestations) do
+    nb_transactions = length(attestations)
 
     previous_summary_time =
       date
@@ -432,8 +432,13 @@ defmodule Archethic.SelfRepair.Sync do
     acc = 0
 
     burned_fees =
-      transaction_summaries
-      |> Enum.reduce(acc, fn %TransactionSummary{fee: fee}, acc -> acc + fee end)
+      attestations
+      |> Enum.reduce(acc, fn %ReplicationAttestation{
+                               transaction_summary: %TransactionSummary{fee: fee}
+                             },
+                             acc ->
+        acc + fee
+      end)
 
     DB.register_stats(date, tps, nb_transactions, burned_fees)
 

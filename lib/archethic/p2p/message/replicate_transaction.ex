@@ -12,6 +12,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
   alias Archethic.Utils
+  alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -29,33 +30,26 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         },
         _
       ) do
-    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
-
-    io_storage_nodes =
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
       if Transaction.network_type?(tx.type) do
-        P2P.list_nodes()
+        Replication.validate_and_store_transaction_chain(tx)
       else
-        resolved_addresses
-        |> Enum.map(fn {_origin, resolved} -> resolved end)
-        |> Enum.concat([LedgerOperations.burning_address()])
-        |> Election.io_storage_nodes(P2P.authorized_and_available_nodes(validation_time))
+        resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
+
+        io_storage_nodes =
+          resolved_addresses
+          |> Enum.map(fn {_origin, resolved} -> resolved end)
+          |> Enum.concat([LedgerOperations.burning_address()])
+          |> Election.io_storage_nodes(P2P.authorized_and_available_nodes(validation_time))
+
+        # Replicate tx only if the current node is one of the I/O storage nodes
+        if Utils.key_in_node_list?(io_storage_nodes, Crypto.first_node_public_key()) do
+          Replication.validate_and_store_transaction(tx)
+        end
       end
+    end)
 
-    # Replicate tx only if the current node is one of the I/O storage nodes
-    if Utils.key_in_node_list?(io_storage_nodes, Crypto.first_node_public_key()) do
-      case Replication.validate_and_store_transaction(tx) do
-        :ok ->
-          %Ok{}
-
-        {:error, :transaction_already_exists} ->
-          %ReplicationError{address: tx.address, reason: :transaction_already_exists}
-
-        {:error, invalid_tx_reason} ->
-          %ReplicationError{address: tx.address, reason: invalid_tx_reason}
-      end
-    else
-      %Ok{}
-    end
+    %Ok{}
   end
 
   @spec serialize(t()) :: bitstring()

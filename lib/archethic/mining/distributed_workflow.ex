@@ -34,7 +34,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.NotifyPreviousChain
   alias Archethic.P2P.Message.NotifyReplicationValidation
   alias Archethic.P2P.Message.ReplicationAttestationMessage
-  alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicationError
@@ -190,12 +189,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
-    chain_storage_nodes =
-      Election.chain_storage_nodes_with_type(
-        tx.address,
-        tx.type,
-        authorized_nodes
-      )
+    chain_storage_nodes = Election.chain_storage_nodes(tx.address, authorized_nodes)
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
@@ -784,13 +778,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     context
     |> ValidationContext.get_io_replication_nodes()
-    |> P2P.broadcast_message(
-      if Transaction.network_type?(validated_tx.type),
-        do: %ReplicateTransactionChain{
-          transaction: validated_tx
-        },
-        else: %ReplicateTransaction{transaction: validated_tx}
-    )
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
 
     :keep_state_and_data
   end

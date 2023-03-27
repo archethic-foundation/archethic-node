@@ -90,8 +90,18 @@ config :archethic, Archethic.OracleChain.Scheduler,
   polling_interval: "0 0 * * * *",
   summary_interval: "0 0 0 * * *"
 
+config :archethic, Archethic.OracleChain.ServiceCacheSupervisor, enabled: false
+
+config :archethic, Archethic.OracleChain,
+  services: [
+    uco: MockUCOPrice
+  ]
+
 config :archethic, Archethic.OracleChain.Services.UCOPrice,
-  providers: [MockUCOPriceProvider1, MockUCOPriceProvider2, MockUCOPriceProvider3]
+  providers: %{
+    MockUCOProvider1 => [refresh_interval: 1000],
+    MockUCOProvider2 => [refresh_interval: 1000]
+  }
 
 # -----Start-of-Networking-tests-configs-----
 

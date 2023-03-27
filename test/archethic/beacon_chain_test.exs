@@ -191,15 +191,11 @@ defmodule Archethic.BeaconChainTest do
         address: addr1,
         timestamp: DateTime.utc_now(),
         type: :transfer,
-        fee: 100_000_000
+        fee: 100_000_000,
+        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
       }
 
-      storage_nodes =
-        Election.chain_storage_nodes_with_type(
-          addr1,
-          :transfer,
-          P2P.authorized_and_available_nodes()
-        )
+      nodes = P2P.authorized_and_available_nodes() |> Enum.sort_by(& &1.first_public_key)
 
       beacon_summary = %Summary{
         subset: "A",
@@ -211,7 +207,7 @@ defmodule Archethic.BeaconChainTest do
               [node1, node2, node3, node4]
               |> Enum.with_index(1)
               |> Enum.map(fn {node, index} ->
-                node_index = Enum.find_index(storage_nodes, &(&1 == node))
+                node_index = Enum.find_index(nodes, &(&1 == node))
                 {_, pv} = Crypto.derive_keypair("node_seed", index)
                 {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
               end)
@@ -228,14 +224,14 @@ defmodule Archethic.BeaconChainTest do
           {:ok, tx_summary}
       end)
 
-      %SummaryAggregate{transaction_summaries: transaction_summaries} =
+      %SummaryAggregate{replication_attestations: attestations} =
         BeaconChain.fetch_and_aggregate_summaries(
           summary_time,
           P2P.authorized_and_available_nodes()
         )
         |> SummaryAggregate.aggregate()
 
-      assert [addr1] == Enum.map(transaction_summaries, & &1.transaction_summary.address)
+      assert [addr1] == Enum.map(attestations, & &1.transaction_summary.address)
     end
 
     test "should find other beacon summaries and aggregate missing summaries", %{
@@ -245,18 +241,14 @@ defmodule Archethic.BeaconChainTest do
       addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      storage_nodes =
-        Election.chain_storage_nodes_with_type(
-          addr1,
-          :transfer,
-          P2P.authorized_and_available_nodes()
-        )
+      storage_nodes = Election.chain_storage_nodes(addr1, P2P.authorized_and_available_nodes())
 
       tx_summary = %TransactionSummary{
         address: addr1,
         timestamp: DateTime.utc_now(),
         type: :transfer,
-        fee: 100_000_000
+        fee: 100_000_000,
+        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
       }
 
       summary_v1 = %Summary{
@@ -297,7 +289,8 @@ defmodule Archethic.BeaconChainTest do
               address: addr2,
               timestamp: DateTime.utc_now(),
               type: :transfer,
-              fee: 100_000_000
+              fee: 100_000_000,
+              validation_stamp_checksum: :crypto.strong_rand_bytes(32)
             },
             confirmations:
               [node1, node2, node3, node4]
@@ -329,14 +322,14 @@ defmodule Archethic.BeaconChainTest do
           {:ok, tx_summary}
       end)
 
-      %SummaryAggregate{transaction_summaries: transaction_summaries} =
+      %SummaryAggregate{replication_attestations: attestations} =
         BeaconChain.fetch_and_aggregate_summaries(
           summary_time,
           P2P.authorized_and_available_nodes()
         )
         |> SummaryAggregate.aggregate()
 
-      transaction_addresses = Enum.map(transaction_summaries, & &1.transaction_summary.address)
+      transaction_addresses = Enum.map(attestations, & &1.transaction_summary.address)
 
       assert Enum.all?(transaction_addresses, &(&1 in [addr1, addr2]))
     end

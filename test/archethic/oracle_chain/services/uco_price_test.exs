@@ -1,226 +1,243 @@
 defmodule Archethic.OracleChain.Services.UCOPriceTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
+  alias Archethic.OracleChain.Services.HydratingCache
   alias Archethic.OracleChain.Services.UCOPrice
 
   import Mox
+  import ExUnit.CaptureLog
 
-  test "fetch/0 should retrieve some data and build a map with the oracle name in it" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn pairs ->
-      res =
-        Enum.map(pairs, fn pair ->
-          {pair, [:rand.uniform_real()]}
-        end)
-        |> Enum.into(%{})
+  setup :verify_on_exit!
+  setup :set_mox_global
 
-      {:ok, res}
-    end)
+  describe "fetch/0" do
+    test "should retrieve some data and build a map with the oracle name in it" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.12], "eur" => [0.20]}}
+      end)
 
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn pairs ->
-      res =
-        Enum.map(pairs, fn pair ->
-          {pair, [:rand.uniform_real()]}
-        end)
-        |> Enum.into(%{})
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.12], "eur" => [0.20]}}
+      end)
 
-      {:ok, res}
-    end)
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
 
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn pairs ->
-      res =
-        Enum.map(pairs, fn pair ->
-          {pair, [:rand.uniform_real()]}
-        end)
-        |> Enum.into(%{})
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
 
-      {:ok, res}
-    end)
+      Process.sleep(1)
 
-    assert {:ok, %{"eur" => _, "usd" => _}} = UCOPrice.fetch()
-  end
+      assert {:ok, %{"eur" => 0.20, "usd" => 0.12}} = UCOPrice.fetch()
+    end
 
-  test "fetch/0 should retrieve some data and build a map with the oracle name in it and keep the precision to 5" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}
-    end)
+    test "should retrieve some data and build a map with the oracle name in it and keep the precision to 5" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.123454789], "eur" => [0.123456789]}}
+      end)
 
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}
-    end)
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.123454789], "eur" => [0.123456789]}}
+      end)
 
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.123456789], "usd" => [0.123454789]}}
-    end)
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
 
-    assert {:ok, %{"eur" => 0.12346, "usd" => 0.12345}} = UCOPrice.fetch()
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert {:ok, %{"eur" => 0.12346, "usd" => 0.12345}} = UCOPrice.fetch()
+    end
+
+    test "should handle a service timing out" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.20], "eur" => [0.20]}}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        :timer.sleep(5_000)
+        {:ok, {:error, :error_message}}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert {:ok, %{"eur" => 0.20, "usd" => 0.20}} = UCOPrice.fetch()
+    end
+
+    test "should return the median value when multiple providers queried" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.20], "eur" => [0.10]}}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.30], "eur" => [0.40]}}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert {:ok, %{"eur" => 0.25, "usd" => 0.25}} = UCOPrice.fetch()
+    end
   end
 
   describe "verify/1" do
     test "should return true if the prices are the good one" do
-      MockUCOPriceProvider1
-      |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.20], "usd" => [0.11]}}
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.20], "eur" => [0.10]}}
       end)
 
-      MockUCOPriceProvider2
-      |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.30, 0.40], "usd" => [0.12, 0.13]}}
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.30], "eur" => [0.40]}}
       end)
 
-      MockUCOPriceProvider3
-      |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.50], "usd" => [0.14]}}
-      end)
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
 
-      assert {:ok, %{"eur" => 0.35, "usd" => 0.125}} == UCOPrice.fetch()
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
     end
 
     test "should return false if the prices have deviated" do
-      MockUCOPriceProvider1
-      |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.30], "eur" => [0.20]}}
       end)
 
-      MockUCOPriceProvider2
-      |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:ok, %{"usd" => [0.40], "eur" => [0.50]}}
       end)
 
-      MockUCOPriceProvider3
-      |> expect(:fetch, fn _pairs ->
-        {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-      end)
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
 
-      assert false == UCOPrice.verify?(%{"eur" => 0.10, "usd" => 0.14})
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      refute UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
     end
   end
 
-  test "should return the median value when multiple providers queried" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
+  test "verify?/1 should return false when no data are returned from all providers" do
+    MockUCOProvider1
+    |> expect(:fetch, fn _ ->
+      {:error, ""}
     end)
 
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.30], "usd" => [0.12]}}
+    MockUCOProvider2
+    |> expect(:fetch, fn _ ->
+      {:error, ""}
     end)
 
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.40], "usd" => [0.12]}}
-    end)
-
-    assert true == UCOPrice.verify?(%{"eur" => 0.30, "usd" => 0.12})
-  end
-
-  test "should return the average of median values when a even number of providers queried" do
-    ## Define a fourth mock to have even number of mocks
-    Mox.defmock(MockUCOPriceProvider4,
-      for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider1Cache,
+      mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
     )
 
-    ## Backup old environment variable, and update it with fourth provider
-    old_env = Application.get_env(:archethic, Archethic.OracleChain.Services.UCOPrice)
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider2Cache,
+      mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+    )
 
-    new_uco_env =
-      old_env
-      |> Keyword.replace(:providers, [
-        MockUCOPriceProvider1,
-        MockUCOPriceProvider2,
-        MockUCOPriceProvider3,
-        MockUCOPriceProvider4
-      ])
+    Process.sleep(1)
 
-    Application.put_env(:archethic, Archethic.OracleChain.Services.UCOPrice, new_uco_env)
-
-    ## Define mocks expectations
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.20], "usd" => [0.12]}}
-    end)
-
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.30], "usd" => [0.12]}}
-    end)
-
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.40], "usd" => [0.12]}}
-    end)
-
-    MockUCOPriceProvider4
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.50], "usd" => [0.12]}}
-    end)
-
-    ## Restore original environment
-    Application.put_env(:archethic, Archethic.OracleChain.Services.UCOPrice, old_env)
-
-    assert false == UCOPrice.verify?(%{"eur" => 0.35, "usd" => 0.12})
-  end
-
-  test "verify?/1 should return false when no data are returned from all providers" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [], "usd" => []}}
-    end)
-
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [], "usd" => []}}
-    end)
-
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [], "usd" => []}}
-    end)
-
-    assert false == UCOPrice.verify?(%{})
+    {result, log} = with_log(fn -> UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25}) end)
+    assert result == false
+    assert log =~ "Cannot fetch UCO price - reason: no data from any service."
   end
 
   test "should report values even if a provider returns an error" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.50], "usd" => [0.12]}}
+    MockUCOProvider1
+    |> expect(:fetch, fn _ ->
+      {:error, ""}
     end)
 
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      {:error, :error_message}
+    MockUCOProvider2
+    |> expect(:fetch, fn _ ->
+      {:ok, %{"eur" => [0.25], "usd" => [0.25]}}
     end)
 
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.60], "usd" => [0.12]}}
-    end)
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider1Cache,
+      mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+    )
 
-    assert {:ok, %{"eur" => 0.55, "usd" => 0.12}} = UCOPrice.fetch()
-  end
+    HydratingCache.start_link(
+      refresh_interval: 1000,
+      name: MockUCOProvider2Cache,
+      mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+    )
 
-  test "should handle a service timing out" do
-    MockUCOPriceProvider1
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.50], "usd" => [0.10]}}
-    end)
+    Process.sleep(1)
 
-    MockUCOPriceProvider2
-    |> expect(:fetch, fn _pairs ->
-      :timer.sleep(5_000)
-    end)
-
-    MockUCOPriceProvider3
-    |> expect(:fetch, fn _pairs ->
-      {:ok, %{"eur" => [0.50], "usd" => [0.10]}}
-    end)
-
-    assert true == UCOPrice.verify?(%{"eur" => 0.50, "usd" => 0.10})
+    assert UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25})
   end
 end

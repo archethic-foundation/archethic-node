@@ -4,6 +4,7 @@ defmodule Archethic.BeaconChain.SummaryAggregateTest do
   alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.P2P
   alias Archethic.P2P.Node
+  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.TransactionChain.TransactionSummary
 
   doctest SummaryAggregate
