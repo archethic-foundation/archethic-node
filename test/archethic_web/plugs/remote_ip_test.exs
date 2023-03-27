@@ -1,5 +1,5 @@
 defmodule ArchethicWeb.Plugs.RemoteIPTest do
-  use ArchethicWeb.ConnCase, async: true
+  use ArchethicWeb.ConnCase
 
   describe "Plug should get first x-forwarded remote ip " do
     test "should modify remote ip if x-forwarded header exists", %{conn: conn} do
