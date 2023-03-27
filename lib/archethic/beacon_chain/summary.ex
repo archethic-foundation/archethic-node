@@ -372,7 +372,7 @@ defmodule Archethic.BeaconChain.Summary do
       ...>   node_average_availabilities: [1.0, 1.0],
       ...>   end_of_node_synchronizations: [<<0, 1, 190, 20, 188, 141, 156, 135, 91, 37, 96, 187, 27, 24, 41, 130, 118,
       ...>    93, 43, 240, 229, 97, 227, 194, 31, 97, 228, 78, 156, 194, 154, 74, 160, 104>>],
-      ...>   network_patches: ["ABC", "DEF"]
+      ...>   network_patches: ["A0C", "0EF"]
       ...> }
       ...> |> Summary.serialize()
       <<
@@ -424,10 +424,10 @@ defmodule Archethic.BeaconChain.Summary do
       3, 132,
       # Nb patches
       1, 2,
-      # ABC patch
-      10, 188,
-      # DEF patch
-      13, 239
+      # A0C patch
+      10, 12,
+      # 0EF patch
+      0, 239
       >>
   """
   @spec serialize(t()) :: bitstring()
@@ -532,7 +532,7 @@ defmodule Archethic.BeaconChain.Summary do
       ...> 210, 5, 142, 79, 249, 177, 51, 15, 45, 45, 141, 217, 85, 77, 146, 199, 126,
       ...> 213, 205, 108, 164, 167, 112, 201, 194, 113, 133, 242, 104, 254, 253,
       ...> 0, 2, 1::1, 1::1, 100, 100, 1, 1, 0, 1, 190, 20, 188, 141, 156, 135, 91, 37, 96, 187, 27, 24, 41, 130, 118,
-      ...> 93, 43, 240, 229, 97, 227, 194, 31, 97, 228, 78, 156, 194, 154, 74, 160, 104, 3, 132, 1, 2, 10, 188, 13, 239>>
+      ...> 93, 43, 240, 229, 97, 227, 194, 31, 97, 228, 78, 156, 194, 154, 74, 160, 104, 3, 132, 1, 2, 10, 12, 0, 239>>
       ...> |> Summary.deserialize()
       {
       %Summary{
@@ -560,7 +560,7 @@ defmodule Archethic.BeaconChain.Summary do
           node_average_availabilities: [1.0, 1.0],
           end_of_node_synchronizations: [<<0, 1, 190, 20, 188, 141, 156, 135, 91, 37, 96, 187, 27, 24, 41, 130, 118,
           93, 43, 240, 229, 97, 227, 194, 31, 97, 228, 78, 156, 194, 154, 74, 160, 104>>],
-          network_patches: ["ABC", "DEF"]
+          network_patches: ["A0C", "0EF"]
       },
       ""
       }
@@ -617,7 +617,19 @@ defmodule Archethic.BeaconChain.Summary do
     {nb_patches, rest} = Utils.VarInt.get_value(rest)
     <<patches_bin::binary-size(nb_patches * 2), rest::bitstring>> = rest
 
-    network_patches = for <<patch::16 <- patches_bin>>, do: Integer.to_string(patch, 16)
+    network_patches =
+      for <<patch::16 <- patches_bin>> do
+        patch = Integer.to_string(patch, 16)
+
+        # If an hex starts by 0, the 0 is discarded in the integer conversion, so we have to revert back 
+        case String.length(patch) do
+          2 ->
+            "0#{patch}"
+
+          3 ->
+            patch
+        end
+      end
 
     {%__MODULE__{
        subset: <<subset>>,
