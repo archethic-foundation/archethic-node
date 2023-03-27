@@ -12,6 +12,11 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     version: 1
   ]
 
+  alias Archethic.Election
+
+  alias Archethic.P2P
+
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -206,5 +211,28 @@ defmodule Archethic.TransactionChain.TransactionSummary do
       fee: fee,
       validation_stamp_checksum: validation_stamp_checksum
     }
+  end
+
+  @doc """
+  This function will be used during the summary day of 1.0.8 upgrade. This function can be deleted after the upgrade.
+  Transform a TransactionSummary without version into a TransactionSummary v1
+  """
+  @spec transform_1_0_8_summary(t()) :: t()
+  def transform_1_0_8_summary(tx_summary = %__MODULE__{version: _version}), do: tx_summary
+
+  def transform_1_0_8_summary(%__MODULE__{address: address}) do
+    transaction =
+      case TransactionChain.get_transaction(address) do
+        {:ok, tx} ->
+          tx
+
+        _ ->
+          nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+          # I don't know what to do if fetching transaction fail so I let it crash
+          {:ok, tx} = TransactionChain.fetch_transaction_remotely(address, nodes)
+          tx
+      end
+
+    from_transaction(transaction)
   end
 end

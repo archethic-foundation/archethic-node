@@ -56,9 +56,19 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   def code_change("1.0.7", state, _extra) do
-    next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
-    File.rename("slot_backup", "slot_backup-#{DateTime.to_unix(next_summary_time)}")
     PubSub.register_to_current_epoch_of_slot_time()
+
+    Enum.each(BeaconChain.list_subsets(), fn subset ->
+      :ets.take(@table_name, subset)
+      |> Enum.each(fn {subset, slot} ->
+        slot = Slot.transform_1_0_8_summaries(slot)
+        backup_slot(slot, "")
+        :ets.insert(@table_name, {subset, slot})
+      end)
+    end)
+
+    Utils.mut_dir("slot_backup") |> File.rm()
+
     {:ok, state}
   end
 
