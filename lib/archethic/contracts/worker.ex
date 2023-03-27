@@ -79,7 +79,22 @@ defmodule Archethic.Contracts.Worker do
         {:execute, incoming_tx = %Transaction{}},
         state = %{contract: contract}
       ) do
-    _ = do_execute_trigger_and_handle_result(:transaction, contract, incoming_tx)
+    contract_tx = Constants.to_transaction(contract.constants.contract)
+
+    meta = log_metadata(contract_tx, incoming_tx)
+    Logger.debug("Contract execution started", meta)
+
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(:transaction, contract, incoming_tx, skip_inherit_check?: true),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
 
     {:noreply, state}
   end
@@ -89,7 +104,22 @@ defmodule Archethic.Contracts.Worker do
         {:trigger, trigger_type = {:datetime, _}},
         state = %{contract: contract}
       ) do
-    _ = do_execute_trigger_and_handle_result(trigger_type, contract)
+    contract_tx = Constants.to_transaction(contract.constants.contract)
+
+    meta = log_metadata(contract_tx)
+    Logger.debug("Contract execution started", meta)
+
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(trigger_type, contract, nil, skip_inherit_check?: true),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
 
     {:noreply, Map.update!(state, :timers, &Map.delete(&1, trigger_type))}
   end
@@ -99,7 +129,22 @@ defmodule Archethic.Contracts.Worker do
         {:trigger, trigger_type = {:interval, interval}},
         state = %{contract: contract}
       ) do
-    _ = do_execute_trigger_and_handle_result(trigger_type, contract)
+    contract_tx = Constants.to_transaction(contract.constants.contract)
+
+    meta = log_metadata(contract_tx)
+    Logger.debug("Contract execution started", meta)
+
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(trigger_type, contract, nil, skip_inherit_check?: true),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
 
     interval_timer = schedule_trigger({:interval, interval})
     {:noreply, put_in(state, [:timers, :interval], interval_timer)}
@@ -110,9 +155,23 @@ defmodule Archethic.Contracts.Worker do
         {:new_transaction, tx_address, :oracle, _timestamp},
         state = %{contract: contract}
       ) do
+    contract_tx = Constants.to_transaction(contract.constants.contract)
     {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
 
-    _ = do_execute_trigger_and_handle_result(:oracle, contract, oracle_tx)
+    meta = log_metadata(contract_tx, oracle_tx)
+    Logger.debug("Contract execution started", meta)
+
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(:oracle, contract, oracle_tx, skip_inherit_check?: true),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
 
     {:noreply, state}
   end
@@ -295,47 +354,17 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  # no one use the return value
-  defp do_execute_trigger_and_handle_result(
-         trigger_type,
-         contract = %Contract{},
-         maybe_tx \\ nil
-       ) do
-    contract_tx = Constants.to_transaction(contract.constants.contract)
+  defp log_metadata(contract_tx), do: log_metadata(contract_tx, nil)
 
-    if enough_funds?(contract_tx.address) do
-      log_metadata =
-        case maybe_tx do
-          nil ->
-            [contract: Base.encode16(contract_tx.address)]
+  defp log_metadata(contract_tx, nil) do
+    [contract: Base.encode16(contract_tx.address)]
+  end
 
-          incoming_tx ->
-            [
-              transaction_address: Base.encode16(incoming_tx.address),
-              transaction_type: incoming_tx.type,
-              contract: Base.encode16(contract_tx.address)
-            ]
-        end
-
-      Logger.info("Execute contract trigger: #{trigger_type}", log_metadata)
-
-      # keep similar behaviour as legacy, we don't check the inherit condition in the worker
-      case Interpreter.execute(trigger_type, contract, maybe_tx, skip_inherit_check?: true) do
-        {:ok, nil} ->
-          :ok
-
-        {:ok, next_tx} ->
-          with {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-               :ok <- ensure_enough_funds(next_tx, contract_tx.address) do
-            handle_new_transaction(next_tx)
-          end
-
-        {:error, reason} ->
-          Logger.debug("Contract execution failed, reason: #{inspect(reason)}", log_metadata)
-          :error
-      end
-    else
-      :error
-    end
+  defp log_metadata(contract_tx, %Transaction{type: type, address: address}) do
+    [
+      transaction_address: Base.encode16(address),
+      transaction_type: type,
+      contract: Base.encode16(contract_tx.address)
+    ]
   end
 end
