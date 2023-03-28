@@ -287,6 +287,99 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     assert_received :transaction_replicated
   end
 
+  test "process_transaction/3 should handle the transaction and replicate it on attestation V1" do
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: true,
+      authorization_date: ~U[2022-01-01 00:00:00.000Z],
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      reward_address: :crypto.strong_rand_bytes(32),
+      enrollment_date: ~U[2022-01-01 00:00:00.000Z]
+    })
+
+    me = self()
+
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: ~U[2022-01-02 00:00:00.000Z]
+      }
+    ]
+
+    tx =
+      TransactionFactory.create_valid_transaction(inputs, timestamp: ~U[2022-01-02 00:00:00.000Z])
+
+    MockDB
+    |> stub(:write_transaction, fn ^tx, _ ->
+      send(me, :transaction_replicated)
+      :ok
+    end)
+
+    tx_summary = TransactionSummary.from_transaction(tx)
+
+    attestation = %ReplicationAttestation{
+      version: 1,
+      transaction_summary: tx_summary
+    }
+
+    assert :ok =
+             TransactionHandler.process_transaction(
+               attestation,
+               tx,
+               P2P.authorized_and_available_nodes()
+             )
+
+    assert_received :transaction_replicated
+  end
+
+  test "process_transaction/3 should raise an error if transaction is invalid on attestation V1" do
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: true,
+      authorization_date: ~U[2022-01-01 00:00:00.000Z],
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      reward_address: :crypto.strong_rand_bytes(32),
+      enrollment_date: ~U[2022-01-01 00:00:00.000Z]
+    })
+
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: ~U[2022-01-02 00:00:00.000Z]
+      }
+    ]
+
+    tx =
+      TransactionFactory.create_transaction_with_invalid_validation_stamp_signature(inputs,
+        timestamp: ~U[2022-01-02 00:00:00.000Z]
+      )
+
+    tx_summary = TransactionSummary.from_transaction(tx)
+
+    attestation = %ReplicationAttestation{
+      version: 1,
+      transaction_summary: tx_summary
+    }
+
+    assert_raise RuntimeError, "Transaction signature error in self repair", fn ->
+      TransactionHandler.process_transaction(
+        attestation,
+        tx,
+        P2P.authorized_and_available_nodes()
+      )
+    end
+  end
+
   test "process_transaction/3 should handle raise an error when attestation is invalid" do
     inputs = [
       %TransactionInput{

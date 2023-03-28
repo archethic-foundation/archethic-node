@@ -16,6 +16,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -126,7 +127,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         },
         node_list
       ) do
-    :ok = verify_attestation(attestation)
+    verify_transaction(attestation, tx)
 
     node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
 
@@ -141,6 +142,37 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         :ok
     end
   end
+
+  defp verify_transaction(
+         attestation = %ReplicationAttestation{version: 1},
+         tx = %Transaction{
+           address: address,
+           type: type,
+           validation_stamp: %ValidationStamp{timestamp: timestamp}
+         }
+       ) do
+    # Replication attestation version 1 does not contains storage confirmations,
+    # so we ensure the transaction is valid looking at validation signature
+    verify_attestation(attestation)
+
+    validation_nodes_public_keys =
+      P2P.authorized_and_available_nodes(timestamp)
+      |> Enum.map(fn %Node{first_public_key: first_public_key} ->
+        TransactionChain.list_chain_public_keys(first_public_key, timestamp)
+        |> Enum.reverse()
+      end)
+
+    unless Transaction.valid_stamps_signature?(tx, validation_nodes_public_keys) do
+      Logger.error("Transaction signature error in self repair",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+
+      raise "Transaction signature error in self repair"
+    end
+  end
+
+  defp verify_transaction(attestation, _tx), do: verify_attestation(attestation)
 
   defp verify_attestation(attestation) do
     cond do

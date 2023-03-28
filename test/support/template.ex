@@ -42,6 +42,7 @@ defmodule ArchethicCase do
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
     |> stub(:list_addresses_by_type, fn _ -> [] end)
     |> stub(:list_transactions, fn _ -> [] end)
+    |> stub(:list_chain_public_keys, fn public_key, _ -> [public_key] end)
     |> stub(:transaction_exists?, fn _, _ -> false end)
     |> stub(:register_p2p_summary, fn _ -> :ok end)
     |> stub(:get_last_p2p_summaries, fn -> [] end)
