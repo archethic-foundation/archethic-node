@@ -20,7 +20,6 @@ defmodule Archethic.Replication.TransactionValidator do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionInput
@@ -168,12 +167,10 @@ defmodule Archethic.Replication.TransactionValidator do
   defp valid_election?(
          tx = %Transaction{
            address: tx_address,
-           validation_stamp:
-             validation_stamp = %ValidationStamp{
-               timestamp: tx_timestamp,
-               proof_of_election: proof_of_election
-             },
-           cross_validation_stamps: cross_validation_stamps
+           validation_stamp: %ValidationStamp{
+             timestamp: tx_timestamp,
+             proof_of_election: proof_of_election
+           }
          }
        ) do
     authorized_nodes = P2P.authorized_and_available_nodes(tx_timestamp)
@@ -188,7 +185,7 @@ defmodule Archethic.Replication.TransactionValidator do
       _ ->
         storage_nodes = Election.chain_storage_nodes(tx_address, authorized_nodes)
 
-        validation_nodes =
+        validation_nodes_public_key =
           Election.validation_nodes(
             tx,
             proof_of_election,
@@ -197,27 +194,11 @@ defmodule Archethic.Replication.TransactionValidator do
             Election.get_validation_constraints()
           )
           # Update node last public key with the one at transaction date
-          |> Enum.map(fn node = %Node{first_public_key: public_key} ->
-            last_public_key = DB.get_last_chain_public_key(public_key, tx_timestamp)
-            %{node | last_public_key: last_public_key}
+          |> Enum.map(fn %Node{first_public_key: public_key} ->
+            [DB.get_last_chain_public_key(public_key, tx_timestamp)]
           end)
 
-        valid_coordinator? =
-          Enum.any?(
-            validation_nodes,
-            &ValidationStamp.valid_signature?(validation_stamp, &1.last_public_key)
-          )
-
-        valid_cross_validators? =
-          Enum.all?(
-            cross_validation_stamps,
-            fn cross_stamp = %CrossValidationStamp{node_public_key: node_public_key} ->
-              Enum.any?(validation_nodes, &(&1.last_public_key == node_public_key)) and
-                CrossValidationStamp.valid_signature?(cross_stamp, validation_stamp)
-            end
-          )
-
-        valid_coordinator? and valid_cross_validators?
+        Transaction.valid_stamps_signature?(tx, validation_nodes_public_key)
     end
   end
 
