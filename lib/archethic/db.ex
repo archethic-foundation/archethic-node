@@ -54,6 +54,8 @@ defmodule Archethic.DB do
               Enumerable.t() | list(binary())
   @callback list_chain_addresses(binary()) ::
               Enumerable.t() | list({binary(), DateTime.t()})
+  @callback list_chain_public_keys(binary(), DateTime.t()) ::
+              Enumerable.t() | list({binary(), DateTime.t()})
 
   @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
   @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}

@@ -743,7 +743,7 @@ defmodule Archethic.DB.EmbeddedTest do
   end
 
   describe "list_chain_addresses/1" do
-    test "should return a steam of addresses from genesis address" do
+    test "should return a stream of addresses from genesis address" do
       seed = "list_chain_addresses test seed"
 
       tx0 =
@@ -800,6 +800,63 @@ defmodule Archethic.DB.EmbeddedTest do
 
       assert [tx2.address, tx3.address, tx4.address] ==
                Enum.map(address_list, fn {addr, _t} -> addr end)
+    end
+  end
+
+  describe "list_chain_public_keys/2" do
+    test "should return a stream of keys from genesis key" do
+      seed = "list_chain_public_keys test seed"
+
+      tx0 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 0,
+          type: :transfer,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 1,
+          type: :transfer,
+          timestamp: ~U[2020-03-30 10:14:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 2,
+          type: :transfer,
+          timestamp: ~U[2020-04-30 10:15:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 3,
+          type: :transfer,
+          timestamp: ~U[2020-04-30 10:16:00Z]
+        )
+
+      tx4 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 4,
+          type: :transfer,
+          timestamp: ~U[2020-04-30 10:17:00Z]
+        )
+
+      Enum.each([tx0, tx1, tx2, tx3, tx4], &EmbeddedImpl.write_transaction(&1))
+
+      public_keys =
+        seed
+        |> Crypto.derive_keypair(0)
+        |> elem(0)
+        |> EmbeddedImpl.list_chain_public_keys(~U[2020-04-30 10:15:30Z])
+
+      assert [tx0.previous_public_key, tx1.previous_public_key, tx2.previous_public_key] ==
+               Enum.map(public_keys, fn {key, _t} -> key end)
     end
   end
 
