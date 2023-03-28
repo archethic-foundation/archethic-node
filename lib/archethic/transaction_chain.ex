@@ -95,6 +95,13 @@ defmodule Archethic.TransactionChain do
   defdelegate list_chain_addresses(genesis_address), to: DB
 
   @doc """
+  Stream all the public keys until a date, from a public key.
+  """
+  @spec list_chain_public_keys(binary(), DateTime.t()) ::
+          Enumerable.t() | list({binary(), DateTime.t()})
+  defdelegate list_chain_public_keys(first_public_key, until), to: DB
+
+  @doc """
   Get the last transaction address from a transaction chain with the latest time
   """
   @spec get_last_address(binary()) :: {binary(), DateTime.t()}

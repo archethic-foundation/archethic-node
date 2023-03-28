@@ -388,6 +388,42 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   @doc """
+  Stream all the public_keys from a genesis public key until a date
+  """
+  @spec list_chain_public_keys(binary(), DateTime.t(), String.t()) :: Enumerable.t()
+  def list_chain_public_keys(public_key, until, db_path) when is_binary(public_key) do
+    address = Crypto.derive_address(public_key)
+    filepath = chain_keys_path(db_path, address)
+
+    Stream.resource(
+      fn -> File.open(filepath, [:binary, :read]) end,
+      fn
+        {:error, _} ->
+          {:halt, nil}
+
+        {:ok, fd} ->
+          with {:ok, <<timestamp::64>>} <- :file.read(fd, 8),
+               :lt <- DateTime.from_unix!(timestamp, :millisecond) |> DateTime.compare(until),
+               {:ok, <<curve_id::8, origin_id::8>>} <- :file.read(fd, 2),
+               key_size <- Crypto.key_size(curve_id),
+               {:ok, key} <- :file.read(fd, key_size) do
+            pub_key = <<curve_id::8, origin_id::8, key::binary>>
+            # return tuple of address and timestamp
+            {[{pub_key, DateTime.from_unix!(timestamp, :millisecond)}], {:ok, fd}}
+          else
+            e when e in [:eof, :eq, :gt] ->
+              :file.close(fd)
+              {:halt, {:ok, fd}}
+          end
+      end,
+      fn
+        nil -> public_key
+        {:ok, fd} -> :file.close(fd)
+      end
+    )
+  end
+
+  @doc """
   Return the number of transactions for a given type
   """
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()

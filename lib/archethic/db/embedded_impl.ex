@@ -213,6 +213,15 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Stream all the public keys until a date, from a public key.
+  """
+  @spec list_chain_public_keys(binary(), DateTime.t()) ::
+          Enumerable.t() | list({binary(), DateTime.t()})
+  def list_chain_public_keys(public_key, until) when is_binary(public_key) do
+    ChainIndex.list_chain_public_keys(public_key, until, db_path())
+  end
+
+  @doc """
   Count the number of transactions for a given type
   """
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
