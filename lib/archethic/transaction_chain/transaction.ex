@@ -545,6 +545,49 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   @doc """
+  Receive in paramater a tx and a list with multiple list of public_keys
+  the list of list is used during self repair for replication attestation V1
+  otherwise each list contains only 1 public key (the last one of the node)
+
+  Return true if the signature are valid based on received public keys
+  """
+  @spec valid_stamps_signature?(tx :: t(), list_of_public_keys :: list(list(Crypto.key()))) ::
+          boolean()
+  def valid_stamps_signature?(
+        %__MODULE__{validation_stamp: stamp, cross_validation_stamps: cross_stamps},
+        list_of_public_keys
+      ) do
+    public_keys = List.flatten(list_of_public_keys)
+
+    # TODO: we need to ensure that the coordinator node is not the same than the cross validation nodes.
+    # This control must be done only for distributed workflow (more than one validation node)
+    # The list of list will be usefull for this control.
+
+    with true <- valid_coordinator?(stamp, public_keys),
+         true <- different_cross_stamps?(cross_stamps) do
+      valid_cross_signature?(stamp, cross_stamps, public_keys)
+    else
+      _ -> false
+    end
+  end
+
+  defp valid_coordinator?(stamp, public_keys),
+    do: Enum.any?(public_keys, &ValidationStamp.valid_signature?(stamp, &1))
+
+  defp different_cross_stamps?(cross_stamps),
+    do: cross_stamps == Enum.uniq_by(cross_stamps, & &1.node_public_key)
+
+  defp valid_cross_signature?(stamp, cross_stamps, public_keys),
+    do:
+      Enum.all?(
+        cross_stamps,
+        fn cross_stamp = %CrossValidationStamp{node_public_key: node_public_key} ->
+          Enum.any?(public_keys, &(&1 == node_public_key)) and
+            CrossValidationStamp.valid_signature?(cross_stamp, stamp)
+        end
+      )
+
+  @doc """
   Serialize a transaction into binary format
 
   ## Examples
