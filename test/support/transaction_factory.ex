@@ -131,9 +131,15 @@ defmodule Archethic.TransactionFactory do
     %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
   end
 
-  def create_transaction_with_invalid_validation_stamp_signature(inputs \\ []) do
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+  def create_transaction_with_invalid_validation_stamp_signature(inputs \\ [], opts \\ []) do
+    type = Keyword.get(opts, :type, :transfer)
+    seed = Keyword.get(opts, :seed, "seed")
+    index = Keyword.get(opts, :index, 0)
+
+    timestamp =
+      Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
+
+    tx = Transaction.new(type, %TransactionData{}, seed, index)
 
     ledger_operations =
       %LedgerOperations{
