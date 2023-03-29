@@ -126,7 +126,8 @@ defmodule Archethic.Contracts.Interpreter do
         ) ::
           {:ok, nil | Transaction.t()}
           | {:error,
-             :invalid_triggers_execution
+             :contract_failure
+             | :invalid_triggers_execution
              | :invalid_transaction_constraints
              | :invalid_oracle_constraints
              | :invalid_inherit_constraints}
@@ -251,6 +252,10 @@ defmodule Archethic.Contracts.Interpreter do
     else
       {:error, :invalid_transaction_constraints}
     end
+  rescue
+    _ ->
+      # it's ok to loose the error because it's user-code
+      {:error, :contract_failure}
   end
 
   defp do_execute(
