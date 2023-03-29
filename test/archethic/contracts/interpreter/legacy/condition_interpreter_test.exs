@@ -382,5 +382,21 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
                }
              })
     end
+
+    test "should validate oracle condition" do
+      assert Interpreter.sanitize_code(~s"""
+             condition oracle: [
+               content: json_path_extract(\"$.uco.eur\") > 1
+             ]
+             """)
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "content" => Jason.encode!(%{uco: %{eur: 2}})
+               }
+             })
+    end
   end
 end
