@@ -66,6 +66,7 @@ defmodule Archethic.BeaconChain.SummaryTimer do
     get_interval()
     |> CronParser.parse!(true)
     |> CronScheduler.get_next_run_dates(date_from |> DateTime.to_naive())
+    |> Stream.reject(&(DateTime.compare(DateTime.from_naive!(&1, "Etc/UTC"), date_from) == :eq))
     |> Stream.take_while(fn datetime ->
       datetime
       |> DateTime.from_naive!("Etc/UTC")
