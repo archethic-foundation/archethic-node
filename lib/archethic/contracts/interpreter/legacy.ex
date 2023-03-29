@@ -66,21 +66,22 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
               address: nil,
               authorized_keys: nil,
               code: nil,
-              content: {
-                :>,
-                [line: 11],
+              content: {:>, [line: 11],
                 [
-                  {
-                    :==,
-                    [line: 11],
-                    [
-                      {:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]},
-                      {{:., [line: 11], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library], [:Library]}, :json_path_extract]}, [line: 11], [{:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]}, "$.uco.eur"]}
-                    ]
-                  },
-                  1
-                ]
-              },
+                {{:., [line: 11],
+                  [
+                    {:__aliases__,
+                    [alias: Archethic.Contracts.Interpreter.Legacy.Library],
+                    [:Library]},
+                    :json_path_extract
+                  ]}, [line: 11],
+                [
+                  {:get_in, [line: 11],
+                    [{:scope, [line: 11], nil}, ["transaction", "content"]]},
+                  "$.uco.eur"
+                ]},
+                1
+                ]},
               origin_family: :all,
               previous_public_key: nil,
               secrets: nil,
