@@ -476,7 +476,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
   # Flatten comparison operations
   defp to_boolean_expression({op, _, [{:==, metadata, [{:get_in, _, _}, comp_a]}, comp_b]}, _, _)
-       when op in [:==, :>=, :<=] do
+       when op in [:==, :>=, :<=, :>, :<] do
     {op, metadata, [comp_a, comp_b]}
   end
 
