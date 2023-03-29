@@ -215,10 +215,11 @@ defmodule Archethic.TransactionChain.TransactionSummary do
 
   @doc """
   This function will be used during the summary day of 1.0.8 upgrade. This function can be deleted after the upgrade.
+  Migrate this function into files 1.0.8-migrate_old_tx_summaries
   Transform a TransactionSummary without version into a TransactionSummary v1
   """
   @spec transform_1_0_8_summary(t()) :: t()
-  def transform_1_0_8_summary(tx_summary = %__MODULE__{version: _version}), do: tx_summary
+  def transform_1_0_8_summary(tx_summary = %__MODULE__{version: 1}), do: tx_summary
 
   def transform_1_0_8_summary(%__MODULE__{address: address}) do
     transaction =
@@ -234,5 +235,32 @@ defmodule Archethic.TransactionChain.TransactionSummary do
       end
 
     from_transaction(transaction)
+  end
+
+  @doc """
+  This function will be used during the summary day of 1.0.8 upgrade. This function can be deleted after the upgrade.
+  Migrate this function into files 1.0.8-migrate_old_tx_summaries
+  Deserialize an old version of transaction summary
+  """
+  @spec deserialize_old(bitstring()) :: {t(), bitstring()}
+  def deserialize_old(data) do
+    {address, <<timestamp::64, type::8, fee::64, rest::bitstring>>} =
+      Utils.deserialize_address(data)
+
+    {nb_movements, rest} = rest |> VarInt.get_value()
+    {addresses, rest} = Utils.deserialize_addresses(rest, nb_movements, [])
+
+    {
+      %__MODULE__{
+        version: 0,
+        address: address,
+        timestamp: DateTime.from_unix!(timestamp, :millisecond),
+        type: Transaction.parse_type(type),
+        movements_addresses: addresses,
+        fee: fee,
+        validation_stamp_checksum: ""
+      },
+      rest
+    }
   end
 end
