@@ -293,6 +293,41 @@ defmodule Archethic.Contracts.InterpreterTest do
              )
     end
 
+    test "should return contract_failure if contract code crash" do
+      code = """
+        @version 1
+        condition inherit: [
+          content: true
+        ]
+
+        actions triggered_by: transaction do
+          x = 10 / 0
+          Contract.set_content x
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{}
+      }
+
+      assert match?(
+               {:error, :contract_failure},
+               Interpreter.execute(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+             )
+    end
+
     test "should be able to simulate a trigger: datetime" do
       code = """
         @version 1

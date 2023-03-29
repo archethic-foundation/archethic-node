@@ -327,7 +327,8 @@ defmodule Archethic do
         ) ::
           {:ok, nil | Transaction.t()}
           | {:error,
-             :invalid_triggers_execution
+             :contract_failure
+             | :invalid_triggers_execution
              | :invalid_transaction_constraints
              | :invalid_oracle_constraints
              | :invalid_inherit_constraints}
