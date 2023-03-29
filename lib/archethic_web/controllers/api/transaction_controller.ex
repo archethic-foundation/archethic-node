@@ -233,6 +233,9 @@ defmodule ArchethicWeb.API.TransactionController do
         {:error, "Network issue, please try again later."}
 
       # execute_contract errors
+      {:error, :contract_failure} ->
+        {:error, "Contract execution produced an error."}
+
       {:error, :invalid_triggers_execution} ->
         {:error, "Contract does not have a `actions triggered_by: transaction` block."}
 
