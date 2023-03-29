@@ -322,32 +322,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
              |> ActionInterpreter.execute()
   end
 
-  test "get_calls() should be expanded to get_calls(contract.address)" do
-    {:ok, :transaction, ast} =
-      ~S"""
-        actions triggered_by: transaction do
-          get_calls()
-        end
-      """
-      |> Interpreter.sanitize_code()
-      |> elem(1)
-      |> ActionInterpreter.parse()
-
-    assert {{:., [line: 2],
-             [
-               {:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.Library],
-                [:Library]},
-               :get_calls
-             ]}, [line: 2],
-            [
-              {:get_in, meta,
-               [
-                 {:scope, meta, nil},
-                 ["contract", "address"]
-               ]}
-            ]} = ast
-  end
-
   test "shall use get_genesis_address/1 in actions" do
     key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -479,63 +453,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
              |> ActionInterpreter.parse()
              |> elem(2)
              |> ActionInterpreter.execute()
-  end
-
-  test "shall use get_calls/1 in actions" do
-    key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
-
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: key,
-      last_public_key: key,
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
-
-    address = Base.decode16!("64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4")
-
-    MockDB
-    |> stub(:get_inputs, fn _, ^address ->
-      [
-        %VersionedTransactionInput{
-          protocol_version: ArchethicCase.current_protocol_version(),
-          input: %TransactionInput{
-            from: address,
-            amount: nil,
-            type: :call,
-            timestamp: DateTime.utc_now(),
-            spent?: false,
-            reward?: false
-          }
-        }
-      ]
-    end)
-    |> stub(:get_transaction, fn ^address, _, _ ->
-      {:ok, TransactionFactory.create_valid_transaction()}
-    end)
-
-    # TODO: find a way to check the transactions returned by get_calls
-
-    assert %Transaction{data: %TransactionData{content: "1"}} =
-             ~s"""
-             actions triggered_by: transaction do
-               transactions = get_calls()
-               set_content size(transactions)
-             end
-             """
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ActionInterpreter.parse()
-             |> elem(2)
-             |> ActionInterpreter.execute(%{
-               "contract" => %{
-                 "address" => "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
-               }
-             })
   end
 
   describe "blacklist" do

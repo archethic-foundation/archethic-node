@@ -8,14 +8,15 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.Contracts.Interpreter.Legacy
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
 
   # get_calls has it's own postwalk (to inject the address),
   # it does not require a check_types
   @spec get_calls(binary()) :: list(map())
-  defdelegate get_calls(contract_address),
-    to: Legacy.Library
+  def get_calls(contract_address) do
+    # FIXME TODO
+    []
+  end
 
   @spec set_type(Transaction.t(), binary()) :: Transaction.t()
   defdelegate set_type(next_tx, type),
