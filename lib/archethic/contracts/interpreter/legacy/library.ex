@@ -191,23 +191,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
   def size(map) when is_map(map), do: map_size(map)
 
   @doc """
-  Get the inputs(type= :call) of the given transaction
-
-  This is useful for contracts that want to throttle their calls
-  """
-  @spec get_calls(binary()) :: list(map())
-  def get_calls(contract_address) do
-    contract_address
-    |> UtilsInterpreter.maybe_decode_hex()
-    |> TransactionLookup.list_contract_transactions()
-    |> Enum.map(fn {address, _, _} ->
-      # TODO: parallelize
-      {:ok, tx} = TransactionChain.get_transaction(address, [], :io)
-      ContractConstants.from_transaction(tx)
-    end)
-  end
-
-  @doc """
   Get the genesis public key
   """
   @spec get_genesis_public_key(binary()) :: binary()
