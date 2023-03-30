@@ -7,8 +7,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
     P2P.Message.GetFirstPublicKey,
     P2P.Message.FirstPublicKey,
     TransactionChain,
-    Contracts.ContractConstants,
-    Contracts.TransactionLookup,
     Utils
   }
 

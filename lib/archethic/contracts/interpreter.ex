@@ -111,17 +111,12 @@ defmodule Archethic.Contracts.Interpreter do
   Execution the given contract's trigger.
   Checks all conditions block.
 
-  `maybe_tx` must be
-    - the incoming transaction when trigger_type: transaction
-    - the oracle transaction when trigger_type: oracle
-    - nil for the other trigger_types
-
   /!\ The transaction returned is not complete, only the `type` and `data` are filled-in.
   """
   @spec execute(
           Contract.trigger_type(),
           Contract.t(),
-          nil | Transaction.t(),
+          [Transaction.t()],
           execute_opts()
         ) ::
           {:ok, nil | Transaction.t()}
@@ -134,7 +129,7 @@ defmodule Archethic.Contracts.Interpreter do
   def execute(
         trigger_type,
         contract = %Contract{triggers: triggers},
-        maybe_tx,
+        calls,
         opts \\ []
       ) do
     case triggers[trigger_type] do
@@ -146,7 +141,7 @@ defmodule Archethic.Contracts.Interpreter do
           trigger_type,
           trigger_code,
           contract,
-          maybe_tx,
+          calls,
           contract,
           opts
         )
@@ -222,7 +217,7 @@ defmodule Archethic.Contracts.Interpreter do
          :transaction,
          trigger_code,
          contract,
-         incoming_tx = %Transaction{},
+         calls = [incoming_tx = %Transaction{}],
          %Contract{
            version: version,
            conditions: conditions,
@@ -238,7 +233,7 @@ defmodule Archethic.Contracts.Interpreter do
     }
 
     if valid_conditions?(version, conditions.transaction, constants) do
-      case execute_trigger(version, trigger_code, contract, incoming_tx) do
+      case execute_trigger(version, trigger_code, contract, calls) do
         nil ->
           {:ok, nil}
 
@@ -262,7 +257,7 @@ defmodule Archethic.Contracts.Interpreter do
          :oracle,
          trigger_code,
          contract,
-         oracle_tx = %Transaction{},
+         calls = [oracle_tx = %Transaction{}],
          %Contract{
            version: version,
            conditions: conditions,
@@ -278,7 +273,7 @@ defmodule Archethic.Contracts.Interpreter do
     }
 
     if valid_conditions?(version, conditions.oracle, constants) do
-      case execute_trigger(version, trigger_code, contract, oracle_tx) do
+      case execute_trigger(version, trigger_code, contract, calls) do
         nil ->
           {:ok, nil}
 
@@ -298,11 +293,11 @@ defmodule Archethic.Contracts.Interpreter do
          _trigger_type,
          trigger_code,
          contract,
-         nil,
+         calls,
          %Contract{version: version},
          opts
        ) do
-    case execute_trigger(version, trigger_code, contract) do
+    case execute_trigger(version, trigger_code, contract, calls) do
       nil ->
         {:ok, nil}
 
@@ -319,13 +314,18 @@ defmodule Archethic.Contracts.Interpreter do
          version,
          trigger_code,
          contract,
-         maybe_tx \\ nil
+         calls
        ) do
     constants_trigger = %{
+      "calls" => Enum.map(calls, &Constants.from_transaction/1),
       "transaction" =>
-        case maybe_tx do
-          nil -> nil
-          tx -> Constants.from_transaction(tx)
+        case calls do
+          [tx] ->
+            # :oracle & :transaction
+            Constants.from_transaction(tx)
+
+          _ ->
+            nil
         end,
       "contract" => contract.constants.contract
     }

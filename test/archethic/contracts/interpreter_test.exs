@@ -139,7 +139,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 [incoming_tx]
                )
     end
 
@@ -175,7 +175,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 [incoming_tx]
                )
     end
 
@@ -211,7 +211,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 [incoming_tx]
                )
              )
     end
@@ -249,7 +249,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 [incoming_tx]
                )
              )
     end
@@ -288,7 +288,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
-                 oracle_tx
+                 [oracle_tx]
                )
              )
     end
@@ -323,7 +323,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 [incoming_tx]
                )
              )
     end
@@ -351,7 +351,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  {:datetime, ~U[2023-03-16 16:28:56Z]},
                  Contract.from_transaction!(contract_tx),
-                 nil
+                 []
                )
     end
 
@@ -378,7 +378,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute(
                  {:interval, "* * * * *"},
                  Contract.from_transaction!(contract_tx),
-                 nil
+                 []
                )
     end
 
@@ -404,7 +404,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, %Transaction{}} =
-               Interpreter.execute(:oracle, Contract.from_transaction!(contract_tx), nil)
+               Interpreter.execute(:oracle, Contract.from_transaction!(contract_tx), [])
     end
   end
 end

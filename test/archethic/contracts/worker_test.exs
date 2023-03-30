@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
   alias Contracts.{Contract, Interpreter, Worker, ContractConstants}
 
-  alias P2P.Message.{Ok, StartMining}
+  alias P2P.Message.{Ok, StartMining, GetContractCalls, TransactionList}
 
   alias TransactionChain.{Transaction, TransactionData, Transaction.ValidationStamp}
   alias ValidationStamp.{LedgerOperations.UnspentOutput, LedgerOperations.VersionedUnspentOutput}
@@ -41,9 +41,13 @@ defmodule Archethic.Contracts.WorkerTest do
     me = self()
 
     MockClient
-    |> stub(:send_message, fn _, %StartMining{transaction: tx}, _ ->
-      send(me, {:transaction_sent, tx})
-      {:ok, %Ok{}}
+    |> stub(:send_message, fn
+      _, %StartMining{transaction: tx}, _ ->
+        send(me, {:transaction_sent, tx})
+        {:ok, %Ok{}}
+
+      _, %GetContractCalls{}, _ ->
+        {:ok, %TransactionList{transactions: []}}
     end)
 
     aes_key = :crypto.strong_rand_bytes(32)
@@ -185,17 +189,10 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, contract} = Interpreter.parse(code)
 
-      contract =
-        %{
-          contract
-          | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-        }
-        |> Map.update!(:triggers, fn triggers ->
-          Enum.map(triggers, fn {{:interval, interval}, code} ->
-            {{:interval, interval}, code}
-          end)
-          |> Enum.into(%{})
-        end)
+      contract = %{
+        contract
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
+      }
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -209,11 +206,11 @@ defmodule Archethic.Contracts.WorkerTest do
               assert tx.address == expected_tx.address
               assert tx.data.code == code
           after
-            100_000 ->
+            5000 ->
               raise "Timeout"
           end
       after
-        100_000 ->
+        5000 ->
           raise "Timeout"
       end
     end

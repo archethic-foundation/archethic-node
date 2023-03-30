@@ -47,8 +47,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     # because it is mutable.
     #
     # constants should already contains the global variables:
+    #   - "calls": the transactions that called this exact contract version
     #   - "contract": current contract transaction
-    #   - "transaction": the incoming transaction (when trigger=transaction)
+    #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
     Scope.init(Map.put(constants, "next_transaction", next_tx))
 
     # we can ignore the result & binding
@@ -150,19 +151,15 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # Contract.get_calls() => Contract.get_calls(contract.address)
+  # Contract.get_calls()
   defp postwalk(
          _node =
            {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, "get_calls"}]}, _, []},
          acc
        ) do
-    # contract is one of the "magic" variables that we expose to the user's code
-    # it is bound in the root scope
     new_node =
       quote do
-        Archethic.Contracts.Interpreter.Library.Contract.get_calls(
-          Scope.read_global(["contract", "address"])
-        )
+        Archethic.Contracts.Interpreter.Library.Contract.get_calls()
       end
 
     {new_node, acc}

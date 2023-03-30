@@ -222,7 +222,7 @@ defmodule ArchethicWeb.API.TransactionController do
   defp fetch_recipient_tx_and_simulate(recipient_address, tx) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
          {:ok, contract} <- Archethic.parse_contract(contract_tx),
-         {:ok, _} <- Archethic.execute_contract(:transaction, contract, tx) do
+         {:ok, _} <- Archethic.execute_contract(:transaction, contract, [tx]) do
       :ok
     else
       # search_transaction errors
