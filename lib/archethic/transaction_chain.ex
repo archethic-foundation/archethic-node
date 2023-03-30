@@ -17,6 +17,7 @@ defmodule Archethic.TransactionChain do
     AddressList,
     Error,
     GenesisAddress,
+    GetContractCalls,
     GetGenesisAddress,
     GetLastTransactionAddress,
     GetNextAddresses,
@@ -632,6 +633,30 @@ defmodule Archethic.TransactionChain do
 
       {:error, :network_issue} = e ->
         e
+    end
+  end
+
+  @doc """
+  Fetch the transactions (not the inputs) that called the given contract.
+  """
+  @spec fetch_contract_calls(binary()) :: {:ok, list(Transaction.t())} | {:error, term()}
+  def fetch_contract_calls(contract_address) do
+    conflict_resolver = fn results ->
+      results
+      |> Enum.sort_by(&length(&1.inputs), :desc)
+      |> List.first()
+    end
+
+    case P2P.quorum_read(
+           Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes()),
+           %GetContractCalls{address: contract_address},
+           conflict_resolver
+         ) do
+      {:ok, %TransactionList{transactions: transactions}} ->
+        {:ok, transactions}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
     end
   end
 
