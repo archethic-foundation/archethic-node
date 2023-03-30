@@ -12,11 +12,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
   alias Archethic.P2P.Message.FirstTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.TransactionData
-
-  alias Archethic.TransactionFactory
 
   doctest ActionInterpreter
 

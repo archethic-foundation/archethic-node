@@ -86,7 +86,7 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- enough_funds?(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(:transaction, contract, incoming_tx, skip_inherit_check?: true),
+           Interpreter.execute(:transaction, contract, [incoming_tx], skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do
@@ -110,8 +110,9 @@ defmodule Archethic.Contracts.Worker do
     Logger.debug("Contract execution started", meta)
 
     with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(trigger_type, contract, nil, skip_inherit_check?: true),
+           Interpreter.execute(trigger_type, contract, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do
@@ -135,8 +136,9 @@ defmodule Archethic.Contracts.Worker do
     Logger.debug("Contract execution started", meta)
 
     with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(trigger_type, contract, nil, skip_inherit_check?: true),
+           Interpreter.execute(trigger_type, contract, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do
@@ -163,7 +165,7 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- enough_funds?(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(:oracle, contract, oracle_tx, skip_inherit_check?: true),
+           Interpreter.execute(:oracle, contract, [oracle_tx], skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do

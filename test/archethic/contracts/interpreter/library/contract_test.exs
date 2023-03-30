@@ -6,6 +6,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
   use ArchethicCase
 
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
   alias Archethic.Contracts.Interpreter.Library.Contract
@@ -18,10 +19,6 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
-
-  import Mox
 
   doctest Contract
 
@@ -511,7 +508,6 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   describe "get_calls/1" do
     test "should work" do
       contract_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      call_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -520,28 +516,22 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
-      MockDB
-      |> expect(:get_inputs, fn :call, ^contract_address ->
-        [
-          %VersionedTransactionInput{
-            input: %TransactionInput{
-              from: call_address,
-              timestamp: DateTime.utc_now()
-            },
-            protocol_version: ArchethicCase.current_protocol_version()
-          }
-        ]
-      end)
-      |> expect(:get_transaction, fn ^call_address, _, :io ->
-        {:ok, %Transaction{data: %TransactionData{}}}
-      end)
-
       assert %Transaction{
                data: %TransactionData{
-                 content: "1"
+                 content: "2"
                }
              } =
                sanitize_parse_execute(code, %{
+                 "calls" => [
+                   Constants.from_transaction(%Transaction{
+                     data: %TransactionData{},
+                     address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+                   }),
+                   Constants.from_transaction(%Transaction{
+                     data: %TransactionData{},
+                     address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+                   })
+                 ],
                  "contract" => %{
                    "address" => Base.encode16(contract_address)
                  }

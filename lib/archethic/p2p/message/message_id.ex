@@ -67,7 +67,8 @@ defmodule Archethic.P2P.MessageId do
     TransactionSummaryMessage,
     ReplicationAttestationMessage,
     GetNetworkStats,
-    NetworkStats
+    NetworkStats,
+    GetContractCalls
   }
 
   alias Archethic.TransactionChain.{
@@ -121,6 +122,7 @@ defmodule Archethic.P2P.MessageId do
     ReplicatePendingTransactionChain => 37,
     NotifyReplicationValidation => 38,
     GetNetworkStats => 39,
+    GetContractCalls => 40,
 
     # Responses
     NetworkStats => 227,
