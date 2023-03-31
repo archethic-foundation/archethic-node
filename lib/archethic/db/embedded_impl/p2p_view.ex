@@ -81,7 +81,7 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
           <<0::8>>
 
         _ ->
-          <<1::8, String.to_integer(network_patch, 16)::16>>
+          <<1::8, network_patch::binary>>
       end
 
     acc =
@@ -100,8 +100,8 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
 
     {network_patch, rest} =
       case rest do
-        <<1::8, network_patch_bin::16, rest::bitstring>> ->
-          {Integer.to_string(network_patch_bin, 16), rest}
+        <<1::8, network_patch::binary-size(3), rest::bitstring>> ->
+          {network_patch, rest}
 
         <<0::8, rest::bitstring>> ->
           {nil, rest}

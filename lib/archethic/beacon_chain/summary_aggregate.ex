@@ -356,9 +356,9 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       # Nb patches
       1, 2,
       # Patch "ABC"
-      10, 188,
+      "ABC",
       # Patch "DEF"
-      13, 239,
+      "DEF",
       # Availability adding time
       3, 132
     >>
@@ -403,13 +403,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           |> length()
           |> VarInt.from_value()
 
-        network_patches_bin =
-          network_patches
-          |> Enum.map(fn network_patch ->
-            hex_val = String.to_integer(network_patch, 16)
-            <<hex_val::16>>
-          end)
-          |> :erlang.list_to_binary()
+        network_patches_bin = :erlang.list_to_binary(network_patches)
 
         <<subset::binary-size(1), nb_node_availabilities::binary, node_availabilities::bitstring,
           node_avg_availabilities_bin::binary, nb_end_of_sync::binary, end_of_sync_bin::binary,
@@ -490,7 +484,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     ...> 201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
     ...> 119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195, 1, 0, 1, 3, 1::1, 0::1, 1::1,
     ...> 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 109, 252, 111, 87, 231, 170, 54,
-    ...> 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242, 1, 2, 10, 188, 13, 239, 3, 132>>)
+    ...> 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242, 1, 2, "ABC", "DEF", 3, 132>>)
     {
       %SummaryAggregate{
         version: 2,
@@ -619,20 +613,11 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     {end_of_node_sync, rest} = Utils.deserialize_public_key_list(rest, nb_end_of_sync, [])
 
     {nb_patches, rest} = VarInt.get_value(rest)
-    <<patches_bin::binary-size(nb_patches * 2), rest::bitstring>> = rest
+    <<patches_bin::binary-size(nb_patches * 3), rest::bitstring>> = rest
 
     network_patches =
-      for <<patch::16 <- patches_bin>> do
-        patch = Integer.to_string(patch, 16)
-
-        # If an hex starts by 0, the 0 is discarded in the integer conversion, so we have to revert back 
-        case String.length(patch) do
-          2 ->
-            "0#{patch}"
-
-          3 ->
-            patch
-        end
+      for <<patch::binary-size(3) <- patches_bin>> do
+        patch
       end
 
     deserialize_p2p_availabilities(
