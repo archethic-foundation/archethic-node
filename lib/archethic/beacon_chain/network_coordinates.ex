@@ -286,8 +286,35 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
     |> Enum.flat_map(& &1)
     |> Enum.reduce(%{}, fn {subset, stats}, acc ->
       Enum.reduce(stats, acc, fn {node, stats}, acc ->
-        Map.update(acc, subset, %{node => stats}, &Map.put(&1, node, stats))
+        Map.update(
+          acc,
+          subset,
+          %{node => [stats]},
+          &Map.update(&1, node, [stats], fn prev_stats -> [stats | prev_stats] end)
+        )
       end)
+    end)
+    |> Enum.reduce(%{}, fn {subset, stats_by_node}, acc ->
+      aggregated_stats_by_node =
+        Enum.reduce(stats_by_node, %{}, fn {node, stats}, acc ->
+          aggregated_stats =
+            stats
+            |> Enum.zip()
+            |> Enum.map(fn stats ->
+              latency =
+                stats
+                |> Tuple.to_list()
+                |> Enum.map(& &1.latency)
+                |> Utils.mean()
+                |> trunc()
+
+              %{latency: latency}
+            end)
+
+          Map.put(acc, node, aggregated_stats)
+        end)
+
+      Map.put(acc, subset, aggregated_stats_by_node)
     end)
   end
 
