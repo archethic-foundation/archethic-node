@@ -78,9 +78,11 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
     {"timestamp", true}
   end
 
-  defp validate_condition({"type", nil}, %{"next" => %{"type" => "transfer"}}) do
-    # Skip the verification when it's the default type
-    {"type", true}
+  defp validate_condition({"type", nil}, %{
+         "previous" => %{"type" => previous_type},
+         "next" => %{"type" => next_type}
+       }) do
+    {"type", previous_type == next_type}
   end
 
   defp validate_condition({"content", nil}, %{"next" => %{"content" => ""}}) do
