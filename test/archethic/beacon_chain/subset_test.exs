@@ -9,6 +9,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
     Summary,
     SummaryTimer,
     Subset.SummaryCache,
+    Subset.StatsCollector,
     Subset
   }
 
@@ -41,6 +42,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
       authorized?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
     })
+
+    StatsCollector.start_link()
 
     {:ok, subset: <<0>>}
   end

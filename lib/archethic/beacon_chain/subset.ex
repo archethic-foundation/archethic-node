@@ -15,6 +15,7 @@ defmodule Archethic.BeaconChain.Subset do
 
   alias __MODULE__.P2PSampling
   alias __MODULE__.SummaryCache
+  alias __MODULE__.StatsCollector
 
   alias Archethic.BeaconChain.SubsetRegistry
 
@@ -402,7 +403,7 @@ defmodule Archethic.BeaconChain.Subset do
         |> Enum.map(fn {_, index} -> index end)
 
       summary_time
-      |> NetworkCoordinates.fetch_network_stats()
+      |> StatsCollector.get()
       |> NetworkCoordinates.get_patch_from_latencies()
       |> Enum.with_index()
       |> Enum.filter(fn {_, index} ->
