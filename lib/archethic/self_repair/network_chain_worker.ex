@@ -1,6 +1,7 @@
 defmodule Archethic.SelfRepair.NetworkChainWorker do
   @moduledoc false
   use GenStateMachine, callback_mode: [:handle_event_function]
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.SelfRepair.NetworkChain
 
