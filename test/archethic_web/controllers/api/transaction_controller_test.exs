@@ -10,6 +10,8 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.TransactionChain.TransactionData
   import Mox
 
@@ -106,7 +108,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
   end
 
   describe "simulate_contract_execution/2" do
-    test "should return sucessfull answer when asked to validate a valid contract", %{conn: conn} do
+    test "should validate the latest contract from the chain", %{conn: conn} do
       code = """
       condition inherit: [
         type: transfer,
@@ -124,18 +126,14 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
       end
       """
 
-      previous_tx1 = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
-        type: :transfer,
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        },
-        version: 1
-      }
+      # test
+      old_contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      old_contract_address_hex = Base.encode16(old_contract_address)
+      last_contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      last_contract_address_hex = Base.encode16(last_contract_address)
 
-      previous_tx2 = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
+      contract_tx = %Transaction{
+        address: last_contract_address_hex,
         type: :transfer,
         data: %TransactionData{
           code: code,
@@ -146,34 +144,18 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
 
       MockClient
       |> stub(:send_message, fn
-        ## These decoded addresses are matching the ones in the code above
-        _,
-        %GetTransaction{
-          address:
-            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
-              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 103>>
-        },
-        _ ->
-          {:ok, previous_tx1}
+        _, %GetTransaction{address: ^last_contract_address}, _ ->
+          {:ok, contract_tx}
 
-        _,
-        %GetTransaction{
-          address:
-            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
-              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 102>>
-        },
-        _ ->
-          {:ok, previous_tx2}
+        _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
+          {:ok, %LastTransactionAddress{address: last_contract_address}}
       end)
 
       new_tx = %{
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
-          "content" => "0000",
-          "recipients" => [
-            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
-            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"
-          ]
+          "content" => "",
+          "recipients" => [old_contract_address_hex]
         },
         "originSignature" =>
           "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
@@ -192,13 +174,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
           [
             %{
               "valid" => true,
-              "recipient_address" =>
-                "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D66"
-            },
-            %{
-              "valid" => true,
-              "recipient_address" =>
-                "00009E059E8171643B959284FE542909F3B32198B8FC25B3E50447589B84341C1D67"
+              "recipient_address" => ^old_contract_address_hex
             }
           ],
           json_response(conn, 200)
