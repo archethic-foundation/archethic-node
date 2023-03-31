@@ -199,9 +199,19 @@ defmodule ArchethicWeb.API.TransactionController do
           end)
           |> Enum.to_list()
 
-        conn
-        |> put_status(:ok)
-        |> json(results)
+        case results do
+          [] ->
+            conn
+            |> put_status(:ok)
+            |> json([
+              %{"valid" => false, "reason" => "There are no recipients in the transaction"}
+            ])
+
+          _ ->
+            conn
+            |> put_status(:ok)
+            |> json(results)
+        end
 
       changeset ->
         error_details =

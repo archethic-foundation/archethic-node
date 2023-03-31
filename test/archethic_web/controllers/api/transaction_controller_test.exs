@@ -505,5 +505,38 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
         )
       )
     end
+
+    test "should return an error if there is no recipients", %{conn: conn} do
+      new_tx = %{
+        "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+        "data" => %{
+          "code" => "",
+          "content" => "0000",
+          "recipients" => []
+        },
+        "originSignature" =>
+          "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
+        "previousPublicKey" =>
+          "000071e1b5d4b89eddf2322c69bbf1c5591f7361b24cb3c4c464f6b5eb688fe50f7a",
+        "previousSignature" =>
+          "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
+        "type" => "transfer",
+        "version" => 1
+      }
+
+      conn = post(conn, "/api/transaction/contract/simulator", new_tx)
+
+      assert(
+        match?(
+          [
+            %{
+              "valid" => false,
+              "reason" => "There are no recipients in the transaction"
+            }
+          ],
+          json_response(conn, 200)
+        )
+      )
+    end
   end
 end
