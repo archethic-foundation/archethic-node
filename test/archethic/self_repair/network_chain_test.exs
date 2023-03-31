@@ -89,15 +89,12 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
     test "should start a resync when remote /= local" do
       start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
 
-      remote_node_last_address = random_address()
-      local_node_last_address = random_address()
-
       node = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
-        last_address: local_node_last_address,
+        last_public_key: Crypto.last_node_public_key(),
+        last_address: Crypto.derive_address(Crypto.last_node_public_key()),
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
@@ -118,14 +115,16 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
       MockClient
       |> expect(:send_message, fn _, %ListNodes{}, _ ->
-        {:ok, %NodeList{nodes: [node]}}
-      end)
-      |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
-        {:ok, %LastTransactionAddress{address: remote_node_last_address}}
+        {:ok,
+         %NodeList{
+           nodes: [
+             %Node{node | last_public_key: <<0::16, :crypto.strong_rand_bytes(32)::binary>>}
+           ]
+         }}
       end)
 
       :ok = NetworkChain.synchronous_resync(:node)
-      assert SelfRepair.repair_in_progress?(local_node_last_address)
+      assert SelfRepair.repair_in_progress?(Crypto.derive_address(Crypto.first_node_public_key()))
 
       # this sleep is necessary to give time to the RepairWorker to start its task
       # without it, the expect above will fail once in a while

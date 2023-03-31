@@ -8,6 +8,9 @@ defmodule Archethic.P2P do
 
   alias __MODULE__.{BootstrappingSeeds, Client, GeoPatch, MemTable, MemTableLoader, Message, Node}
 
+  alias __MODULE__.Message.NodeList
+  alias __MODULE__.Message.ListNodes
+
   require Logger
 
   @type supported_transport :: :tcp
@@ -65,6 +68,46 @@ defmodule Archethic.P2P do
   """
   @spec list_nodes() :: list(Node.t())
   defdelegate list_nodes, to: MemTable
+
+  @doc """
+  Fetch the list of nodes from close nodes
+  """
+  @spec fetch_nodes_list() :: {:ok, list(Node.t())} | {:error, :network_issue}
+  def fetch_nodes_list() do
+    last_updated_nodes =
+      fn new_node = %Node{
+           first_public_key: public_key,
+           last_update_date: update_date
+         },
+         acc ->
+        previous_node =
+          %Node{last_update_date: previous_update_date} = Map.get(acc, public_key, new_node)
+
+        node =
+          if DateTime.compare(update_date, previous_update_date) == :gt,
+            do: new_node,
+            else: previous_node
+
+        Map.put(acc, public_key, node)
+      end
+
+    conflict_resolver = fn results ->
+      nodes =
+        Enum.flat_map(results, fn %NodeList{nodes: nodes} -> nodes end)
+        |> Enum.reduce(%{}, fn node, acc -> last_updated_nodes.(node, acc) end)
+        |> Map.values()
+
+      %NodeList{nodes: nodes}
+    end
+
+    case quorum_read(authorized_and_available_nodes(), %ListNodes{}, conflict_resolver) do
+      {:ok, %NodeList{nodes: nodes}} ->
+        {:ok, nodes}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
+  end
 
   @doc """
   Return the list of available nodes

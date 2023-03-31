@@ -3,6 +3,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   Synchronization of one or multiple network chains.
   May or may not use a Worker.
   """
+  alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.P2P
   alias Archethic.Reward
@@ -36,20 +37,31 @@ defmodule Archethic.SelfRepair.NetworkChain do
   Synchronize the network chain of given type.
   Blocks the caller.
   """
+  @spec synchronous_resync(NetworkChainWorker.type()) :: :ok | {:error, :network_issue}
   def synchronous_resync(:node) do
-    # Refresh the local P2P view (load the nodes in memory)
-    Archethic.Bootstrap.Sync.load_node_list()
+    case P2P.fetch_nodes_list() do
+      {:ok, nodes} ->
+        nodes_to_resync = Enum.filter(nodes, &node_require_resync?/1)
 
-    # Load the latest node transactions
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      P2P.authorized_and_available_nodes(),
-      &resync_chain_if_needed(&1.last_address, &1.last_address),
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: 5000
-    )
-    |> Stream.run()
+        # Load the latest node transactions
+        Task.Supervisor.async_stream_nolink(
+          Archethic.TaskSupervisor,
+          nodes_to_resync,
+          fn node ->
+            SelfRepair.resync(
+              Crypto.derive_address(node.first_public_key),
+              Crypto.derive_address(node.last_public_key)
+            )
+          end,
+          ordered: false,
+          on_timeout: :kill_task,
+          timeout: 5000
+        )
+        |> Stream.run()
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
   end
 
   def synchronous_resync(type) do
@@ -103,6 +115,16 @@ defmodule Archethic.SelfRepair.NetworkChain do
     with {:ok, remote_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
          false <- remote_last_addr == local_last_address do
       SelfRepair.resync(genesis_address, remote_last_addr)
+    end
+  end
+
+  defp node_require_resync?(remote_node) do
+    case P2P.get_node_info(remote_node.first_public_key) do
+      {:ok, local_node} ->
+        local_node.last_public_key != remote_node.last_public_key
+
+      {:error, _} ->
+        true
     end
   end
 end
