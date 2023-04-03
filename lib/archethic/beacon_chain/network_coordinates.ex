@@ -64,11 +64,12 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
         matrix
         |> Nx.as_type(:f64)
         |> Nx.rename([:line, :column])
+        |> IO.inspect()
 
       center_mass = compute_distance_from_center_mass(formated_matrix)
       gram_matrix = get_gram_matrix(formated_matrix, center_mass)
       {x, y} = get_coordinates(gram_matrix)
-      get_patch_digits(x, y)
+      get_patch_digits(x, y) |> IO.inspect(label: "after matrix compute")
     else
       []
     end

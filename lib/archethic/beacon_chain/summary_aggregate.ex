@@ -225,15 +225,21 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     # or not, the mean will result in the smallest approximation.
     latency_patch =
       splitted_patches
-      |> Enum.map(fn digits ->
-        digits
+      |> Enum.map(fn d ->
+        d
         |> Enum.take(2)
-        |> Enum.join()
-        |> String.to_integer(16)
+        |> Enum.map(&String.to_integer(&1, 16))
       end)
-      |> Utils.mean()
-      |> trunc()
-      |> Integer.to_string(16)
+      |> Enum.zip()
+      |> Enum.map(fn x ->
+        x
+        |> Tuple.to_list()
+        |> Utils.mean()
+        |> trunc()
+        |> Integer.to_string(16)
+      end)
+      |> IO.inspect()
+      |> Enum.join()
 
     bandwidth_patch =
       splitted_patches
