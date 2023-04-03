@@ -383,6 +383,24 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
              })
     end
 
+    test "should invalidate condition on uco_transfers size" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      refute Interpreter.sanitize_code(~s"""
+             condition transaction: [
+               uco_transfers: size() > 10
+             ]
+             """)
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "uco_transfers" => %{"#{address}" => 12}
+               }
+             })
+    end
+
     test "should validate oracle condition" do
       assert Interpreter.sanitize_code(~s"""
              condition oracle: [
