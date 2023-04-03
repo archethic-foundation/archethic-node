@@ -29,7 +29,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   def asynchronous_resync_many(network_chain_types) do
     Enum.each(
       network_chain_types,
-      &NetworkChainWorker.resync(&1)
+      &asynchronous_resync(&1)
     )
   end
 
@@ -84,8 +84,12 @@ defmodule Archethic.SelfRepair.NetworkChain do
       Archethic.TaskSupervisor,
       addresses,
       fn genesis_address ->
-        {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
-        resync_chain_if_needed(genesis_address, local_last_address)
+        with false <- SelfRepair.repair_in_progress?(genesis_address),
+             {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
+             {:ok, remote_last_address} <- TransactionChain.resolve_last_address(genesis_address),
+             false <- remote_last_address == local_last_address do
+          SelfRepair.resync(genesis_address, remote_last_address)
+        end
       end,
       ordered: false,
       on_timeout: :kill_task,
@@ -109,13 +113,6 @@ defmodule Archethic.SelfRepair.NetworkChain do
       timeout: 5_000
     )
     |> Stream.run()
-  end
-
-  defp resync_chain_if_needed(genesis_address, local_last_address) do
-    with {:ok, remote_last_addr} <- TransactionChain.resolve_last_address(genesis_address),
-         false <- remote_last_addr == local_last_address do
-      SelfRepair.resync(genesis_address, remote_last_addr)
-    end
   end
 
   defp node_require_resync?(remote_node) do
