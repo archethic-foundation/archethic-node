@@ -145,10 +145,22 @@ defmodule Archethic.P2P do
   @doc """
   Determine if the node public key is available
   """
-  @spec available_node?(Crypto.key()) :: boolean()
-  def available_node?(node_public_key \\ Crypto.first_node_public_key())
+  @spec available_node?(Crypto.key(), DateTime.t(), boolean()) :: boolean()
+  def available_node?(
+        node_public_key \\ Crypto.first_node_public_key(),
+        datetime \\ DateTime.utc_now(),
+        before? \\ false
+      )
       when is_binary(node_public_key) do
-    Utils.key_in_node_list?(available_nodes(), node_public_key)
+    case get_node_info(node_public_key) do
+      {:ok, %Node{authorized?: true, available?: true, authorization_date: authorization_date}} ->
+        if before?,
+          do: DateTime.compare(authorization_date, datetime) == :lt,
+          else: DateTime.compare(authorization_date, datetime) != :gt
+
+      _ ->
+        false
+    end
   end
 
   @doc """

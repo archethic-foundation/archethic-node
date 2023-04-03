@@ -73,7 +73,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
       %Slot{slot_time: slot_time} ->
         DateTime.compare(slot_time, previous_summary_time) == :lt
     end)
-    |> Stream.map(fn item ->
+    |> Stream.each(fn item ->
       :ets.delete_object(@table_name, {subset, item})
     end)
     |> Stream.run()
