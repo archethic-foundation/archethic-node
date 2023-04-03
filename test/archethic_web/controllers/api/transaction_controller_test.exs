@@ -117,7 +117,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
       ]
 
       condition transaction: [
-        uco_transfers: size() > 0
+        content: "test content"
       ]
 
       actions triggered_by: transaction do
@@ -154,7 +154,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
       new_tx = %{
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
-          "content" => "",
+          "content" => "7465737420636f6e74656e74",
           "recipients" => [old_contract_address_hex]
         },
         "originSignature" =>
