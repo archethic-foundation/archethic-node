@@ -1,7 +1,7 @@
 defmodule Archethic.SelfRepair.NetworkChain do
   @moduledoc """
   Synchronization of one or multiple network chains.
-  May or may not use a Worker.
+  Asynchronous functions use a NetworkChainWorker to avoid concurrent runs.
   """
   alias Archethic.Crypto
   alias Archethic.OracleChain
@@ -39,6 +39,8 @@ defmodule Archethic.SelfRepair.NetworkChain do
   """
   @spec synchronous_resync(NetworkChainWorker.type()) :: :ok | {:error, :network_issue}
   def synchronous_resync(:node) do
+    :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: :node})
+
     case P2P.fetch_nodes_list() do
       {:ok, nodes} ->
         nodes_to_resync = Enum.filter(nodes, &node_require_resync?/1)
@@ -65,6 +67,8 @@ defmodule Archethic.SelfRepair.NetworkChain do
   end
 
   def synchronous_resync(type) do
+    :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: type})
+
     addresses =
       case type do
         :node_shared_secrets ->
