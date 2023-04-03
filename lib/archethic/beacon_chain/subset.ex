@@ -367,9 +367,7 @@ defmodule Archethic.BeaconChain.Subset do
     if Enum.empty?(beacon_slots) do
       :ok
     else
-      Logger.debug("Create beacon summary with #{inspect(beacon_slots, limit: :infinity)}",
-        beacon_subset: Base.encode16(subset)
-      )
+      Logger.debug("Create beacon summary", beacon_subset: Base.encode16(subset))
 
       patch_task = Task.async(fn -> get_network_patches(subset, time) end)
 
