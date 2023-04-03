@@ -134,26 +134,17 @@ defmodule Archethic.P2P do
   defdelegate list_authorized_public_keys, to: MemTable
 
   @doc """
-  Determine if the node public key is authorized
+  Determine if the node public key is authorized for the given datetime (default to now) or before if needed
   """
-  @spec authorized_node?(Crypto.key()) :: boolean()
-  def authorized_node?(node_public_key \\ Crypto.first_node_public_key())
-      when is_binary(node_public_key) do
-    Utils.key_in_node_list?(authorized_nodes(), node_public_key)
-  end
-
-  @doc """
-  Determine if the node public key is available
-  """
-  @spec available_node?(Crypto.key(), DateTime.t(), boolean()) :: boolean()
-  def available_node?(
+  @spec authorized_node?(Crypto.key(), date :: DateTime.t(), before? :: boolean()) :: boolean()
+  def authorized_node?(
         node_public_key \\ Crypto.first_node_public_key(),
-        datetime \\ DateTime.utc_now(),
+        datetime = %DateTime{} \\ DateTime.utc_now(),
         before? \\ false
       )
-      when is_binary(node_public_key) do
+      when is_binary(node_public_key) and is_boolean(before?) do
     case get_node_info(node_public_key) do
-      {:ok, %Node{authorized?: true, available?: true, authorization_date: authorization_date}} ->
+      {:ok, %Node{authorized?: true, authorization_date: authorization_date}} ->
         if before?,
           do: DateTime.compare(authorization_date, datetime) == :lt,
           else: DateTime.compare(authorization_date, datetime) != :gt
@@ -164,11 +155,36 @@ defmodule Archethic.P2P do
   end
 
   @doc """
-  Determine if the node public key is authorized and available
+  Determine if the node public key is available
   """
-  @spec authorized_and_available_node?(Crypto.key()) :: boolean()
-  def authorized_and_available_node?(node_public_key \\ Crypto.first_node_public_key()) do
-    Utils.key_in_node_list?(authorized_and_available_nodes(), node_public_key)
+  @spec available_node?(Crypto.key()) :: boolean()
+  def available_node?(node_public_key \\ Crypto.first_node_public_key())
+      when is_binary(node_public_key) do
+    Utils.key_in_node_list?(available_nodes(), node_public_key)
+  end
+
+  @doc """
+  Determine if the node public key is authorized and available for the given datetime (default to now) or before if needed
+  """
+  @spec authorized_and_available_node?(
+          Crypto.key(),
+          datetime :: DateTime.t(),
+          before? :: boolean()
+        ) :: boolean()
+  def authorized_and_available_node?(
+        node_public_key \\ Crypto.first_node_public_key(),
+        datetime = %DateTime{} \\ DateTime.utc_now(),
+        before? \\ false
+      ) do
+    case get_node_info(node_public_key) do
+      {:ok, %Node{authorized?: true, available?: true, authorization_date: authorization_date}} ->
+        if before?,
+          do: DateTime.compare(authorization_date, datetime) == :lt,
+          else: DateTime.compare(authorization_date, datetime) != :gt
+
+      _ ->
+        false
+    end
   end
 
   @doc """
