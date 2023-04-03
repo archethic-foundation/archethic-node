@@ -64,12 +64,11 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
         matrix
         |> Nx.as_type(:f64)
         |> Nx.rename([:line, :column])
-        |> IO.inspect()
 
       center_mass = compute_distance_from_center_mass(formated_matrix)
       gram_matrix = get_gram_matrix(formated_matrix, center_mass)
       {x, y} = get_coordinates(gram_matrix)
-      get_patch_digits(x, y) |> IO.inspect(label: "after matrix compute")
+      get_patch_digits(x, y)
     else
       []
     end
@@ -222,46 +221,24 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
     matrix = Nx.broadcast(0, {nb_nodes, nb_nodes})
 
-    %{bounded: bounded_subsets, unbounded: unbounded_subsets} =
-      get_subsets_bounding(summary_time, authorized_nodes)
-
-    bounded_netstats =
-      bounded_subsets
-      |> Task.async_stream(&{&1, aggregate_network_stats(&1)})
-      |> Enum.reduce(%{}, fn
-        {:ok, {subset, stats}}, acc when map_size(stats) > 0 ->
-          Map.put(acc, subset, stats)
-
-        _, acc ->
-          acc
+    summary_time
+    |> get_subsets_nodes(authorized_nodes)
+    # Aggregate subsets by node
+    |> Enum.reduce(%{}, fn {subset, beacon_nodes}, acc ->
+      Enum.reduce(beacon_nodes, acc, fn node, acc ->
+        Map.update(acc, node, [subset], &[subset | &1])
       end)
-
-    unbounded_matrix =
-      unbounded_subsets
-      # Aggregate subsets by node
-      |> Enum.reduce(%{}, fn {subset, beacon_nodes}, acc ->
-        Enum.reduce(beacon_nodes, acc, fn node, acc ->
-          Map.update(acc, node, [subset], &[subset | &1])
-        end)
-      end)
-      |> stream_subsets_stats()
-      # Aggregate stats per node to identify the sampling nodes
-      |> aggregate_stats_per_subset()
-      |> update_matrix_from_stats(matrix, sorted_node_list)
-
-    full_matrix = update_matrix_from_stats(bounded_netstats, unbounded_matrix, sorted_node_list)
-    full_matrix
+    end)
+    |> stream_subsets_stats()
+    # Aggregate stats per node to identify the sampling nodes
+    |> aggregate_stats_per_subset()
+    |> update_matrix_from_stats(matrix, sorted_node_list)
   end
 
-  defp get_subsets_bounding(summary_time, authorized_nodes) do
-    Enum.reduce(BeaconChain.list_subsets(), %{bounded: [], unbounded: []}, fn subset, acc ->
+  defp get_subsets_nodes(summary_time, authorized_nodes) do
+    Enum.map(BeaconChain.list_subsets(), fn subset ->
       beacon_nodes = Election.beacon_storage_nodes(subset, summary_time, authorized_nodes)
-
-      if Utils.key_in_node_list?(beacon_nodes, Crypto.first_node_public_key()) do
-        Map.update!(acc, :bounded, &[subset | &1])
-      else
-        Map.update!(acc, :unbounded, &[{subset, beacon_nodes} | &1])
-      end
+      {subset, beacon_nodes}
     end)
   end
 
@@ -302,24 +279,25 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
     |> Enum.reduce(%{}, fn {subset, stats_by_node}, acc ->
       aggregated_stats_by_node =
         Enum.reduce(stats_by_node, %{}, fn {node, stats}, acc ->
-          aggregated_stats =
-            stats
-            |> Enum.zip()
-            |> Enum.map(fn stats ->
-              latency =
-                stats
-                |> Tuple.to_list()
-                |> Enum.map(& &1.latency)
-                |> Utils.mean()
-                |> trunc()
-
-              %{latency: latency}
-            end)
-
-          Map.put(acc, node, aggregated_stats)
+          Map.put(acc, node, aggregate_stats(stats))
         end)
 
       Map.put(acc, subset, aggregated_stats_by_node)
+    end)
+  end
+
+  defp aggregate_stats(stats) do
+    stats
+    |> Enum.zip()
+    |> Enum.map(fn stats ->
+      latency =
+        stats
+        |> Tuple.to_list()
+        |> Enum.map(& &1.latency)
+        |> Utils.mean()
+        |> trunc()
+
+      %{latency: latency}
     end)
   end
 
