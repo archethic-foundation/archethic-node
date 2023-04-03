@@ -1014,7 +1014,7 @@ defmodule Archethic.TransactionChain do
           {:ok, binary()} | {:error, :network_issue}
   def fetch_genesis_address_remotely(address, nodes) when is_binary(address) do
     conflict_resolver = fn results ->
-      Enum.min_by(results, & &1.timestamp)
+      Enum.min_by(results, & &1.timestamp, DateTime)
     end
 
     case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}, conflict_resolver) do
@@ -1039,7 +1039,7 @@ defmodule Archethic.TransactionChain do
           %NotFound{}
 
         results_filtered ->
-          Enum.min_by(results_filtered, & &1.timestamp)
+          Enum.min_by(results_filtered, & &1.timestamp, DateTime)
       end
     end
 
