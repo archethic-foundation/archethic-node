@@ -18,8 +18,6 @@ defmodule Archethic.OracleChain.SchedulerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
-  alias ArchethicCache.HydratingCache
-
   import ArchethicCase, only: [setup_before_send_tx: 0]
 
   import Mox
