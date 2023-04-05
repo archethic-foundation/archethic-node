@@ -6,6 +6,7 @@ defmodule Archethic.Governance.Code.Proposal.Validator do
   """
   require Logger
 
+  alias Archethic.Utils
   alias Archethic.Utils.Regression
 
   @marker Application.compile_env(:archethic, :marker)
@@ -19,11 +20,14 @@ defmodule Archethic.Governance.Code.Proposal.Validator do
          _ <- Process.sleep(3 * 60 * 1000),
          :ok <- Regression.run_benchmarks(nodes, phase: :after),
          :ok <- Regression.run_playbooks(nodes),
-         {:ok, _metrics} <-
+         {:ok, metrics} <-
            Regression.get_metrics("collector", 9090, 5 + System.monotonic_time(:second) - start) do
-      :ok
+      write_metrics(metrics)
     end
   end
+
+  defp write_metrics(metrics),
+    do: File.write!(Utils.mut_dir("metrics"), :erlang.term_to_iovec(metrics))
 
   defp put_marker(args), do: IO.puts("#{@marker} | #{inspect(args)}")
 end

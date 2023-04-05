@@ -20,7 +20,6 @@ defmodule Mix.Tasks.Archethic.Proposal.Validator do
   use Mix.Task
 
   alias Archethic.Governance.Code.Proposal.Validator
-  alias Mix.Tasks.Utils
 
   @impl Mix.Task
   @spec run([binary]) :: any

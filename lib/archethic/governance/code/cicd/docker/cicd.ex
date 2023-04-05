@@ -123,7 +123,23 @@ defmodule Archethic.Governance.Code.CICD.Docker do
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ [CI] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   defp build_ci_image do
-    {_, 0} = docker(["build", "-t", "archethic-ci", "--target", "archethic-ci", "."])
+    {user_id, _} = System.cmd("id", ["-u"])
+    {group_id, _} = System.cmd("id", ["-g"])
+
+    {_, 0} =
+      docker([
+        "build",
+        "-t",
+        "archethic-ci",
+        "--target",
+        "archethic-ci",
+        "--build-arg",
+        "USER_ID=#{String.trim(user_id)}",
+        "--build-arg",
+        "GROUP_ID=#{String.trim(group_id)}",
+        "."
+      ])
+
     :ok
   end
 
@@ -166,7 +182,21 @@ defmodule Archethic.Governance.Code.CICD.Docker do
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ [CD] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   defp build_cd_image do
-    {_, 0} = docker(["build", "-t", "archethic-cd", "."])
+    {user_id, _} = System.cmd("id", ["-u"])
+    {group_id, _} = System.cmd("id", ["-g"])
+
+    {_, 0} =
+      docker([
+        "build",
+        "-t",
+        "archethic-cd",
+        "--build-arg",
+        "USER_ID=#{String.trim(user_id)}",
+        "--build-arg",
+        "GROUP_ID=#{String.trim(group_id)}",
+        "."
+      ])
+
     :ok
   end
 
