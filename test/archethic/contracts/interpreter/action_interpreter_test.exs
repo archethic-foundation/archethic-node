@@ -371,7 +371,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       actions triggered_by: transaction do
         numbers = ["1": 1, two: 2, three: 3]
 
-        Contract.set_content numbers[String.from_int 1]
+        Contract.set_content numbers[String.from_number 1]
       end
       """
 
@@ -773,7 +773,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "6.0"}} = sanitize_parse_execute(code)
+      assert %Transaction{data: %TransactionData{content: "6"}} = sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -788,7 +788,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "6.0"}} = sanitize_parse_execute(code)
+      assert %Transaction{data: %TransactionData{content: "6"}} = sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -803,7 +803,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "12.0"}} = sanitize_parse_execute(code)
+      assert %Transaction{data: %TransactionData{content: "12"}} = sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -876,7 +876,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       actions triggered_by: transaction do
         numbers = ["1": 1, two: 2, three: 3]
 
-        Contract.set_content numbers[String.from_int 1]
+        Contract.set_content numbers[String.from_number 1]
       end
       """
 
