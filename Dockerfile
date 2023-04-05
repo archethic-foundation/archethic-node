@@ -1,6 +1,6 @@
 FROM elixir:1.14.1-alpine AS archethic-ci
 
-ARG skip_tests=0
+ARG with_tests=1
 ARG MIX_ENV=prod
 
 # CI
@@ -19,7 +19,7 @@ ARG MIX_ENV=prod
 #  - code
 #  - release
 
-# running TESTNET with release upgrade should ???
+ENV ARCHETHIC_NETWORK_TYPE=testnet
 
 RUN apk add --no-cache --update \
   build-base \
