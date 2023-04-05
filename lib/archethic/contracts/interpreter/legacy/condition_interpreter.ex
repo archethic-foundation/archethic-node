@@ -489,10 +489,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
     constants =
       constants
-      |> Enum.map(fn {subset, constants} ->
-        {subset, Constants.stringify(constants)}
-      end)
-      |> Enum.into(%{})
+      |> Constants.map_transactions(&Constants.stringify_transaction/1)
 
     result =
       conditions
