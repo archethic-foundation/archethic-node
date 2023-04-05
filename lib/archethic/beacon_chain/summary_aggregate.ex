@@ -238,7 +238,6 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         |> trunc()
         |> Integer.to_string(16)
       end)
-      |> IO.inspect()
       |> Enum.join()
 
     bandwidth_patch =
