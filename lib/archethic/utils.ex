@@ -19,6 +19,24 @@ defmodule Archethic.Utils do
 
   import Bitwise
 
+  @type bigint() :: integer()
+
+  @doc """
+  Convert a number to a bigint
+  """
+  @spec to_bigint(integer() | float()) :: bigint()
+  def to_bigint(value) do
+    trunc(value * 100_000_000)
+  end
+
+  @doc """
+  Convert a bigint into a float
+  """
+  @spec from_bigint(bigint()) :: float()
+  def from_bigint(value) do
+    value / 100_000_000
+  end
+
   @doc """
   Compute an offset of the next shift in seconds for a given time interval
 

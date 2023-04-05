@@ -141,12 +141,14 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
+      expected_amount = Archethic.Utils.to_bigint(9000)
+
       assert %Transaction{
                data: %TransactionData{
                  ledger: %Ledger{
                    uco: %UCOLedger{
                      transfers: [
-                       %UCOTransfer{amount: 9000, to: ^address}
+                       %UCOTransfer{amount: ^expected_amount, to: ^address}
                      ]
                    }
                  }
@@ -164,12 +166,14 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
+      expected_amount = Archethic.Utils.to_bigint(9000)
+
       assert %Transaction{
                data: %TransactionData{
                  ledger: %Ledger{
                    uco: %UCOLedger{
                      transfers: [
-                       %UCOTransfer{amount: 9000, to: ^address}
+                       %UCOTransfer{amount: ^expected_amount, to: ^address}
                      ]
                    }
                  }
@@ -190,6 +194,8 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
+      expected_amount = Archethic.Utils.to_bigint(14)
+
       assert %Transaction{
                data: %TransactionData{
                  ledger: %Ledger{
@@ -197,7 +203,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                      transfers: [
                        %TokenTransfer{
                          to: ^address,
-                         amount: 14,
+                         amount: ^expected_amount,
                          token_address: ^token_address,
                          token_id: 0
                        }
@@ -219,6 +225,8 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
+      expected_amount = Archethic.Utils.to_bigint(15)
+
       assert %Transaction{
                data: %TransactionData{
                  ledger: %Ledger{
@@ -226,7 +234,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                      transfers: [
                        %TokenTransfer{
                          to: ^address,
-                         amount: 15,
+                         amount: ^expected_amount,
                          token_address: ^token_address,
                          token_id: 1
                        }
@@ -389,13 +397,16 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
+      expected_amount1 = Archethic.Utils.to_bigint(1234)
+      expected_amount2 = Archethic.Utils.to_bigint(5678)
+
       assert %Transaction{
                data: %TransactionData{
                  ledger: %Ledger{
                    uco: %UCOLedger{
                      transfers: [
-                       %UCOTransfer{amount: 5678, to: ^address2},
-                       %UCOTransfer{amount: 1234, to: ^address}
+                       %UCOTransfer{amount: ^expected_amount2, to: ^address2},
+                       %UCOTransfer{amount: ^expected_amount1, to: ^address}
                      ]
                    }
                  }
@@ -421,6 +432,9 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
+      expected_amount1 = Archethic.Utils.to_bigint(14)
+      expected_amount2 = Archethic.Utils.to_bigint(3)
+
       assert %Transaction{
                data: %TransactionData{
                  ledger: %Ledger{
@@ -428,13 +442,13 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                      transfers: [
                        %TokenTransfer{
                          to: ^address2,
-                         amount: 3,
+                         amount: ^expected_amount2,
                          token_address: ^token_address,
                          token_id: 4
                        },
                        %TokenTransfer{
                          to: ^address,
-                         amount: 14,
+                         amount: ^expected_amount1,
                          token_address: ^token_address,
                          token_id: 0
                        }
@@ -532,9 +546,11 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                      address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>
                    })
                  ],
-                 "contract" => %{
-                   "address" => Base.encode16(contract_address)
-                 }
+                 "contract" =>
+                   Constants.from_transaction(%Transaction{
+                     data: %TransactionData{},
+                     address: contract_address
+                   })
                })
     end
   end

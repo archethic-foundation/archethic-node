@@ -253,6 +253,13 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {ast, acc}
   end
 
+  # log (not documented, only useful for developer debugging)
+  # will soon be updated to log into the playground console
+  def prewalk(_node = {{:atom, "log"}, _, [data]}, acc) do
+    new_node = quote do: apply(IO, :inspect, [unquote(data)])
+    {new_node, acc}
+  end
+
   # blacklist rest
   def prewalk(node, _acc), do: throw({:error, node, "unexpected term"})
 
@@ -348,6 +355,48 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
           unquote(block)
         end)
+      end
+
+    {new_node, acc}
+  end
+
+  # BigInt mathematics to avoid floating point issues
+  @unit_uco 100_000_000
+  def postwalk(_node = {:*, meta, [lhs, rhs]}, acc) do
+    new_node =
+      quote line: Keyword.fetch!(meta, :line),
+            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
+        bigint * lhs * bigint * rhs / (bigint * bigint)
+      end
+
+    {new_node, acc}
+  end
+
+  def postwalk(_node = {:/, meta, [lhs, rhs]}, acc) do
+    new_node =
+      quote line: Keyword.fetch!(meta, :line),
+            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
+        bigint * lhs / (bigint * rhs)
+      end
+
+    {new_node, acc}
+  end
+
+  def postwalk(_node = {:+, meta, [lhs, rhs]}, acc) do
+    new_node =
+      quote line: Keyword.fetch!(meta, :line),
+            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
+        (bigint * lhs + bigint * rhs) / bigint
+      end
+
+    {new_node, acc}
+  end
+
+  def postwalk(_node = {:-, meta, [lhs, rhs]}, acc) do
+    new_node =
+      quote line: Keyword.fetch!(meta, :line),
+            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
+        (bigint * lhs - bigint * rhs) / bigint
       end
 
     {new_node, acc}
