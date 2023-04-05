@@ -17,6 +17,24 @@ defmodule Archethic.Utils do
 
   use Retry
 
+  @type bigint() :: integer()
+
+  @doc """
+  Convert a number to a bigint
+  """
+  @spec to_bigint(integer() | float()) :: bigint()
+  def to_bigint(value) do
+    trunc(value * 100_000_000)
+  end
+
+  @doc """
+  Convert a bigint into a float
+  """
+  @spec from_bigint(bigint()) :: float()
+  def from_bigint(value) do
+    value / 100_000_000
+  end
+
   @doc """
   Compute an offset of the next shift in seconds for a given time interval
 
@@ -1035,10 +1053,10 @@ defmodule Archethic.Utils do
   Chunk a list into N sub lists
 
   ### Examples
-      
+
       iex> Utils.chunk_list_in([1, 2, 3, 4, 5, 6], 3)
       [ [1, 2], [3, 4], [5, 6] ]
-      
+
       iex> Utils.chunk_list_in([1, 2, 3, 4, 5, 6, 7], 3)
       [ [1, 2], [3, 4], [5, 6, 7] ]
   """

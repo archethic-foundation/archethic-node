@@ -10,6 +10,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+  alias Archethic.Utils
 
   @spec get_calls() :: list(map())
   def get_calls() do
@@ -40,24 +41,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
 
   @spec add_uco_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_uco_transfer(next_tx, args) do
+    args = Map.update!(args, "amount", &Utils.to_bigint/1)
     TransactionStatements.add_uco_transfer(next_tx, Map.to_list(args))
   end
 
   @spec add_uco_transfers(Transaction.t(), list(map())) :: Transaction.t()
   def add_uco_transfers(next_tx, args) do
-    casted_args = Enum.map(args, &Map.to_list/1)
-    TransactionStatements.add_uco_transfers(next_tx, casted_args)
+    Enum.reduce(args, next_tx, &add_uco_transfer(&2, &1))
   end
 
   @spec add_token_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_token_transfer(next_tx, args) do
+    args = Map.update!(args, "amount", &Utils.to_bigint/1)
     TransactionStatements.add_token_transfer(next_tx, Map.to_list(args))
   end
 
   @spec add_token_transfers(Transaction.t(), list(map())) :: Transaction.t()
   def add_token_transfers(next_tx, args) do
-    casted_args = Enum.map(args, &Map.to_list/1)
-    TransactionStatements.add_token_transfers(next_tx, casted_args)
+    Enum.reduce(args, next_tx, &add_token_transfer(&2, &1))
   end
 
   @spec add_ownership(Transaction.t(), map()) :: Transaction.t()

@@ -2,9 +2,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
   use ArchethicCase
 
   alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
   alias Archethic.Contracts.Interpreter.ConditionValidator
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
   doctest ConditionInterpreter
 
@@ -142,15 +150,18 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{}
+      }
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "transaction" => %{
-                 "type" => "transfer"
-               }
+               "transaction" => Constants.from_transaction(tx)
              })
     end
 
@@ -161,15 +172,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "Hello"}}
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "next" => %{
-                 "content" => "Hello"
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
     end
 
@@ -180,15 +193,19 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      tx = %Transaction{
+        data: %TransactionData{
+          content: "Hello"
+        }
+      }
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "transaction" => %{
-                 "content" => "Hello"
-               }
+               "transaction" => Constants.from_transaction(tx)
              })
     end
 
@@ -199,15 +216,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "Hello"}}
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "next" => %{
-                 "content" => "Hello"
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
     end
 
@@ -216,24 +235,42 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition inherit: []
       """
 
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "Hello"}}
+
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "next" => %{
-                 "content" => "Hello"
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
     end
 
     test "should be able to use boolean expression in inherit" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
       code = ~s"""
       condition inherit: [
         uco_transfers: Map.size() == 1
       ]
       """
+
+      previous_tx = %Transaction{data: %TransactionData{}}
+
+      next_tx = %Transaction{
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{amount: Archethic.Utils.to_bigint(1), to: address}
+              ]
+            }
+          }
+        }
+      }
 
       assert code
              |> Interpreter.sanitize_code()
@@ -241,9 +278,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "next" => %{
-                 "uco_transfers" => %{"@addr" => 265_821}
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
 
       code = ~s"""
@@ -252,19 +288,83 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      next_tx = %Transaction{data: %TransactionData{}}
+
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "next" => %{
-                 "uco_transfers" => %{}
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
+             })
+    end
+
+    test "should cast bigint to float" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      condition transaction: [
+        uco_transfers: (
+          transaction.uco_transfers["#{Base.encode16(address)}"] == 1
+        ),
+        token_transfers: (
+          transfers_at_address = transaction.token_transfers["#{Base.encode16(address)}"]
+          first_transfer = List.at(transfers_at_address, 0)
+          first_transfer.amount == 1
+        )
+      ]
+      """
+
+      tx = %Transaction{
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{amount: Archethic.Utils.to_bigint(1), to: address}
+              ]
+            },
+            token: %TokenLedger{
+              transfers: [
+                %TokenTransfer{
+                  token_id: 0,
+                  token_address: token_address,
+                  amount: Archethic.Utils.to_bigint(1),
+                  to: address
+                }
+              ]
+            }
+          }
+        }
+      }
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionValidator.valid_conditions?(%{
+               "transaction" => Constants.from_transaction(tx)
              })
     end
 
     test "should be able to use boolean expression in transaction" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      tx = %Transaction{
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{amount: Archethic.Utils.to_bigint(1), to: address}
+              ]
+            }
+          }
+        }
+      }
+
       code = ~s"""
       condition transaction: [
         uco_transfers: Map.size() > 0
@@ -277,9 +377,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "transaction" => %{
-                 "uco_transfers" => %{"@addr" => 265_821}
-               }
+               "transaction" => Constants.from_transaction(tx)
              })
 
       code = ~s"""
@@ -294,9 +392,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "transaction" => %{
-                 "uco_transfers" => %{"@addr" => 265_821}
-               }
+               "transaction" => Constants.from_transaction(tx)
              })
 
       code = ~s"""
@@ -311,9 +407,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "transaction" => %{
-                 "uco_transfers" => %{}
-               }
+               "transaction" => Constants.from_transaction(tx)
              })
 
       code = ~s"""
@@ -328,9 +422,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "transaction" => %{
-                 "uco_transfers" => %{"@addr" => 265_821}
-               }
+               "transaction" => Constants.from_transaction(tx)
              })
     end
 
@@ -341,14 +433,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      previous_tx = %Transaction{data: %TransactionData{content: "zoubida"}}
+      next_tx = %Transaction{data: %TransactionData{content: "zoubida"}}
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{"content" => "zoubida"},
-               "next" => %{"content" => "zoubida"}
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
 
       code = ~s"""
@@ -357,32 +452,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      previous_tx = %Transaction{data: %TransactionData{content: "lavabo"}}
+      next_tx = %Transaction{data: %TransactionData{content: "bidet"}}
+
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{"content" => "lavabo"},
-               "next" => %{"content" => "bidet"}
-             })
-    end
-
-    test "should be able to use nested dot access" do
-      code = ~s"""
-      condition inherit: [
-        content: previous.content.y == "foobar"
-      ]
-      """
-
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse()
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{"content" => %{"y" => "foobar"}},
-               "next" => %{}
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
     end
 
@@ -393,16 +473,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "Hello"}}
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{},
-               "next" => %{
-                 "content" => "Hello"
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
 
       code = ~s"""
@@ -411,16 +492,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "World"}}
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{},
-               "next" => %{
-                 "content" => "World"
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
 
       code = ~s"""
@@ -428,6 +510,9 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
         content: if false do "Hello" else "World" end
       ]
       """
+
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "Hello"}}
 
       refute code
              |> Interpreter.sanitize_code()
@@ -435,10 +520,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{},
-               "next" => %{
-                 "content" => "Hello"
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
     end
 
@@ -447,12 +530,13 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition inherit: [
         content: (
           x = 1
-          if true do
-            x == 1
-          end
+          x == 1
         )
       ]
       """
+
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "smthg"}}
 
       assert code
              |> Interpreter.sanitize_code()
@@ -460,8 +544,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{},
-               "next" => %{}
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
     end
 
@@ -485,18 +569,28 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
+      previous_tx = %Transaction{data: %TransactionData{}}
+
+      next_tx = %Transaction{
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{amount: Archethic.Utils.to_bigint(1), to: address}
+              ]
+            }
+          }
+        }
+      }
+
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
              |> ConditionInterpreter.parse()
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => %{},
-               "next" => %{
-                 "uco_transfers" => %{
-                   address => 1
-                 }
-               }
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx)
              })
     end
   end

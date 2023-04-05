@@ -19,6 +19,7 @@ defmodule Archethic.Contracts.ContractConstants do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.Utils
 
   @doc """
   Extract constants from a transaction into a map
@@ -157,8 +158,8 @@ defmodule Archethic.Contracts.ContractConstants do
   @doc """
   Stringify binary transaction values
   """
-  @spec stringify(map()) :: map()
-  def stringify(constants = %{}) do
+  @spec stringify_transaction(map()) :: map()
+  def stringify_transaction(constants = %{}) do
     %{
       "address" => apply_not_nil(constants, "address", &Base.encode16/1),
       "type" => Map.get(constants, "type"),
@@ -205,6 +206,66 @@ defmodule Archethic.Contracts.ContractConstants do
         end),
       "timestamp" => Map.get(constants, "timestamp")
     }
+  end
+
+  @doc """
+  Apply a function on all transactions of the constants map
+  """
+  @spec map_transactions(map(), fun()) :: map()
+  def map_transactions(constants, func) do
+    Enum.map(constants, fn
+      {name, nil} ->
+        # ex: transaction might be nil when trigger=interval|datetime
+        {name, nil}
+
+      # actions constants
+      {"calls", calls} ->
+        {"calls", Enum.map(calls, func)}
+
+      # conditions constants
+      {"next", map} ->
+        {"next", func.(map)}
+
+      {"previous", map} ->
+        {"previous", func.(map)}
+
+      # both
+      {"transaction", map} ->
+        {"transaction", func.(map)}
+
+      {"contract", map} ->
+        {"contract", func.(map)}
+
+      other ->
+        other
+    end)
+    |> Enum.into(%{})
+  end
+
+  @doc """
+  Divide every transfers' amount by 100_000_000 so the user can use `amount: 1` for 1 UCO/Token
+  """
+  @spec cast_transaction_amount_to_float(map()) :: map()
+  def cast_transaction_amount_to_float(transaction) do
+    transaction
+    |> Map.update!("uco_transfers", fn uco_transfers ->
+      uco_transfers
+      |> Enum.map(fn {address, amount} ->
+        {address, Utils.from_bigint(amount)}
+      end)
+      |> Enum.into(%{})
+    end)
+    |> Map.update!("token_transfers", fn token_transfers ->
+      token_transfers
+      |> Enum.map(fn {address, token_transfer} ->
+        {address, Enum.map(token_transfer, &convert_token_transfer_amount_to_bigint/1)}
+      end)
+      |> Enum.into(%{})
+    end)
+  end
+
+  defp convert_token_transfer_amount_to_bigint(token_transfer) do
+    Map.update!(token_transfer, "amount", &Utils.from_bigint/1)
   end
 
   defp apply_not_nil(map, key, fun) do

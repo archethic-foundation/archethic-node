@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Library
@@ -42,6 +43,13 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
     # initiate a transaction that will be use by the "Contract" module
     next_tx = %Transaction{data: %TransactionData{}}
+
+    # Apply some transformations to the transactions
+    # We do it here because the Constants module is still used by InterpreterLegacy
+    constants =
+      constants
+      |> Constants.map_transactions(&Constants.stringify_transaction/1)
+      |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
 
     # we use the process dictionary to store our scope
     # because it is mutable.
