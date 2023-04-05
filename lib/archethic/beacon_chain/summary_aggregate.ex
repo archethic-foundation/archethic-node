@@ -234,7 +234,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       |> Enum.map(fn x ->
         x
         |> Tuple.to_list()
-        |> Utils.mean()
+        |> Utils.median()
         |> trunc()
         |> Integer.to_string(16)
       end)
@@ -247,7 +247,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         |> List.last()
         |> String.to_integer(16)
       end)
-      |> Utils.mean()
+      |> Utils.median()
       |> trunc()
       |> Integer.to_string(16)
 
