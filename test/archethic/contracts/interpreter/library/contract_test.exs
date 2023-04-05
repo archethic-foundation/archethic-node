@@ -87,11 +87,19 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
     test "should work with float" do
       code = ~S"""
       actions triggered_by: transaction do
+        Contract.set_content 13.1
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "13.1"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
         Contract.set_content 13.0
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "13.0"}} = sanitize_parse_execute(code)
+      assert %Transaction{data: %TransactionData{content: "13"}} = sanitize_parse_execute(code)
     end
 
     test "should work with variable" do

@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
   @behaviour Archethic.Contracts.Interpreter.Library
 
   alias Archethic.Contracts.Interpreter.Scope
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
@@ -24,8 +25,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
     to: TransactionStatements
 
   @spec set_content(Transaction.t(), binary() | integer() | float()) :: Transaction.t()
-  defdelegate set_content(next_tx, content),
-    to: TransactionStatements
+  def set_content(next_tx, content) when is_binary(content) do
+    put_in(next_tx, [Access.key(:data), Access.key(:content)], content)
+  end
+
+  def set_content(next_tx, content) when is_integer(content) or is_float(content) do
+    put_in(
+      next_tx,
+      [Access.key(:data), Access.key(:content)],
+      Library.Common.String.from_number(content)
+    )
+  end
 
   @spec set_code(Transaction.t(), binary()) :: Transaction.t()
   defdelegate set_code(next_tx, args),
