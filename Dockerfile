@@ -2,6 +2,8 @@ FROM elixir:1.14.1-alpine AS archethic-ci
 
 ARG with_tests=1
 ARG MIX_ENV=prod
+ARG USER_ID 
+ARG GROUP_ID
 
 # CI
 #  - compile
@@ -71,6 +73,9 @@ CMD /opt/app/bin/archethic_node foreground
 FROM archethic-ci as build
 
 FROM elixir:1.14.1-alpine
+
+ARG USER_ID 
+ARG GROUP_ID
 
 RUN apk add --no-cache --update bash git openssl libsodium libexecinfo
 
