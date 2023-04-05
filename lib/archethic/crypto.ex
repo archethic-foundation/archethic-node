@@ -1141,26 +1141,22 @@ defmodule Archethic.Crypto do
   """
   @spec get_root_ca_public_key(key()) :: binary()
   def get_root_ca_public_key(<<curve::8, origin_id::8, _::binary>>) do
-    if System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet" do
-      ""
-    else
-      case Keyword.get(@certification_public_keys, ID.to_origin(origin_id)) do
-        nil ->
-          "no_key"
+    case Keyword.get(@certification_public_keys, ID.to_origin(origin_id)) do
+      nil ->
+        "no_key"
 
-        # Only for dev
-        [] ->
-          ""
+      # Only for dev and testnet
+      [] ->
+        ""
 
-        curves when is_list(curves) ->
-          case Keyword.get(curves, ID.to_curve(curve)) do
-            nil ->
-              "no_key"
+      curves when is_list(curves) ->
+        case Keyword.get(curves, ID.to_curve(curve)) do
+          nil ->
+            "no_key"
 
-            public_key ->
-              public_key
-          end
-      end
+          public_key ->
+            public_key
+        end
     end
   end
 
