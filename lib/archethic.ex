@@ -85,13 +85,13 @@ defmodule Archethic do
       |> P2P.nearest_nodes(welcome_node_patch)
       |> Enum.filter(&Node.locally_available?/1)
 
+    this_node = Crypto.first_node_public_key()
+
     nodes =
-      if Crypto.first_node_public_key() != welcome_node_key do
+      if this_node != welcome_node_key do
         #  if this node is not the welcome node then select
         # next node from the this node position in nodes list
-        current_node = Crypto.first_node_public_key()
-
-        index = Enum.find_index(nodes, &(&1.first_public_key == current_node))
+        index = Enum.find_index(nodes, &(&1.first_public_key == this_node))
         {_l, r} = Enum.split(nodes, index + 1)
         r
       else
