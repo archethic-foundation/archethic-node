@@ -320,6 +320,20 @@ defmodule Archethic.P2P do
   defdelegate do_send_message(node, message, timeout), to: Client, as: :send_message
 
   @doc """
+  Return the nearest storages nodes from the local node
+  """
+  @spec nearest_nodes(list(Node.t())) :: list(Node.t())
+  def nearest_nodes(storage_nodes) when is_list(storage_nodes) do
+    case get_node_info(Crypto.first_node_public_key()) do
+      {:ok, %Node{network_patch: network_patch}} ->
+        nearest_nodes(storage_nodes, network_patch)
+
+      {:error, :not_found} ->
+        storage_nodes
+    end
+  end
+
+  @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with
 
   ## Examples
@@ -367,20 +381,6 @@ defmodule Archethic.P2P do
   defp hex_val(val) do
     {int, _} = Integer.parse(val, 16)
     int
-  end
-
-  @doc """
-  Return the nearest storages nodes from the local node
-  """
-  @spec nearest_nodes(list(Node.t())) :: list(Node.t())
-  def nearest_nodes(storage_nodes) when is_list(storage_nodes) do
-    case get_node_info(Crypto.first_node_public_key()) do
-      {:ok, %Node{network_patch: network_patch}} ->
-        nearest_nodes(storage_nodes, network_patch)
-
-      {:error, :not_found} ->
-        storage_nodes
-    end
   end
 
   @doc """

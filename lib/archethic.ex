@@ -3,21 +3,15 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
-  alias Archethic.SharedSecrets
   alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
-  alias __MODULE__.{SelfRepair, TransactionChain}
-  alias __MODULE__.Contracts.Interpreter
-  alias __MODULE__.Contracts.Contract
+  alias __MODULE__.{SelfRepair, TransactionChain, SharedSecrets}
+  alias __MODULE__.Contracts.{Interpreter, Contract}
 
   alias Message.{NewTransaction, NotFound, StartMining}
   alias Message.{Balance, GetBalance, GetTransactionSummary}
   alias Message.{StartMining, Ok, TransactionSummaryMessage}
 
-  alias TransactionChain.{
-    Transaction,
-    TransactionInput,
-    TransactionSummary
-  }
+  alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
 
   require Logger
 
@@ -80,25 +74,46 @@ defmodule Archethic do
     end
   end
 
-  defp forward_transaction(
-         tx,
-         welcome_node_key,
-         nodes \\ P2P.authorized_and_available_nodes()
-         |> Enum.filter(&Node.locally_available?/1)
-         |> P2P.nearest_nodes()
-       )
+  @spec forward_transaction(tx :: Transaction.t(), welcome_node_key :: Crypto.key()) ::
+          :ok | {:error, :network_issue}
+  defp forward_transaction(tx, welcome_node_key) do
+    %Node{network_patch: welcome_node_patch} = P2P.get_node_info!(welcome_node_key)
 
-  defp forward_transaction(tx, welcome_node_key, [node | rest]) do
-    case P2P.send_message(node, %NewTransaction{transaction: tx, welcome_node: welcome_node_key}) do
+    nodes =
+      P2P.authorized_and_available_nodes()
+      |> Enum.reject(&(&1.first_public_key == welcome_node_key))
+      |> Enum.sort_by(& &1.first_public_key)
+      |> P2P.nearest_nodes(welcome_node_patch)
+      |> Enum.filter(&Node.locally_available?/1)
+
+    this_node = Crypto.first_node_public_key()
+
+    nodes =
+      if this_node != welcome_node_key do
+        #  if this node is not the welcome node then select
+        # next node from the this node position in nodes list
+        index = Enum.find_index(nodes, &(&1.first_public_key == this_node))
+        {_l, r} = Enum.split(nodes, index + 1)
+        r
+      else
+        nodes
+      end
+
+    %NewTransaction{transaction: tx, welcome_node: welcome_node_key}
+    |> do_forward_transaction(nodes)
+  end
+
+  defp do_forward_transaction(msg, [node | rest]) do
+    case P2P.send_message(node, msg) do
       {:ok, %Ok{}} ->
         :ok
 
       {:error, _} ->
-        forward_transaction(tx, welcome_node_key, rest)
+        do_forward_transaction(msg, rest)
     end
   end
 
-  defp forward_transaction(_, _, []), do: {:error, :network_issue}
+  defp do_forward_transaction(_, []), do: {:error, :network_issue}
 
   defp do_send_transaction(tx = %Transaction{type: tx_type}, welcome_node_key) do
     current_date = DateTime.utc_now()
