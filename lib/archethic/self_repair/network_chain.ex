@@ -6,6 +6,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.P2P
+  alias Archethic.P2P.Node
   alias Archethic.Reward
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChainWorker
@@ -49,10 +50,10 @@ defmodule Archethic.SelfRepair.NetworkChain do
         Task.Supervisor.async_stream_nolink(
           Archethic.TaskSupervisor,
           nodes_to_resync,
-          fn node ->
+          fn %Node{first_public_key: first_public_key, last_address: last_address} ->
             SelfRepair.resync(
-              Crypto.derive_address(node.first_public_key),
-              Crypto.derive_address(node.last_public_key)
+              Crypto.derive_address(first_public_key),
+              last_address
             )
           end,
           ordered: false,
