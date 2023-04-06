@@ -60,7 +60,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
   end
 
   def check_types(:from_number, [first]) do
-    AST.is_integer?(first) || AST.is_float?(first) || AST.is_variable_or_function_call?(first)
+    AST.is_number?(first) || AST.is_variable_or_function_call?(first)
   end
 
   def check_types(_, _), do: false
