@@ -343,6 +343,7 @@ defmodule Archethic do
   @spec execute_contract(
           Contract.trigger_type(),
           Contract.t(),
+          nil | Transaction.t(),
           [Transaction.t()]
         ) ::
           {:ok, nil | Transaction.t()}
@@ -352,7 +353,7 @@ defmodule Archethic do
              | :invalid_transaction_constraints
              | :invalid_oracle_constraints
              | :invalid_inherit_constraints}
-  defdelegate execute_contract(trigger_type, contract, calls),
+  defdelegate execute_contract(trigger_type, contract, maybe_trigger_tx, calls),
     to: Interpreter,
     as: :execute
 
