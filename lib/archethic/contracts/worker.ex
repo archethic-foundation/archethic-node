@@ -76,17 +76,20 @@ defmodule Archethic.Contracts.Worker do
 
   # TRIGGER: TRANSACTION
   def handle_cast(
-        {:execute, incoming_tx = %Transaction{}},
+        {:execute, trigger_tx = %Transaction{}},
         state = %{contract: contract}
       ) do
     contract_tx = Constants.to_transaction(contract.constants.contract)
 
-    meta = log_metadata(contract_tx, incoming_tx)
+    meta = log_metadata(contract_tx, trigger_tx)
     Logger.debug("Contract execution started", meta)
 
     with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(:transaction, contract, [incoming_tx], skip_inherit_check?: true),
+           Interpreter.execute(:transaction, contract, trigger_tx, calls,
+             skip_inherit_check?: true
+           ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do
@@ -112,7 +115,7 @@ defmodule Archethic.Contracts.Worker do
     with true <- enough_funds?(contract_tx.address),
          {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(trigger_type, contract, calls, skip_inherit_check?: true),
+           Interpreter.execute(trigger_type, contract, nil, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do
@@ -138,7 +141,7 @@ defmodule Archethic.Contracts.Worker do
     with true <- enough_funds?(contract_tx.address),
          {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(trigger_type, contract, calls, skip_inherit_check?: true),
+           Interpreter.execute(trigger_type, contract, nil, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do
@@ -164,8 +167,9 @@ defmodule Archethic.Contracts.Worker do
     Logger.debug("Contract execution started", meta)
 
     with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(:oracle, contract, [oracle_tx], skip_inherit_check?: true),
+           Interpreter.execute(:oracle, contract, oracle_tx, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do

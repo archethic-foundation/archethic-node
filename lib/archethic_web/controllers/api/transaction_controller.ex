@@ -154,7 +154,7 @@ defmodule ArchethicWeb.API.TransactionController do
       ) do
     case TransactionPayload.changeset(params) do
       changeset = %{valid?: true} ->
-        tx =
+        trigger_tx =
           %Transaction{data: %TransactionData{recipients: recipients}} =
           changeset
           |> TransactionPayload.to_map()
@@ -164,7 +164,7 @@ defmodule ArchethicWeb.API.TransactionController do
           Task.Supervisor.async_stream_nolink(
             Archethic.TaskSupervisor,
             recipients,
-            &fetch_recipient_tx_and_simulate(&1, tx),
+            &fetch_recipient_tx_and_simulate(&1, trigger_tx),
             on_timeout: :kill_task,
             timeout: 5000
           )
@@ -216,10 +216,10 @@ defmodule ArchethicWeb.API.TransactionController do
     end
   end
 
-  defp fetch_recipient_tx_and_simulate(recipient_address, tx) do
+  defp fetch_recipient_tx_and_simulate(recipient_address, trigger_tx) do
     with {:ok, contract_tx} <- Archethic.search_transaction(recipient_address),
          {:ok, contract} <- Archethic.parse_contract(contract_tx),
-         {:ok, _} <- Archethic.execute_contract(:transaction, contract, [tx]) do
+         {:ok, _} <- Archethic.execute_contract(:transaction, contract, trigger_tx, [trigger_tx]) do
       :ok
     else
       # search_transaction errors
