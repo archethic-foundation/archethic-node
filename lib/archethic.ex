@@ -11,11 +11,7 @@ defmodule Archethic do
   alias Message.{Balance, GetBalance, GetTransactionSummary}
   alias Message.{StartMining, Ok, TransactionSummaryMessage}
 
-  alias TransactionChain.{
-    Transaction,
-    TransactionInput,
-    TransactionSummary
-  }
+  alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
 
   require Logger
 
