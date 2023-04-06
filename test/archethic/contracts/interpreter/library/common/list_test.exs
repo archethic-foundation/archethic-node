@@ -27,6 +27,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
 
       assert %Transaction{data: %TransactionData{content: "Jean"}} = sanitize_parse_execute(code)
     end
+
+    test "should work with maths (because bigint)" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        list = ["Jennifer", "John", "Jean", "Julie"]
+        Contract.set_content List.at(list, 1+1)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "Jean"}} = sanitize_parse_execute(code)
+    end
   end
 
   # ----------------------------------------

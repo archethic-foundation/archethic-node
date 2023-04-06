@@ -4,10 +4,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.List do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
-  @spec at(list(), integer()) :: any()
-  defdelegate at(list, idx),
-    to: Enum,
-    as: :at
+  @spec at(list(), integer() | float()) :: any()
+  def at(list, idx) do
+    cond do
+      is_integer(idx) ->
+        Enum.at(list, idx)
+
+      is_float(idx) && trunc(idx) == idx ->
+        Enum.at(list, trunc(idx))
+
+      true ->
+        raise %FunctionClauseError{
+          args: [list, idx],
+          arity: 2,
+          function: :at,
+          module: __MODULE__
+        }
+    end
+  end
 
   @spec size(list()) :: integer()
   defdelegate size(list),
@@ -47,7 +61,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.List do
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:at, [first, second]) do
     (AST.is_list?(first) || AST.is_variable_or_function_call?(first)) &&
-      (AST.is_integer?(second) || AST.is_variable_or_function_call?(second))
+      (AST.is_number?(second) || AST.is_variable_or_function_call?(second))
   end
 
   def check_types(:size, [first]) do
