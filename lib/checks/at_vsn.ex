@@ -3,7 +3,7 @@ defmodule Archethic.Checks.AtVsn do
   Check that GenServer & GenStateMachine have a @vsn attribute
   """
 
-  use Credo.Check
+  use Credo.Check, category: :warning
 
   defstruct is_a_server: false,
             has_a_at_vsn: false,
