@@ -44,8 +44,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
       AST.is_variable_or_function_call?(first) ||
       AST.is_map?(first) ||
       AST.is_list?(first) ||
-      AST.is_float?(first) ||
-      AST.is_integer?(first)
+      AST.is_number?(first)
   end
 
   def check_types(:is_valid?, [first]) do

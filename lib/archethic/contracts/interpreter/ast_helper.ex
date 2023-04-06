@@ -47,11 +47,17 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   Return wether the given ast is an integer
 
     iex> ast = quote do: 1
-    iex> ASTHelper.is_integer?(ast)
+    iex> ASTHelper.is_number?(ast)
+    true
+
+    iex> ast = quote do: 1.01
+    iex> ASTHelper.is_number?(ast)
     true
   """
-  @spec is_integer?(Macro.t()) :: boolean()
-  def is_integer?(node), do: is_integer(node)
+  @spec is_number?(Macro.t()) :: boolean()
+  def is_number?(node) do
+    is_integer(node) || is_float(node)
+  end
 
   @doc ~S"""
   Return wether the given ast is an binary
@@ -71,16 +77,6 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   def is_binary?(_), do: false
 
   @doc """
-  Return wether the given ast is an float
-
-    iex> ast= quote do: 1.0
-    iex> ASTHelper.is_float?(ast)
-    true
-  """
-  @spec is_float?(Macro.t()) :: boolean()
-  def is_float?(node), do: is_float(node)
-
-  @doc """
   Return wether the given ast is a a list
 
     iex> ast = quote do: [1, 2]
@@ -91,13 +87,22 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   def is_list?(node), do: is_list(node)
 
   @doc """
-  Return wether the given ast is a variable or a function call.
-  Useful because we pretty much accept this everywhere
+  Return wether the given ast is a variable or a function call or a block.
+  Useful because we pretty much accept this everywhere.
+
+  We must accept blocks as well because we cannot determine its type.
+  (If the user code 1+1 it will be a block)
   """
   @spec is_variable_or_function_call?(Macro.t()) :: boolean()
   def is_variable_or_function_call?(ast) do
-    is_variable?(ast) || is_function_call?(ast)
+    is_variable?(ast) || is_function_call?(ast) || is_block?(ast)
   end
+
+  @doc """
+  Return wether the given ast is a block
+  """
+  def is_block?({:__block__, _, _}), do: true
+  def is_block?(_), do: false
 
   @doc """
   Return wether the given ast is a variable.

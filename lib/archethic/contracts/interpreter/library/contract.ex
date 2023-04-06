@@ -92,7 +92,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
   end
 
   def check_types(:set_content, [first]) do
-    AST.is_binary?(first) || AST.is_integer?(first) || AST.is_float?(first) ||
+    AST.is_binary?(first) || AST.is_number?(first) ||
       AST.is_variable_or_function_call?(first)
   end
 

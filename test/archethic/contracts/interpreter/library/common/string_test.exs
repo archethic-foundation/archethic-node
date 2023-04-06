@@ -83,6 +83,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
+
+    test "should return nil if not a number" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        if String.to_number("bob") == nil do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
   end
 
   # ----------------------------------------
