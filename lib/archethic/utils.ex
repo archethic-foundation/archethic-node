@@ -1056,7 +1056,7 @@ defmodule Archethic.Utils do
     {chunk, rest} = Enum.split(to_chunk, chunk_length)
     do_chunk(rest, parts - 1, [chunk | chunks])
   end
-  
+
   @spec await_confirmation(tx_address :: binary(), list(Node.t())) ::
           :ok | {:error, :network_issue}
   def await_confirmation(tx_address, nodes) do
