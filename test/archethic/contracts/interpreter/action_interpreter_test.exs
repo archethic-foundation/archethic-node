@@ -1,5 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   use ArchethicCase
+  use ExUnitProperties
 
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
@@ -1033,7 +1034,102 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 0.1 + 0.2
+        if a == 0.3 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
+
+    property "floating points additions" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <- StreamData.float()
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} + #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+
+    property "floating points multiplication" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <- StreamData.float()
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} * #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+
+    property "floating points division" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <-
+                StreamData.float()
+                |> StreamData.filter(&(&1 != 0.0))
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} / #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+
+    property "floating points substraction" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <- StreamData.float()
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} - #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+  end
+
+  defp assert_less_than_8_decimals(str) do
+    assert (case(String.split(str, ".")) do
+              [_] ->
+                true
+
+              [_real, decimals] ->
+                String.length(decimals) <= 8
+            end)
   end
 
   defp sanitize_parse_execute(code, constants \\ %{}) do

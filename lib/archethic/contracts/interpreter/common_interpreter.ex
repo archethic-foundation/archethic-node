@@ -361,12 +361,11 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # BigInt mathematics to avoid floating point issues
-  @unit_uco 100_000_000
+  # the `0.0 + x` is used to cast integers to floats
   def postwalk(_node = {:*, meta, [lhs, rhs]}, acc) do
     new_node =
-      quote line: Keyword.fetch!(meta, :line),
-            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
-        bigint * lhs * bigint * rhs / (bigint * bigint)
+      quote line: Keyword.fetch!(meta, :line) do
+        Float.floor(0.0 + unquote(lhs) * unquote(rhs), 8)
       end
 
     {new_node, acc}
@@ -374,9 +373,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   def postwalk(_node = {:/, meta, [lhs, rhs]}, acc) do
     new_node =
-      quote line: Keyword.fetch!(meta, :line),
-            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
-        bigint * lhs / (bigint * rhs)
+      quote line: Keyword.fetch!(meta, :line) do
+        Float.floor(0.0 + unquote(lhs) / unquote(rhs), 8)
       end
 
     {new_node, acc}
@@ -384,9 +382,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   def postwalk(_node = {:+, meta, [lhs, rhs]}, acc) do
     new_node =
-      quote line: Keyword.fetch!(meta, :line),
-            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
-        (bigint * lhs + bigint * rhs) / bigint
+      quote line: Keyword.fetch!(meta, :line) do
+        Float.floor(0.0 + (unquote(lhs) + unquote(rhs)), 8)
       end
 
     {new_node, acc}
@@ -394,9 +391,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   def postwalk(_node = {:-, meta, [lhs, rhs]}, acc) do
     new_node =
-      quote line: Keyword.fetch!(meta, :line),
-            bind_quoted: [lhs: lhs, rhs: rhs, bigint: @unit_uco] do
-        (bigint * lhs - bigint * rhs) / bigint
+      quote line: Keyword.fetch!(meta, :line) do
+        Float.floor(0.0 + (unquote(lhs) - unquote(rhs)), 8)
       end
 
     {new_node, acc}
