@@ -258,7 +258,12 @@ defmodule Archethic.BeaconChain do
     if unsubscribe?, do: Update.unsubscribe()
 
     Enum.map(list_subsets(), fn subset ->
-      nodes = Election.beacon_storage_nodes(subset, date, P2P.authorized_and_available_nodes())
+      nodes =
+        Election.beacon_storage_nodes(
+          subset,
+          date,
+          P2P.authorized_and_available_nodes(date, true)
+        )
 
       nodes =
         Enum.reject(nodes, fn node -> node.first_public_key == Crypto.first_node_public_key() end)
@@ -330,9 +335,9 @@ defmodule Archethic.BeaconChain do
   @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
           list(TransactionSummary.t())
   def list_transactions_summaries_from_current_slot(date = %DateTime{} \\ DateTime.utc_now()) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
-
     next_summary_date = next_summary_date(DateTime.truncate(date, :millisecond))
+
+    authorized_nodes = P2P.authorized_and_available_nodes(next_summary_date, true)
 
     # get the subsets to request per node
     list_subsets()

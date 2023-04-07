@@ -290,12 +290,14 @@ defmodule Archethic.BeaconChain.Subset do
 
     tx_summary_message = TransactionSummaryMessage.from_transaction_summary(tx_summary)
 
+    next_slot_time = BeaconChain.next_slot(timestamp)
+
     # Do not notify beacon storage nodes as they are already aware of the transaction
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(address),
-        BeaconChain.next_slot(timestamp),
-        P2P.authorized_and_available_nodes(timestamp)
+        next_slot_time,
+        P2P.authorized_and_available_nodes(next_slot_time, true)
       )
       |> Enum.map(& &1.first_public_key)
 
@@ -428,7 +430,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp beacon_summary_node?(subset, summary_time, node_public_key) do
-    node_list = P2P.authorized_and_available_nodes(summary_time)
+    node_list = P2P.authorized_and_available_nodes(summary_time, true)
 
     Election.beacon_storage_nodes(
       subset,

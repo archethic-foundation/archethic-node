@@ -214,7 +214,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   """
   @spec fetch_network_stats(DateTime.t()) :: Nx.Tensor.t()
   def fetch_network_stats(summary_time = %DateTime{}) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
+    authorized_nodes = P2P.authorized_and_available_nodes(summary_time, true)
 
     sorted_node_list = P2P.list_nodes() |> Enum.sort_by(& &1.first_public_key)
     nb_nodes = length(sorted_node_list)
