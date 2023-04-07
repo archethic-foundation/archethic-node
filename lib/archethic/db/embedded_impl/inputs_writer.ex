@@ -54,13 +54,15 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
     # We use this mechanism to prevent rewriting the same data over and over when we restart the node and reprocess the transaction history.
     # If the InputsWriter is called on an existing file, it will behave as normal but will write to the null device (= do nothing)
     # This optimization is possible only because we always spend all the inputs of an address at the same time
-    fd =
-      case File.open(filename, [:binary, :exclusive]) do
-        {:error, :eexist} ->
-          File.open!("/dev/null", [:binary, :write])
 
-        {:ok, iodevice} ->
-          iodevice
+    # new changes 07-04-2023
+    fd =
+      case File.open(filename, [:binary, :append]) do
+        {:ok, io_device} ->
+          io_device
+
+        {:error, e} ->
+          raise "Fatal error : failed to open file#{inspect(e)}"
       end
 
     {:ok, %{filename: filename, fd: fd}}

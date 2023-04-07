@@ -1,19 +1,11 @@
 defmodule Archethic.Account do
   @moduledoc false
+  alias Archethic.{Crypto, TransactionChain}
 
-  alias __MODULE__.MemTables.TokenLedger
-  alias __MODULE__.MemTables.UCOLedger
-  alias __MODULE__.MemTablesLoader
+  alias __MODULE__.{MemTables.TokenLedger, MemTables.UCOLedger, MemTablesLoader}
 
-  alias Archethic.Crypto
-
-  alias Archethic.TransactionChain.Transaction
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.TransactionChain.VersionedTransactionInput
+  alias TransactionChain.{Transaction, VersionedTransactionInput, Transaction.ValidationStamp}
+  alias ValidationStamp.LedgerOperations.{UnspentOutput, VersionedUnspentOutput}
 
   @type balance :: %{
           uco: amount :: pos_integer(),
@@ -27,6 +19,8 @@ defmodule Archethic.Account do
   """
   @spec get_balance(Crypto.versioned_hash()) :: balance()
   def get_balance(address) when is_binary(address) do
+    # TODO
+    # replace with archethic.get inputs and returns utxo from inputs
     address
     |> get_unspent_outputs()
     |> Enum.reduce(%{uco: 0, token: %{}}, fn
@@ -45,17 +39,14 @@ defmodule Archethic.Account do
   List all the unspent outputs for a given address
   """
   @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
-  def get_unspent_outputs(address) when is_binary(address) do
-    UCOLedger.get_unspent_outputs(address) ++ TokenLedger.get_unspent_outputs(address)
-  end
+  def get_unspent_outputs(address) when is_binary(address),
+    do: UCOLedger.get_unspent_outputs(address) ++ TokenLedger.get_unspent_outputs(address)
 
   @doc """
   List all the inputs for a given transaction (including the spend/unspent inputs)
   """
   @spec get_inputs(binary()) :: list(VersionedTransactionInput.t())
-  def get_inputs(address) do
-    UCOLedger.get_inputs(address) ++ TokenLedger.get_inputs(address)
-  end
+  def get_inputs(address), do: UCOLedger.get_inputs(address) ++ TokenLedger.get_inputs(address)
 
   @doc """
   Load the transaction into the Account context filling the memory tables for ledgers

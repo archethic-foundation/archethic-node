@@ -74,6 +74,7 @@ defmodule Archethic.AccountTest do
       start_supervised!(RewardMemTableLoader)
       start_supervised!(UCOLedger)
       start_supervised!(TokenLedger)
+
       :ok
     end
 

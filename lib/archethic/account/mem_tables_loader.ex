@@ -1,28 +1,16 @@
 defmodule Archethic.Account.MemTablesLoader do
   @moduledoc false
 
+  alias Archethic.{TransactionChain, Crypto, Reward, Account, TransactionChain.Transaction}
+
+  alias Account.MemTables.{TokenLedger, UCOLedger}
+  alias Transaction.{ValidationStamp, ValidationStamp.LedgerOperations}
+  alias LedgerOperations.{UnspentOutput, TransactionMovement, VersionedUnspentOutput}
+
   use GenServer
   @vsn Mix.Project.config()[:version]
 
-  alias Archethic.Account.MemTables.TokenLedger
-  alias Archethic.Account.MemTables.UCOLedger
-
-  alias Archethic.Crypto
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
   require Logger
-
-  alias Archethic.Reward
 
   @query_fields [
     :address,
@@ -35,13 +23,7 @@ defmodule Archethic.Account.MemTablesLoader do
     ]
   ]
 
-  @excluded_types [
-    :oracle,
-    :oracle_summary,
-    :node_shared_secrets,
-    :origin,
-    :on_chain_wallet
-  ]
+  @excluded_types [:oracle, :oracle_summary, :node_shared_secrets, :origin, :on_chain_wallet]
 
   @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
@@ -51,12 +33,12 @@ defmodule Archethic.Account.MemTablesLoader do
   @spec init(args :: list()) :: {:ok, []}
   def init(_args) do
     TransactionChain.list_io_transactions(@query_fields)
-    |> Stream.each(&load_transaction(&1, true))
+    |> Stream.each(&load_transaction(&1, true, _from_init? = true))
     |> Stream.run()
 
     TransactionChain.list_all(@query_fields)
     |> Stream.reject(&(&1.type in @excluded_types))
-    |> Stream.each(&load_transaction(&1, false))
+    |> Stream.each(&load_transaction(&1, _io_transaction? = false, _from_init? = true))
     |> Stream.run()
 
     {:ok, []}
@@ -80,13 +62,15 @@ defmodule Archethic.Account.MemTablesLoader do
             }
           }
         },
-        io_transaction?
+        io_transaction?,
+        from_init? \\ false
       ) do
     unless io_transaction? do
+      # when it is not a io_transaction
       previous_address = Crypto.derive_address(previous_public_key)
 
-      UCOLedger.spend_all_unspent_outputs(previous_address)
-      TokenLedger.spend_all_unspent_outputs(previous_address)
+      UCOLedger.spend_all_unspent_outputs(previous_address, from_init?)
+      TokenLedger.spend_all_unspent_outputs(previous_address, from_init?)
     end
 
     :ok =
@@ -95,10 +79,11 @@ defmodule Archethic.Account.MemTablesLoader do
         transaction_movements,
         timestamp,
         tx_type,
-        protocol_version
+        protocol_version,
+        from_init?
       )
 
-    :ok = set_unspent_outputs(address, unspent_outputs, protocol_version)
+    :ok = set_unspent_outputs(address, unspent_outputs, protocol_version, from_init?)
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
@@ -106,54 +91,63 @@ defmodule Archethic.Account.MemTablesLoader do
     )
   end
 
-  defp set_unspent_outputs(address, unspent_outputs, protocol_version) do
+  defp set_unspent_outputs(address, unspent_outputs, protocol_version, from_init?) do
     unspent_outputs
-    |> Enum.filter(&(&1.amount > 0))
-    |> Enum.map(fn unspent_output ->
-      %VersionedUnspentOutput{
-        unspent_output: unspent_output,
-        protocol_version: protocol_version
-      }
-    end)
     |> Enum.each(fn
-      unspent_output = %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO}} ->
-        UCOLedger.add_unspent_output(address, unspent_output)
+      utxo = %UnspentOutput{type: :UCO, amount: amount} when amount > 0 ->
+        UCOLedger.add_unspent_output(
+          address,
+          cast_to_versioned_utxo(utxo, protocol_version),
+          from_init?
+        )
 
-      unspent_output = %VersionedUnspentOutput{
-        unspent_output: %UnspentOutput{
-          type: {:token, _token_address, _token_id}
-        }
-      } ->
-        TokenLedger.add_unspent_output(address, unspent_output)
+      utxo = %UnspentOutput{type: {:token, _, _}, amount: amount} when amount > 0 ->
+        TokenLedger.add_unspent_output(
+          address,
+          cast_to_versioned_utxo(utxo, protocol_version),
+          from_init?
+        )
 
       _ ->
         # Ignore smart contract calls
-        :ignore
+        :ignore_haha
     end)
   end
+
+  defp cast_to_versioned_utxo(utxo, protocol_version),
+    do: %VersionedUnspentOutput{unspent_output: utxo, protocol_version: protocol_version}
 
   defp set_transaction_movements(
          address,
          transaction_movements,
          timestamp,
          tx_type,
-         protocol_version
+         protocol_version,
+         from_init?
        ) do
     transaction_movements
     |> Enum.filter(&(&1.amount > 0))
     |> Enum.reduce(%{}, &aggregate_movements(&1, &2, address, tx_type, timestamp))
     |> Enum.each(fn
       {{to, :uco}, utxo} ->
-        UCOLedger.add_unspent_output(to, %VersionedUnspentOutput{
-          unspent_output: utxo,
-          protocol_version: protocol_version
-        })
+        UCOLedger.add_unspent_output(
+          to,
+          %VersionedUnspentOutput{
+            unspent_output: utxo,
+            protocol_version: protocol_version
+          },
+          from_init?
+        )
 
       {{to, _token_address, _token_id}, utxo} ->
-        TokenLedger.add_unspent_output(to, %VersionedUnspentOutput{
-          unspent_output: utxo,
-          protocol_version: protocol_version
-        })
+        TokenLedger.add_unspent_output(
+          to,
+          %VersionedUnspentOutput{
+            unspent_output: utxo,
+            protocol_version: protocol_version
+          },
+          from_init?
+        )
     end)
   end
 
