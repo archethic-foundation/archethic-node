@@ -231,14 +231,13 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
         |> Enum.map(&String.to_integer(&1, 16))
       end)
       |> Enum.zip()
-      |> Enum.map(fn x ->
+      |> Enum.map_join(fn x ->
         x
         |> Tuple.to_list()
         |> Utils.median()
         |> trunc()
         |> Integer.to_string(16)
       end)
-      |> Enum.join()
 
     bandwidth_patch =
       splitted_patches
