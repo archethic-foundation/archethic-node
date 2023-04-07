@@ -6,12 +6,18 @@ defmodule Archethic do
   alias Archethic.SharedSecrets
   alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
   alias __MODULE__.{SelfRepair, TransactionChain}
+  alias __MODULE__.Contracts.Interpreter
+  alias __MODULE__.Contracts.Contract
 
   alias Message.{NewTransaction, NotFound, StartMining}
   alias Message.{Balance, GetBalance, GetTransactionSummary}
   alias Message.{StartMining, Ok, TransactionSummaryMessage}
 
-  alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
+  alias TransactionChain.{
+    Transaction,
+    TransactionInput,
+    TransactionSummary
+  }
 
   require Logger
 
@@ -301,6 +307,34 @@ defmodule Archethic do
         error
     end
   end
+
+  @doc """
+  Parse the given transaction and return a contract if successful
+  """
+  @spec parse_contract(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
+  defdelegate parse_contract(contract_tx),
+    to: Interpreter,
+    as: :parse_transaction
+
+  @doc """
+  Execute the contract in the given transaction.
+  We assume the contract is parse-able.
+  """
+  @spec execute_contract(
+          Contract.trigger_type(),
+          Contract.t(),
+          nil | Transaction.t()
+        ) ::
+          {:ok, nil | Transaction.t()}
+          | {:error,
+             :contract_failure
+             | :invalid_triggers_execution
+             | :invalid_transaction_constraints
+             | :invalid_oracle_constraints
+             | :invalid_inherit_constraints}
+  defdelegate execute_contract(trigger_type, contract, maybe_tx),
+    to: Interpreter,
+    as: :execute
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes

@@ -246,6 +246,8 @@ defmodule Archethic.Contracts.WorkerTest do
         uco_transfers: %{ "#{address}" => 1_040_000_000}
       ]
 
+      condition transaction: []
+
       actions triggered_by: transaction do
         set_type transfer
         add_uco_transfer to:  "#{address}", amount: 1_040_000_000
@@ -482,6 +484,20 @@ defmodule Archethic.Contracts.WorkerTest do
     test "ICO crowdsale", %{
       constants: constants = %{"address" => contract_address}
     } do
+      # the contract need uco to be executed
+      Archethic.Account.MemTables.TokenLedger.add_unspent_output(
+        contract_address,
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Bob3",
+            amount: 100_000_000 * 10_000,
+            type: {:token, contract_address, 0},
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          },
+          protocol_version: ArchethicCase.current_protocol_version()
+        }
+      )
+
       code = """
 
       # Ensure the next transaction will be a transfer
@@ -562,6 +578,67 @@ defmodule Archethic.Contracts.WorkerTest do
         3_000 ->
           raise "Timeout"
       end
+    end
+
+    test "should not crash the worker if contract code crashes", %{
+      constants: constants = %{"address" => contract_address}
+    } do
+      # the contract need uco to be executed
+      Archethic.Account.MemTables.TokenLedger.add_unspent_output(
+        contract_address,
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Bob3",
+            amount: 100_000_000 * 10_000,
+            type: {:token, contract_address, 0},
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          },
+          protocol_version: ArchethicCase.current_protocol_version()
+        }
+      )
+
+      code = """
+      @version 1
+      condition transaction: []
+
+      actions triggered_by: transaction do
+        n = 10 / 0
+        Contract.set_content n
+      end
+
+      condition inherit: [
+        content: true
+      ]
+      """
+
+      {:ok, contract} = Interpreter.parse(code)
+
+      contract = %{
+        contract
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
+      }
+
+      {:ok, worker_pid} = Worker.start_link(contract)
+
+      Worker.execute(contract_address, %Transaction{
+        address: @bob_address,
+        type: :transfer,
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %Transfer{to: contract_address, amount: 100_000_000}
+              ]
+            }
+          },
+          recipients: [contract_address]
+        },
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      })
+
+      Process.sleep(100)
+
+      assert Process.alive?(worker_pid)
     end
   end
 end

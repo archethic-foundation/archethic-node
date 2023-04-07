@@ -1,23 +1,21 @@
 defmodule Archethic.Utils do
   @moduledoc false
 
+  alias Archethic.{BeaconChain, Crypto, P2P, TransactionChain, P2P.Node, P2P.Message}
+  alias BeaconChain.{ReplicationAttestation}
+  alias TransactionChain.{Transaction, TransactionData, TransactionSummary}
+
+  alias Message.{GetTransactionSummary, TransactionSummaryMessage}
+
+  alias Archethic.Reward.Scheduler, as: RewardScheduler
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias Archethic.BeaconChain.ReplicationAttestation
-
-  alias Archethic.TransactionChain.TransactionSummary
-
-  alias Archethic.Crypto
-
-  alias Archethic.P2P.Node
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-
-  alias Archethic.Reward.Scheduler, as: RewardScheduler
-
   import Bitwise
+
+  require Logger
+
+  use Retry
 
   @doc """
   Compute an offset of the next shift in seconds for a given time interval
@@ -1057,5 +1055,33 @@ defmodule Archethic.Utils do
     chunk_length = to_chunk |> length() |> div(parts)
     {chunk, rest} = Enum.split(to_chunk, chunk_length)
     do_chunk(rest, parts - 1, [chunk | chunks])
+  end
+  
+  @spec await_confirmation(tx_address :: binary(), list(Node.t())) ::
+          :ok | {:error, :network_issue}
+  def await_confirmation(tx_address, nodes) do
+    acceptance_resolver = fn
+      {:ok,
+       %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^tx_address}}} ->
+        true
+
+      _ ->
+        false
+    end
+
+    #  at 1th , 2th , 4th , 8th , 16th , 32th second
+    retry_while with: exponential_backoff(1000, 2) |> expiry(70_000) do
+      case P2P.quorum_read(
+             nodes,
+             %GetTransactionSummary{address: tx_address},
+             acceptance_resolver
+           ) do
+        {:ok, _} ->
+          {:halt, :ok}
+
+        _ ->
+          {:cont, {:error, :network_issue}}
+      end
+    end
   end
 end

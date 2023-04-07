@@ -80,7 +80,7 @@ defmodule Archethic.Replication.TransactionContextTest do
          }}
 
       _, %GetGenesisAddress{}, _ ->
-        {:ok, %GenesisAddress{address: "@Alice0"}}
+        {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
     end)
 
     P2P.add_and_connect_node(%Node{

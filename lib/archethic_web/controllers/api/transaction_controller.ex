@@ -143,4 +143,157 @@ defmodule ArchethicWeb.API.TransactionController do
         |> render("400.json", changeset: changeset)
     end
   end
+
+  @doc """
+  This controller, Fetch the recipients contract and simulate the transaction, managing possible
+  exits from contract execution
+  """
+  def simulate_contract_execution(
+        conn,
+        params = %{}
+      ) do
+    case TransactionPayload.changeset(params) do
+      changeset = %{valid?: true} ->
+        tx =
+          %Transaction{data: %TransactionData{recipients: recipients}} =
+          changeset
+          |> TransactionPayload.to_map()
+          |> Transaction.cast()
+
+        results =
+          Task.Supervisor.async_stream_nolink(
+            Archethic.TaskSupervisor,
+            recipients,
+            &fetch_recipient_tx_and_simulate(&1, tx),
+            on_timeout: :kill_task,
+            timeout: 5000
+          )
+          |> Stream.zip(recipients)
+          |> Stream.map(fn
+            {{:ok, :ok}, recipient} ->
+              %{
+                "valid" => true,
+                "recipient_address" => Base.encode16(recipient)
+              }
+
+            {{:ok, {:error, reason}}, recipient} ->
+              %{
+                "valid" => false,
+                "reason" => reason,
+                "recipient_address" => Base.encode16(recipient)
+              }
+
+            {{:exit, :timeout}, recipient} ->
+              %{
+                "valid" => false,
+                "reason" => "A contract timed out",
+                "recipient_address" => Base.encode16(recipient)
+              }
+
+            {{:exit, reason}, recipient} ->
+              %{
+                "valid" => false,
+                "reason" => format_exit_reason(reason),
+                "recipient_address" => Base.encode16(recipient)
+              }
+          end)
+          |> Enum.to_list()
+
+        case results do
+          [] ->
+            conn
+            |> put_status(:ok)
+            |> json([
+              %{"valid" => false, "reason" => "There are no recipients in the transaction"}
+            ])
+
+          _ ->
+            conn
+            |> put_status(:ok)
+            |> json(results)
+        end
+
+      changeset ->
+        error_details =
+          Ecto.Changeset.traverse_errors(changeset, &ArchethicWeb.ErrorHelpers.translate_error/1)
+
+        json_body =
+          Map.merge(error_details, %{"valid" => false, "reason" => "Query validation failled"})
+
+        conn
+        |> put_status(:ok)
+        |> json([json_body])
+    end
+  end
+
+  defp fetch_recipient_tx_and_simulate(recipient_address, tx) do
+    with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
+         {:ok, contract} <- Archethic.parse_contract(contract_tx),
+         {:ok, _} <- Archethic.execute_contract(:transaction, contract, tx) do
+      :ok
+    else
+      # search_transaction errors
+      {:error, :transaction_not_exists} ->
+        {:error, "There is no transaction at recipient address."}
+
+      {:error, :transaction_invalid} ->
+        {:error, "The transaction is marked as invalid."}
+
+      {:error, :network_issue} ->
+        {:error, "Network issue, please try again later."}
+
+      # execute_contract errors
+      {:error, :contract_failure} ->
+        {:error, "Contract execution produced an error."}
+
+      {:error, :invalid_triggers_execution} ->
+        {:error, "Contract does not have a `actions triggered_by: transaction` block."}
+
+      {:error, :invalid_transaction_constraints} ->
+        {:error,
+         "Contract refused incoming transaction. Check the `condition transaction` block."}
+
+      {:error, :invalid_oracle_constraints} ->
+        {:error, "Contract refused incoming transaction. Check the `condition oracle` block."}
+
+      {:error, :invalid_inherit_constraints} ->
+        {:error, "Contract refused outcoming transaction. Check the `condition inherit` block."}
+
+      # parse_contract errors
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+    end
+  end
+
+  defp format_exit_reason({error, stacktrace}) do
+    formatted_error =
+      case error do
+        atom when is_atom(atom) ->
+          # ex: :badarith
+          inspect(atom)
+
+        {atom, _} when is_atom(atom) ->
+          # ex: :badmatch
+          inspect(atom)
+
+        _ ->
+          "unknown error"
+      end
+
+    Enum.reduce_while(
+      stacktrace,
+      "A contract exited with error: #{formatted_error}",
+      fn
+        {:elixir_eval, _, _, [file: 'nofile', line: line]}, acc ->
+          {:halt, acc <> " (line: #{line})"}
+
+        _, acc ->
+          {:cont, acc}
+      end
+    )
+  end
+
+  defp format_exit_reason(_) do
+    "A contract exited with an unknown error"
+  end
 end

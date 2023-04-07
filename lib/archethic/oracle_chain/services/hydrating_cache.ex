@@ -6,6 +6,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   - Return the value when requested
   """
   use GenServer
+  @vsn Mix.Project.config()[:version]
 
   alias Archethic.Utils
   require Logger

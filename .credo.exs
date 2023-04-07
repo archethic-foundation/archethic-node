@@ -16,7 +16,11 @@
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
       color: true,
+      requires: ["./lib/checks/*.ex"],
       checks: [
+        # Custom checks
+        {Archethic.Checks.AtVsn, []},
+
         # Consistency Checks
         {Credo.Check.Consistency.LineEndings, []},
         {Credo.Check.Consistency.ParameterPatternMatching, []},

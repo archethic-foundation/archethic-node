@@ -31,7 +31,7 @@ defmodule Archethic.P2P.Message.GetFirstTransactionAddressTest do
         ]
     end)
 
-    assert %FirstTransactionAddress{address: "address1"} ==
+    assert %FirstTransactionAddress{address: "address1"} =
              GetFirstTransactionAddress.process(%GetFirstTransactionAddress{
                address: "address10"
              })

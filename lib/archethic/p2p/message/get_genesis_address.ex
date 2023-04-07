@@ -18,7 +18,19 @@ defmodule Archethic.P2P.Message.GetGenesisAddress do
   @spec process(__MODULE__.t(), Crypto.key()) :: GenesisAddress.t()
   def process(%__MODULE__{address: address}, _) do
     genesis_address = TransactionChain.get_genesis_address(address)
-    %GenesisAddress{address: genesis_address}
+
+    # Genesis is not a transaction, so to get the timestamp for the conflict resolver
+    # we return the timestamp of the 1st transaction
+    timestamp =
+      case TransactionChain.get_first_transaction_address(genesis_address) do
+        {:ok, {_first_tx_address, first_tx_timestamp}} ->
+          first_tx_timestamp
+
+        {:error, :transaction_not_exists} ->
+          DateTime.utc_now()
+      end
+
+    %GenesisAddress{address: genesis_address, timestamp: timestamp}
   end
 
   @spec serialize(t()) :: bitstring()
