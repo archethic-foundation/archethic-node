@@ -69,7 +69,7 @@ defmodule Archethic.BeaconChain.SummaryAggregateTest do
                    node_availabilities: <<>>,
                    node_average_availabilities: [],
                    end_of_node_synchronizations: [],
-                   network_patches: ["9C6", "DEF"]
+                   network_patches: ["BA6", "DEF"]
                  }
                }
              } =

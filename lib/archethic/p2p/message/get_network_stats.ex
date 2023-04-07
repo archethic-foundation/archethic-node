@@ -19,16 +19,16 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
 
   ## Examples
       
-      iex> %GetNetworkStats{subsets: [<<0>>]} |> GetNetworkStats.serialize()
+      iex> %GetNetworkStats{subsets: [<<0>>, <<255>>]} |> GetNetworkStats.serialize()
       <<
       # Length of subsets
-      1, 
+      0, 2, 
       # Subset
-      0
+      0, 255
       >>
   """
   def serialize(%__MODULE__{subsets: subsets}) do
-    <<length(subsets)::8, :erlang.list_to_binary(subsets)::binary>>
+    <<length(subsets)::16, :erlang.list_to_binary(subsets)::binary>>
   end
 
   @doc """
@@ -36,13 +36,13 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
 
   ## Examples
       
-      iex> <<1, 0>> |> GetNetworkStats.deserialize()
+      iex> <<0, 2, 0, 255>> |> GetNetworkStats.deserialize()
       {
-        %GetNetworkStats{subsets: [<<0>>]},
+        %GetNetworkStats{subsets: [<<0>>, <<255>>]},
         ""
       }
   """
-  def deserialize(<<length::8, subsets_binary::binary-size(length), rest::bitstring>>) do
+  def deserialize(<<length::16, subsets_binary::binary-size(length), rest::bitstring>>) do
     subsets =
       subsets_binary
       |> :erlang.binary_to_list()

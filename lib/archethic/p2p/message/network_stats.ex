@@ -29,7 +29,7 @@ defmodule Archethic.P2P.Message.NetworkStats do
       ...> }}} |> NetworkStats.serialize()
       <<
       # Nb subsets
-      1,
+      0, 1,
       # Subset
       0,
       # Nb node stats
@@ -55,7 +55,7 @@ defmodule Archethic.P2P.Message.NetworkStats do
       end)
       |> :erlang.list_to_binary()
 
-    <<nb_subsets::8, stats_binary::binary>>
+    <<nb_subsets::16, stats_binary::binary>>
   end
 
   defp serialize_subset_stats(subset, stats) do
@@ -83,7 +83,7 @@ defmodule Archethic.P2P.Message.NetworkStats do
 
   ## Examples
 
-      iex> <<1, 0, 1, 1, 0, 0, 75, 23, 134, 64, 221, 117, 107, 77, 233, 123, 201, 244, 18, 151,
+      iex> <<0, 1, 0, 1, 1, 0, 0, 75, 23, 134, 64, 221, 117, 107, 77, 233, 123, 201, 244, 18, 151,
       ...> 8, 255, 53, 137, 251, 197, 67, 25, 38, 95, 2, 62, 216, 131, 112, 116, 238,
       ...> 180, 1, 3, 1, 100, 1, 110, 1, 80>> |> NetworkStats.deserialize()
       {
@@ -99,7 +99,7 @@ defmodule Archethic.P2P.Message.NetworkStats do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<nb_subsets::8, rest::bitstring>>) do
+  def deserialize(<<nb_subsets::16, rest::bitstring>>) do
     {stats, rest} = get_subsets_stats(rest, nb_subsets, %{})
 
     {
