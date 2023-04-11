@@ -110,7 +110,7 @@ defmodule Archethic.Account.MemTablesLoader do
 
       _ ->
         # Ignore smart contract calls
-        :ignore_haha
+        nil
     end)
   end
 

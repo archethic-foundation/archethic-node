@@ -19,9 +19,8 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   alias TransactionChain.{Transaction, TransactionInput, VersionedTransactionInput}
   alias Transaction.ValidationStamp.LedgerOperations.{UnspentOutput, VersionedUnspentOutput}
 
-  @ledger_table Application.compile_env!(:archethic, [__MODULE__, :ledger_table])
-  @unspent_output_index_table Application.compile_env!(:archethic, [__MODULE__, :utxo_table])
-  # configurable at runtime
+  @ledger_table :archethic_uco_ledger
+  @unspent_output_index_table :archethic_uco_unspent_output_index
   @threshold Application.compile_env!(:archethic, [__MODULE__, :ets_threshold])
 
   use GenServer
@@ -72,7 +71,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
           },
           protocol_version: protocol_version
         },
-        from_init?
+        from_init? \\ false
       )
       when is_binary(to_address) and is_integer(amount) and amount > 0 do
     case :ets.lookup(@unspent_output_index_table, to_address) do
@@ -220,7 +219,11 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         DB.get_inputs(:UCO, address)
 
       [{^address, true}] ->
-        DB.get_inputs(:UCO, address)
+        :UCO
+        |> DB.get_inputs(address)
+        |> Enum.map(
+          &%VersionedTransactionInput{&1 | input: %TransactionInput{&1.input | spent?: false}}
+        )
 
       inputs ->
         Enum.map(inputs, fn {_, from} ->
@@ -246,7 +249,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   Spend all the unspent outputs for the given address.
   """
   @spec spend_all_unspent_outputs(address :: binary(), from_init? :: boolean()) :: :ok
-  def spend_all_unspent_outputs(address, from_init?) do
+  def spend_all_unspent_outputs(address, from_init? \\ false) do
     case :ets.lookup(@unspent_output_index_table, address) do
       [] ->
         :ok

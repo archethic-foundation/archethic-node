@@ -4,8 +4,8 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   alias TransactionChain.{Transaction, TransactionInput, VersionedTransactionInput}
   alias Transaction.ValidationStamp.LedgerOperations.{UnspentOutput, VersionedUnspentOutput}
 
-  @ledger_table Application.compile_env!(:archethic, [__MODULE__, :ledger_table])
-  @unspent_output_index_table Application.compile_env!(:archethic, [__MODULE__, :utxo_table])
+  @ledger_table :archethic_token_ledger
+  @unspent_output_index_table :archethic_token_unspent_output_index
   @threshold Application.compile_env!(:archethic, [__MODULE__, :ets_threshold])
 
   use GenServer
@@ -225,7 +225,15 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   def get_inputs(address) when is_binary(address) do
     case :ets.lookup(@unspent_output_index_table, address) do
       [] ->
-        DB.get_inputs(:token, address)
+        :token
+        |> DB.get_inputs(address)
+
+      [{^address, true}] ->
+        :token
+        |> DB.get_inputs(address)
+        |> Enum.map(
+          &%VersionedTransactionInput{&1 | input: %TransactionInput{&1.input | spent?: false}}
+        )
 
       [{^address, true}] ->
         DB.get_inputs(:token, address)

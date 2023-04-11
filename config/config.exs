@@ -48,14 +48,10 @@ config :logger, :console,
 # /_/   \_\___\___\___/ \__,_|_| |_|\__|___/
 
 config :archethic, Archethic.Account.MemTables.TokenLedger,
-  ledger_table: :archethic_token_ledger,
-  utxo_table: :archethic_token_unspent_output_index,
-  ets_threshold: System.get_env("ARCHETHIC_INPUTS_THRESHOLD", "3") |> String.to_integer()
+  ets_threshold: System.get_env("ARCHETHIC_INPUTS_THRESHOLD", "100") |> String.to_integer()
 
 config :archethic, Archethic.Account.MemTables.UCOLedger,
-  ledger_table: :archethic_uco_ledger,
-  utxo_table: :archethic_uco_unspent_output_index,
-  ets_threshold: System.get_env("ARCHETHIC_INPUTS_THRESHOLD", "3") |> String.to_integer()
+  ets_threshold: System.get_env("ARCHETHIC_INPUTS_THRESHOLD", "100") |> String.to_integer()
 
 # Faucet rate limit in Number of transactions
 config :archethic, :faucet_rate_limit, 3

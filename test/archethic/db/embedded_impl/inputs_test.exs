@@ -15,8 +15,10 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
       assert [] = InputsReader.get_inputs(:token, address)
     end
 
-    test "should not duplicate the inputs if called multiple times" do
-      # it means that we can only open the file to write *once*
+    test "should append the inputs if called multiple times" do
+      # it means that we can only open the file to write *once* # test "should not duplicate the inputs if called multiple times" do
+      # The property of writing only once to a file has been changed to support both writing and reading from a file directly,
+      # with the help of the from_initialization flag. The overwriting of the file is not possible, the file is only written to`"
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       tx = %VersionedTransactionInput{
@@ -41,7 +43,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsTest do
       InputsWriter.append_input(pid2, tx)
       InputsWriter.stop(pid2)
 
-      assert [^tx] = InputsReader.get_inputs(:UCO, address)
+      assert [^tx, ^tx] = InputsReader.get_inputs(:UCO, address)
     end
 
     test "returns the UCO inputs that were appended" do
