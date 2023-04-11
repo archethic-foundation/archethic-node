@@ -90,7 +90,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
     deviation =
       [price_prior, price_now]
-      |> standard_deviation()
+      |> Utils.standard_deviation()
       |> Float.round(3)
 
     if deviation < deviation_threshold do
@@ -102,19 +102,6 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
 
       false
     end
-  end
-
-  defp standard_deviation(prices) do
-    prices_mean = mean(prices)
-    variance = prices |> Enum.map(fn x -> (prices_mean - x) * (prices_mean - x) end) |> mean()
-    :math.sqrt(variance)
-  end
-
-  defp mean(prices, t \\ 0, l \\ 0)
-  defp mean([], t, l), do: t / l
-
-  defp mean([x | xs], t, l) do
-    mean(xs, t + x, l + 1)
   end
 
   @impl Impl

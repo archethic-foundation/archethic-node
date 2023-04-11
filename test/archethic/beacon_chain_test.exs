@@ -20,6 +20,7 @@ defmodule Archethic.BeaconChainTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetBeaconSummaries
+
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.GetCurrentSummaries
@@ -92,11 +93,12 @@ defmodule Archethic.BeaconChainTest do
         transaction_attestations: []
       }
 
-      assert :ok = BeaconChain.load_slot(slot)
+      assert :ok = BeaconChain.load_slot(slot, Crypto.first_node_public_key())
 
       Process.sleep(500)
 
-      assert [%Slot{subset: <<0>>}] = SummaryCache.pop_slots(<<0>>)
+      assert [{%Slot{subset: <<0>>}, _}] =
+               SummaryCache.stream_current_slots(<<0>>) |> Enum.to_list()
     end
   end
 
@@ -507,6 +509,171 @@ defmodule Archethic.BeaconChainTest do
                |> SummaryAggregate.aggregate()
 
       assert [0.925, 0.8, 0.925, 0.85] == node_average_availabilities
+    end
+
+    test "should find other beacon summaries and accumulate network patches", %{
+      summary_time: summary_time,
+      nodes: [node1, node2, node3, node4]
+    } do
+      summary_v1 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      summary_v2 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      summary_v3 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      summary_v4 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1>>,
+        network_patches: ["ABC", "DEF"]
+      }
+
+      subset_address = Crypto.derive_beacon_chain_address("A", summary_time, true)
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v1]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node2, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v2]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node3, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v3]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+
+        ^node4, %GetBeaconSummaries{addresses: addresses}, _ ->
+          summaries =
+            if subset_address in addresses do
+              [summary_v4]
+            else
+              []
+            end
+
+          {:ok, %BeaconSummaryList{summaries: summaries}}
+      end)
+
+      assert %SummaryAggregate{
+               p2p_availabilities: %{
+                 "A" => %{
+                   network_patches: [
+                     ["ABC", "DEF"],
+                     ["ABC", "DEF"],
+                     ["ABC", "DEF"],
+                     ["ABC", "DEF"]
+                   ]
+                 }
+               }
+             } =
+               BeaconChain.fetch_and_aggregate_summaries(
+                 summary_time,
+                 P2P.authorized_and_available_nodes()
+               )
+    end
+  end
+
+  describe "get_network_stats/1" do
+    test "should get the slot latencies aggregated by node" do
+      node1_slots = [
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now(),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 100}, %{latency: 200}, %{latency: 50}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(10),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 110}, %{latency: 150}, %{latency: 70}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(20),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 130}, %{latency: 110}, %{latency: 80}]
+          }
+        }
+      ]
+
+      node2_slots = [
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now(),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 80}, %{latency: 110}, %{latency: 150}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(10),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 70}, %{latency: 140}, %{latency: 100}]
+          }
+        },
+        %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> DateTime.add(20),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: [%{latency: 70}, %{latency: 100}, %{latency: 120}]
+          }
+        }
+      ]
+
+      File.mkdir_p!(Utils.mut_dir())
+      SummaryCache.start_link()
+      SummaryTimer.start_link(interval: "0 0 0 * *")
+
+      Enum.map(node1_slots, &SummaryCache.add_slot(<<0>>, &1, "node1"))
+      Enum.map(node2_slots, &SummaryCache.add_slot(<<0>>, &1, "node2"))
+
+      assert %{
+               "node1" => [%{latency: 118}, %{latency: 138}, %{latency: 71}],
+               "node2" => [%{latency: 75}, %{latency: 118}, %{latency: 128}]
+             } = BeaconChain.get_network_stats(<<0>>)
     end
   end
 

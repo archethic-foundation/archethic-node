@@ -298,7 +298,8 @@ defmodule Archethic.SelfRepair.Sync do
                             %{
                               node_availabilities: node_availabilities,
                               node_average_availabilities: node_average_availabilities,
-                              end_of_node_synchronizations: end_of_node_synchronizations
+                              end_of_node_synchronizations: end_of_node_synchronizations,
+                              network_patches: network_patches
                             }},
                            acc ->
       sync_node(end_of_node_synchronizations)
@@ -308,6 +309,7 @@ defmodule Archethic.SelfRepair.Sync do
         summary_time,
         node_availabilities,
         node_average_availabilities,
+        network_patches,
         acc
       )
     end)
@@ -360,6 +362,7 @@ defmodule Archethic.SelfRepair.Sync do
          time,
          node_availabilities,
          node_average_availabilities,
+         network_patches,
          acc
        ) do
     node_list = Enum.filter(P2P.list_nodes(), &(DateTime.diff(&1.enrollment_date, time) <= 0))
@@ -372,18 +375,24 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.reduce(acc, fn {available_bit, index}, acc ->
       node = Enum.at(subset_node_list, index)
       avg_availability = Enum.at(node_average_availabilities, index)
+      network_patch = Enum.at(network_patches, index)
+      available? = available_bit == 1 and node.synced?
 
-      if available_bit == 1 and node.synced? do
-        Map.put(acc, node, %{available?: true, average_availability: avg_availability})
-      else
-        Map.put(acc, node, %{available?: false, average_availability: avg_availability})
-      end
+      Map.put(acc, node, %{
+        available?: available?,
+        average_availability: avg_availability,
+        network_patch: network_patch
+      })
     end)
   end
 
   defp update_availabilities(
          {%Node{first_public_key: node_key},
-          %{available?: available?, average_availability: avg_availability}},
+          %{
+            available?: available?,
+            average_availability: avg_availability,
+            network_patch: network_patch
+          }},
          availability_update
        ) do
     if available? do
@@ -395,9 +404,13 @@ defmodule Archethic.SelfRepair.Sync do
 
     P2P.set_node_average_availability(node_key, avg_availability)
 
+    if network_patch do
+      P2P.update_node_network_patch(node_key, network_patch)
+    end
+
     %Node{availability_update: availability_update} = P2P.get_node_info!(node_key)
 
-    {node_key, available?, avg_availability, availability_update}
+    {node_key, available?, avg_availability, availability_update, network_patch}
   end
 
   defp update_statistics(date, []) do

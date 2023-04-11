@@ -996,6 +996,67 @@ defmodule Archethic.Utils do
     |> Base.encode16()
   end
 
+  @doc """
+  Return the standard deviation from a list
+
+  ### Examples
+
+      iex> Utils.standard_deviation([1, 2, 3, 4])
+      1.118034
+  """
+  @spec standard_deviation(list()) :: number()
+  def standard_deviation(list) do
+    list_mean = mean(list)
+
+    list
+    |> Enum.map(fn x -> (list_mean - x) * (list_mean - x) end)
+    |> mean()
+    |> :math.sqrt()
+    |> Float.round(6)
+  end
+
+  @doc """
+  Return the mean from a list
+
+  ### Examples
+
+      iex> Utils.mean([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      5.5
+  """
+  @spec mean(list()) :: number()
+  def mean(list, t \\ 0, l \\ 0)
+  def mean([], t, l), do: t / l
+
+  def mean([x | xs], t, l) do
+    mean(xs, t + x, l + 1)
+  end
+
+  @doc """
+  Chunk a list into N sub lists
+
+  ### Examples
+      
+      iex> Utils.chunk_list_in([1, 2, 3, 4, 5, 6], 3)
+      [ [1, 2], [3, 4], [5, 6] ]
+      
+      iex> Utils.chunk_list_in([1, 2, 3, 4, 5, 6, 7], 3)
+      [ [1, 2], [3, 4], [5, 6, 7] ]
+  """
+  @spec chunk_list_in(list(), pos_integer()) :: list(list())
+  def chunk_list_in(list, parts) when is_list(list) and is_number(parts) and parts > 0 do
+    list
+    |> do_chunk(parts, [])
+    |> Enum.reverse()
+  end
+
+  defp do_chunk(_, 0, chunks), do: chunks
+
+  defp do_chunk(to_chunk, parts, chunks) do
+    chunk_length = to_chunk |> length() |> div(parts)
+    {chunk, rest} = Enum.split(to_chunk, chunk_length)
+    do_chunk(rest, parts - 1, [chunk | chunks])
+  end
+
   @spec await_confirmation(tx_address :: binary(), list(Node.t())) ::
           :ok | {:error, :network_issue}
   def await_confirmation(tx_address, nodes) do
