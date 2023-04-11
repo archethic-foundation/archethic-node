@@ -58,6 +58,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   def code_change("1.0.7", state, _extra) do
     next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
     File.rename("slot_backup", "slot_backup-#{DateTime.to_unix(next_summary_time)}")
+    PubSub.register_to_current_epoch_of_slot_time()
     {:ok, state}
   end
 
