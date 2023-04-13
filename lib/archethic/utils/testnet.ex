@@ -112,7 +112,8 @@ defmodule Archethic.Utils.Testnet do
   defp p2p_port, do: 30_002
   defp web_port, do: 40_000
 
-  @validator_ip 220
+  @validator_1_ip 220
+  @validator_2_ip 230
   @bench_ip 221
   @collector_ip 200
 
@@ -280,7 +281,7 @@ defmodule Archethic.Utils.Testnet do
               networks: %{:net => %{ipv4_address: "1.2.3.#{@collector_ip}"}},
               volumes: [".prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
             },
-            "validator" => %{
+            "validator_1" => %{
               image: "i",
               environment: %{
                 "ARCHETHIC_MUT_DIR" => "/opt/data"
@@ -289,7 +290,19 @@ defmodule Archethic.Utils.Testnet do
               volumes: [
                 "./validator_data/:/opt/data"
               ],
-              networks: %{:net => %{ipv4_address: "1.2.3.#{@validator_ip}"}},
+              networks: %{:net => %{ipv4_address: "1.2.3.#{@validator_1_ip}"}},
+            },
+             "validator_2" => %{
+              image: "i",
+              environment: %{
+                "ARCHETHIC_MUT_DIR" => "/opt/data"
+              },
+              command: ["./bin/archethic_node", "validate", "1.2.3.2", "1.2.3.3", "1.2.3.4", "--phase=2"],
+              volumes: [
+                "./validator_data/:/opt/data"
+              ],
+              networks: %{:net => %{ipv4_address: "1.2.3.#{@validator_2_ip}"}},
+              profiles: ["validate_2"]
             },
             "bench" => %{
               image: "i",
@@ -330,7 +343,7 @@ defmodule Archethic.Utils.Testnet do
         networks: %{:net => %{ipv4_address: ip.(@collector_ip)}},
         volumes: [".prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
       })
-      |> Map.put("validator", %{
+      |> Map.put("validator_1", %{
         image: image,
         environment: %{
           "ARCHETHIC_MUT_DIR" => "/opt/data"
@@ -339,8 +352,19 @@ defmodule Archethic.Utils.Testnet do
         volumes: [
           "./validator_data/:/opt/data"
         ],
-        #  profiles: ["validate"],
-        networks: %{:net => %{ipv4_address: ip.(@validator_ip)}}
+        networks: %{:net => %{ipv4_address: ip.(@validator_1_ip)}}
+      })
+      |> Map.put("validator_2", %{
+        image: image,
+        environment: %{
+          "ARCHETHIC_MUT_DIR" => "/opt/data"
+        },
+        command: ["./bin/archethic_node", "validate" | uninodes] ++ ["--phase=2"],
+        volumes: [
+          "./validator_data/:/opt/data"
+        ],
+        profiles: ["validate_2"],
+        networks: %{:net => %{ipv4_address: ip.(@validator_2_ip)}}
       })
       |> Map.put("bench", %{
         image: image,
@@ -351,7 +375,6 @@ defmodule Archethic.Utils.Testnet do
         volumes: [
           "./bench_data/:/opt/data"
         ],
-        # profiles: ["validate"],
         networks: %{:net => %{ipv4_address: ip.(@bench_ip)}}
       })
 
