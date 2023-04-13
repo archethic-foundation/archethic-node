@@ -40,7 +40,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     {:ok, %{db_path: db_path}}
   end
 
-  def code_change("1.0.6", state, _extra) do
+  def code_change("1.0.7", state, _extra) do
     ## We start the unstarted LRU cache
     cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
     LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)

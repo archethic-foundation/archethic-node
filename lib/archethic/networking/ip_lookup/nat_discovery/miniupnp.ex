@@ -3,7 +3,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
 
   require Logger
 
-  def upnpc() do
+  defp upnpc() do
     Application.app_dir(:archethic, "priv/c_dist/upnpc")
   end
 

@@ -216,7 +216,8 @@ defmodule Archethic.Governance.Code.CICD.Docker do
       |> Path.basename()
       |> String.downcase()
 
-    validator_container = "#{compose_prefix}-validator-1"
+    validator_1_container = "#{compose_prefix}-validator_1-1"
+    validator_2_container = "#{compose_prefix}-validator_2-1"
 
     nodes = 1..nb_nodes |> Enum.map(&"#{compose_prefix}-node#{&1}-1")
 
@@ -226,13 +227,13 @@ defmodule Archethic.Governance.Code.CICD.Docker do
          %{cmd: {_, 0}, testnet: _testnet} <- testnet_start(dir, nb_nodes),
          # wait until the validator is ready for upgrade
          :ok <- Logger.info("#{dir} Part I", address: address_encoded),
-         {:ok, _} <- wait_for_marker(validator_container, @marker),
+         {:ok, _} <- wait_for_marker(validator_1_container, @marker),
          :ok <- Logger.info("#{dir} Upgrade", address: address_encoded),
          true <- testnet_upgrade(dir, nodes, version),
          :ok <- Logger.info("#{dir} Part II", address: address_encoded),
-         #  {_, 0} <- validator_continue(validator_container, testnet),
+         {_, 0} <- validator_continue(dir),
          0 <-
-           docker_wait(validator_container, System.monotonic_time(:second)) do
+           docker_wait(validator_2_container, System.monotonic_time(:second)) do
       testnet_cleanup(dir, 0, address_encoded)
     else
       _ ->
@@ -240,11 +241,13 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     end
   end
 
+  @logfile_name "ci_logfile.txt"
   defp testnet_prepare(dir, address, version) do
     ci = container_name(address)
 
     with :ok <- File.mkdir_p!(dir),
-         {_, 0} <- docker(["cp", "#{ci}:#{@releases}/#{version}/#{@release}", dir]) do
+         {_, 0} <- docker(["cp", "#{ci}:#{@releases}/#{version}/#{@release}", dir]),
+         {_, 0} <- docker(["cp", "#{ci}:/opt/code/#{@logfile_name}", dir <> "/#{@logfile_name}"]) do
       :ok
     else
       _ -> :error
@@ -338,6 +341,23 @@ defmodule Archethic.Governance.Code.CICD.Docker do
         Logger.warning("Received #{inspect(other)} while reading container logs")
         wait_for_marker_loop(port, marker)
     end
+  end
+
+  defp validator_continue(dir) do
+    compose = compose_file(dir)
+
+    System.cmd(
+      "docker-compose",
+      [
+        "--profile",
+        "validate_2",
+        "-f",
+        compose,
+        "up",
+        "-d"
+      ],
+      @cmd_options
+    )
   end
 
   defp testnet_cleanup(dir, code, address_encoded) do

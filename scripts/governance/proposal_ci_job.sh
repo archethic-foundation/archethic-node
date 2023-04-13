@@ -9,9 +9,6 @@ PROPOSAL_ADDRESS=$1
 PROPOSAL_DESCRIPTION=$2
 PROPOSAL_FILENAME=./proposal.diff
 
-echo "=== Test proposal ${PROPOSAL_ADDRESS}"
-tee ${PROPOSAL_FILENAME}
-
 echo "=== Create branch ${PROPOSAL_ADDRESS}"
 git checkout -b "prop_${PROPOSAL_ADDRESS}"
 
