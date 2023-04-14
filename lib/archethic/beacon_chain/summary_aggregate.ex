@@ -8,7 +8,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   defstruct [
     :summary_time,
     availability_adding_time: [],
-    version: 2,
+    version: 1,
     replication_attestations: [],
     p2p_availabilities: %{}
   ]
@@ -269,7 +269,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
   ## Examples
 
     iex> %SummaryAggregate{
-    ...>   version: 2,
+    ...>   version: 1,
     ...>   summary_time: ~U[2022-03-01 00:00:00Z],
     ...>   replication_attestations: [
     ...>     %ReplicationAttestation{
@@ -308,7 +308,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     ...> } |> SummaryAggregate.serialize()
     <<
       # Version
-      2,
+      1,
       # Summary time
       98, 29, 98, 0,
       # Nb replication attestations
@@ -435,63 +435,10 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     ...> 201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
     ...> 119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195, 1, 0, 1, 3, 1::1, 0::1, 1::1,
     ...> 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 109, 252, 111, 87, 231, 170, 54,
-    ...> 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242, 3, 132>>)
-    {
-      %SummaryAggregate{
-        version: 1,
-        summary_time: ~U[2022-03-01 00:00:00Z],
-        replication_attestations: [
-          %ReplicationAttestation{
-           transaction_summary: %TransactionSummary{
-              address: <<0, 0, 120, 123, 229, 13, 144, 130, 230, 18, 17, 45, 244, 92, 226, 107, 11, 104, 226,
-                249, 138, 85, 71, 127, 190, 20, 186, 69, 131, 97, 194, 30, 71, 116>>,
-              type: :transfer,
-              timestamp: ~U[2022-02-01 10:00:00.204Z],
-              fee: 10_000_000,
-              validation_stamp_checksum: <<17, 8, 18, 246, 127, 161, 225, 240, 17, 127, 111, 61, 112, 36, 28, 26, 66,
-               167, 176, 119, 17, 169, 60, 36, 119, 204, 81, 109, 144, 66, 249, 219>>
-           },
-           confirmations: [
-             {
-               0,
-               <<129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
-                100, 172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138,
-                201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
-                119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195>>
-             }
-           ]
-          }
-        ],
-        p2p_availabilities: %{
-          <<0>> => %{
-            node_availabilities: <<1::1, 0::1, 1::1>>,
-            node_average_availabilities: [0.5, 0.7, 0.8],
-            end_of_node_synchronizations: [
-               <<0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 109, 252, 111, 87, 231, 170, 54,
-                 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242>>
-            ],
-            network_patches: []
-          }
-        },
-        availability_adding_time: 900
-      },
-      ""
-    }
-
-    iex> SummaryAggregate.deserialize(<<2, 98, 29, 98, 0, 1, 1, 2, 1, 0, 0, 120, 123, 229, 13, 144,
-    ...> 130, 230, 18, 17, 45, 244, 92, 226, 107, 11, 104, 226, 249, 138, 85, 71, 127, 190, 20, 186, 69,
-    ...> 131, 97, 194, 30, 71, 116, 0, 0, 1, 126, 180, 186, 17, 204, 253, 0, 0, 0, 0, 0, 152, 150, 128,
-    ...> 1, 0, 17, 8, 18, 246, 127, 161, 225, 240, 17, 127, 111, 61, 112, 36, 28, 26, 66,
-    ...> 167, 176, 119, 17, 169, 60, 36, 119, 204, 81, 109, 144, 66, 249, 219, 1, 0, 64,
-    ...> 129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
-    ...> 100, 172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138,
-    ...> 201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
-    ...> 119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195, 1, 0, 1, 3, 1::1, 0::1, 1::1,
-    ...> 50, 70, 80, 1, 1, 0, 1, 57, 98, 198, 202, 155, 43, 217, 149, 5, 213, 109, 252, 111, 87, 231, 170, 54,
     ...> 211, 178, 208, 5, 184, 33, 193, 167, 91, 160, 131, 129, 117, 45, 242, 1, 2, "ABC", "DEF", 3, 132>>)
     {
       %SummaryAggregate{
-        version: 2,
+        version: 1,
         summary_time: ~U[2022-03-01 00:00:00Z],
         replication_attestations: [
           %ReplicationAttestation{
@@ -539,7 +486,7 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       Utils.deserialize_transaction_attestations(rest, nb_attestations, [])
 
     {p2p_availabilities, <<availability_adding_time::16, rest::bitstring>>} =
-      deserialize_p2p_availabilities(version, rest, nb_p2p_availabilities, %{})
+      deserialize_p2p_availabilities(rest, nb_p2p_availabilities, %{})
 
     {
       %__MODULE__{
@@ -553,51 +500,14 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
     }
   end
 
-  defp deserialize_p2p_availabilities(_version, <<>>, _, acc), do: {acc, <<>>}
+  defp deserialize_p2p_availabilities(<<>>, _, acc), do: {acc, <<>>}
 
-  defp deserialize_p2p_availabilities(_version, rest, nb_p2p_availabilities, acc)
+  defp deserialize_p2p_availabilities(rest, nb_p2p_availabilities, acc)
        when map_size(acc) == nb_p2p_availabilities do
     {acc, rest}
   end
 
   defp deserialize_p2p_availabilities(
-         1,
-         <<subset::binary-size(1), rest::bitstring>>,
-         nb_p2p_availabilities,
-         acc
-       ) do
-    {nb_node_availabilities, rest} = VarInt.get_value(rest)
-
-    <<node_availabilities::bitstring-size(nb_node_availabilities),
-      node_avg_availabilities_bin::binary-size(nb_node_availabilities), rest::bitstring>> = rest
-
-    node_avg_availabilities =
-      node_avg_availabilities_bin
-      |> :erlang.binary_to_list()
-      |> Enum.map(fn avg -> avg / 100 end)
-
-    {nb_end_of_sync, rest} = VarInt.get_value(rest)
-    {end_of_node_sync, rest} = Utils.deserialize_public_key_list(rest, nb_end_of_sync, [])
-
-    deserialize_p2p_availabilities(
-      1,
-      rest,
-      nb_p2p_availabilities,
-      Map.put(
-        acc,
-        subset,
-        %{
-          node_availabilities: node_availabilities,
-          node_average_availabilities: node_avg_availabilities,
-          end_of_node_synchronizations: end_of_node_sync,
-          network_patches: []
-        }
-      )
-    )
-  end
-
-  defp deserialize_p2p_availabilities(
-         version,
          <<subset::binary-size(1), rest::bitstring>>,
          nb_p2p_availabilities,
          acc
@@ -625,7 +535,6 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       end
 
     deserialize_p2p_availabilities(
-      version,
       rest,
       nb_p2p_availabilities,
       Map.put(
