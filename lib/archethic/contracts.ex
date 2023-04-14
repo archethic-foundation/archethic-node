@@ -27,6 +27,19 @@ defmodule Archethic.Contracts do
   @extended_mode? Mix.env() != :prod
 
   @doc """
+  Return the minimum trigger interval in milliseconds.
+  Depends on the env
+  """
+  @spec minimum_trigger_interval(boolean()) :: pos_integer()
+  def minimum_trigger_interval(extended_mode? \\ @extended_mode?) do
+    if extended_mode? do
+      1_000
+    else
+      60_000
+    end
+  end
+
+  @doc """
   Parse a smart contract code and return a contract struct
   """
   @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
