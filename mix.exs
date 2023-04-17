@@ -121,6 +121,7 @@ defmodule Archethic.MixProject do
       {:ex_cldr, "~> 2.7"},
       {:ex_cldr_numbers, "~> 2.29"},
       {:git_diff, "~> 0.6.4"},
+      {:decimal, "~> 2.0"},
 
       # Numbering
       {:nx, "~> 0.5"},
