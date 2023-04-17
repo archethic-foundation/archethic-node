@@ -9,9 +9,10 @@ defmodule Archethic.P2P.GeoPatch do
 
   @doc """
   Get a patch from an IP address
+  Null island, patch for local host.
   """
   @spec from_ip(:inet.ip_address()) :: binary()
-  def from_ip({127, 0, 0, 1}), do: compute_random_patch()
+  def from_ip({127, 0, 0, 1}), do: "000"
 
   def from_ip(ip) when is_tuple(ip) do
     case GeoIP.get_coordinates(ip) do

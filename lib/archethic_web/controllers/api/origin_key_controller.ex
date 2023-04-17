@@ -71,18 +71,13 @@ defmodule ArchethicWeb.API.OriginKeyController do
   end
 
   defp send_transaction(tx = %Transaction{}) do
-    case Archethic.send_new_transaction(tx) do
-      :ok ->
-        TransactionSubscriber.register(tx.address, System.monotonic_time())
+    :ok = Archethic.send_new_transaction(tx)
+    TransactionSubscriber.register(tx.address, System.monotonic_time())
 
-        {201,
-         %{
-           transaction_address: Base.encode16(tx.address),
-           status: "pending"
-         }}
-
-      {:error, :network_issue} ->
-        {422, %{status: "error - may be invalid transaction"}}
-    end
+    {201,
+     %{
+       transaction_address: Base.encode16(tx.address),
+       status: "pending"
+     }}
   end
 end

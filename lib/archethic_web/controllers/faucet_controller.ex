@@ -119,19 +119,16 @@ defmodule ArchethicWeb.FaucetController do
     tx_address = tx.address
     TransactionSubscriber.register(tx_address, System.monotonic_time())
 
-    case Archethic.send_new_transaction(tx) do
-      :ok ->
-        receive do
-          {:new_transaction, ^tx_address} ->
-            FaucetRateLimiter.register(recipient_address, System.monotonic_time())
-            {:ok, tx_address}
-        after
-          5000 ->
-            {:error, :network_issue}
-        end
+    # case Archethic.send_new_transaction(tx) do
+    :ok = Archethic.send_new_transaction(tx)
 
-      {:error, _} = e ->
-        e
+    receive do
+      {:new_transaction, ^tx_address} ->
+        FaucetRateLimiter.register(recipient_address, System.monotonic_time())
+        {:ok, tx_address}
+    after
+      5000 ->
+        {:error, :network_issue}
     end
   end
 end

@@ -3,6 +3,8 @@ import Config
 # Print only errors during test
 config :logger, level: :error
 
+config :archethic, Archethic.TaskSupervisor, enabled: true
+
 config :archethic, :mut_dir, "data_test"
 
 config :archethic, Archethic.Account.MemTablesLoader, enabled: false

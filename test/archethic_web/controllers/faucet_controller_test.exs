@@ -32,6 +32,7 @@ defmodule ArchethicWeb.FaucetControllerTest do
     })
 
     setup_before_send_tx()
+    start_supervised(FaucetRateLimiter)
     :ok
   end
 
