@@ -365,7 +365,16 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def postwalk(_node = {:*, meta, [lhs, rhs]}, acc) do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
-        Float.floor(0.0 + unquote(lhs) * unquote(rhs), 8)
+        Decimal.to_float(
+          Decimal.round(
+            Decimal.mult(
+              Decimal.from_float(0.0 + unquote(lhs)),
+              Decimal.from_float(0.0 + unquote(rhs))
+            ),
+            8,
+            :floor
+          )
+        )
       end
 
     {new_node, acc}
@@ -374,7 +383,16 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def postwalk(_node = {:/, meta, [lhs, rhs]}, acc) do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
-        Float.floor(0.0 + unquote(lhs) / unquote(rhs), 8)
+        Decimal.to_float(
+          Decimal.round(
+            Decimal.div(
+              Decimal.from_float(0.0 + unquote(lhs)),
+              Decimal.from_float(0.0 + unquote(rhs))
+            ),
+            8,
+            :floor
+          )
+        )
       end
 
     {new_node, acc}
@@ -383,7 +401,16 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def postwalk(_node = {:+, meta, [lhs, rhs]}, acc) do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
-        Float.floor(0.0 + (unquote(lhs) + unquote(rhs)), 8)
+        Decimal.to_float(
+          Decimal.round(
+            Decimal.add(
+              Decimal.from_float(0.0 + unquote(lhs)),
+              Decimal.from_float(0.0 + unquote(rhs))
+            ),
+            8,
+            :floor
+          )
+        )
       end
 
     {new_node, acc}
@@ -392,7 +419,16 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def postwalk(_node = {:-, meta, [lhs, rhs]}, acc) do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
-        Float.floor(0.0 + (unquote(lhs) - unquote(rhs)), 8)
+        Decimal.to_float(
+          Decimal.round(
+            Decimal.sub(
+              Decimal.from_float(0.0 + unquote(lhs)),
+              Decimal.from_float(0.0 + unquote(rhs))
+            ),
+            8,
+            :floor
+          )
+        )
       end
 
     {new_node, acc}

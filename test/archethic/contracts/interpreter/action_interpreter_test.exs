@@ -1004,6 +1004,50 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
 
       code = ~s"""
       actions triggered_by: transaction do
+        a = 0.145 * 2
+        if a == 0.29 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 1 / 3
+        if a == 0.33333333 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 2 / 3
+        if a == 0.66666666 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 0.29 + 0.15
+        if a == 0.44 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
         a = 12 / 2
         if a == 6 do
           Contract.set_content "ok"
