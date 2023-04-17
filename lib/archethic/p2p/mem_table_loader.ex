@@ -88,7 +88,10 @@ defmodule Archethic.P2P.MemTableLoader do
         P2P.set_node_globally_synced(node_key)
         P2P.set_node_globally_available(node_key, availability_update)
         P2P.set_node_average_availability(node_key, avg_availability)
-        P2P.update_node_network_patch(node_key, network_patch)
+
+        if network_patch do
+          P2P.update_node_network_patch(node_key, network_patch)
+        end
 
       [] ->
         P2P.set_node_globally_synced(node_key)
