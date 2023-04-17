@@ -22,7 +22,10 @@ defmodule Archethic.P2P.Message.NewBeaconSlot do
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
-  def process(%__MODULE__{slot: slot = %Slot{subset: subset, slot_time: slot_time}}, _) do
+  def process(
+        %__MODULE__{slot: slot = %Slot{subset: subset, slot_time: slot_time}},
+        node_public_key
+      ) do
     summary_time = BeaconChain.next_summary_date(slot_time)
     node_list = P2P.authorized_and_available_nodes(summary_time, true)
 
@@ -36,7 +39,7 @@ defmodule Archethic.P2P.Message.NewBeaconSlot do
 
     # Load BeaconChain's slot only for the summary nodes
     with true <- Utils.key_in_node_list?(beacon_summary_nodes, Crypto.first_node_public_key()),
-         :ok <- BeaconChain.load_slot(slot) do
+         :ok <- BeaconChain.load_slot(slot, node_public_key) do
       %Ok{}
     else
       false ->

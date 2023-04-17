@@ -5,6 +5,7 @@ defmodule Archethic.BeaconChain.Subset do
   """
 
   alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.NetworkCoordinates
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
@@ -14,6 +15,7 @@ defmodule Archethic.BeaconChain.Subset do
 
   alias __MODULE__.P2PSampling
   alias __MODULE__.SummaryCache
+  alias __MODULE__.StatsCollector
 
   alias Archethic.BeaconChain.SubsetRegistry
 
@@ -288,12 +290,14 @@ defmodule Archethic.BeaconChain.Subset do
 
     tx_summary_message = TransactionSummaryMessage.from_transaction_summary(tx_summary)
 
+    next_slot_time = BeaconChain.next_slot(timestamp)
+
     # Do not notify beacon storage nodes as they are already aware of the transaction
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(address),
-        BeaconChain.next_slot(timestamp),
-        P2P.authorized_and_available_nodes(timestamp)
+        next_slot_time,
+        P2P.authorized_and_available_nodes(next_slot_time, true)
       )
       |> Enum.map(& &1.first_public_key)
 
@@ -315,7 +319,7 @@ defmodule Archethic.BeaconChain.Subset do
       current_slot = %{current_slot | slot_time: time}
 
       if summary_time?(time) do
-        SummaryCache.add_slot(subset, current_slot)
+        SummaryCache.add_slot(subset, current_slot, Crypto.first_node_public_key())
       else
         next_summary_time = SummaryTimer.next_summary(time)
         broadcast_beacon_slot(subset, next_summary_time, current_slot)
@@ -354,23 +358,64 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp handle_summary(time, subset) do
-    beacon_slots = SummaryCache.pop_slots(subset)
+    beacon_slots =
+      subset
+      |> SummaryCache.stream_current_slots()
+      |> Stream.map(fn
+        {slot, _} -> slot
+        slot -> slot
+      end)
 
     if Enum.empty?(beacon_slots) do
       :ok
     else
-      Logger.debug("Create beacon summary with #{inspect(beacon_slots, limit: :infinity)}",
-        beacon_subset: Base.encode16(subset)
-      )
+      Logger.debug("Create beacon summary", beacon_subset: Base.encode16(subset))
+
+      patch_task = Task.async(fn -> get_network_patches(subset, time) end)
 
       summary =
         %Summary{
           subset: subset,
           summary_time: Utils.truncate_datetime(time, second?: true, microsecond?: true)
         }
-        |> Summary.aggregate_slots(beacon_slots, P2PSampling.list_nodes_to_sample(subset))
+        |> Summary.aggregate_slots(
+          beacon_slots,
+          P2PSampling.list_nodes_to_sample(subset)
+        )
 
-      BeaconChain.write_beacon_summary(summary)
+      network_patches = Task.await(patch_task)
+      BeaconChain.write_beacon_summary(%{summary | network_patches: network_patches})
+
+      :ok
+    end
+  end
+
+  defp get_network_patches(subset, summary_time) do
+    with true <- length(P2P.authorized_and_available_nodes()) > 1,
+         sampling_nodes when sampling_nodes != [] <- P2PSampling.list_nodes_to_sample(subset) do
+      sampling_nodes_indexes =
+        P2P.list_nodes()
+        |> Enum.sort_by(& &1.first_public_key)
+        |> Enum.with_index()
+        |> Enum.filter(fn {node, _index} ->
+          Utils.key_in_node_list?(sampling_nodes, node.first_public_key)
+        end)
+        |> Enum.map(fn {_, index} -> index end)
+
+      summary_time
+      |> StatsCollector.get()
+      |> NetworkCoordinates.get_patch_from_latencies()
+      |> Enum.with_index()
+      |> Enum.filter(fn {_, index} ->
+        index in sampling_nodes_indexes
+      end)
+      |> Enum.map(fn {patch, _} ->
+        # TODO: define the bandwidth digits. We take "A" as medium value for now.
+        "#{patch}A"
+      end)
+    else
+      _ ->
+        []
     end
   end
 
@@ -385,7 +430,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp beacon_summary_node?(subset, summary_time, node_public_key) do
-    node_list = P2P.authorized_and_available_nodes(summary_time)
+    node_list = P2P.authorized_and_available_nodes(summary_time, true)
 
     Election.beacon_storage_nodes(
       subset,

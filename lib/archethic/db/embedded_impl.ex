@@ -344,7 +344,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec get_last_p2p_summaries() :: %{
           (node_public_key :: Crypto.key()) => {
             available? :: boolean(),
-            average_availability :: float()
+            average_availability :: float(),
+            network_patch :: binary() | nil
           }
         }
   defdelegate get_last_p2p_summaries, to: P2PView, as: :get_views

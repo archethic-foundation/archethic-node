@@ -9,6 +9,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
     Summary,
     SummaryTimer,
     Subset.SummaryCache,
+    Subset.StatsCollector,
     Subset
   }
 
@@ -19,6 +20,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.BeaconUpdate
   alias Archethic.P2P.Message.NewBeaconSlot
+  alias Archethic.P2P.Message.GetNetworkStats
+  alias Archethic.P2P.Message.NetworkStats
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
@@ -39,6 +42,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
       authorized?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
     })
+
+    StatsCollector.start_link()
 
     {:ok, subset: <<0>>}
   end
@@ -325,14 +330,26 @@ defmodule Archethic.BeaconChain.SubsetTest do
           {:ok, %Ok{}}
 
         _, %NewBeaconSlot{slot: slot = %Slot{subset: subset}}, _ ->
-          SummaryCache.add_slot(subset, slot)
+          SummaryCache.add_slot(subset, slot, Crypto.first_node_public_key())
           {:ok, %Ok{}}
+
+        _, %GetNetworkStats{subsets: _}, _ ->
+          {:ok,
+           %NetworkStats{
+             stats: %{
+               <<subset>> => %{
+                 Crypto.first_node_public_key() => [%{latency: 90}, %{latency: 100}],
+                 <<0::8, 0::8, "key_beacon_node2">> => [%{latency: 90}, %{latency: 100}]
+               }
+             }
+           }}
       end)
 
       MockClient
       |> stub(:get_availability_timer, fn _, _ -> 0 end)
 
-      summary_interval = "*/3 * * * *"
+      summary_interval = "*/5 * * * *"
+
       start_supervised!({SummaryTimer, interval: summary_interval})
       start_supervised!({SlotTimer, interval: "*/1 * * * *"})
       start_supervised!(SummaryCache)
@@ -347,15 +364,43 @@ defmodule Archethic.BeaconChain.SubsetTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key:
-          <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-        last_public_key:
-          <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
         geo_patch: "AAA",
         network_patch: "AAA",
         available?: true,
         authorized?: true,
         authorization_date: ~U[2020-09-01 00:00:00Z],
+        enrollment_date: ~U[2020-09-01 00:00:00Z]
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3001,
+        first_public_key: <<0::8, 0::8, "key_beacon_node2">>,
+        last_public_key: <<0::8, 0::8, "key_beacon_node2">>,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: ~U[2020-09-01 00:00:00Z],
+        enrollment_date: ~U[2020-09-01 00:00:00Z]
+      })
+
+      # Sampled nodes
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3005,
+        first_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node1">>,
+        last_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node1">>,
+        enrollment_date: ~U[2020-09-01 00:00:00Z]
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3006,
+        first_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node2">>,
+        last_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node2">>,
         enrollment_date: ~U[2020-09-01 00:00:00Z]
       })
 
@@ -387,7 +432,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
             %ReplicationAttestation{
               transaction_summary: ^tx_summary
             }
-          ]
+          ],
+          network_patches: [_ | _]
         } ->
           send(me, :beacon_transaction_summary_stored)
       end)
@@ -400,7 +446,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
         |> DateTime.truncate(:millisecond)
 
       send(pid, {:create_slot, now})
-      assert_receive :beacon_transaction_summary_stored
+      assert_receive :beacon_transaction_summary_stored, 2_000
     end
   end
 

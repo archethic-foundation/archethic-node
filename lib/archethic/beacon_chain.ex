@@ -9,6 +9,7 @@ defmodule Archethic.BeaconChain do
   alias __MODULE__.Slot.Validation, as: SlotValidation
   alias __MODULE__.SlotTimer
   alias __MODULE__.Subset
+  alias __MODULE__.NetworkCoordinates
   alias __MODULE__.Subset.P2PSampling
   alias __MODULE__.Subset.SummaryCache
   alias __MODULE__.Summary
@@ -28,6 +29,7 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionSummaryList
+
   alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain.TransactionSummary
@@ -110,8 +112,8 @@ defmodule Archethic.BeaconChain do
   @doc """
   Load a slot in summary cache
   """
-  @spec load_slot(Slot.t()) :: :ok | :error
-  def load_slot(slot = %Slot{subset: subset, slot_time: slot_time}) do
+  @spec load_slot(Slot.t(), Crypto.key()) :: :ok | :error
+  def load_slot(slot = %Slot{subset: subset, slot_time: slot_time}, node_public_key) do
     if slot_time == SlotTimer.previous_slot(DateTime.utc_now()) do
       Task.Supervisor.start_child(TaskSupervisor, fn ->
         case validate_slot(slot) do
@@ -120,7 +122,7 @@ defmodule Archethic.BeaconChain do
               beacon_subset: Base.encode16(subset)
             )
 
-            SummaryCache.add_slot(subset, slot)
+            SummaryCache.add_slot(subset, slot, node_public_key)
 
           {:error, reason} ->
             Logger.error("Invalid beacon slot - #{inspect(reason)}")
@@ -195,6 +197,10 @@ defmodule Archethic.BeaconChain do
   @spec get_summary_slots(binary()) :: list(TransactionSummary.t())
   def get_summary_slots(subset) when is_binary(subset) do
     SummaryCache.stream_current_slots(subset)
+    |> Stream.map(fn
+      {slot, _} -> slot
+      slot -> slot
+    end)
     |> Stream.flat_map(fn %Slot{transaction_attestations: transaction_attestations} ->
       transaction_summaries =
         transaction_attestations
@@ -252,7 +258,12 @@ defmodule Archethic.BeaconChain do
     if unsubscribe?, do: Update.unsubscribe()
 
     Enum.map(list_subsets(), fn subset ->
-      nodes = Election.beacon_storage_nodes(subset, date, P2P.authorized_and_available_nodes())
+      nodes =
+        Election.beacon_storage_nodes(
+          subset,
+          date,
+          P2P.authorized_and_available_nodes(date, true)
+        )
 
       nodes =
         Enum.reject(nodes, fn node -> node.first_public_key == Crypto.first_node_public_key() end)
@@ -324,9 +335,9 @@ defmodule Archethic.BeaconChain do
   @spec list_transactions_summaries_from_current_slot(DateTime.t()) ::
           list(TransactionSummary.t())
   def list_transactions_summaries_from_current_slot(date = %DateTime{} \\ DateTime.utc_now()) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
-
     next_summary_date = next_summary_date(DateTime.truncate(date, :millisecond))
+
+    authorized_nodes = P2P.authorized_and_available_nodes(next_summary_date, true)
 
     # get the subsets to request per node
     list_subsets()
@@ -471,5 +482,13 @@ defmodule Archethic.BeaconChain do
       {:error, :network_issue} = e ->
         e
     end
+  end
+
+  @doc """
+  Retrieve the network stats for a given subset from the cached slots
+  """
+  @spec get_network_stats(binary()) :: %{Crypto.key() => Slot.net_stats()}
+  def get_network_stats(subset) when is_binary(subset) do
+    NetworkCoordinates.aggregate_network_stats(subset)
   end
 end

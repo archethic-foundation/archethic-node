@@ -68,11 +68,19 @@ defmodule Archethic.DB do
 
   @callback transaction_exists?(binary(), storage_type()) :: boolean()
 
-  @callback register_p2p_summary(list({Crypto.key(), boolean(), float(), DateTime.t()})) :: :ok
+  @callback register_p2p_summary(
+              list(
+                {node_public_key :: Crypto.key(), available? :: boolean(),
+                 average_availability :: float(), availability_update :: DateTime.t(),
+                 network_patch :: binary()}
+              )
+            ) ::
+              :ok
 
   @callback get_last_p2p_summaries() :: %{
               (node_public_key :: Crypto.key()) =>
-                {available? :: boolean(), average_availability :: float()}
+                {available? :: boolean(), average_availability :: float(),
+                 network_patch :: binary() | nil}
             }
 
   @callback get_bootstrap_info(key :: String.t()) :: String.t() | nil
