@@ -44,14 +44,14 @@ defmodule Mix.Tasks.Archethic.MigrateTest do
       assert "0.0.1" = File.read!(migration_path)
     end
 
-    test "should update version number even without migration", %{
+    test "should not update version number on version without migration", %{
       migration_path: migration_path
     } do
       Migrate.run("0.0.2")
       assert "0.0.2" = File.read!(migration_path)
 
       Migrate.run("0.0.3")
-      assert "0.0.3" = File.read!(migration_path)
+      assert "0.0.2" = File.read!(migration_path)
     end
 
     test "should run all missed upgrade", %{
@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Archethic.MigrateTest do
       |> expect(:transaction_exists?, fn "0.0.2", _ -> true end)
 
       Migrate.run("0.0.3")
-      assert "0.0.3" = File.read!(migration_path)
+      assert "0.0.2" = File.read!(migration_path)
     end
 
     test "should not run migration already done", %{

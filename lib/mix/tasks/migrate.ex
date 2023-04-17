@@ -18,15 +18,15 @@ defmodule Mix.Tasks.Archethic.Migrate do
         # File does not exist when it's the first time the node is started
         # We create the folder to write the migration file on first start
         migration_file_path |> Path.dirname() |> File.mkdir_p!()
+        File.write(migration_file_path, new_version)
         []
       end
 
-    Enum.each(migrations_to_run, fn module ->
+    Enum.each(migrations_to_run, fn {version, module} ->
       :erlang.apply(module, :run, [])
       unload_module(module)
+      File.write(migration_file_path, version)
     end)
-
-    File.write(migration_file_path, new_version)
   end
 
   defp filter_migrations_to_run(last_version) do
@@ -40,9 +40,9 @@ defmodule Mix.Tasks.Archethic.Migrate do
       {migration_version, migration_path}
     end)
     |> Enum.filter(fn {migration_version, _} -> last_version < migration_version end)
-    |> Enum.map(fn {_version, path} -> Code.eval_file(path) end)
+    |> Enum.map(fn {version, path} -> {version, Code.eval_file(path)} end)
     |> Enum.filter(fn
-      {{:module, module, _, _}, _} ->
+      {_version, {{:module, module, _, _}, _}} ->
         if function_exported?(module, :run, 0) do
           true
         else
@@ -53,7 +53,7 @@ defmodule Mix.Tasks.Archethic.Migrate do
       _ ->
         false
     end)
-    |> Enum.map(fn {{_, module, _, _}, _} -> module end)
+    |> Enum.map(fn {version, {{_, module, _, _}, _}} -> {version, module} end)
   end
 
   defp get_migrations_path() do
