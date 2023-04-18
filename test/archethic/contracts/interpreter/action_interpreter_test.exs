@@ -952,7 +952,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       code = ~s"""
       actions triggered_by: transaction do
         if transaction.uco_transfers["#{address_hex}"] == 2 do
-          if List.at(transaction.token_transfers["#{address2_hex}"], 0).amount == 3 do
+          if List.at(transaction.token_transfers["#{address2_hex}"], 0).amount == 3.12345 do
             Contract.set_content "ok"
           end
         end
@@ -966,7 +966,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
               transfers: [
                 %TokenTransfer{
                   to: address2,
-                  amount: Archethic.Utils.to_bigint(3),
+                  amount: Archethic.Utils.to_bigint(3.12345),
                   token_address: token_address,
                   token_id: 1
                 }
