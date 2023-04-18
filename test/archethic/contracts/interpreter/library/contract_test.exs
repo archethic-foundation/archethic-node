@@ -398,15 +398,15 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       code = ~s"""
       actions triggered_by: transaction do
         transfers = [
-          [to: "#{Base.encode16(address)}", amount: 1234],
-          [to: "#{Base.encode16(address2)}", amount: 5678]
+          [to: "#{Base.encode16(address)}", amount: 12.34],
+          [to: "#{Base.encode16(address2)}", amount: 567.8]
         ]
         Contract.add_uco_transfers(transfers)
       end
       """
 
-      expected_amount1 = Archethic.Utils.to_bigint(1234)
-      expected_amount2 = Archethic.Utils.to_bigint(5678)
+      expected_amount1 = Archethic.Utils.to_bigint(12.34)
+      expected_amount2 = Archethic.Utils.to_bigint(567.8)
 
       assert %Transaction{
                data: %TransactionData{
@@ -433,14 +433,14 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       code = ~s"""
       actions triggered_by: transaction do
         transfers = [
-          [to: "#{Base.encode16(address)}", amount: 14, token_address: "#{Base.encode16(token_address)}"],
+          [to: "#{Base.encode16(address)}", amount: 14.1864, token_address: "#{Base.encode16(token_address)}"],
           [to: "#{Base.encode16(address2)}", amount: 3,token_id: 4, token_address: "#{Base.encode16(token_address)}"]
         ]
         Contract.add_token_transfers(transfers)
       end
       """
 
-      expected_amount1 = Archethic.Utils.to_bigint(14)
+      expected_amount1 = Archethic.Utils.to_bigint(14.1864)
       expected_amount2 = Archethic.Utils.to_bigint(3)
 
       assert %Transaction{
