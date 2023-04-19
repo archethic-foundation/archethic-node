@@ -1,32 +1,34 @@
 defmodule Archethic.SelfRepair.NetworkChain do
   @moduledoc """
   Synchronization of one or multiple network chains.
-  Asynchronous functions use a NetworkChainWorker to avoid concurrent runs.
+  Asynchronous functions use a worker to avoid concurrent runs.
   """
-  alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.Reward
   alias Archethic.SelfRepair
-  alias Archethic.SelfRepair.NetworkChainWorker
   alias Archethic.SharedSecrets
   alias Archethic.TransactionChain
+  alias Archethic.Utils.DistinctEffectWorker
+
+  @type type() :: :origin | :reward | :oracle | :node | :node_shared_secrets
 
   @doc """
   Synchronize the network chain of given type.
   It runs in a worker. Skips if worker is already running.
   """
-  @spec asynchronous_resync(NetworkChainWorker.type()) :: :ok
+
+  @spec asynchronous_resync(type()) :: :ok
   def asynchronous_resync(network_chain_type) do
-    NetworkChainWorker.resync(network_chain_type)
+    DistinctEffectWorker.run(network_chain_type, &synchronous_resync/1)
   end
 
   @doc """
   Synchronize the network chains of given types.
   Every sync is done in its own worker, skip those already running.
   """
-  @spec asynchronous_resync_many(list(NetworkChainWorker.type())) :: :ok
+  @spec asynchronous_resync_many(list(type())) :: :ok
   def asynchronous_resync_many(network_chain_types) do
     Enum.each(
       network_chain_types,
@@ -38,7 +40,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   Synchronize the network chain of given type.
   Blocks the caller.
   """
-  @spec synchronous_resync(NetworkChainWorker.type()) :: :ok | {:error, :network_issue}
+  @spec synchronous_resync(type()) :: :ok | {:error, :network_issue}
   def synchronous_resync(:node) do
     :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: :node})
 
@@ -50,11 +52,8 @@ defmodule Archethic.SelfRepair.NetworkChain do
         Task.Supervisor.async_stream_nolink(
           Archethic.TaskSupervisor,
           nodes_to_resync,
-          fn %Node{first_public_key: first_public_key, last_address: last_address} ->
-            SelfRepair.resync(
-              Crypto.derive_address(first_public_key),
-              last_address
-            )
+          fn %Node{last_address: last_address} ->
+            SelfRepair.replicate_transaction(last_address)
           end,
           ordered: false,
           on_timeout: :kill_task,
@@ -89,11 +88,10 @@ defmodule Archethic.SelfRepair.NetworkChain do
       Archethic.TaskSupervisor,
       addresses,
       fn genesis_address ->
-        with false <- SelfRepair.repair_in_progress?(genesis_address),
-             {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
+        with {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
              {:ok, remote_last_address} <- TransactionChain.resolve_last_address(genesis_address),
              false <- remote_last_address == local_last_address do
-          SelfRepair.resync(genesis_address, remote_last_address)
+          SelfRepair.replicate_transaction(remote_last_address)
         end
       end,
       ordered: false,
@@ -107,7 +105,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   Synchronize multiple network chains
   They all run in parallel but we block caller until they are all done.
   """
-  @spec synchronous_resync_many(list(NetworkChainWorker.type())) :: :ok
+  @spec synchronous_resync_many(list(type())) :: :ok
   def synchronous_resync_many(network_chain_types) do
     Task.Supervisor.async_stream_nolink(
       Archethic.TaskSupervisor,

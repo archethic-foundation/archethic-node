@@ -4,11 +4,19 @@ defmodule Archethic.SelfRepair do
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
 
-  alias __MODULE__.{Notifier, NotifierSupervisor, RepairRegistry, RepairWorker}
+  alias __MODULE__.{Notifier, NotifierSupervisor}
   alias __MODULE__.{Scheduler, Sync}
 
   alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
   alias Archethic.{P2P.Node}
+
+  alias Archethic.{
+    P2P,
+    Replication
+  }
+
+  alias Archethic.P2P.Message
+  alias Archethic.TransactionChain.Transaction
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -133,40 +141,6 @@ defmodule Archethic.SelfRepair do
     end
   end
 
-  @doc """
-  Return pid of a running RepairWorker for the first_address, or false
-  """
-  @spec repair_in_progress?(first_address :: binary()) :: false | pid()
-  def repair_in_progress?(first_address) do
-    case Registry.lookup(RepairRegistry, first_address) do
-      [{pid, _}] ->
-        pid
-
-      _ ->
-        false
-    end
-  end
-
-  @doc """
-  Start a new RepairWorker for the first_address
-  """
-  @spec start_worker(list()) :: DynamicSupervisor.on_start_child()
-  def start_worker(args) do
-    DynamicSupervisor.start_child(NotifierSupervisor, {RepairWorker, args})
-  end
-
-  @doc """
-  Add a new address in the address list of the RepairWorker
-  """
-  @spec add_repair_addresses(
-          pid(),
-          Crypto.prepended_hash() | nil,
-          list(Crypto.prepended_hash())
-        ) :: :ok
-  def add_repair_addresses(pid, storage_address, io_addresses) do
-    GenServer.cast(pid, {:add_address, storage_address, io_addresses})
-  end
-
   def config_change(changed_conf) do
     changed_conf
     |> Keyword.get(Scheduler)
@@ -207,23 +181,45 @@ defmodule Archethic.SelfRepair do
   end
 
   @doc """
-  Starts a RepairWorker to synchronize the given address.
-  If the worker already is started for this chain, append the given address.
+  Replicate the transaction at given address
   """
-  @spec resync(binary(), binary()) :: :ok
-  def resync(genesis_address, storage_address) do
-    case repair_in_progress?(genesis_address) do
-      false ->
-        start_worker(
-          first_address: genesis_address,
-          storage_address: storage_address,
-          io_addresses: []
-        )
+  @spec replicate_transaction(binary(), boolean()) :: :ok | {:error, term()}
+  def replicate_transaction(address, storage? \\ true) do
+    authorized_nodes =
+      DateTime.utc_now()
+      |> BeaconChain.previous_summary_time()
+      |> P2P.authorized_and_available_nodes(true)
 
-      pid ->
-        add_repair_addresses(pid, storage_address, [])
+    timeout = Message.get_max_timeout()
+
+    acceptance_resolver = fn
+      {:ok, %Transaction{address: ^address}} -> true
+      _ -> false
     end
 
-    :ok
+    with false <- TransactionChain.transaction_exists?(address),
+         storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
+         {:ok, tx} <-
+           TransactionChain.fetch_transaction_remotely(
+             address,
+             storage_nodes,
+             timeout,
+             acceptance_resolver
+           ) do
+      if storage? do
+        case Replication.validate_and_store_transaction_chain(tx, true, authorized_nodes) do
+          :ok -> update_last_address(address, authorized_nodes)
+          error -> error
+        end
+      else
+        Replication.validate_and_store_transaction(tx, true)
+      end
+    else
+      true ->
+        {:error, :transaction_already_exists}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 end

@@ -12,11 +12,13 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.NodeList
   alias Archethic.P2P.Message.ListNodes
+  alias Archethic.P2P.Message.ListNodes
   alias Archethic.P2P.Node
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChain
 
   import Mox
+  import Mock
 
   describe "synchronous_resync (non-node)" do
     setup do
@@ -33,7 +35,7 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+        authorization_date: ~U[2001-01-01 00:00:00Z]
       })
     end
 
@@ -44,24 +46,17 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
       |> expect(:get_last_chain_address, fn address ->
         {address, DateTime.utc_now()}
       end)
-      |> expect(:transaction_exists?, fn _, _ ->
-        # we add a sleep here to be sure the RepairWorker is running for enough time
-        # so the repair is still in progress when we assert it
-        Process.sleep(:infinity)
-        false
-      end)
 
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
-        {:ok, %LastTransactionAddress{address: last_address}}
+      |> expect(:send_message, fn
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: last_address}}
       end)
 
-      :ok = NetworkChain.synchronous_resync(:oracle)
-      assert SelfRepair.repair_in_progress?(OracleChain.get_current_genesis_address())
-
-      # this sleep is necessary to give time to the RepairWorker to start its task
-      # without it, the expect above will fail once in a while
-      Process.sleep(150)
+      with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do
+        :ok = NetworkChain.synchronous_resync(:oracle)
+        assert_called(SelfRepair.replicate_transaction(last_address))
+      end
     end
 
     test "should not start a resync when remote == local" do
@@ -71,17 +66,16 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
       |> expect(:get_last_chain_address, fn _ ->
         {last_address, DateTime.utc_now()}
       end)
-      |> expect_not(:transaction_exists?, fn _, _ ->
-        true
-      end)
 
       MockClient
       |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
         {:ok, %LastTransactionAddress{address: last_address}}
       end)
 
-      :ok = NetworkChain.synchronous_resync(:oracle)
-      refute SelfRepair.repair_in_progress?(OracleChain.get_current_genesis_address())
+      with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do
+        :ok = NetworkChain.synchronous_resync(:oracle)
+        assert_not_called(SelfRepair.replicate_transaction(:_))
+      end
     end
   end
 
@@ -105,14 +99,6 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
       P2P.add_and_connect_node(node)
 
-      MockDB
-      |> expect(:transaction_exists?, fn _, _ ->
-        # we add a sleep here to be sure the RepairWorker is running for enough time
-        # so the repair is still in progress when we assert it
-        Process.sleep(:infinity)
-        false
-      end)
-
       MockClient
       |> expect(:send_message, fn _, %ListNodes{}, _ ->
         {:ok,
@@ -123,12 +109,10 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
          }}
       end)
 
-      :ok = NetworkChain.synchronous_resync(:node)
-      assert SelfRepair.repair_in_progress?(Crypto.derive_address(Crypto.first_node_public_key()))
-
-      # this sleep is necessary to give time to the RepairWorker to start its task
-      # without it, the expect above will fail once in a while
-      Process.sleep(150)
+      with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do
+        :ok = NetworkChain.synchronous_resync(:node)
+        assert_called(SelfRepair.replicate_transaction(:_))
+      end
     end
   end
 end

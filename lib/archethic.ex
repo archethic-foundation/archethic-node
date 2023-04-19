@@ -6,6 +6,7 @@ defmodule Archethic do
   alias __MODULE__.SharedSecrets
   alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
   alias __MODULE__.{SelfRepair, TransactionChain}
+  alias __MODULE__.Utils.DistinctEffectWorker
 
   alias SelfRepair.NetworkView
   alias SelfRepair.NetworkChain
@@ -68,9 +69,15 @@ defmodule Archethic do
           forward_transaction(tx, welcome_node_key)
 
         {:error, last_address_to_sync} ->
-          SelfRepair.resync(
+          # I can't use :node_shared_secrets as key,
+          # because a different effect_fn is used someplace else (with different input)
+          DistinctEffectWorker.run(
             SharedSecrets.genesis_address(:node_shared_secrets),
-            last_address_to_sync
+            fn address ->
+              SelfRepair.replicate_transaction(address, true)
+            end,
+            &DistinctEffectWorker.default_next_fn/2,
+            [last_address_to_sync]
           )
 
           forward_transaction(tx, welcome_node_key)

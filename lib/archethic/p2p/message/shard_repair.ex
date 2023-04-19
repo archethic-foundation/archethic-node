@@ -42,17 +42,14 @@ defmodule Archethic.P2P.Message.ShardRepair do
          addresses,
          &(Election.storage_nodes(&1, nodes) |> Utils.key_in_node_list?(public_key))
        ) do
-      case SelfRepair.repair_in_progress?(first_address) do
-        false ->
-          SelfRepair.start_worker(
-            first_address: first_address,
-            storage_address: storage_address,
-            io_addresses: io_addresses
-          )
+      io_inputs = Enum.map(io_addresses, &{:io, &1})
 
-        pid ->
-          SelfRepair.add_repair_addresses(pid, storage_address, io_addresses)
-      end
+      Archethic.Utils.DistinctEffectWorker.run(
+        first_address,
+        &SelfRepair.replicate_transaction/1,
+        &next_fn/2,
+        [{:storage, storage_address} | io_inputs]
+      )
     end
 
     %Ok{}
@@ -161,5 +158,16 @@ defmodule Archethic.P2P.Message.ShardRepair do
        storage_address: storage_address,
        io_addresses: io_addresses
      }, rest}
+  end
+
+  # this function sort the inputs & remove those already processed
+  # if there is a tx both in IO and STORAGE, it will be handled only once (STORAGE)
+  defp next_fn(inputs_to_process, inputs_processed) do
+    # :storage should be handled before :io
+    inputs_to_process
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.reverse()
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.filter(&(&1 not in inputs_processed))
   end
 end
