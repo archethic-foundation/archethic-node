@@ -117,14 +117,14 @@ defmodule ArchethicTest do
       assert {:error, "willnotmatchaddress"} = SharedSecrets.verify_synchronization()
 
       # trying to send a tx when NSS chain not synced
-      with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do
+      with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
         assert :ok =
                  Archethic.send_new_transaction(
                    Transaction.new(:transfer, %TransactionData{}, "seed", 0)
                  )
 
         # assert repair nss chain has been triggered
-        assert_called(SelfRepair.replicate_transaction("willnotmatchaddress"))
+        assert_called(SelfRepair.replicate_transaction("willnotmatchaddress", true))
       end
     end
   end
