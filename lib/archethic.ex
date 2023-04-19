@@ -73,9 +73,7 @@ defmodule Archethic do
           # because a different effect_fn is used someplace else (with different input)
           DistinctEffectWorker.run(
             SharedSecrets.genesis_address(:node_shared_secrets),
-            fn address ->
-              SelfRepair.replicate_transaction(address, true)
-            end,
+            &SelfRepair.replicate_transaction/1,
             &DistinctEffectWorker.default_next_fn/2,
             [last_address_to_sync]
           )
