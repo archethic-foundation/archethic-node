@@ -20,6 +20,7 @@
       checks: [
         # Custom checks
         {Archethic.Checks.AtVsn, []},
+        {Archethic.Checks.NamedSupervisor, []},
 
         # Consistency Checks
         {Credo.Check.Consistency.LineEndings, []},
