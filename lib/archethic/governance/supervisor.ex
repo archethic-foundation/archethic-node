@@ -10,7 +10,7 @@ defmodule Archethic.Governance.Supervisor do
   alias Archethic.Utils
 
   def start_link(arg) do
-    Supervisor.start_link(__MODULE__, arg)
+    Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
   def init(_args) do
