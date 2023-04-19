@@ -10,6 +10,14 @@ defmodule Archethic.SelfRepair do
   alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
   alias Archethic.{P2P.Node}
 
+  alias Archethic.{
+    P2P,
+    Replication
+  }
+
+  alias Archethic.P2P.Message
+  alias Archethic.TransactionChain.Transaction
+
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
@@ -225,5 +233,51 @@ defmodule Archethic.SelfRepair do
     end
 
     :ok
+  end
+
+  @doc """
+  Replicate the transaction at given address
+  """
+  @spec replicate_transaction(binary(), boolean()) :: :ok | {:error, term()}
+  def replicate_transaction(address, storage? \\ true) do
+    # We get the authorized nodes before the last summary date as we are sure that they know
+    # the informations we need. Requesting current nodes may ask information to nodes in same repair
+    # process as we are here.
+    authorized_nodes =
+      DateTime.utc_now()
+      |> BeaconChain.previous_summary_time()
+      |> P2P.authorized_and_available_nodes(true)
+
+    timeout = Message.get_max_timeout()
+
+    acceptance_resolver = fn
+      {:ok, %Transaction{address: ^address}} -> true
+      _ -> false
+    end
+
+    with false <- TransactionChain.transaction_exists?(address),
+         storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
+         {:ok, tx} <-
+           TransactionChain.fetch_transaction_remotely(
+             address,
+             storage_nodes,
+             timeout,
+             acceptance_resolver
+           ) do
+      if storage? do
+        case Replication.validate_and_store_transaction_chain(tx, true, authorized_nodes) do
+          :ok -> update_last_address(address, authorized_nodes)
+          error -> error
+        end
+      else
+        Replication.validate_and_store_transaction(tx, true)
+      end
+    else
+      true ->
+        {:error, :transaction_already_exists}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 end

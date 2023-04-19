@@ -977,6 +977,30 @@ defmodule Archethic.Utils do
 
   def get_token_properties(_, _), do: {:error, :not_a_token_transaction}
 
+  @doc """
+  Run given function in a task and ensure that it is run at most once concurrently
+  """
+  def run_at_most_once_concurrently(fun, key) do
+    registry = Archethic.AtMostOnceConcurrentlyRegistry
+
+    Task.Supervisor.async_nolink(
+      Archethic.TaskSupervisor,
+      fn ->
+        case Registry.lookup(registry, key) do
+          [] ->
+            {:ok, _} = Registry.register(registry, key, nil)
+            fun.(key)
+
+          _ ->
+            # there is already a concurrent run
+            :ok
+        end
+      end
+    )
+
+    :ok
+  end
+
   defp get_token_id(genesis_address, %{
          genesis: genesis_address,
          name: name,

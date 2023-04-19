@@ -1,18 +1,7 @@
 defmodule Archethic.SelfRepair.RepairWorker do
   @moduledoc false
 
-  alias Archethic.{
-    BeaconChain,
-    Election,
-    P2P,
-    Replication,
-    TransactionChain,
-    SelfRepair
-  }
-
-  alias Archethic.P2P.Message
-  alias Archethic.TransactionChain.Transaction
-
+  alias Archethic.SelfRepair
   alias Archethic.SelfRepair.RepairRegistry
 
   use GenServer, restart: :transient
@@ -37,20 +26,11 @@ defmodule Archethic.SelfRepair.RepairWorker do
       address: Base.encode16(first_address)
     )
 
-    # We get the authorized nodes before the last summary date as we are sure that they know
-    # the informations we need. Requesting current nodes may ask information to nodes in same repair
-    # process as we are here.
-    authorized_nodes =
-      DateTime.utc_now()
-      |> BeaconChain.previous_summary_time()
-      |> P2P.authorized_and_available_nodes(true)
-
     storage_addresses = if storage_address != nil, do: [storage_address], else: []
 
     data = %{
       storage_addresses: storage_addresses,
-      io_addresses: io_addresses,
-      authorized_nodes: authorized_nodes
+      io_addresses: io_addresses
     }
 
     {:ok, start_repair(data)}
@@ -91,11 +71,10 @@ defmodule Archethic.SelfRepair.RepairWorker do
   defp start_repair(
          data = %{
            storage_addresses: [],
-           io_addresses: [address | rest],
-           authorized_nodes: authorized_nodes
+           io_addresses: [address | rest]
          }
        ) do
-    pid = repair_task(address, false, authorized_nodes)
+    pid = repair_task(address, false)
 
     data
     |> Map.put(:io_addresses, rest)
@@ -104,65 +83,22 @@ defmodule Archethic.SelfRepair.RepairWorker do
 
   defp start_repair(
          data = %{
-           storage_addresses: [address | rest],
-           authorized_nodes: authorized_nodes
+           storage_addresses: [address | rest]
          }
        ) do
-    pid = repair_task(address, true, authorized_nodes)
+    pid = repair_task(address, true)
 
     data
     |> Map.put(:storage_addresses, rest)
     |> Map.put(:task, pid)
   end
 
-  defp repair_task(address, storage?, authorized_nodes) do
+  defp repair_task(address, storage?) do
     %Task{pid: pid} =
       Task.async(fn ->
-        replicate_transaction(address, storage?, authorized_nodes)
+        SelfRepair.replicate_transaction(address, storage?)
       end)
 
     pid
-  end
-
-  defp replicate_transaction(address, storage?, authorized_nodes) do
-    Logger.debug("Notifier RepairWorker start replication, storage? #{storage?}",
-      address: Base.encode16(address)
-    )
-
-    timeout = Message.get_max_timeout()
-
-    acceptance_resolver = fn
-      {:ok, %Transaction{address: ^address}} -> true
-      _ -> false
-    end
-
-    with false <- TransactionChain.transaction_exists?(address),
-         storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
-         {:ok, tx} <-
-           TransactionChain.fetch_transaction_remotely(
-             address,
-             storage_nodes,
-             timeout,
-             acceptance_resolver
-           ) do
-      if storage? do
-        case Replication.validate_and_store_transaction_chain(tx, true, authorized_nodes) do
-          :ok -> SelfRepair.update_last_address(address, authorized_nodes)
-          error -> error
-        end
-      else
-        Replication.validate_and_store_transaction(tx, true)
-      end
-    else
-      true ->
-        Logger.debug("Notifier RepairWorker transaction already exists",
-          address: Base.encode16(address)
-        )
-
-      {:error, reason} ->
-        Logger.warning(
-          "Notifier RepairWorker failed to replicate transaction because of #{inspect(reason)}"
-        )
-    end
   end
 end

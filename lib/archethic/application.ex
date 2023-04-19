@@ -95,7 +95,10 @@ defmodule Archethic.Application do
          http_port: http_port,
          transport: transport
        )},
-      MetricSupervisor
+      MetricSupervisor,
+
+      # a registry used in Utils to ensure a function is executed at most once concurrently
+      {Registry, keys: :unique, name: Archethic.AtMostOnceConcurrentlyRegistry}
     ]
 
     opts = [strategy: :rest_for_one, name: Archethic.Supervisor]
