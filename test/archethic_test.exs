@@ -15,7 +15,6 @@ defmodule ArchethicTest do
   import ArchethicCase, only: [setup_before_send_tx: 0]
 
   import Mox
-  import Mock
 
   setup do
     setup_before_send_tx()
@@ -102,7 +101,7 @@ defmodule ArchethicTest do
       )
 
       MockClient
-      |> expect(:send_message, 3, fn
+      |> expect(:send_message, 4, fn
         # validate nss chain from network
         # anticippated to be failed
         _, %GetLastTransactionAddress{}, _ ->
@@ -111,21 +110,25 @@ defmodule ArchethicTest do
         _, %NewTransaction{transaction: _, welcome_node: _}, _ ->
           # forward the tx
           {:ok, %Ok{}}
+
+        _, %GetTransaction{address: _}, _ ->
+          {:ok, %NotFound{}}
+
+        _, _, _ ->
+          {:ok, %Ok{}}
       end)
 
       # last address is d/f it returns last address from quorum
       assert {:error, "willnotmatchaddress"} = SharedSecrets.verify_synchronization()
 
-      # trying to send a tx when NSS chain not synced
-      with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
-        assert :ok =
-                 Archethic.send_new_transaction(
-                   Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-                 )
+      # trying to ssend a tx when NSS chain not synced
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+      assert :ok = Archethic.send_new_transaction(tx)
 
-        # assert repair nss chain has been triggered
-        assert_called(SelfRepair.replicate_transaction("willnotmatchaddress", true))
-      end
+      # start repair and should bottleneck requests
+      pid = SelfRepair.repair_in_progress?(nss_genesis_address)
+      Process.sleep(150)
+      assert pid != nil
     end
   end
 

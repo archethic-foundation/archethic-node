@@ -204,8 +204,6 @@ defmodule ArchethicCase do
 
   def setup_before_send_tx() do
     start_supervised!(Archethic.SelfRepair.NetworkView)
-    Registry.start_link(keys: :unique, name: Archethic.Utils.DistinctEffectWorkerRegistry)
-
     nss_key = SharedSecrets.genesis_address_keys().nss
 
     nss_genesis_address = "nss_genesis_address"
