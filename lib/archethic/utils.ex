@@ -983,20 +983,20 @@ defmodule Archethic.Utils do
   def run_at_most_once_concurrently(fun, key) do
     registry = Archethic.AtMostOnceConcurrentlyRegistry
 
-    Task.Supervisor.async_nolink(
-      Archethic.TaskSupervisor,
-      fn ->
-        case Registry.lookup(registry, key) do
-          [] ->
+    case Registry.lookup(registry, key) do
+      [] ->
+        Task.Supervisor.async_nolink(
+          Archethic.TaskSupervisor,
+          fn ->
             {:ok, _} = Registry.register(registry, key, nil)
             fun.(key)
+          end
+        )
 
-          _ ->
-            # there is already a concurrent run
-            :ok
-        end
-      end
-    )
+      _ ->
+        # there is already a concurrent run
+        :ok
+    end
 
     :ok
   end
