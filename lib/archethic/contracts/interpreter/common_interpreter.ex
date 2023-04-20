@@ -361,74 +361,10 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # BigInt mathematics to avoid floating point issues
-  # the `0.0 + x` is used to cast integers to floats
-  def postwalk(_node = {:*, meta, [lhs, rhs]}, acc) do
+  def postwalk(_node = {ast, meta, [lhs, rhs]}, acc) when ast in [:*, :/, :+, :-] do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
-        Decimal.to_float(
-          Decimal.round(
-            Decimal.mult(
-              Decimal.from_float(0.0 + unquote(lhs)),
-              Decimal.from_float(0.0 + unquote(rhs))
-            ),
-            8,
-            :floor
-          )
-        )
-      end
-
-    {new_node, acc}
-  end
-
-  def postwalk(_node = {:/, meta, [lhs, rhs]}, acc) do
-    new_node =
-      quote line: Keyword.fetch!(meta, :line) do
-        Decimal.to_float(
-          Decimal.round(
-            Decimal.div(
-              Decimal.from_float(0.0 + unquote(lhs)),
-              Decimal.from_float(0.0 + unquote(rhs))
-            ),
-            8,
-            :floor
-          )
-        )
-      end
-
-    {new_node, acc}
-  end
-
-  def postwalk(_node = {:+, meta, [lhs, rhs]}, acc) do
-    new_node =
-      quote line: Keyword.fetch!(meta, :line) do
-        Decimal.to_float(
-          Decimal.round(
-            Decimal.add(
-              Decimal.from_float(0.0 + unquote(lhs)),
-              Decimal.from_float(0.0 + unquote(rhs))
-            ),
-            8,
-            :floor
-          )
-        )
-      end
-
-    {new_node, acc}
-  end
-
-  def postwalk(_node = {:-, meta, [lhs, rhs]}, acc) do
-    new_node =
-      quote line: Keyword.fetch!(meta, :line) do
-        Decimal.to_float(
-          Decimal.round(
-            Decimal.sub(
-              Decimal.from_float(0.0 + unquote(lhs)),
-              Decimal.from_float(0.0 + unquote(rhs))
-            ),
-            8,
-            :floor
-          )
-        )
+        AST.decimal_arithmetic(unquote(ast), unquote(lhs), unquote(rhs))
       end
 
     {new_node, acc}

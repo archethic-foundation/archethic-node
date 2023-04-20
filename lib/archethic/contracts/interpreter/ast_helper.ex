@@ -182,4 +182,27 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   """
   def wrap_in_block(ast = {:__block__, _, _}), do: ast
   def wrap_in_block(ast), do: {:__block__, [], [ast]}
+
+  @doc """
+  Delegate the arithmetic to the Decimal library
+  """
+  @spec decimal_arithmetic(Macro.t(), number(), number()) :: float()
+  def decimal_arithmetic(ast, lhs, rhs) do
+    operation =
+      case ast do
+        :* -> &Decimal.mult/2
+        :/ -> &Decimal.div/2
+        :+ -> &Decimal.add/2
+        :- -> &Decimal.sub/2
+      end
+
+    # the `0.0 + x` is used to cast integers to floats
+    Decimal.to_float(
+      Decimal.round(
+        operation.(Decimal.from_float(0.0 + lhs), Decimal.from_float(0.0 + rhs)),
+        8,
+        :floor
+      )
+    )
+  end
 end
