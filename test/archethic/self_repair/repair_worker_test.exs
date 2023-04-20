@@ -21,20 +21,6 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
     assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
   end
 
-  test "should replicate the transactions coming from initial call" do
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
-
-    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
-      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
-      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
-
-      Process.sleep(100)
-      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 3)
-    end
-
-    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
-  end
-
   test "should replicate the transactions coming from sequential calls" do
     assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
@@ -46,6 +32,22 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
 
       Process.sleep(100)
       assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 6)
+    end
+
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+  end
+
+  test "should not replicate the transactions that were already replicated" do
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+
+    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice3", ["Bob2", "Bob3"])
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice3", [])
+      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+
+      Process.sleep(100)
+      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 5)
     end
 
     assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
