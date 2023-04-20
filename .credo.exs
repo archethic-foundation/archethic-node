@@ -16,7 +16,7 @@
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
       color: true,
-      requires: ["./lib/checks/*.ex"],
+      requires: ["./lib/checks/*.exs"],
       checks: [
         # Custom checks
         {Archethic.Checks.AtVsn, []},
