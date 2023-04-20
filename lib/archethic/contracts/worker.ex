@@ -87,7 +87,12 @@ defmodule Archethic.Contracts.Worker do
     with true <- enough_funds?(contract_tx.address),
          {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(:transaction, contract, trigger_tx, calls,
+           Interpreter.execute(
+             :transaction,
+             contract,
+             trigger_tx,
+             # we append the trigger_tx to the calls in case it is missing due to race condition
+             Enum.uniq([trigger_tx | calls]),
              skip_inherit_check?: true
            ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
@@ -169,7 +174,14 @@ defmodule Archethic.Contracts.Worker do
     with true <- enough_funds?(contract_tx.address),
          {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
          {:ok, next_tx = %Transaction{}} <-
-           Interpreter.execute(:oracle, contract, oracle_tx, calls, skip_inherit_check?: true),
+           Interpreter.execute(
+             :oracle,
+             contract,
+             oracle_tx,
+             # we append the oracle_tx to the calls in case it is missing due to race condition
+             Enum.uniq([oracle_tx | calls]),
+             skip_inherit_check?: true
+           ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_tx.address),
          :ok <- handle_new_transaction(next_tx) do
