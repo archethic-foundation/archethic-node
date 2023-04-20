@@ -42,17 +42,7 @@ defmodule Archethic.P2P.Message.ShardRepair do
          addresses,
          &(Election.storage_nodes(&1, nodes) |> Utils.key_in_node_list?(public_key))
        ) do
-      case SelfRepair.repair_in_progress?(first_address) do
-        false ->
-          SelfRepair.start_worker(
-            first_address: first_address,
-            storage_address: storage_address,
-            io_addresses: io_addresses
-          )
-
-        pid ->
-          SelfRepair.add_repair_addresses(pid, storage_address, io_addresses)
-      end
+      SelfRepair.resync(first_address, storage_address, io_addresses)
     end
 
     %Ok{}

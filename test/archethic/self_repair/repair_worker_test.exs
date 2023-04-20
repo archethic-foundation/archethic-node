@@ -1,109 +1,53 @@
 defmodule Archethic.SelfRepair.RepairWorkerTest do
   @moduledoc false
-  use ArchethicCase
+  use ArchethicCase, async: false
 
-  alias Archethic.BeaconChain.SummaryTimer
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetTransaction
-
+  alias Archethic.SelfRepair
   alias Archethic.SelfRepair.RepairWorker
 
-  import Mox
+  import Mock
 
-  setup do
-    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+  test "should start the worker if not already started" do
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
-    :ok
+    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1"])
+      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+
+      Process.sleep(100)
+      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 2)
+    end
+
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
   end
 
-  test "start_link/1 should start a new worker and create a task to replicate transaction" do
-    {:ok, pid} =
-      RepairWorker.start_link(
-        first_address: "Alice1",
-        storage_address: "Alice2",
-        io_addresses: ["Bob1"]
-      )
+  test "should replicate the transactions coming from initial call" do
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
-    assert %{storage_addresses: [], io_addresses: ["Bob1"], task: _task_pid} = :sys.get_state(pid)
+    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
+      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
+
+      Process.sleep(100)
+      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 3)
+    end
+
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
   end
 
-  test "repair_task/3 replicate a transaction if it does not already exists" do
-    P2P.add_and_connect_node(%Node{
-      first_public_key: "node1",
-      last_public_key: "node1",
-      geo_patch: "AAA",
-      authorized?: true,
-      authorization_date: ~U[2022-11-27 00:00:00Z],
-      available?: true
-    })
+  test "should replicate the transactions coming from sequential calls" do
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
-    {:ok, pid} =
-      RepairWorker.start_link(
-        first_address: "Alice1",
-        storage_address: "Alice2",
-        io_addresses: ["Bob1", "Bob2"]
-      )
+    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice3", [])
+      :ok = RepairWorker.repair_addresses("Alice1", "Alice4", ["Bob3"])
+      assert 1 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
-    me = self()
+      Process.sleep(100)
+      assert_called_exactly(SelfRepair.replicate_transaction(:_, :_), 6)
+    end
 
-    MockDB
-    |> stub(:transaction_exists?, fn
-      "Bob2", _ ->
-        send(me, :exists_bob3)
-        true
-
-      _, _ ->
-        false
-    end)
-
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetTransaction{address: "Alice2"}, _ ->
-        send(me, :get_tx_alice2)
-
-      _, %GetTransaction{address: "Bob1"}, _ ->
-        send(me, :get_tx_bob1)
-
-      _, %GetTransaction{address: "Bob2"}, _ ->
-        send(me, :get_tx_bob2)
-    end)
-
-    assert_receive :get_tx_alice2
-    assert_receive :get_tx_bob1
-
-    assert_receive :exists_bob3
-    refute_receive :get_tx_bob2
-
-    assert not Process.alive?(pid)
-  end
-
-  test "add_message/1 should add new addresses in GenServer state" do
-    MockDB
-    |> stub(:transaction_exists?, fn _, _ -> Process.sleep(100) end)
-
-    {:ok, pid} =
-      RepairWorker.start_link(
-        first_address: "Alice1",
-        storage_address: "Alice2",
-        io_addresses: ["Bob1", "Bob2"]
-      )
-
-    assert %{
-             storage_addresses: [],
-             io_addresses: ["Bob1", "Bob2"],
-             task: _task_pid
-           } = :sys.get_state(pid)
-
-    GenServer.cast(pid, {:add_address, "Alice4", ["Bob2", "Bob3"]})
-    GenServer.cast(pid, {:add_address, "Alice3", []})
-    GenServer.cast(pid, {:add_address, nil, ["Bob4"]})
-
-    assert %{
-             storage_addresses: ["Alice3", "Alice4"],
-             io_addresses: ["Bob1", "Bob2", "Bob3", "Bob4"],
-             task: _task_pid
-           } = :sys.get_state(pid)
+    assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
   end
 end

@@ -70,7 +70,8 @@ defmodule Archethic do
         {:error, last_address_to_sync} ->
           SelfRepair.resync(
             SharedSecrets.genesis_address(:node_shared_secrets),
-            last_address_to_sync
+            last_address_to_sync,
+            []
           )
 
           forward_transaction(tx, welcome_node_key)

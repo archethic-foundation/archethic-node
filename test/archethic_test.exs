@@ -1,7 +1,7 @@
 defmodule ArchethicTest do
   use ArchethicCase
 
-  alias Archethic.{Crypto, PubSub, P2P, P2P.Message, P2P.Node, TransactionChain, SelfRepair}
+  alias Archethic.{Crypto, PubSub, P2P, P2P.Message, P2P.Node, TransactionChain}
   alias Archethic.{BeaconChain.SummaryTimer, SharedSecrets}
 
   alias Message.{Balance, GetBalance, GetLastTransactionAddress, GetTransaction, Ok}
@@ -101,7 +101,7 @@ defmodule ArchethicTest do
       )
 
       MockClient
-      |> expect(:send_message, 4, fn
+      |> expect(:send_message, 3, fn
         # validate nss chain from network
         # anticippated to be failed
         _, %GetLastTransactionAddress{}, _ ->
@@ -109,12 +109,6 @@ defmodule ArchethicTest do
 
         _, %NewTransaction{transaction: _, welcome_node: _}, _ ->
           # forward the tx
-          {:ok, %Ok{}}
-
-        _, %GetTransaction{address: _}, _ ->
-          {:ok, %NotFound{}}
-
-        _, _, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -126,9 +120,7 @@ defmodule ArchethicTest do
       assert :ok = Archethic.send_new_transaction(tx)
 
       # start repair and should bottleneck requests
-      pid = SelfRepair.repair_in_progress?(nss_genesis_address)
-      Process.sleep(150)
-      assert pid != nil
+      assert 1 == Registry.count(Archethic.SelfRepair.RepairRegistry)
     end
   end
 

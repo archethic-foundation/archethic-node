@@ -1,8 +1,10 @@
 defmodule Archethic.SelfRepair.RepairWorker do
   @moduledoc false
 
+  alias Archethic.Crypto
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.RepairRegistry
+  alias Archethic.SelfRepair.NotifierSupervisor
 
   use GenServer, restart: :transient
   @vsn Mix.Project.config()[:version]
@@ -11,6 +13,37 @@ defmodule Archethic.SelfRepair.RepairWorker do
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
+  end
+
+  @doc """
+  Add addresses to repair in RepairWorker.
+  If the RepairWorker does not exist yet, it is created.
+  The RepairWorker will run until there is no more address to repair.
+  """
+  @spec repair_addresses(
+          Crypto.prepended_hash(),
+          Crypto.prepended_hash() | nil,
+          list(Crypto.prepended_hash())
+        ) :: :ok
+  def repair_addresses(genesis_address, storage_address, io_addresses) do
+    case Registry.lookup(RepairRegistry, genesis_address) do
+      [{pid, _}] ->
+        GenServer.cast(pid, {:add_address, storage_address, io_addresses})
+
+      _ ->
+        {:ok, _} =
+          DynamicSupervisor.start_child(
+            NotifierSupervisor,
+            {__MODULE__,
+             [
+               first_address: genesis_address,
+               storage_address: storage_address,
+               io_addresses: io_addresses
+             ]}
+          )
+
+        :ok
+    end
   end
 
   def init(args) do
