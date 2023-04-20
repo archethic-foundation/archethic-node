@@ -19,7 +19,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   """
   @spec asynchronous_resync(type()) :: :ok
   def asynchronous_resync(network_chain_type) do
-    Utils.run_at_most_once_concurrently(&synchronous_resync/1, network_chain_type)
+    Utils.run_exclusive(network_chain_type, &synchronous_resync/1)
   end
 
   @doc """

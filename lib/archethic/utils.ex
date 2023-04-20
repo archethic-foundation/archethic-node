@@ -980,8 +980,8 @@ defmodule Archethic.Utils do
   @doc """
   Run given function in a task and ensure that it is run at most once concurrently
   """
-  def run_at_most_once_concurrently(fun, key) do
-    registry = Archethic.AtMostOnceConcurrentlyRegistry
+  def run_exclusive(key, fun) do
+    registry = Archethic.RunExclusiveRegistry
 
     case Registry.lookup(registry, key) do
       [] ->
