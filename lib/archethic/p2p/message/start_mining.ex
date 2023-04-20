@@ -49,67 +49,42 @@ defmodule Archethic.P2P.Message.StartMining do
         },
         _
       ) do
-    case check_synchronization(network_chains_view_hash, p2p_view_hash) do
-      :ok ->
-        with {:election, true} <- {:election, Mining.valid_election?(tx, validation_nodes)},
-             {:elected, true} <-
-               {:elected, Enum.any?(validation_nodes, &(&1 == Crypto.last_node_public_key()))},
-             {:mining, false} <- {:mining, Mining.processing?(tx.address)} do
-          {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
-          %Ok{}
-        else
-          {:election, false} ->
-            Logger.error("Invalid validation node election",
-              transaction_address: Base.encode16(tx.address),
-              transaction_type: tx.type
-            )
-
-            %Error{reason: :network_issue}
-
-          {:elected, false} ->
-            Logger.error("Unexpected start mining message",
-              transaction_address: Base.encode16(tx.address),
-              transaction_type: tx.type
-            )
-
-            %Error{reason: :network_issue}
-
-          {:mining, true} ->
-            Logger.warning("Transaction already in mining process",
-              transaction_address: Base.encode16(tx.address),
-              transaction_type: tx.type
-            )
-
-            %Ok{}
-        end
-
-      {:error, sync_issue} ->
-        Logger.warning("Current node may be out of synchronization: #{inspect(sync_issue)}",
+    with :ok <- check_synchronization(network_chains_view_hash, p2p_view_hash),
+         :ok <- check_valid_election(tx, validation_nodes),
+         :ok <- check_current_node_is_elected(validation_nodes),
+         :ok <- check_not_already_mining(tx.address) do
+      {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
+      %Ok{}
+    else
+      {:error, :invalid_validation_nodes_election} ->
+        Logger.error("Invalid validation node election",
           transaction_address: Base.encode16(tx.address),
           transaction_type: tx.type
         )
 
-        case sync_issue do
-          :network_chains_sync ->
-            NetworkChain.asynchronous_resync_many([
-              :oracle,
-              :reward,
-              :origin,
-              :node_shared_secrets
-            ])
+        %Error{reason: :network_issue}
 
-          :p2p_sync ->
-            NetworkChain.asynchronous_resync(:node)
+      {:error, :current_node_not_elected} ->
+        Logger.error("Unexpected start mining message",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
 
-          :both_sync ->
-            NetworkChain.asynchronous_resync_many([
-              :node,
-              :oracle,
-              :reward,
-              :origin,
-              :node_shared_secrets
-            ])
-        end
+        %Error{reason: :network_issue}
+
+      {:error, :transaction_already_mining} ->
+        Logger.warning("Transaction already in mining process",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        %Ok{}
+
+      {:error, {:sync_issue, sync_issue}} ->
+        Logger.warning("Current node may be out of synchronization: #{inspect(sync_issue)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
 
         %Error{reason: sync_issue}
     end
@@ -151,6 +126,30 @@ defmodule Archethic.P2P.Message.StartMining do
      }, rest}
   end
 
+  defp check_not_already_mining(address) do
+    if Mining.processing?(address) do
+      {:error, :transaction_already_mining}
+    else
+      :ok
+    end
+  end
+
+  defp check_current_node_is_elected(validation_nodes) do
+    if Enum.any?(validation_nodes, &(&1 == Crypto.last_node_public_key())) do
+      :ok
+    else
+      {:error, :current_node_not_elected}
+    end
+  end
+
+  defp check_valid_election(tx, validation_nodes) do
+    if Mining.valid_election?(tx, validation_nodes) do
+      :ok
+    else
+      {:error, :invalid_validation_nodes_election}
+    end
+  end
+
   defp check_synchronization(network_chains_view_hash, p2p_view_hash) do
     case {network_chains_view_hash == NetworkView.get_chains_hash(),
           p2p_view_hash == NetworkView.get_p2p_hash()} do
@@ -158,13 +157,29 @@ defmodule Archethic.P2P.Message.StartMining do
         :ok
 
       {false, false} ->
-        {:error, :both_sync}
+        NetworkChain.asynchronous_resync_many([
+          :node,
+          :oracle,
+          :reward,
+          :origin,
+          :node_shared_secrets
+        ])
+
+        {:error, {:sync_issue, :both_sync}}
 
       {true, false} ->
-        {:error, :p2p_sync}
+        NetworkChain.asynchronous_resync(:node)
+        {:error, {:sync_issue, :p2p_sync}}
 
       {false, true} ->
-        {:error, :network_chains_sync}
+        NetworkChain.asynchronous_resync_many([
+          :oracle,
+          :reward,
+          :origin,
+          :node_shared_secrets
+        ])
+
+        {:error, {:sync_issue, :network_chains_sync}}
     end
   end
 end
