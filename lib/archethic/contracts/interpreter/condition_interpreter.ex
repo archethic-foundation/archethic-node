@@ -171,24 +171,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     {new_node, acc}
   end
 
-  # Override Contract.get_calls()
-  defp postwalk(
-         _subject = [_global_variable, _],
-         node =
-           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, "get_calls"}]}, _, []},
-         _acc
-       ) do
-    # new_node =
-    #   quote do
-    #     Archethic.Contracts.Interpreter.Library.Contract.get_calls(
-    #       Scope.read_global([unquote(global_variable), "address"])
-    #     )
-    #   end
-
-    # {new_node, acc}
-    throw({:error, node, "Contract.get_calls() not yet implemented in the conditions"})
-  end
-
   defp postwalk(_subject, node, acc) do
     CommonInterpreter.postwalk(node, acc)
   end

@@ -40,7 +40,12 @@ defmodule Archethic.SelfRepair.RepairWorkerTest do
   test "should not replicate the transactions that were already replicated" do
     assert 0 = Registry.count(Archethic.SelfRepair.RepairRegistry)
 
-    with_mock(SelfRepair, replicate_transaction: fn _, _ -> :ok end) do
+    with_mock(SelfRepair,
+      replicate_transaction: fn _, _ ->
+        Process.sleep(10)
+        :ok
+      end
+    ) do
       :ok = RepairWorker.repair_addresses("Alice1", "Alice2", ["Bob1", "Bob2"])
       :ok = RepairWorker.repair_addresses("Alice1", "Alice3", ["Bob2", "Bob3"])
       :ok = RepairWorker.repair_addresses("Alice1", "Alice3", [])

@@ -55,7 +55,9 @@ defmodule Archethic.SelfRepair do
               :ok = Sync.load_missed_transactions(date)
               {:halt, :ok}
             catch
-              _, _ -> {:cont, :error}
+              error, message ->
+                Logger.error("Error during self repair #{error} #{message}")
+                {:cont, :error}
             end
           end)
 
@@ -181,6 +183,10 @@ defmodule Archethic.SelfRepair do
     end
   end
 
+  @doc """
+  Resync storage_address & io_addresses.
+  We use a lock on the genesis_address to avoid running concurrent syncs on the same chain
+  """
   @spec resync(
           Crypto.prepended_hash(),
           Crypto.prepended_hash() | nil,
@@ -219,13 +225,12 @@ defmodule Archethic.SelfRepair do
              timeout,
              acceptance_resolver
            ) do
+      # TODO: Also download replication attestation from beacon nodes to ensure validity of the transaction
       if storage? do
-        case Replication.validate_and_store_transaction_chain(tx, true, authorized_nodes) do
-          :ok -> update_last_address(address, authorized_nodes)
-          error -> error
-        end
+        :ok = Replication.sync_transaction_chain(tx, authorized_nodes, true)
+        update_last_address(address, authorized_nodes)
       else
-        Replication.validate_and_store_transaction(tx, true)
+        Replication.synchronize_io_transaction(tx, true)
       end
     else
       true ->

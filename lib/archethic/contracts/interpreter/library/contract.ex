@@ -6,24 +6,36 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
   """
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Contracts.Interpreter.Scope
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.Contracts.Interpreter.Legacy
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
+  alias Archethic.Utils
 
-  # get_calls has it's own postwalk (to inject the address),
-  # it does not require a check_types
-  @spec get_calls(binary()) :: list(map())
-  defdelegate get_calls(contract_address),
-    to: Legacy.Library
+  @spec get_calls() :: list(map())
+  def get_calls() do
+    # DISCUSS:
+    # this function is not really needed, we might just tell the users there is a "calls" global variable?
+    Scope.read_global(["calls"])
+  end
 
   @spec set_type(Transaction.t(), binary()) :: Transaction.t()
   defdelegate set_type(next_tx, type),
     to: TransactionStatements
 
   @spec set_content(Transaction.t(), binary() | integer() | float()) :: Transaction.t()
-  defdelegate set_content(next_tx, content),
-    to: TransactionStatements
+  def set_content(next_tx, content) when is_binary(content) do
+    put_in(next_tx, [Access.key(:data), Access.key(:content)], content)
+  end
+
+  def set_content(next_tx, content) when is_integer(content) or is_float(content) do
+    put_in(
+      next_tx,
+      [Access.key(:data), Access.key(:content)],
+      Library.Common.String.from_number(content)
+    )
+  end
 
   @spec set_code(Transaction.t(), binary()) :: Transaction.t()
   defdelegate set_code(next_tx, args),
@@ -39,24 +51,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
 
   @spec add_uco_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_uco_transfer(next_tx, args) do
+    args = Map.update!(args, "amount", &Utils.to_bigint/1)
     TransactionStatements.add_uco_transfer(next_tx, Map.to_list(args))
   end
 
   @spec add_uco_transfers(Transaction.t(), list(map())) :: Transaction.t()
   def add_uco_transfers(next_tx, args) do
-    casted_args = Enum.map(args, &Map.to_list/1)
-    TransactionStatements.add_uco_transfers(next_tx, casted_args)
+    Enum.reduce(args, next_tx, &add_uco_transfer(&2, &1))
   end
 
   @spec add_token_transfer(Transaction.t(), map()) :: Transaction.t()
   def add_token_transfer(next_tx, args) do
+    args = Map.update!(args, "amount", &Utils.to_bigint/1)
     TransactionStatements.add_token_transfer(next_tx, Map.to_list(args))
   end
 
   @spec add_token_transfers(Transaction.t(), list(map())) :: Transaction.t()
   def add_token_transfers(next_tx, args) do
-    casted_args = Enum.map(args, &Map.to_list/1)
-    TransactionStatements.add_token_transfers(next_tx, casted_args)
+    Enum.reduce(args, next_tx, &add_token_transfer(&2, &1))
   end
 
   @spec add_ownership(Transaction.t(), map()) :: Transaction.t()
@@ -80,7 +92,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
   end
 
   def check_types(:set_content, [first]) do
-    AST.is_binary?(first) || AST.is_integer?(first) || AST.is_float?(first) ||
+    AST.is_binary?(first) || AST.is_number?(first) ||
       AST.is_variable_or_function_call?(first)
   end
 
@@ -118,6 +130,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
 
   def check_types(:add_uco_transfers, [first]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:get_calls, []) do
+    true
   end
 
   def check_types(_, _), do: false

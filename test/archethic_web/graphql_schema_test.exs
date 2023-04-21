@@ -6,7 +6,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
   alias Archethic.{Crypto, BeaconChain, P2P, TransactionChain, Mining, PubSub}
 
-  alias BeaconChain.{ReplicationAttestation, SummaryAggregate, SummaryTimer}
+  alias BeaconChain.{ReplicationAttestation, SummaryAggregate, SummaryTimer, Summary}
   alias TransactionChain.{Transaction, TransactionData, TransactionData.Ownership}
   alias TransactionChain.{TransactionInput, TransactionSummary, VersionedTransactionInput}
 
@@ -15,7 +15,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Message.{GetBalance, GetLastTransactionAddress, GetTransaction, NotFound}
   alias Message.{GetTransactionChain, GetTransactionInputs, LastTransactionAddress}
   alias Message.{TransactionInputList, TransactionList, GetGenesisAddress}
-  alias Message.{GetBeaconSummariesAggregate, GetCurrentSummaries}
+  alias Message.{GetBeaconSummariesAggregate, GetCurrentSummaries, GetBeaconSummaries}
+  alias Message.{BeaconSummaryList, TransactionSummaryList}
 
   alias ArchethicWeb.GraphQLSchema.Resolver
 
@@ -162,7 +163,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: token_addr}}
+          {:ok, %GenesisAddress{address: token_addr, timestamp: DateTime.utc_now()}}
 
         _, %GetTransaction{}, _ ->
           aes_key = :crypto.strong_rand_bytes(32)
@@ -322,7 +323,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
            }}
 
         _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
+          {:ok, %TransactionChainLength{length: 1}}
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
@@ -365,7 +366,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
            }}
 
         _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
+          {:ok, %TransactionChainLength{length: 1}}
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
@@ -517,7 +518,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn _, %GetGenesisAddress{}, _ ->
-        {:ok, %GenesisAddress{address: genesis_addr}}
+        {:ok, %GenesisAddress{address: genesis_addr, timestamp: DateTime.utc_now()}}
       end)
 
       conn =
@@ -541,7 +542,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn _, %GetGenesisAddress{}, _ ->
-        {:ok, %GenesisAddress{address: addr}}
+        {:ok, %GenesisAddress{address: addr, timestamp: DateTime.utc_now()}}
       end)
 
       conn =
@@ -652,88 +653,63 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
          %{conn: conn} do
       timestamp =
         DateTime.utc_now()
-        |> DateTime.add(1, :day)
+        |> DateTime.add(1, :hour)
         |> DateTime.to_unix()
 
-      {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+      # SummaryTimer every hours
+      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
 
       conn =
         post(conn, "/api", %{
           "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {version} }"
         })
 
-      %{
-        "errors" => [
-          %{
-            "message" => message
-          }
-        ]
-      } = json_response(conn, 200)
-
-      assert String.contains?(message, "No data found at this date")
+      assert %{
+               "errors" => [
+                 %{
+                   "message" => "No data found at this date !"
+                 }
+               ]
+             } = json_response(conn, 200)
     end
 
-    test "should call fetch_summaries_aggregate when next summary of timestamp is less than next current time summary time",
+    test "should call fetch_summaries_aggregate when next summary of timestamp is previous last summary date",
          %{
            conn: conn
          } do
-      {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+      # SummaryTimer every hour
+      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
 
-      today = DateTime.utc_now()
-      timestamp_today = DateTime.to_unix(today)
+      past_summary_time =
+        DateTime.utc_now() |> SummaryTimer.previous_summary() |> SummaryTimer.previous_summary()
 
-      yesterday =
-        today
-        |> DateTime.add(-1, :day)
+      past_summary_timestamp = DateTime.to_unix(past_summary_time)
 
-      timestamp =
-        yesterday
-        |> DateTime.to_unix()
-
-      availability_adding_time = 1
-
-      p2p_availabilities = %{
-        <<1>> => %{
-          end_of_node_synchronizations: [],
-          node_availabilities: <<1::size(1)>>,
-          node_average_availabilities: [1.0]
-        }
-      }
-
-      str_p2p_availabilities = []
+      timestamp = past_summary_time |> DateTime.add(-5, :minute) |> DateTime.to_unix()
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3004,
         first_public_key: "test",
         last_public_key: "test",
-        available?: true,
-        enrollment_date: yesterday
+        available?: true
       })
 
       MockClient
       |> expect(:send_message, fn
-        _, %GetBeaconSummariesAggregate{}, _ ->
-          {:ok,
-           %SummaryAggregate{
-             availability_adding_time: availability_adding_time,
-             p2p_availabilities: p2p_availabilities,
-             summary_time: today
-           }}
+        _, %GetBeaconSummariesAggregate{date: ^past_summary_time}, _ ->
+          {:ok, %SummaryAggregate{summary_time: past_summary_time}}
       end)
 
       conn =
         post(conn, "/api", %{
-          "query" =>
-            "query { beaconChainSummary(timestamp: #{timestamp}) {summaryTime, p2pAvailabilities, availabilityAddingTime} }"
+          "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {summaryTime} }"
         })
 
       assert %{
                "data" => %{
                  "beaconChainSummary" => %{
-                   "summaryTime" => ^timestamp_today,
-                   "p2pAvailabilities" => ^str_p2p_availabilities,
-                   "availabilityAddingTime" => ^availability_adding_time
+                   "summaryTime" => ^past_summary_timestamp
                  }
                }
              } = json_response(conn, 200)
@@ -751,38 +727,40 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         |> DateTime.add(-1, :day)
         |> DateTime.to_unix()
 
-      transaction_summaries = [
-        %TransactionSummary{
-          timestamp: ~U[2022-12-06 23:56:00.006Z],
-          address:
-            <<0, 0, 206, 240, 245, 203, 197, 124, 94, 244, 159, 116, 250, 33, 156, 45, 76, 218,
-              205, 36, 102, 210, 113, 143, 12, 21, 228, 164, 14, 115, 91, 21, 80, 247>>,
-          type: :oracle_summary,
-          fee: 0,
-          movements_addresses: []
-        },
-        %TransactionSummary{
-          timestamp: ~U[2022-12-06 23:56:00.042Z],
-          address:
-            <<0, 0, 93, 87, 204, 21, 164, 60, 42, 148, 90, 78, 173, 11, 77, 189, 104, 15, 120, 6,
-              54, 35, 203, 176, 246, 200, 100, 215, 101, 150, 29, 59, 225, 65>>,
-          type: :oracle,
-          fee: 0,
-          movements_addresses: []
-        },
-        %TransactionSummary{
-          timestamp: ~U[2022-12-06 23:56:30.865Z],
-          address:
-            <<0, 0, 234, 152, 107, 255, 80, 152, 50, 245, 184, 183, 134, 17, 162, 71, 41, 203, 94,
-              81, 174, 188, 75, 128, 218, 110, 53, 11, 68, 5, 242, 31, 191, 202>>,
-          type: :node_rewards,
-          fee: 0,
-          movements_addresses: [
-            <<0, 0, 238, 157, 220, 82, 41, 235, 255, 225, 151, 39, 112, 88, 241, 26, 65, 226, 34,
-              82, 216, 106, 144, 76, 140, 188, 243, 140, 30, 252, 66, 171, 80, 101>>
-          ]
-        }
-      ]
+      attestations =
+        [
+          %TransactionSummary{
+            timestamp: ~U[2022-12-06 23:56:00.006Z],
+            address:
+              <<0, 0, 206, 240, 245, 203, 197, 124, 94, 244, 159, 116, 250, 33, 156, 45, 76, 218,
+                205, 36, 102, 210, 113, 143, 12, 21, 228, 164, 14, 115, 91, 21, 80, 247>>,
+            type: :oracle_summary,
+            fee: 0,
+            movements_addresses: []
+          },
+          %TransactionSummary{
+            timestamp: ~U[2022-12-06 23:56:00.042Z],
+            address:
+              <<0, 0, 93, 87, 204, 21, 164, 60, 42, 148, 90, 78, 173, 11, 77, 189, 104, 15, 120,
+                6, 54, 35, 203, 176, 246, 200, 100, 215, 101, 150, 29, 59, 225, 65>>,
+            type: :oracle,
+            fee: 0,
+            movements_addresses: []
+          },
+          %TransactionSummary{
+            timestamp: ~U[2022-12-06 23:56:30.865Z],
+            address:
+              <<0, 0, 234, 152, 107, 255, 80, 152, 50, 245, 184, 183, 134, 17, 162, 71, 41, 203,
+                94, 81, 174, 188, 75, 128, 218, 110, 53, 11, 68, 5, 242, 31, 191, 202>>,
+            type: :node_rewards,
+            fee: 0,
+            movements_addresses: [
+              <<0, 0, 238, 157, 220, 82, 41, 235, 255, 225, 151, 39, 112, 88, 241, 26, 65, 226,
+                34, 82, 216, 106, 144, 76, 140, 188, 243, 140, 30, 252, 66, 171, 80, 101>>
+            ]
+          }
+        ]
+        |> Enum.map(&%ReplicationAttestation{transaction_summary: &1, confirmations: []})
 
       str_filtered_transaction_summaries = %{
         "data" => %{
@@ -806,7 +784,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       MockClient
       |> expect(:send_message, fn
         _, %GetBeaconSummariesAggregate{}, _ ->
-          {:ok, %SummaryAggregate{transaction_summaries: transaction_summaries}}
+          {:ok, %SummaryAggregate{replication_attestations: attestations}}
       end)
 
       conn =
@@ -818,19 +796,16 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert str_filtered_transaction_summaries == json_response(conn, 200)
     end
 
-    test "should call fetch_and_aggregate_summaries when next summary of timestamp is equal to next current time summary time",
+    test "should call fetch_and_aggregate_summaries when next summary of timestamp is the previous summary",
          %{
            conn: conn
          } do
-      {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+      # SummaryTimer every hour
+      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
 
-      today = DateTime.utc_now()
-
-      timestamp =
-        today
-        |> DateTime.to_unix()
-
-      version = 1
+      previous_summary_time = DateTime.utc_now() |> SummaryTimer.previous_summary()
+      previous_summary_timestamp = DateTime.to_unix(previous_summary_time)
+      timestamp = previous_summary_time |> DateTime.add(-5, :minute) |> DateTime.to_unix()
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -838,27 +813,72 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         http_port: 3004,
         first_public_key: <<0::8, 0::8, 1::8, :crypto.strong_rand_bytes(31)::binary>>,
         last_public_key: "test",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1, :day),
+        network_patch: "AAA",
+        geo_patch: "AAA"
       })
 
+      # Called 26 times because addresses are chunked by batch of 10
       MockClient
-      |> stub(:send_message, fn
-        _, %GetCurrentSummaries{}, _ ->
-          {:ok, []}
-
-        _, %GetBeaconSummariesAggregate{}, _ ->
-          {:ok, %SummaryAggregate{version: version}}
+      |> expect(:send_message, 26, fn
+        _, %GetBeaconSummaries{}, _ ->
+          {:ok,
+           %BeaconSummaryList{
+             summaries: [%Summary{summary_time: previous_summary_time}]
+           }}
       end)
 
       conn =
         post(conn, "/api", %{
-          "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {version} }"
+          "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {summary_time} }"
         })
 
       assert %{
                "data" => %{
                  "beaconChainSummary" => %{
-                   "version" => ^version
+                   "summary_time" => ^previous_summary_timestamp
+                 }
+               }
+             } = json_response(conn, 200)
+    end
+
+    test "should call list_transactions_summaries_from_current_slot when next summary of timestamp is over last summary date",
+         %{
+           conn: conn
+         } do
+      # SummaryTimer every hour
+      {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 */1 * * * *"], [])
+
+      next_summary_time = DateTime.utc_now() |> SummaryTimer.next_summary()
+      next_summary_timestamp = DateTime.to_unix(next_summary_time)
+
+      timestamp = next_summary_time |> DateTime.add(-5, :minute) |> DateTime.to_unix()
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3004,
+        first_public_key: "test",
+        last_public_key: "test",
+        available?: true
+      })
+
+      MockClient
+      |> expect(:send_message, 26, fn
+        _, %GetCurrentSummaries{}, _ ->
+          {:ok, %TransactionSummaryList{transaction_summaries: []}}
+      end)
+
+      conn =
+        post(conn, "/api", %{
+          "query" => "query { beaconChainSummary(timestamp: #{timestamp}) {summaryTime} }"
+        })
+
+      assert %{
+               "data" => %{
+                 "beaconChainSummary" => %{
+                   "summaryTime" => ^next_summary_timestamp
                  }
                }
              } = json_response(conn, 200)

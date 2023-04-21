@@ -168,6 +168,8 @@ defmodule Archethic.Reward.SchedulerTest do
     end
 
     test "should wait for :node_down message to stop the scheduler" do
+      :persistent_term.put(:archethic_up, nil)
+
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3002,

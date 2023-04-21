@@ -59,11 +59,35 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
   end
 
   # ----------------------------------------
-  describe "to_int/1" do
-    test "should work" do
+  describe "to_number/1" do
+    test "should parse integer" do
       code = ~s"""
       actions triggered_by: transaction do
-        if String.to_int("14") == 14 do
+        if String.to_number("14") == 14 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    test "should parse float" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        if String.to_number("14.1") == 14.1 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    test "should return nil if not a number" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        if String.to_number("bob") == nil do
           Contract.set_content "ok"
         end
       end
@@ -74,11 +98,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
   end
 
   # ----------------------------------------
-  describe "from_int/1" do
-    test "should work" do
+  describe "from_number/1" do
+    test "should convert int" do
       code = ~s"""
       actions triggered_by: transaction do
-        if String.from_int(14) == "14" do
+        if String.from_number(14) == "14" do
           Contract.set_content "ok"
         end
       end
@@ -86,14 +110,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
-  end
 
-  # ----------------------------------------
-  describe "to_float/1" do
-    test "should work" do
+    test "should convert float" do
       code = ~s"""
       actions triggered_by: transaction do
-        if String.to_float("0.1") == 0.1 do
+        if String.from_number(14.1) == "14.1" do
           Contract.set_content "ok"
         end
       end
@@ -101,14 +122,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
-  end
 
-  # ----------------------------------------
-  describe "from_float/1" do
-    test "should work" do
+    test "should display float as int if possible" do
       code = ~s"""
       actions triggered_by: transaction do
-        if String.from_float(0.1) == "0.1" do
+        if String.from_number(14.0) == "14" do
           Contract.set_content "ok"
         end
       end

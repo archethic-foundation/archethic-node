@@ -4,25 +4,14 @@ defmodule Archethic.Networking.Scheduler do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
-  alias Archethic.Crypto
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Listener, as: P2PListener
-  alias Archethic.P2P.Node
-
-  alias Archethic.Networking.IPLookup
-  alias Archethic.Networking.PortForwarding
-
-  alias Archethic.TaskSupervisor
-
+  alias Archethic.{Crypto, P2P, P2P.Node, Networking, TaskSupervisor, Utils, PubSub}
   alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.SelfRepair.NetworkChain
 
-  alias Archethic.Utils
+  alias Networking.{IPLookup, PortForwarding}
+  alias TransactionChain.{Transaction, TransactionData}
 
-  alias Archethic.PubSub
-
+  alias P2P.Listener, as: P2PListener
   alias ArchethicWeb.Endpoint, as: WebEndpoint
 
   require Logger
@@ -101,20 +90,23 @@ defmodule Archethic.Networking.Scheduler do
       origin_public_key = Crypto.origin_node_public_key()
       key_certificate = Crypto.get_key_certificate(origin_public_key)
 
-      Transaction.new(:node, %TransactionData{
-        code: code,
-        content:
-          Node.encode_transaction_content(
-            ip,
-            p2p_port,
-            web_port,
-            transport,
-            reward_address,
-            origin_public_key,
-            key_certificate
-          )
-      })
-      |> Archethic.send_new_transaction()
+      tx =
+        Transaction.new(:node, %TransactionData{
+          code: code,
+          content:
+            Node.encode_transaction_content(
+              ip,
+              p2p_port,
+              web_port,
+              transport,
+              reward_address,
+              origin_public_key,
+              key_certificate
+            )
+        })
+
+      Archethic.send_new_transaction(tx)
+      handle_new_ip(tx)
     else
       :error ->
         Logger.warning("Cannot open port")
@@ -138,5 +130,16 @@ defmodule Archethic.Networking.Scheduler do
          {:ok, _} <- PortForwarding.try_open_port(web_port, false) do
       {:ok, p2p_port, web_port}
     end
+  end
+
+  defp handle_new_ip(%Transaction{address: tx_address}) do
+    nodes =
+      P2P.authorized_and_available_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
+      |> P2P.nearest_nodes()
+
+    Utils.await_confirmation(tx_address, nodes)
+
+    NetworkChain.asynchronous_resync_many([:node, :oracle, :node_shared_secrets, :reward, :origin])
   end
 end

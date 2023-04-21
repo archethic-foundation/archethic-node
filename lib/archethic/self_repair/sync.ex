@@ -9,7 +9,6 @@ defmodule Archethic.SelfRepair.Sync do
     PubSub,
     SelfRepair,
     TaskSupervisor,
-    TransactionChain,
     Utils
   }
 
@@ -267,7 +266,7 @@ defmodule Archethic.SelfRepair.Sync do
   def process_summary_aggregate(
         aggregate = %SummaryAggregate{
           summary_time: summary_time,
-          transaction_summaries: transaction_summaries,
+          replication_attestations: attestations,
           p2p_availabilities: p2p_availabilities,
           availability_adding_time: availability_adding_time
         },
@@ -275,29 +274,32 @@ defmodule Archethic.SelfRepair.Sync do
       ) do
     start_time = System.monotonic_time()
 
-    transactions_to_sync =
-      transaction_summaries
-      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address, :io))
-      |> Enum.filter(&TransactionHandler.download_transaction?/1)
+    previous_available_nodes = P2P.authorized_and_available_nodes()
 
-    synchronize_transactions(transactions_to_sync, download_nodes)
+    nodes_including_self =
+      [P2P.get_node_info() | previous_available_nodes] |> P2P.distinct_nodes()
+
+    attestations_to_sync =
+      attestations
+      |> Enum.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
+
+    synchronize_transactions(attestations_to_sync, download_nodes)
 
     :telemetry.execute(
       [:archethic, :self_repair, :process_aggregate],
       %{duration: System.monotonic_time() - start_time},
-      %{nb_transactions: length(transactions_to_sync)}
+      %{nb_transactions: length(attestations_to_sync)}
     )
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
-
-    previous_available_nodes = P2P.authorized_and_available_nodes()
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
                             %{
                               node_availabilities: node_availabilities,
                               node_average_availabilities: node_average_availabilities,
-                              end_of_node_synchronizations: end_of_node_synchronizations
+                              end_of_node_synchronizations: end_of_node_synchronizations,
+                              network_patches: network_patches
                             }},
                            acc ->
       sync_node(end_of_node_synchronizations)
@@ -307,6 +309,7 @@ defmodule Archethic.SelfRepair.Sync do
         summary_time,
         node_availabilities,
         node_average_availabilities,
+        network_patches,
         acc
       )
     end)
@@ -323,7 +326,7 @@ defmodule Archethic.SelfRepair.Sync do
       )
     end
 
-    update_statistics(summary_time, transaction_summaries)
+    update_statistics(summary_time, attestations)
 
     store_aggregate(aggregate, new_available_nodes)
     store_last_sync_date(summary_time)
@@ -331,21 +334,20 @@ defmodule Archethic.SelfRepair.Sync do
 
   defp synchronize_transactions([], _), do: :ok
 
-  defp synchronize_transactions(transaction_summaries, download_nodes) do
-    Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
-    Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
+  defp synchronize_transactions(attestations, download_nodes) do
+    Logger.info("Need to synchronize #{Enum.count(attestations)} transactions")
+    Logger.debug("Transaction to sync #{inspect(attestations)}")
 
     Task.Supervisor.async_stream(
       TaskSupervisor,
-      transaction_summaries,
-      &TransactionHandler.download_transaction(&1, download_nodes),
+      attestations,
+      &{&1, TransactionHandler.download_transaction(&1, download_nodes)},
       on_timeout: :kill_task,
       timeout: Message.get_max_timeout() + 2000,
       max_concurrency: 100
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.each(fn {:ok, tx} ->
-      :ok = TransactionHandler.process_transaction(tx, download_nodes)
+    |> Stream.each(fn {:ok, {attestation, tx}} ->
+      :ok = TransactionHandler.process_transaction(attestation, tx, download_nodes)
     end)
     |> Stream.run()
   end
@@ -360,6 +362,7 @@ defmodule Archethic.SelfRepair.Sync do
          time,
          node_availabilities,
          node_average_availabilities,
+         network_patches,
          acc
        ) do
     node_list = Enum.filter(P2P.list_nodes(), &(DateTime.diff(&1.enrollment_date, time) <= 0))
@@ -372,18 +375,24 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.reduce(acc, fn {available_bit, index}, acc ->
       node = Enum.at(subset_node_list, index)
       avg_availability = Enum.at(node_average_availabilities, index)
+      network_patch = Enum.at(network_patches, index)
+      available? = available_bit == 1 and node.synced?
 
-      if available_bit == 1 and node.synced? do
-        Map.put(acc, node, %{available?: true, average_availability: avg_availability})
-      else
-        Map.put(acc, node, %{available?: false, average_availability: avg_availability})
-      end
+      Map.put(acc, node, %{
+        available?: available?,
+        average_availability: avg_availability,
+        network_patch: network_patch
+      })
     end)
   end
 
   defp update_availabilities(
          {%Node{first_public_key: node_key},
-          %{available?: available?, average_availability: avg_availability}},
+          %{
+            available?: available?,
+            average_availability: avg_availability,
+            network_patch: network_patch
+          }},
          availability_update
        ) do
     if available? do
@@ -395,9 +404,13 @@ defmodule Archethic.SelfRepair.Sync do
 
     P2P.set_node_average_availability(node_key, avg_availability)
 
+    if network_patch do
+      P2P.update_node_network_patch(node_key, network_patch)
+    end
+
     %Node{availability_update: availability_update} = P2P.get_node_info!(node_key)
 
-    {node_key, available?, avg_availability, availability_update}
+    {node_key, available?, avg_availability, availability_update, network_patch}
   end
 
   defp update_statistics(date, []) do
@@ -405,8 +418,8 @@ defmodule Archethic.SelfRepair.Sync do
     DB.register_stats(date, tps, 0, 0)
   end
 
-  defp update_statistics(date, transaction_summaries) do
-    nb_transactions = length(transaction_summaries)
+  defp update_statistics(date, attestations) do
+    nb_transactions = length(attestations)
 
     previous_summary_time =
       date
@@ -419,8 +432,13 @@ defmodule Archethic.SelfRepair.Sync do
     acc = 0
 
     burned_fees =
-      transaction_summaries
-      |> Enum.reduce(acc, fn %TransactionSummary{fee: fee}, acc -> acc + fee end)
+      attestations
+      |> Enum.reduce(acc, fn %ReplicationAttestation{
+                               transaction_summary: %TransactionSummary{fee: fee}
+                             },
+                             acc ->
+        acc + fee
+      end)
 
     DB.register_stats(date, tps, nb_transactions, burned_fees)
 

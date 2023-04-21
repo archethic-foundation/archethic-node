@@ -1,21 +1,9 @@
 defmodule Archethic.Bootstrap.TransactionHandler do
   @moduledoc false
 
-  alias Archethic.Crypto
-
-  alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransactionSummary
-  alias Archethic.P2P.Message.TransactionSummaryMessage
-  alias Archethic.P2P.Message.NewTransaction
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Node
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.{Crypto, Utils, Election, P2P, TransactionChain}
+  alias P2P.{Node, Message.NewTransaction, Message.Ok}
+  alias TransactionChain.{Transaction, TransactionData}
 
   require Logger
 
@@ -54,7 +42,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           )
           |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
-        case await_confirmation(tx.address, storage_nodes) do
+        case Utils.await_confirmation(tx.address, storage_nodes) do
           :ok ->
             :ok
 
@@ -72,29 +60,6 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   end
 
   defp do_send_transaction([], _), do: {:error, :network_issue}
-
-  @spec await_confirmation(tx_address :: binary(), list(Node.t())) ::
-          :ok | {:error, :network_issue}
-  defp await_confirmation(tx_address, [node | rest]) do
-    case P2P.send_message(node, %GetTransactionSummary{address: tx_address}) do
-      {:ok,
-       %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^tx_address}}} ->
-        :ok
-
-      {:ok, %NotFound{}} ->
-        Process.sleep(200)
-        await_confirmation(tx_address, [node | rest])
-
-      {:error, e} ->
-        Logger.error("Cannot get transaction summary - #{inspect(e)}",
-          node: Base.encode16(node.first_public_key)
-        )
-
-        await_confirmation(tx_address, rest)
-    end
-  end
-
-  defp await_confirmation(_, []), do: {:error, :network_issue}
 
   @doc """
   Create a new node transaction

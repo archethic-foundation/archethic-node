@@ -138,11 +138,13 @@ config :archethic, Archethic.OracleChain,
   ]
 
 config :archethic, Archethic.OracleChain.Services.UCOPrice,
-  providers: [
-    Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko,
-    Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap,
-    Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika
-  ]
+  providers: %{
+    # Coingecko limits to 10-30 calls, with 30s delay we would be under the limitation
+    Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko => [refresh_interval: 30_000],
+    Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap => [refresh_interval: 10_000],
+    # Coinpaprika limits to 25K req/mo; with 2min delay we can reach ~21K
+    Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika => [refresh_interval: 120_000]
+  }
 
 config :archethic, ArchethicWeb.FaucetController,
   seed:
@@ -189,6 +191,8 @@ config :ex_cldr,
   default_locale: "en",
   default_backend: Archethic.Cldr,
   json_library: Jason
+
+config :archethic, env: config_env()
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

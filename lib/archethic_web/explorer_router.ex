@@ -90,6 +90,12 @@ defmodule ArchethicWeb.ExplorerRouter do
     post("/transaction", ArchethicWeb.API.TransactionController, :new)
     post("/transaction_fee", ArchethicWeb.API.TransactionController, :transaction_fee)
 
+    post(
+      "/transaction/contract/simulator",
+      ArchethicWeb.API.TransactionController,
+      :simulate_contract_execution
+    )
+
     forward(
       "/graphiql",
       Absinthe.Plug.GraphiQL,

@@ -8,7 +8,10 @@ defmodule Archethic.P2P.Message.FirstTransactionAddressTest do
   doctest FirstTransactionAddress
 
   test "encode decode" do
-    msg2 = %FirstTransactionAddress{address: <<0::272>>}
+    msg2 = %FirstTransactionAddress{
+      address: <<0::272>>,
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+    }
 
     assert msg2 ==
              msg2

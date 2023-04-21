@@ -33,7 +33,8 @@ defmodule Archethic.MixProject do
         :xmerl,
         :crypto
       ],
-      mod: {Archethic.Application, []}
+      mod: {Archethic.Application, []},
+      start_phases: [migrate: []]
     ]
   end
 
@@ -112,8 +113,6 @@ defmodule Archethic.MixProject do
       {:rand_compat, "~> 0.0.3"},
       {:gen_state_machine, "~> 3.0"},
       {:retry, "~> 0.17"},
-      {:gen_stage, "~> 1.1"},
-      {:flow, "~> 1.2"},
       {:knigge, "~> 1.4"},
       {:ex_json_schema, "~> 0.9", override: true},
       {:pathex, "~> 2.4"},
@@ -123,6 +122,7 @@ defmodule Archethic.MixProject do
       {:ex_cldr, "~> 2.7"},
       {:ex_cldr_numbers, "~> 2.29"},
       {:git_diff, "~> 0.6.4"},
+      {:decimal, "~> 2.0"},
 
       # Numbering
       {:nx, "~> 0.5"},

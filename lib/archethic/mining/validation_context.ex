@@ -37,6 +37,8 @@ defmodule Archethic.Mining.ValidationContext do
     sub_replication_tree_validations: []
   ]
 
+  alias Archethic.BeaconChain.ReplicationAttestation
+
   alias Archethic.Contracts
 
   alias Archethic.Crypto
@@ -1204,15 +1206,14 @@ defmodule Archethic.Mining.ValidationContext do
   @spec get_chain_storage_position(t(), node_public_key :: Crypto.key()) ::
           {:ok, non_neg_integer()} | {:error, :not_found}
   def get_chain_storage_position(
-        %__MODULE__{chain_storage_nodes: chain_storage_nodes},
+        %__MODULE__{chain_storage_nodes: chain_storage_nodes, validation_time: validation_time},
         node_public_key
       ) do
-    node_index = Enum.find_index(chain_storage_nodes, &(&1.first_public_key == node_public_key))
-
-    if node_index == nil do
-      {:error, :not_found}
-    else
+    if Enum.any?(chain_storage_nodes, &(&1.first_public_key == node_public_key)) do
+      node_index = ReplicationAttestation.get_node_index(node_public_key, validation_time)
       {:ok, node_index}
+    else
+      {:error, :not_found}
     end
   end
 

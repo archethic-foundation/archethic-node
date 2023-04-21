@@ -221,7 +221,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
 
       MockClient
       |> expect(:send_message, fn _, _, _ ->
-        {:ok, %GenesisAddress{address: b_address}}
+        {:ok, %GenesisAddress{address: b_address, timestamp: DateTime.utc_now()}}
       end)
 
       assert true =
@@ -261,7 +261,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
 
       MockClient
       |> expect(:send_message, 1, fn _, _, _ ->
-        {:ok, %FirstTransactionAddress{address: b_address}}
+        {:ok, %FirstTransactionAddress{address: b_address, timestamp: DateTime.utc_now()}}
       end)
 
       assert true =
@@ -361,6 +361,58 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
                  "code" => ~s"""
                   condition inherit: [1]
                  """
+               }
+             })
+    end
+
+    test "should validate condition on uco_transfers size" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      assert Interpreter.sanitize_code(~s"""
+             condition transaction: [
+               uco_transfers: size() < 10
+             ]
+             """)
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "uco_transfers" => %{"#{address}" => 12}
+               }
+             })
+    end
+
+    test "should invalidate condition on uco_transfers size" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      refute Interpreter.sanitize_code(~s"""
+             condition transaction: [
+               uco_transfers: size() > 10
+             ]
+             """)
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "uco_transfers" => %{"#{address}" => 12}
+               }
+             })
+    end
+
+    test "should validate oracle condition" do
+      assert Interpreter.sanitize_code(~s"""
+             condition oracle: [
+               content: json_path_extract(\"$.uco.eur\") > 1
+             ]
+             """)
+             |> elem(1)
+             |> ConditionInterpreter.parse()
+             |> elem(2)
+             |> ConditionInterpreter.valid_conditions?(%{
+               "transaction" => %{
+                 "content" => Jason.encode!(%{uco: %{eur: 2}})
                }
              })
     end

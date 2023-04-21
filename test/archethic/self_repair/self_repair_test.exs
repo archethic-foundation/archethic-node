@@ -99,10 +99,10 @@ defmodule Archethic.SelfRepairTest do
         {:ok, %Transaction{address: address}}
       end)
 
-      with_mock(Replication, validate_and_store_transaction_chain: fn _, _, _ -> :ok end) do
+      with_mock(Replication, sync_transaction_chain: fn _, _, _ -> :ok end) do
         assert :ok = SelfRepair.replicate_transaction(address, true)
 
-        assert_called(Replication.validate_and_store_transaction_chain(:_, :_, :_))
+        assert_called(Replication.sync_transaction_chain(:_, :_, :_))
       end
     end
 
@@ -147,9 +147,9 @@ defmodule Archethic.SelfRepairTest do
          }}
       end)
 
-      with_mock(Replication, validate_and_store_transaction: fn _, _ -> :ok end) do
+      with_mock(Replication, synchronize_io_transaction: fn _, _ -> :ok end) do
         assert :ok = SelfRepair.replicate_transaction(address, false)
-        assert_called(Replication.validate_and_store_transaction(:_, :_))
+        assert_called(Replication.synchronize_io_transaction(:_, :_))
       end
     end
 

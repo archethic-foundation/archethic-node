@@ -80,7 +80,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.LibraryTest do
     MockClient
     |> expect(:send_message, fn
       _, %GetFirstTransactionAddress{address: ^addr1}, _ ->
-        {:ok, %FirstTransactionAddress{address: addr2}}
+        {:ok, %FirstTransactionAddress{address: addr2, timestamp: DateTime.utc_now()}}
     end)
 
     assert Base.encode16(addr2) == Library.get_first_transaction_address(Base.encode16(addr1))

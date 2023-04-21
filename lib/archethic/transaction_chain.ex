@@ -17,6 +17,7 @@ defmodule Archethic.TransactionChain do
     AddressList,
     Error,
     GenesisAddress,
+    GetContractCalls,
     GetGenesisAddress,
     GetLastTransactionAddress,
     GetNextAddresses,
@@ -268,7 +269,7 @@ defmodule Archethic.TransactionChain do
   Get the first transaction Address from a genesis/chain address
   """
   @spec get_first_transaction_address(address :: binary()) ::
-          {:ok, address :: binary()} | {:error, :transaction_not_exists}
+          {:ok, {address :: binary(), DateTime.t()}} | {:error, :transaction_not_exists}
   def get_first_transaction_address(address) when is_binary(address) do
     address =
       address
@@ -278,7 +279,7 @@ defmodule Archethic.TransactionChain do
 
     case address do
       nil -> {:error, :transaction_not_exists}
-      {address, _datetime} -> {:ok, address}
+      {address, datetime} -> {:ok, {address, datetime}}
     end
   end
 
@@ -636,6 +637,30 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Fetch the transactions (not the inputs) that called the given contract.
+  """
+  @spec fetch_contract_calls(binary()) :: {:ok, list(Transaction.t())} | {:error, term()}
+  def fetch_contract_calls(contract_address) do
+    conflict_resolver = fn results ->
+      results
+      |> Enum.sort_by(&length(&1.inputs), :desc)
+      |> List.first()
+    end
+
+    case P2P.quorum_read(
+           Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes()),
+           %GetContractCalls{address: contract_address},
+           conflict_resolver
+         ) do
+      {:ok, %TransactionList{transactions: transactions}} ->
+        {:ok, transactions}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
+  end
+
+  @doc """
   Get a transaction summary from a transaction address
   """
   @spec get_transaction_summary(binary()) :: {:ok, TransactionSummary.t()} | {:error, :not_found}
@@ -643,10 +668,7 @@ defmodule Archethic.TransactionChain do
     case get_transaction(address, [
            :address,
            :type,
-           validation_stamp: [
-             :timestamp,
-             ledger_operations: [:fee, :transaction_movements]
-           ]
+           :validation_stamp
          ]) do
       {:ok, tx} ->
         {:ok, TransactionSummary.from_transaction(tx)}
@@ -1013,7 +1035,11 @@ defmodule Archethic.TransactionChain do
   @spec fetch_genesis_address_remotely(address :: binary(), list(Node.t())) ::
           {:ok, binary()} | {:error, :network_issue}
   def fetch_genesis_address_remotely(address, nodes) when is_binary(address) do
-    case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}) do
+    conflict_resolver = fn results ->
+      Enum.min_by(results, & &1.timestamp, DateTime)
+    end
+
+    case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}, conflict_resolver) do
       {:ok, %GenesisAddress{address: genesis_address}} ->
         {:ok, genesis_address}
 
@@ -1029,7 +1055,17 @@ defmodule Archethic.TransactionChain do
           {:ok, binary()} | {:error, :network_issue} | {:error, :does_not_exist}
   def fetch_first_transaction_address_remotely(address, nodes)
       when is_binary(address) and is_list(nodes) do
-    case P2P.quorum_read(nodes, %GetFirstTransactionAddress{address: address}) do
+    conflict_resolver = fn results ->
+      case results |> Enum.reject(&match?(%NotFound{}, &1)) do
+        [] ->
+          %NotFound{}
+
+        results_filtered ->
+          Enum.min_by(results_filtered, & &1.timestamp, DateTime)
+      end
+    end
+
+    case P2P.quorum_read(nodes, %GetFirstTransactionAddress{address: address}, conflict_resolver) do
       {:ok, %NotFound{}} ->
         {:error, :does_not_exist}
 

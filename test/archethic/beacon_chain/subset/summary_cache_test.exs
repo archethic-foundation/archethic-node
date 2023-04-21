@@ -5,19 +5,58 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
   alias Archethic.BeaconChain.Subset.SummaryCache
 
   alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
-
   alias Archethic.BeaconChain.SummaryTimer
+
+  alias Archethic.Crypto
 
   alias Archethic.Utils
 
   alias Archethic.TransactionChain.TransactionSummary
 
-  test "summary cache should backup a slot, recover it on restart and delete backup on pop_slots" do
+  test "should clean the previous summary slots after the new epoch event" do
+    {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 * * * *"], [])
+    {:ok, _pid} = SlotTimer.start_link([interval: "10 * * * *"], [])
+    {:ok, pid} = SummaryCache.start_link()
+    File.mkdir_p!(Utils.mut_dir())
+
+    subset = <<0>>
+
+    slot_pre_summary = %Slot{
+      slot_time: ~U[2023-01-01 07:59:50Z],
+      subset: subset
+    }
+
+    slot_post_summary = %Slot{
+      slot_time: ~U[2023-01-01 08:00:20Z],
+      subset: subset
+    }
+
+    previous_summary_time = SummaryTimer.previous_summary(~U[2023-01-01 08:01:00Z])
+
+    first_slot_time = SlotTimer.next_slot(previous_summary_time)
+    SummaryCache.add_slot(subset, slot_pre_summary, "node_key")
+    SummaryCache.add_slot(subset, slot_post_summary, "node_key")
+
+    send(pid, {:current_epoch_of_slot_timer, first_slot_time})
+    Process.sleep(100)
+
+    assert [{^slot_post_summary, "node_key"}] =
+             subset
+             |> SummaryCache.stream_current_slots()
+             |> Enum.to_list()
+
+    recover_path = Utils.mut_dir("slot_backup-#{DateTime.to_unix(previous_summary_time)}")
+    assert !File.exists?(recover_path)
+  end
+
+  test "summary cache should backup a slot, recover it on restart" do
     {:ok, _pid} = SummaryTimer.start_link([interval: "0 0 * * * * *"], [])
     File.mkdir_p!(Utils.mut_dir())
 
-    path = Utils.mut_dir("slot_backup")
+    next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
+    path = Utils.mut_dir("slot_backup-#{DateTime.to_unix(next_summary_time)}")
 
     {:ok, pid} = SummaryCache.start_link()
 
@@ -33,7 +72,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
             timestamp: ~U[2020-06-25 15:11:53.000Z],
             type: :transfer,
             movements_addresses: [],
-            fee: 10_000_000
+            fee: 10_000_000,
+            validation_stamp_checksum: :crypto.strong_rand_bytes(32)
           },
           confirmations: [
             {0,
@@ -61,9 +101,10 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
       }
     }
 
-    :ok = SummaryCache.add_slot(<<0>>, slot)
+    node_key = Crypto.first_node_public_key()
+    :ok = SummaryCache.add_slot(<<0>>, slot, node_key)
 
-    assert [^slot] = :ets.lookup_element(:archethic_summary_cache, <<0>>, 2)
+    assert [{^slot, ^node_key}] = :ets.lookup_element(:archethic_summary_cache, <<0>>, 2)
     assert File.exists?(path)
 
     GenServer.stop(pid)
@@ -71,9 +112,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
 
     {:ok, _} = SummaryCache.start_link()
 
-    slots = SummaryCache.pop_slots(<<0>>)
-    assert !File.exists?(path)
-
-    assert [^slot] = slots
+    slots = SummaryCache.stream_current_slots(<<0>>) |> Enum.to_list()
+    assert [{^slot, ^node_key}] = slots
   end
 end

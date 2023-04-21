@@ -419,7 +419,7 @@ defmodule Archethic.BootstrapTest do
     end
   end
 
-  describe "resync_network_chain/1 nss_chain" do
+  describe "synchronous_resync/1 nss_chain" do
     setup do
       p2p_context()
 
@@ -524,9 +524,6 @@ defmodule Archethic.BootstrapTest do
         ^addr2, _ -> true
         ^addr1, _ -> true
       end)
-      |> expect(:get_transaction, fn ^addr3, _, _ ->
-        {:error, :transaction_not_exists}
-      end)
       |> stub(:write_transaction, fn tx, _ ->
         # to know this fx executed or not we use send
         send(me, {:write_transaction, tx.address})
@@ -548,7 +545,7 @@ defmodule Archethic.BootstrapTest do
           {:ok, %TransactionInputList{inputs: []}}
 
         _, %GetGenesisAddress{address: ^addr3}, _ ->
-          {:ok, %GenesisAddress{address: addr0}}
+          {:ok, %GenesisAddress{address: addr0, timestamp: DateTime.utc_now()}}
 
         _, %GetTransactionChain{address: ^addr3, paging_state: ^addr2}, _ ->
           {:ok,

@@ -5,7 +5,6 @@ defmodule Archethic.TransactionChain.TransactionTest do
   import ArchethicCase, only: [current_transaction_version: 0, current_protocol_version: 0]
 
   alias Archethic.Crypto
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   # alias Archethic.TransactionChain.Transaction.ValidationStamp

@@ -32,6 +32,7 @@ defmodule ArchethicWeb.FaucetControllerTest do
     })
 
     setup_before_send_tx()
+    start_supervised(FaucetRateLimiter)
     :ok
   end
 
@@ -85,9 +86,7 @@ defmodule ArchethicWeb.FaucetControllerTest do
           {:ok, %Ok{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GetGenesisAddress{address: tx.address}}
-
-          {:ok, %Ok{}}
+          {:ok, %GenesisAddress{address: tx.address, timestamp: DateTime.utc_now()}}
       end)
 
       conn = post(conn, Routes.faucet_path(conn, :create_transfer), address: recipient_address)
@@ -148,7 +147,7 @@ defmodule ArchethicWeb.FaucetControllerTest do
           {:ok, %Ok{}}
 
         _, %GetGenesisAddress{}, _ ->
-          {:ok, %GenesisAddress{address: tx.address}}
+          {:ok, %GenesisAddress{address: tx.address, timestamp: DateTime.utc_now()}}
 
         _, %Archethic.P2P.Message.ListNodes{}, _ ->
           {:ok, %Archethic.P2P.Message.NodeList{nodes: Archethic.P2P.list_nodes()}}

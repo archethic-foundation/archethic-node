@@ -1,6 +1,7 @@
 defmodule Archethic.DB.EmbeddedTest do
   use ArchethicCase, async: false
 
+  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryAggregate
 
@@ -240,19 +241,24 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should retrieve a beacon summaries aggregate" do
       aggregate = %SummaryAggregate{
         summary_time: ~U[2020-09-01 00:00:00Z],
-        transaction_summaries: [
-          %TransactionSummary{
-            type: :transfer,
-            address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-            fee: 100_000_000,
-            timestamp: ~U[2020-08-31 20:00:00.232Z]
+        replication_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: %TransactionSummary{
+              type: :transfer,
+              address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+              fee: 100_000_000,
+              timestamp: ~U[2020-08-31 20:00:00.232Z],
+              validation_stamp_checksum: :crypto.strong_rand_bytes(32)
+            },
+            confirmations: Enum.map(0..2, &{&1, "signature#{&1}"})
           }
         ],
         p2p_availabilities: %{
           <<0>> => %{
             node_availabilities: <<1::1>>,
             node_average_availabilities: [1.0],
-            end_of_node_synchronizations: []
+            end_of_node_synchronizations: [],
+            network_patches: ["AAA"]
           }
         },
         availability_adding_time: 900
@@ -843,7 +849,7 @@ defmodule Archethic.DB.EmbeddedTest do
   describe "P2P summaries listing" do
     test "should register new P2P summary " do
       node_public_key = :crypto.strong_rand_bytes(32)
-      views = [{node_public_key, true, 0.8, DateTime.utc_now()}]
+      views = [{node_public_key, true, 0.8, DateTime.utc_now(), "AAA"}]
 
       EmbeddedImpl.register_p2p_summary(views)
 
@@ -852,8 +858,8 @@ defmodule Archethic.DB.EmbeddedTest do
       node_public_key2 = :crypto.strong_rand_bytes(32)
 
       views = [
-        {node_public_key, true, 0.8, DateTime.utc_now()},
-        {node_public_key2, true, 0.5, DateTime.utc_now()}
+        {node_public_key, true, 0.8, DateTime.utc_now(), "AAA"},
+        {node_public_key2, true, 0.5, DateTime.utc_now(), "AAA"}
       ]
 
       EmbeddedImpl.register_p2p_summary(views)

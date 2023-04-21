@@ -81,17 +81,19 @@ defmodule Archethic.ContractsTest do
     end
 
     test "should return true when the inherit constraints matches the next transaction" do
-      code = """
+      address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
       condition inherit: [
         content: regex_match?("hello"),
-        uco_transfers: %{
-          "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 1000000000
-        },
+        uco_transfers: %{"#{Base.encode16(address)}" => 1000000000},
         type: transfer
       ]
 
+      condition transaction: []
+
       actions triggered_by: transaction do
-        add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 1000000000
+        add_uco_transfer to: "#{Base.encode16(address)}", amount: 1000000000
         set_content "hello"
         set_type transfer
       end
@@ -112,9 +114,7 @@ defmodule Archethic.ContractsTest do
             uco: %UCOLedger{
               transfers: [
                 %Transfer{
-                  to:
-                    <<50, 101, 204, 215, 140, 215, 73, 132, 250, 179, 204, 105, 132, 211, 12, 140,
-                      130, 4, 78, 187, 171, 26, 79, 255, 182, 131, 189, 178, 216, 197, 188, 249>>,
+                  to: address,
                   amount: 1_000_000_000
                 }
               ]

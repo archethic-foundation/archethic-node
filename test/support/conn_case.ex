@@ -19,8 +19,6 @@ defmodule ArchethicWeb.ConnCase do
 
   alias Phoenix.ConnTest
 
-  alias ArchethicWeb.FaucetRateLimiter
-
   using do
     quote do
       # Import conveniences for testing with connections
@@ -38,7 +36,6 @@ defmodule ArchethicWeb.ConnCase do
     # mark the node as bootstraped
     :persistent_term.put(:archethic_up, :up)
 
-    start_supervised!(FaucetRateLimiter)
     {:ok, conn: ConnTest.build_conn()}
   end
 end

@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Library
@@ -43,12 +44,20 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     # initiate a transaction that will be use by the "Contract" module
     next_tx = %Transaction{data: %TransactionData{}}
 
+    # Apply some transformations to the transactions
+    # We do it here because the Constants module is still used by InterpreterLegacy
+    constants =
+      constants
+      |> Constants.map_transactions(&Constants.stringify_transaction/1)
+      |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
+
     # we use the process dictionary to store our scope
     # because it is mutable.
     #
     # constants should already contains the global variables:
+    #   - "calls": the transactions that called this exact contract version
     #   - "contract": current contract transaction
-    #   - "transaction": the incoming transaction (when trigger=transaction)
+    #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
     Scope.init(Map.put(constants, "next_transaction", next_tx))
 
     # we can ignore the result & binding
@@ -150,19 +159,15 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # Contract.get_calls() => Contract.get_calls(contract.address)
+  # Contract.get_calls()
   defp postwalk(
          _node =
            {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, "get_calls"}]}, _, []},
          acc
        ) do
-    # contract is one of the "magic" variables that we expose to the user's code
-    # it is bound in the root scope
     new_node =
       quote do
-        Archethic.Contracts.Interpreter.Library.Contract.get_calls(
-          Scope.read_global(["contract", "address"])
-        )
+        Archethic.Contracts.Interpreter.Library.Contract.get_calls()
       end
 
     {new_node, acc}

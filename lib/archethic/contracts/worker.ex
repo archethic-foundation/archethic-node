@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Worker do
 
   alias Archethic.ContractRegistry
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
 
@@ -75,190 +74,114 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, new_state}
   end
 
+  # TRIGGER: TRANSACTION
   def handle_cast(
-        {:execute, incoming_tx = %Transaction{}},
-        state = %{
-          contract: %Contract{
-            version: version,
-            triggers: triggers,
-            constants: %Constants{
-              contract: contract_constants = %{"address" => contract_address}
-            },
-            conditions: %{transaction: transaction_condition}
-          }
-        }
+        {:execute, trigger_tx = %Transaction{}},
+        state = %{contract: contract}
       ) do
-    Logger.info("Execute contract transaction actions",
-      transaction_address: Base.encode16(incoming_tx.address),
-      transaction_type: incoming_tx.type,
-      contract: Base.encode16(contract_address)
-    )
+    contract_tx = Constants.to_transaction(contract.constants.contract)
 
-    if Map.has_key?(triggers, :transaction) do
-      constants = %{
-        "contract" => contract_constants,
-        "transaction" => Constants.from_transaction(incoming_tx)
-      }
+    meta = log_metadata(contract_tx, trigger_tx)
+    Logger.debug("Contract execution started", meta)
 
-      contract_transaction = Constants.to_transaction(contract_constants)
-
-      with true <- Interpreter.valid_conditions?(version, transaction_condition, constants),
-           next_tx = %Transaction{} <-
-             Interpreter.execute_trigger(version, Map.fetch!(triggers, :transaction), constants),
-           {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction) do
-        handle_new_transaction(next_tx)
-        {:noreply, state}
-      else
-        nil ->
-          # returned by Interpreter.execute_trigger when contract did not create a next tx
-          {:noreply, state}
-
-        false ->
-          Logger.debug("Incoming transaction didn't match the condition",
-            transaction_address: Base.encode16(incoming_tx.address),
-            transaction_type: incoming_tx.type,
-            contract: Base.encode16(contract_address)
-          )
-
-          {:noreply, state}
-
-        {:error, :transaction_seed_decryption} ->
-          {:noreply, state}
-      end
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(
+             :transaction,
+             contract,
+             trigger_tx,
+             # we append the trigger_tx to the calls in case it is missing due to race condition
+             Enum.uniq([trigger_tx | calls]),
+             skip_inherit_check?: true
+           ),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
     else
-      Logger.debug("No transaction trigger",
-        transaction_address: Base.encode16(incoming_tx.address),
-        transaction_type: incoming_tx.type,
-        contract: Base.encode16(contract_address)
-      )
-
-      {:noreply, state}
-    end
-  end
-
-  def handle_info(
-        {:trigger, {:datetime, timestamp}},
-        state = %{
-          contract: %Contract{
-            version: version,
-            triggers: triggers,
-            constants: %Constants{contract: contract_constants = %{"address" => address}}
-          }
-        }
-      ) do
-    Logger.info("Execute contract datetime trigger actions",
-      contract: Base.encode16(address)
-    )
-
-    constants = %{
-      "contract" => contract_constants
-    }
-
-    contract_tx = Constants.to_transaction(contract_constants)
-
-    with next_tx = %Transaction{} <-
-           Interpreter.execute_trigger(
-             version,
-             Map.fetch!(triggers, {:datetime, timestamp}),
-             constants
-           ),
-         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx) do
-      handle_new_transaction(next_tx)
+      _ ->
+        Logger.debug("Contract execution failed", meta)
     end
 
-    {:noreply, Map.update!(state, :timers, &Map.delete(&1, {:datetime, timestamp}))}
+    {:noreply, state}
   end
 
+  # TRIGGER: DATETIME
   def handle_info(
-        {:trigger, {:interval, interval}},
-        state = %{
-          contract: %Contract{
-            version: version,
-            triggers: triggers,
-            constants: %Constants{
-              contract: contract_constants = %{"address" => address}
-            }
-          }
-        }
+        {:trigger, trigger_type = {:datetime, _}},
+        state = %{contract: contract}
       ) do
-    Logger.info("Execute contract interval trigger actions",
-      contract: Base.encode16(address)
-    )
+    contract_tx = Constants.to_transaction(contract.constants.contract)
 
-    # Schedule the next interval trigger
+    meta = log_metadata(contract_tx)
+    Logger.debug("Contract execution started", meta)
+
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(trigger_type, contract, nil, calls, skip_inherit_check?: true),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
+
+    {:noreply, Map.update!(state, :timers, &Map.delete(&1, trigger_type))}
+  end
+
+  # TRIGGER: INTERVAL
+  def handle_info(
+        {:trigger, trigger_type = {:interval, interval}},
+        state = %{contract: contract}
+      ) do
+    contract_tx = Constants.to_transaction(contract.constants.contract)
+
+    meta = log_metadata(contract_tx)
+    Logger.debug("Contract execution started", meta)
+
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(trigger_type, contract, nil, calls, skip_inherit_check?: true),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
+
     interval_timer = schedule_trigger({:interval, interval})
-
-    constants = %{
-      "contract" => contract_constants
-    }
-
-    contract_transaction = Constants.to_transaction(contract_constants)
-
-    with true <- enough_funds?(address),
-         next_tx = %Transaction{} <-
-           Interpreter.execute_trigger(
-             version,
-             Map.fetch!(triggers, {:interval, interval}),
-             constants
-           ),
-         {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
-         :ok <- ensure_enough_funds(next_tx, address) do
-      handle_new_transaction(next_tx)
-    end
-
     {:noreply, put_in(state, [:timers, :interval], interval_timer)}
   end
 
+  # TRIGGER: ORACLE
   def handle_info(
         {:new_transaction, tx_address, :oracle, _timestamp},
-        state = %{
-          contract: %Contract{
-            version: version,
-            triggers: triggers,
-            constants: %Constants{contract: contract_constants = %{"address" => address}},
-            conditions: %{oracle: oracle_condition}
-          }
-        }
+        state = %{contract: contract}
       ) do
-    Logger.info("Execute contract oracle trigger actions", contract: Base.encode16(address))
+    contract_tx = Constants.to_transaction(contract.constants.contract)
+    {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
 
-    with true <- enough_funds?(address),
-         true <- Map.has_key?(triggers, :oracle) do
-      {:ok, tx} = TransactionChain.get_transaction(tx_address)
+    meta = log_metadata(contract_tx, oracle_tx)
+    Logger.debug("Contract execution started", meta)
 
-      constants = %{
-        "contract" => contract_constants,
-        "transaction" => Constants.from_transaction(tx)
-      }
-
-      contract_transaction = Constants.to_transaction(contract_constants)
-
-      if Conditions.empty?(oracle_condition) do
-        with next_tx = %Transaction{} <-
-               Interpreter.execute_trigger(version, Map.fetch!(triggers, :oracle), constants),
-             {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
-             :ok <- ensure_enough_funds(next_tx, address) do
-          handle_new_transaction(next_tx)
-        end
-      else
-        with true <- Interpreter.valid_conditions?(version, oracle_condition, constants),
-             next_tx = %Transaction{} <-
-               Interpreter.execute_trigger(version, Map.fetch!(triggers, :oracle), constants),
-             {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
-             :ok <- ensure_enough_funds(next_tx, address) do
-          handle_new_transaction(next_tx)
-        else
-          nil ->
-            # returned by Interpreter.execute_trigger when contract did not create a next tx
-            :ok
-
-          false ->
-            Logger.info("Invalid oracle conditions", contract: Base.encode16(address))
-
-          {:error, e} ->
-            Logger.info("#{inspect(e)}", contract: Base.encode16(address))
-        end
-      end
+    with true <- enough_funds?(contract_tx.address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+         {:ok, next_tx = %Transaction{}} <-
+           Interpreter.execute(:oracle, contract, oracle_tx, calls, skip_inherit_check?: true),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- handle_new_transaction(next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      _ ->
+        Logger.debug("Contract execution failed", meta)
     end
 
     {:noreply, state}
@@ -268,6 +191,7 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, state}
   end
 
+  # ----------------------------------------------
   defp via_tuple(address) do
     {:via, Registry, {ContractRegistry, address}}
   end
@@ -330,18 +254,15 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp chain_transaction(
-         next_tx,
+         _next_tx = %Transaction{
+           type: new_type,
+           data: new_data
+         },
          prev_tx = %Transaction{
            address: address,
            previous_public_key: previous_public_key
          }
        ) do
-    %{next_transaction: %Transaction{type: new_type, data: new_data}} =
-      %{next_transaction: next_tx, previous_transaction: prev_tx}
-      |> chain_type()
-      |> chain_code()
-      |> chain_ownerships()
-
     case get_transaction_seed(prev_tx) do
       {:ok, transaction_seed} ->
         length = TransactionChain.size(address)
@@ -357,7 +278,7 @@ defmodule Archethic.Contracts.Worker do
 
       _ ->
         Logger.info("Cannot decrypt the transaction seed", contract: Base.encode16(address))
-        {:error, :transaction_seed_decryption}
+        :error
     end
   end
 
@@ -379,45 +300,6 @@ defmodule Archethic.Contracts.Worker do
         {:error, :decryption_failed}
     end
   end
-
-  defp chain_type(
-         acc = %{
-           next_transaction: %Transaction{type: nil},
-           previous_transaction: _
-         }
-       ) do
-    put_in(acc, [:next_transaction, Access.key(:type)], :contract)
-  end
-
-  defp chain_type(acc), do: acc
-
-  defp chain_code(
-         acc = %{
-           next_transaction: %Transaction{data: %TransactionData{code: ""}},
-           previous_transaction: %Transaction{data: %TransactionData{code: previous_code}}
-         }
-       ) do
-    put_in(acc, [:next_transaction, Access.key(:data, %{}), Access.key(:code)], previous_code)
-  end
-
-  defp chain_code(acc), do: acc
-
-  defp chain_ownerships(
-         acc = %{
-           next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
-           previous_transaction: %Transaction{
-             data: %TransactionData{ownerships: previous_ownerships}
-           }
-         }
-       ) do
-    put_in(
-      acc,
-      [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],
-      previous_ownerships
-    )
-  end
-
-  defp chain_ownerships(acc), do: acc
 
   defp enough_funds?(contract_address) do
     case Account.get_balance(contract_address) do
@@ -469,7 +351,7 @@ defmodule Archethic.Contracts.Worker do
                  f_token_address == t_token_address and f_token_id == t_token_id
                end)
 
-             balance > t_amount
+             balance >= t_amount
            end) do
       :ok
     else
@@ -481,5 +363,19 @@ defmodule Archethic.Contracts.Worker do
 
         {:error, :not_enough_funds}
     end
+  end
+
+  defp log_metadata(contract_tx), do: log_metadata(contract_tx, nil)
+
+  defp log_metadata(contract_tx, nil) do
+    [contract: Base.encode16(contract_tx.address)]
+  end
+
+  defp log_metadata(contract_tx, %Transaction{type: type, address: address}) do
+    [
+      transaction_address: Base.encode16(address),
+      transaction_type: type,
+      contract: Base.encode16(contract_tx.address)
+    ]
   end
 end

@@ -16,12 +16,12 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   """
   @spec valid_conditions?(Conditions.t(), map()) :: boolean()
   def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
+    # Apply some transformations to the transactions
+    # We do it here because the Constants module is still used by InterpreterLegacy
     constants =
       constants
-      |> Enum.map(fn {subset, constants} ->
-        {subset, Constants.stringify(constants)}
-      end)
-      |> Enum.into(%{})
+      |> Constants.map_transactions(&Constants.stringify_transaction/1)
+      |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
 
     conditions
     |> Map.from_struct()
@@ -78,12 +78,14 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
     {"timestamp", true}
   end
 
-  defp validate_condition({"type", nil}, %{"next" => %{"type" => "transfer"}}) do
-    # Skip the verification when it's the default type
-    {"type", true}
+  defp validate_condition({"type", nil}, %{
+         "previous" => %{"type" => previous_type},
+         "next" => %{"type" => next_type}
+       }) do
+    {"type", previous_type == next_type}
   end
 
-  defp validate_condition({"content", nil}, %{"next" => %{"content" => ""}}) do
+  defp validate_condition({"content", nil}, %{"previous" => _, "next" => %{"content" => ""}}) do
     # Skip the verification when it's the default type
     {"content", true}
   end
@@ -104,7 +106,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
     {field, Map.get(prev, field) == Map.get(next, field)}
   end
 
-  defp validate_condition({field, condition}, constants = %{"next" => next}) do
+  defp validate_condition({field, condition}, constants = %{"previous" => _, "next" => next}) do
     result = evaluate_condition(condition, constants)
 
     if is_boolean(result) do

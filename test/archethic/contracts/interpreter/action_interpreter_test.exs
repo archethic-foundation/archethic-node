@@ -1,11 +1,18 @@
 defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   use ArchethicCase
+  use ExUnitProperties
 
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
   doctest ActionInterpreter
 
@@ -365,7 +372,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       actions triggered_by: transaction do
         numbers = ["1": 1, two: 2, three: 3]
 
-        Contract.set_content numbers[String.from_int 1]
+        Contract.set_content numbers[String.from_number 1]
       end
       """
 
@@ -870,7 +877,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       actions triggered_by: transaction do
         numbers = ["1": 1, two: 2, three: 3]
 
-        Contract.set_content numbers[String.from_int 1]
+        Contract.set_content numbers[String.from_number 1]
       end
       """
 
@@ -889,6 +896,284 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
 
       assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
     end
+  end
+
+  describe "BigInt" do
+    test "wrote in transfers" do
+      address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      address2 = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 5
+        b = 5.1
+        c = 15
+        Contract.add_uco_transfer to: "#{Base.encode16(address)}", amount: a
+        Contract.add_uco_transfer to: "#{Base.encode16(address2)}", amount: b
+        Contract.add_token_transfer([to: "#{Base.encode16(address)}", amount: c, token_id: 1, token_address: "#{Base.encode16(address2)}"])
+      end
+      """
+
+      expected_a = Archethic.Utils.to_bigint(5)
+      expected_b = Archethic.Utils.to_bigint(5.1)
+      expected_c = Archethic.Utils.to_bigint(15)
+
+      assert %Transaction{
+               data: %TransactionData{
+                 ledger: %Ledger{
+                   token: %TokenLedger{
+                     transfers: [
+                       %TokenTransfer{
+                         to: ^address,
+                         amount: ^expected_c,
+                         token_address: ^address2,
+                         token_id: 1
+                       }
+                     ]
+                   },
+                   uco: %UCOLedger{
+                     transfers: [
+                       %UCOTransfer{to: ^address2, amount: ^expected_b},
+                       %UCOTransfer{to: ^address, amount: ^expected_a}
+                     ]
+                   }
+                 }
+               }
+             } = sanitize_parse_execute(code)
+    end
+
+    test "read from transfers" do
+      address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      address2 = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      token_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      address_hex = Base.encode16(address)
+      address2_hex = Base.encode16(address2)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        if transaction.uco_transfers["#{address_hex}"] == 2 do
+          if List.at(transaction.token_transfers["#{address2_hex}"], 0).amount == 3.12345 do
+            Contract.set_content "ok"
+          end
+        end
+      end
+      """
+
+      tx = %Transaction{
+        data: %TransactionData{
+          ledger: %Ledger{
+            token: %TokenLedger{
+              transfers: [
+                %TokenTransfer{
+                  to: address2,
+                  amount: Archethic.Utils.to_bigint(3.12345),
+                  token_address: token_address,
+                  token_id: 1
+                }
+              ]
+            },
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{to: address, amount: Archethic.Utils.to_bigint(2)}
+              ]
+            }
+          }
+        }
+      }
+
+      # FIXME: keys of transfers are binaries (should be hex), why?
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} =
+               sanitize_parse_execute(code, %{
+                 "transaction" => Constants.from_transaction(tx)
+               })
+    end
+
+    test "maths are OK" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        # this is a known rounding issue in elixir
+        a = 0.1 * 0.1
+        if a == 0.01 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 0.145 * 2
+        if a == 0.29 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 1 / 3
+        if a == 0.33333333 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 2 / 3
+        if a == 0.66666666 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 0.29 + 0.15
+        if a == 0.44 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 12 / 2
+        if a == 6 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 12 + 120
+        if a == 132 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 1 - 120
+        if a == -119 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        a = 0.1 + 0.2
+        if a == 0.3 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    property "floating points additions" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <- StreamData.float()
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} + #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+
+    property "floating points multiplication" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <- StreamData.float()
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} * #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+
+    property "floating points division" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <-
+                StreamData.float()
+                |> StreamData.filter(&(&1 != 0.0))
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} / #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+
+    property "floating points substraction" do
+      check all(
+              lhs <- StreamData.float(),
+              rhs <- StreamData.float()
+            ) do
+        code = ~s"""
+        actions triggered_by: transaction do
+          Contract.set_content (#{lhs} - #{rhs})
+        end
+        """
+
+        assert %Transaction{data: %TransactionData{content: content}} =
+                 sanitize_parse_execute(code)
+
+        assert_less_than_8_decimals(content)
+      end
+    end
+  end
+
+  defp assert_less_than_8_decimals(str) do
+    assert (case(String.split(str, ".")) do
+              [_] ->
+                true
+
+              [_real, decimals] ->
+                String.length(decimals) <= 8
+            end)
   end
 
   defp sanitize_parse_execute(code, constants \\ %{}) do

@@ -14,25 +14,36 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
     to: String,
     as: :contains?
 
-  @spec to_int(String.t()) :: integer()
-  defdelegate to_int(str),
-    to: String,
-    as: :to_integer
+  @spec to_number(String.t()) :: integer() | float() | nil
+  def to_number(string) do
+    try do
+      String.to_integer(string)
+    rescue
+      _ ->
+        try do
+          String.to_float(string)
+        rescue
+          _ ->
+            nil
+        end
+    end
+  end
 
-  @spec from_int(integer()) :: String.t()
-  defdelegate from_int(int),
-    to: Integer,
-    as: :to_string
+  @spec from_number(integer() | float()) :: String.t()
+  def from_number(int) when is_integer(int) do
+    Integer.to_string(int)
+  end
 
-  @spec to_float(String.t()) :: float()
-  defdelegate to_float(str),
-    to: String,
-    as: :to_float
+  def from_number(float) when is_float(float) do
+    truncated = trunc(float)
 
-  @spec from_float(float()) :: String.t()
-  defdelegate from_float(float),
-    to: Float,
-    as: :to_string
+    # we display as an int if there is no decimals
+    if truncated == float do
+      Integer.to_string(truncated)
+    else
+      Float.to_string(float)
+    end
+  end
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:size, [first]) do
@@ -44,20 +55,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
       (AST.is_binary?(second) || AST.is_variable_or_function_call?(second))
   end
 
-  def check_types(:to_int, [first]) do
+  def check_types(:to_number, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 
-  def check_types(:from_int, [first]) do
-    AST.is_integer?(first) || AST.is_variable_or_function_call?(first)
-  end
-
-  def check_types(:to_float, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
-  end
-
-  def check_types(:from_float, [first]) do
-    AST.is_float?(first) || AST.is_variable_or_function_call?(first)
+  def check_types(:from_number, [first]) do
+    AST.is_number?(first) || AST.is_variable_or_function_call?(first)
   end
 
   def check_types(_, _), do: false

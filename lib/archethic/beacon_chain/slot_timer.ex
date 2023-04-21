@@ -15,7 +15,6 @@ defmodule Archethic.BeaconChain.SlotTimer do
   alias Archethic.Crypto
 
   alias Archethic.P2P
-  alias Archethic.P2P.Node
   alias Archethic.PubSub
 
   alias Archethic.Utils
@@ -137,17 +136,13 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
     if SummaryTimer.match_interval?(slot_time) do
       # We clean the previously stored summaries - The retention time is for a self repair cycle
-      # as the aggregates will be handle for long term storage.
+      # as the aggregates will be handled for long term storage.
       DB.clear_beacon_summaries()
     end
 
-    case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
-      %Node{authorized?: true, available?: true} ->
-        Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
-        Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
-
-      _ ->
-        :skip
+    if P2P.authorized_and_available_node?(Crypto.first_node_public_key(), slot_time) do
+      Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
+      Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
     end
 
     next_time = next_slot(next_time)

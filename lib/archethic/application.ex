@@ -51,6 +51,8 @@ defmodule Archethic.Application do
 
   alias Archethic.Metrics.MetricSupervisor, as: MetricSupervisor
 
+  alias Mix.Tasks.Archethic.Migrate
+
   require Logger
 
   def start(_type, _args) do
@@ -103,6 +105,10 @@ defmodule Archethic.Application do
 
     opts = [strategy: :rest_for_one, name: Archethic.Supervisor]
     Supervisor.start_link(Utils.configurable_children(children), opts)
+  end
+
+  def start_phase(:migrate, :normal, _options) do
+    Application.spec(:archethic, :vsn) |> Migrate.run()
   end
 
   defp try_open_port(nil), do: :ok

@@ -476,7 +476,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
   # Flatten comparison operations
   defp to_boolean_expression({op, _, [{:==, metadata, [{:get_in, _, _}, comp_a]}, comp_b]}, _, _)
-       when op in [:==, :>=, :<=] do
+       when op in [:==, :>=, :<=, :>, :<] do
     {op, metadata, [comp_a, comp_b]}
   end
 
@@ -489,10 +489,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
     constants =
       constants
-      |> Enum.map(fn {subset, constants} ->
-        {subset, Constants.stringify(constants)}
-      end)
-      |> Enum.into(%{})
+      |> Constants.map_transactions(&Constants.stringify_transaction/1)
 
     result =
       conditions
@@ -556,7 +553,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
     {"timestamp", true}
   end
 
-  defp validate_condition({"type", nil}, %{"next" => %{"type" => "transfer"}}) do
+  defp validate_condition({"type", nil}, %{"next" => %{"type" => type}})
+       when type in ["transfer", "contract"] do
     # Skip the verification when it's the default type
     {"type", true}
   end

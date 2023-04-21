@@ -78,17 +78,20 @@ defmodule Archethic.P2P.MemTableLoader do
     is_same_slot? = DateTime.compare(DateTime.utc_now(), next_repair_time) == :lt
 
     p2p_summaries = DB.get_last_p2p_summaries()
-
-    previously_available = Enum.filter(p2p_summaries, &match?({_, true, _, _}, &1))
+    previously_available = Enum.filter(p2p_summaries, &match?({_, true, _, _, _}, &1))
 
     node_key = Crypto.first_node_public_key()
 
     case previously_available do
       # Ensure the only single node is globally available after a delayed bootstrap
-      [{^node_key, _, avg_availability, availability_update}] ->
+      [{^node_key, _, avg_availability, availability_update, network_patch}] ->
         P2P.set_node_globally_synced(node_key)
         P2P.set_node_globally_available(node_key, availability_update)
         P2P.set_node_average_availability(node_key, avg_availability)
+
+        if network_patch do
+          P2P.update_node_network_patch(node_key, network_patch)
+        end
 
       [] ->
         P2P.set_node_globally_synced(node_key)
@@ -206,7 +209,7 @@ defmodule Archethic.P2P.MemTableLoader do
   defp first_node_change?(_, _), do: false
 
   defp load_p2p_summary(
-         {node_public_key, available?, avg_availability, availability_update},
+         {node_public_key, available?, avg_availability, availability_update, network_patch},
          is_same_slot?
        ) do
     if available? do
@@ -218,5 +221,9 @@ defmodule Archethic.P2P.MemTableLoader do
     end
 
     MemTable.update_node_average_availability(node_public_key, avg_availability)
+
+    if network_patch do
+      MemTable.update_node_network_patch(node_public_key, network_patch)
+    end
   end
 end
