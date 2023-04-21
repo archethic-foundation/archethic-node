@@ -27,7 +27,7 @@ defmodule Archethic.Networking.PortForwarding do
         {:ok, port}
 
       :error ->
-        Logger.error("Cannot publish the port #{port}")
+        Logger.warning("Cannot publish the port #{port}")
         fallback(port, force?)
     end
   end
@@ -43,12 +43,12 @@ defmodule Archethic.Networking.PortForwarding do
 
   defp fallback(port, force?, retries \\ 10)
 
-  defp fallback(_, _force? = true, 0) do
-    Logger.error(
+  defp fallback(port, _force? = true, 0) do
+    Logger.warning(
       "Port from configuration is used but requires a manuel port forwarding setting on the router"
     )
 
-    :error
+    {:ok, port}
   end
 
   @random_ports_range Application.compile_env!(:archethic, [__MODULE__, :port_range])
@@ -62,7 +62,7 @@ defmodule Archethic.Networking.PortForwarding do
         {:ok, port}
 
       :error ->
-        Logger.error("Cannot publish the a random port #{port}")
+        Logger.warning("Cannot publish the a random port #{port}")
 
         fallback(port, _force? = true, retries - 1)
     end
