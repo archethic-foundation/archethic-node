@@ -74,6 +74,43 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
     end
+
+    test "should return an human readable error if lib fn is called with bad arg" do
+      assert {:error, "invalid arguments for function List.empty? - List.empty?(12) - L4"} =
+               """
+               @version 1
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = List.empty?(12)
+               end
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error if lib fn is called with bad arity" do
+      assert {:error,
+              "invalid arity for function List.empty? - List.empty?([1], \"foobar\") - L4"} =
+               """
+               @version 1
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = List.empty?([1], "foobar")
+               end
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error if lib fn does not exists" do
+      assert {:error, "unknown function: List.non_existing - List.non_existing([1, 2, 3]) - L4"} =
+               """
+               @version 1
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = List.non_existing([1,2,3])
+               end
+               """
+               |> Interpreter.parse()
+    end
   end
 
   describe "parse code v0" do
