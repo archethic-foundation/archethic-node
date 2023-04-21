@@ -62,8 +62,6 @@ RUN git config user.name aebot \
 # build release
 RUN mix assets.deploy
 RUN MIX_ENV=prod mix distillery.release
-# gen PLT
-RUN if [ $with_tests -eq 1 ]; then mix git_hooks.run pre_push ;fi
 
 # Install
 RUN mkdir -p /opt/app \
