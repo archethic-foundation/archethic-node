@@ -135,7 +135,7 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   """
   @spec is_function_call?(Macro.t()) :: boolean()
   def is_function_call?({{:atom, _}, _, list}) when is_list(list), do: true
-  def is_function_call?({{:., _, [{:__aliases__, _, [_]}, _]}, _, _}), do: true
+  def is_function_call?({{:., _, [{:__aliases__, _, _}, _]}, _, _}), do: true
   def is_function_call?(_), do: false
 
   @doc """
