@@ -4,6 +4,8 @@ defmodule Mix.Tasks.Archethic.Migrate do
   alias Archethic.DB.EmbeddedImpl
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
+  @env Mix.env()
+
   @doc """
   Run migration available migration scripts since last updated version
   """
@@ -57,10 +59,8 @@ defmodule Mix.Tasks.Archethic.Migrate do
   end
 
   defp get_migrations_path() do
-    env = Application.fetch_env!(:archethic, :env)
-
     Application.app_dir(:archethic)
-    |> Path.join("priv/migration_tasks/#{env}/*")
+    |> Path.join("priv/migration_tasks/#{@env}/*")
     |> Path.wildcard()
   end
 
