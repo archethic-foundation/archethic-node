@@ -238,6 +238,21 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> ActionInterpreter.parse()
     end
 
+    test "should be able to use a function call as a parameter to a lib function" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        count = List.size(Contract.get_calls())
+        Contract.set_content(count)
+      end
+      """
+
+      assert {:ok, :transaction, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
     test "should not be able to use wrong types in contract functions" do
       code = ~S"""
       actions triggered_by: transaction do
