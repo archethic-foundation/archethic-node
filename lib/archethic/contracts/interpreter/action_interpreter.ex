@@ -186,20 +186,20 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
     # check function exists
     unless Library.function_exists?(absolute_module_atom, function_name) do
-      throw({:error, node, "unknown function: Contract.#{function_name}"})
+      throw({:error, node, "unknown function"})
     end
 
     # check function is available with given arity
     # (we add 1 to arity because we add the contract as 1st argument implicitely)
     unless Library.function_exists?(absolute_module_atom, function_name, length(args) + 1) do
-      throw({:error, node, "invalid arity for function Contract.#{function_name}"})
+      throw({:error, node, "invalid function arity"})
     end
 
     function_atom = String.to_existing_atom(function_name)
 
     # check the type of the args
     unless absolute_module_atom.check_types(function_atom, args) do
-      throw({:error, node, "invalid arguments for function Contract.#{function_name}"})
+      throw({:error, node, "invalid function arguments"})
     end
 
     new_node =

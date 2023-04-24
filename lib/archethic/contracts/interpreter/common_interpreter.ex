@@ -295,12 +295,12 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
     # check function exists
     unless Library.function_exists?(absolute_module_atom, function_name) do
-      throw({:error, node, "unknown function: #{module_name}.#{function_name}"})
+      throw({:error, node, "unknown function"})
     end
 
     # check function is available with given arity
     unless Library.function_exists?(absolute_module_atom, function_name, length(args)) do
-      throw({:error, node, "invalid arity for function #{module_name}.#{function_name}"})
+      throw({:error, node, "invalid function arity"})
     end
 
     module_atom = String.to_existing_atom(module_name)
@@ -308,7 +308,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
     # check the type of the args
     unless absolute_module_atom.check_types(function_atom, args) do
-      throw({:error, node, "invalid arguments for function #{module_name}.#{function_name}"})
+      throw({:error, node, "invalid function arguments"})
     end
 
     meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
