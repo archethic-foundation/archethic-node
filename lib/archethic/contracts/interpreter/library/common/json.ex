@@ -19,7 +19,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
   defdelegate to_string(term),
     to: Jason,
     as: :encode!
-  
+
   @spec parse(String.t()) :: map()
   defdelegate parse(text),
     to: Jason,
@@ -56,7 +56,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 
-  def check_types(:parse, [first]) do 
+  def check_types(:parse, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 

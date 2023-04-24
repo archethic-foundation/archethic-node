@@ -86,79 +86,77 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
   # ----------------------------------------
   describe "parse/1" do
     test "should work with string" do
-      code =  ~S"""
+      code = ~S"""
       actions triggered_by: transaction do
         x = Json.parse("{ \"hello\": \"world\", \"foo\": \"bar\"}")
         Contract.set_content x.hello
       end
       """
-      
-      assert %Transaction{data: %TransactionData{content: "world"}} =
-               sanitize_parse_execute(code)
+
+      assert %Transaction{data: %TransactionData{content: "world"}} = sanitize_parse_execute(code)
     end
-    
+
     test "should work with integer" do
-      code =  ~S"""
+      code = ~S"""
       actions triggered_by: transaction do
         x = Json.parse("{ \"integer\": 42, \"foo\": \"bar\"}")
         Contract.set_content x.integer
       end
       """
-      
-      assert %Transaction{data: %TransactionData{content: "42"}} =
-               sanitize_parse_execute(code)
+
+      assert %Transaction{data: %TransactionData{content: "42"}} = sanitize_parse_execute(code)
     end
 
     test "should work with list" do
-      code =  ~S"""
+      code = ~S"""
       actions triggered_by: transaction do
         x = Json.parse("{ \"list\": [1,2,3], \"foo\": \"bar\"}")
         Contract.set_content Json.to_string(x.list)
       end
       """
-      
+
       assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
                sanitize_parse_execute(code)
     end
 
     test "should work with map" do
-      code =  ~S"""
+      code = ~S"""
       actions triggered_by: transaction do
         x = Json.parse("{ \"map\": {\"foo\" : \"bar\"} }")
         Contract.set_content Json.to_string(x.map)
       end
       """
-      
+
       assert %Transaction{data: %TransactionData{content: "{\"foo\":\"bar\"}"}} =
                sanitize_parse_execute(code)
-    end   
-    
+    end
+
     test "should work with variable" do
-      code =  ~S"""
+      code = ~S"""
       actions triggered_by: transaction do
         data = "{ \"list\": [1,2,3], \"foo\": \"bar\"}" 
         x = Json.parse(data)
         Contract.set_content Json.to_string(x.list)
       end
       """
-      
+
       assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
                sanitize_parse_execute(code)
     end
+
     test "should work with affected variable" do
-      code =  ~S"""
+      code = ~S"""
       actions triggered_by: transaction do
         x = Json.parse("{ \"list\": [1,2,3], \"foo\": \"bar\"}")
         y = x.list
         Contract.set_content Json.to_string(y)
       end
       """
-      
+
       assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
                sanitize_parse_execute(code)
     end
   end
-
 
   # ----------------------------------------
   describe "is_valid?/1" do
