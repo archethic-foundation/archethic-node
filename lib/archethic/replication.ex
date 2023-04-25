@@ -567,8 +567,8 @@ defmodule Archethic.Replication do
     Reward.load_transaction(tx)
     Governance.load_transaction(tx)
 
-    unless self_repair? do
-      # this module will automatically update its state at the end of self repair
+    if Archethic.up?() do
+      # this module will automatically update its state at the end of bootstrap self repair
       NetworkView.load_transaction(tx)
     end
 

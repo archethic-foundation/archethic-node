@@ -158,7 +158,7 @@ defmodule Archethic.SelfRepair.NetworkView do
       :crypto.hash(:sha256, [
         node_shared_secrets,
         oracle,
-        Map.values(origin)
+        Map.values(origin) |> Enum.sort()
       ])
 
     {:noreply, %{state | chains_hash: chains_hash}}
