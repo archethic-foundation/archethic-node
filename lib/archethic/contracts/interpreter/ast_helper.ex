@@ -9,7 +9,7 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("[]")
     iex> ASTHelper.is_keyword_list?(ast)
-    true
+    false
 
     iex> {:ok, ast} = Archethic.Contracts.Interpreter.sanitize_code("[sum: 1, product: 10]")
     iex> ASTHelper.is_keyword_list?(ast)
@@ -20,7 +20,7 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
     false
   """
   @spec is_keyword_list?(Macro.t()) :: boolean()
-  def is_keyword_list?(ast) when is_list(ast) do
+  def is_keyword_list?(ast = [_ | _]) do
     Enum.all?(ast, fn
       {{:atom, bin}, _value} when is_binary(bin) ->
         true

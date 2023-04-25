@@ -42,6 +42,16 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
 
   # ----------------------------------------
   describe "size/1" do
+    test "empty list should return 0" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        Contract.set_content List.size([])
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "0"}} = sanitize_parse_execute(code)
+    end
+
     test "should work" do
       code = ~s"""
       actions triggered_by: transaction do
