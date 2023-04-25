@@ -202,7 +202,7 @@ defmodule Archethic do
 
   defp maybe_start_resync(aggregated_responses) do
     if aggregated_responses.network_chains_resync_needed do
-      NetworkChain.asynchronous_resync_many([:reward, :origin, :oracle, :node_shared_secrets])
+      NetworkChain.asynchronous_resync_many([:origin, :oracle, :node_shared_secrets])
     end
 
     if aggregated_responses.p2p_resync_needed do

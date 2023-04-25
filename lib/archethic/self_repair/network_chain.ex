@@ -19,7 +19,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
 
   alias Archethic.Utils
 
-  @type type() :: :origin | :reward | :oracle | :node | :node_shared_secrets
+  @type type() :: :origin | :oracle | :node | :node_shared_secrets
 
   @doc """
   Synchronize the network chain of given type.

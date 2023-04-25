@@ -160,7 +160,6 @@ defmodule Archethic.P2P.Message.StartMining do
         NetworkChain.asynchronous_resync_many([
           :node,
           :oracle,
-          :reward,
           :origin,
           :node_shared_secrets
         ])
@@ -174,7 +173,6 @@ defmodule Archethic.P2P.Message.StartMining do
       {false, true} ->
         NetworkChain.asynchronous_resync_many([
           :oracle,
-          :reward,
           :origin,
           :node_shared_secrets
         ])

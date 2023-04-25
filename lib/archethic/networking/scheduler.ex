@@ -140,6 +140,6 @@ defmodule Archethic.Networking.Scheduler do
 
     Utils.await_confirmation(tx_address, nodes)
 
-    NetworkChain.asynchronous_resync_many([:node, :oracle, :node_shared_secrets, :reward, :origin])
+    NetworkChain.asynchronous_resync_many([:node, :oracle, :node_shared_secrets, :origin])
   end
 end
