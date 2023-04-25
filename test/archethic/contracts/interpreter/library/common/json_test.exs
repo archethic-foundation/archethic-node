@@ -94,6 +94,15 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "world"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        Contract.set_content Json.parse("\"Whoopi Goldberg\"")
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "Whoopi Goldberg"}} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with integer" do
@@ -105,6 +114,16 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "42"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        if Json.parse("42") == 42 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
 
     test "should work with list" do
@@ -117,6 +136,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
 
       assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
                sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
+        x = Json.parse("[1,2,3]")
+        if List.at(x, 0) == 1 do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
 
     test "should work with map" do
@@ -134,7 +164,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
     test "should work with variable" do
       code = ~S"""
       actions triggered_by: transaction do
-        data = "{ \"list\": [1,2,3], \"foo\": \"bar\"}" 
+        data = "{ \"list\": [1,2,3], \"foo\": \"bar\"}"
         x = Json.parse(data)
         Contract.set_content Json.to_string(x.list)
       end
@@ -155,6 +185,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
 
       assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
                sanitize_parse_execute(code)
+    end
+
+    test "should not parse if parameter is not a string" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        Json.parse(key: "value")
+      end
+      """
+
+      assert {:ok, sanitized_code} = Interpreter.sanitize_code(code)
+      assert {:error, _, _} = ActionInterpreter.parse(sanitized_code)
     end
   end
 

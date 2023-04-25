@@ -20,7 +20,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
     to: Jason,
     as: :encode!
 
-  @spec parse(String.t()) :: map()
+  @spec parse(String.t()) :: any()
   defdelegate parse(text),
     to: Jason,
     as: :decode!
