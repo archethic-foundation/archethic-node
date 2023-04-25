@@ -2,13 +2,21 @@ defmodule Archethic.SelfRepair.NetworkChain do
   @moduledoc """
   Synchronization of one or multiple network chains.
   """
+  alias Archethic.Crypto
+
   alias Archethic.OracleChain
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
-  alias Archethic.Reward
+
   alias Archethic.SelfRepair
+
   alias Archethic.SharedSecrets
+
   alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+
   alias Archethic.Utils
 
   @type type() :: :origin | :reward | :oracle | :node | :node_shared_secrets
@@ -67,36 +75,92 @@ defmodule Archethic.SelfRepair.NetworkChain do
   def synchronous_resync(type) do
     :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: type})
 
-    addresses =
-      case type do
-        :node_shared_secrets ->
-          [SharedSecrets.genesis_address(:node_shared_secrets)]
+    case verify_synchronization(type) do
+      {:error, addresses} when is_list(addresses) ->
+        Task.Supervisor.async_stream_nolink(
+          Archethic.TaskSupervisor,
+          addresses,
+          &SelfRepair.replicate_transaction(&1),
+          ordered: false,
+          on_timeout: :kill_task
+        )
+        |> Stream.run()
 
-        :oracle ->
-          [OracleChain.get_current_genesis_address()]
+      _ ->
+        :ok
+    end
+  end
 
-        :reward ->
-          [Reward.genesis_address()]
+  @doc """
+  Verify if the last stored transaction is the last one on the network
+  """
+  @spec verify_synchronization(atom()) :: :ok | :error | {:error, list(Crypto.prepended_hash())}
+  def verify_synchronization(:origin) do
+    genesis_addresses = SharedSecrets.genesis_address(:origin)
 
-        :origin ->
-          SharedSecrets.genesis_address(:origin)
-      end
+    last_addresses =
+      Task.Supervisor.async_stream(TaskSupervisor, genesis_addresses, fn genesis ->
+        validate_last_address(genesis)
+      end)
+      |> Stream.filter(&match?({:ok, {:error, _}}, &1))
+      |> Enum.flat_map(fn {_, {_, last_address}} -> last_address end)
 
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      addresses,
-      fn genesis_address ->
-        with {local_last_address, _} <- TransactionChain.get_last_address(genesis_address),
-             {:ok, remote_last_address} <- TransactionChain.resolve_last_address(genesis_address),
-             false <- remote_last_address == local_last_address do
-          SelfRepair.replicate_transaction(remote_last_address)
+    if Enum.empty?(last_addresses) do
+      :ok
+    else
+      {:error, last_addresses}
+    end
+  end
+
+  def verify_synchronization(:node_shared_secrets) do
+    genesis_address = SharedSecrets.genesis_address(:node_shared_secrets)
+    last_schedule_date = SharedSecrets.get_last_scheduling_date(DateTime.utc_now())
+    do_verify_synchronization(genesis_address, last_schedule_date)
+  end
+
+  def verify_synchronization(:oracle) do
+    genesis_address = OracleChain.genesis_address()
+    last_schedule_date = OracleChain.get_last_scheduling_date(DateTime.utc_now())
+    do_verify_synchronization(genesis_address, last_schedule_date)
+  end
+
+  defp do_verify_synchronization(nil, _), do: :ok
+
+  defp do_verify_synchronization(genesis_address, last_schedule_date) do
+    if valid_schedule?(genesis_address, last_schedule_date) do
+      :ok
+    else
+      validate_last_address(genesis_address)
+    end
+  end
+
+  defp valid_schedule?(genesis_address, last_schedule_date) do
+    last_transaction =
+      TransactionChain.get_last_transaction(genesis_address, validation_stamp: [:timestamp])
+
+    case last_transaction do
+      {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_timestamp}}} ->
+        validation_timestamp >= last_schedule_date
+
+      _ ->
+        false
+    end
+  end
+
+  defp validate_last_address(genesis_address) do
+    case TransactionChain.resolve_last_address(genesis_address) do
+      {:ok, remote_last_address} ->
+        {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
+
+        if remote_last_address == local_last_address do
+          :ok
+        else
+          {:error, [remote_last_address]}
         end
-      end,
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: 5000
-    )
-    |> Stream.run()
+
+      {:error, _} ->
+        :error
+    end
   end
 
   @doc """

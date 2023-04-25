@@ -22,13 +22,15 @@ defmodule Archethic.SelfRepair.RepairWorker do
   """
   @spec repair_addresses(
           Crypto.prepended_hash(),
-          Crypto.prepended_hash() | nil,
+          Crypto.prepended_hash() | list(Crypto.prepended_hash()) | nil,
           list(Crypto.prepended_hash())
         ) :: :ok
-  def repair_addresses(genesis_address, storage_address, io_addresses) do
+  def repair_addresses(genesis_address, storage_addresses, io_addresses) do
+    storage_addresses = List.wrap(storage_addresses)
+
     case Registry.lookup(RepairRegistry, genesis_address) do
       [{pid, _}] ->
-        GenServer.cast(pid, {:add_address, storage_address, io_addresses})
+        GenServer.cast(pid, {:add_address, storage_addresses, io_addresses})
 
       _ ->
         {:ok, _} =
@@ -37,7 +39,7 @@ defmodule Archethic.SelfRepair.RepairWorker do
             {__MODULE__,
              [
                first_address: genesis_address,
-               storage_address: storage_address,
+               storage_addresses: storage_addresses,
                io_addresses: io_addresses
              ]}
           )
@@ -48,18 +50,16 @@ defmodule Archethic.SelfRepair.RepairWorker do
 
   def init(args) do
     first_address = Keyword.fetch!(args, :first_address)
-    storage_address = Keyword.fetch!(args, :storage_address)
+    storage_addresses = Keyword.fetch!(args, :storage_addresses)
     io_addresses = Keyword.fetch!(args, :io_addresses)
 
     Registry.register(RepairRegistry, first_address, [])
 
     Logger.info(
-      "Notifier Repair Worker start with storage_address #{if storage_address, do: Base.encode16(storage_address), else: nil}, " <>
+      "Notifier Repair Worker start with storage_address #{Enum.map(storage_addresses, &Base.encode16(&1)) |> Enum.join(", ")}, " <>
         "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
       address: Base.encode16(first_address)
     )
-
-    storage_addresses = if storage_address != nil, do: [storage_address], else: []
 
     data = %{
       storage_addresses: storage_addresses,
@@ -69,10 +69,10 @@ defmodule Archethic.SelfRepair.RepairWorker do
     {:ok, start_repair(data)}
   end
 
-  def handle_cast({:add_address, storage_address, io_addresses}, data) do
+  def handle_cast({:add_address, storage_addresses, io_addresses}, data) do
     new_data =
-      if storage_address != nil,
-        do: Map.update!(data, :storage_addresses, &([storage_address | &1] |> Enum.uniq())),
+      if storage_addresses != [],
+        do: Map.update!(data, :storage_addresses, &((&1 ++ storage_addresses) |> Enum.uniq())),
         else: data
 
     new_data =

@@ -201,9 +201,7 @@ defmodule Archethic.SelfRepair.NetworkView do
       end)
       |> Enum.into(%{})
 
-    last_known_oracle_address =
-      OracleChain.get_current_genesis_address()
-      |> get_last_address()
+    last_known_oracle_address = OracleChain.genesis_address() |> get_last_address()
 
     %{
       chains_hash: <<>>,

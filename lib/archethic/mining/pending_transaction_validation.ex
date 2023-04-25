@@ -704,7 +704,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
        when type in [:oracle, :oracle_summary] do
     # multipe txn chain based on summary date
 
-    case OracleChain.genesis_address() do
+    case OracleChain.genesis_addresses() do
       nil ->
         false
 

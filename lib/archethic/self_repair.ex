@@ -189,7 +189,7 @@ defmodule Archethic.SelfRepair do
   """
   @spec resync(
           Crypto.prepended_hash(),
-          Crypto.prepended_hash() | nil,
+          Crypto.prepended_hash() | list(Crypto.prepended_hash()) | nil,
           list(Crypto.prepended_hash())
         ) :: :ok
   defdelegate resync(genesis_address, storage_address, io_addresses),

@@ -4,6 +4,7 @@ defmodule ArchethicTest do
   alias Archethic.{Crypto, PubSub, P2P, P2P.Message, P2P.Node, TransactionChain}
   alias Archethic.{BeaconChain.SummaryTimer, SharedSecrets}
   alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.NetworkChain
 
   alias Message.{Balance, GetBalance, GetLastTransactionAddress, GetTransaction, Ok}
   alias Message.{GetTransactionChainLength, GetTransactionInputs, LastTransactionAddress}
@@ -229,7 +230,8 @@ defmodule ArchethicTest do
       end)
 
       # last address is d/f it returns last address from quorum
-      assert {:error, "willnotmatchaddress"} = SharedSecrets.verify_synchronization()
+      assert {:error, ["willnotmatchaddress"]} =
+               NetworkChain.verify_synchronization(:node_shared_secrets)
 
       # trying to ssend a tx when NSS chain not synced
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
@@ -321,7 +323,8 @@ defmodule ArchethicTest do
       end)
 
       # last address is d/f it returns last address from quorum
-      assert {:error, "willnotmatchaddress"} = SharedSecrets.verify_synchronization()
+      assert {:error, ["willnotmatchaddress"]} =
+               NetworkChain.verify_synchronization(:node_shared_secrets)
 
       # trying to ssend a tx when NSS chain not synced
       with_mock(SelfRepair, resync: fn _, _, _ -> :ok end) do

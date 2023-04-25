@@ -42,7 +42,7 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
       last_address = random_address()
 
       MockDB
-      |> expect(:get_last_chain_address, fn address ->
+      |> expect(:get_last_chain_address, 2, fn address ->
         {address, DateTime.utc_now()}
       end)
 
@@ -61,7 +61,7 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
       last_address = random_address()
 
       MockDB
-      |> expect(:get_last_chain_address, fn _ ->
+      |> expect(:get_last_chain_address, 2, fn _ ->
         {last_address, DateTime.utc_now()}
       end)
 

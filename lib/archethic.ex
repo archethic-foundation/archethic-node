@@ -60,19 +60,15 @@ defmodule Archethic do
         welcome_node_key \\ Crypto.first_node_public_key()
       ) do
     if P2P.authorized_and_available_node?() do
-      case SharedSecrets.verify_synchronization() do
+      case NetworkChain.verify_synchronization(:node_shared_secrets) do
         :ok ->
           do_send_transaction(tx, welcome_node_key)
 
         :error ->
           forward_transaction(tx, welcome_node_key)
 
-        {:error, last_address_to_sync} ->
-          SelfRepair.resync(
-            SharedSecrets.genesis_address(:node_shared_secrets),
-            last_address_to_sync,
-            []
-          )
+        {:error, addresses} ->
+          SharedSecrets.genesis_address(:node_shared_secrets) |> SelfRepair.resync(addresses, [])
 
           forward_transaction(tx, welcome_node_key)
       end

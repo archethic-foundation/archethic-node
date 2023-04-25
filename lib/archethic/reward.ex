@@ -2,30 +2,27 @@ defmodule Archethic.Reward do
   @moduledoc """
   Module which handles the rewards and transfer scheduling
   """
-
-  alias Archethic.Crypto
+  alias __MODULE__.MemTables.RewardTokens
+  alias __MODULE__.MemTablesLoader
+  alias __MODULE__.Scheduler
 
   alias Archethic.Account
+
+  alias Archethic.Crypto
 
   alias Archethic.OracleChain
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias __MODULE__.MemTables.RewardTokens
-  alias __MODULE__.MemTablesLoader
-  alias __MODULE__.Scheduler
   alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
-
-  alias Archethic.TransactionChain.{
-    Transaction,
-    TransactionData,
-    TransactionData.Ledger,
-    TransactionData.TokenLedger,
-    TransactionData.TokenLedger.Transfer
-  }
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer
 
   alias Archethic.Utils
 
