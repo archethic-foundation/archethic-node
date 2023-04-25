@@ -97,7 +97,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           %NotFound{}
 
         res ->
-          Enum.sort_by(res, & &1.timestamp, {:desc, DateTime})
+          Enum.sort_by(res, & &1.transaction_summary.timestamp, {:desc, DateTime})
           |> List.first()
       end
     end
