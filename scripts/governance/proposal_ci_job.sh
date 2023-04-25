@@ -42,13 +42,13 @@ echo "=== Run CI -- 6 -- knigge"
 mix knigge.verify
 
 echo "=== Run CI -- 7 -- test"
-#MIX_ENV=test mix test --trace 
+MIX_ENV=test mix test --trace 
 
 echo "=== Run CI -- 8 -- dialyzer"
-#mix dialyzer
+mix dialyzer
 
 echo "=== Run CI -- 9 -- updates"
-#mix check.updates
+mix check.updates
 
 echo "=== Run CI DONE ==="
 
