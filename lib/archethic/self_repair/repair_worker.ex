@@ -56,7 +56,7 @@ defmodule Archethic.SelfRepair.RepairWorker do
     Registry.register(RepairRegistry, first_address, [])
 
     Logger.info(
-      "Notifier Repair Worker start with storage_address #{Enum.map_join(storage_addresses, ", ", &Base.encode16(&1))}, " <>
+      "Notifier Repair Worker start with storage_addresses #{Enum.map_join(storage_addresses, ", ", &Base.encode16(&1))}, " <>
         "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
       address: Base.encode16(first_address)
     )
