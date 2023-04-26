@@ -61,7 +61,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     Enum.each(BeaconChain.list_subsets(), fn subset ->
       :ets.take(@table_name, subset)
       |> Enum.each(fn {subset, slot} ->
-        slot = Slot.transform_1_0_8_summaries(slot)
+        slot = Slot.transform("1.0.8", slot)
         backup_slot(slot, "")
         :ets.insert(@table_name, {subset, slot})
       end)
