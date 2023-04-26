@@ -5,7 +5,8 @@ defmodule Archethic.Networking.Scheduler do
   @vsn Mix.Project.config()[:version]
 
   alias Archethic.{Crypto, P2P, P2P.Node, Networking, TaskSupervisor, Utils, PubSub}
-  alias Archethic.{SelfRepair, TransactionChain}
+  alias Archethic.TransactionChain
+  alias Archethic.SelfRepair.NetworkChain
 
   alias Networking.{IPLookup, PortForwarding}
   alias TransactionChain.{Transaction, TransactionData}
@@ -139,11 +140,6 @@ defmodule Archethic.Networking.Scheduler do
 
     Utils.await_confirmation(tx_address, nodes)
 
-    types = [:node, :oracle, :node_shared_secrets, :reward]
-
-    Task.Supervisor.async_stream_nolink(Archethic.TaskSupervisor, types, fn type ->
-      SelfRepair.resync_network_chain(type, nodes)
-    end)
-    |> Stream.run()
+    NetworkChain.asynchronous_resync_many([:node, :oracle, :node_shared_secrets, :origin])
   end
 end

@@ -190,6 +190,7 @@ defmodule Archethic.Telemetry do
         measurement: :duration,
         tags: [:nb_summaries]
       ),
+      counter("archethic.self_repair.resync.count", tags: [:network_chain]),
 
       # Archethic Web
       counter("archethic_web.hosting.cache_file.hit.count"),

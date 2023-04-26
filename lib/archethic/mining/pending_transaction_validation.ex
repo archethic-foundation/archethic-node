@@ -97,7 +97,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           %NotFound{}
 
         res ->
-          Enum.sort_by(res, & &1.timestamp, {:desc, DateTime})
+          Enum.sort_by(res, & &1.transaction_summary.timestamp, {:desc, DateTime})
           |> List.first()
       end
     end
@@ -704,7 +704,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
        when type in [:oracle, :oracle_summary] do
     # multipe txn chain based on summary date
 
-    case OracleChain.genesis_address() do
+    case OracleChain.genesis_addresses() do
       nil ->
         false
 

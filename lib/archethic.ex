@@ -7,9 +7,12 @@ defmodule Archethic do
   alias __MODULE__.{SelfRepair, TransactionChain, SharedSecrets, TaskSupervisor}
   alias __MODULE__.Contracts.{Interpreter, Contract}
 
+  alias SelfRepair.NetworkView
+  alias SelfRepair.NetworkChain
+
   alias Message.{NewTransaction, NotFound, StartMining}
   alias Message.{Balance, GetBalance, GetTransactionSummary}
-  alias Message.{StartMining, Ok, TransactionSummaryMessage}
+  alias Message.{StartMining, Ok, Error, TransactionSummaryMessage}
 
   alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
 
@@ -57,15 +60,16 @@ defmodule Archethic do
         welcome_node_key \\ Crypto.first_node_public_key()
       ) do
     if P2P.authorized_and_available_node?() do
-      case SharedSecrets.verify_synchronization() do
+      case NetworkChain.verify_synchronization(:node_shared_secrets) do
         :ok ->
           do_send_transaction(tx, welcome_node_key)
 
         :error ->
           forward_transaction(tx, welcome_node_key)
 
-        {:error, last_address_to_sync} ->
-          SelfRepair.resync(last_address_to_sync)
+        {:error, addresses} ->
+          SharedSecrets.genesis_address(:node_shared_secrets) |> SelfRepair.resync(addresses, [])
+
           forward_transaction(tx, welcome_node_key)
       end
     else
@@ -142,11 +146,72 @@ defmodule Archethic do
     message = %StartMining{
       transaction: tx,
       welcome_node_public_key: get_welcome_node_public_key(tx_type, welcome_node_key),
-      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
+      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
+      network_chains_view_hash: NetworkView.get_chains_hash(),
+      p2p_view_hash: NetworkView.get_p2p_hash()
     }
 
-    P2P.broadcast_message(validation_nodes, message)
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      validation_nodes,
+      &P2P.send_message(&1, message),
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: Message.get_timeout(message) + 2000
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.map(fn {:ok, res} -> res end)
+    |> Enum.reduce(
+      %{
+        ok: 0,
+        network_chains_resync_needed: false,
+        p2p_resync_needed: false
+      },
+      &reduce_start_mining_responses/2
+    )
+    |> then(fn aggregated_responses ->
+      maybe_start_resync(aggregated_responses)
+
+      if should_forward_transaction?(aggregated_responses, length(validation_nodes)) do
+        forward_transaction(tx, welcome_node_key)
+      else
+        :ok
+      end
+    end)
   end
+
+  defp reduce_start_mining_responses({:ok, %Ok{}}, acc) do
+    %{acc | ok: acc.ok + 1}
+  end
+
+  defp reduce_start_mining_responses({:ok, %Error{reason: :network_chains_sync}}, acc) do
+    %{acc | network_chains_resync_needed: true}
+  end
+
+  defp reduce_start_mining_responses({:ok, %Error{reason: :p2p_sync}}, acc) do
+    %{acc | p2p_resync_needed: true}
+  end
+
+  defp reduce_start_mining_responses({:ok, %Error{reason: :both_sync}}, acc) do
+    %{acc | network_chains_resync_needed: true, p2p_resync_needed: true}
+  end
+
+  defp reduce_start_mining_responses(_, acc) do
+    acc
+  end
+
+  defp maybe_start_resync(aggregated_responses) do
+    if aggregated_responses.network_chains_resync_needed do
+      NetworkChain.asynchronous_resync_many([:origin, :oracle, :node_shared_secrets])
+    end
+
+    if aggregated_responses.p2p_resync_needed do
+      NetworkChain.asynchronous_resync(:node)
+    end
+  end
+
+  defp should_forward_transaction?(_, 1), do: false
+  defp should_forward_transaction?(%{ok: ok_count}, _), do: ok_count < 2
 
   # Since welcome node is not anymore constant, as we want unauthorised
   # nodes to do some labor. Following bootstrapping, the txn of a new node

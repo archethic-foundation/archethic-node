@@ -144,8 +144,13 @@ defmodule ArchethicWeb.FaucetControllerTest do
             }
           })
 
+          {:ok, %Ok{}}
+
         _, %GetGenesisAddress{}, _ ->
           {:ok, %GenesisAddress{address: tx.address, timestamp: DateTime.utc_now()}}
+
+        _, %Archethic.P2P.Message.ListNodes{}, _ ->
+          {:ok, %Archethic.P2P.Message.NodeList{nodes: Archethic.P2P.list_nodes()}}
       end)
 
       faucet_requests =

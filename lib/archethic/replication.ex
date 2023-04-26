@@ -27,6 +27,8 @@ defmodule Archethic.Replication do
 
   alias Archethic.OracleChain
 
+  alias Archethic.SelfRepair.NetworkView
+
   alias Archethic.SharedSecrets
 
   alias Archethic.Reward
@@ -564,6 +566,12 @@ defmodule Archethic.Replication do
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)
     Governance.load_transaction(tx)
+
+    if Archethic.up?() do
+      # this module will automatically update its state at the end of bootstrap self repair
+      NetworkView.load_transaction(tx)
+    end
+
     :ok
   end
 end

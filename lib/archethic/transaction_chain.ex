@@ -724,7 +724,7 @@ defmodule Archethic.TransactionChain do
         acceptance_resolver \\ fn _ -> true end
       )
 
-  def fetch_transaction_remotely(_, [], _, _), do: {:error, :transaction_not_exists}
+  def fetch_transaction_remotely(_, [], _, _), do: {:error, :network_issue}
 
   def fetch_transaction_remotely(address, nodes, timeout, acceptance_resolver)
       when is_binary(address) and is_list(nodes) do

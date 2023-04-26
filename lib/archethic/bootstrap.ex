@@ -5,7 +5,7 @@ defmodule Archethic.Bootstrap do
 
   alias Archethic
   alias Archethic.{Bootstrap, Crypto, Networking, P2P, P2P.Node}
-  alias Archethic.{SelfRepair, SelfRepair, TransactionChain}
+  alias Archethic.{SelfRepair, SelfRepair.NetworkChain, TransactionChain}
 
   alias Bootstrap.{NetworkInit, Sync, TransactionHandler}
   alias TransactionChain.{Transaction, TransactionData}
@@ -210,30 +210,15 @@ defmodule Archethic.Bootstrap do
     end
 
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
-    resync_network_chain()
+
+    Logger.info("Enforced Resync: Started!")
+    NetworkChain.synchronous_resync_many([:node, :oracle, :origin, :node_shared_secrets])
 
     Sync.publish_end_of_sync()
     SelfRepair.start_scheduler()
 
     :persistent_term.put(:archethic_up, :up)
     Archethic.PubSub.notify_node_status(:node_up)
-  end
-
-  def resync_network_chain() do
-    Logger.info("Enforced Resync: Started!")
-
-    if P2P.authorized_and_available_node?() do
-      # evict this node
-      nodes =
-        Enum.reject(
-          P2P.authorized_and_available_nodes(),
-          &(&1.first_public_key == Crypto.first_node_public_key())
-        )
-
-      # blocking code
-      [:oracle, :node_shared_secrets, :reward]
-      |> Enum.each(&SelfRepair.resync_network_chain(&1, nodes))
-    end
   end
 
   defp first_initialization(

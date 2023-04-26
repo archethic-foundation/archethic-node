@@ -10,6 +10,9 @@ defmodule Archethic.P2P.Message.Error do
           | :invalid_transaction
           | :invalid_attestation
           | :transaction_already_exists
+          | :network_chains_sync
+          | :p2p_sync
+          | :both_sync
 
   @type t :: %__MODULE__{
           reason: reason()
@@ -33,6 +36,9 @@ defmodule Archethic.P2P.Message.Error do
   def serialize_reason(:invalid_transaction), do: 1
   def serialize_reason(:invalid_attestation), do: 2
   def serialize_reason(:transaction_already_exists), do: 3
+  def serialize_reason(:network_chains_sync), do: 4
+  def serialize_reason(:p2p_sync), do: 5
+  def serialize_reason(:both_sync), do: 6
 
   @doc """
   Deserialize an error reason
@@ -42,4 +48,7 @@ defmodule Archethic.P2P.Message.Error do
   def deserialize_reason(1), do: :invalid_transaction
   def deserialize_reason(2), do: :invalid_attestation
   def deserialize_reason(3), do: :transaction_already_exists
+  def deserialize_reason(4), do: :network_chains_sync
+  def deserialize_reason(5), do: :p2p_sync
+  def deserialize_reason(6), do: :both_sync
 end

@@ -68,7 +68,7 @@ defmodule Archethic.Bootstrap.NetworkConstraints do
       OracleChain.update_summ_gen_addr()
       Logger.info("Oracle Gen Addr Table: Loaded")
 
-      if gen_addr = OracleChain.genesis_address() do
+      if gen_addr = OracleChain.genesis_addresses() do
         Logger.debug("New Oracle Gen Addr")
         Logger.debug(gen_addr)
       end

@@ -13,8 +13,6 @@ defmodule Archethic.Bootstrap.Sync do
   alias Archethic.P2P.Message.EncryptedStorageNonce
   alias Archethic.P2P.Message.GetBootstrappingNodes
   alias Archethic.P2P.Message.GetStorageNonce
-  alias Archethic.P2P.Message.ListNodes
-  alias Archethic.P2P.Message.NodeList
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
   alias Archethic.P2P.Node
 
@@ -137,44 +135,16 @@ defmodule Archethic.Bootstrap.Sync do
   """
   @spec load_node_list() :: :ok | {:error, :network_issue}
   def load_node_list() do
-    current_nodes = P2P.authorized_and_available_nodes()
-
-    last_updated_nodes =
-      fn new_node = %Node{
-           first_public_key: public_key,
-           last_update_date: update_date
-         },
-         acc ->
-        previous_node =
-          %Node{last_update_date: previous_update_date} = Map.get(acc, public_key, new_node)
-
-        node =
-          if DateTime.compare(update_date, previous_update_date) == :gt,
-            do: new_node,
-            else: previous_node
-
-        Map.put(acc, public_key, node)
-      end
-
-    conflict_resolver = fn results ->
-      nodes =
-        Enum.flat_map(results, fn %NodeList{nodes: nodes} -> nodes end)
-        |> Enum.reduce(%{}, fn node, acc -> last_updated_nodes.(node, acc) end)
-        |> Map.values()
-
-      %NodeList{nodes: nodes}
-    end
-
-    case P2P.quorum_read(current_nodes, %ListNodes{}, conflict_resolver) do
-      {:ok, %NodeList{nodes: nodes}} ->
+    case P2P.fetch_nodes_list() do
+      {:ok, nodes} ->
         Enum.each(nodes, &P2P.add_and_connect_node/1)
         # After loading all current nodes, we update the p2p view with the last one stored in DB
         # to have a proper view for the next beacon summary to self repair
         SelfRepair.last_sync_date() |> P2P.reload_last_view()
         Logger.info("Node list refreshed")
 
-      error ->
-        error
+      {:error, :network_issue} ->
+        {:error, :network_issue}
     end
   end
 

@@ -1,8 +1,10 @@
 defmodule ArchethicTest do
   use ArchethicCase
 
-  alias Archethic.{Crypto, PubSub, P2P, P2P.Message, P2P.Node, TransactionChain, SelfRepair}
+  alias Archethic.{Crypto, PubSub, P2P, P2P.Message, P2P.Node, TransactionChain}
   alias Archethic.{BeaconChain.SummaryTimer, SharedSecrets}
+  alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.NetworkChain
 
   alias Message.{Balance, GetBalance, GetLastTransactionAddress, GetTransaction, Ok}
   alias Message.{GetTransactionChainLength, GetTransactionInputs, LastTransactionAddress}
@@ -15,6 +17,7 @@ defmodule ArchethicTest do
   import ArchethicCase, only: [setup_before_send_tx: 0]
 
   import Mox
+  import Mock
   setup :set_mox_global
 
   setup do
@@ -211,6 +214,8 @@ defmodule ArchethicTest do
         end
       )
 
+      me = self()
+
       MockClient
       |> stub(:send_message, fn
         # validate nss chain from network
@@ -220,26 +225,22 @@ defmodule ArchethicTest do
 
         _, %NewTransaction{transaction: _, welcome_node: _}, _ ->
           # forward the tx
-          {:ok, %Ok{}}
-
-        _, %GetTransaction{address: _}, _ ->
-          {:ok, %NotFound{}}
-
-        _, _, _ ->
+          send(me, :new_transaction)
           {:ok, %Ok{}}
       end)
 
       # last address is d/f it returns last address from quorum
-      assert {:error, "willnotmatchaddress"} = SharedSecrets.verify_synchronization()
+      assert {:error, ["willnotmatchaddress"]} =
+               NetworkChain.verify_synchronization(:node_shared_secrets)
 
       # trying to ssend a tx when NSS chain not synced
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-      assert :ok = Archethic.send_new_transaction(tx)
 
-      # start repair and should bottleneck requests
-      pid = SelfRepair.repair_in_progress?(nss_genesis_address)
-      Process.sleep(150)
-      assert pid != nil
+      with_mock(SelfRepair, resync: fn _, _, _ -> :ok end) do
+        assert :ok = Archethic.send_new_transaction(tx)
+        assert_receive :new_transaction, 100
+        assert_called(SelfRepair.resync(:_, :_, :_))
+      end
     end
 
     test "Should forward Transaction until StartMining message is sent without Node Loop & Message Waiting" do
@@ -322,17 +323,17 @@ defmodule ArchethicTest do
       end)
 
       # last address is d/f it returns last address from quorum
-      assert {:error, "willnotmatchaddress"} = SharedSecrets.verify_synchronization()
+      assert {:error, ["willnotmatchaddress"]} =
+               NetworkChain.verify_synchronization(:node_shared_secrets)
 
       # trying to ssend a tx when NSS chain not synced
-      assert :ok = Archethic.send_new_transaction(tx)
+      with_mock(SelfRepair, resync: fn _, _, _ -> :ok end) do
+        assert :ok = Archethic.send_new_transaction(tx)
+        assert_receive {:forwarded_to_node2, ^tx}, 100
 
-      # start repair and should bottleneck requests
-      pid = SelfRepair.repair_in_progress?(nss_genesis_address)
-      Process.sleep(100)
-      assert pid != nil
+        assert_called(SelfRepair.resync(:_, :_, :_))
+      end
 
-      assert_receive({:forwarded_to_node2, ^tx})
       Process.sleep(100)
       assert :ok = Archethic.send_new_transaction(tx)
     end

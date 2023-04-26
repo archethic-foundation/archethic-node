@@ -4,11 +4,20 @@ defmodule Archethic.SelfRepair do
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
 
-  alias __MODULE__.{Notifier, NotifierSupervisor, RepairRegistry, RepairWorker}
+  alias __MODULE__.{Notifier, NotifierSupervisor}
   alias __MODULE__.{Scheduler, Sync}
+  alias __MODULE__.RepairWorker
 
   alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
-  alias Archethic.{P2P.Node, SharedSecrets, OracleChain, Reward, Replication}
+  alias Archethic.{P2P.Node}
+
+  alias Archethic.{
+    P2P,
+    Replication
+  }
+
+  alias Archethic.P2P.Message
+  alias Archethic.TransactionChain.Transaction
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -135,40 +144,6 @@ defmodule Archethic.SelfRepair do
     end
   end
 
-  @doc """
-  Return pid of a running RepairWorker for the first_address, or false
-  """
-  @spec repair_in_progress?(first_address :: binary()) :: false | pid()
-  def repair_in_progress?(first_address) do
-    case Registry.lookup(RepairRegistry, first_address) do
-      [{pid, _}] ->
-        pid
-
-      _ ->
-        false
-    end
-  end
-
-  @doc """
-  Start a new RepairWorker for the first_address
-  """
-  @spec start_worker(list()) :: DynamicSupervisor.on_start_child()
-  def start_worker(args) do
-    DynamicSupervisor.start_child(NotifierSupervisor, {RepairWorker, args})
-  end
-
-  @doc """
-  Add a new address in the address list of the RepairWorker
-  """
-  @spec add_repair_addresses(
-          pid(),
-          Crypto.prepended_hash() | nil,
-          list(Crypto.prepended_hash())
-        ) :: :ok
-  def add_repair_addresses(pid, storage_address, io_addresses) do
-    GenServer.cast(pid, {:add_address, storage_address, io_addresses})
-  end
-
   def config_change(changed_conf) do
     changed_conf
     |> Keyword.get(Scheduler)
@@ -208,54 +183,61 @@ defmodule Archethic.SelfRepair do
     end
   end
 
-  def resync(last_address) do
-    first_address = get_genesis_address(:node_shared_secrets)
+  @doc """
+  Resync storage_address & io_addresses.
+  We use a lock on the genesis_address to avoid running concurrent syncs on the same chain
+  """
+  @spec resync(
+          Crypto.prepended_hash(),
+          Crypto.prepended_hash() | list(Crypto.prepended_hash()) | nil,
+          list(Crypto.prepended_hash())
+        ) :: :ok
+  defdelegate resync(genesis_address, storage_address, io_addresses),
+    to: RepairWorker,
+    as: :repair_addresses
 
-    case repair_in_progress?(first_address) do
-      false ->
-        start_worker(
-          first_address: first_address,
-          storage_address: last_address,
-          io_addresses: []
-        )
+  @doc """
+  Replicate the transaction at given address
+  """
+  @spec replicate_transaction(binary(), boolean()) :: :ok | {:error, term()}
+  def replicate_transaction(address, storage? \\ true) do
+    # We get the authorized nodes before the last summary date as we are sure that they know
+    # the informations we need. Requesting current nodes may ask information to nodes in same repair
+    # process as we are here.
+    authorized_nodes =
+      DateTime.utc_now()
+      |> BeaconChain.previous_summary_time()
+      |> P2P.authorized_and_available_nodes(true)
 
-      pid ->
-        add_repair_addresses(pid, first_address, [])
+    timeout = Message.get_max_timeout()
+
+    acceptance_resolver = fn
+      {:ok, %Transaction{address: ^address}} -> true
+      _ -> false
     end
 
-    :ok
-  end
-
-  @spec resync_network_chain(type :: atom(), nodes :: list(Node.t()) | []) :: :ok | :error
-  def resync_network_chain(_, []),
-    do: Logger.notice("Enforce Resync of Network Txs: No-Nodes")
-
-  def resync_network_chain(type, nodes) do
-    with addr when is_binary(addr) <- get_genesis_address(type),
-         {:ok, rem_last_addr} <- TransactionChain.resolve_last_address(addr),
-         {local_last_addr, _} <- TransactionChain.get_last_address(addr),
-         false <- rem_last_addr == local_last_addr,
-         {:ok, tx} <- TransactionChain.fetch_transaction_remotely(rem_last_addr, nodes),
-         :ok <- Replication.validate_and_store_transaction_chain(tx) do
-      Logger.info("Enforced Resync: Success", transaction_type: type)
-      :ok
+    with false <- TransactionChain.transaction_exists?(address),
+         storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
+         {:ok, tx} <-
+           TransactionChain.fetch_transaction_remotely(
+             address,
+             storage_nodes,
+             timeout,
+             acceptance_resolver
+           ) do
+      # TODO: Also download replication attestation from beacon nodes to ensure validity of the transaction
+      if storage? do
+        :ok = Replication.sync_transaction_chain(tx, authorized_nodes, true)
+        update_last_address(address, authorized_nodes)
+      else
+        Replication.synchronize_io_transaction(tx, true)
+      end
     else
-      nil ->
-        Logger.warning("Node is out of sync, wait for self repair to complete succesfully.")
-
       true ->
-        Logger.info("Enforced Resync: No new transaction to sync", transaction_type: type)
-        :ok
+        {:error, :transaction_already_exists}
 
-      e ->
-        Logger.debug("Enforced Resync: Error #{inspect(e)}", transaction_type: type)
+      {:error, reason} ->
+        {:error, reason}
     end
   end
-
-  defp get_genesis_address(:node_shared_secrets),
-    do: SharedSecrets.genesis_address(:node_shared_secrets)
-
-  defp get_genesis_address(:oracle), do: OracleChain.genesis_address()
-
-  defp get_genesis_address(:reward), do: Reward.genesis_address()
 end
