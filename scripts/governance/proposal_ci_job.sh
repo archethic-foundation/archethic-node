@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# redirect stdout/stderr to a file
+exec >ci_logfile.txt 2>&1
+
 set -e
 
 PROPOSAL_ADDRESS=$1
