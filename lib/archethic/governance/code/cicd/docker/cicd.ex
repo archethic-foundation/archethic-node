@@ -210,11 +210,13 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     end
   end
 
+  @logfile_name "ci_logfile.txt"
   defp testnet_prepare(dir, address, version) do
     ci = container_name(address)
 
     with :ok <- File.mkdir_p!(dir),
-         {_, 0} <- docker(["cp", "#{ci}:#{@releases}/#{version}/#{@release}", dir]) do
+         {_, 0} <- docker(["cp", "#{ci}:#{@releases}/#{version}/#{@release}", dir]),
+         {_, 0} <- docker(["cp", "#{ci}:/opt/code/#{@logfile_name}", dir <> "/#{@logfile_name}"]) do
       :ok
     else
       _ -> :error
