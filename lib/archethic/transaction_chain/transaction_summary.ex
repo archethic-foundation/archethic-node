@@ -214,14 +214,12 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   end
 
   @doc """
-  This function will be used during the summary day of 1.0.8 upgrade. This function can be deleted after the upgrade.
-  Migrate this function into files 1.0.8-migrate_old_tx_summaries
-  Transform a TransactionSummary without version into a TransactionSummary v1
+  Apply a tranformation of a transaction summary based on the blockchain version
   """
-  @spec transform_1_0_8_summary(t()) :: t()
-  def transform_1_0_8_summary(tx_summary = %__MODULE__{version: 1}), do: tx_summary
+  @spec transform(binary(), t()) :: t()
+  def transform("1.0.8", tx_summary = %__MODULE__{version: 1}), do: tx_summary
 
-  def transform_1_0_8_summary(%__MODULE__{address: address}) do
+  def transform("1.0.8", %__MODULE__{address: address}) do
     transaction =
       case TransactionChain.get_transaction(address) do
         {:ok, tx} ->
@@ -236,6 +234,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
 
     from_transaction(transaction)
   end
+
+  def transform(_, tx_summary), do: tx_summary
 
   @doc """
   This function will be used during the summary day of 1.0.8 upgrade. This function can be deleted after the upgrade.

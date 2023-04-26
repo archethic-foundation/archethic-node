@@ -79,7 +79,7 @@ defmodule Migration_1_0_8 do
   end
 
   defp create_attestation(tx_summary) do
-    new_tx_summary = TransactionSummary.transform_1_0_8_summary(tx_summary)
+    new_tx_summary = TransactionSummary.transform("1.0.8", tx_summary)
     %ReplicationAttestation{version: 1, transaction_summary: new_tx_summary}
   end
 
