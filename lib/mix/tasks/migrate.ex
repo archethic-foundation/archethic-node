@@ -4,6 +4,8 @@ defmodule Mix.Tasks.Archethic.Migrate do
   alias Archethic.DB.EmbeddedImpl
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
+  require Logger
+
   @env Mix.env()
 
   @doc """
@@ -11,6 +13,7 @@ defmodule Mix.Tasks.Archethic.Migrate do
   """
   # Called by migrate.sh scripts
   def run(new_version) do
+    Logger.info("Start of migration task for version #{new_version}")
     migration_file_path = EmbeddedImpl.db_path() |> ChainWriter.migration_file_path()
 
     migrations_to_run =
@@ -25,10 +28,13 @@ defmodule Mix.Tasks.Archethic.Migrate do
       end
 
     Enum.each(migrations_to_run, fn {version, module} ->
+      Logger.info("Run migration script for version #{version}")
       :erlang.apply(module, :run, [])
       unload_module(module)
       File.write(migration_file_path, version)
     end)
+
+    Logger.info("End of migration task for version #{new_version}")
   end
 
   defp filter_migrations_to_run(last_version) do
