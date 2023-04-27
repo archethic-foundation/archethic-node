@@ -1126,4 +1126,20 @@ defmodule Archethic.Utils do
       end
     end
   end
+
+  @doc """
+  Register a name to a supervisor
+  """
+  @spec register_supervisor_name(pid() | atom(), atom()) :: :ok | :not_found
+  def register_supervisor_name(parent_supervisor, module_name) do
+    case Supervisor.which_children(parent_supervisor)
+         |> Enum.find(&(elem(&1, 0) == module_name)) do
+      {_module, pid, _type, _param} when is_pid(pid) ->
+        :erlang.register(module_name, pid)
+        :ok
+
+      _ ->
+        :not_found
+    end
+  end
 end
