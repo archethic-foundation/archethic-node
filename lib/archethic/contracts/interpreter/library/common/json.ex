@@ -20,6 +20,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
     to: Jason,
     as: :encode!
 
+  @spec parse(String.t()) :: any()
+  defdelegate parse(text),
+    to: Jason,
+    as: :decode!
+
   @spec is_valid?(String.t()) :: boolean()
   def is_valid?(str) do
     case Jason.decode(str) do
@@ -48,6 +53,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
   end
 
   def check_types(:is_valid?, [first]) do
+    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:parse, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 
