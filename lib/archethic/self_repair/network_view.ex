@@ -176,6 +176,7 @@ defmodule Archethic.SelfRepair.NetworkView do
   defp do_get_p2p_hash() do
     P2P.authorized_and_available_nodes()
     |> Enum.map(& &1.last_public_key)
+    |> Enum.sort()
     |> then(&:crypto.hash(:sha256, &1))
   end
 
