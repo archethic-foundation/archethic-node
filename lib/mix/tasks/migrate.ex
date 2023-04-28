@@ -38,13 +38,13 @@ defmodule Mix.Tasks.Archethic.Migrate do
   end
 
   defp filter_migrations_to_run(last_version) do
-    # List migration files, name must be [version]-description.exs
+    # List migration files, name must be version@description.exs
     # Then filter version higher than the last one runned
     # Eval the migration code and filter migration with function to call
     get_migrations_path()
     |> Enum.map(fn migration_path ->
       file_name = Path.basename(migration_path)
-      migration_version = Regex.run(~r/[0-9\.]*(?=-)/, file_name) |> List.first()
+      migration_version = Regex.run(~r/.*(?=@)/, file_name) |> List.first()
       {migration_version, migration_path}
     end)
     |> Enum.filter(fn {migration_version, _} -> last_version < migration_version end)
