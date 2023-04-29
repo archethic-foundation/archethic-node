@@ -433,7 +433,7 @@ defmodule Archethic.BootstrapTest do
 
   describe "synchronous_resync/1 nss_chain" do
     setup do
-      p2p_context()
+      authorized_keys = p2p_context()
 
       curr_time = DateTime.utc_now()
 
@@ -441,21 +441,24 @@ defmodule Archethic.BootstrapTest do
         TransactionFactory.create_network_tx(:node_shared_secrets,
           index: 0,
           timestamp: curr_time |> DateTime.add(-14_400, :second),
-          prev_txn: []
+          prev_txn: [],
+          authorized_keys: authorized_keys
         )
 
       txn1 =
         TransactionFactory.create_network_tx(:node_shared_secrets,
           index: 1,
           timestamp: curr_time |> DateTime.add(-14_400, :second),
-          prev_txn: [txn0]
+          prev_txn: [txn0],
+          authorized_keys: authorized_keys
         )
 
       txn2 =
         TransactionFactory.create_network_tx(:node_shared_secrets,
           index: 2,
           timestamp: curr_time |> DateTime.add(-7_200, :second),
-          prev_txn: [txn1]
+          prev_txn: [txn1],
+          authorized_keys: authorized_keys
         )
 
       txn3 =
@@ -469,7 +472,8 @@ defmodule Archethic.BootstrapTest do
         TransactionFactory.create_network_tx(:node_shared_secrets,
           index: 4,
           timestamp: curr_time,
-          prev_txn: [txn3]
+          prev_txn: [txn3],
+          authorized_keys: authorized_keys
         )
 
       :persistent_term.put(:node_shared_secrets_gen_addr, txn0.address)
@@ -521,7 +525,6 @@ defmodule Archethic.BootstrapTest do
       addr2 = nss_chain.txn2.address
       addr3 = nss_chain.txn3.address
       addr4 = nss_chain.txn4.address
-
       me = self()
 
       now = DateTime.utc_now()
@@ -540,6 +543,9 @@ defmodule Archethic.BootstrapTest do
         # to know this fx executed or not we use send
         send(me, {:write_transaction, tx.address})
         :ok
+      end)
+      |> stub(:get_genesis_address, fn
+        _ -> addr0
       end)
 
       MockClient
@@ -566,6 +572,9 @@ defmodule Archethic.BootstrapTest do
              more?: false,
              paging_state: nil
            }}
+
+        _, %GetTransactionSummary{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
@@ -625,6 +634,7 @@ defmodule Archethic.BootstrapTest do
 
       # P2P.add_and_connect_node(welcome_node)
       P2P.add_and_connect_node(coordinator_node)
+      [Crypto.first_node_public_key(), pb_key3]
     end
   end
 end

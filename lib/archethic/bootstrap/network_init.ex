@@ -4,37 +4,13 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
   Those functions are only executed by the first node bootstrapping on the network
   """
+  alias Archethic.{Bootstrap, Crypto, Election, Mining, PubSub, Replication}
+  alias Archethic.{Replication, BeaconChain.ReplicationAttestation, SharedSecrets, Reward}
+  alias Archethic.TransactionChain.{Transaction, TransactionData, TransactionSummary}
 
-  alias Archethic.Bootstrap
-
-  alias Archethic.BeaconChain.ReplicationAttestation
-
-  alias Archethic.Crypto
-
-  alias Archethic.Election
-
-  alias Archethic.Mining
-
-  alias Archethic.PubSub
-
-  alias Archethic.Replication
-
-  alias Archethic.SharedSecrets
-
-  alias Archethic.Reward
-
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
-
-  alias Archethic.TransactionChain.TransactionSummary
+  alias Transaction.{CrossValidationStamp, ValidationStamp, LedgerOperations}
+  alias ValidationStamp.{LedgerOperations, LedgerOperations.UnspentOutput}
+  alias TransactionData.{Ledger, UCOLedger, UCOLedger.Transfer}
 
   require Logger
 
@@ -225,5 +201,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
     }
 
     PubSub.notify_replication_attestation(attestation)
+
+    :ok
   end
 end

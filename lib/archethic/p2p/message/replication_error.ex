@@ -17,7 +17,7 @@ defmodule Archethic.P2P.Message.ReplicationError do
           reason: reason()
         }
 
-  @type reason :: TransactionValidator.error() | :transaction_already_exists
+  @type reason :: TransactionValidator.error() | :transaction_already_exists | binary()
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t()
   def process(
@@ -72,6 +72,9 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp serialize_reason(:invalid_validation_stamp_signature), do: 13
   defp serialize_reason(:invalid_unspent_outputs), do: 14
 
+  defp serialize_reason({:pending_validation_error, reason}),
+    do: <<15::8, byte_size(reason)::8, reason::binary>>
+
   @doc """
   DeSerialize a replication error message
 
@@ -104,7 +107,12 @@ defmodule Archethic.P2P.Message.ReplicationError do
     {%__MODULE__{address: address, reason: reason}, rest}
   end
 
-  @spec deserialize_reason(bin :: bitstring) :: {atom, bitstring}
+  @spec deserialize_reason(bin :: bitstring) :: {atom, bitstring} | {{atom, bitstring}, bitstring}
+  def deserialize_reason(<<15::8, rest::bitstring>>) do
+    <<reason_byte_size::8, reason::size(reason_byte_size * 8), rest::bitstring>> = rest
+    {reason, rest}
+  end
+
   def deserialize_reason(<<nb::8, rest::bitstring>>), do: {error(nb), rest}
 
   @spec error(1..255) :: atom

@@ -1,20 +1,17 @@
 defmodule Archethic.Replication.TransactionValidatorTest do
   use ArchethicCase, async: false
 
-  alias Archethic.Crypto
+  alias Archethic.{Crypto, P2P, P2P.Node, P2P.Message, TransactionFactory}
+  alias Archethic.{Replication.TransactionValidator, TransactionChain}
+  alias Archethic.{SharedSecrets, SharedSecrets.MemTables.NetworkLookup}
 
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
+  alias TransactionChain.{Transaction, TransactionData}
+  alias Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias TransactionData.{Ledger, UCOLedger}
 
-  alias Archethic.Replication.TransactionValidator
+  alias Message.{GetTransactionSummary, NotFound}
 
-  alias Archethic.SharedSecrets
-  alias Archethic.SharedSecrets.MemTables.NetworkLookup
-
-  alias Archethic.TransactionFactory
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
+  import Mox
   @moduletag :capture_log
 
   setup do
@@ -28,7 +25,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       first_public_key: "key1",
       last_public_key: "key1",
       available?: true,
-      geo_patch: "BBB"
+      geo_patch: "BBB",
+      network_patch: "AAA"
     }
 
     coordinator_node = %Node{
@@ -37,6 +35,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       authorized?: true,
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-1),
+      network_patch: "AAA",
       geo_patch: "AAA"
     }
 
@@ -47,6 +46,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         first_public_key: "key3",
         last_public_key: "key3",
         available?: true,
+        network_patch: "AAA",
         geo_patch: "BBB",
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       }
@@ -56,6 +56,12 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
     P2P.add_and_connect_node(welcome_node)
     P2P.add_and_connect_node(coordinator_node)
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransactionSummary{}, _ ->
+        {:ok, %NotFound{}}
+    end)
 
     {:ok,
      %{
@@ -147,8 +153,23 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         }
       ]
 
+      transaction_data = %TransactionData{
+        ledger: %Ledger{
+          uco: %UCOLedger{
+            transfers: [
+              %UCOLedger.Transfer{
+                to: "@Bob2",
+                amount: 10_000
+              }
+            ]
+          }
+        }
+      }
+
       assert :ok =
-               TransactionFactory.create_valid_transaction(unspent_outputs)
+               TransactionFactory.create_valid_transaction(unspent_outputs,
+                 transaction_data: transaction_data
+               )
                |> TransactionValidator.validate(nil, unspent_outputs)
     end
   end

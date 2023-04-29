@@ -27,6 +27,7 @@ defmodule Archethic.TransactionFactory do
     index = Keyword.get(opts, :index, 0)
     content = Keyword.get(opts, :content, "")
     code = Keyword.get(opts, :code, "")
+    transaction_data = Keyword.get(opts, :transaction_data, %TransactionData{content: content})
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
@@ -244,10 +245,11 @@ defmodule Archethic.TransactionFactory do
     timestamp = Keyword.get(opts, :timestamp)
     aes_key = :crypto.strong_rand_bytes(32)
     prev_txn = Keyword.get(opts, :prev_txn, [])
+    authorizations = Keyword.get(opts, :authorized_keys, [Crypto.first_node_public_key()])
 
     tx =
       SharedSecrets.new_node_shared_secrets_transaction(
-        [Crypto.last_node_public_key()],
+        authorizations,
         seed,
         aes_key,
         index

@@ -1120,8 +1120,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :invalid_proof_of_work ->
           {:invalid_transaction, "Invalid origin signature"}
 
-        reason ->
+        reason when is_atom(reason) ->
           {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
+
+        reason when is_binary(reason) ->
+          {:network_issue, reason}
       end
 
     Logger.warning("Invalid transaction #{inspect(error_reason)}",

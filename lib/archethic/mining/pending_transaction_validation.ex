@@ -1,12 +1,12 @@
 defmodule Archethic.Mining.PendingTransactionValidation do
   @moduledoc false
 
-  alias Archethic.{Contracts, Contracts.Contract, Crypto, DB, SharedSecrets, Election}
-  alias Archethic.{Governance, Networking, OracleChain, P2P, Reward, P2P.Message, P2P.Node}
-  alias Archethic.{SharedSecrets.NodeRenewal, Utils, TransactionChain}
+  alias Archethic.{Contracts, Contracts.Contract, Crypto, DB, SharedSecrets}
+  alias Archethic.{Election, Governance, Networking, OracleChain, P2P, P2P.Message}
+  alias Archethic.{P2P.Node, Reward, SharedSecrets.NodeRenewal, Utils, TransactionChain}
 
-  alias Message.{FirstPublicKey, GetFirstPublicKey, GetTransactionSummary}
-  alias Message.{TransactionSummaryMessage, NotFound}
+  alias Message.{FirstPublicKey, GetFirstPublicKey, GetTransactionSummary, NotFound}
+  alias Message.{TransactionSummaryMessage}
 
   alias TransactionChain.{Transaction, TransactionData, TransactionSummary}
   alias TransactionData.{Ledger, Ownership, UCOLedger, TokenLedger}
@@ -87,7 +87,17 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp valid_not_exists(%Transaction{address: address}) do
+  defp valid_not_exists(tx = %Transaction{address: address, type: tx_type}) do
+    with true <- Transaction.network_type?(tx_type),
+         true <- TransactionChain.transaction_exists?(address) do
+      {:error, "Transaction already exists"}
+    else
+      false ->
+        do_valid_not_exists(tx)
+    end
+  end
+
+  defp do_valid_not_exists(%Transaction{address: address}) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     conflict_resolver = fn results ->
@@ -753,6 +763,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           |> Transaction.previous_address()
           |> TransactionChain.get_genesis_address()
 
+        # Note
+        # for the first tx we get prievous address which is genesis address
+        # and we call get_genesis_address,on genesis address itself
         first_addr == gen_addr
     end
   end

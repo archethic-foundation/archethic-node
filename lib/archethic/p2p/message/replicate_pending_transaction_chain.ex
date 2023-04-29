@@ -1,5 +1,7 @@
 defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
-  @moduledoc false
+  @moduledoc """
+   To notify storage node that it can store a transaction that it validated before.
+  """
 
   defstruct [:address]
 

@@ -8,10 +8,13 @@ defmodule Archethic.Replication do
   Moreover because Archethic supports network transaction to constantly enhanced the system,
   those transactions will be loaded into the subsystems (Node, Shared Secrets, Governance, etc..)
   """
+  alias Archethic.{Account, Contracts, Crypto, Election, P2P, P2P.Message, P2P.Node}
+  alias Archethic.{PubSub, OracleChain, SharedSecrets, Reward, Governance, TaskSupervisor}
+  alias Archethic.{TransactionChain, TransactionChain.Transaction, Utils}
 
-  alias Archethic.Account
+  alias Message.NotifyLastTransactionAddress
 
-  alias Archethic.Contracts
+  alias __MODULE__.{TransactionContext, TransactionPool, TransactionValidator}
 
   alias Archethic.Crypto
 
@@ -94,7 +97,16 @@ defmodule Archethic.Replication do
         {:error, reason} ->
           :ok = TransactionChain.write_ko_transaction(tx)
 
-          Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
+          log_reason =
+            case reason do
+              {:pending_validation_error, log_reason} ->
+                log_reason
+
+              _ ->
+                reason
+            end
+
+          Logger.warning("Invalid transaction for replication - #{inspect(log_reason)}",
             transaction_address: Base.encode16(address),
             transaction_type: type
           )

@@ -1,28 +1,11 @@
 defmodule Archethic.Replication.TransactionValidator do
   @moduledoc false
 
-  alias Archethic.Bootstrap
+  alias Archethic.{Bootstrap, Contracts, DB, Election, P2P, P2P.Node, Mining}
+  alias Archethic.{OracleChain, SharedSecrets, TransactionChain}
 
-  alias Archethic.Contracts
-
-  alias Archethic.DB
-
-  alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-
-  alias Archethic.Mining
-
-  alias Archethic.OracleChain
-
-  alias Archethic.SharedSecrets
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.TransactionInput
+  alias TransactionChain.{Transaction, Transaction.ValidationStamp, TransactionInput}
+  alias Transaction.{ValidationStamp.LedgerOperations}
 
   require Logger
 
@@ -43,6 +26,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_inherit_constraints
           | :invalid_validation_stamp_signature
           | :invalid_unspent_outputs
+          | {:pending_validation_error, term()}
 
   @doc """
   Validate transaction with context
@@ -55,10 +39,25 @@ defmodule Archethic.Replication.TransactionValidator do
           inputs_outputs :: list(TransactionInput.t())
         ) ::
           :ok | {:error, error()}
-  def validate(tx = %Transaction{}, previous_transaction, inputs) do
-    with :ok <- valid_transaction(tx, inputs, true),
+  def validate(
+        tx = %Transaction{},
+        previous_transaction,
+        inputs
+      ) do
+    with :ok <- validate_pending_transaction(tx),
+         :ok <- valid_transaction(tx, inputs, true),
          :ok <- validate_inheritance(tx, previous_transaction) do
       validate_chain(tx, previous_transaction)
+    end
+  end
+
+  defp validate_pending_transaction(tx) do
+    case Mining.validate_pending_transaction(tx) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        {:error, {:pending_validation_error, reason}}
     end
   end
 

@@ -1,45 +1,21 @@
 defmodule Archethic.ReplicationTest do
   use ArchethicCase, async: false
 
-  alias Archethic.Crypto
+  alias Archethic.{Crypto, Election, Mining.Fee, P2P, Replication, P2P.Message, P2P.Node}
+  alias Archethic.{SharedSecrets, SharedSecrets.MemTables.NetworkLookup, TransactionChain}
 
-  alias Archethic.Election
+  alias Message.{GetGenesisAddress, GetTransaction, GetTransactionChain, GetTransactionInputs}
+  alias Message.{NotifyLastTransactionAddress, TransactionInputList, TransactionList}
+  alias Message.{NotFound, GetTransactionChainLength, TransactionChainLength, Ok}
+  alias Message.{GetTransactionSummary, GetLastTransactionAddress}
 
-  alias Archethic.Mining.Fee
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.TransactionChainLength
-  alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.NotifyLastTransactionAddress
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.Ok
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Node
-  alias Archethic.P2P.Message.GetGenesisAddress
-  # alias Archethic.P2P.Message.GenesisAddress
-
-  alias Archethic.Replication
-
-  alias Archethic.SharedSecrets
-  alias Archethic.SharedSecrets.MemTables.NetworkLookup
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
+  alias TransactionChain.{Transaction, TransactionData, TransactionInput}
+  alias TransactionChain.{VersionedTransactionInput}
+  alias Transaction.{CrossValidationStamp, ValidationStamp}
+  alias ValidationStamp.{LedgerOperations.UnspentOutput, LedgerOperations}
+  alias TransactionData.{Ledger, UCOLedger}
 
   doctest Archethic.Replication
-
   import Mox
 
   setup do
@@ -75,7 +51,20 @@ defmodule Archethic.ReplicationTest do
     ]
 
     p2p_context()
-    tx = create_valid_transaction(unspent_outputs)
+
+    tx =
+      create_valid_transaction(unspent_outputs, %TransactionData{
+        ledger: %Ledger{
+          uco: %UCOLedger{
+            transfers: [
+              %UCOLedger.Transfer{
+                to: "@Bob2",
+                amount: 10_000
+              }
+            ]
+          }
+        }
+      })
 
     MockClient
     |> stub(:send_message, fn
@@ -104,6 +93,12 @@ defmodule Archethic.ReplicationTest do
         %TransactionChainLength{length: 1}
 
       _, %GetGenesisAddress{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetTransactionSummary{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetLastTransactionAddress{address: _}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -137,7 +132,20 @@ defmodule Archethic.ReplicationTest do
     ]
 
     p2p_context()
-    tx = create_valid_transaction(unspent_outputs)
+
+    tx =
+      create_valid_transaction(unspent_outputs, %TransactionData{
+        ledger: %Ledger{
+          uco: %UCOLedger{
+            transfers: [
+              %UCOLedger.Transfer{
+                to: "@Bob2",
+                amount: 10_000
+              }
+            ]
+          }
+        }
+      })
 
     MockDB
     |> expect(:write_transaction, fn ^tx, _ ->
@@ -176,6 +184,12 @@ defmodule Archethic.ReplicationTest do
         %TransactionChainLength{length: 1}
 
       _, %GetGenesisAddress{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetTransactionSummary{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetLastTransactionAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -265,8 +279,8 @@ defmodule Archethic.ReplicationTest do
     }
   end
 
-  defp create_valid_transaction(unspent_outputs) do
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+  defp create_valid_transaction(unspent_outputs, transactiondata \\ %TransactionData{}) do
+    tx = Transaction.new(:transfer, transactiondata, "seed", 0)
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     ledger_operations =

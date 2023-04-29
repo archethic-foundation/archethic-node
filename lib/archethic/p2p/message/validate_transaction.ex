@@ -1,5 +1,10 @@
 defmodule Archethic.P2P.Message.ValidateTransaction do
-  @moduledoc false
+  @moduledoc """
+   Atomic commitment is checked at two locations: Following the cross validation stamp and  Once an "OK" message is received from all storage nodes.
+
+   This message serves the purpose of notifying storage nodes to perform a validation check on the transaction. It is stored only after the storage
+   nodes confirm the atomic commitment. The message then waits for the "replicate pending transaction chain" message.
+  """
 
   @enforce_keys [:transaction]
   defstruct [:transaction]
