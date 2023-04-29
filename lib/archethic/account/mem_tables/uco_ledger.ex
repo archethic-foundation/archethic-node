@@ -282,7 +282,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         }
       })
 
-      :ets.delete(@ledger_table, to)
+      :ets.delete(@ledger_table, {to, from})
     end)
 
     :ets.delete(@unspent_output_index_table, address)
@@ -291,8 +291,8 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   end
 
   defp write_to_db(address, inputs, true) do
-    Enum.each(inputs, fn {to, _from} ->
-      :ets.delete(@ledger_table, to)
+    Enum.each(inputs, fn {to, from} ->
+      :ets.delete(@ledger_table, {to, from})
     end)
 
     :ets.delete(@unspent_output_index_table, address)
