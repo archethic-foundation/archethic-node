@@ -647,7 +647,8 @@ defmodule Archethic.BeaconChain.Slot do
           fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
             new_summary = TransactionSummary.transform("1.0.8", summary)
             %ReplicationAttestation{attestation | transaction_summary: new_summary}
-          end
+          end,
+          max_concurrency: System.schedulers_online() * 10
         )
         |> Stream.filter(&match?({:ok, _}, &1))
         |> Enum.map(fn {:ok, attestation} -> attestation end)
