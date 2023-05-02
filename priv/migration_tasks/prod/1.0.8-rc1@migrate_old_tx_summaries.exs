@@ -22,23 +22,37 @@ defmodule Migration_1_0_8 do
   defp upgrade_summary_aggregates() do
     db_path = EmbeddedImpl.db_path()
     aggregate_dir = ChainWriter.base_beacon_aggregate_path(db_path)
+    paths = Path.wildcard("#{aggregate_dir}/*")
+
     # For each aggregate of the dir
-    # (Should we run them async ?)
-    Path.wildcard("#{aggregate_dir}/*")
-    |> Enum.each(fn aggregate_path ->
-      File.read!(aggregate_path)
-      |> deserialize_aggregate()
-      |> elem(0)
-      |> migrate_aggregate
-      |> EmbeddedImpl.write_beacon_summaries_aggregate()
-    end)
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      paths,
+      fn aggregate_path ->
+        File.read!(aggregate_path)
+        |> deserialize_aggregate()
+        |> elem(0)
+        |> migrate_aggregate
+        |> EmbeddedImpl.write_beacon_summaries_aggregate()
+      end,
+      shutdown: :brutal_kill,
+      timeout: :infinity,
+      ordered: false
+    )
+    |> Stream.run()
   end
 
   defp migrate_aggregate(aggregate = %SummaryAggregate{replication_attestations: tx_summaries}) do
     replication_attestations =
-      Task.Supervisor.async_stream(TaskSupervisor, tx_summaries, fn tx_summary ->
-        create_attestation(tx_summary)
-      end)
+      Task.Supervisor.async_stream(
+        TaskSupervisor,
+        tx_summaries, 
+        fn tx_summary ->
+          create_attestation(tx_summary)
+        end,
+        shutdown: :brutal_kill,
+        max_concurency: System.schedulers_online() * 10
+      )
       |> Enum.map(fn {:ok, replication_attestation} -> replication_attestation end)
 
     %SummaryAggregate{aggregate | replication_attestations: replication_attestations}
@@ -47,19 +61,25 @@ defmodule Migration_1_0_8 do
   defp upgrade_beacon_summaries() do
     db_path = EmbeddedImpl.db_path()
     summaries_dir = ChainWriter.base_beacon_path(db_path)
+    paths = Path.wildcard("#{summaries_dir}/*")
 
     # For each summary of the dir
-    # (Should we run them async ?)
-    Path.wildcard("#{summaries_dir}/*")
-    |> Enum.each(fn summary_path ->
-      new_summary = File.read!(summary_path)
-      |> deserialize_summary()
-      |> elem(0)
-      |> migrate_summary()
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      paths,
+      fn summary_path ->
+        new_summary = File.read!(summary_path)
+        |> deserialize_summary()
+        |> elem(0)
+        |> migrate_summary()
 
-      File.rm(summary_path)
-      EmbeddedImpl.write_beacon_summary(new_summary)
-    end)
+        File.rm(summary_path)
+        EmbeddedImpl.write_beacon_summary(new_summary)
+      end,
+      shutdown: :brutal_kill,
+      timeout: :infinity,
+      ordered: false
+    )
   end
 
   defp migrate_summary(summary = %Summary{transaction_attestations: attestations}) do
@@ -71,7 +91,9 @@ defmodule Migration_1_0_8 do
              transaction_summary: tx_summary
            } ->
           create_attestation(tx_summary)
-        end
+        end,
+        shutdown: :brutal_kill,
+        max_concurency: System.schedulers_online() * 10
       )
       |> Enum.map(fn {:ok, replication_attestation} -> replication_attestation end)
 
