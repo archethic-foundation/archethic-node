@@ -183,7 +183,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     try do
       {node_public_key, rest} = Utils.deserialize_public_key(rest)
       deserialize(rest, [{summary_time, slot, node_public_key} | acc])
-    catch
+    rescue
       _ ->
         deserialize(rest, [{summary_time, slot} | acc])
     end
