@@ -23,14 +23,13 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
   @doc """
   Return the last node views from the last self-repair cycle
   """
-  @spec get_views :: %{
-          (node_public_key :: Crypto.key()) => {
-            available? :: boolean(),
-            average_availability :: float(),
-            network_patch :: String.t() | nil
-          }
-        }
-  def get_views do
+  @spec get_views() ::
+          list(
+            {node_public_key :: Crypto.key(), available? :: boolean(),
+             average_availability :: float(), availability_update :: DateTime.t(),
+             network_patch :: String.t() | nil}
+          )
+  def get_views() do
     GenServer.call(__MODULE__, :get_node_views)
   end
 

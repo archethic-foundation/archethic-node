@@ -76,14 +76,14 @@ defmodule Archethic.DB do
                  average_availability :: float(), availability_update :: DateTime.t(),
                  network_patch :: binary()}
               )
-            ) ::
-              :ok
+            ) :: :ok
 
-  @callback get_last_p2p_summaries() :: %{
-              (node_public_key :: Crypto.key()) =>
-                {available? :: boolean(), average_availability :: float(),
-                 network_patch :: binary() | nil}
-            }
+  @callback get_last_p2p_summaries() ::
+              list(
+                {node_public_key :: Crypto.key(), available? :: boolean(),
+                 average_availability :: float(), availability_update :: DateTime.t(),
+                 network_patch :: String.t() | nil}
+              )
 
   @callback get_bootstrap_info(key :: String.t()) :: String.t() | nil
   @callback set_bootstrap_info(key :: String.t(), value :: String.t()) :: :ok

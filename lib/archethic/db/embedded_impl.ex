@@ -350,13 +350,12 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Register a new node view from the last self-repair cycle
   """
-  @spec get_last_p2p_summaries() :: %{
-          (node_public_key :: Crypto.key()) => {
-            available? :: boolean(),
-            average_availability :: float(),
-            network_patch :: binary() | nil
-          }
-        }
+  @spec get_last_p2p_summaries() ::
+          list(
+            {node_public_key :: Crypto.key(), available? :: boolean(),
+             average_availability :: float(), availability_update :: DateTime.t(),
+             network_patch :: String.t() | nil}
+          )
   defdelegate get_last_p2p_summaries, to: P2PView, as: :get_views
 
   @doc """
