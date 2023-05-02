@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Archethic.Migrate do
 
   require Logger
 
-  @env Mix.env()
+  @env if Mix.env() == :test, do: "test", else: "prod"
 
   @doc """
   Run migration available migration scripts since last updated version
