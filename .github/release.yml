@@ -6,12 +6,12 @@ changelog:
     - title: Exciting New Features 🎉
       labels:
         - feature
-    - title: Bug Fixes
-      labels:
-        - bug
     - title: Enhancements
       labels:
         - enhancements
+    - title: Bug Fixes
+      labels:
+        - bug
     - title: Other Changes
       labels:
         - "*"
