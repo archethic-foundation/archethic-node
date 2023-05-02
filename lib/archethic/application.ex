@@ -108,7 +108,7 @@ defmodule Archethic.Application do
   end
 
   def start_phase(:migrate, :normal, _options) do
-    Application.spec(:archethic, :vsn) |> Migrate.run()
+    Application.spec(:archethic, :vsn) |> Migrate.run(false)
   end
 
   defp try_open_port(nil), do: :ok

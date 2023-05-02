@@ -4,6 +4,8 @@ defmodule Mix.Tasks.Archethic.Migrate do
   alias Archethic.DB.EmbeddedImpl
   alias Archethic.DB.EmbeddedImpl.ChainWriter
 
+  alias Archethic.TaskSupervisor
+
   require Logger
 
   @env Mix.env()
@@ -11,8 +13,24 @@ defmodule Mix.Tasks.Archethic.Migrate do
   @doc """
   Run migration available migration scripts since last updated version
   """
-  # Called by migrate.sh scripts
-  def run(new_version) do
+  @spec run(binary(), boolean()) :: :ok
+  def run(new_version, async? \\ false)
+
+  def run(new_version, true) do
+    Task.Supervisor.start_child(
+      TaskSupervisor,
+      fn -> do_run(new_version) end,
+      shutdown: :brutal_kill
+    )
+
+    :ok
+  end
+
+  def run(new_version, false) do
+    do_run(new_version)
+  end
+
+  defp do_run(new_version) do
     Logger.info("Start of migration task for version #{new_version}")
     migration_file_path = EmbeddedImpl.db_path() |> ChainWriter.migration_file_path()
 
