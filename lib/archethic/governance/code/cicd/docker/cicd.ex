@@ -312,11 +312,29 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     end
   end
 
-  defp testnet_cleanup(_dir, 1, _address_encoded), do: 1
-
   defp testnet_cleanup(dir, code, address_encoded) do
     Logger.info("#{dir} Cleanup", address: address_encoded)
-    System.cmd("docker-compose", ["-f", compose_file(dir), "down", "--volumes"], @cmd_options)
+
+    System.cmd(
+      "docker-compose",
+      [
+        "-f",
+        compose_file(dir),
+        "down",
+        "--volumes"
+      ],
+      @cmd_options
+    )
+
+    docker([
+      "image",
+      "rm",
+      "-f",
+      "archethic-cd",
+      "archethic-ci",
+      "prom/prometheus"
+    ])
+
     File.rm_rf!(dir)
     code
   end

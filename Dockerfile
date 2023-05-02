@@ -30,7 +30,6 @@ RUN apk add --no-cache --update \
   g++ \
   git \
   npm \
-  python3 \
   wget \
   openssl \
   libsodium-dev \
@@ -81,6 +80,9 @@ COPY --from=build /opt/code/.git /opt/code/.git
 
 WORKDIR /opt/code
 RUN git reset --hard
+
+RUN rm -rf /opt/code/.git
+RUN rm -rf /opt/code/priv
 
 WORKDIR /opt/app
 CMD /opt/app/bin/archethic_node foreground
