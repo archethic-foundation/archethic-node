@@ -110,6 +110,17 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
     end
+
+    test "should return an human readable error if syntax is not elixir-valid" do
+      assert {:error, "Parse error: invalid language syntax"} =
+               """
+               @version 1
+               actions triggered_by:transaction do
+                 x = "missing space above"
+               end
+               """
+               |> Interpreter.parse()
+    end
   end
 
   describe "parse code v0" do
