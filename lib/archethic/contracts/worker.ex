@@ -100,6 +100,9 @@ defmodule Archethic.Contracts.Worker do
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
+      {:ok, nil} ->
+        Logger.debug("Contract execution success but there is no new transaction", meta)
+
       _ ->
         Logger.debug("Contract execution failed", meta)
     end
@@ -126,6 +129,9 @@ defmodule Archethic.Contracts.Worker do
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
+      {:ok, nil} ->
+        Logger.debug("Contract execution success but there is no new transaction", meta)
+
       _ ->
         Logger.debug("Contract execution failed", meta)
     end
@@ -152,6 +158,9 @@ defmodule Archethic.Contracts.Worker do
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
+      {:ok, nil} ->
+        Logger.debug("Contract execution success but there is no new transaction", meta)
+
       _ ->
         Logger.debug("Contract execution failed", meta)
     end
@@ -180,6 +189,9 @@ defmodule Archethic.Contracts.Worker do
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
+      {:ok, nil} ->
+        Logger.debug("Contract execution success but there is no new transaction", meta)
+
       _ ->
         Logger.debug("Contract execution failed", meta)
     end
