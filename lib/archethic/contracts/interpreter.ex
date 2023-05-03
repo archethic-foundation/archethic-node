@@ -485,7 +485,11 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_contract(1, ast) do
-    case parse_ast_block(ast, %Contract{}) do
+    # we need to force the initialization of conditions to an empty map
+    # to be able to detect that user did not omit the condition inherit block
+    initial_contract = %Contract{conditions: %{}}
+
+    case parse_ast_block(ast, initial_contract) do
       {:ok, contract} ->
         {:ok, %{contract | version: 1}}
 
@@ -538,21 +542,12 @@ defmodule Archethic.Contracts.Interpreter do
 
   defp check_contract_blocks({:error, reason}), do: {:error, reason}
 
-  defp check_contract_blocks(
-         {:ok, contract = %Contract{triggers: triggers, conditions: conditions}}
-       ) do
-    cond do
-      Map.has_key?(triggers, :transaction) and !Map.has_key?(conditions, :transaction) ->
-        {:error, "missing transaction conditions"}
-
-      Map.has_key?(triggers, :oracle) and !Map.has_key?(conditions, :oracle) ->
-        {:error, "missing oracle conditions"}
-
-      !Map.has_key?(conditions, :inherit) ->
-        {:error, "missing inherit conditions"}
-
-      true ->
-        {:ok, contract}
+  defp check_contract_blocks({:ok, contract = %Contract{conditions: conditions}}) do
+    # Only inherit condition are mandatory
+    if Map.has_key?(conditions, :inherit) do
+      {:ok, contract}
+    else
+      {:error, "missing inherit conditions"}
     end
   end
 end

@@ -47,6 +47,9 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:error, _} =
                """
                @version 1
+               condition inherit: [
+                content: true
+               ]
                condition transaction: [
                 uco_transfers: List.size() > 0
                ]
@@ -64,10 +67,12 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:ok, %Contract{}} =
                """
                @version 1
+               condition inherit: [
+                content: true
+               ]
                condition transaction: [
                 uco_transfers: List.size() > 0
                ]
-
                actions triggered_by: transaction do
                 Contract.set_content "hello"
                end
@@ -76,9 +81,10 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn is called with bad arg" do
-      assert {:error, "invalid function arguments - List.empty?(12) - L4"} =
+      assert {:error, "invalid function arguments - List.empty?(12) - L5"} =
                """
                @version 1
+               condition inherit: []
                condition transaction: []
                actions triggered_by: transaction do
                  x = List.empty?(12)
@@ -88,9 +94,10 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn is called with bad arity" do
-      assert {:error, "invalid function arity - List.empty?([1], \"foobar\") - L4"} =
+      assert {:error, "invalid function arity - List.empty?([1], \"foobar\") - L5"} =
                """
                @version 1
+               condition inherit: []
                condition transaction: []
                actions triggered_by: transaction do
                  x = List.empty?([1], "foobar")
@@ -100,12 +107,25 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn does not exists" do
-      assert {:error, "unknown function - List.non_existing([1, 2, 3]) - L4"} =
+      assert {:error, "unknown function - List.non_existing([1, 2, 3]) - L5"} =
+               """
+               @version 1
+               condition inherit: []
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = List.non_existing([1,2,3])
+               end
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error 'condition inherit' block is missing" do
+      assert {:error, "missing inherit conditions"} =
                """
                @version 1
                condition transaction: []
                actions triggered_by: transaction do
-                 x = List.non_existing([1,2,3])
+                Contract.set_content "symptomatic grizzly bear"
                end
                """
                |> Interpreter.parse()
@@ -143,6 +163,9 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return the contract if format is OK" do
       assert {:ok, %Contract{}} =
                """
+               condition inherit: [
+                content: true
+               ]
                condition transaction: [
                 uco_transfers: size() > 0
                ]
