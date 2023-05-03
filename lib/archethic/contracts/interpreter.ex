@@ -41,6 +41,9 @@ defmodule Archethic.Contracts.Interpreter do
               |> check_contract_blocks()
           end
 
+        {:error, :invalid_syntax} ->
+          {:error, "Parse error: invalid language syntax"}
+
         {:error, {[line: line, column: column], _msg_info, _token}} ->
           {:error, "Parse error at line #{line} column #{column}"}
       end
@@ -77,9 +80,16 @@ defmodule Archethic.Contracts.Interpreter do
   """
   @spec sanitize_code(binary()) :: {:ok, Macro.t()} | {:error, any()}
   def sanitize_code(code) when is_binary(code) do
-    code
-    |> String.trim()
-    |> Code.string_to_quoted(static_atoms_encoder: &atom_encoder/2)
+    try do
+      code
+      |> String.trim()
+      |> Code.string_to_quoted(static_atoms_encoder: &atom_encoder/2)
+    rescue
+      _ ->
+        # catch the non-elixir syntax here
+        # example [key:value] is not valid
+        {:error, :invalid_syntax}
+    end
   end
 
   @doc """
