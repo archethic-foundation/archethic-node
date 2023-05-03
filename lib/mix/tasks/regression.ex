@@ -26,6 +26,8 @@ defmodule Mix.Tasks.Archethic.Regression do
 
   @impl Mix.Task
   def run(args) do
+    Application.ensure_all_started(:telemetry)
+
     case OptionParser.parse!(args,
            strict: [
              help: :boolean,
