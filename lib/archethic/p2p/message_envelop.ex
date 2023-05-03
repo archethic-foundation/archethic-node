@@ -118,7 +118,9 @@ defmodule Archethic.P2P.MessageEnvelop do
   def decode_raw_message(<<message_id::32, _::8, curve_id::8, _origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
-    <<_public_key::binary-size(key_size), encrypted_message::bitstring>> = rest
+    <<_public_key::binary-size(key_size), signature_size::8,
+      _signature::binary-size(signature_size), encrypted_message::bitstring>> = rest
+
     {message_id, encrypted_message}
   end
 end
