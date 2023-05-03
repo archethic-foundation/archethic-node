@@ -130,17 +130,32 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp validate_contract(%Transaction{data: %TransactionData{code: ""}}), do: :ok
 
-  defp validate_contract(%Transaction{
-         data: %TransactionData{code: code, ownerships: ownerships}
-       })
+  defp validate_contract(
+         tx = %Transaction{
+           data: %TransactionData{code: code, ownerships: ownerships}
+         }
+       )
        when byte_size(code) <= @code_max_size do
     case Contracts.parse(code) do
-      {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
+      {:ok, %Contract{version: version, triggers: triggers}} when map_size(triggers) > 0 ->
         if Enum.any?(
              ownerships,
              &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
            ) do
-          :ok
+          case version do
+            0 ->
+              # Ensure the legacy interpreter is only used by existing contract
+              case Transaction.previous_address(tx) |> Archethic.search_transaction() do
+                {:error, :transaction_not_exists} ->
+                  {:error, "New contracts must use @version attribute"}
+
+                _ ->
+                  :ok
+              end
+
+            _ ->
+              :ok
+          end
         else
           {:error, "Requires storage nonce public key as authorized public keys"}
         end

@@ -14,6 +14,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias UCOLedger.Transfer, as: UCOTransfer
 
   import Mox
+  import Mock
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -217,10 +218,79 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   end
 
   describe "Contract" do
-    test "should return error when code is empty" do
+    setup do
+      # smart contracts require the chain's seed as a secret
+      %{
+        ownerships: [
+          Ownership.new("secret", :crypto.strong_rand_bytes(32), [
+            Crypto.storage_nonce_public_key()
+          ])
+        ]
+      }
+    end
+
+    test "should return error when code is empty", %{ownerships: ownerships} do
       assert {:error, "Invalid contract type transaction -  code is empty"} =
-               Transaction.new(:contract, %TransactionData{code: ""})
+               Transaction.new(:contract, %TransactionData{code: "", ownerships: ownerships})
                |> PendingTransactionValidation.validate()
+    end
+
+    test "should validate when creating a new contract with non-legacy interpreter", %{
+      ownerships: ownerships
+    } do
+      assert :ok =
+               Transaction.new(:contract, %TransactionData{
+                 code: """
+                 @version 1
+                 actions triggered_by: transaction do
+                   Contract.set_content "camel"
+                 end
+                 """,
+                 ownerships: ownerships
+               })
+               |> PendingTransactionValidation.validate()
+    end
+
+    test "should return error when creating a new contract with legacy interpreter", %{
+      ownerships: ownerships
+    } do
+      with_mock(Archethic, search_transaction: fn _ -> {:error, :transaction_not_exists} end) do
+        assert {:error, "New contracts must use @version attribute"} =
+                 Transaction.new(:contract, %TransactionData{
+                   code: """
+                   condition inherit: [
+                     content: true
+                   ]
+                   actions triggered_by: transaction do
+                     set_content "hippopotamus"
+                   end
+                   """,
+                   ownerships: ownerships
+                 })
+                 |> PendingTransactionValidation.validate()
+
+        assert_called(Archethic.search_transaction(:_))
+      end
+    end
+
+    test "should validate when 'continuing' a legacy contract", %{ownerships: ownerships} do
+      with_mock(Archethic, search_transaction: fn _ -> {:ok, %Transaction{}} end) do
+        assert :ok =
+                 Transaction.new(:contract, %TransactionData{
+                   code: """
+                   condition inherit: [
+                     content: true
+                   ]
+                   actions triggered_by: transaction do
+                     set_content "whale"
+                   end
+                   """,
+                   ownerships: ownerships
+                 })
+                 |> PendingTransactionValidation.validate()
+
+        assert_called(Archethic.search_transaction(:_))
+      end
     end
   end
 
