@@ -5,9 +5,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
   """
 
   use ArchethicCase
+  import ArchethicCase
 
-  alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.Interpreter.ActionInterpreter
   alias Archethic.Contracts.Interpreter.Library.Common.Time
 
   alias Archethic.TransactionChain.Transaction
@@ -32,13 +31,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
 
       # we validate the test if now is approximately now
       assert String.to_integer(timestamp) - now < 10
-    end
-  end
-
-  defp sanitize_parse_execute(code, constants \\ %{}) do
-    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
-         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
-      ActionInterpreter.execute(action_ast, constants)
     end
   end
 end

@@ -1,6 +1,9 @@
 defmodule Archethic.ContractFactory do
   @moduledoc false
 
+  alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Archethic.TransactionFactory
+
   def valid_version1_contract(opts \\ []) do
     code = ~S"""
     condition inherit: [
@@ -40,5 +43,23 @@ defmodule Archethic.ContractFactory do
       set_content "hello"
     end
     """
+  end
+
+  def append_contract_constant(constants, code, content \\ "") do
+    if Map.has_key?(constants, "contract") do
+      constants
+    else
+      Map.put(
+        constants,
+        "contract",
+        Constants.from_transaction(
+          TransactionFactory.create_valid_transaction([],
+            type: :contract,
+            code: code,
+            content: content
+          )
+        )
+      )
+    end
   end
 end

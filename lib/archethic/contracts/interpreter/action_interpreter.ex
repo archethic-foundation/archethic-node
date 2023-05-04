@@ -36,13 +36,17 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
   @doc """
   Execute actions code and returns either the next transaction or nil
+  The "contract" constant is mandatory.
   """
   @spec execute(any(), map()) :: Transaction.t() | nil
-  def execute(ast, constants \\ %{}) do
+  def execute(ast, constants = %{"contract" => contract_constant}) do
     :ok = Macro.validate(ast)
 
-    # initiate a transaction that will be use by the "Contract" module
-    next_tx = %Transaction{data: %TransactionData{}}
+    # reconstruct the contract transaction
+    contract_tx = Constants.to_transaction(contract_constant)
+
+    # initiate a transaction that will be used by the "Contract" module
+    initial_next_tx = truncate_transaction(contract_tx)
 
     # Apply some transformations to the transactions
     # We do it here because the Constants module is still used by InterpreterLegacy
@@ -58,18 +62,22 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     #   - "calls": the transactions that called this exact contract version
     #   - "contract": current contract transaction
     #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
-    Scope.init(Map.put(constants, "next_transaction", next_tx))
+    Scope.init(
+      constants
+      |> Map.put("next_transaction", initial_next_tx)
+      |> Map.put("next_transaction_changed", false)
+    )
 
     # we can ignore the result & binding
     #   - `result` would be the returned value of the AST
     #   - `binding` would be the variables (none since everything is written to the process dictionary)
     {_result, _binding} = Code.eval_quoted(ast)
 
-    # look at the next_transaction from the scope
-    # return nil if it did not change
-    case Scope.read_global(["next_transaction"]) do
-      ^next_tx -> nil
-      result_next_transaction -> result_next_transaction
+    # return a next transaction only if it has been modified
+    if Scope.read_global(["next_transaction_changed"]) do
+      Scope.read_global(["next_transaction"])
+    else
+      nil
     end
   end
 
@@ -204,6 +212,11 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
     new_node =
       quote do
+        # mark the next_tx as dirty
+        Scope.update_global(["next_transaction_changed"], fn _ -> true end)
+
+        # call the function with the next_transaction as the 1st argument
+        # and update it in the scope
         Scope.update_global(
           ["next_transaction"],
           &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
@@ -216,5 +229,22 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   # --------------- catch all -------------------
   defp postwalk(node, acc) do
     CommonInterpreter.postwalk(node, acc)
+  end
+
+  # keep only the transaction fields we are interested in
+  # these are all the fields that are copied from `prev_tx` to `next_tx`
+  defp truncate_transaction(%Transaction{
+         data: %TransactionData{
+           code: code,
+           ownerships: ownerships
+         }
+       }) do
+    %Transaction{
+      type: :contract,
+      data: %TransactionData{
+        code: code,
+        ownerships: ownerships
+      }
+    }
   end
 end
