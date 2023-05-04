@@ -119,8 +119,19 @@ defmodule Archethic.Contracts.InterpreterTest do
                |> Interpreter.parse()
     end
 
+    test "should return an human readable error if syntax is not elixir-valid" do
+      assert {:error, "Parse error: invalid language syntax"} =
+               """
+               @version 1
+               actions triggered_by:transaction do
+                x = "missing space above"
+               end
+               """
+               |> Interpreter.parse()
+    end
+
     test "should return an human readable error 'condition inherit' block is missing" do
-      assert {:error, "missing inherit conditions"} =
+      assert {:error, "missing 'condition inherit' block"} =
                """
                @version 1
                condition transaction: []
@@ -131,12 +142,25 @@ defmodule Archethic.Contracts.InterpreterTest do
                |> Interpreter.parse()
     end
 
-    test "should return an human readable error if syntax is not elixir-valid" do
-      assert {:error, "Parse error: invalid language syntax"} =
+    test "should return an human readable error 'condition transaction' block is missing" do
+      assert {:error, "missing 'condition transaction' block"} =
                """
                @version 1
-               actions triggered_by:transaction do
-                 x = "missing space above"
+               condition inherit: []
+               actions triggered_by: transaction do
+                Contract.set_content "snobbish chameleon"
+               end
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error 'condition oracle' block is missing" do
+      assert {:error, "missing 'condition oracle' block"} =
+               """
+               @version 1
+               condition inherit: []
+               actions triggered_by: oracle do
+                Contract.set_content "wise cow"
                end
                """
                |> Interpreter.parse()
@@ -375,6 +399,8 @@ defmodule Archethic.Contracts.InterpreterTest do
           content: true
         ]
 
+        condition transaction: []
+
         actions triggered_by: transaction do
           x = 10 / 0
           Contract.set_content x
@@ -408,6 +434,8 @@ defmodule Archethic.Contracts.InterpreterTest do
         condition inherit: [
           content: true
         ]
+
+        condition transaction: []
 
         actions triggered_by: transaction do
           Contract.add_uco_transfer amount: -1, to: "0000BFEF73346D20771614449D6BE9C705BF314067A0CF0ACBBF5E617EF5C978D0A1"
