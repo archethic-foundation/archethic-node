@@ -43,6 +43,8 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
                  previous_public_key: "Contract1",
                  data: %TransactionData{
                    code: """
+                   condition inherit: []
+
                    condition transaction: [
                      content: regex_match?(\"hello\")
                    ]
