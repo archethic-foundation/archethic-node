@@ -46,6 +46,11 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
   @spec add_uco_transfer(Transaction.t(), list()) :: Transaction.t()
   def add_uco_transfer(tx = %Transaction{}, args) when is_list(args) do
     %{"to" => to, "amount" => amount} = Enum.into(args, %{})
+
+    if amount <= 0 do
+      raise ArgumentError, message: "Contract used add_uco_transfer with an invalid amount"
+    end
+
     to = UtilsInterpreter.get_address(to, :add_uco_transfer)
 
     update_in(
@@ -89,6 +94,10 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
   def add_token_transfer(tx = %Transaction{}, args) when is_list(args) do
     map_args =
       %{"to" => to, "amount" => amount, "token_address" => token_address} = Enum.into(args, %{})
+
+    if amount <= 0 do
+      raise ArgumentError, message: "Contract used add_token_transfer with an invalid amount"
+    end
 
     to = UtilsInterpreter.get_address(to, :add_token_transfer_to)
 
