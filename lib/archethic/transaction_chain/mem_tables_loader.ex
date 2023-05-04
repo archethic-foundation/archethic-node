@@ -67,13 +67,19 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
   defp handle_pending_transaction(%Transaction{data: %TransactionData{code: ""}}), do: :ok
 
   defp handle_pending_transaction(tx = %Transaction{address: address}) do
-    %Contract{conditions: %{transaction: transaction_conditions}} = Contract.from_transaction!(tx)
+    %Contract{conditions: conditions} = Contract.from_transaction!(tx)
 
-    # TODO: improve the criteria of pending detection
-    if ContractConditions.empty?(transaction_conditions) do
-      :ok
-    else
-      PendingLedger.add_address(address)
+    case Map.get(conditions, :transaction) do
+      nil ->
+        :ok
+
+      transaction_conditions ->
+        # TODO: improve the criteria of pending detection
+        if ContractConditions.empty?(transaction_conditions) do
+          :ok
+        else
+          PendingLedger.add_address(address)
+        end
     end
   end
 

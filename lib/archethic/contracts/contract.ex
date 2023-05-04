@@ -15,11 +15,7 @@ defmodule Archethic.Contracts.Contract do
 
   defstruct triggers: %{},
             version: 0,
-            conditions: %{
-              transaction: %Conditions{},
-              inherit: %Conditions{},
-              oracle: %Conditions{}
-            },
+            conditions: %{},
             constants: %Constants{},
             next_transaction: %Transaction{data: %TransactionData{}}
 

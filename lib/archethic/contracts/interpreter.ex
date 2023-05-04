@@ -485,11 +485,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_contract(1, ast) do
-    # we need to force the initialization of conditions to an empty map
-    # to be able to detect that user did not omit some condition blocks
-    initial_contract = %Contract{conditions: %{}}
-
-    case parse_ast_block(ast, initial_contract) do
+    case parse_ast_block(ast, %Contract{}) do
       {:ok, contract} ->
         {:ok, %{contract | version: 1}}
 

@@ -21,6 +21,8 @@ defmodule Archethic.ContractsTest do
         content: "hello"
       ]
 
+      condition transaction: []
+
       actions triggered_by: transaction do
         add_uco_transfer to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 1000000000
       end
@@ -58,6 +60,8 @@ defmodule Archethic.ContractsTest do
       condition inherit: [
         content: regex_match?(\"hello\")
       ]
+
+      condition transaction: []
 
       actions triggered_by: transaction do
         set_content "hello"
