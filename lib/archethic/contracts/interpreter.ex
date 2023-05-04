@@ -148,6 +148,10 @@ defmodule Archethic.Contracts.Interpreter do
           opts
         )
     end
+  rescue
+    _ ->
+      # it's ok to loose the error because it's user-code
+      {:error, :contract_failure}
   end
 
   @doc """
@@ -269,10 +273,6 @@ defmodule Archethic.Contracts.Interpreter do
     else
       {:error, :invalid_transaction_constraints}
     end
-  rescue
-    _ ->
-      # it's ok to loose the error because it's user-code
-      {:error, :contract_failure}
   end
 
   defp do_execute(
