@@ -363,18 +363,7 @@ defmodule Archethic.Contracts.Interpreter do
       "contract" => contract.constants.contract
     }
 
-    case execute_trigger_code(version, trigger_code, constants_trigger) do
-      nil ->
-        # contract did not produce a next_tx
-        nil
-
-      next_tx_to_prepare ->
-        # contract produce a next_tx but we need to feed previous values to it
-        chain_transaction(
-          Constants.to_transaction(contract.constants.contract),
-          next_tx_to_prepare
-        )
-    end
+    execute_trigger_code(version, trigger_code, constants_trigger)
   end
 
   defp valid_inherit_condition?(
@@ -397,58 +386,6 @@ defmodule Archethic.Contracts.Interpreter do
       valid_conditions?(version, condition_inherit, constants_inherit)
     end
   end
-
-  # -----------------------------------------
-  # chain next tx
-  # -----------------------------------------
-  defp chain_transaction(previous_transaction, next_transaction) do
-    %{next_transaction: next_tx} =
-      %{next_transaction: next_transaction, previous_transaction: previous_transaction}
-      |> chain_type()
-      |> chain_code()
-      |> chain_ownerships()
-
-    next_tx
-  end
-
-  defp chain_type(
-         acc = %{
-           next_transaction: %Transaction{type: nil},
-           previous_transaction: _
-         }
-       ) do
-    put_in(acc, [:next_transaction, Access.key(:type)], :contract)
-  end
-
-  defp chain_type(acc), do: acc
-
-  defp chain_code(
-         acc = %{
-           next_transaction: %Transaction{data: %TransactionData{code: ""}},
-           previous_transaction: %Transaction{data: %TransactionData{code: previous_code}}
-         }
-       ) do
-    put_in(acc, [:next_transaction, Access.key(:data, %{}), Access.key(:code)], previous_code)
-  end
-
-  defp chain_code(acc), do: acc
-
-  defp chain_ownerships(
-         acc = %{
-           next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
-           previous_transaction: %Transaction{
-             data: %TransactionData{ownerships: previous_ownerships}
-           }
-         }
-       ) do
-    put_in(
-      acc,
-      [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],
-      previous_ownerships
-    )
-  end
-
-  defp chain_ownerships(acc), do: acc
 
   # -----------------------------------------
   # format errors

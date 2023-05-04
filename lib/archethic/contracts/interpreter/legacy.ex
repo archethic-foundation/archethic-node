@@ -7,10 +7,12 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   alias __MODULE__.ConditionInterpreter
 
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   @doc ~S"""
   Parse a smart contract code and return the filtered AST representation.
@@ -234,7 +236,18 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   """
   @spec execute_trigger(Macro.t(), map()) :: Transaction.t() | nil
   def execute_trigger(ast, constants) do
-    ActionInterpreter.execute(ast, constants)
+    case ActionInterpreter.execute(ast, constants) do
+      nil ->
+        # contract did not produce a next_tx
+        nil
+
+      next_tx_to_prepare ->
+        # contract produce a next_tx but we need to feed previous values to it
+        chain_transaction(
+          Constants.to_transaction(constants["contract"]),
+          next_tx_to_prepare
+        )
+    end
   end
 
   defp parse_contract({:__block__, _, ast}, contract) do
@@ -278,4 +291,56 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   end
 
   defp parse_ast(ast, _), do: {:error, {:unexpected_term, ast}}
+
+  # -----------------------------------------
+  # chain next tx
+  # -----------------------------------------
+  defp chain_transaction(previous_transaction, next_transaction) do
+    %{next_transaction: next_tx} =
+      %{next_transaction: next_transaction, previous_transaction: previous_transaction}
+      |> chain_type()
+      |> chain_code()
+      |> chain_ownerships()
+
+    next_tx
+  end
+
+  defp chain_type(
+         acc = %{
+           next_transaction: %Transaction{type: nil},
+           previous_transaction: _
+         }
+       ) do
+    put_in(acc, [:next_transaction, Access.key(:type)], :contract)
+  end
+
+  defp chain_type(acc), do: acc
+
+  defp chain_code(
+         acc = %{
+           next_transaction: %Transaction{data: %TransactionData{code: ""}},
+           previous_transaction: %Transaction{data: %TransactionData{code: previous_code}}
+         }
+       ) do
+    put_in(acc, [:next_transaction, Access.key(:data, %{}), Access.key(:code)], previous_code)
+  end
+
+  defp chain_code(acc), do: acc
+
+  defp chain_ownerships(
+         acc = %{
+           next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
+           previous_transaction: %Transaction{
+             data: %TransactionData{ownerships: previous_ownerships}
+           }
+         }
+       ) do
+    put_in(
+      acc,
+      [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],
+      previous_ownerships
+    )
+  end
+
+  defp chain_ownerships(acc), do: acc
 end

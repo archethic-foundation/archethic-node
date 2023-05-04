@@ -5,9 +5,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
   """
 
   use ArchethicCase
+  import ArchethicCase
 
-  alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.Interpreter.ActionInterpreter
   alias Archethic.Contracts.Interpreter.Library.Common.Json
 
   alias Archethic.TransactionChain.Transaction
@@ -194,8 +193,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert {:ok, sanitized_code} = Interpreter.sanitize_code(code)
-      assert {:error, _, _} = ActionInterpreter.parse(sanitized_code)
+      assert {:error, _, _} = sanitize_parse_execute(code)
     end
   end
 
@@ -212,13 +210,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
-    end
-  end
-
-  defp sanitize_parse_execute(code, constants \\ %{}) do
-    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
-         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
-      ActionInterpreter.execute(action_ast, constants)
     end
   end
 end

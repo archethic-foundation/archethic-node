@@ -5,10 +5,9 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   """
 
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Contracts.ContractConstants, as: Constants
-  alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.Interpreter.ActionInterpreter
   alias Archethic.Contracts.Interpreter.Library.Contract
 
   alias Archethic.TransactionChain.Transaction
@@ -614,13 +613,6 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                      address: contract_address
                    })
                })
-    end
-  end
-
-  defp sanitize_parse_execute(code, constants \\ %{}) do
-    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
-         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
-      ActionInterpreter.execute(action_ast, constants)
     end
   end
 end

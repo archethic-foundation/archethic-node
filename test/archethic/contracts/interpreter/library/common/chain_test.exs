@@ -5,9 +5,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   """
 
   use ArchethicCase
+  import ArchethicCase
 
-  alias Archethic.Contracts.Interpreter
-  alias Archethic.Contracts.Interpreter.ActionInterpreter
   alias Archethic.Contracts.Interpreter.Library.Common.Chain
 
   alias Archethic.Crypto
@@ -141,13 +140,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
       assert content == Base.encode16(genesis_pub_key)
-    end
-  end
-
-  defp sanitize_parse_execute(code, constants \\ %{}) do
-    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
-         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
-      ActionInterpreter.execute(action_ast, constants)
     end
   end
 end

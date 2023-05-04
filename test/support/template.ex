@@ -14,6 +14,11 @@ defmodule ArchethicCase do
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
   alias Archethic.OracleChain.MemTable, as: OracleMemTable
   alias Archethic.P2P.MemTable, as: P2PMemTable
+
+  alias Archethic.ContractFactory
+  alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.ActionInterpreter
+
   import Mox
 
   def current_protocol_version(), do: Mining.protocol_version()
@@ -245,5 +250,15 @@ defmodule ArchethicCase do
   # sugar for readability
   def expect_not(mock, function_name, function) do
     expect(mock, function_name, 0, function)
+  end
+
+  def sanitize_parse_execute(code, constants \\ %{}) do
+    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
+         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
+      ActionInterpreter.execute(
+        action_ast,
+        constants |> ContractFactory.append_contract_constant(code)
+      )
+    end
   end
 end

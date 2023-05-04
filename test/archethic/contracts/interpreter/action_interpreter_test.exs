@@ -2,6 +2,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   use ArchethicCase
   use ExUnitProperties
 
+  import ArchethicCase
+
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
@@ -680,7 +682,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert nil == sanitize_parse_execute(code)
+      assert %Transaction{data: %TransactionData{content: ""}} = sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -1004,6 +1006,26 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                })
     end
 
+    test "should keep the code by default" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        Contract.set_content("exotic crow")
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{code: ^code}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to clear the code" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        Contract.set_code("")
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{code: ""}} = sanitize_parse_execute(code)
+    end
+
     test "maths are OK" do
       code = ~s"""
       actions triggered_by: transaction do
@@ -1189,12 +1211,5 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
               [_real, decimals] ->
                 String.length(decimals) <= 8
             end)
-  end
-
-  defp sanitize_parse_execute(code, constants \\ %{}) do
-    with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
-         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
-      ActionInterpreter.execute(action_ast, constants)
-    end
   end
 end

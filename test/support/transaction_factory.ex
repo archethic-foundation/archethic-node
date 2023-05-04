@@ -26,11 +26,12 @@ defmodule Archethic.TransactionFactory do
     seed = Keyword.get(opts, :seed, "seed")
     index = Keyword.get(opts, :index, 0)
     content = Keyword.get(opts, :content, "")
+    code = Keyword.get(opts, :code, "")
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
 
-    tx = Transaction.new(type, %TransactionData{content: content}, seed, index)
+    tx = Transaction.new(type, %TransactionData{content: content, code: code}, seed, index)
 
     ledger_operations =
       %LedgerOperations{
