@@ -188,6 +188,32 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                }
              } = sanitize_parse_execute(code)
     end
+
+    test "should crash if the amount is 0" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        transfer = [to: "#{Base.encode16(address)}", amount: 0]
+        Contract.add_uco_transfer transfer
+      end
+      """
+
+      assert_raise(ArgumentError, fn -> sanitize_parse_execute(code) end)
+    end
+
+    test "should crash if the amount is negative" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        transfer = [to: "#{Base.encode16(address)}", amount: -0.1]
+        Contract.add_uco_transfer transfer
+      end
+      """
+
+      assert_raise(ArgumentError, fn -> sanitize_parse_execute(code) end)
+    end
   end
 
   # ----------------------------------------
@@ -251,6 +277,34 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                  }
                }
              } = sanitize_parse_execute(code)
+    end
+
+    test "should crash if the amount is 0" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        transfer = [to: "#{Base.encode16(address)}", amount: 0, token_id: 1, token_address: "#{Base.encode16(token_address)}"]
+        Contract.add_token_transfer transfer
+      end
+      """
+
+      assert_raise(ArgumentError, fn -> sanitize_parse_execute(code) end)
+    end
+
+    test "should crash if the amount is negative" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        transfer = [to: "#{Base.encode16(address)}", amount: -3, token_id: 1, token_address: "#{Base.encode16(token_address)}"]
+        Contract.add_token_transfer transfer
+      end
+      """
+
+      assert_raise(ArgumentError, fn -> sanitize_parse_execute(code) end)
     end
   end
 

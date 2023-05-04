@@ -368,6 +368,34 @@ defmodule Archethic.Contracts.InterpreterTest do
                  [incoming_tx]
                )
              )
+
+      code = """
+        @version 1
+        condition inherit: [
+          content: true
+        ]
+
+        actions triggered_by: transaction do
+          Contract.add_uco_transfer amount: -1, to: "0000BFEF73346D20771614449D6BE9C705BF314067A0CF0ACBBF5E617EF5C978D0A1"
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      assert match?(
+               {:error, :contract_failure},
+               Interpreter.execute(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 [incoming_tx]
+               )
+             )
     end
 
     test "should be able to simulate a trigger: datetime" do
