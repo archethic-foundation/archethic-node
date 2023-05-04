@@ -23,6 +23,7 @@ defmodule Archethic.Contracts.ContractConstants do
 
   @doc """
   Extract constants from a transaction into a map
+  This is a destructive operation. Some fields are not present in the resulting map.
   """
   @spec from_transaction(Transaction.t()) :: map()
   def from_transaction(%Transaction{
@@ -98,7 +99,7 @@ defmodule Archethic.Contracts.ContractConstants do
   def to_transaction(constants) do
     %Transaction{
       address: Map.get(constants, "address"),
-      type: Map.get(constants, "type"),
+      type: String.to_existing_atom(Map.get(constants, "type")),
       data: %TransactionData{
         code: Map.get(constants, "code", ""),
         content: Map.get(constants, "content", ""),
