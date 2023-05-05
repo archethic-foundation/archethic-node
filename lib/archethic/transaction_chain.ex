@@ -269,7 +269,7 @@ defmodule Archethic.TransactionChain do
       when is_binary(address) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case fetch_last_address_remotely(address, nodes, timestamp) do
+    case fetch_last_address(address, nodes, timestamp) do
       {:ok, last_address} ->
         {:ok, last_address}
 
@@ -281,9 +281,9 @@ defmodule Archethic.TransactionChain do
   @doc """
   Fetch the last address remotely
   """
-  @spec fetch_last_address_remotely(binary(), list(Node.t()), DateTime.t()) ::
+  @spec fetch_last_address(binary(), list(Node.t()), DateTime.t()) ::
           {:ok, binary()} | {:error, :network_issue}
-  def fetch_last_address_remotely(address, nodes, timestamp = %DateTime{} \\ DateTime.utc_now())
+  def fetch_last_address(address, nodes, timestamp = %DateTime{} \\ DateTime.utc_now())
       when is_binary(address) and is_list(nodes) do
     conflict_resolver = fn results ->
       Enum.max_by(results, &DateTime.to_unix(&1.timestamp, :millisecond))

@@ -262,8 +262,9 @@ defmodule Archethic.Bootstrap do
     reward_address =
       if length > 0 do
         {:ok, last_address} =
-          Crypto.derive_address(Crypto.first_node_public_key())
-          |> TransactionChain.fetch_last_address_remotely(closest_nodes)
+          Crypto.first_node_public_key()
+          |> Crypto.derive_address()
+          |> TransactionChain.fetch_last_address(closest_nodes)
 
         {:ok, %Transaction{data: %TransactionData{content: content}}} =
           TransactionChain.fetch_transaction_remotely(last_address, closest_nodes)
