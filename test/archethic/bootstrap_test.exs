@@ -573,7 +573,7 @@ defmodule Archethic.BootstrapTest do
       # flow
       # get_gen_addr(:pers_term) -> fetch_last_address ->   get_last_address
       #                                                         |
-      # validate_and_store_transaction_chain <-   fetch_transaction_remotely
+      # validate_and_store_transaction_chain <-   fetch_transaction
       #    |
       # transaction_exists? -> fetch_context(tx) -> get_last_txn (db then -> remote check)
       #                                                                 |

@@ -103,7 +103,10 @@ defmodule Archethic.Mining.TransactionContext do
       fn ->
         # Timeout of 4 sec because the coordinator node wait 5 sec to get the context
         # from the cross validation nodes
-        case TransactionChain.fetch_transaction_remotely(previous_address, nodes, 4000) do
+        case TransactionChain.fetch_transaction(previous_address, nodes,
+               search_mode: :remote,
+               timeout: 4000
+             ) do
           {:ok, tx} ->
             tx
 

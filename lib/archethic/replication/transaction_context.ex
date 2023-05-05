@@ -21,7 +21,7 @@ defmodule Archethic.Replication.TransactionContext do
   def fetch_transaction(address) when is_binary(address) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
+    case TransactionChain.fetch_transaction(address, storage_nodes) do
       {:ok, tx} ->
         tx
 

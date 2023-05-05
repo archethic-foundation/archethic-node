@@ -1132,7 +1132,7 @@ defmodule Archethic.Utils do
   def await_confirmation(tx_address, nodes) do
     #  at 1th , 2th , 4th , 8th , 16th , 32th second
     retry_while with: exponential_backoff(1000, 2) |> expiry(70_000) do
-      case TransactionChain.fetch_transaction_remotely(tx_address, nodes) do
+      case TransactionChain.fetch_transaction(tx_address, nodes) do
         {:ok, transaction} ->
           {:halt, {:ok, transaction}}
 

@@ -281,19 +281,7 @@ defmodule Archethic.Replication do
     # Otherwise we check others nodes
     previous_transaction_task =
       Task.Supervisor.async(TaskSupervisor, fn ->
-        case TransactionChain.get_transaction(previous_address) do
-          {:ok, tx = %Transaction{}} ->
-            tx
-
-          {:error, _} ->
-            Logger.debug(
-              "Try to fetch previous transaction (#{Base.encode16(previous_address)}) from remote nodes",
-              transaction_address: Base.encode16(tx.address),
-              transaction_type: tx.type
-            )
-
-            TransactionContext.fetch_transaction(previous_address)
-        end
+        TransactionContext.fetch_transaction(previous_address)
       end)
 
     inputs = fetch_inputs(tx)

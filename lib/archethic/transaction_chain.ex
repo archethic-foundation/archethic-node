@@ -342,59 +342,54 @@ defmodule Archethic.TransactionChain do
 
   If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`.
   If the transaction doesn't exist, `{:error, :transaction_not_exists}` is returned.
-
   If no nodes are available to answer the request, `{:error, :network_issue}` is returned.
+
+  Options: 
+  - search_mode: select where to request the data: :remote or :hybrid (default :hybrid)
+  - timeout: set the timeout for the remote request (default Message.max_timeout)
+  - acceptance_resolver: set the function to accept the result of the quorum (default fn _ -> true end)
   """
-  @spec fetch_transaction_remotely(
-          address :: Crypto.versioned_hash(),
-          list(Node.t()),
-          non_neg_integer(),
-          (Message.t() -> boolean())
-        ) ::
+  @spec fetch_transaction(address :: Crypto.prepended_hash(), list(Node.t()), Keyword.t()) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
-  def fetch_transaction_remotely(
-        address,
-        nodes,
-        timeout \\ Message.get_max_timeout(),
-        acceptance_resolver \\ fn _ -> true end
-      )
+  def fetch_transaction(address, nodes, opts \\ []) do
+    with :hybrid <- Keyword.get(opts, :search_mode, :hybrid),
+         {:ok, tx} <- get_transaction(address) do
+      {:ok, tx}
+    else
+      _ ->
+        timeout = Keyword.get(opts, :timeout, Message.get_max_timeout())
+        acceptance_resolver = Keyword.get(opts, :acceptance_resolver, fn _ -> true end)
 
-  def fetch_transaction_remotely(_, [], _, _), do: {:error, :network_issue}
+        conflict_resolver = fn results ->
+          # Prioritize transactions results over not found
+          with nil <- Enum.find(results, &match?(%Transaction{}, &1)),
+               nil <- Enum.find(results, &match?(%Error{}, &1)) do
+            %NotFound{}
+          else
+            res ->
+              res
+          end
+        end
 
-  def fetch_transaction_remotely(address, nodes, timeout, acceptance_resolver)
-      when is_binary(address) and is_list(nodes) do
-    conflict_resolver = fn results ->
-      # Prioritize transactions results over not found
-      with nil <- Enum.find(results, &match?(%Transaction{}, &1)),
-           nil <- Enum.find(results, &match?(%Error{}, &1)) do
-        %NotFound{}
-      else
-        res ->
-          res
-      end
-    end
+        case P2P.quorum_read(
+               nodes,
+               %GetTransaction{address: address},
+               conflict_resolver,
+               timeout,
+               acceptance_resolver
+             ) do
+          {:ok, %NotFound{}} ->
+            {:error, :transaction_not_exists}
 
-    case P2P.quorum_read(
-           nodes,
-           %GetTransaction{address: address},
-           conflict_resolver,
-           timeout,
-           acceptance_resolver
-         ) do
-      {:ok, %NotFound{}} ->
-        {:error, :transaction_not_exists}
+          {:ok, %Error{}} ->
+            {:error, :invalid_transaction}
 
-      {:ok, %Error{}} ->
-        {:error, :transaction_invalid}
-
-      {:ok, tx = %Transaction{}} ->
-        {:ok, tx}
-
-      {:error, :network_issue} ->
-        {:error, :network_issue}
+          res ->
+            res
+        end
     end
   end
 

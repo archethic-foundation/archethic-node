@@ -119,8 +119,8 @@ defmodule Archethic.TransactionChainTest do
     end
   end
 
-  describe "fetch_transaction_remotely/2" do
-    test "should get the transaction" do
+  describe "fetch_transaction/2" do
+    test "should get the transaction from DB" do
       nodes = [
         %Node{
           first_public_key: "node1",
@@ -148,15 +148,13 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
-      MockClient
-      |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
-        {:ok, %Transaction{}}
-      end)
+      MockDB
+      |> expect(:get_transaction, fn "Alice1", _, _ -> {:ok, %Transaction{}} end)
 
-      assert {:ok, %Transaction{}} = TransactionChain.fetch_transaction_remotely("Alice1", nodes)
+      assert {:ok, %Transaction{}} = TransactionChain.fetch_transaction("Alice1", nodes)
     end
 
-    test "should resolve and get tx if one tx is returned" do
+    test "should resolve conflict and get tx if one tx is returned" do
       nodes = [
         %Node{
           first_public_key: "node1",
@@ -198,7 +196,8 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %NotFound{}}
       end)
 
-      assert {:ok, %Transaction{}} = TransactionChain.fetch_transaction_remotely("Alice1", nodes)
+      assert {:ok, %Transaction{}} =
+               TransactionChain.fetch_transaction("Alice1", nodes, search_mode: :remote)
     end
   end
 

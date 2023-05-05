@@ -65,19 +65,9 @@ defmodule Archethic do
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
   def search_transaction(address) when is_binary(address) do
-    case TransactionChain.get_transaction(address) do
-      {:ok, tx} ->
-        {:ok, tx}
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-      {:error, :invalid_transaction} ->
-        {:error, :transaction_invalid}
-
-      {:error, :transaction_not_exists} ->
-        storage_nodes =
-          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-        TransactionChain.fetch_transaction_remotely(address, storage_nodes)
-    end
+    TransactionChain.fetch_transaction(address, storage_nodes)
   end
 
   @doc """
