@@ -12,6 +12,8 @@ defmodule Archethic do
 
   alias Archethic.Crypto
 
+  alias Archethic.DB
+
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -381,7 +383,7 @@ defmodule Archethic do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
         with {local_chain, false, _} <-
-               TransactionChain.get(address, [], paging_state: paging_address, order: :asc),
+               DB.get_transaction_chain(address, [], paging_state: paging_address, order: :asc),
              %Transaction{address: ^last_address} <- List.last(local_chain) do
           {:ok, local_chain}
         else
@@ -406,7 +408,7 @@ defmodule Archethic do
       {:ok, last_address} ->
         if TransactionChain.transaction_exists?(last_address) do
           {chain, _, _} =
-            TransactionChain.get(address, [], paging_state: paging_address, order: :desc)
+            DB.get_transaction_chain(address, [], paging_state: paging_address, order: :desc)
 
           {:ok, chain}
         else
