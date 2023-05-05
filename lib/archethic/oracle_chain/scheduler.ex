@@ -734,7 +734,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
   defp chain_size(summary_date = %DateTime{}) do
     Crypto.derive_oracle_address(summary_date, 0)
-    |> TransactionChain.size()
+    |> TransactionChain.get_size()
   end
 
   defp get_oracle_data(address) do

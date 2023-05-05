@@ -1056,7 +1056,7 @@ defmodule Archethic.Crypto do
           timestamp: timestamp
         }
       }) do
-    nb_transactions = TransactionChain.size(address)
+    nb_transactions = TransactionChain.get_size(address)
     SharedSecretsKeystore.set_node_shared_secrets_key_index(nb_transactions)
 
     Logger.info("Node shared key chain positioned at #{nb_transactions}",
@@ -1079,7 +1079,7 @@ defmodule Archethic.Crypto do
 
   def load_transaction(%Transaction{type: type, address: address})
       when type in [:node_rewards, :mint_rewards] do
-    nb_transactions = TransactionChain.size(address)
+    nb_transactions = TransactionChain.get_size(address)
     SharedSecretsKeystore.set_network_pool_key_index(nb_transactions)
 
     Logger.info("Network pool chain positioned at#{nb_transactions}",

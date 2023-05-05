@@ -48,7 +48,7 @@ defmodule ArchethicWeb.API.OriginKeyController do
     last_index =
       first_origin_family_public_key
       |> Crypto.derive_address()
-      |> TransactionChain.size()
+      |> TransactionChain.get_size()
 
     tx_content = <<origin_public_key::binary, byte_size(certificate)::16, certificate::binary>>
 

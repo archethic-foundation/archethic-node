@@ -276,8 +276,8 @@ defmodule Archethic.TransactionChain do
   @doc """
   Return the size of transaction chain
   """
-  @spec size(binary()) :: non_neg_integer()
-  defdelegate size(address), to: DB, as: :chain_size
+  @spec get_size(binary()) :: non_neg_integer()
+  defdelegate get_size(address), to: DB, as: :chain_size
 
   @doc """
   Get the details from a ko transaction address

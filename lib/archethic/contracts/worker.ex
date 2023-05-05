@@ -303,7 +303,7 @@ defmodule Archethic.Contracts.Worker do
        ) do
     case get_transaction_seed(prev_tx) do
       {:ok, transaction_seed} ->
-        length = TransactionChain.size(address)
+        length = TransactionChain.get_size(address)
 
         {:ok,
          Transaction.new(
