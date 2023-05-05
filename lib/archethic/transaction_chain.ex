@@ -1,6 +1,13 @@
 defmodule Archethic.TransactionChain do
   @moduledoc """
   Handle the logic managing transaction chain
+
+  Some functions have a prefix with a specific meaning:
+  - list -> request not related to a specific chain
+  - get -> get data from DB
+  - fetch -> if data is immuable, first get data from DB, if not present request it on the network
+             if data evolve over time, always request it on the network
+  All functions that may return a list always return a stream
   """
 
   alias Archethic.Crypto
