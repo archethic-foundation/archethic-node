@@ -644,7 +644,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     {last_address, _} = DB.get_last_chain_address(genesis_address)
 
     transactions =
-      TransactionChain.stream(previous_address, data: [:content], validation_stamp: [:timestamp])
+      TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp])
 
     with {^last_address, _} <- DB.get_last_chain_address(genesis_address, last_scheduling_date),
          eq when eq in [:gt, :eq] <-

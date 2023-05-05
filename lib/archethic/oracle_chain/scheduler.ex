@@ -679,7 +679,7 @@ defmodule Archethic.OracleChain.Scheduler do
     oracle_chain =
       summary_date
       |> Crypto.derive_oracle_address(index)
-      |> TransactionChain.stream(data: [:content], validation_stamp: [:timestamp])
+      |> TransactionChain.get(data: [:content], validation_stamp: [:timestamp])
       |> Enum.to_list()
 
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)

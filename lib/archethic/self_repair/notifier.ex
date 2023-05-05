@@ -122,7 +122,7 @@ defmodule Archethic.SelfRepair.Notifier do
 
   defp sync_chain(address, unavailable_nodes, prev_available_nodes, new_available_nodes) do
     address
-    |> TransactionChain.stream([
+    |> TransactionChain.get([
       :address,
       validation_stamp: [ledger_operations: [:transaction_movements]]
     ])

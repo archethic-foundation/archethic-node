@@ -229,8 +229,8 @@ defmodule Archethic.TransactionChain do
   @doc """
   Stream the transactions from a chain
   """
-  @spec stream(binary(), list()) :: Enumerable.t() | list(Transaction.t())
-  defdelegate stream(address, fields \\ []), to: DB, as: :stream_chain
+  @spec get(binary(), list()) :: Enumerable.t() | list(Transaction.t())
+  defdelegate get(address, fields \\ []), to: DB, as: :stream_chain
 
   @doc """
   Return the size of transaction chain
