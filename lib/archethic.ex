@@ -3,18 +3,45 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
-  alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
-  alias __MODULE__.{SelfRepair, TransactionChain, SharedSecrets, TaskSupervisor}
-  alias __MODULE__.Contracts.{Interpreter, Contract}
+  alias Archethic.Account
 
-  alias SelfRepair.NetworkView
-  alias SelfRepair.NetworkChain
+  alias Archethic.BeaconChain
 
-  alias Message.{NewTransaction, NotFound, StartMining}
-  alias Message.{Balance, GetBalance, GetTransactionSummary}
-  alias Message.{StartMining, Ok, Error, TransactionSummaryMessage}
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Interpreter
 
-  alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
+  alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message
+
+  alias Archethic.P2P.Message.{
+    Balance,
+    Error,
+    GetBalance,
+    GetTransactionSummary,
+    NewTransaction,
+    NotFound,
+    Ok,
+    StartMining,
+    TransactionSummaryMessage
+  }
+
+  alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.NetworkChain
+  alias Archethic.SelfRepair.NetworkView
+
+  alias Archethic.SharedSecrets
+
+  alias Archethic.TaskSupervisor
+
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
 
