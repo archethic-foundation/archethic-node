@@ -141,7 +141,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
     new_possible_nodes = (prev_available_nodes -- elec1) |> Enum.map(& &1.first_public_key)
 
     MockDB
-    |> stub(:stream_first_addresses, fn -> ["Alice1"] end)
+    |> stub(:list_first_addresses, fn -> ["Alice1"] end)
     |> stub(:get_transaction_chain, fn
       "Alice1", _, _ ->
         {[

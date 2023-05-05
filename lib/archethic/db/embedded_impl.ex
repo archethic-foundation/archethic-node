@@ -388,8 +388,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Stream first transactions address of a chain from genesis_address.
   """
-  @spec stream_first_addresses :: Enumerable.t()
-  def stream_first_addresses do
+  @spec list_first_addresses() :: Enumerable.t() | list(Crypto.prepended_hash())
+  def list_first_addresses() do
     ChainIndex.list_genesis_addresses()
     |> Stream.map(fn gen_address ->
       gen_address

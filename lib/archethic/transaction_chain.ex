@@ -115,10 +115,8 @@ defmodule Archethic.TransactionChain do
   The Genesis Addresses is not a transaction or the first transaction.
   The first transaction is calulated by index = 0+1
   """
-  @spec stream_first_addresses() :: Enumerable.t()
-  defdelegate stream_first_addresses(),
-    to: DB,
-    as: :stream_first_addresses
+  @spec list_first_addresses() :: Enumerable.t() | list(Crypto.prepended_hash())
+  defdelegate list_first_addresses(), to: DB
 
   # ------------------------------------------------------------
   #    ____ _____ _____ 

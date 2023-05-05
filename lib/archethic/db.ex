@@ -96,5 +96,5 @@ defmodule Archethic.DB do
   @callback get_inputs(input_type :: InputsWriter.input_type(), address :: binary()) ::
               list(VersionedTransactionInput.t())
 
-  @callback stream_first_addresses() :: Enumerable.t()
+  @callback list_first_addresses() :: Enumerable.t() | list(Crypto.prepended_hash())
 end

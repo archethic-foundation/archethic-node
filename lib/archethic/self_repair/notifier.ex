@@ -80,7 +80,7 @@ defmodule Archethic.SelfRepair.Notifier do
   @spec repair_transactions(list(Crypto.key()), list(Node.t()), list(Node.t())) :: :ok
   def repair_transactions(unavailable_nodes, prev_available_nodes, new_available_nodes) do
     # We fetch all the transactions existing and check if the disconnected nodes were in storage nodes
-    TransactionChain.stream_first_addresses()
+    TransactionChain.list_first_addresses()
     |> Stream.reject(&network_chain?(&1))
     |> Stream.chunk_every(20)
     |> Stream.each(fn chunk ->
