@@ -262,23 +262,6 @@ defmodule Archethic.TransactionChain do
   # ------------------------------------------------------------
 
   @doc """
-  Retrieve the last address of a chain
-  """
-  @spec resolve_last_address(binary(), DateTime.t()) :: {:ok, binary()} | {:error, :network_issue}
-  def resolve_last_address(address, timestamp = %DateTime{} \\ DateTime.utc_now())
-      when is_binary(address) do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    case fetch_last_address(address, nodes, timestamp) do
-      {:ok, last_address} ->
-        {:ok, last_address}
-
-      {:error, _} = e ->
-        e
-    end
-  end
-
-  @doc """
   Fetch the last address remotely
   """
   @spec fetch_last_address(binary(), list(Node.t()), DateTime.t()) ::
@@ -745,6 +728,8 @@ defmodule Archethic.TransactionChain do
       |> Enum.map(&{&1.to, &1.type})
       |> Enum.concat(recipients)
 
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       addresses,
@@ -753,7 +738,9 @@ defmodule Archethic.TransactionChain do
           {{burning_address, type}, burning_address}
 
         {to, type} ->
-          case resolve_last_address(to, time) do
+          nodes = Election.chain_storage_nodes(to, authorized_nodes)
+
+          case fetch_last_address(to, nodes, time) do
             {:ok, resolved} ->
               {{to, type}, resolved}
 
@@ -765,7 +752,9 @@ defmodule Archethic.TransactionChain do
           {burning_address, burning_address}
 
         to ->
-          case resolve_last_address(to, time) do
+          nodes = Election.chain_storage_nodes(to, authorized_nodes)
+
+          case fetch_last_address(to, nodes, time) do
             {:ok, resolved} ->
               {to, resolved}
 

@@ -284,7 +284,9 @@ defmodule Archethic do
           {:ok, binary()}
           | {:error, :network_issue}
   def get_last_transaction_address(address) when is_binary(address) do
-    TransactionChain.resolve_last_address(address)
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    TransactionChain.fetch_last_address(address, nodes)
   end
 
   @doc """

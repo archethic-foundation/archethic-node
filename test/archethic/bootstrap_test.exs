@@ -571,7 +571,7 @@ defmodule Archethic.BootstrapTest do
       assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
 
       # flow
-      # get_gen_addr(:pers_term) -> resolve_last_address ->   get_last_address
+      # get_gen_addr(:pers_term) -> fetch_last_address ->   get_last_address
       #                                                         |
       # validate_and_store_transaction_chain <-   fetch_transaction_remotely
       #    |

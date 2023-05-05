@@ -38,7 +38,7 @@ defmodule Archethic.TransactionChainTest do
 
   import Mox
 
-  describe "resolve_last_address/1 should retrieve the last address for a chain" do
+  describe "fetch_last_address/1 should retrieve the last address for a chain" do
     test "when not conflicts" do
       MockClient
       |> stub(:send_message, fn
@@ -65,11 +65,13 @@ defmodule Archethic.TransactionChainTest do
         authorization_date: ~U[2021-03-25 15:11:29Z]
       })
 
+      nodes = P2P.authorized_and_available_nodes()
+
       assert {:ok, "@Alice1"} =
-               TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:11:29Z])
+               TransactionChain.fetch_last_address("@Alice1", nodes, ~U[2021-03-25 15:11:29Z])
 
       assert {:ok, "@Alice2"} =
-               TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:12:29Z])
+               TransactionChain.fetch_last_address("@Alice1", nodes, ~U[2021-03-25 15:12:29Z])
     end
 
     test "with conflicts" do
@@ -110,8 +112,10 @@ defmodule Archethic.TransactionChainTest do
         authorization_date: DateTime.utc_now()
       })
 
+      nodes = P2P.authorized_and_available_nodes()
+
       assert {:ok, "@Alice2"} =
-               TransactionChain.resolve_last_address("@Alice1", DateTime.utc_now())
+               TransactionChain.fetch_last_address("@Alice1", nodes, DateTime.utc_now())
     end
   end
 
