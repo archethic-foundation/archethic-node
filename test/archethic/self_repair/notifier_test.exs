@@ -142,28 +142,28 @@ defmodule Archethic.SelfRepair.NotifierTest do
 
     MockDB
     |> stub(:list_first_addresses, fn -> ["Alice1"] end)
-    |> stub(:get_transaction_chain, fn
-      "Alice1", _, _ ->
-        {[
-           %Transaction{
-             address: "Alice1",
-             validation_stamp: %ValidationStamp{
-               ledger_operations: %LedgerOperations{transaction_movements: []}
-             }
-           },
-           %Transaction{
-             address: "Alice2",
-             validation_stamp: %ValidationStamp{
-               ledger_operations: %LedgerOperations{transaction_movements: []}
-             }
-           },
-           %Transaction{
-             address: "Alice3",
-             validation_stamp: %ValidationStamp{
-               ledger_operations: %LedgerOperations{transaction_movements: []}
-             }
-           }
-         ], false, nil}
+    |> stub(:stream_chain, fn
+      "Alice1", _ ->
+        [
+          %Transaction{
+            address: "Alice1",
+            validation_stamp: %ValidationStamp{
+              ledger_operations: %LedgerOperations{transaction_movements: []}
+            }
+          },
+          %Transaction{
+            address: "Alice2",
+            validation_stamp: %ValidationStamp{
+              ledger_operations: %LedgerOperations{transaction_movements: []}
+            }
+          },
+          %Transaction{
+            address: "Alice3",
+            validation_stamp: %ValidationStamp{
+              ledger_operations: %LedgerOperations{transaction_movements: []}
+            }
+          }
+        ]
     end)
 
     me = self()

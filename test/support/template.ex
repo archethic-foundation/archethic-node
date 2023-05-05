@@ -36,6 +36,7 @@ defmodule ArchethicCase do
     |> stub(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
     |> stub(:get_transaction, fn _, _, _ -> {:error, :transaction_not_exists} end)
     |> stub(:get_transaction_chain, fn _, _, _ -> {[], false, nil} end)
+    |> stub(:stream_chain, fn _, _ -> [] end)
     |> stub(:list_last_transaction_addresses, fn -> [] end)
     |> stub(:add_last_transaction_address, fn _, _, _ -> :ok end)
     |> stub(:get_last_chain_address, fn addr -> {addr, DateTime.utc_now()} end)

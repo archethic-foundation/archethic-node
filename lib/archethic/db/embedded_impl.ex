@@ -287,6 +287,15 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Stream chain tx from the beginning
+  """
+  @spec stream_chain(binary(), list()) :: Enumerable.t() | list(Transaction.t())
+  def stream_chain(address, fields) do
+    genesis = ChainIndex.get_genesis_address(address, db_path())
+    ChainReader.stream_chain(genesis, fields, db_path())
+  end
+
+  @doc """
   List all the transactions in io storage
   """
   @spec list_io_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())

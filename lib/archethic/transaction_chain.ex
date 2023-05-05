@@ -256,22 +256,7 @@ defmodule Archethic.TransactionChain do
   Stream the transactions from a chain
   """
   @spec stream(binary(), list()) :: Enumerable.t() | list(Transaction.t())
-  def stream(address, fields \\ []) do
-    Stream.resource(
-      fn -> DB.get_transaction_chain(address, fields, []) end,
-      fn
-        {transactions, true, paging_state} ->
-          {transactions, DB.get_transaction_chain(address, fields, paging_state: paging_state)}
-
-        {transactions, false, _} ->
-          {transactions, :eof}
-
-        :eof ->
-          {:halt, nil}
-      end,
-      fn _ -> :ok end
-    )
-  end
+  defdelegate stream(address, fields \\ []), to: DB, as: :stream_chain
 
   @doc """
   Return the size of transaction chain

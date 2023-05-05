@@ -43,6 +43,7 @@ defmodule Archethic.DB do
   @callback list_io_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   @callback list_last_transaction_addresses() :: Enumerable.t()
+  @callback stream_chain(binary(), list()) :: Enumerable.t() | list(Transaction.t())
 
   @callback chain_size(address :: binary()) :: non_neg_integer()
   @callback list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
