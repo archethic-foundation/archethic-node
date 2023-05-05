@@ -248,10 +248,10 @@ defmodule Archethic.TransactionChain do
   @doc """
   List of all the counter signatures regarding a given transaction
   """
-  @spec list_signatures_for_pending_transaction(binary()) :: list(binary())
-  defdelegate list_signatures_for_pending_transaction(address),
+  @spec get_signatures_for_pending_transaction(binary()) :: list(binary())
+  defdelegate get_signatures_for_pending_transaction(address),
     to: PendingLedger,
-    as: :list_signatures
+    as: :get_signatures
 
   # ------------------------------------------------------------
   #   _____ _____ _____ ____ _   _ 
