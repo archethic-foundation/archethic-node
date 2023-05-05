@@ -233,7 +233,7 @@ defmodule ArchethicWeb.API.TransactionController do
       {:error, :transaction_not_exists} ->
         {:error, "There is no transaction at recipient address."}
 
-      {:error, :transaction_invalid} ->
+      {:error, :invalid_transaction} ->
         {:error, "The transaction is marked as invalid."}
 
       {:error, :network_issue} ->

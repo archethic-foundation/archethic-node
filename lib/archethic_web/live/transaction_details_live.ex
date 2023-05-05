@@ -47,7 +47,7 @@ defmodule ArchethicWeb.TransactionDetailsLive do
           PubSub.register_to_new_transaction_by_address(addr)
           {:noreply, handle_not_existing_transaction(socket, addr)}
 
-        {:error, :transaction_invalid} ->
+        {:error, :invalid_transaction} ->
           {:noreply, handle_invalid_transaction(socket, addr)}
       end
     else

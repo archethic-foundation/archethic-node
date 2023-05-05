@@ -62,7 +62,7 @@ defmodule Archethic do
   @spec search_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
-          | {:error, :transaction_invalid}
+          | {:error, :invalid_transaction}
           | {:error, :network_issue}
   def search_transaction(address) when is_binary(address) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
@@ -255,7 +255,7 @@ defmodule Archethic do
   @spec get_last_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
-          | {:error, :transaction_invalid}
+          | {:error, :invalid_transaction}
           | {:error, :network_issue}
   def get_last_transaction(address) when is_binary(address) do
     case get_last_transaction_address(address) do

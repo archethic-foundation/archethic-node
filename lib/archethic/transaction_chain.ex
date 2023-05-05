@@ -352,7 +352,7 @@ defmodule Archethic.TransactionChain do
   @spec fetch_transaction(address :: Crypto.prepended_hash(), list(Node.t()), Keyword.t()) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
-          | {:error, :transaction_invalid}
+          | {:error, :invalid_transaction}
           | {:error, :network_issue}
   def fetch_transaction(address, nodes, opts \\ []) do
     with :hybrid <- Keyword.get(opts, :search_mode, :hybrid),
