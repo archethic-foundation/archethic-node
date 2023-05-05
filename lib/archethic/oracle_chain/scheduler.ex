@@ -679,7 +679,8 @@ defmodule Archethic.OracleChain.Scheduler do
     oracle_chain =
       summary_date
       |> Crypto.derive_oracle_address(index)
-      |> get_chain()
+      |> TransactionChain.stream(data: [:content], validation_stamp: [:timestamp])
+      |> Enum.to_list()
 
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
     {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
@@ -719,16 +720,6 @@ defmodule Archethic.OracleChain.Scheduler do
       )
 
       Task.start(fn -> Archethic.send_new_transaction(tx) end)
-    end
-  end
-
-  defp get_chain(address, opts \\ [], acc \\ []) do
-    case TransactionChain.get(address, [data: [:content], validation_stamp: [:timestamp]], opts) do
-      {transactions, false, _paging_state} ->
-        acc ++ transactions
-
-      {transactions, true, paging_state} ->
-        get_chain(address, [paging_state: paging_state], acc ++ transactions)
     end
   end
 
