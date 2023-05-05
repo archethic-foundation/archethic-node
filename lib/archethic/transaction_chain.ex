@@ -311,9 +311,13 @@ defmodule Archethic.TransactionChain do
   @doc """
   Fetch the transactions (not the inputs) that called the given contract.
   """
-  @spec fetch_contract_calls(contract_address :: binary(), before :: DateTime.t()) ::
+  @spec fetch_contract_calls(
+          contract_address :: binary(),
+          nodes :: list(Node.t()),
+          before :: DateTime.t()
+        ) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def fetch_contract_calls(contract_address, before = %DateTime{} \\ DateTime.utc_now()) do
+  def fetch_contract_calls(contract_address, nodes, before = %DateTime{} \\ DateTime.utc_now()) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.inputs), :desc)
@@ -321,7 +325,7 @@ defmodule Archethic.TransactionChain do
     end
 
     case P2P.quorum_read(
-           Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes()),
+           nodes,
            %GetContractCalls{address: contract_address, before: before},
            conflict_resolver
          ) do
