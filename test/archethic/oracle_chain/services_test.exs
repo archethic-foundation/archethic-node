@@ -33,6 +33,15 @@ defmodule Archethic.OracleChain.ServicesTest do
       assert %{uco: %{"eur" => 0.20, "usd" => 0.12}} =
                Services.fetch_new_data(%{"uco" => %{"eur" => 0.19, "usd" => 0.15}})
     end
+
+    test "should return not return new data when the service return an error" do
+      MockUCOPrice
+      |> expect(:fetch, fn ->
+        {:error, "error reason"}
+      end)
+
+      assert %{} = Services.fetch_new_data(%{"uco" => %{"eur" => 0.19, "usd" => 0.15}})
+    end
   end
 
   test "verify_correctness?/1 should true when the data is correct" do

@@ -123,6 +123,34 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
       assert {:ok, %{"eur" => 0.25, "usd" => 0.25}} = UCOPrice.fetch()
     end
+
+    test "should return an error if any service responded the request" do
+      MockUCOProvider1
+      |> expect(:fetch, fn _ ->
+        {:error, "error"}
+      end)
+
+      MockUCOProvider2
+      |> expect(:fetch, fn _ ->
+        {:error, "reason"}
+      end)
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider1Cache,
+        mfa: {MockUCOProvider1, :fetch, [["usd", "eur"]]}
+      )
+
+      HydratingCache.start_link(
+        refresh_interval: 1000,
+        name: MockUCOProvider2Cache,
+        mfa: {MockUCOProvider2, :fetch, [["usd", "eur"]]}
+      )
+
+      Process.sleep(1)
+
+      assert {:error, "no data fetched from any service"} = UCOPrice.fetch()
+    end
   end
 
   describe "verify/1" do
@@ -210,7 +238,7 @@ defmodule Archethic.OracleChain.Services.UCOPriceTest do
 
     {result, log} = with_log(fn -> UCOPrice.verify?(%{"eur" => 0.25, "usd" => 0.25}) end)
     assert result == false
-    assert log =~ "Cannot fetch UCO price - reason: no data from any service."
+    assert log =~ "Cannot fetch UCO price - reason: no data fetched from any service."
   end
 
   test "should report values even if a provider returns an error" do

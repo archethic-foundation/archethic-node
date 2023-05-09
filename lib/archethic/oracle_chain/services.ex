@@ -31,7 +31,7 @@ defmodule Archethic.OracleChain.Services do
 
         new_digest != previous_digest
 
-      {service, reason} ->
+      {service, {:error, reason}} ->
         Logger.warning(
           "Cannot request the Oracle provider #{service} - reason: #{inspect(reason)}"
         )
