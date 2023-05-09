@@ -50,7 +50,11 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
         Map.put(acc, currency, price)
       end)
 
-    {:ok, prices}
+    if prices == %{} do
+      {:error, "no data fetched from any service"}
+    else
+      {:ok, prices}
+    end
   end
 
   defp agregate_providers_data(provider_results, acc) do
@@ -71,8 +75,8 @@ defmodule Archethic.OracleChain.Services.UCOPrice do
   @spec verify?(%{required(String.t()) => any()}) :: boolean
   def verify?(prices_prior = %{}) do
     case fetch() do
-      {:ok, prices_now} when prices_now == %{} ->
-        Logger.error("Cannot fetch UCO price - reason: no data from any service.")
+      {:error, reason} ->
+        Logger.error("Cannot fetch UCO price - reason: #{reason}.")
         false
 
       {:ok, prices_now} ->
