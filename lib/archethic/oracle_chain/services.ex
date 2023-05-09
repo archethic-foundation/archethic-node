@@ -15,7 +15,7 @@ defmodule Archethic.OracleChain.Services do
       {service, handler.fetch()}
     end)
     |> Enum.filter(fn
-      {service, {:ok, data}} ->
+      {service, {:ok, data}} when map_size(data) > 0 ->
         Logger.debug("Oracle data for #{service}: #{inspect(data)}")
 
         previous_digest =
@@ -30,6 +30,13 @@ defmodule Archethic.OracleChain.Services do
           |> Crypto.hash()
 
         new_digest != previous_digest
+
+      {service, {:ok, _data}} ->
+        Logger.warning(
+          "Cannot request the Oracle provider #{service} - reason: no value returned by the service"
+        )
+
+        false
 
       {service, {:error, reason}} ->
         Logger.warning(
