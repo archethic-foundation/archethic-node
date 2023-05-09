@@ -2,13 +2,16 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Time do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Contracts.Interpreter.Scope
+
   @doc """
-  Returns current time in unix timestamp format.
-  (number of seconds since epoch)
+  Returns the Unix timestamp of the trigger (it is approximately the same as current time).
+  We cannot use "now" because it is not determinist.
   """
   @spec now() :: integer()
   def now() do
-    DateTime.utc_now() |> DateTime.to_unix()
+    Scope.read_global(["_time_now"])
+    |> DateTime.to_unix()
   end
 
   @spec check_types(atom(), list()) :: boolean()
