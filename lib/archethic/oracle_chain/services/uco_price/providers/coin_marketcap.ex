@@ -43,12 +43,28 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
                  :httpc.request(:get, {query, headers}, httpc_options, []),
                {:ok, document} <- Floki.parse_document(body) do
             price =
-              Floki.find(document, "div.priceTitle > div.priceValue > span")
-              |> Floki.text()
-              |> String.graphemes()
-              |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
-              |> Enum.into("")
-              |> String.to_float()
+              case Floki.find(document, "div.priceTitle > div.priceValue > span") do
+                [] ->
+                  regex = ~r/price today is (.+) with a/
+
+                  Floki.find(document, "meta[name=description]")
+                  |> Floki.attribute("content")
+                  |> Enum.join()
+                  |> then(&Regex.run(regex, &1, capture: :all_but_first))
+                  |> Enum.join()
+                  |> String.graphemes()
+                  |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
+                  |> Enum.into("")
+                  |> String.to_float()
+
+                element ->
+                  element
+                  |> Floki.text()
+                  |> String.graphemes()
+                  |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
+                  |> Enum.into("")
+                  |> String.to_float()
+              end
 
             {:ok, {pair, [price]}}
           else
