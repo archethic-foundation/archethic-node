@@ -1,13 +1,19 @@
 defmodule Archethic.Utils do
   @moduledoc false
 
-  alias Archethic.{BeaconChain, Crypto, P2P, TransactionChain, P2P.Node, P2P.Message}
-  alias BeaconChain.{ReplicationAttestation}
-  alias TransactionChain.{Transaction, TransactionData, TransactionSummary}
+  alias Archethic.BeaconChain.ReplicationAttestation
 
-  alias Message.{GetTransactionSummary, TransactionSummaryMessage}
+  alias Archethic.Crypto
+
+  alias Archethic.P2P.Node
 
   alias Archethic.Reward.Scheduler, as: RewardScheduler
+
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionSummary
+
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
@@ -1100,26 +1106,13 @@ defmodule Archethic.Utils do
   end
 
   @spec await_confirmation(tx_address :: binary(), list(Node.t())) ::
-          :ok | {:error, :network_issue}
+          {:ok, Transaction.t()} | {:error, :network_issue}
   def await_confirmation(tx_address, nodes) do
-    acceptance_resolver = fn
-      {:ok,
-       %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^tx_address}}} ->
-        true
-
-      _ ->
-        false
-    end
-
     #  at 1th , 2th , 4th , 8th , 16th , 32th second
     retry_while with: exponential_backoff(1000, 2) |> expiry(70_000) do
-      case P2P.quorum_read(
-             nodes,
-             %GetTransactionSummary{address: tx_address},
-             acceptance_resolver
-           ) do
-        {:ok, _} ->
-          {:halt, :ok}
+      case TransactionChain.fetch_transaction_remotely(tx_address, nodes) do
+        {:ok, transaction} ->
+          {:halt, {:ok, transaction}}
 
         _ ->
           {:cont, {:error, :network_issue}}

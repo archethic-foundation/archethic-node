@@ -1,27 +1,56 @@
 defmodule Archethic.BootstrapTest do
   use ArchethicCase
 
-  alias Archethic.{Bootstrap, Crypto, Replication, SharedSecrets, TransactionChain}
-  alias Archethic.{P2P, P2P.BootstrappingSeeds, P2P.Node, TransactionChain, P2P.Message}
-  alias Archethic.{TransactionFactory}
-
-  alias Message.{GetGenesisAddress, GetTransactionChainLength, GetBootstrappingNodes, Ok}
-  alias Message.{GetTransactionSummary, GetTransactionInputs, GetGenesisAddress, GetStorageNonce}
-  alias Message.{GetLastTransactionAddress, GetTransactionChain, GetTransaction, NotFound}
-  alias Message.{GenesisAddress, LastTransactionAddress, NewTransaction, NotifyEndOfNodeSync}
-  alias Message.{TransactionList, TransactionInputList, TransactionSummaryMessage, NodeList}
-  alias Message.{TransactionChainLength, BootstrappingNodes, EncryptedStorageNonce, ListNodes}
-
-  alias TransactionChain.{Transaction, TransactionSummary}
-  alias Transaction.{ValidationStamp, ValidationStamp.LedgerOperations}
-
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
-  alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
-  alias Archethic.SelfRepair.NetworkChain
+
+  alias Archethic.Bootstrap
+
+  alias Archethic.Crypto
+
+  alias Archethic.P2P
+  alias Archethic.P2P.BootstrappingSeeds
+  alias Archethic.P2P.Node
+
+  alias Archethic.P2P.Message.{
+    BootstrappingNodes,
+    EncryptedStorageNonce,
+    GenesisAddress,
+    GetBootstrappingNodes,
+    GetGenesisAddress,
+    GetLastTransactionAddress,
+    GetStorageNonce,
+    GetTransaction,
+    GetTransactionChain,
+    GetTransactionChainLength,
+    GetTransactionInputs,
+    LastTransactionAddress,
+    ListNodes,
+    NewTransaction,
+    NodeList,
+    NotFound,
+    NotifyEndOfNodeSync,
+    Ok,
+    TransactionChainLength,
+    TransactionInputList,
+    TransactionList
+  }
+
+  alias Archethic.Replication
 
   alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
   alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
+
+  alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
+  alias Archethic.SelfRepair.NetworkChain
+
+  alias Archethic.SharedSecrets
+
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionFactory
 
   import Mox
 
@@ -250,22 +279,12 @@ defmodule Archethic.BootstrapTest do
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
 
-        # _, %GetTransaction{address: address}, _ ->
-        #   {:ok,
-        #    %Transaction{
-        #      address: address,
-        #      validation_stamp: %ValidationStamp{},
-        #      cross_validation_stamps: [%{}]
-        #    }}
-        _, %GetTransaction{}, _ ->
-          {:ok, %NotFound{}}
-
-        _, %GetTransactionSummary{address: address}, _ ->
+        _, %GetTransaction{address: address}, _ ->
           {:ok,
-           %TransactionSummaryMessage{
-             transaction_summary: %TransactionSummary{
-               address: address
-             }
+           %Transaction{
+             address: address,
+             validation_stamp: %ValidationStamp{},
+             cross_validation_stamps: [%{}]
            }}
 
         _, %GetTransactionChainLength{}, _ ->

@@ -1,9 +1,19 @@
 defmodule Archethic.Bootstrap.TransactionHandler do
   @moduledoc false
 
-  alias Archethic.{Crypto, Utils, Election, P2P, TransactionChain}
-  alias P2P.{Node, Message.NewTransaction, Message.Ok}
-  alias TransactionChain.{Transaction, TransactionData}
+  alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.NewTransaction
+  alias Archethic.P2P.Node
+
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.Utils
 
   require Logger
 
@@ -11,7 +21,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   Send a transaction to the network towards a welcome node
   """
   @spec send_transaction(Transaction.t(), list(Node.t())) ::
-          :ok
+          :ok | {:error, :network_issue}
   def send_transaction(tx = %Transaction{address: address}, nodes) do
     Logger.info("Send node transaction...",
       transaction_address: Base.encode16(address),
@@ -21,8 +31,6 @@ defmodule Archethic.Bootstrap.TransactionHandler do
     do_send_transaction(nodes, tx)
   end
 
-  @spec do_send_transaction(list(Node.t()), Transaction.t()) ::
-          :ok
   defp do_send_transaction([node | rest], tx) do
     case P2P.send_message(node, %NewTransaction{
            transaction: tx,
@@ -43,7 +51,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
         case Utils.await_confirmation(tx.address, storage_nodes) do
-          :ok ->
+          {:ok, validated_transaction} ->
+            P2P.load_transaction(validated_transaction)
             :ok
 
           {:error, :network_issue} ->

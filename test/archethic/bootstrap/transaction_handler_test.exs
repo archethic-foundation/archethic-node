@@ -6,16 +6,15 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
   alias Archethic.Bootstrap.TransactionHandler
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransactionSummary
-  alias Archethic.P2P.Message.TransactionSummaryMessage
+  alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.NewTransaction
   alias Archethic.P2P.Message.Ok
 
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -66,14 +65,12 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
       _, %NewTransaction{}, _ ->
         {:ok, %Ok{}}
 
-      _, %GetTransactionSummary{}, _ ->
+      _, %GetTransaction{address: address}, _ ->
         {:ok,
-         %TransactionSummaryMessage{
-           transaction_summary: %TransactionSummary{
-             address: tx.address,
-             type: :node,
-             timestamp: DateTime.utc_now()
-           }
+         %Transaction{
+           address: address,
+           validation_stamp: %ValidationStamp{},
+           cross_validation_stamps: [%{}]
          }}
     end)
 
