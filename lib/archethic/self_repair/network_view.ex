@@ -1,7 +1,7 @@
 defmodule Archethic.SelfRepair.NetworkView do
   @moduledoc """
   The network view is 2 things:
-  - the P2P view (list of available & authorized nodes)
+  - the P2P view (list of all nodes)
   - the Network chains view (oracle/origin/nodesharedsecrets)
 
   It is useful to compare with other nodes to detect desynchronization.
@@ -174,7 +174,7 @@ defmodule Archethic.SelfRepair.NetworkView do
   #
   # ------------------------------------------------------
   defp do_get_p2p_hash() do
-    P2P.authorized_and_available_nodes()
+    P2P.list_nodes()
     |> Enum.map(& &1.last_public_key)
     |> Enum.sort()
     |> then(&:crypto.hash(:sha256, &1))
