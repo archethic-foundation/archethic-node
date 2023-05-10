@@ -15,7 +15,6 @@ defmodule Archethic.P2P.MemTableLoader do
   alias Archethic.P2P.Node
 
   alias Archethic.SelfRepair
-  alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
 
   alias Archethic.SharedSecrets
 
@@ -24,10 +23,6 @@ defmodule Archethic.P2P.MemTableLoader do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
-
-  alias Archethic.Utils
-
-  alias Crontab.CronExpression.Parser, as: CronParser
 
   require Logger
 
@@ -67,16 +62,7 @@ defmodule Archethic.P2P.MemTableLoader do
   @spec load_p2p_view(DateTime.t() | nil) :: :ok
   def load_p2p_view(nil), do: :ok
 
-  def load_p2p_view(last_repair_time) do
-    next_repair_time =
-      :archethic
-      |> Application.get_env(SelfRepairScheduler, [])
-      |> Keyword.fetch!(:interval)
-      |> CronParser.parse!(true)
-      |> Utils.next_date(last_repair_time)
-
-    is_same_slot? = DateTime.compare(DateTime.utc_now(), next_repair_time) == :lt
-
+  def load_p2p_view(last_sync_date) do
     p2p_summaries = DB.get_last_p2p_summaries()
     previously_available = Enum.filter(p2p_summaries, &match?({_, true, _, _, _}, &1))
 
@@ -95,15 +81,17 @@ defmodule Archethic.P2P.MemTableLoader do
 
       [] ->
         P2P.set_node_globally_synced(node_key)
-        P2P.set_node_globally_available(node_key, last_repair_time)
+        P2P.set_node_globally_available(node_key, last_sync_date)
         P2P.set_node_average_availability(node_key, 1.0)
 
       _ ->
         # We want to reload the previous beacon chain summary information
         # if the node haven't been disconnected for a significant time (one self-repair cycle)
         # if the node was disconnected for long time, then we don't load the previous view, as it's obsolete
+        missed_sync? = SelfRepair.missed_sync?(last_sync_date)
+
         Enum.each(p2p_summaries, fn summary ->
-          load_p2p_summary(summary, is_same_slot?)
+          load_p2p_summary(summary, missed_sync?)
         end)
     end
   end
@@ -210,12 +198,12 @@ defmodule Archethic.P2P.MemTableLoader do
 
   defp load_p2p_summary(
          {node_public_key, available?, avg_availability, availability_update, network_patch},
-         is_same_slot?
+         missed_sync?
        ) do
     if available? do
       P2P.set_node_globally_synced(node_public_key)
 
-      if is_same_slot? do
+      unless missed_sync? do
         P2P.set_node_globally_available(node_public_key, availability_update)
       end
     end
