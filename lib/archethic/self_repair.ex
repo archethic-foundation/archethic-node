@@ -3,24 +3,34 @@ defmodule Archethic.SelfRepair do
   Synchronization for all the Archethic nodes relies on the self-repair mechanism started during
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.SummaryTimer
 
-  alias __MODULE__.{Notifier, NotifierSupervisor}
-  alias __MODULE__.{Scheduler, Sync}
-  alias __MODULE__.RepairWorker
+  alias Archethic.Contracts
 
-  alias Archethic.{BeaconChain, Crypto, Utils, Contracts, TransactionChain, Election}
-  alias Archethic.{P2P.Node}
+  alias Archethic.Crypto
 
-  alias Archethic.{
-    P2P,
-    Replication
-  }
+  alias Archethic.Election
 
+  alias Archethic.P2P
   alias Archethic.P2P.Message
+  alias Archethic.P2P.Node
+
+  alias Archethic.Replication
+
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+
+  alias Archethic.Utils
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
+
+  alias __MODULE__.Notifier
+  alias __MODULE__.NotifierSupervisor
+  alias __MODULE__.Scheduler
+  alias __MODULE__.Sync
+  alias __MODULE__.RepairWorker
 
   require Logger
 
@@ -100,6 +110,31 @@ defmodule Archethic.SelfRepair do
   """
   @spec put_last_sync_date(DateTime.t()) :: :ok
   defdelegate put_last_sync_date(datetime), to: Sync, as: :store_last_sync_date
+
+  @doc """
+  Return true if there is a self repair date missed since the last
+  summary synchronized
+  """
+  @spec missed_sync?(DateTime.t() | nil) :: boolean()
+  def missed_sync?(nil), do: true
+
+  def missed_sync?(last_sync_date) do
+    next_summary_date =
+      :archethic
+      |> Application.get_env(SummaryTimer, [])
+      |> Keyword.fetch!(:interval)
+      |> CronParser.parse!(true)
+      |> Utils.next_date(last_sync_date)
+
+    next_repair_date =
+      :archethic
+      |> Application.get_env(Scheduler, [])
+      |> Keyword.fetch!(:interval)
+      |> CronParser.parse!(true)
+      |> Utils.next_date(next_summary_date)
+
+    DateTime.compare(DateTime.utc_now(), next_repair_date) != :lt
+  end
 
   @doc """
   Return the previous scheduler time from a given date

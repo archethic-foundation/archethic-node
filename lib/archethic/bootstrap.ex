@@ -3,12 +3,23 @@ defmodule Archethic.Bootstrap do
   Manage Archethic Node Bootstrapping
   """
 
-  alias Archethic
-  alias Archethic.{Bootstrap, Crypto, Networking, P2P, P2P.Node}
-  alias Archethic.{SelfRepair, SelfRepair.NetworkChain, TransactionChain}
+  alias Archethic.Crypto
 
-  alias Bootstrap.{NetworkInit, Sync, TransactionHandler}
-  alias TransactionChain.{Transaction, TransactionData}
+  alias Archethic.Networking
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+
+  alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.NetworkChain
+
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+
+  alias __MODULE__.NetworkInit
+  alias __MODULE__.Sync
+  alias __MODULE__.TransactionHandler
 
   require Logger
 
@@ -105,7 +116,7 @@ defmodule Archethic.Bootstrap do
         reward_address
       )
     else
-      post_bootstrap(sync?: false)
+      post_bootstrap()
     end
 
     Logger.info("Bootstrapping finished!")
@@ -157,7 +168,7 @@ defmodule Archethic.Bootstrap do
 
         Sync.initialize_network(tx)
 
-        post_bootstrap(sync?: false)
+        post_bootstrap()
         SelfRepair.put_last_sync_date(DateTime.utc_now())
 
       Crypto.first_node_public_key() == Crypto.previous_node_public_key() ->
@@ -173,7 +184,7 @@ defmodule Archethic.Bootstrap do
           configured_reward_address
         )
 
-        post_bootstrap(sync?: true)
+        post_bootstrap()
 
       true ->
         Logger.info("Update node chain...")
@@ -196,16 +207,18 @@ defmodule Archethic.Bootstrap do
           last_reward_address
         )
 
-        post_bootstrap(sync?: true)
+        post_bootstrap()
     end
   end
 
-  defp post_bootstrap(opts) do
-    if Keyword.get(opts, :sync?, true) do
+  defp post_bootstrap() do
+    last_sync_date = SelfRepair.last_sync_date()
+
+    if SelfRepair.missed_sync?(last_sync_date) do
       Logger.info("Synchronization started")
       # Always load the current node list to have the current view for downloading transaction
       :ok = Sync.load_node_list()
-      :ok = SelfRepair.bootstrap_sync(SelfRepair.last_sync_date())
+      :ok = SelfRepair.bootstrap_sync(last_sync_date)
       Logger.info("Synchronization finished")
     end
 

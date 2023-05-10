@@ -4,19 +4,19 @@ defmodule Archethic.SelfRepairTest do
 
   alias Archethic.BeaconChain.SummaryTimer
 
-  alias Archethic.P2P.Client.DefaultImpl
-
   alias Archethic.Crypto
+
   alias Archethic.P2P
+  alias Archethic.P2P.Client.DefaultImpl
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetNextAddresses
   alias Archethic.P2P.Message.GetTransaction
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-
   alias Archethic.Replication
   alias Archethic.SelfRepair
+
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   import ArchethicCase
   import Mox
@@ -162,5 +162,14 @@ defmodule Archethic.SelfRepairTest do
       assert {:error, :transaction_already_exists} =
                SelfRepair.replicate_transaction(address, false)
     end
+  end
+
+  test "missed_sync?/1 should return false" do
+    refute DateTime.utc_now() |> SelfRepair.missed_sync?()
+  end
+
+  test "missed_sync?/1 should return true" do
+    # Scheduler each minutes
+    assert DateTime.utc_now() |> DateTime.add(-2, :minute) |> SelfRepair.missed_sync?()
   end
 end
