@@ -13,7 +13,7 @@ defmodule Archethic.MixProject do
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      compilers: [:elixir_make] ++ Mix.compilers(),
+      compilers: [:elixir_make, :unused | Mix.compilers()],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
       dialyzer: dialyzer()
@@ -80,6 +80,7 @@ defmodule Archethic.MixProject do
       {:logger_file_backend, "~> 0.0.13", only: :dev},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       {:dart_sass, "~> 0.5", runtime: Mix.env() == :dev},
+      {:mix_unused, "~> 0.3.0", only: [:dev], runtime: false},
 
       # Security
       {:sobelow, "~> 0.11", only: [:test, :dev], runtime: false},
