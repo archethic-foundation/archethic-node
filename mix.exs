@@ -16,7 +16,25 @@ defmodule Archethic.MixProject do
       compilers: [:elixir_make, :unused | Mix.compilers()],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
-      dialyzer: dialyzer()
+      dialyzer: dialyzer(),
+      unused: [
+        ignore: [
+          {ArchethicWeb, :controller, 0},
+          {ArchethicWeb, :view, 0},
+          {ArchethicWeb, :live_component, 0},
+          {ArchethicWeb, :live_view, 0},
+          {ArchethicWeb, :router, 0},
+          {ArchethicWeb, :channel, 0},
+          {~r/^ArchethicWeb\..*Controller/, :_, 2},
+          {ArchethicWeb.ExplorerRouter.Helpers, :_, :_},
+          {~r/^Archethic\.Contracts\.Interpreter\.Library\..*/, :_, :_},
+          {Archethic.Cldr, :_, :_},
+          {~r/^Archethic\.Cldr..*/, :_, :_},
+          {:_, ~r/^__.+__\??$/, :_},
+          {:_, :child_spec, :_},
+          {:_, :start_link, :_}
+        ]
+      ],
     ]
   end
 
