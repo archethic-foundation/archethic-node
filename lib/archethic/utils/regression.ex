@@ -10,9 +10,10 @@ defmodule Archethic.Utils.Regression do
 
   alias Archethic.Utils.WebClient
   alias Archethic.Utils.Regression.Benchmark.EndToEndValidation
+  alias Archethic.Utils.Regression.Benchmark.P2PMessage
 
   @playbooks [UCO]
-  @benchmarks [EndToEndValidation]
+  @benchmarks [P2PMessage, EndToEndValidation]
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")
