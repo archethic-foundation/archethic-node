@@ -4,14 +4,29 @@ defmodule Archethic.Networking.Scheduler do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
-  alias Archethic.{Crypto, P2P, P2P.Node, Networking, TaskSupervisor, Utils, PubSub}
-  alias Archethic.TransactionChain
+  alias Archethic.Crypto
+
+  alias Archethic.Networking.IPLookup
+  alias Archethic.Networking.PortForwarding
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Listener, as: P2PListener
+  alias Archethic.P2P.Node
+
+  alias Archethic.PubSub
+
+  alias Archethic.Replication
+
   alias Archethic.SelfRepair.NetworkChain
 
-  alias Networking.{IPLookup, PortForwarding}
-  alias TransactionChain.{Transaction, TransactionData}
+  alias Archethic.TaskSupervisor
 
-  alias P2P.Listener, as: P2PListener
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.Utils
+
   alias ArchethicWeb.Endpoint, as: WebEndpoint
 
   require Logger
@@ -132,13 +147,22 @@ defmodule Archethic.Networking.Scheduler do
     end
   end
 
-  defp handle_new_ip(%Transaction{address: tx_address}) do
+  defp handle_new_ip(%Transaction{address: tx_address, data: transaction_data}) do
     nodes =
       P2P.authorized_and_available_nodes()
       |> Enum.filter(&Node.locally_available?/1)
       |> P2P.nearest_nodes()
 
-    Utils.await_confirmation(tx_address, nodes)
+    case Utils.await_confirmation(tx_address, nodes) do
+      {:ok, validated_transaction = %Transaction{address: ^tx_address, data: ^transaction_data}} ->
+        Replication.sync_transaction_chain(validated_transaction)
+
+      {:ok, _} ->
+        Logger.warning("Network Scheduler received a non corresponding node transaction")
+
+      {:error, :network_issue} ->
+        Logger.warning("Network Scheduler did not received confirmation for new node tx")
+    end
 
     NetworkChain.asynchronous_resync_many([:node, :oracle, :node_shared_secrets, :origin])
   end
