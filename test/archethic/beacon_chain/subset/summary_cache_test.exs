@@ -28,6 +28,11 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
       subset: subset
     }
 
+    slot_pre_summary2 = %Slot{
+      slot_time: ~U[2023-01-01 08:00:00Z],
+      subset: subset
+    }
+
     slot_post_summary = %Slot{
       slot_time: ~U[2023-01-01 08:00:20Z],
       subset: subset
@@ -37,6 +42,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
 
     first_slot_time = SlotTimer.next_slot(previous_summary_time)
     SummaryCache.add_slot(subset, slot_pre_summary, "node_key")
+    SummaryCache.add_slot(subset, slot_pre_summary2, "node_key")
     SummaryCache.add_slot(subset, slot_post_summary, "node_key")
 
     send(pid, {:current_epoch_of_slot_timer, first_slot_time})
