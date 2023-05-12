@@ -139,9 +139,13 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
 
   defp backup_slot(slot = %Slot{slot_time: slot_time}, node_public_key) do
     content = serialize(slot, node_public_key)
-    next_summary_time = SummaryTimer.next_summary(slot_time)
 
-    next_summary_time
+    summary_time =
+      if SummaryTimer.match_interval?(slot_time),
+        do: slot_time,
+        else: SummaryTimer.next_summary(slot_time)
+
+    summary_time
     |> recover_path()
     |> File.write!(content, [:append, :binary])
   end
@@ -169,11 +173,16 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   defp serialize(slot = %Slot{slot_time: slot_time}, node_public_key) do
-    summary_time = SummaryTimer.next_summary(slot_time) |> DateTime.to_unix()
+    summary_time =
+      if SummaryTimer.match_interval?(slot_time),
+        do: slot_time,
+        else: SummaryTimer.next_summary(slot_time)
+
     slot_bin = Slot.serialize(slot) |> Utils.wrap_binary()
     slot_size = byte_size(slot_bin) |> VarInt.from_value()
 
-    <<summary_time::32, slot_size::binary, slot_bin::binary, node_public_key::binary>>
+    <<DateTime.to_unix(summary_time)::32, slot_size::binary, slot_bin::binary,
+      node_public_key::binary>>
   end
 
   defp deserialize(<<>>, acc), do: acc

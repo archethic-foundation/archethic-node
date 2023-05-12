@@ -62,7 +62,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
 
     slot = %Slot{
       subset: <<0>>,
-      slot_time: DateTime.utc_now() |> DateTime.truncate(:second),
+      slot_time: DateTime.add(next_summary_time, -10, :minute),
       transaction_attestations: [
         %ReplicationAttestation{
           transaction_summary: %TransactionSummary{
@@ -101,10 +101,27 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
       }
     }
 
+    slot2 = %Slot{
+      subset: <<0>>,
+      slot_time: next_summary_time,
+      transaction_attestations: [],
+      end_of_node_synchronizations: [],
+      p2p_view: %{
+        availabilities: <<600::16, 0::16>>,
+        network_stats: [
+          %{latency: 10},
+          %{latency: 0}
+        ]
+      }
+    }
+
     node_key = Crypto.first_node_public_key()
     :ok = SummaryCache.add_slot(<<0>>, slot, node_key)
+    :ok = SummaryCache.add_slot(<<0>>, slot2, node_key)
 
-    assert [{^slot, ^node_key}] = :ets.lookup_element(:archethic_summary_cache, <<0>>, 2)
+    assert [{^slot, ^node_key}, {^slot2, ^node_key}] =
+             :ets.lookup_element(:archethic_summary_cache, <<0>>, 2)
+
     assert File.exists?(path)
 
     GenServer.stop(pid)
@@ -113,6 +130,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
     {:ok, _} = SummaryCache.start_link()
 
     slots = SummaryCache.stream_current_slots(<<0>>) |> Enum.to_list()
-    assert [{^slot, ^node_key}] = slots
+    assert [{^slot, ^node_key}, {^slot2, ^node_key}] = slots
   end
 end
