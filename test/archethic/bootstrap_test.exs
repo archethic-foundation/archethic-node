@@ -5,6 +5,7 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias Archethic.Bootstrap
+  alias Archethic.Bootstrap.TransactionHandler
 
   alias Archethic.Crypto
 
@@ -26,7 +27,6 @@ defmodule Archethic.BootstrapTest do
     GetTransactionInputs,
     LastTransactionAddress,
     ListNodes,
-    NewTransaction,
     NodeList,
     NotFound,
     NotifyEndOfNodeSync,
@@ -53,6 +53,7 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.TransactionFactory
 
   import Mox
+  import Mock
 
   setup do
     start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
@@ -195,7 +196,21 @@ defmodule Archethic.BootstrapTest do
   end
 
   describe "run/5 with an initialized network" do
-    setup do
+    setup_with_mocks([
+      {TransactionHandler, [:passthrough],
+       send_transaction: fn tx, _ ->
+         stamp = %ValidationStamp{
+           timestamp: DateTime.utc_now(),
+           proof_of_work: "",
+           proof_of_integrity: "",
+           ledger_operations: %LedgerOperations{}
+         }
+
+         validated_tx = %{tx | validation_stamp: stamp}
+         :ok = TransactionChain.write_transaction(validated_tx)
+         :ok = Replication.ingest_transaction(validated_tx, false, false)
+       end}
+    ]) do
       nodes = [
         %Node{
           ip: {127, 0, 0, 1},
@@ -252,20 +267,6 @@ defmodule Archethic.BootstrapTest do
              ]
            }}
 
-        _, %NewTransaction{transaction: tx}, _ ->
-          stamp = %ValidationStamp{
-            timestamp: DateTime.utc_now(),
-            proof_of_work: "",
-            proof_of_integrity: "",
-            ledger_operations: %LedgerOperations{}
-          }
-
-          validated_tx = %{tx | validation_stamp: stamp}
-          :ok = TransactionChain.write_transaction(validated_tx)
-          :ok = Replication.ingest_transaction(validated_tx, false, false)
-
-          {:ok, %Ok{}}
-
         _, %GetStorageNonce{}, _ ->
           {:ok,
            %EncryptedStorageNonce{
@@ -278,14 +279,6 @@ defmodule Archethic.BootstrapTest do
 
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
-
-        _, %GetTransaction{address: address}, _ ->
-          {:ok,
-           %Transaction{
-             address: address,
-             validation_stamp: %ValidationStamp{},
-             cross_validation_stamps: [%{}]
-           }}
 
         _, %GetTransactionChainLength{}, _ ->
           {:ok, %TransactionChainLength{length: 0}}

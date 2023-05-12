@@ -10,6 +10,9 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   alias Archethic.P2P.Message.NewTransaction
   alias Archethic.P2P.Node
 
+  alias Archethic.Replication
+
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
@@ -31,29 +34,36 @@ defmodule Archethic.Bootstrap.TransactionHandler do
     do_send_transaction(nodes, tx)
   end
 
-  defp do_send_transaction([node | rest], tx) do
+  defp do_send_transaction(
+         [node | rest],
+         tx = %Transaction{address: address, type: type, data: transaction_data}
+       ) do
     case P2P.send_message(node, %NewTransaction{
            transaction: tx,
            welcome_node: node.first_public_key
          }) do
       {:ok, %Ok{}} ->
         Logger.info("Waiting transaction validation",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: "node"
+          transaction_address: Base.encode16(address),
+          transaction_type: type
         )
 
         storage_nodes =
           Election.chain_storage_nodes_with_type(
-            tx.address,
-            tx.type,
+            address,
+            type,
             P2P.authorized_and_available_nodes()
           )
           |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
-        case Utils.await_confirmation(tx.address, storage_nodes) do
-          {:ok, validated_transaction} ->
-            P2P.load_transaction(validated_transaction)
+        case Utils.await_confirmation(address, storage_nodes) do
+          {:ok, validated_transaction = %Transaction{address: ^address, data: ^transaction_data}} ->
+            TransactionChain.write_transaction(validated_transaction)
+            Replication.ingest_transaction(validated_transaction, false, false)
             :ok
+
+          {:ok, _} ->
+            raise("Validated transaction does not correspond to transaction sent")
 
           {:error, :network_issue} ->
             raise("No node responded with confirmation for new Node tx")
