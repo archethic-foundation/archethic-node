@@ -82,6 +82,23 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {:ok, state}
   end
 
+  def code_change("1.1.0-rc1", state, _extra) do
+    backup_path = DateTime.utc_now() |> SummaryTimer.next_summary() |> recover_path()
+    backup_path_temp = backup_path <> "_temp"
+    File.rename(backup_path, backup_path_temp)
+
+    Enum.each(BeaconChain.list_subsets(), fn subset ->
+      :ets.lookup(@table_name, subset)
+      |> Enum.each(fn {_subset, {slot, pub_key}} ->
+        backup_slot(slot, pub_key)
+      end)
+    end)
+
+    File.rm(backup_path_temp)
+
+    {:ok, state}
+  end
+
   def code_change(_, state, _), do: {:ok, state}
 
   defp clean_previous_summary_cache(subset, previous_summary_time) do
@@ -151,44 +168,35 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   defp recover_slots(summary_time) do
-    if File.exists?(recover_path(summary_time)) do
-      next_summary_time = DateTime.utc_now() |> SummaryTimer.next_summary() |> DateTime.to_unix()
+    backup_file_path = recover_path(summary_time)
 
-      content = File.read!(recover_path(summary_time))
+    if File.exists?(backup_file_path) do
+      content = File.read!(backup_file_path)
 
       deserialize(content, [])
       |> Enum.each(fn
-        {summary_time, slot = %Slot{subset: subset}, node_public_key} ->
-          if summary_time == next_summary_time,
-            do: true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
+        {slot = %Slot{subset: subset}, node_public_key} ->
+          true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
 
         # Backward compatibility
-        {summary_time, slot = %Slot{subset: subset}} ->
-          if summary_time == next_summary_time,
-            do: true = :ets.insert(@table_name, {subset, slot})
+        {slot = %Slot{subset: subset}} ->
+          true = :ets.insert(@table_name, {subset, slot})
       end)
     else
       :ok
     end
   end
 
-  defp serialize(slot = %Slot{slot_time: slot_time}, node_public_key) do
-    summary_time =
-      if SummaryTimer.match_interval?(slot_time),
-        do: slot_time,
-        else: SummaryTimer.next_summary(slot_time)
-
+  defp serialize(slot, node_public_key) do
     slot_bin = Slot.serialize(slot) |> Utils.wrap_binary()
     slot_size = byte_size(slot_bin) |> VarInt.from_value()
 
-    <<DateTime.to_unix(summary_time)::32, slot_size::binary, slot_bin::binary,
-      node_public_key::binary>>
+    <<slot_size::binary, slot_bin::binary, node_public_key::binary>>
   end
 
   defp deserialize(<<>>, acc), do: acc
 
   defp deserialize(rest, acc) do
-    <<summary_time::32, rest::binary>> = rest
     {slot_size, rest} = VarInt.get_value(rest)
     <<slot_bin::binary-size(slot_size), rest::binary>> = rest
     {slot, _} = Slot.deserialize(slot_bin)
@@ -196,10 +204,10 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     # Backward compatibility
     try do
       {node_public_key, rest} = Utils.deserialize_public_key(rest)
-      deserialize(rest, [{summary_time, slot, node_public_key} | acc])
+      deserialize(rest, [{slot, node_public_key} | acc])
     rescue
       _ ->
-        deserialize(rest, [{summary_time, slot} | acc])
+        deserialize(rest, [{slot} | acc])
     end
   end
 end
