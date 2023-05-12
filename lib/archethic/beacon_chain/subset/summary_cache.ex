@@ -49,7 +49,12 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
         &clean_previous_summary_cache(&1, previous_summary_time)
       )
 
-      File.rm(recover_path(previous_summary_time))
+      next_summary_backup_path = SummaryTimer.next_summary(slot_time) |> recover_path()
+
+      Utils.mut_dir("slot_backup*")
+      |> Path.wildcard()
+      |> Enum.reject(&(&1 == next_summary_backup_path))
+      |> Enum.each(&File.rm/1)
     end
 
     {:noreply, state}
