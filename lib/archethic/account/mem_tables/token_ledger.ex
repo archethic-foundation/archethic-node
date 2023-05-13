@@ -66,7 +66,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
         append_input_to_db(to_address, input, from_init?)
 
       _ ->
-        # []
+        # any [] or inputs
         ingest(to_address, input, from_init?)
     end
 

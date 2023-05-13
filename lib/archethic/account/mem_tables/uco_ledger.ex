@@ -65,11 +65,8 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         input = %VersionedUnspentOutput{
           unspent_output: %UnspentOutput{
             from: from,
-            amount: amount,
-            reward?: reward?,
-            timestamp: %DateTime{} = timestamp
-          },
-          protocol_version: protocol_version
+            amount: amount
+          }
         },
         from_init? \\ false
       )
@@ -78,20 +75,9 @@ defmodule Archethic.Account.MemTables.UCOLedger do
       [{^to_address, true}] ->
         append_input_to_db(to_address, input, from_init?)
 
-      inputs ->
-        true =
-          :ets.insert(
-            @ledger_table,
-            {{to_address, from}, amount, false, timestamp, reward?, protocol_version}
-          )
-
-        true = :ets.insert(@unspent_output_index_table, {to_address, from})
-
-        if length(inputs) + 1 > @threshold do
-          # flush to db # write_to_db(to)
-          write_to_db(to_address, inputs, from_init?)
-          :ets.insert(@unspent_output_index_table, {to_address, _in_db = true})
-        end
+      _ ->
+        # any [] or inputs
+        ingest(to_address, input, from_init?)
     end
 
     Logger.info("#{amount} unspent UCO added for #{Base.encode16(to_address)}",
@@ -99,6 +85,37 @@ defmodule Archethic.Account.MemTables.UCOLedger do
     )
 
     :ok
+  end
+
+  defp ingest(
+         to_address,
+         %VersionedUnspentOutput{
+           unspent_output: %UnspentOutput{
+             from: from,
+             amount: amount,
+             reward?: reward?,
+             timestamp: %DateTime{} = timestamp
+           },
+           protocol_version: protocol_version
+         },
+         from_init?
+       ) do
+    true =
+      @ledger_table
+      |> :ets.insert({{to_address, from}, amount, false, timestamp, reward?, protocol_version})
+
+    true =
+      @unspent_output_index_table
+      |> :ets.insert({to_address, from})
+
+    inputs = :ets.lookup(@unspent_output_index_table, to_address)
+
+    if length(inputs) > @threshold do
+      # flush to the db
+      write_to_db(to_address, inputs, from_init?)
+      # flag to know inputs were flushed to the db regardles of the flag
+      :ets.insert(@unspent_output_index_table, {to_address, _in_db = true})
+    end
   end
 
   defp append_input_to_db(_, _, true), do: :ok
@@ -146,6 +163,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         []
 
       [{^address, true}] ->
+        # exists in db file, return as spent false
         :UCO
         |> DB.get_inputs(address)
         |> Enum.reduce([], fn
@@ -180,6 +198,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         end)
 
       inputs ->
+        # did not reach threshold
         build_utxos(inputs)
     end
   end
