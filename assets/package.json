@@ -4,7 +4,7 @@
   "dependencies": {
     "alpinejs": "^3.10.4",
     "chokidar": "^3.5.3",
-    "diff2html": "^3.4.19",
+    "diff2html": "^3.4.35",
     "echarts": "^5.4.0",
     "highlight.js": "^11.6.0",
     "phoenix": "file:../deps/phoenix",
