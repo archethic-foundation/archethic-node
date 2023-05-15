@@ -19,6 +19,10 @@ defmodule Archethic.Contracts.ContractConstants do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+
   alias Archethic.Utils
 
   @doc """
@@ -64,6 +68,20 @@ defmodule Archethic.Contracts.ContractConstants do
         Enum.reduce(uco_transfers, %{}, fn %UCOTransfer{to: to, amount: amount}, acc ->
           Map.update(acc, to, amount, &(&1 + amount))
         end),
+      "uco_movements" =>
+        case validation_stamp do
+          nil ->
+            []
+
+          %ValidationStamp{
+            ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+          } ->
+            transaction_movements
+            |> Enum.filter(&(&1.type == :UCO))
+            |> Enum.reduce(%{}, fn %TransactionMovement{to: to, amount: amount}, acc ->
+              Map.update(acc, to, amount, &(&1 + amount))
+            end)
+        end,
       "token_transfers" =>
         Enum.reduce(token_transfers, %{}, fn %TokenTransfer{
                                                to: to,
@@ -80,6 +98,31 @@ defmodule Archethic.Contracts.ContractConstants do
 
           Map.update(acc, to, [token_transfer], &[token_transfer | &1])
         end),
+      "token_movements" =>
+        case validation_stamp do
+          nil ->
+            []
+
+          %ValidationStamp{
+            ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+          } ->
+            transaction_movements
+            |> Enum.filter(&match?({:token, _}, &1.type))
+            |> Enum.reduce(%{}, fn %TransactionMovement{
+                                     to: to,
+                                     amount: amount,
+                                     type: {:token, token_address, token_id}
+                                   },
+                                   acc ->
+              token_transfer = %{
+                "amount" => amount,
+                "token_address" => token_address,
+                "token_id" => token_id
+              }
+
+              Map.update(acc, to, [token_transfer], &[token_transfer | &1])
+            end)
+        end,
       "timestamp" =>
         case validation_stamp do
           # Happens during the transaction validation
@@ -187,26 +230,33 @@ defmodule Archethic.Contracts.ContractConstants do
         apply_not_nil(constants, "recipients", fn recipients ->
           Enum.map(recipients, &Base.encode16/1)
         end),
-      "uco_transfers" =>
-        apply_not_nil(constants, "uco_transfers", fn transfers ->
-          transfers
-          |> Enum.map(fn {to, amount} ->
-            {Base.encode16(to), amount}
-          end)
-          |> Enum.into(%{})
-        end),
+      "uco_transfers" => apply_not_nil(constants, "uco_transfers", &uco_movements_to_string/1),
+      "uco_movements" => apply_not_nil(constants, "uco_movements", &uco_movements_to_string/1),
       "token_transfers" =>
-        apply_not_nil(constants, "token_transfers", fn transfers ->
-          transfers
-          |> Enum.map(fn {to, transfers} ->
-            {Base.encode16(to),
-             Enum.map(transfers, fn transfer ->
-               Map.update!(transfer, "token_address", &Base.encode16/1)
-             end)}
-          end)
-        end),
+        apply_not_nil(constants, "token_transfers", &token_movements_to_string/1),
+      "token_movements" =>
+        apply_not_nil(constants, "token_movements", &token_movements_to_string/1),
       "timestamp" => Map.get(constants, "timestamp")
     }
+  end
+
+  defp uco_movements_to_string(transfers) do
+    transfers
+    |> Enum.map(fn {to, amount} ->
+      {Base.encode16(to), amount}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp token_movements_to_string(transfers) do
+    transfers
+    |> Enum.map(fn {to, transfers} ->
+      {Base.encode16(to),
+       Enum.map(transfers, fn transfer ->
+         Map.update!(transfer, "token_address", &Base.encode16/1)
+       end)}
+    end)
+    |> Enum.into(%{})
   end
 
   @doc """
@@ -249,20 +299,26 @@ defmodule Archethic.Contracts.ContractConstants do
   @spec cast_transaction_amount_to_float(map()) :: map()
   def cast_transaction_amount_to_float(transaction) do
     transaction
-    |> Map.update!("uco_transfers", fn uco_transfers ->
-      uco_transfers
-      |> Enum.map(fn {address, amount} ->
-        {address, Utils.from_bigint(amount)}
-      end)
-      |> Enum.into(%{})
+    |> Map.update!("uco_transfers", &cast_uco_movements_to_float/1)
+    |> Map.update!("uco_movements", &cast_uco_movements_to_float/1)
+    |> Map.update!("token_transfers", &cast_token_movements_to_float/1)
+    |> Map.update!("token_movements", &cast_token_movements_to_float/1)
+  end
+
+  defp cast_uco_movements_to_float(movements) do
+    movements
+    |> Enum.map(fn {address, amount} ->
+      {address, Utils.from_bigint(amount)}
     end)
-    |> Map.update!("token_transfers", fn token_transfers ->
-      token_transfers
-      |> Enum.map(fn {address, token_transfer} ->
-        {address, Enum.map(token_transfer, &convert_token_transfer_amount_to_bigint/1)}
-      end)
-      |> Enum.into(%{})
+    |> Enum.into(%{})
+  end
+
+  defp cast_token_movements_to_float(movements) do
+    movements
+    |> Enum.map(fn {address, token_transfer} ->
+      {address, Enum.map(token_transfer, &convert_token_transfer_amount_to_bigint/1)}
     end)
+    |> Enum.into(%{})
   end
 
   defp convert_token_transfer_amount_to_bigint(token_transfer) do
