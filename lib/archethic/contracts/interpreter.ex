@@ -152,13 +152,17 @@ defmodule Archethic.Contracts.Interpreter do
         {:error, :invalid_triggers_execution}
 
       trigger_code ->
+        timestamp_now =
+          time_now(trigger_type, maybe_trigger_tx)
+          |> DateTime.to_unix()
+
         do_execute(
           trigger_type,
           trigger_code,
           contract,
           maybe_trigger_tx,
           calls,
-          time_now(trigger_type, maybe_trigger_tx),
+          timestamp_now,
           opts
         )
     end
@@ -265,22 +269,22 @@ defmodule Archethic.Contracts.Interpreter do
          },
          trigger_tx = %Transaction{},
          calls,
-         datetime_now,
+         timestamp_now,
          opts
        ) do
     constants = %{
       "transaction" => Constants.from_transaction(trigger_tx),
       "contract" => contract_constants,
-      "_time_now" => datetime_now
+      "_time_now" => timestamp_now
     }
 
     if valid_conditions?(version, conditions.transaction, constants) do
-      case execute_trigger(version, trigger_code, contract, trigger_tx, calls, datetime_now) do
+      case execute_trigger(version, trigger_code, contract, trigger_tx, calls, timestamp_now) do
         nil ->
           {:ok, nil}
 
         next_tx ->
-          if valid_inherit_condition?(contract, next_tx, datetime_now, opts) do
+          if valid_inherit_condition?(contract, next_tx, timestamp_now, opts) do
             {:ok, next_tx}
           else
             {:error, :invalid_inherit_constraints}
@@ -303,22 +307,22 @@ defmodule Archethic.Contracts.Interpreter do
          },
          trigger_tx = %Transaction{},
          calls,
-         datetime_now,
+         timestamp_now,
          opts
        ) do
     constants = %{
       "transaction" => Constants.from_transaction(trigger_tx),
       "contract" => contract_constants,
-      "_time_now" => datetime_now
+      "_time_now" => timestamp_now
     }
 
     if valid_conditions?(version, conditions.oracle, constants) do
-      case execute_trigger(version, trigger_code, contract, trigger_tx, calls, datetime_now) do
+      case execute_trigger(version, trigger_code, contract, trigger_tx, calls, timestamp_now) do
         nil ->
           {:ok, nil}
 
         next_tx ->
-          if valid_inherit_condition?(contract, next_tx, datetime_now, opts) do
+          if valid_inherit_condition?(contract, next_tx, timestamp_now, opts) do
             {:ok, next_tx}
           else
             {:error, :invalid_inherit_constraints}
@@ -335,15 +339,15 @@ defmodule Archethic.Contracts.Interpreter do
          contract = %Contract{version: version},
          nil,
          calls,
-         datetime_now,
+         timestamp_now,
          opts
        ) do
-    case execute_trigger(version, trigger_code, contract, nil, calls, datetime_now) do
+    case execute_trigger(version, trigger_code, contract, nil, calls, timestamp_now) do
       nil ->
         {:ok, nil}
 
       next_tx ->
-        if valid_inherit_condition?(contract, next_tx, datetime_now, opts) do
+        if valid_inherit_condition?(contract, next_tx, timestamp_now, opts) do
           {:ok, next_tx}
         else
           {:error, :invalid_inherit_constraints}
@@ -357,7 +361,7 @@ defmodule Archethic.Contracts.Interpreter do
          contract,
          maybe_trigger_tx,
          calls,
-         datetime_now
+         timestamp_now
        ) do
     constants_trigger = %{
       "calls" => Enum.map(calls, &Constants.from_transaction/1),
@@ -371,7 +375,7 @@ defmodule Archethic.Contracts.Interpreter do
             Constants.from_transaction(trigger_tx)
         end,
       "contract" => contract.constants.contract,
-      "_time_now" => datetime_now
+      "_time_now" => timestamp_now
     }
 
     execute_trigger_code(version, trigger_code, constants_trigger)
@@ -384,7 +388,7 @@ defmodule Archethic.Contracts.Interpreter do
            constants: %{contract: contract_constants}
          },
          next_tx,
-         datetime_now,
+         timestamp_now,
          opts
        ) do
     if Keyword.get(opts, :skip_inherit_check?, false) do
@@ -393,7 +397,7 @@ defmodule Archethic.Contracts.Interpreter do
       constants_inherit = %{
         "previous" => contract_constants,
         "next" => Constants.from_transaction(next_tx),
-        "_time_now" => datetime_now
+        "_time_now" => timestamp_now
       }
 
       valid_conditions?(version, condition_inherit, constants_inherit)
