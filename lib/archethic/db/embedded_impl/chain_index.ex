@@ -15,7 +15,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @archethic_db_chain_stats :archethic_db_chain_stats
   @archethic_db_last_index :archethic_db_last_index
   @archethic_db_type_stats :archethic_db_type_stats
-  @archetic_db_tx_index_cache Archethic.Db.ChainIndex.LRU
+  @archetic_db_tx_index_cache :chain_index_cache
 
   require Logger
 
@@ -26,11 +26,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   def init(opts) do
     db_path = Keyword.fetch!(opts, :path)
 
-    ## Start the LRU cache for chain indexes. Default max size is 300 Mb
-    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
-
-    LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
-
     :ets.new(@archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
@@ -38,43 +33,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     fill_tables(db_path)
 
     {:ok, %{db_path: db_path}}
-  end
-
-  def code_change("1.0.7", state, _extra) do
-    ## We start the unstarted LRU cache
-    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
-    LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
-
-    ## We migrate the old ETS table to the LRU cache
-    index = :ets.first(:archethic_db_tx_index)
-    :ok = migrate_lru_cache(index)
-    :ets.delete(:archethic_db_tx_index)
-    {:ok, state}
-  end
-
-  # Stub clause to avoid crashes on unmatched version
-  def code_change(_, state, _extra) do
-    {:ok, state}
-  end
-
-  defp migrate_lru_cache(:"$end_of_table") do
-    :ok
-  end
-
-  defp migrate_lru_cache(index) do
-    case :ets.lookup(:archethic_db_tx_index, index) do
-      [{key, %{size: size, offset: offset, genesis_address: genesis_address}}] ->
-        LRU.put(@archetic_db_tx_index_cache, key, %{
-          size: size,
-          offset: offset,
-          genesis_address: genesis_address
-        })
-
-      _ ->
-        :ok
-    end
-
-    migrate_lru_cache(:ets.next(:archethic_db_tx_index, index))
   end
 
   defp fill_tables(db_path) do
