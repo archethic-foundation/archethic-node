@@ -9,7 +9,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
     db_path = Application.app_dir(:archethic, "data_test")
     File.mkdir_p!(db_path)
 
-    :ets.new(:archethic_db_chain_writers, [:named_table, :public])
     {:ok, _} = ChainWriter.start_link(path: db_path)
 
     on_exit(fn ->
