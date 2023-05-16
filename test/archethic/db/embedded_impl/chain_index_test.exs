@@ -7,7 +7,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
 
   setup do
     db_path = Application.app_dir(:archethic, "data_test")
-    File.mkdir_p!(db_path)
+    ChainWriter.setup_folders!(db_path)
 
     {:ok, _} = ChainWriter.start_link(path: db_path)
 

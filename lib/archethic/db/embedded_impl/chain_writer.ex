@@ -108,12 +108,16 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   def init(arg) do
     db_path = Keyword.get(arg, :path)
 
-    setup_folders(db_path)
-
     {:ok, %{db_path: db_path}}
   end
 
-  defp setup_folders(path) do
+  @doc """
+  Create all folder needed for DB
+  """
+  @spec setup_folders!(binary()) :: :ok
+  def setup_folders!(path) do
+    File.mkdir_p!(path)
+
     path
     |> base_chain_path()
     |> File.mkdir_p!()

@@ -20,8 +20,7 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
 
   def init(_arg) do
     path = Archethic.DB.EmbeddedImpl.db_path()
-    Logger.info("Load database at #{path}")
-    File.mkdir_p!(path)
+    ChainWriter.setup_folders!(path)
 
     # Remove old things while in hot reload
     # TODO remove after version 1.1.0
