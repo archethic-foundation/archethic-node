@@ -25,9 +25,19 @@ defmodule ArchethicCache.LRU do
     GenServer.cast(server, {:put, key, value})
   end
 
-  @spec get(GenServer.server(), term()) :: nil | term()
-  def get(server, key) do
-    GenServer.call(server, {:get, key})
+  @spec get(GenServer.name(), term()) :: nil | term()
+  def get(server_name, key) do
+    case :ets.lookup(server_name, key) do
+      [{^key, {_size, value}}] ->
+        GenServer.cast(server_name, {:move_front, key})
+        get_fn = :persistent_term.get(server_name)
+        get_fn.(key, value)
+
+      [] ->
+        nil
+    end
+  rescue
+    _ -> nil
   end
 
   @spec purge(GenServer.server()) :: :ok
@@ -36,7 +46,9 @@ defmodule ArchethicCache.LRU do
   end
 
   def init([name, max_bytes, opts]) do
-    table = :ets.new(:"aecache_#{name}", [:set, {:read_concurrency, true}])
+    table = :ets.new(name, [:set, :named_table, {:read_concurrency, true}])
+
+    :persistent_term.put(name, Keyword.get(opts, :get_fn, fn _key, value -> value end))
 
     {:ok,
      %{
@@ -45,25 +57,8 @@ defmodule ArchethicCache.LRU do
        bytes_used: 0,
        keys: [],
        put_fn: Keyword.get(opts, :put_fn, fn _key, value -> value end),
-       get_fn: Keyword.get(opts, :get_fn, fn _key, value -> value end),
        evict_fn: Keyword.get(opts, :evict_fn, fn _key, _value -> :ok end)
      }}
-  end
-
-  def handle_call({:get, key}, _from, state = %{table: table, keys: keys, get_fn: get_fn}) do
-    {reply, new_state} =
-      case :ets.lookup(table, key) do
-        [{^key, {_size, value}}] ->
-          {
-            get_fn.(key, value),
-            %{state | keys: keys |> move_front(key)}
-          }
-
-        [] ->
-          {nil, state}
-      end
-
-    {:reply, reply, new_state}
   end
 
   def handle_call(:purge, _from, state = %{table: table, evict_fn: evict_fn}) do
@@ -79,6 +74,10 @@ defmodule ArchethicCache.LRU do
 
     :ets.delete_all_objects(table)
     {:reply, :ok, %{state | keys: [], bytes_used: 0}}
+  end
+
+  def handle_cast({:move_front, key}, state = %{keys: keys}) do
+    {:noreply, %{state | keys: keys |> move_front(key)}}
   end
 
   def handle_cast(

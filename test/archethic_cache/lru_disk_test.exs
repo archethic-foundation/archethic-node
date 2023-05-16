@@ -11,30 +11,35 @@ defmodule ArchethicCache.LRUDiskTest do
 
   describe "single disk cache" do
     test "should return nil when key is not in cache" do
-      {:ok, pid} = LRUDisk.start_link(:my_cache, 10 * 1024, @cache_dir)
+      {:ok, _pid} = LRUDisk.start_link(:my_cache, 10 * 1024, @cache_dir)
 
-      assert nil == LRUDisk.get(pid, :key1)
+      assert nil == LRUDisk.get(:my_cache, :key1)
     end
 
     test "should cache binaries" do
       {:ok, pid} = LRUDisk.start_link(:my_cache, 10 * 1024, @cache_dir)
 
-      LRUDisk.put(pid, :key1, "my binary")
-      LRUDisk.put(pid, :key2, "my binary2")
-      LRUDisk.put(pid, :key3, "my binary3")
+      LRUDisk.put(:my_cache, :key1, "my binary")
+      LRUDisk.put(:my_cache, :key2, "my binary2")
+      LRUDisk.put(:my_cache, :key3, "my binary3")
 
-      assert "my binary" == LRUDisk.get(pid, :key1)
-      assert "my binary2" == LRUDisk.get(pid, :key2)
-      assert "my binary3" == LRUDisk.get(pid, :key3)
+      # This get_state is used to wait for all messages in the GenServer to be processed
+      :sys.get_state(pid)
+
+      assert "my binary" == LRUDisk.get(:my_cache, :key1)
+      assert "my binary2" == LRUDisk.get(:my_cache, :key2)
+      assert "my binary3" == LRUDisk.get(:my_cache, :key3)
     end
 
     test "should be able to replace binaries" do
       {:ok, pid} = LRUDisk.start_link(:my_cache, 10 * 1024, @cache_dir)
 
-      LRUDisk.put(pid, :key1, "my binary")
-      LRUDisk.put(pid, :key1, "my binary2")
+      LRUDisk.put(:my_cache, :key1, "my binary")
+      LRUDisk.put(:my_cache, :key1, "my binary2")
 
-      assert "my binary2" == LRUDisk.get(pid, :key1)
+      :sys.get_state(pid)
+
+      assert "my binary2" == LRUDisk.get(:my_cache, :key1)
       assert 1 == length(File.ls!(cache_dir_for_ls(:my_cache)))
     end
 
@@ -43,12 +48,14 @@ defmodule ArchethicCache.LRUDiskTest do
 
       {:ok, pid} = LRUDisk.start_link(:my_cache, 500, @cache_dir)
 
-      LRUDisk.put(pid, :key1, binary)
-      LRUDisk.put(pid, :key2, binary)
-      LRUDisk.put(pid, :key3, get_a_binary_of_bytes(400))
+      LRUDisk.put(:my_cache, :key1, binary)
+      LRUDisk.put(:my_cache, :key2, binary)
+      LRUDisk.put(:my_cache, :key3, get_a_binary_of_bytes(400))
 
-      assert nil == LRUDisk.get(pid, :key1)
-      assert nil == LRUDisk.get(pid, :key2)
+      :sys.get_state(pid)
+
+      assert nil == LRUDisk.get(:my_cache, :key1)
+      assert nil == LRUDisk.get(:my_cache, :key2)
       assert 1 == length(File.ls!(cache_dir_for_ls(:my_cache)))
     end
 
@@ -57,14 +64,19 @@ defmodule ArchethicCache.LRUDiskTest do
 
       {:ok, pid} = LRUDisk.start_link(:my_cache, 500, @cache_dir)
 
-      LRUDisk.put(pid, :key1, binary)
-      LRUDisk.put(pid, :key2, binary)
-      LRUDisk.get(pid, :key1)
-      LRUDisk.put(pid, :key3, binary)
+      LRUDisk.put(:my_cache, :key1, binary)
+      LRUDisk.put(:my_cache, :key2, binary)
 
-      assert ^binary = LRUDisk.get(pid, :key1)
-      assert ^binary = LRUDisk.get(pid, :key3)
-      assert nil == LRUDisk.get(pid, :key2)
+      :sys.get_state(pid)
+
+      LRUDisk.get(:my_cache, :key1)
+      LRUDisk.put(:my_cache, :key3, binary)
+
+      :sys.get_state(pid)
+
+      assert ^binary = LRUDisk.get(:my_cache, :key1)
+      assert ^binary = LRUDisk.get(:my_cache, :key3)
+      assert nil == LRUDisk.get(:my_cache, :key2)
       assert 2 == length(File.ls!(cache_dir_for_ls(:my_cache)))
     end
 
@@ -73,8 +85,11 @@ defmodule ArchethicCache.LRUDiskTest do
 
       {:ok, pid} = LRUDisk.start_link(:my_cache, 200, @cache_dir)
 
-      assert :ok == LRUDisk.put(pid, :key1, binary)
-      assert nil == LRUDisk.get(pid, :key1)
+      assert :ok == LRUDisk.put(:my_cache, :key1, binary)
+
+      :sys.get_state(pid)
+
+      assert nil == LRUDisk.get(:my_cache, :key1)
       assert Enum.empty?(File.ls!(cache_dir_for_ls(:my_cache)))
     end
 
@@ -83,12 +98,15 @@ defmodule ArchethicCache.LRUDiskTest do
 
       server = :my_cache
 
-      start_supervised!(%{
-        id: ArchethicCache.LRUDisk,
-        start: {ArchethicCache.LRUDisk, :start_link, [server, 500, @cache_dir]}
-      })
+      pid_before_crash =
+        start_supervised!(%{
+          id: ArchethicCache.LRUDisk,
+          start: {ArchethicCache.LRUDisk, :start_link, [server, 500, @cache_dir]}
+        })
 
       LRUDisk.put(server, :key1, binary)
+
+      :sys.get_state(pid_before_crash)
 
       assert ^binary = LRUDisk.get(server, :key1)
 
@@ -97,8 +115,6 @@ defmodule ArchethicCache.LRUDiskTest do
 
       # we loose the cached value
       assert nil == LRUDisk.get(server, :key1)
-
-      pid_before_crash = Process.whereis(server)
 
       # capture_log is used to hide the LRU process terminating
       # because we don't want red in our logs when it's expected
@@ -119,19 +135,22 @@ defmodule ArchethicCache.LRUDiskTest do
 
       # cache should automatically restart later
       LRUDisk.put(server, :key1, binary)
+
+      :sys.get_state(pid_after_crash)
+
       assert ^binary = LRUDisk.get(server, :key1)
     end
 
     test "should remove when purged" do
       binary = get_a_binary_of_bytes(400)
 
-      {:ok, pid} = LRUDisk.start_link(:my_cache, 500, @cache_dir)
+      {:ok, _pid} = LRUDisk.start_link(:my_cache, 500, @cache_dir)
 
-      LRUDisk.put(pid, :key1, binary)
-      LRUDisk.put(pid, :key2, binary)
-      LRUDisk.purge(pid)
-      assert nil == LRUDisk.get(pid, :key1)
-      assert nil == LRUDisk.get(pid, :key2)
+      LRUDisk.put(:my_cache, :key1, binary)
+      LRUDisk.put(:my_cache, :key2, binary)
+      LRUDisk.purge(:my_cache)
+      assert nil == LRUDisk.get(:my_cache, :key1)
+      assert nil == LRUDisk.get(:my_cache, :key2)
 
       assert Enum.empty?(File.ls!(cache_dir_for_ls(:my_cache)))
     end
@@ -143,11 +162,14 @@ defmodule ArchethicCache.LRUDiskTest do
       assert {:error, _} = LRUDisk.start_link(:my_cache, 10 * 1024, @cache_dir)
 
       {:ok, pid2} = LRUDisk.start_link(:my_cache2, 10 * 1024, @cache_dir)
-      LRUDisk.put(pid, :key1, "value1a")
-      LRUDisk.put(pid2, :key1, "value1b")
+      LRUDisk.put(:my_cache, :key1, "value1a")
+      LRUDisk.put(:my_cache2, :key1, "value1b")
 
-      assert "value1a" == LRUDisk.get(pid, :key1)
-      assert "value1b" == LRUDisk.get(pid2, :key1)
+      :sys.get_state(pid)
+      :sys.get_state(pid2)
+
+      assert "value1a" == LRUDisk.get(:my_cache, :key1)
+      assert "value1b" == LRUDisk.get(:my_cache2, :key1)
       assert 1 == length(File.ls!(cache_dir_for_ls(:my_cache)))
       assert 1 == length(File.ls!(cache_dir_for_ls(:my_cache2)))
     end
