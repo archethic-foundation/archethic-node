@@ -48,6 +48,7 @@ Requirements:
 - Erlang OTP 25
 - Elixir 1.14
 - GMP (https://gmplib.org/)
+- MiniUPnP used for port forwarding & IP lookup (https://miniupnp.tuxfamily.org/)
 
 Platforms supported:
 
