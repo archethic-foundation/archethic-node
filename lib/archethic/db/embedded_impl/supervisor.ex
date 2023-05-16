@@ -5,6 +5,7 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
 
   alias Archethic.DB.EmbeddedImpl.BootstrapInfo
   alias Archethic.DB.EmbeddedImpl.ChainWriter
+  alias Archethic.DB.EmbeddedImpl.ChainWriterSupervisor
   alias Archethic.DB.EmbeddedImpl.ChainIndex
   alias Archethic.DB.EmbeddedImpl.P2PView
   alias Archethic.DB.EmbeddedImpl.StatsInfo
@@ -21,16 +22,17 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
     path = Archethic.DB.EmbeddedImpl.db_path()
     Logger.info("Load database at #{path}")
     File.mkdir_p!(path)
-    :ets.new(:archethic_db_chain_writers, [:named_table, :public])
 
-    DynamicSupervisor.start_link(
-      strategy: :one_for_one,
-      name: Archethic.DB.EmbeddedImpl.ChainWriterSupervisor
-    )
-
-    initialize_chain_writers(path)
+    # Remove old things while in hot reload
+    # TODO remove after version 1.1.0
+    if :ets.whereis(:archethic_db_chain_writers) != :undefined do
+      :ets.delete(:archethic_db_chain_writers)
+      DynamicSupervisor.stop(ChainWriterSupervisor)
+    end
 
     children = [
+      {PartitionSupervisor,
+       child_spec: {ChainWriter, path: path}, name: ChainWriterSupervisor, partitions: 20},
       chain_index_cache(),
       {ChainIndex, path: path},
       {BootstrapInfo, path: path},
@@ -53,14 +55,5 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
            cache_max_size
          ]}
     }
-  end
-
-  defp initialize_chain_writers(path) do
-    Enum.each(0..19, fn i ->
-      DynamicSupervisor.start_child(
-        Archethic.DB.EmbeddedImpl.ChainWriterSupervisor,
-        {ChainWriter, path: path, partition: i}
-      )
-    end)
   end
 end
