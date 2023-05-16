@@ -5,14 +5,11 @@ defmodule ArchethicWeb.API.TransactionController do
 
   alias Archethic
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
-  alias Archethic.Crypto
   alias Archethic.Mining
-  alias Archethic.Election
   alias Archethic.OracleChain
 
   alias ArchethicWeb.API.TransactionPayload
@@ -155,19 +152,9 @@ defmodule ArchethicWeb.API.TransactionController do
           |> TransactionPayload.to_map()
           |> Transaction.cast()
           |> then(fn tx ->
-            # We add a fake ValidationStamp to the transaction
-            # because the Interpreter requires a timestamp
-            %Transaction{
-              tx
-              | validation_stamp: %ValidationStamp{
-                  timestamp: DateTime.utc_now(),
-                  protocol_version: Mining.protocol_version(),
-                  proof_of_work: Crypto.origin_node_public_key(),
-                  proof_of_election:
-                    Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-                  proof_of_integrity: TransactionChain.proof_of_integrity([tx])
-                }
-            }
+            # We add a dummy ValidationStamp to the transaction
+            # because the Interpreter requires a validated transaction
+            %Transaction{tx | validation_stamp: ValidationStamp.generate_dummy()}
           end)
 
         results =

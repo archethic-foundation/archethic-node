@@ -228,7 +228,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       incoming_tx = %Transaction{
         type: :transfer,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert {:ok, %Transaction{}} =
@@ -266,7 +266,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       incoming_tx = %Transaction{
         type: :transfer,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert {:ok, nil} =
@@ -303,7 +303,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       incoming_tx = %Transaction{
         type: :transfer,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -343,7 +343,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       incoming_tx = %Transaction{
         type: :transfer,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -384,7 +384,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       oracle_tx = %Transaction{
         type: :oracle,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -423,7 +423,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       incoming_tx = %Transaction{
         type: :transfer,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -547,7 +547,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       oracle_tx = %Transaction{
         type: :oracle,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert {:ok, %Transaction{}} =
@@ -584,7 +584,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       incoming_tx = %Transaction{
         type: :transfer,
         data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       calls = [
