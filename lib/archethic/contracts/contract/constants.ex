@@ -107,7 +107,7 @@ defmodule Archethic.Contracts.ContractConstants do
             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
           } ->
             transaction_movements
-            |> Enum.filter(&match?({:token, _}, &1.type))
+            |> Enum.filter(&match?({:token, _, _}, &1.type))
             |> Enum.reduce(%{}, fn %TransactionMovement{
                                      to: to,
                                      amount: amount,
