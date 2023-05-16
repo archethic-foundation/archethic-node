@@ -26,6 +26,7 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
     # TODO remove after version 1.1.0
     if :ets.whereis(:archethic_db_chain_writers) != :undefined do
       :ets.delete(:archethic_db_chain_writers)
+      Process.whereis(ChainWriterSupervisor) |> Process.unlink()
       DynamicSupervisor.stop(ChainWriterSupervisor)
     end
 

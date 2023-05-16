@@ -36,6 +36,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     {:ok, %{db_path: db_path}}
   end
 
+  def code_change("1.1.0-rc2", state, _) do
+    lru_pid = Process.whereis(Archethic.Db.ChainIndex.LRU)
+    Process.unlink(lru_pid)
+    Process.exit(lru_pid, :kill)
+    {:ok, state}
+  end
+
+  def code_change(_, state, _) do
+    {:ok, state}
+  end
+
   defp fill_tables(db_path) do
     Enum.each(0..255, fn subset ->
       subset_summary_filename = index_summary_path(db_path, subset)
