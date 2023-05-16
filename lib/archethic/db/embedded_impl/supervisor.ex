@@ -9,6 +9,8 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
   alias Archethic.DB.EmbeddedImpl.P2PView
   alias Archethic.DB.EmbeddedImpl.StatsInfo
 
+  alias ArchethicCache.LRU
+
   require Logger
 
   def start_link(arg \\ []) do
@@ -29,14 +31,28 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
     initialize_chain_writers(path)
 
     children = [
+      chain_index_cache(),
       {ChainIndex, path: path},
-      # {ChainWriter, path: path},
       {BootstrapInfo, path: path},
       {P2PView, path: path},
       {StatsInfo, path: path}
     ]
 
-    Supervisor.init(children, strategy: :rest_for_one)
+    Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  defp chain_index_cache() do
+    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
+
+    %{
+      id: :chain_index_cache,
+      start:
+        {LRU, :start_link,
+         [
+           :chain_index_cache,
+           cache_max_size
+         ]}
+    }
   end
 
   defp initialize_chain_writers(path) do
