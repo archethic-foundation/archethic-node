@@ -39,7 +39,7 @@ defmodule Archethic.Contracts.Contract do
         }
 
   @doc """
-  Create a contract from a transaction
+  Create a contract from a transaction. Same `from_transaction/1` but throws if the contract's code is invalid
   """
   @spec from_transaction!(Transaction.t()) :: t()
   def from_transaction!(tx = %Transaction{data: %TransactionData{code: code}})
@@ -50,6 +50,25 @@ defmodule Archethic.Contracts.Contract do
       contract
       | constants: %Constants{contract: Constants.from_transaction(tx)}
     }
+  end
+
+  @doc """
+  Create a contract from a transaction
+  """
+  @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
+  def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
+    case Interpreter.parse(code) do
+      {:ok, contract} ->
+        contract_with_constants = %__MODULE__{
+          contract
+          | constants: %Constants{contract: Constants.from_transaction(tx)}
+        }
+
+        {:ok, contract_with_constants}
+
+      {:error, _} = e ->
+        e
+    end
   end
 
   @doc """

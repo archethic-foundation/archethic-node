@@ -48,6 +48,7 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.Mining
   alias Archethic.Mining.Fee
   alias Archethic.Mining.ProofOfWork
+  alias Archethic.Mining.SmartContractValidation
 
   alias Archethic.OracleChain
 
@@ -747,7 +748,9 @@ defmodule Archethic.Mining.ValidationContext do
             tx,
             ledger_operations,
             unspent_outputs,
-            valid_pending_transaction?
+            valid_pending_transaction?,
+            resolved_addresses,
+            validation_time
           )
       }
       |> ValidationStamp.sign()
@@ -808,18 +811,22 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   @spec get_validation_error(
-          nil | Transaction.t(),
-          Transaction.t(),
-          LedgerOperations.t(),
-          list(UnspentOutput.t()),
-          boolean()
+          previous_transaction :: nil | Transaction.t(),
+          pending_transaction :: Transaction.t(),
+          ledger_operations :: LedgerOperations.t(),
+          unspent_outputs :: list(UnspentOutput.t()),
+          valid_pending_transaction :: boolean(),
+          resolve_addresses :: list(binary()),
+          validation_time :: DateTime.t()
         ) :: nil | ValidationStamp.error()
   defp get_validation_error(
          prev_tx,
          tx,
          ledger_operations,
          unspent_outputs,
-         valid_pending_transaction?
+         valid_pending_transaction?,
+         resolved_addresses,
+         validation_time
        ) do
     cond do
       chain_error?(prev_tx, tx) ->
@@ -832,7 +839,31 @@ defmodule Archethic.Mining.ValidationContext do
         :invalid_pending_transaction
 
       true ->
-        nil
+        get_smart_contract_error(tx, resolved_addresses, validation_time)
+    end
+  end
+
+  defp get_smart_contract_error(
+         %Transaction{data: %TransactionData{recipients: []}},
+         _resolved_addresses,
+         _validation_time
+       ),
+       do: nil
+
+  defp get_smart_contract_error(
+         tx = %Transaction{data: %TransactionData{recipients: recipients}},
+         resolved_addresses,
+         validation_time
+       ) do
+    valid? =
+      recipients
+      |> Enum.map(&Map.get(resolved_addresses, &1))
+      |> SmartContractValidation.valid_contract_calls?(tx, validation_time)
+
+    if valid? do
+      nil
+    else
+      :invalid_contract_execution
     end
   end
 
@@ -1110,7 +1141,9 @@ defmodule Archethic.Mining.ValidationContext do
            transaction: tx,
            previous_transaction: prev_tx,
            valid_pending_transaction?: valid_pending_transaction?,
-           unspent_outputs: unspent_outputs
+           unspent_outputs: unspent_outputs,
+           resolved_addresses: resolved_addresses,
+           validation_time: validation_time
          }
        ) do
     validated_context = %{context | transaction: %{tx | validation_stamp: stamp}}
@@ -1121,7 +1154,9 @@ defmodule Archethic.Mining.ValidationContext do
         tx,
         get_ledger_operations(validated_context),
         unspent_outputs,
-        valid_pending_transaction?
+        valid_pending_transaction?,
+        resolved_addresses,
+        validation_time
       )
 
     error == expected_error
@@ -1348,7 +1383,7 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   @doc """
-  Returns the entire list (availables) of the chain replication nodes 
+  Returns the entire list (availables) of the chain replication nodes
   """
   @spec get_full_chain_replication_nodes(t()) :: list(Node.t())
   def get_full_chain_replication_nodes(%__MODULE__{
