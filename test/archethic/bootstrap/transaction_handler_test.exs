@@ -12,14 +12,11 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
 
   alias Archethic.P2P.Node
 
-  alias Archethic.Replication
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   import Mox
-  import Mock
 
   test "create_node_transaction/4 should create transaction with ip and port encoded in the content" do
     assert %Transaction{
@@ -39,9 +36,7 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
              Node.decode_transaction_content(content)
   end
 
-  test_with_mock "send_transaction/2 should send the transaction to a welcome node",
-                 Replication,
-                 ingest_transaction: fn _, _, _ -> :ok end do
+  test "send_transaction/2 should send the transaction to a welcome node" do
     node = %Node{
       ip: {80, 10, 101, 202},
       port: 3005,
@@ -80,7 +75,6 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
         {:ok, validated_transaction}
     end)
 
-    assert :ok = TransactionHandler.send_transaction(tx, [node])
-    assert_called(Replication.ingest_transaction(validated_transaction, false, false))
+    assert {:ok, ^validated_transaction} = TransactionHandler.send_transaction(tx, [node])
   end
 end
