@@ -10,6 +10,8 @@ defmodule Archethic.Bootstrap do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias Archethic.Replication
+
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChain
 
@@ -279,9 +281,11 @@ defmodule Archethic.Bootstrap do
     tx =
       TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
 
-    :ok = TransactionHandler.send_transaction(tx, closest_nodes)
+    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_nodes)
 
     :ok = Sync.load_storage_nonce(closest_nodes)
+
+    Replication.sync_transaction_chain(validated_tx, closest_nodes)
   end
 
   defp update_node(ip, port, http_port, transport, patch, bootstrapping_seeds, reward_address) do
@@ -308,7 +312,9 @@ defmodule Archethic.Bootstrap do
             reward_address
           )
 
-        :ok = TransactionHandler.send_transaction(tx, closest_nodes)
+        {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_nodes)
+
+        Replication.sync_transaction_chain(validated_tx, closest_nodes)
     end
   end
 

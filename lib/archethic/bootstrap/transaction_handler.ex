@@ -10,9 +10,6 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   alias Archethic.P2P.Message.NewTransaction
   alias Archethic.P2P.Node
 
-  alias Archethic.Replication
-
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
@@ -24,7 +21,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   Send a transaction to the network towards a welcome node
   """
   @spec send_transaction(Transaction.t(), list(Node.t())) ::
-          :ok | {:error, :network_issue}
+          {:ok, Transaction.t()} | {:error, :network_issue}
   def send_transaction(tx = %Transaction{address: address}, nodes) do
     Logger.info("Send node transaction...",
       transaction_address: Base.encode16(address),
@@ -58,9 +55,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
 
         case Utils.await_confirmation(address, storage_nodes) do
           {:ok, validated_transaction = %Transaction{address: ^address, data: ^transaction_data}} ->
-            TransactionChain.write_transaction(validated_transaction)
-            Replication.ingest_transaction(validated_transaction, false, false)
-            :ok
+            {:ok, validated_transaction}
 
           {:ok, _} ->
             raise("Validated transaction does not correspond to transaction sent")
