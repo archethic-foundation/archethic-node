@@ -51,8 +51,8 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
     :node_shared_secrets
     |> TransactionChain.list_addresses_by_type()
-    |> Enum.at(-1)
-    |> load_node_shared_secrets_tx()
+    |> Stream.take(-2)
+    |> Enum.each(&load_node_shared_secrets_tx/1)
 
     {:ok, %{}}
   end
