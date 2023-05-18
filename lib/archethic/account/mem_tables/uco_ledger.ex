@@ -1,20 +1,5 @@
 defmodule Archethic.Account.MemTables.UCOLedger do
-  @moduledoc """
-  In-memory UCO Ledger: When inputs are within threshold.
-      - add_unspent_output handled in ETS
-      - get_unspent_outputs handled in ETS
-      - get_inputs handled in ETS
-      - spend_all_unspent_outputs , flush to DB file
-      (and inputs to be used as utxo for the next tx is handled by the new tx
-      which is dealt in load transaciton memtables laoder. And now it is the issue of new address and its new file )
-  In-DB UCO Ledger: When inputs are above threshold.
-      - add_unspent_output handled by flushing all inputs to DB file with spent true
-      - get_unspent_outputs handled by loading all inputs from DB file and returns as not spent, as utxo
-      which is handled by manually confirming whether they are utxo or spent,
-      - get_inputs, handled by read from DB file . and spent flag doesnt matter
-      - spend_all_unspent_outputs , we do nothing as we already flushed everything to DB file as spent
-      (and inputs to be used as utxo for the next tx is handled by the new tx and are remove the flag its in db.
-  """
+  @moduledoc false
   alias Archethic.{DB, TransactionChain}
   alias TransactionChain.{Transaction, TransactionInput, VersionedTransactionInput}
   alias Transaction.ValidationStamp.LedgerOperations.{UnspentOutput, VersionedUnspentOutput}

@@ -19,8 +19,6 @@ defmodule Archethic.Account do
   """
   @spec get_balance(Crypto.versioned_hash()) :: balance()
   def get_balance(address) when is_binary(address) do
-    # TODO
-    # replace with archethic.get inputs and returns utxo from inputs
     address
     |> get_unspent_outputs()
     |> Enum.reduce(%{uco: 0, token: %{}}, fn
