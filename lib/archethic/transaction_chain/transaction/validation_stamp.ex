@@ -350,6 +350,21 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     Crypto.verify?(signature, raw_stamp, public_key)
   end
 
+  @doc """
+  Generates a dummy ValidationStamp.
+  This should only be used in very specific cases
+  """
+  @spec generate_dummy() :: t()
+  def generate_dummy() do
+    %__MODULE__{
+      timestamp: DateTime.utc_now(),
+      protocol_version: 1,
+      proof_of_work: :crypto.strong_rand_bytes(32),
+      proof_of_election: :crypto.strong_rand_bytes(32),
+      proof_of_integrity: :crypto.strong_rand_bytes(32)
+    }
+  end
+
   defp serialize_error(nil), do: 0
   defp serialize_error(:invalid_pending_transaction), do: 1
   defp serialize_error(:invalid_inherit_constraints), do: 2

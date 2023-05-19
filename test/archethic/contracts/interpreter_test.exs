@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.InterpreterTest do
   alias Archethic.ContractFactory
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   doctest Interpreter
@@ -226,7 +227,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = %Transaction{
         type: :transfer,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert {:ok, %Transaction{}} =
@@ -263,7 +265,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = %Transaction{
         type: :transfer,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert {:ok, nil} =
@@ -299,7 +302,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = %Transaction{
         type: :transfer,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -338,7 +342,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = %Transaction{
         type: :transfer,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -378,7 +383,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       oracle_tx = %Transaction{
         type: :oracle,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -416,7 +422,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = %Transaction{
         type: :transfer,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert match?(
@@ -539,7 +546,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       oracle_tx = %Transaction{
         type: :oracle,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       assert {:ok, %Transaction{}} =
@@ -575,7 +583,8 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = %Transaction{
         type: :transfer,
-        data: %TransactionData{}
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
       }
 
       calls = [
