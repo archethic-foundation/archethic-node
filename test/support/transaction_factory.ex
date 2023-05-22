@@ -17,6 +17,7 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
 
   def create_valid_transaction(
         inputs \\ [],
@@ -27,11 +28,18 @@ defmodule Archethic.TransactionFactory do
     index = Keyword.get(opts, :index, 0)
     content = Keyword.get(opts, :content, "")
     code = Keyword.get(opts, :code, "")
+    ledger = Keyword.get(opts, :ledger, %Ledger{})
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
 
-    tx = Transaction.new(type, %TransactionData{content: content, code: code}, seed, index)
+    tx =
+      Transaction.new(
+        type,
+        %TransactionData{content: content, code: code, ledger: ledger},
+        seed,
+        index
+      )
 
     ledger_operations =
       %LedgerOperations{

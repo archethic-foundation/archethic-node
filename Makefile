@@ -10,11 +10,6 @@ compile_c_programs:
 	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/ed25519.c -o priv/c_dist/libsodium_port -I src/c/crypto/stdio_helpers.h -lsodium
 	$(CC) src/c/hypergeometric_distribution.c -o priv/c_dist/hypergeometric_distribution -lgmp
 
-	git submodule update --force --recursive --init --remote
-	$(MAKE) -C src/c/nat/miniupnp/miniupnpc
-	cp src/c/nat/miniupnp/miniupnpc/build/upnpc-static priv/c_dist/upnpc
-
-
 ifeq ($(TPM_INSTALLED),0)
 	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/tpm/lib.c src/c/crypto/tpm/port.c -o priv/c_dist/tpm_port -I src/c/crypto/stdio_helpers.h -I src/c/crypto/tpm/lib.h $(TPMFLAGS)
 	$(CC) src/c/crypto/tpm/keygen.c src/c/crypto/tpm/lib.c -o priv/c_dist/tpm_keygen -I src/c/crypto/tpm/lib.h $(TPMFLAGS)

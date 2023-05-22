@@ -62,6 +62,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     #   - "calls": the transactions that called this exact contract version
     #   - "contract": current contract transaction
     #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
+    #   - "_time_now": the time returned by Time.now()
+
     Scope.init(
       constants
       |> Map.put("next_transaction", initial_next_tx)

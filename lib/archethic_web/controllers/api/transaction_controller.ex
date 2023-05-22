@@ -5,10 +5,9 @@ defmodule ArchethicWeb.API.TransactionController do
 
   alias Archethic
 
-  alias Archethic.TransactionChain.{
-    Transaction,
-    TransactionData
-  }
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -152,6 +151,11 @@ defmodule ArchethicWeb.API.TransactionController do
           changeset
           |> TransactionPayload.to_map()
           |> Transaction.cast()
+          |> then(fn tx ->
+            # We add a dummy ValidationStamp to the transaction
+            # because the Interpreter requires a validated transaction
+            %Transaction{tx | validation_stamp: ValidationStamp.generate_dummy()}
+          end)
 
         results =
           Task.Supervisor.async_stream_nolink(

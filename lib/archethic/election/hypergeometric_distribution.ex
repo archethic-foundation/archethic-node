@@ -19,10 +19,6 @@ defmodule Archethic.Election.HypergeometricDistribution do
   alias Archethic.P2P.Node
   alias Archethic.PubSub
 
-  defp executable() do
-    Application.app_dir(:archethic, "/priv/c_dist/hypergeometric_distribution")
-  end
-
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -124,6 +120,10 @@ defmodule Archethic.Election.HypergeometricDistribution do
           {nb_nodes, result}
       end
     end)
+  end
+
+  defp executable do
+    Application.app_dir(:archethic, "/priv/c_dist/hypergeometric_distribution")
   end
 
   @doc """
