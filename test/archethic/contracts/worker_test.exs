@@ -597,15 +597,10 @@ defmodule Archethic.Contracts.WorkerTest do
       code = """
       @version 1
       condition transaction: []
-
       actions triggered_by: transaction do
         n = 10 / 0
         Contract.set_content n
       end
-
-      condition inherit: [
-        content: true
-      ]
       """
 
       {:ok, contract} = Interpreter.parse(code)

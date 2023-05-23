@@ -82,10 +82,9 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn is called with bad arg" do
-      assert {:error, "invalid function arguments - List.empty?(12) - L5"} =
+      assert {:error, "invalid function arguments - List.empty?(12) - L4"} =
                """
                @version 1
-               condition inherit: []
                condition transaction: []
                actions triggered_by: transaction do
                  x = List.empty?(12)
@@ -95,10 +94,9 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn is called with bad arity" do
-      assert {:error, "invalid function arity - List.empty?([1], \"foobar\") - L5"} =
+      assert {:error, "invalid function arity - List.empty?([1], \"foobar\") - L4"} =
                """
                @version 1
-               condition inherit: []
                condition transaction: []
                actions triggered_by: transaction do
                  x = List.empty?([1], "foobar")
@@ -108,10 +106,9 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn does not exists" do
-      assert {:error, "unknown function - List.non_existing([1, 2, 3]) - L5"} =
+      assert {:error, "unknown function - List.non_existing([1, 2, 3]) - L4"} =
                """
                @version 1
-               condition inherit: []
                condition transaction: []
                actions triggered_by: transaction do
                  x = List.non_existing([1,2,3])
@@ -124,20 +121,9 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:error, "Parse error: invalid language syntax"} =
                """
                @version 1
+               condition transaction: []
                actions triggered_by:transaction do
                 x = "missing space above"
-               end
-               """
-               |> Interpreter.parse()
-    end
-
-    test "should return an human readable error 'condition inherit' block is missing" do
-      assert {:error, "missing 'condition inherit' block"} =
-               """
-               @version 1
-               condition transaction: []
-               actions triggered_by: transaction do
-                Contract.set_content "symptomatic grizzly bear"
                end
                """
                |> Interpreter.parse()
@@ -147,7 +133,6 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:error, "missing 'condition transaction' block"} =
                """
                @version 1
-               condition inherit: []
                actions triggered_by: transaction do
                 Contract.set_content "snobbish chameleon"
                end
@@ -159,7 +144,6 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:error, "missing 'condition oracle' block"} =
                """
                @version 1
-               condition inherit: []
                actions triggered_by: oracle do
                 Contract.set_content "wise cow"
                end
@@ -207,12 +191,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return a transaction if the contract is correct and there was a Contract.* call" do
       code = """
         @version 1
-        condition inherit: [
-          content: "hello"
-        ]
-
         condition transaction: []
-
         actions triggered_by: transaction do
           Contract.set_content "hello"
         end
@@ -243,12 +222,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return nil when the contract is correct but no Contract.* call" do
       code = """
         @version 1
-        condition inherit: [
-          content: "hello"
-        ]
-
         condition transaction: []
-
         actions triggered_by: transaction do
           if false do
             Contract.set_content "hello"
@@ -317,13 +291,9 @@ defmodule Archethic.Contracts.InterpreterTest do
              )
     end
 
-    test "should return transaction constraints error when condition inherit fails" do
+    test "should return transaction constraints error when condition transaction fails" do
       code = """
         @version 1
-        condition inherit: [
-          content: true
-        ]
-
         condition transaction: [
           type: "data"
         ]
@@ -360,10 +330,6 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return oracle constraints error when condition oracle fails" do
       code = """
         @version 1
-        condition inherit: [
-          content: true
-        ]
-
         condition oracle: [
           type: "oracle",
           address: false
@@ -401,10 +367,6 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return contract_failure if contract code crash" do
       code = """
         @version 1
-        condition inherit: [
-          content: true
-        ]
-
         condition transaction: []
 
         actions triggered_by: transaction do
@@ -438,10 +400,6 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       code = """
         @version 1
-        condition inherit: [
-          content: true
-        ]
-
         condition transaction: []
 
         actions triggered_by: transaction do
@@ -470,10 +428,6 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to simulate a trigger: datetime" do
       code = """
         @version 1
-        condition inherit: [
-          content: "hello"
-        ]
-
         actions triggered_by: datetime, at: 1678984136 do
           Contract.set_content "hello"
         end
@@ -498,10 +452,6 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to simulate a trigger: interval" do
       code = """
         @version 1
-        condition inherit: [
-          content: "hello"
-        ]
-
         actions triggered_by: interval, at: "* * * * *" do
           Contract.set_content "hello"
         end
@@ -526,12 +476,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to simulate a trigger: oracle" do
       code = """
         @version 1
-        condition inherit: [
-          content: "hello"
-        ]
-
         condition oracle: []
-
         actions triggered_by: oracle do
           Contract.set_content "hello"
         end
@@ -562,12 +507,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to get_calls" do
       code = ~s"""
       @version 1
-      condition inherit: [
-        content: true
-      ]
-
       condition transaction: []
-
       actions triggered_by: transaction do
         calls = Contract.get_calls()
         Contract.set_content List.size(calls)
