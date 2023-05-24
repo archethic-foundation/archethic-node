@@ -28,4 +28,48 @@ defmodule Archethic.UtilsTest do
     assert_receive :bar, 100
     refute_receive :bar, 100
   end
+
+  describe "get_current_time_for_interval/2" do
+    test "should return a value truncated to the minute (* minute)" do
+      now = DateTime.utc_now()
+      now_minus_1 = now |> DateTime.add(-1, :minute)
+      datetime = Utils.get_current_time_for_interval("* * * * *", false)
+
+      assert %DateTime{second: 0, microsecond: {0, 0}} = datetime
+      assert DateTime.compare(datetime, now) == :lt
+      assert DateTime.compare(datetime, now_minus_1) == :gt
+    end
+
+    test "should return a value truncated to the minute (*/5 minute)" do
+      now = DateTime.utc_now()
+      now_minus_1 = now |> DateTime.add(-5, :minute)
+      datetime = Utils.get_current_time_for_interval("*/5 * * * *", false)
+
+      assert %DateTime{minute: minute, second: 0, microsecond: {0, 0}} = datetime
+      assert 0 == rem(minute, 5)
+      assert DateTime.compare(datetime, now) == :lt
+      assert DateTime.compare(datetime, now_minus_1) == :gt
+    end
+
+    test "should return a value truncated to the second (* second)" do
+      now = DateTime.utc_now()
+      now_minus_1 = now |> DateTime.add(-1, :second)
+      datetime = Utils.get_current_time_for_interval("* * * * *", true)
+
+      assert %DateTime{microsecond: {0, 0}} = datetime
+      assert DateTime.compare(datetime, now) == :lt
+      assert DateTime.compare(datetime, now_minus_1) == :gt
+    end
+
+    test "should return a value truncated to the second (*/2 second)" do
+      now = DateTime.utc_now()
+      now_minus_1 = now |> DateTime.add(-2, :second)
+      datetime = Utils.get_current_time_for_interval("*/2 * * * *", true)
+
+      assert %DateTime{second: second, microsecond: {0, 0}} = datetime
+      assert 0 == rem(second, 2)
+      assert DateTime.compare(datetime, now) == :lt
+      assert DateTime.compare(datetime, now_minus_1) == :gt
+    end
+  end
 end

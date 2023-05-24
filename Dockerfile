@@ -35,7 +35,8 @@ RUN apk add --no-cache --update \
   wget \
   openssl \
   libsodium-dev \
-  gmp-dev 
+  gmp-dev \
+  miniupnpc
 
 
 # Install hex and rebar
