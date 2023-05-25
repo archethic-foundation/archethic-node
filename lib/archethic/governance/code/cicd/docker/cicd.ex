@@ -236,7 +236,8 @@ defmodule Archethic.Governance.Code.CICD.Docker do
            docker_wait(validator_2_container, System.monotonic_time(:second)) do
       testnet_cleanup(dir, 0, address_encoded)
     else
-      _ ->
+      err ->
+        Logger.error("CD FAILED reason: #{inspect(err)}")
         testnet_cleanup(dir, 1, address_encoded)
     end
   end
