@@ -143,14 +143,20 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     :ok
   end
 
+  @logfile_name "ci_logfile.txt"
   @ci_script "/opt/code/scripts/governance/proposal_ci_job.sh"
 
   defp do_run_docker_ci(%Proposal{address: address, changes: changes, description: description}) do
     Logger.info("Verify proposal", address: Base.encode16(address))
     name = container_name(address)
 
+    System.cmd("rm", ["-f", "/tmp/#{@logfile_name}"])
+    System.cmd("touch", ["/tmp/#{@logfile_name}"])
+
     args = [
       "run",
+      "-v",
+      "/tmp/#{@logfile_name}:/opt/code/#{@logfile_name}",
       "--entrypoint",
       @ci_script,
       "-i",
@@ -242,7 +248,6 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     end
   end
 
-  @logfile_name "ci_logfile.txt"
   defp testnet_prepare(dir, address, version) do
     ci = container_name(address)
 
