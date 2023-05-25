@@ -284,7 +284,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
                P2P.authorized_and_available_nodes()
              )
 
-    assert_received :transaction_replicated
+    assert_receive :transaction_replicated
   end
 
   test "process_transaction/3 should handle the transaction and replicate it on attestation V1" do
@@ -334,7 +334,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
                P2P.authorized_and_available_nodes()
              )
 
-    assert_received :transaction_replicated
+    assert_receive :transaction_replicated
   end
 
   test "process_transaction/3 should raise an error if transaction is invalid on attestation V1" do

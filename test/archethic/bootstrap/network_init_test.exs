@@ -237,7 +237,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     NetworkInit.self_replication(tx)
 
-    assert_received :write_transaction
+    assert_receive :write_transaction
 
     subset = BeaconChain.subset_from_address(tx.address)
     [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
