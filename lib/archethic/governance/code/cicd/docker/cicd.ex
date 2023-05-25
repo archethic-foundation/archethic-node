@@ -209,7 +209,7 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     Logger.info("Running proposal", address: address_encoded)
 
     dir = temp_dir("utn-#{address_encoded}-")
-    nb_nodes = 5
+    nb_nodes = 3
 
     compose_prefix =
       dir
