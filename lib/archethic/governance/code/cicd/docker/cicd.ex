@@ -329,8 +329,6 @@ defmodule Archethic.Governance.Code.CICD.Docker do
   defp wait_for_marker_loop(port, marker) do
     receive do
       {^port, {:data, {:eol, line}}} ->
-        Logger.debug(line)
-
         if String.starts_with?(line, marker) do
           line
         else

@@ -25,6 +25,8 @@ defmodule Mix.Tasks.Archethic.Proposal.Validator do
   @impl Mix.Task
   @spec run([binary]) :: any
   def run(args) do
+    Application.ensure_all_started(:telemetry)
+
     case OptionParser.parse!(args,
            strict: [
              help: :boolean,
