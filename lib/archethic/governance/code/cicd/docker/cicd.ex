@@ -216,10 +216,10 @@ defmodule Archethic.Governance.Code.CICD.Docker do
       |> Path.basename()
       |> String.downcase()
 
-    validator_1_container = "#{compose_prefix}-validator_1-1"
-    validator_2_container = "#{compose_prefix}-validator_2-1"
+    validator_1_container = "#{compose_prefix}_validator_1_1"
+    validator_2_container = "#{compose_prefix}_validator_2_1"
 
-    nodes = 1..nb_nodes |> Enum.map(&"#{compose_prefix}-node#{&1}-1")
+    nodes = 1..nb_nodes |> Enum.map(&"#{compose_prefix}_node#{&1}_1")
 
     with :ok <- Logger.info("#{dir} Prepare", address: address_encoded),
          :ok <- testnet_prepare(dir, address, version),
