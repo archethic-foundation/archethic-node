@@ -296,7 +296,7 @@ defmodule Archethic.Governance.Code.CICD.Docker do
               raise "Upgrade failed"
           end
         end,
-        timeout: 30_000,
+        timeout: 120_000,
         ordered: false
       )
       |> Enum.into([])
