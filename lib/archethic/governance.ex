@@ -111,8 +111,8 @@ defmodule Archethic.Governance do
           recipients: [prop_address]
         }
       }) do
-
-    storage_nodes = Election.chain_storage_nodes(prop_address, P2P.authorized_and_available_nodes())
+    storage_nodes =
+      Election.chain_storage_nodes(prop_address, P2P.authorized_and_available_nodes())
 
     with true <- Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()),
          {:ok, prop} <- get_code_proposal(prop_address),
