@@ -153,6 +153,8 @@ defmodule Archethic.Governance.Code.CICD.Docker do
     System.cmd("rm", ["-f", "/tmp/#{@logfile_name}"])
     System.cmd("touch", ["/tmp/#{@logfile_name}"])
 
+    System.cmd(System.find_executable("docker"), ["rm", name])
+
     args = [
       "run",
       "-v",
