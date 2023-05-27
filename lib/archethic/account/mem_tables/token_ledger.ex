@@ -235,9 +235,6 @@ defmodule Archethic.Account.MemTables.TokenLedger do
           &%VersionedTransactionInput{&1 | input: %TransactionInput{&1.input | spent?: false}}
         )
 
-      [{^address, true}] ->
-        DB.get_inputs(:token, address)
-
       inputs ->
         Enum.map(inputs, fn {_, from, token_address, token_id} ->
           [{_, amount, spent?, timestamp, protocol_version}] =
