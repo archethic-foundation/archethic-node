@@ -358,7 +358,7 @@ defmodule Archethic.Contracts.Interpreter do
   defp execute_trigger(
          version,
          trigger_code,
-         contract,
+         _contract = %Contract{constants: %Constants{contract: contract_constants}},
          maybe_trigger_tx,
          calls,
          timestamp_now
@@ -374,7 +374,7 @@ defmodule Archethic.Contracts.Interpreter do
             # :oracle & :transaction
             Constants.from_transaction(trigger_tx)
         end,
-      "contract" => contract.constants.contract,
+      "contract" => contract_constants,
       "_time_now" => timestamp_now
     }
 

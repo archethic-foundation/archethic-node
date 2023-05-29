@@ -14,7 +14,10 @@ defmodule Archethic.P2P.Message.GetContractCallsTest do
   doctest GetContractCalls
 
   test "should serialize/deserialize properly" do
-    msg = %GetContractCalls{address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>}
+    msg = %GetContractCalls{
+      address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>,
+      before: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+    }
 
     assert msg ==
              msg
@@ -25,7 +28,11 @@ defmodule Archethic.P2P.Message.GetContractCallsTest do
 
   test "process/2 should work" do
     contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
-    msg = %GetContractCalls{address: contract_address}
+
+    msg = %GetContractCalls{
+      address: contract_address,
+      before: DateTime.utc_now() |> DateTime.add(10)
+    }
 
     tx1 = %Transaction{address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>}
     tx2 = %Transaction{address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>}
