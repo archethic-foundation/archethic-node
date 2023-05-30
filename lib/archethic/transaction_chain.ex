@@ -707,11 +707,11 @@ defmodule Archethic.TransactionChain do
   The result is returned in the shape of `{:ok, length}`.
   If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
   """
-  @spec fetch_size_remotely(Crypto.versioned_hash(), list(Node.t())) ::
+  @spec fetch_size(Crypto.prepended_hash(), list(Node.t())) ::
           {:ok, non_neg_integer()} | {:error, :network_issue}
-  def fetch_size_remotely(_, []), do: {:ok, 0}
+  def fetch_size(_, []), do: {:ok, 0}
 
-  def fetch_size_remotely(address, nodes) do
+  def fetch_size(address, nodes) do
     conflict_resolver = fn results ->
       Enum.max_by(results, & &1.length)
     end

@@ -646,7 +646,7 @@ defmodule Archethic.TransactionChainTest do
     end
   end
 
-  describe "fetch_size_remotely/2" do
+  describe "fetch_size/2" do
     test "should get the transaction chain length" do
       nodes = [
         %Node{
@@ -682,7 +682,7 @@ defmodule Archethic.TransactionChainTest do
         {:ok, %TransactionChainLength{length: 1}}
       end)
 
-      assert {:ok, 1} = TransactionChain.fetch_size_remotely("Alice1", nodes)
+      assert {:ok, 1} = TransactionChain.fetch_size("Alice1", nodes)
     end
 
     test "should resolve the longest transaction chain when conflicts" do
@@ -727,7 +727,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %TransactionChainLength{length: 1}}
       end)
 
-      assert {:ok, 2} = TransactionChain.fetch_size_remotely("Alice1", nodes)
+      assert {:ok, 2} = TransactionChain.fetch_size("Alice1", nodes)
     end
   end
 

@@ -410,7 +410,7 @@ defmodule Archethic do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
         nodes = Election.chain_storage_nodes(last_address, P2P.authorized_and_available_nodes())
-        TransactionChain.fetch_size_remotely(address, nodes)
+        TransactionChain.fetch_size(address, nodes)
 
       error ->
         error

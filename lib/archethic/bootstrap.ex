@@ -255,7 +255,7 @@ defmodule Archethic.Bootstrap do
     {:ok, length} =
       Crypto.first_node_public_key()
       |> Crypto.derive_address()
-      |> TransactionChain.fetch_size_remotely(closest_nodes)
+      |> TransactionChain.fetch_size(closest_nodes)
 
     Crypto.set_node_key_index(length)
 
