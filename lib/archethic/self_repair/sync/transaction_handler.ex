@@ -82,7 +82,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     timeout = Message.get_max_timeout()
 
     acceptance_resolver = fn
-      {:ok, %Transaction{address: ^address}} -> true
+      %Transaction{address: ^address} -> true
       _ -> false
     end
 

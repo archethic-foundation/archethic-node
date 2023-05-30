@@ -142,7 +142,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
     tx = TransactionFactory.create_valid_transaction(inputs)
 
-    modified_tx = %{tx | address: "@Bob"}
+    modified_tx = %{tx | type: :oracle}
 
     MockClient
     |> stub(:send_message, fn
