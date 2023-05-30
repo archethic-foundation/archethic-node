@@ -277,7 +277,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
     addr_bin = UtilsInterpreter.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_first_transaction_address_remotely(addr_bin, nodes) do
+    case TransactionChain.fetch_first_transaction_address(addr_bin, nodes) do
       {:ok, first_transaction_address} -> Base.encode16(first_transaction_address)
       {:error, reason} -> raise "[get_first_transaction_address]  #{inspect(reason)}"
     end

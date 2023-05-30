@@ -45,6 +45,7 @@ defmodule ArchethicCase do
     |> stub(:get_genesis_address, fn addr -> addr end)
     |> stub(:chain_size, fn _ -> 0 end)
     |> stub(:list_transactions_by_type, fn _, _ -> [] end)
+    |> stub(:list_chain_addresses, fn _ -> [] end)
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
     |> stub(:list_addresses_by_type, fn _ -> [] end)
     |> stub(:list_transactions, fn _ -> [] end)

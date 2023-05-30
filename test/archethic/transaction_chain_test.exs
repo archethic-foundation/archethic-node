@@ -779,8 +779,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %FirstTransactionAddress{address: "addr1", timestamp: DateTime.utc_now()}}
       end)
 
-      assert {:ok, "addr1"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_first_transaction_address("addr2", nodes)
     end
 
     test "when asked from genesis address", %{nodes: nodes} do
@@ -803,11 +802,10 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %NotFound{}}
       end)
 
-      assert {:ok, "addr0"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr0", nodes)
+      assert {:ok, "addr0"} = TransactionChain.fetch_first_transaction_address("addr0", nodes)
 
       assert {:error, :does_not_exist} =
-               TransactionChain.fetch_first_transaction_address_remotely(
+               TransactionChain.fetch_first_transaction_address(
                  "not_existing_address",
                  nodes
                )
@@ -831,8 +829,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %FirstTransactionAddress{address: "addr1", timestamp: ~U[2023-01-01 00:00:00Z]}}
       end)
 
-      assert {:ok, "addr1"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_first_transaction_address("addr2", nodes)
     end
 
     test "should resolve conflict when one node does not have the transaction", %{nodes: nodes} do
@@ -853,8 +850,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %FirstTransactionAddress{address: "addr1", timestamp: ~U[2023-01-01 00:00:00Z]}}
       end)
 
-      assert {:ok, "addr1"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_first_transaction_address("addr2", nodes)
     end
   end
 

@@ -758,9 +758,9 @@ defmodule Archethic.TransactionChain do
   @doc """
   Retrieve the First transaction address for a chain from P2P Quorom
   """
-  @spec fetch_first_transaction_address_remotely(address :: binary(), nodes :: list(Node.t())) ::
+  @spec fetch_first_transaction_address(address :: binary(), nodes :: list(Node.t())) ::
           {:ok, binary()} | {:error, :network_issue} | {:error, :does_not_exist}
-  def fetch_first_transaction_address_remotely(address, nodes)
+  def fetch_first_transaction_address(address, nodes)
       when is_binary(address) and is_list(nodes) do
     conflict_resolver = fn results ->
       case results |> Enum.reject(&match?(%NotFound{}, &1)) do
@@ -772,15 +772,25 @@ defmodule Archethic.TransactionChain do
       end
     end
 
-    case P2P.quorum_read(nodes, %GetFirstTransactionAddress{address: address}, conflict_resolver) do
-      {:ok, %NotFound{}} ->
-        {:error, :does_not_exist}
-
-      {:ok, %FirstTransactionAddress{address: first_address}} ->
+    case get_first_transaction_address(address) do
+      {:ok, {first_address, _}} ->
         {:ok, first_address}
 
       _ ->
-        {:error, :network_issue}
+        case P2P.quorum_read(
+               nodes,
+               %GetFirstTransactionAddress{address: address},
+               conflict_resolver
+             ) do
+          {:ok, %NotFound{}} ->
+            {:error, :does_not_exist}
+
+          {:ok, %FirstTransactionAddress{address: first_address}} ->
+            {:ok, first_address}
+
+          _ ->
+            {:error, :network_issue}
+        end
     end
   end
 
