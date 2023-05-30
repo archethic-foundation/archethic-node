@@ -445,17 +445,9 @@ defmodule Archethic do
   @doc """
   Retrieve the genesis address locally or remotely
   """
-  def fetch_genesis_address_remotely(address) do
-    case TransactionChain.get_genesis_address(address) do
-      ^address ->
-        # if returned address is same as given, it means the DB does not contain the value
-        nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-        TransactionChain.fetch_genesis_address_remotely(address, nodes)
-
-      genesis_address ->
-        {:ok, genesis_address}
-    end
+  def fetch_genesis_address(address) do
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    TransactionChain.fetch_genesis_address(address, nodes)
   end
 
   defdelegate list_transactions_summaries_from_current_slot(),

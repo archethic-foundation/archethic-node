@@ -733,19 +733,25 @@ defmodule Archethic.TransactionChain do
   Retrieve the genesis address for a chain from P2P Quorom
   It queries the the network for genesis address.
   """
-  @spec fetch_genesis_address_remotely(address :: binary(), list(Node.t())) ::
+  @spec fetch_genesis_address(address :: binary(), list(Node.t())) ::
           {:ok, binary()} | {:error, :network_issue}
-  def fetch_genesis_address_remotely(address, nodes) when is_binary(address) do
-    conflict_resolver = fn results ->
-      Enum.min_by(results, & &1.timestamp, DateTime)
-    end
+  def fetch_genesis_address(address, nodes) when is_binary(address) do
+    case get_genesis_address(address) do
+      ^address ->
+        conflict_resolver = fn results ->
+          Enum.min_by(results, & &1.timestamp, DateTime)
+        end
 
-    case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}, conflict_resolver) do
-      {:ok, %GenesisAddress{address: genesis_address}} ->
+        case P2P.quorum_read(nodes, %GetGenesisAddress{address: address}, conflict_resolver) do
+          {:ok, %GenesisAddress{address: genesis_address}} ->
+            {:ok, genesis_address}
+
+          _ ->
+            {:error, :network_issue}
+        end
+
+      genesis_address ->
         {:ok, genesis_address}
-
-      _ ->
-        {:error, :network_issue}
     end
   end
 

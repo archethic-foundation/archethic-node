@@ -897,7 +897,7 @@ defmodule Archethic.TransactionChainTest do
     end
   end
 
-  describe "fetch_genesis_address_remotely/2" do
+  describe "fetch_genesis_address/2" do
     setup do
       nodes = [
         %Node{
@@ -945,7 +945,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %GenesisAddress{address: "addr1", timestamp: DateTime.utc_now()}}
       end)
 
-      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
     end
 
     test "should resolve conflict when one node has a forked chain", %{nodes: nodes} do
@@ -966,7 +966,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %GenesisAddress{address: "addr1", timestamp: ~U[2023-01-01 00:00:00Z]}}
       end)
 
-      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
     end
   end
 end

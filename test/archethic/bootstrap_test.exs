@@ -579,7 +579,7 @@ defmodule Archethic.BootstrapTest do
       #                                                                 |
       # transaction_exists?(prev_txn\tx3) <- stream_previous_chain <- fetch_inputs
       #    |
-      # stream_transaction_chain(addr3/prev-tx) -> fetch_genesis_address_remotely ->
+      # stream_transaction_chain(addr3/prev-tx) -> fetch_genesis_address ->
       #                                                                 |
       # &TransactionChain.write/1 <- fetch(addr3,addr2) <- get_last_address(locally)
       #    |

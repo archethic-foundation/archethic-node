@@ -25,7 +25,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   @limit_page 10
 
   def get_genesis_address(address) do
-    case Archethic.fetch_genesis_address_remotely(address) do
+    case Archethic.fetch_genesis_address(address) do
       {:ok, genesis_address} ->
         {:ok, genesis_address}
 
@@ -52,7 +52,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   end
 
   def get_token(address) do
-    t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
+    t1 = Task.async(fn -> Archethic.fetch_genesis_address(address) end)
     t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),

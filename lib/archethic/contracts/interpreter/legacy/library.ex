@@ -221,7 +221,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
   @spec get_token_id(binary()) :: {:error, binary()} | binary()
   def get_token_id(address) do
     address = UtilsInterpreter.get_address(address, :get_token_id)
-    t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
+    t1 = Task.async(fn -> Archethic.fetch_genesis_address(address) end)
     t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
@@ -262,7 +262,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.Library do
     addr_bin = UtilsInterpreter.maybe_decode_hex(address)
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_genesis_address_remotely(addr_bin, nodes) do
+    case TransactionChain.fetch_genesis_address(addr_bin, nodes) do
       {:ok, genesis_address} -> Base.encode16(genesis_address)
       {:error, reason} -> raise "[get_genesis_address]  #{inspect(reason)}"
     end
