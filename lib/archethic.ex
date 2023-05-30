@@ -313,16 +313,19 @@ defmodule Archethic do
   @doc """
   Request to fetch the inputs for a transaction address from the closest nodes
   """
-  @spec get_transaction_inputs(binary()) :: list(TransactionInput.t())
-  def get_transaction_inputs(address) when is_binary(address) do
+  @spec get_transaction_inputs(Crypto.prepended_hash(), non_neg_integer(), non_neg_integer()) ::
+          list(TransactionInput.t())
+  def get_transaction_inputs(address, paging_offset \\ 0, limit \\ 0)
+      when is_binary(address) and is_integer(paging_offset) and paging_offset >= 0 and
+             is_integer(limit) and limit >= 0 do
     # check the last transaction inputs to determine if a utxo is spent or not
     {:ok, latest_address} = get_last_transaction_address(address)
 
     if latest_address == address do
-      do_get_transaction_inputs(address)
+      do_get_transaction_inputs(address, paging_offset, limit)
     else
-      latest_tx_inputs = do_get_transaction_inputs(latest_address)
-      current_tx_inputs = do_get_transaction_inputs(address)
+      latest_tx_inputs = do_get_transaction_inputs(latest_address, paging_offset, limit)
+      current_tx_inputs = do_get_transaction_inputs(address, paging_offset, limit)
 
       Enum.map(current_tx_inputs, fn input ->
         spent? =
@@ -335,31 +338,12 @@ defmodule Archethic do
     end
   end
 
-  defp do_get_transaction_inputs(address) do
+  defp do_get_transaction_inputs(address, paging_offset, limit) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     address
-    |> TransactionChain.stream_inputs_remotely(nodes, DateTime.utc_now())
+    |> TransactionChain.fetch_inputs(nodes, DateTime.utc_now(), paging_offset, limit)
     |> Enum.to_list()
-  end
-
-  @doc """
-  Request to fetch the inputs for a transaction address from the closest nodes at a given page
-  """
-  @spec get_transaction_inputs(
-          binary(),
-          paging_offset :: non_neg_integer(),
-          limit :: non_neg_integer()
-        ) :: list(TransactionInput.t())
-  def get_transaction_inputs(address, page, limit)
-      when is_binary(address) and is_integer(page) and page >= 0 and is_integer(limit) and
-             limit >= 0 do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    {inputs, _more?, _offset} =
-      TransactionChain.fetch_inputs_remotely(address, nodes, DateTime.utc_now(), page, limit)
-
-    inputs
   end
 
   @doc """

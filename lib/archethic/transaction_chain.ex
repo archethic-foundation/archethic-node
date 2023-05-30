@@ -580,20 +580,35 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Stream the trnasaction inputs for a transaction address at a given time
+  Stream the transaction inputs for a transaction address at a given time
+
+  If the inputs exist, then they are returned in the shape of `{:ok, inputs}`.
+  If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
   """
-  @spec stream_inputs_remotely(binary(), list(Node.t()), DateTime.t()) ::
-          Enumerable.t() | list(TransactionInput.t())
-  def stream_inputs_remotely(_, [], _, _), do: []
+  @spec fetch_inputs(
+          address :: Crypto.prepended_hash(),
+          list(Node.t()),
+          DateTime.t(),
+          offset :: non_neg_integer(),
+          limit :: non_neg_integer()
+        ) :: Enumerable.t() | list(TransactionInput.t())
+  def fetch_inputs(address, nodes, timestamp, offset \\ 0, limit \\ 0)
+  def fetch_inputs(_, [], _, _, _), do: []
 
-  def stream_inputs_remotely(address, nodes, timestamp) do
+  def fetch_inputs(address, nodes, timestamp = %DateTime{}, offset, limit) do
     Stream.resource(
-      fn -> fetch_inputs_remotely(address, nodes, timestamp) end,
+      fn -> {limit, do_fetch_inputs(address, nodes, timestamp, offset, limit)} end,
       fn
-        {inputs, true, offset} ->
-          {inputs, fetch_inputs_remotely(address, nodes, timestamp, offset)}
+        {previous_limit, {inputs, true, offset}} ->
+          new_limit = previous_limit - length(inputs)
 
-        {inputs, false, _} ->
+          if new_limit <= 0 do
+            {inputs, :eof}
+          else
+            {inputs, {new_limit, do_fetch_inputs(address, nodes, timestamp, offset, limit)}}
+          end
+
+        {_, {inputs, false, _}} ->
           {inputs, :eof}
 
         :eof ->
@@ -603,25 +618,9 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  @doc """
-  Fetch the transaction inputs for a transaction address at a given time
-
-  If the inputs exist, then they are returned in the shape of `{:ok, inputs}`.
-  If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
-  """
-  @spec fetch_inputs_remotely(
-          address :: Crypto.versioned_hash(),
-          list(Node.t()),
-          DateTime.t(),
-          limit :: non_neg_integer()
-        ) ::
-          {inputs :: list(TransactionInput.t()), more? :: boolean(), offset :: non_neg_integer()}
-  def fetch_inputs_remotely(address, nodes, timestamp, offset \\ 0, limit \\ 0)
-  def fetch_inputs_remotely(_, [], _, _, _), do: {[], false, 0}
-
-  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{}, offset, limit)
-      when is_binary(address) and is_list(nodes) and is_integer(offset) and offset >= 0 and
-             is_integer(limit) and limit >= 0 do
+  defp do_fetch_inputs(address, nodes, timestamp = %DateTime{}, offset, limit)
+       when is_binary(address) and is_list(nodes) and is_integer(offset) and offset >= 0 and
+              is_integer(limit) and limit >= 0 do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.inputs), :desc)

@@ -577,7 +577,7 @@ defmodule Archethic.BootstrapTest do
       #    |
       # transaction_exists? -> fetch_context(tx) -> get_last_txn (db then -> remote check)
       #                                                                 |
-      # transaction_exists?(prev_txn\tx3) <- stream_previous_chain <- fetch_inputs_remotely
+      # transaction_exists?(prev_txn\tx3) <- stream_previous_chain <- fetch_inputs
       #    |
       # stream_transaction_chain(addr3/prev-tx) -> fetch_genesis_address_remotely ->
       #                                                                 |

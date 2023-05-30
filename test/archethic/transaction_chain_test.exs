@@ -368,7 +368,7 @@ defmodule Archethic.TransactionChainTest do
     end
   end
 
-  describe "fetch_inputs_remotely/2" do
+  describe "fetch_inputs/5" do
     test "should get the inputs" do
       nodes = [
         %Node{
@@ -418,8 +418,9 @@ defmodule Archethic.TransactionChainTest do
          }}
       end)
 
-      assert {[%TransactionInput{from: "Alice2", amount: 10, type: :UCO}], _more?, _offset} =
-               TransactionChain.fetch_inputs_remotely("Alice1", nodes, DateTime.utc_now())
+      assert [%TransactionInput{from: "Alice2", amount: 10, type: :UCO}] =
+               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
+               |> Enum.to_list()
     end
 
     test "should resolve the longest inputs when conflicts" do
@@ -499,9 +500,9 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert {[%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}], _more?,
-              _offset} =
-               TransactionChain.fetch_inputs_remotely("Alice1", nodes, DateTime.utc_now())
+      assert [%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}] =
+               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
+               |> Enum.to_list()
     end
   end
 

@@ -58,7 +58,7 @@ defmodule Archethic.Replication.TransactionContext do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     address
-    |> TransactionChain.stream_inputs_remotely(storage_nodes, timestamp)
+    |> TransactionChain.fetch_inputs(storage_nodes, timestamp)
     |> Enum.to_list()
   end
 end
