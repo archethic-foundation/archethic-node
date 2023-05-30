@@ -557,8 +557,8 @@ defmodule Archethic.TransactionChainTest do
          }}
       end)
 
-      assert {[%UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: ^timestamp}],
-              _more?, _offset} = TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
+      assert [%UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: ^timestamp}] =
+               TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
     end
 
     test "should resolve the longest utxos when conflicts" do
@@ -639,11 +639,10 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert {[
-                %UnspentOutput{from: "Alice2", timestamp: ^timestamp},
-                %UnspentOutput{from: "Bob3", timestamp: ^timestamp}
-              ], _more?,
-              _offset} = TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
+      assert [
+               %UnspentOutput{from: "Alice2", timestamp: ^timestamp},
+               %UnspentOutput{from: "Bob3", timestamp: ^timestamp}
+             ] = TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
     end
   end
 

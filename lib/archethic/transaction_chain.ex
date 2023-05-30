@@ -648,19 +648,19 @@ defmodule Archethic.TransactionChain do
   @doc """
   Stream the transaction unspent outputs for a transaction address
   """
-  @spec stream_unspent_outputs_remotely(
-          address :: Crypto.versioned_hash(),
+  @spec fetch_unspent_outputs(
+          address :: Crypto.prepended_hash(),
           list(Node.t())
         ) :: Enumerable.t() | list(UnspentOutput.t())
-  def stream_unspent_outputs_remotely(_, []), do: []
+  def fetch_unspent_outputs(_, []), do: []
 
-  def stream_unspent_outputs_remotely(address, nodes)
+  def fetch_unspent_outputs(address, nodes)
       when is_binary(address) and is_list(nodes) do
     Stream.resource(
-      fn -> fetch_unspent_outputs_remotely(address, nodes) end,
+      fn -> do_fetch_inspent_outputs(address, nodes) end,
       fn
         {utxos, true, offset} ->
-          {utxos, fetch_unspent_outputs_remotely(address, nodes, offset)}
+          {utxos, do_fetch_inspent_outputs(address, nodes, offset)}
 
         {utxos, false, _} ->
           {utxos, :eof}
@@ -672,14 +672,9 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  @doc """
-  Fetch the unspent outputs
-  """
-  @spec fetch_unspent_outputs_remotely(binary(), list(Node.t()), non_neg_integer()) ::
-          {list(UnspentOutput.t()), boolean(), non_neg_integer() | nil}
-  def fetch_unspent_outputs_remotely(address, nodes, offset \\ 0)
+  defp do_fetch_inspent_outputs(address, nodes, offset \\ 0)
 
-  def fetch_unspent_outputs_remotely(address, nodes, offset) do
+  defp do_fetch_inspent_outputs(address, nodes, offset) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.unspent_outputs), :desc)

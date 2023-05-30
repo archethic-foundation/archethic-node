@@ -76,7 +76,7 @@ defmodule Archethic.Mining.TransactionContext do
       )
 
     utxos =
-      TransactionChain.stream_unspent_outputs_remotely(
+      TransactionChain.fetch_unspent_outputs(
         previous_address,
         unspent_outputs_nodes_split
       )
