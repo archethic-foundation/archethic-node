@@ -12,6 +12,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.Subset.P2PSampling
 
+  alias Archethic.Election
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
@@ -223,7 +225,12 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
           summary_aggregate
 
         :lt ->
-          case BeaconChain.fetch_summaries_aggregate(next_datetime_summary_time, authorized_nodes) do
+          storage_nodes =
+            next_datetime_summary_time
+            |> Crypto.derive_beacon_aggregate_address()
+            |> Election.chain_storage_nodes(authorized_nodes)
+
+          case BeaconChain.fetch_summaries_aggregate(next_datetime_summary_time, storage_nodes) do
             {:ok, summary} -> summary
             error -> error
           end

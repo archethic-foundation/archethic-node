@@ -296,7 +296,12 @@ defmodule Archethic.SelfRepair.Notifier do
   end
 
   defp download_and_store_summary(summary_time, prev_available_nodes) do
-    case BeaconChain.fetch_summaries_aggregate(summary_time, prev_available_nodes) do
+    storage_nodes =
+      summary_time
+      |> Crypto.derive_beacon_aggregate_address()
+      |> Election.chain_storage_nodes(prev_available_nodes)
+
+    case BeaconChain.fetch_summaries_aggregate(summary_time, storage_nodes) do
       {:ok, aggregate} ->
         Logger.debug("Notifier store beacon aggregate for #{summary_time}")
         BeaconChain.write_summaries_aggregate(aggregate)

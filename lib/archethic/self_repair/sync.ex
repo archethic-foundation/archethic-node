@@ -153,7 +153,13 @@ defmodule Archethic.SelfRepair.Sync do
     # Fetch the beacon summaries aggregate
     |> Task.async_stream(fn date ->
       Logger.debug("Fetch summary aggregate for #{date}")
-      BeaconChain.fetch_summaries_aggregate(date, download_nodes)
+
+      storage_nodes =
+        date
+        |> Crypto.derive_beacon_aggregate_address()
+        |> Election.chain_storage_nodes(download_nodes)
+
+      BeaconChain.fetch_summaries_aggregate(date, storage_nodes)
     end)
     |> Stream.filter(fn
       {:ok, {:ok, %SummaryAggregate{}}} ->

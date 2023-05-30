@@ -424,14 +424,12 @@ defmodule Archethic do
   @spec fetch_summaries_aggregate(DateTime.t()) ::
           {:ok, BeaconChain.SummaryAggregate.t()} | {:error, atom()}
   def fetch_summaries_aggregate(date) do
-    case BeaconChain.get_summaries_aggregate(date) do
-      {:error, :not_exists} ->
-        nodes = P2P.authorized_and_available_nodes()
-        BeaconChain.fetch_summaries_aggregate(date, nodes)
+    storage_nodes =
+      date
+      |> Crypto.derive_beacon_aggregate_address()
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
 
-      {:ok, aggregate} ->
-        {:ok, aggregate}
-    end
+    BeaconChain.fetch_summaries_aggregate(date, storage_nodes)
   end
 
   @doc """
