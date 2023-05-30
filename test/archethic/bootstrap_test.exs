@@ -581,7 +581,7 @@ defmodule Archethic.BootstrapTest do
       #    |
       # stream_transaction_chain(addr3/prev-tx) -> fetch_genesis_address_remotely ->
       #                                                                 |
-      # &TransactionChain.write/1 <- stream_remotely(addr3,addr2) <- get_last_address(locally)
+      # &TransactionChain.write/1 <- fetch(addr3,addr2) <- get_last_address(locally)
       #    |
       #   write_transaction(tx4) -> ingest txn4
       assert_receive({:write_transaction, ^addr3})

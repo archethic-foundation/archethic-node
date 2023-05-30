@@ -12,8 +12,6 @@ defmodule Archethic do
 
   alias Archethic.Crypto
 
-  alias Archethic.DB
-
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -370,44 +368,20 @@ defmodule Archethic do
   """
   @spec get_transaction_chain_by_paging_address(binary(), binary() | nil, :asc | :desc) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def get_transaction_chain_by_paging_address(address, paging_address, :asc)
-      when is_binary(address) do
+  def get_transaction_chain_by_paging_address(address, paging_address, order) do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
-        with {local_chain, false, _} <-
-               DB.get_transaction_chain(address, [], paging_state: paging_address, order: :asc),
-             %Transaction{address: ^last_address} <- List.last(local_chain) do
-          {:ok, local_chain}
-        else
-          {local_chain, true, _} ->
-            # Local chain already contains 10 transactions
-            {:ok, local_chain}
+        storage_nodes =
+          Election.chain_storage_nodes(last_address, P2P.authorized_and_available_nodes())
 
-          _ ->
-            last_address
-            |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-            |> TransactionChain.fetch_transaction_chain(last_address, paging_address, order: :asc)
-        end
+        transactions =
+          TransactionChain.fetch(last_address, storage_nodes,
+            paging_address: paging_address,
+            order: order
+          )
+          |> Enum.take(10)
 
-      error ->
-        error
-    end
-  end
-
-  def get_transaction_chain_by_paging_address(address, paging_address, :desc)
-      when is_binary(address) do
-    case get_last_transaction_address(address) do
-      {:ok, last_address} ->
-        if TransactionChain.transaction_exists?(last_address) do
-          {chain, _, _} =
-            DB.get_transaction_chain(address, [], paging_state: paging_address, order: :desc)
-
-          {:ok, chain}
-        else
-          last_address
-          |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-          |> TransactionChain.fetch_transaction_chain(address, paging_address, order: :desc)
-        end
+        {:ok, transactions}
 
       error ->
         error

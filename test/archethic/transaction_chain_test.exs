@@ -201,7 +201,7 @@ defmodule Archethic.TransactionChainTest do
     end
   end
 
-  describe "stream_remotely/2" do
+  describe "fetch/3" do
     test "should get the transaction chain" do
       nodes = [
         %Node{
@@ -243,10 +243,59 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert 1 =
-               TransactionChain.stream_remotely("Alice1", nodes)
-               |> Enum.to_list()
-               |> length()
+      assert 1 = TransactionChain.fetch("Alice1", nodes) |> Enum.count()
+    end
+
+    test "should get transactions from db and remote" do
+      nodes = [
+        %Node{
+          first_public_key: "node1",
+          last_public_key: "node1",
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          available?: true,
+          availability_history: <<1::1>>
+        },
+        %Node{
+          first_public_key: "node2",
+          last_public_key: "node2",
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          available?: true,
+          availability_history: <<1::1>>
+        },
+        %Node{
+          first_public_key: "node3",
+          last_public_key: "node3",
+          ip: {127, 0, 0, 1},
+          port: 3002,
+          available?: true,
+          availability_history: <<1::1>>
+        }
+      ]
+
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
+
+      MockDB
+      |> expect(:get_genesis_address, fn _ -> "Alice0" end)
+      |> expect(:get_transaction_chain, fn _, _, _ ->
+        {[%Transaction{address: "Alice1"}], false, nil}
+      end)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{address: _}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: [
+               %Transaction{address: "Alice2"}
+             ]
+           }}
+      end)
+
+      assert ["Alice1", "Alice2"] =
+               TransactionChain.fetch("Alice2", nodes)
+               |> Enum.map(& &1.address)
     end
 
     test "should resolve the longest chain" do
@@ -315,10 +364,7 @@ defmodule Archethic.TransactionChainTest do
           %TransactionChainLength{length: 1}
       end)
 
-      assert 5 =
-               TransactionChain.stream_remotely("Alice1", nodes)
-               |> Enum.to_list()
-               |> length()
+      assert 5 = TransactionChain.fetch("Alice1", nodes) |> Enum.count()
     end
   end
 
