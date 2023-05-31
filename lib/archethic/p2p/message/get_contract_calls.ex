@@ -25,7 +25,7 @@ defmodule Archethic.P2P.Message.GetContractCalls do
 
     # will crash if a task did not succeed
     transactions =
-      Task.async_stream(transaction_addresses, &TransactionChain.get_transaction(&1))
+      Task.async_stream(transaction_addresses, &TransactionChain.get_transaction(&1, [], :io))
       |> Stream.map(fn {:ok, {:ok, tx}} -> tx end)
       |> Enum.to_list()
 
