@@ -320,7 +320,9 @@ defmodule Archethic do
     if latest_address == address do
       do_get_transaction_inputs(address, paging_offset, limit)
     else
-      latest_tx_inputs = do_get_transaction_inputs(latest_address, paging_offset, limit)
+      # TODO: latest inputs can be huge, we should have an other way to determine if a inputs
+      # is spent or not 
+      latest_tx_inputs = do_get_transaction_inputs(latest_address, 0, 0)
       current_tx_inputs = do_get_transaction_inputs(address, paging_offset, limit)
 
       Enum.map(current_tx_inputs, fn input ->
