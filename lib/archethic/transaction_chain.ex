@@ -32,12 +32,14 @@ defmodule Archethic.TransactionChain do
     GetTransactionChain,
     GetTransactionChainLength,
     GetTransactionInputs,
+    GetTransactionSummary,
     GetUnspentOutputs,
     LastTransactionAddress,
     NotFound,
     TransactionChainLength,
     TransactionInputList,
     TransactionList,
+    TransactionSummaryMessage,
     UnspentOutputList,
     GetFirstTransactionAddress,
     FirstTransactionAddress
@@ -917,16 +919,47 @@ defmodule Archethic.TransactionChain do
   defdelegate clear_pending_transactions(address), to: PendingLedger, as: :remove_address
 
   @doc """
-  Determine if the transaction exists
-  """
-  @spec transaction_exists?(binary(), DB.storage_type()) :: boolean()
-  defdelegate transaction_exists?(address, storage_type \\ :chain), to: DB
-
-  @doc """
   Get the number of transactions for a given type
   """
   @spec count_transactions_by_type(type :: Transaction.transaction_type()) :: non_neg_integer()
   defdelegate count_transactions_by_type(type), to: DB
+
+  @doc """
+  Determine if the transaction exists locally
+  """
+  @spec transaction_exists?(Crypto.prepended_hash(), DB.storage_type()) :: boolean()
+  defdelegate transaction_exists?(address, storage_type \\ :chain), to: DB
+
+  @doc """
+  Determine if the transaction exists on the locally or in the network
+  """
+  @spec transaction_exists_globally?(Crypto.prepended_hash(), list(Node.t())) :: boolean()
+  def transaction_exists_globally?(address, nodes) do
+    if transaction_exists?(address) do
+      true
+    else
+      conflict_resolver = fn results ->
+        # Prioritize transactions results over not found
+        case Enum.filter(results, &match?(%TransactionSummaryMessage{}, &1)) do
+          [] ->
+            %NotFound{}
+
+          res ->
+            Enum.sort_by(res, & &1.transaction_summary.timestamp, {:desc, DateTime})
+            |> List.first()
+        end
+      end
+
+      case P2P.quorum_read(nodes, %GetTransactionSummary{address: address}, conflict_resolver) do
+        {:ok,
+         %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^address}}} ->
+          true
+
+        _ ->
+          false
+      end
+    end
+  end
 
   @doc """
   Produce a proof of integrity for a given chain.

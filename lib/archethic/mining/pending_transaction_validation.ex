@@ -5,10 +5,9 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.{Governance, Networking, OracleChain, P2P, Reward, P2P.Message, P2P.Node}
   alias Archethic.{SharedSecrets.NodeRenewal, Utils, TransactionChain}
 
-  alias Message.{FirstPublicKey, GetFirstPublicKey, GetTransactionSummary}
-  alias Message.{TransactionSummaryMessage, NotFound}
+  alias Message.{FirstPublicKey, GetFirstPublicKey}
 
-  alias TransactionChain.{Transaction, TransactionData, TransactionSummary}
+  alias TransactionChain.{Transaction, TransactionData}
   alias TransactionData.{Ledger, Ownership, UCOLedger, TokenLedger}
 
   alias Archethic.Governance.Code.Proposal, as: CodeProposal
@@ -90,32 +89,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp valid_not_exists(%Transaction{address: address}) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    conflict_resolver = fn results ->
-      # Prioritize transactions results over not found
-      case Enum.filter(results, &match?(%TransactionSummaryMessage{}, &1)) do
-        [] ->
-          %NotFound{}
-
-        res ->
-          Enum.sort_by(res, & &1.transaction_summary.timestamp, {:desc, DateTime})
-          |> List.first()
-      end
-    end
-
-    case P2P.quorum_read(
-           storage_nodes,
-           %GetTransactionSummary{address: address},
-           conflict_resolver
-         ) do
-      {:ok,
-       %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^address}}} ->
-        {:error, "Transaction already exists"}
-
-      {:ok, %NotFound{}} ->
-        :ok
-
-      {:error, _} = e ->
-        e
+    if TransactionChain.transaction_exists_globally?(address, storage_nodes) do
+      {:error, "Transaction already exists"}
+    else
+      :ok
     end
   end
 

@@ -22,12 +22,9 @@ defmodule Archethic do
     Balance,
     Error,
     GetBalance,
-    GetTransactionSummary,
     NewTransaction,
-    NotFound,
     Ok,
-    StartMining,
-    TransactionSummaryMessage
+    StartMining
   }
 
   alias Archethic.SelfRepair
@@ -41,7 +38,6 @@ defmodule Archethic do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
 
@@ -460,37 +456,7 @@ defmodule Archethic do
   """
   @spec transaction_exists?(binary()) :: boolean()
   def transaction_exists?(address) do
-    if TransactionChain.transaction_exists?(address) do
-      # if it exists locally, no need to query the network
-      true
-    else
-      storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-      conflict_resolver = fn results ->
-        # Prioritize transactions results over not found
-        case Enum.filter(results, &match?(%TransactionSummaryMessage{}, &1)) do
-          [] ->
-            %NotFound{}
-
-          [%{transaction_summary: first} | _] ->
-            first
-        end
-      end
-
-      case P2P.quorum_read(
-             storage_nodes,
-             %GetTransactionSummary{address: address},
-             conflict_resolver
-           ) do
-        {:ok, %TransactionSummary{address: ^address}} ->
-          true
-
-        {:ok, %NotFound{}} ->
-          false
-
-        {:error, e} ->
-          raise e
-      end
-    end
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    TransactionChain.transaction_exists_globally?(address, storage_nodes)
   end
 end
