@@ -7,7 +7,6 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
   alias Archethic.P2P.Message.ValidateSmartContractCall
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   doctest ValidateSmartContractCall
@@ -40,7 +39,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
              @version 1
 
              condition transaction: [
-               content: "hola"
+               content: transaction.timestamp < 5000000000
              ]
 
              actions triggered_by: transaction do
@@ -54,8 +53,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       incoming_tx = %Transaction{
         data: %TransactionData{
           content: "hola"
-        },
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        }
       }
 
       assert %SmartContractCallValidation{valid?: true} =
@@ -91,8 +89,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       incoming_tx = %Transaction{
         data: %TransactionData{
           content: "hi"
-        },
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        }
       }
 
       assert %SmartContractCallValidation{valid?: false} =
