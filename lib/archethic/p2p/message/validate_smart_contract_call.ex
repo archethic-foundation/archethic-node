@@ -11,6 +11,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.Utils
 
   @type t :: %__MODULE__{
@@ -159,7 +160,14 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
         },
         _
       ) do
-    # the datetime is used for library function Time.now()
+    # During the validation of a call there is no validation_stamp yet.
+    # We need one because the contract might want to access transaction.timestamp
+    # which is bound to validation_stamp.timestamp
+    transaction = %Transaction{
+      transaction
+      | validation_stamp: ValidationStamp.generate_dummy()
+    }
+
     valid? =
       with {:ok, contract_tx} <- TransactionChain.get_transaction(contract_address),
            {:ok, contract} <- Contracts.from_transaction(contract_tx),
