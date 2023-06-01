@@ -454,7 +454,7 @@ defmodule Archethic.BeaconChain do
   def fetch_summaries_aggregate(summary_time = %DateTime{}, nodes) do
     case get_summaries_aggregate(summary_time) do
       {:ok, aggregate} ->
-        aggregate
+        {:ok, aggregate}
 
       {:error, _} ->
         conflict_resolver = fn results ->
