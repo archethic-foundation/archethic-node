@@ -650,7 +650,7 @@ defmodule Archethic.TransactionChain do
   def fetch_contract_calls(contract_address) do
     conflict_resolver = fn results ->
       results
-      |> Enum.sort_by(&length(&1.inputs), :desc)
+      |> Enum.sort_by(&length(&1.transactions), :desc)
       |> List.first()
     end
 
