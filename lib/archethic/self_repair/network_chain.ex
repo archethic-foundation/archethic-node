@@ -140,7 +140,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
 
     case last_transaction do
       {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_timestamp}}} ->
-        validation_timestamp >= last_schedule_date
+        DateTime.compare(validation_timestamp, last_schedule_date) != :lt
 
       _ ->
         false
