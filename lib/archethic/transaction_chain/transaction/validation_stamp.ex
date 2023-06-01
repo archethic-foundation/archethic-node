@@ -359,10 +359,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   Generates a dummy ValidationStamp.
   This should only be used in very specific cases
   """
-  @spec generate_dummy() :: t()
-  def generate_dummy() do
+  @spec generate_dummy(Keyword.t()) :: t()
+  def generate_dummy(opts \\ []) do
     %__MODULE__{
-      timestamp: DateTime.utc_now(),
+      timestamp: Keyword.get(opts, :timestamp, DateTime.utc_now()),
       protocol_version: 1,
       proof_of_work: :crypto.strong_rand_bytes(32),
       proof_of_election: :crypto.strong_rand_bytes(32),

@@ -165,7 +165,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     # which is bound to validation_stamp.timestamp
     transaction = %Transaction{
       transaction
-      | validation_stamp: ValidationStamp.generate_dummy()
+      | validation_stamp: ValidationStamp.generate_dummy(timestamp: datetime)
     }
 
     valid? =
