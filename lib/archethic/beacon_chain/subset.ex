@@ -467,7 +467,10 @@ defmodule Archethic.BeaconChain.Subset do
       ) do
     new_state =
       Enum.reduce(postponed_attestations, state, fn attestation, acc ->
-        Map.update!(acc, :current_slot, &Slot.add_transaction_attestation(&1, attestation))
+        Map.update!(acc, :current_slot, fn current_slot ->
+          {_, updated_slot} = Slot.add_transaction_attestation(current_slot, attestation)
+          updated_slot
+        end)
       end)
       |> Map.delete(:postponed)
 
