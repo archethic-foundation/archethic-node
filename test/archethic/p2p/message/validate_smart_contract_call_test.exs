@@ -71,7 +71,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
-               |> ValidateSmartContractCall.process()
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
 
     test "should validate smart contract call and return invalid message" do
@@ -113,7 +113,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
-               |> ValidateSmartContractCall.process()
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
 
     test "should validate smart contract call based on the inputs" do
@@ -195,7 +195,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
-               |> ValidateSmartContractCall.process()
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
   end
 end

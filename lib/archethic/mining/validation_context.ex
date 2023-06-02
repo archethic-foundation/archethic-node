@@ -857,7 +857,7 @@ defmodule Archethic.Mining.ValidationContext do
        ) do
     valid? =
       recipients
-      |> Enum.map(&Map.get(resolved_addresses, &1))
+      |> Enum.map(&(Map.new(resolved_addresses) |> Map.get(&1)))
       |> SmartContractValidation.valid_contract_calls?(tx, validation_time)
 
     if valid? do

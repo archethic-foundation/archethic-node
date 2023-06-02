@@ -148,11 +148,14 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     }
   end
 
-  def process(%__MODULE__{
-        contract_address: contract_address,
-        transaction: transaction = %Transaction{},
-        inputs_before: inputs_before
-      }) do
+  def process(
+        %__MODULE__{
+          contract_address: contract_address,
+          transaction: transaction = %Transaction{},
+          inputs_before: inputs_before
+        },
+        _
+      ) do
     valid? =
       with {:ok, contract_tx} <- TransactionChain.get_transaction(contract_address),
            {:ok, contract} <- Contracts.from_transaction(contract_tx),
