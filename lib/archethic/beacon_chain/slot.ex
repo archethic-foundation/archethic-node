@@ -636,7 +636,7 @@ defmodule Archethic.BeaconChain.Slot do
   """
   @spec transform(binary(), t()) :: t()
   def transform(
-        "1.0.8",
+        "1.1.0",
         slot = %__MODULE__{transaction_attestations: attestations}
       ) do
     if Enum.any?(attestations, fn %ReplicationAttestation{version: version} -> version == 1 end) do
@@ -645,7 +645,7 @@ defmodule Archethic.BeaconChain.Slot do
           TaskSupervisor,
           attestations,
           fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
-            new_summary = TransactionSummary.transform("1.0.8", summary)
+            new_summary = TransactionSummary.transform("1.1.0", summary)
             %ReplicationAttestation{attestation | transaction_summary: new_summary}
           end,
           max_concurrency: System.schedulers_online() * 10

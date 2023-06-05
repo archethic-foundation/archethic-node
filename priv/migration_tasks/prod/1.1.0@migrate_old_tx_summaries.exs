@@ -1,4 +1,4 @@
-defmodule Migration_1_0_8 do
+defmodule Migration_1_1_0 do
   @moduledoc false
 
   alias Archethic.TaskSupervisor
@@ -46,7 +46,7 @@ defmodule Migration_1_0_8 do
     replication_attestations =
       Task.Supervisor.async_stream(
         TaskSupervisor,
-        tx_summaries, 
+        tx_summaries,
         fn tx_summary ->
           create_attestation(tx_summary)
         end,
@@ -101,7 +101,7 @@ defmodule Migration_1_0_8 do
   end
 
   defp create_attestation(tx_summary) do
-    new_tx_summary = TransactionSummary.transform("1.0.8", tx_summary)
+    new_tx_summary = TransactionSummary.transform("1.1.0", tx_summary)
     %ReplicationAttestation{version: 1, transaction_summary: new_tx_summary}
   end
 

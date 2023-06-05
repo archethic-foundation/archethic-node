@@ -99,7 +99,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   def handle_call(:get_current_slot, _from, state = %{current_slot: current_slot}) do
-    current_slot = Slot.transform("1.0.8", current_slot)
+    current_slot = Slot.transform("1.1.0", current_slot)
     {:reply, current_slot, state}
   end
 
@@ -353,7 +353,7 @@ defmodule Archethic.BeaconChain.Subset do
   defp broadcast_beacon_slot(subset, next_time, slot) do
     nodes = P2P.authorized_and_available_nodes(next_time, true)
 
-    slot = Slot.transform("1.0.8", slot)
+    slot = Slot.transform("1.1.0", slot)
 
     subset
     |> Election.beacon_storage_nodes(next_time, nodes)
