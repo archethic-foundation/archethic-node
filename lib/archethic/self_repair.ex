@@ -254,11 +254,10 @@ defmodule Archethic.SelfRepair do
     with false <- TransactionChain.transaction_exists?(address),
          storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
          {:ok, tx} <-
-           TransactionChain.fetch_transaction_remotely(
-             address,
-             storage_nodes,
-             timeout,
-             acceptance_resolver
+           TransactionChain.fetch_transaction(address, storage_nodes,
+             search_mode: :remote,
+             timeout: timeout,
+             acceptance_resolver: acceptance_resolver
            ) do
       # TODO: Also download replication attestation from beacon nodes to ensure validity of the transaction
       if storage? do

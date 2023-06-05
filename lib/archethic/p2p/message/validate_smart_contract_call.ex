@@ -7,6 +7,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   defstruct [:contract_address, :transaction, :inputs_before]
 
   alias Archethic.Contracts
+  alias Archethic.Election
+  alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -159,7 +161,10 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     valid? =
       with {:ok, contract_tx} <- TransactionChain.get_transaction(contract_address),
            {:ok, contract} <- Contracts.from_transaction(contract_tx),
-           {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, inputs_before) do
+           nodes <-
+             Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes()),
+           {:ok, calls} <-
+             TransactionChain.fetch_contract_calls(contract_address, nodes, inputs_before) do
         Contracts.valid_contract_execution?(contract, transaction, calls)
       else
         _ ->

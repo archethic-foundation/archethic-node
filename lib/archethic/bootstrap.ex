@@ -255,18 +255,19 @@ defmodule Archethic.Bootstrap do
     {:ok, length} =
       Crypto.first_node_public_key()
       |> Crypto.derive_address()
-      |> TransactionChain.fetch_size_remotely(closest_nodes)
+      |> TransactionChain.fetch_size(closest_nodes)
 
     Crypto.set_node_key_index(length)
 
     reward_address =
       if length > 0 do
         {:ok, last_address} =
-          Crypto.derive_address(Crypto.first_node_public_key())
-          |> TransactionChain.fetch_last_address_remotely(closest_nodes)
+          Crypto.first_node_public_key()
+          |> Crypto.derive_address()
+          |> TransactionChain.fetch_last_address(closest_nodes)
 
         {:ok, %Transaction{data: %TransactionData{content: content}}} =
-          TransactionChain.fetch_transaction_remotely(last_address, closest_nodes)
+          TransactionChain.fetch_transaction(last_address, closest_nodes)
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
          _key_certificate} = Node.decode_transaction_content(content)

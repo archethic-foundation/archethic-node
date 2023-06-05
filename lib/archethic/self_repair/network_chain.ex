@@ -4,6 +4,8 @@ defmodule Archethic.SelfRepair.NetworkChain do
   """
   alias Archethic.Crypto
 
+  alias Archethic.Election
+
   alias Archethic.OracleChain
 
   alias Archethic.P2P
@@ -148,7 +150,9 @@ defmodule Archethic.SelfRepair.NetworkChain do
   end
 
   defp validate_last_address(genesis_address) do
-    case TransactionChain.resolve_last_address(genesis_address) do
+    nodes = Election.chain_storage_nodes(genesis_address, P2P.authorized_and_available_nodes())
+
+    case TransactionChain.fetch_last_address(genesis_address, nodes) do
       {:ok, remote_last_address} ->
         {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
 
