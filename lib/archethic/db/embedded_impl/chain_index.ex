@@ -36,10 +36,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     {:ok, %{db_path: db_path}}
   end
 
-  def code_change("1.1.0-rc2", state, _) do
-    lru_pid = Process.whereis(Archethic.Db.ChainIndex.LRU)
-    Process.unlink(lru_pid)
-    Process.exit(lru_pid, :kill)
+  def code_change("1.0.7", state, _) do
+    :ets.delete(:archethic_db_tx_index)
     {:ok, state}
   end
 
