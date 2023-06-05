@@ -1,13 +1,31 @@
 defmodule Archethic.Mining.PendingTransactionValidationTest do
   use ArchethicCase, async: false
 
-  alias Archethic.{Crypto, P2P, P2P.Node, P2P.Message, SharedSecrets, TransactionChain}
-  alias Archethic.{Mining.PendingTransactionValidation, Reward.Scheduler}
+  alias Archethic.Crypto
 
-  alias SharedSecrets.{MemTables.NetworkLookup, MemTables.OriginKeyLookup}
-  alias Message.{FirstPublicKey, GetFirstPublicKey, GetTransactionSummary, NotFound}
-  alias TransactionChain.{Transaction, TransactionData}
-  alias TransactionData.{Ledger, Ownership, TokenLedger, UCOLedger}
+  alias Archethic.Mining.PendingTransactionValidation
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.FirstPublicKey
+  alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GetFirstPublicKey
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GetTransactionSummary
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Node
+
+  alias Archethic.Reward.Scheduler
+
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
   alias TokenLedger.Transfer, as: TokenTransfer
@@ -26,8 +44,12 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     })
 
     MockClient
-    |> stub(:send_message, fn _, %GetTransactionSummary{}, _ ->
-      {:ok, %NotFound{}}
+    |> stub(:send_message, fn
+      _, %GetTransactionSummary{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetGenesisAddress{address: address}, _ ->
+        {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
     end)
 
     on_exit(fn ->

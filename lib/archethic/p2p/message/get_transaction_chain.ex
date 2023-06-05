@@ -6,7 +6,7 @@ defmodule Archethic.P2P.Message.GetTransactionChain do
   defstruct [:address, :paging_state, order: :asc]
 
   alias Archethic.Crypto
-  alias Archethic.TransactionChain
+  alias Archethic.DB
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.Utils
 
@@ -28,7 +28,7 @@ defmodule Archethic.P2P.Message.GetTransactionChain do
       ) do
     {chain, more?, paging_state} =
       tx_address
-      |> TransactionChain.get([], paging_state: paging_state, order: order)
+      |> DB.get_transaction_chain([], paging_state: paging_state, order: order)
 
     # empty list for fields/cols to be processed
     # new_page_state contains binary offset for the next page

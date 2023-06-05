@@ -68,7 +68,9 @@ defmodule Archethic.P2P.MessageId do
     ReplicationAttestationMessage,
     GetNetworkStats,
     NetworkStats,
-    GetContractCalls
+    GetContractCalls,
+    ValidateSmartContractCall,
+    SmartContractCallValidation
   }
 
   alias Archethic.TransactionChain.{
@@ -93,7 +95,7 @@ defmodule Archethic.P2P.MessageId do
     AddMiningContext => 8,
     CrossValidate => 9,
     CrossValidationDone => 10,
-    # Message number 11 is available
+    ValidateSmartContractCall => 11,
     ReplicateTransaction => 12,
     AcknowledgeStorage => 13,
     NotifyEndOfNodeSync => 14,
@@ -125,6 +127,7 @@ defmodule Archethic.P2P.MessageId do
     GetContractCalls => 40,
 
     # Responses
+    SmartContractCallValidation => 226,
     NetworkStats => 227,
     FirstTransactionAddress => 228,
     AddressList => 229,

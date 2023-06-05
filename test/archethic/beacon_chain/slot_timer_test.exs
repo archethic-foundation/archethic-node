@@ -84,7 +84,7 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
 
     Process.sleep(200)
 
-    for _ <- 1..256, do: assert_received({:create_slot, _})
+    for _ <- 1..256, do: assert_receive({:create_slot, _})
     refute_received {:create_slot, _}
   end
 

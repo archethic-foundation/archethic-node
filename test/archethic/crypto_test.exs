@@ -62,7 +62,7 @@ defmodule CryptoTest do
                Crypto.ec_encrypt(storage_nonce, Crypto.last_node_public_key())
              )
 
-    assert_received {:nonce, ^storage_nonce}
+    assert_receive {:nonce, ^storage_nonce}
   end
 
   test "encrypt_storage_nonce/1 should encrypt storage nonce using a public key" do
@@ -108,7 +108,7 @@ defmodule CryptoTest do
       }
 
       assert :ok = Crypto.load_transaction(tx)
-      assert_received :inc_node_shared_key_index
+      assert_receive :inc_node_shared_key_index
     end
 
     test "should decrypt and load node shared secrets seeds" do

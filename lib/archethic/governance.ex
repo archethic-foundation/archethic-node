@@ -38,7 +38,7 @@ defmodule Archethic.Governance do
 
       Proposal.add_approvals(
         proposal,
-        TransactionChain.list_signatures_for_pending_transaction(tx.address)
+        TransactionChain.get_signatures_for_pending_transaction(tx.address)
       )
     end)
   end
@@ -51,7 +51,7 @@ defmodule Archethic.Governance do
     case TransactionChain.get_transaction(address, @proposal_tx_select_fields) do
       {:ok, tx} ->
         {:ok, prop} = Proposal.from_transaction(tx)
-        signatures = TransactionChain.list_signatures_for_pending_transaction(address)
+        signatures = TransactionChain.get_signatures_for_pending_transaction(address)
         prop = Proposal.add_approvals(prop, signatures)
         {:ok, prop}
 

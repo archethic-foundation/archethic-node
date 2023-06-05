@@ -358,7 +358,7 @@ defmodule Archethic.Contracts.Interpreter do
   defp execute_trigger(
          version,
          trigger_code,
-         contract,
+         _contract = %Contract{constants: %Constants{contract: contract_constants}},
          maybe_trigger_tx,
          calls,
          timestamp_now
@@ -374,7 +374,7 @@ defmodule Archethic.Contracts.Interpreter do
             # :oracle & :transaction
             Constants.from_transaction(trigger_tx)
         end,
-      "contract" => contract.constants.contract,
+      "contract" => contract_constants,
       "_time_now" => timestamp_now
     }
 
@@ -384,23 +384,30 @@ defmodule Archethic.Contracts.Interpreter do
   defp valid_inherit_condition?(
          %Contract{
            version: version,
-           conditions: %{inherit: condition_inherit},
+           conditions: conditions,
            constants: %{contract: contract_constants}
          },
          next_tx,
          timestamp_now,
          opts
        ) do
+    # remove the this flag as soon as the validation workflow change
     if Keyword.get(opts, :skip_inherit_check?, false) do
       true
     else
-      constants_inherit = %{
-        "previous" => contract_constants,
-        "next" => Constants.from_transaction(next_tx),
-        "_time_now" => timestamp_now
-      }
+      case Map.get(conditions, :inherit) do
+        nil ->
+          true
 
-      valid_conditions?(version, condition_inherit, constants_inherit)
+        inherit_condition ->
+          constants_inherit = %{
+            "previous" => contract_constants,
+            "next" => Constants.from_transaction(next_tx),
+            "_time_now" => timestamp_now
+          }
+
+          valid_conditions?(version, inherit_condition, constants_inherit)
+      end
     end
   end
 
@@ -520,9 +527,6 @@ defmodule Archethic.Contracts.Interpreter do
 
       Map.has_key?(triggers, :oracle) and !Map.has_key?(conditions, :oracle) ->
         {:error, "missing 'condition oracle' block"}
-
-      !Map.has_key?(conditions, :inherit) ->
-        {:error, "missing 'condition inherit' block"}
 
       true ->
         {:ok, contract}

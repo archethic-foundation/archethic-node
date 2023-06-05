@@ -69,7 +69,7 @@ defmodule Archethic.SelfRepair.SyncTest do
 
     :ok = Sync.store_last_sync_date(last_sync_date)
 
-    assert_received {:last_sync_time, ^last_sync_time}
+    assert_receive {:last_sync_time, ^last_sync_time}
   end
 
   describe "load_missed_transactions/2" do
@@ -238,7 +238,7 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-86_400))
 
-      assert_received :storage
+      assert_receive :storage
     end
   end
 
@@ -487,7 +487,7 @@ defmodule Archethic.SelfRepair.SyncTest do
                  P2P.authorized_and_available_nodes()
                )
 
-      assert_received :transaction_stored
+      assert_receive :transaction_stored
     end
   end
 

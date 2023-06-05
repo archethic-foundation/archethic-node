@@ -110,11 +110,11 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
       iex> {:ok, _pid} = PendingLedger.start_link()
       iex> :ok = PendingLedger.add_address("@Alice2")
       iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
-      iex> PendingLedger.list_signatures("@Alice2")
+      iex> PendingLedger.get_signatures("@Alice2")
       ["@Alice2", "@Bob3"]
   """
-  @spec list_signatures(binary()) :: list(binary())
-  def list_signatures(address) when is_binary(address) do
+  @spec get_signatures(binary()) :: list(binary())
+  def get_signatures(address) when is_binary(address) do
     Enum.map(:ets.lookup(@table_name, address), fn {_, sig} -> sig end)
   end
 

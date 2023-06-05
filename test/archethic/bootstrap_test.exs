@@ -571,17 +571,17 @@ defmodule Archethic.BootstrapTest do
       assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
 
       # flow
-      # get_gen_addr(:pers_term) -> resolve_last_address ->   get_last_address
+      # get_gen_addr(:pers_term) -> fetch_last_address ->   get_last_address
       #                                                         |
-      # validate_and_store_transaction_chain <-   fetch_transaction_remotely
+      # validate_and_store_transaction_chain <-   fetch_transaction
       #    |
       # transaction_exists? -> fetch_context(tx) -> get_last_txn (db then -> remote check)
       #                                                                 |
-      # transaction_exists?(prev_txn\tx3) <- stream_previous_chain <- fetch_inputs_remotely
+      # transaction_exists?(prev_txn\tx3) <- stream_previous_chain <- fetch_inputs
       #    |
-      # stream_transaction_chain(addr3/prev-tx) -> fetch_genesis_address_remotely ->
+      # stream_transaction_chain(addr3/prev-tx) -> fetch_genesis_address ->
       #                                                                 |
-      # &TransactionChain.write/1 <- stream_remotely(addr3,addr2) <- get_last_address(locally)
+      # &TransactionChain.write/1 <- fetch(addr3,addr2) <- get_last_address(locally)
       #    |
       #   write_transaction(tx4) -> ingest txn4
       assert_receive({:write_transaction, ^addr3})
