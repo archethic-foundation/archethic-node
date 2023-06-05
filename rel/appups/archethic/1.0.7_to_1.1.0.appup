@@ -1,4 +1,4 @@
-{"1.1.0-rc5",
+{"1.1.0",
  [{"1.0.7",
    [{add_module,'Elixir.Archethic.BeaconChain.NetworkCoordinates'},
     {add_module,'Elixir.Archethic.BeaconChain.Subset.StatsCollector'},
@@ -681,8 +681,6 @@
             ['Elixir.Archethic.Crypto','Elixir.Archethic.DB',
              'Elixir.Archethic.SharedSecrets',
              'Elixir.Archethic.TransactionChain']},
-    {apply,{supervisor, terminate_child, ['Elixir.Archethic.Crypto.KeystoreSupervisor', 'Elixir.Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl']}},
-    {apply,{supervisor, restart_child, ['Elixir.Archethic.Crypto.KeystoreSupervisor', 'Elixir.Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl']}},
     {update,'Elixir.Archethic.DB.EmbeddedImpl.ChainIndex',
             {advanced,[]},
             brutal_purge,soft_purge,
@@ -1054,7 +1052,7 @@
                                 type => supervisor
 			  }
     ]}}, 
-    {apply,{'Elixir.Mix.Tasks.Archethic.Migrate',run,["1.1.0-rc5",true]}}]}],
+    {apply,{'Elixir.Mix.Tasks.Archethic.Migrate',run,["1.1.0",true]}}]}],
  [{"1.0.7",
    [{delete_module,'Elixir.Archethic.BeaconChain.NetworkCoordinates'},
     {delete_module,'Elixir.Archethic.BeaconChain.Subset.StatsCollector'},

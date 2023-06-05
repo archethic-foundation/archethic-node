@@ -71,30 +71,13 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
           :ets.insert(@table_name, {subset, slot})
 
         {subset, slot} ->
-          slot = Slot.transform("1.0.8", slot)
+          slot = Slot.transform("1.1.0", slot)
           backup_slot(slot, "")
           :ets.insert(@table_name, {subset, slot})
       end)
     end)
 
     Utils.mut_dir("slot_backup") |> File.rm()
-
-    {:ok, state}
-  end
-
-  def code_change("1.1.0-rc1", state, _extra) do
-    backup_path = DateTime.utc_now() |> SummaryTimer.next_summary() |> recover_path()
-    backup_path_temp = backup_path <> "_temp"
-    File.rename(backup_path, backup_path_temp)
-
-    Enum.each(BeaconChain.list_subsets(), fn subset ->
-      :ets.lookup(@table_name, subset)
-      |> Enum.each(fn {_subset, {slot, pub_key}} ->
-        backup_slot(slot, pub_key)
-      end)
-    end)
-
-    File.rm(backup_path_temp)
 
     {:ok, state}
   end
