@@ -2,72 +2,71 @@ name: Elixir CI
 
 on:
   push:
-    branches: [ master, develop, testnet ]
+    branches: [master, develop, testnet]
   pull_request:
-    branches: [ master, develop, testnet ]
+    branches: [master, develop, testnet]
 
 env:
   MIX_ENV: test
 
 jobs:
   build:
-
     name: Build and test
     runs-on: ubuntu-20.04
-    
+
     steps:
-    - name: Install OS Packages
-      uses: mstksg/get-package@2a4b48d55d72d43ca89ae58ec9ca1397d34a1c35
-      with:
-        apt-get: libgmp-dev libssl-dev libtinfo-dev libsystemd-dev zlib1g-dev libsodium-dev autoconf-archive libcmocka0 libcmocka-dev procps iproute2 build-essential git pkg-config gcc libtool automake libssl-dev uthash-dev autoconf doxygen libjson-c-dev libini-config-dev libcurl4-openssl-dev libltdl-dev libtss2-dev tss2
-    - uses: actions/checkout@v2
-    - name: Set up Elixir
-      uses: erlef/setup-beam@988e02bfe678367a02564f65ca2e37726dc0268f
-      id: beam
-      with:
-        elixir-version: '1.14.1' # Define the elixir version [required]
-        otp-version: '25.1' # Define the OTP version [required]
-    - name: Restore dependencies cache
-      uses: actions/cache@v3
-      id: mix-cache
-      with:
-        path: deps
-        key: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-
-    - name: Make Clean
-      run: mix clean
-    - name: Install dependencies
-      if: steps.mix-cache.outputs.cache-hit != 'true'
-      run: mix deps.get
-    - name: Check dependency updates
-      run: mix hex.outdated --within-requirements 1>/dev/null || echo 'Updates available!'
-    - name: Set Formatting
-      run: mix format --check-formatted
-    - name: Restore build cache
-      uses: actions/cache@v3
-      with:
-        path: _build
-        key: ${{ runner.os }}-build-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-
-    - name: Compile the codebase
-      run: mix compile --warnings-as-errors
-    - name: Set credo
-      run: mix credo 
-    - name: Run Sobelow
-      run: mix sobelow 
-    - name: Run tests
-      run: mix test --trace
-    - name: Retrieve PLT Cache
-      uses: actions/cache@v3
-      id: plt-cache
-      with:
-        path: priv/plts
-        key: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
-    - name: Create PLTs
-      if: steps.plt-cache.outputs.cache-hit != 'true'
-      run: |
-        mkdir -p priv/plts
-        mix dialyzer --plt
-    - name: Run dialyzer
-      run: mix dialyzer --no-check --ignore-exit-status
+      - name: Install OS Packages
+        uses: mstksg/get-package@2a4b48d55d72d43ca89ae58ec9ca1397d34a1c35
+        with:
+          apt-get: libgmp-dev libssl-dev libtinfo-dev libsystemd-dev zlib1g-dev libsodium-dev autoconf-archive libcmocka0 libcmocka-dev procps iproute2 build-essential git pkg-config gcc libtool automake libssl-dev uthash-dev autoconf doxygen libjson-c-dev libini-config-dev libcurl4-openssl-dev libltdl-dev libtss2-dev tss2
+      - uses: actions/checkout@v2
+      - name: Set up Elixir
+        uses: erlef/setup-beam@988e02bfe678367a02564f65ca2e37726dc0268f
+        id: beam
+        with:
+          elixir-version: "1.14.1" # Define the elixir version [required]
+          otp-version: "25.1" # Define the OTP version [required]
+      - name: Restore dependencies cache
+        uses: actions/cache@v3
+        id: mix-cache
+        with:
+          path: deps
+          key: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-
+      - name: Make Clean
+        run: mix clean
+      - name: Install dependencies
+        if: steps.mix-cache.outputs.cache-hit != 'true'
+        run: mix deps.get
+      - name: Check dependency updates
+        run: mix hex.outdated --within-requirements 1>/dev/null || echo 'Updates available!'
+      - name: Set Formatting
+        run: mix format --check-formatted
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: _build
+          key: ${{ runner.os }}-build-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-build-
+      - name: Compile the codebase
+        run: mix compile --warnings-as-errors
+      - name: Set credo
+        run: mix credo
+      - name: Run Sobelow
+        run: mix sobelow
+      - name: Run tests
+        run: mix test --trace
+      - name: Retrieve PLT Cache
+        uses: actions/cache@v3
+        id: plt-cache
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
+      - name: Create PLTs
+        if: steps.plt-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p priv/plts
+          mix dialyzer --plt
+      - name: Run dialyzer
+        run: mix dialyzer --no-check --ignore-exit-status

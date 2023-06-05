@@ -3,20 +3,10 @@ defmodule Archethic.Governance.Code do
   Provide functions to handle the code management and deployment
   """
 
-  alias Archethic.Crypto
-
-  alias Archethic.Election
-
   alias __MODULE__.CICD
   alias __MODULE__.Proposal
 
   alias Archethic.Governance.Pools
-
-  alias Archethic.P2P
-
-  alias Archethic.TransactionChain
-
-  alias Archethic.Utils
 
   @src_dir Application.compile_env(:archethic, :src_dir)
 
@@ -41,17 +31,23 @@ defmodule Archethic.Governance.Code do
   @doc """
   Determine if the code proposal can be deployed into testnet
   """
-  @spec testnet_deployment?(binary()) :: boolean()
-  def testnet_deployment?(proposal_address) when is_binary(proposal_address) do
-    storage_nodes =
-      Election.chain_storage_nodes(proposal_address, P2P.authorized_and_available_nodes())
+  @spec enough_code_approval?(Proposal.t()) :: boolean()
+  def enough_code_approval?(%Proposal{approvals: approvals}) do
+    ratio = length(approvals) / length(Pools.members_of(:technical_council))
+    ratio >= Pools.threshold_acceptance_for(:technical_council)
+  end
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
-      approvals = TransactionChain.get_signatures_for_pending_transaction(proposal_address)
-      ratio = length(approvals) / length(Pools.members_of(:technical_council))
-      ratio >= Pools.threshold_acceptance_for(:technical_council)
-    else
-      false
+  @doc """
+  Determines if the CI passes for the given proposal
+  """
+  @spec valid_integration?(Proposal.t()) :: boolean()
+  def valid_integration?(prop = %Proposal{}) do
+    try do
+      CICD.run_ci!(prop)
+      true
+    rescue
+      _ ->
+        false
     end
   end
 

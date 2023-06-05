@@ -23,6 +23,7 @@ defmodule Mix.Tasks.Archethic.Regression do
   use Mix.Task
 
   alias Archethic.Utils.Regression
+  alias Mix.Tasks.Utils
 
   @impl Mix.Task
   def run(args) do
@@ -43,17 +44,17 @@ defmodule Mix.Tasks.Archethic.Regression do
           Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
         else
           true = Regression.nodes_up?(nodes)
-          :ok = maybe(parsed, :bench, &Regression.run_benchmarks/1, [nodes])
-          :ok = maybe(parsed, :playbook, &Regression.run_playbooks/1, [nodes])
-        end
-    end
-  end
 
-  defp maybe(opts, key, func, args) do
-    if opts[key] do
-      apply(func, args)
-    else
-      :ok
+          :ok =
+            Utils.apply_function_if_key_exists(parsed, :bench, &Regression.run_benchmarks/1, [
+              nodes
+            ])
+
+          :ok =
+            Utils.apply_function_if_key_exists(parsed, :playbook, &Regression.run_playbooks/1, [
+              nodes
+            ])
+        end
     end
   end
 end

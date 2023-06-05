@@ -89,14 +89,21 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
 
 config :archethic, Archethic.Crypto,
   root_ca_public_keys: [
-    software: [
-      secp256r1:
-        System.get_env(
-          "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY",
-          "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
-        )
-        |> Base.decode16!(case: :mixed)
-    ],
+    software:
+      case System.get_env("ARCHETHIC_NETWORK_TYPE") do
+        "testnet" ->
+          []
+
+        _ ->
+          [
+            secp256r1:
+              System.get_env(
+                "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY",
+                "04F0FE701A03CE375A6E57ADBE0255808812036571C1424DB2779C77E8B4A9BA80A15B118E8E7465EE2E94094E59C4B3F7177E99063AF1B19BFCC4D7E1AC3F89DD"
+              )
+              |> Base.decode16!(case: :mixed)
+          ]
+      end,
     tpm: [
       secp256r1:
         System.get_env(
@@ -273,13 +280,13 @@ config :archethic, ArchethicWeb.Endpoint,
 config :archethic, :throttle,
   by_ip_high: [
     period: 1000,
-    limit: 500
+    limit: System.get_env("ARCHETHIC_THROTTLE_IP_HIGH", "500")
   ],
   by_ip_low: [
     period: 1000,
-    limit: 20
+    limit: System.get_env("ARCHETHIC_THROTTLE_IP_LOW", "20")
   ],
   by_ip_and_path: [
     period: 1000,
-    limit: 20
+    limit: System.get_env("ARCHETHIC_THROTTLE_IP_AND_PATH", "20")
   ]
