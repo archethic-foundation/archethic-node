@@ -32,11 +32,12 @@ environment Mix.env() do
   ]
 
   set overlays: [
-    {:copy, "config/#{Mix.env()}.exs", "releases/<%= release_version %>/runtime_config.exs"}
+    {:copy, "config/#{Mix.env()}.exs", "releases/<%= release_version %>/runtime_config.exs"},
   ]
 
   set commands: [
-    regression_test: "rel/commands/regression_test"
+    regression_test: "rel/commands/regression_test",
+    validate: "rel/commands/validate"
   ]
 
   plugin Distillery.Releases.Plugin.CookieLoader

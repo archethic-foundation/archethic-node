@@ -247,18 +247,17 @@ defmodule Archethic.SelfRepair do
     timeout = Message.get_max_timeout()
 
     acceptance_resolver = fn
-      {:ok, %Transaction{address: ^address}} -> true
+      %Transaction{address: ^address} -> true
       _ -> false
     end
 
     with false <- TransactionChain.transaction_exists?(address),
          storage_nodes <- Election.chain_storage_nodes(address, authorized_nodes),
          {:ok, tx} <-
-           TransactionChain.fetch_transaction_remotely(
-             address,
-             storage_nodes,
-             timeout,
-             acceptance_resolver
+           TransactionChain.fetch_transaction(address, storage_nodes,
+             search_mode: :remote,
+             timeout: timeout,
+             acceptance_resolver: acceptance_resolver
            ) do
       # TODO: Also download replication attestation from beacon nodes to ensure validity of the transaction
       if storage? do

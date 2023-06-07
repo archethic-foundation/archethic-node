@@ -136,7 +136,7 @@ defmodule Archethic.P2PTest do
                end)
     end
 
-    test "should try all nodes and return last message when no response match acceptance resolver",
+    test "should try all nodes and return error when no response match acceptance resolver",
          %{
            nodes: nodes
          } do
@@ -157,7 +157,7 @@ defmodule Archethic.P2PTest do
         end
       )
 
-      assert {:ok, %NotFound{}} =
+      assert {:error, :network_issue} =
                P2P.quorum_read(
                  nodes,
                  %GetTransaction{address: ""},

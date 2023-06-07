@@ -12,6 +12,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.Subset.P2PSampling
 
+  alias Archethic.Election
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
@@ -25,7 +27,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   @limit_page 10
 
   def get_genesis_address(address) do
-    case Archethic.fetch_genesis_address_remotely(address) do
+    case Archethic.fetch_genesis_address(address) do
       {:ok, genesis_address} ->
         {:ok, genesis_address}
 
@@ -52,7 +54,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   end
 
   def get_token(address) do
-    t1 = Task.async(fn -> Archethic.fetch_genesis_address_remotely(address) end)
+    t1 = Task.async(fn -> Archethic.fetch_genesis_address(address) end)
     t2 = Task.async(fn -> Archethic.search_transaction(address) end)
 
     with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
@@ -66,7 +68,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       {:ok, {:error, :transaction_not_exists}} ->
         {:error, "Transaction not exists"}
 
-      {:ok, {:error, :transaction_invalid}} ->
+      {:ok, {:error, :invalid_transaction}} ->
         {:error, "Transaction invalid"}
 
       {:error, :decode_error} ->
@@ -223,7 +225,12 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
           summary_aggregate
 
         :lt ->
-          case BeaconChain.fetch_summaries_aggregate(next_datetime_summary_time, authorized_nodes) do
+          storage_nodes =
+            next_datetime_summary_time
+            |> Crypto.derive_beacon_aggregate_address()
+            |> Election.chain_storage_nodes(authorized_nodes)
+
+          case BeaconChain.fetch_summaries_aggregate(next_datetime_summary_time, storage_nodes) do
             {:ok, summary} -> summary
             error -> error
           end

@@ -567,21 +567,25 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %GetTransactionInputs{}, _ ->
-        {:ok,
-         %TransactionInputList{
-           inputs: [
-             %VersionedTransactionInput{
-               input: %TransactionInput{
-                 from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 amount: 20_200_000,
-                 type: :UCO,
-                 timestamp: DateTime.from_unix!(1_614_951_694)
-               },
-               protocol_version: 1
-             }
-           ]
-         }}
+      |> stub(:send_message, fn
+        _, %GetTransactionInputs{}, _ ->
+          {:ok,
+           %TransactionInputList{
+             inputs: [
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                   amount: 20_200_000,
+                   type: :UCO,
+                   timestamp: DateTime.from_unix!(1_614_951_694)
+                 },
+                 protocol_version: 1
+               }
+             ]
+           }}
+
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
       end)
 
       conn =

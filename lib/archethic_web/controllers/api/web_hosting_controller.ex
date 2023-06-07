@@ -94,7 +94,7 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, %Jason.DecodeError{}} ->
         {:error, :invalid_content}
 
-      {:error, reason} when reason in [:transaction_not_exists, :transaction_invalid] ->
+      {:error, reason} when reason in [:transaction_not_exists, :invalid_transaction] ->
         {:error, :website_not_found}
 
       error ->

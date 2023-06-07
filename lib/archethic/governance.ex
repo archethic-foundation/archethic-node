@@ -5,14 +5,20 @@ defmodule Archethic.Governance do
   """
 
   alias Archethic.Crypto
+  alias Archethic.Election
 
   alias __MODULE__.Code
   alias __MODULE__.Code.Proposal
   alias __MODULE__.Pools
 
+  alias Archethic.P2P
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.TaskSupervisor
+  alias Archethic.Utils
 
   @proposal_tx_select_fields [
     :address,
@@ -32,7 +38,7 @@ defmodule Archethic.Governance do
 
       Proposal.add_approvals(
         proposal,
-        TransactionChain.list_signatures_for_pending_transaction(tx.address)
+        TransactionChain.get_signatures_for_pending_transaction(tx.address)
       )
     end)
   end
@@ -45,7 +51,7 @@ defmodule Archethic.Governance do
     case TransactionChain.get_transaction(address, @proposal_tx_select_fields) do
       {:ok, tx} ->
         {:ok, prop} = Proposal.from_transaction(tx)
-        signatures = TransactionChain.list_signatures_for_pending_transaction(address)
+        signatures = TransactionChain.get_signatures_for_pending_transaction(address)
         prop = Proposal.add_approvals(prop, signatures)
         {:ok, prop}
 
@@ -105,11 +111,20 @@ defmodule Archethic.Governance do
           recipients: [prop_address]
         }
       }) do
-    if Code.testnet_deployment?(prop_address) do
-      {:ok, prop} = get_code_proposal(prop_address)
-      Code.deploy_proposal_testnet(prop)
+    storage_nodes =
+      Election.chain_storage_nodes(prop_address, P2P.authorized_and_available_nodes())
+
+    with true <- Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()),
+         {:ok, prop} <- get_code_proposal(prop_address),
+         true <- Code.enough_code_approval?(prop) do
+      Task.Supervisor.start_child(TaskSupervisor, fn ->
+        if Code.valid_integration?(prop) do
+          Code.deploy_proposal_testnet(prop)
+        end
+      end)
     else
-      :ok
+      _ ->
+        :ok
     end
   end
 

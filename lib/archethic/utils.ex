@@ -23,6 +23,8 @@ defmodule Archethic.Utils do
 
   use Retry
 
+  @extended_mode? Mix.env() != :prod
+
   @type bigint() :: integer()
 
   @doc """
@@ -75,6 +77,26 @@ defmodule Archethic.Utils do
       |> DateTime.from_naive!("Etc/UTC")
 
     DateTime.diff(next_slot, ref_time, :second)
+  end
+
+  @doc """
+  Return the closest interval tick before now
+  """
+  @spec get_current_time_for_interval(binary(), boolean()) :: DateTime.t()
+  def get_current_time_for_interval(interval, extended_mode? \\ @extended_mode?) do
+    rounded_now =
+      if extended_mode? do
+        DateTime.utc_now()
+      else
+        # if it's not extended we want to remove the seconds and micro seconds from the time.
+        # we are adding 1 microsecond here because the previous_date function
+        # would return the previous tick if we have the exact trigger time
+        %DateTime{DateTime.utc_now() | second: 0, microsecond: {1, 0}}
+      end
+
+    interval
+    |> CronParser.parse!(extended_mode?)
+    |> previous_date(rounded_now)
   end
 
   @doc """
@@ -1110,7 +1132,7 @@ defmodule Archethic.Utils do
   def await_confirmation(tx_address, nodes) do
     #  at 1th , 2th , 4th , 8th , 16th , 32th second
     retry_while with: exponential_backoff(1000, 2) |> expiry(70_000) do
-      case TransactionChain.fetch_transaction_remotely(tx_address, nodes) do
+      case TransactionChain.fetch_transaction(tx_address, nodes) do
         {:ok, transaction} ->
           {:halt, {:ok, transaction}}
 

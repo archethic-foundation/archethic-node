@@ -554,7 +554,16 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         genesis_address
 
       {:error, :not_exists} ->
-        address
+        # If the transaction is not found (the transaction is not storred)
+        # We may be aware if the genesis if the node storred a least one tranaction of this chain
+
+        # :ets.fun2ms(fn {genesis, last_address, _} when last_address == address -> genesis end)
+        match_pattern = [{{:"$1", :"$2", :_}, [{:==, :"$2", address}], [:"$1"]}]
+
+        case :ets.select(@archethic_db_last_index, match_pattern, 1) do
+          :"$end_of_table" -> address
+          genesis_address -> genesis_address
+        end
     end
   end
 

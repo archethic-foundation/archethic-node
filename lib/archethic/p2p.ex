@@ -749,25 +749,15 @@ defmodule Archethic.P2P do
         )
 
       1 ->
-        if previous_result != nil do
-          quorum_result = do_quorum([previous_result | results], conflict_resolver)
-
-          if acceptance_resolver.(quorum_result) do
-            {:ok, quorum_result}
+        quorum_result =
+          if previous_result do
+            do_quorum([previous_result | results], conflict_resolver)
           else
-            do_quorum_read(
-              rest,
-              message,
-              conflict_resolver,
-              acceptance_resolver,
-              consistency_level,
-              timeout,
-              quorum_result
-            )
+            List.first(results)
           end
-        else
-          result = List.first(results)
 
+        with true <- acceptance_resolver.(quorum_result),
+             nil <- previous_result do
           do_quorum_read(
             rest,
             message,
@@ -775,8 +765,22 @@ defmodule Archethic.P2P do
             acceptance_resolver,
             consistency_level,
             timeout,
-            result
+            quorum_result
           )
+        else
+          false ->
+            do_quorum_read(
+              rest,
+              message,
+              conflict_resolver,
+              acceptance_resolver,
+              consistency_level,
+              timeout,
+              previous_result
+            )
+
+          _ ->
+            {:ok, quorum_result}
         end
 
       _ ->
@@ -793,7 +797,7 @@ defmodule Archethic.P2P do
             acceptance_resolver,
             consistency_level,
             timeout,
-            quorum_result
+            previous_result
           )
         end
     end

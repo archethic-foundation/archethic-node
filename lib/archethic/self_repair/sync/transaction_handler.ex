@@ -82,15 +82,14 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     timeout = Message.get_max_timeout()
 
     acceptance_resolver = fn
-      {:ok, %Transaction{address: ^address}} -> true
+      %Transaction{address: ^address} -> true
       _ -> false
     end
 
-    case TransactionChain.fetch_transaction_remotely(
-           address,
-           storage_nodes,
-           timeout,
-           acceptance_resolver
+    case TransactionChain.fetch_transaction(address, storage_nodes,
+           search_mode: :remote,
+           timeout: timeout,
+           acceptance_resolver: acceptance_resolver
          ) do
       {:ok, tx = %Transaction{}} ->
         summary = TransactionSummary.from_transaction(tx)

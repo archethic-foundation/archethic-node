@@ -161,7 +161,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   end
 
   @doc """
-  Stream chain tx from the beginning until a given limit address
+  Stream chain tx from the beginning
   """
   @spec stream_chain(
           genesis_address :: binary(),

@@ -22,7 +22,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     error: nil
   ]
 
-  @type error :: :invalid_pending_transaction | :invalid_inherit_constraints | :insufficient_funds
+  @type error ::
+          :invalid_pending_transaction
+          | :invalid_inherit_constraints
+          | :insufficient_funds
+          | :invalid_contract_execution
 
   @typedoc """
   Validation performed by a coordinator:
@@ -350,13 +354,30 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     Crypto.verify?(signature, raw_stamp, public_key)
   end
 
+  @doc """
+  Generates a dummy ValidationStamp.
+  This should only be used in very specific cases
+  """
+  @spec generate_dummy() :: t()
+  def generate_dummy() do
+    %__MODULE__{
+      timestamp: DateTime.utc_now(),
+      protocol_version: 1,
+      proof_of_work: :crypto.strong_rand_bytes(32),
+      proof_of_election: :crypto.strong_rand_bytes(32),
+      proof_of_integrity: :crypto.strong_rand_bytes(32)
+    }
+  end
+
   defp serialize_error(nil), do: 0
   defp serialize_error(:invalid_pending_transaction), do: 1
   defp serialize_error(:invalid_inherit_constraints), do: 2
   defp serialize_error(:insufficient_funds), do: 3
+  defp serialize_error(:invalid_contract_execution), do: 4
 
   defp deserialize_error(0), do: nil
   defp deserialize_error(1), do: :invalid_pending_transaction
   defp deserialize_error(2), do: :invalid_inherit_constraints
   defp deserialize_error(3), do: :insufficient_funds
+  defp deserialize_error(4), do: :invalid_contract_execution
 end

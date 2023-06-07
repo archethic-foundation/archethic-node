@@ -116,9 +116,8 @@ Hooks.worldmap = {
 Hooks.CopyToClipboard = {
   mounted() {
     this.el.addEventListener("click", (e) => {
-      const clipboardId = e.target.id;
-
-      const textToCopy = document.getElementById(clipboardId).innerHTML;
+      const clipboardId = e.target.getAttribute("data-target");
+      const textToCopy = document.querySelector(clipboardId).innerHTML;
 
       navigator.clipboard
         .writeText(textToCopy)

@@ -65,15 +65,10 @@ defmodule Archethic.Contracts do
      %Contract{
        version: version,
        triggers: triggers,
-       conditions: %{inherit: inherit_conditions}
+       conditions: conditions
      }} = Interpreter.parse(code)
 
-    constants = %{
-      "previous" => Constants.from_transaction(prev_tx),
-      "next" => Constants.from_transaction(next_tx)
-    }
-
-    with :ok <- validate_conditions(version, inherit_conditions, constants),
+    with :ok <- validate_conditions(version, conditions, prev_tx, next_tx),
          :ok <- validate_triggers(triggers, next_tx, date) do
       true
     else
@@ -82,12 +77,24 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_conditions(version, inherit_conditions, constants) do
-    if Interpreter.valid_conditions?(version, inherit_conditions, constants) do
-      :ok
-    else
-      Logger.error("Inherit constraints not respected")
-      {:error, :invalid_inherit_constraints}
+  defp validate_conditions(version, conditions, prev_tx, next_tx) do
+    # here we only check that next_tx is allowed based on prev_tx inherit conditions
+    case Map.get(conditions, :inherit) do
+      nil ->
+        :ok
+
+      inherit_conditions ->
+        constants = %{
+          "previous" => Constants.from_transaction(prev_tx),
+          "next" => Constants.from_transaction(next_tx)
+        }
+
+        if Interpreter.valid_conditions?(version, inherit_conditions, constants) do
+          :ok
+        else
+          Logger.error("Inherit constraints not respected")
+          {:error, :invalid_inherit_constraints}
+        end
     end
   end
 
@@ -143,4 +150,25 @@ defmodule Archethic.Contracts do
   """
   @spec stop_contract(binary()) :: :ok
   defdelegate stop_contract(address), to: Loader
+
+  @doc """
+  Determines if the contract's execution is valid for the given transaction
+  """
+  @spec valid_contract_execution?(Contract.t(), Transaction.t(), list(Transaction.t())) ::
+          boolean()
+  def valid_contract_execution?(contract = %Contract{}, tx = %Transaction{}, calls \\ []) do
+    case Interpreter.execute(:transaction, contract, tx, [tx | calls]) do
+      {:ok, _} ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  @doc """
+  Returns a contract instance from a transaction
+  """
+  @spec from_transaction(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
+  defdelegate from_transaction(tx), to: Contract, as: :from_transaction
 end

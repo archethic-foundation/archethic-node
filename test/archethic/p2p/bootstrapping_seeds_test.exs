@@ -113,7 +113,7 @@ defmodule Archethic.P2P.BootstrappingSeedsTest do
     assert new_seeds == BootstrappingSeeds.list()
 
     new_seeds_stringified = BootstrappingSeeds.nodes_to_seeds(new_seeds)
-    assert_received {:seeds, ^new_seeds_stringified}
+    assert_receive {:seeds, ^new_seeds_stringified}
   end
 
   test "when receive a node update message should update the seeds list with the top nodes" do

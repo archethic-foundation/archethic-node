@@ -220,19 +220,10 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   def transform("1.1.0", tx_summary = %__MODULE__{version: 1}), do: tx_summary
 
   def transform("1.1.0", %__MODULE__{address: address}) do
-    transaction =
-      case TransactionChain.get_transaction(address) do
-        {:ok, tx} ->
-          tx
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-        _ ->
-          nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-          # I don't know what to do if fetching transaction fail so I let it crash
-          {:ok, tx} = TransactionChain.fetch_transaction_remotely(address, nodes)
-          tx
-      end
-
-    from_transaction(transaction)
+    {:ok, tx} = TransactionChain.fetch_transaction(address, nodes)
+    from_transaction(tx)
   end
 
   def transform(_, tx_summary), do: tx_summary

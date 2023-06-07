@@ -451,36 +451,37 @@ defmodule Archethic.BeaconChain do
   """
   @spec fetch_summaries_aggregate(DateTime.t(), list(Node.t())) ::
           {:ok, SummaryAggregate.t()} | {:error, :not_exists} | {:error, :network_issue}
-  def fetch_summaries_aggregate(summary_time = %DateTime{}, download_nodes) do
-    storage_nodes =
-      summary_time
-      |> Crypto.derive_beacon_aggregate_address()
-      |> Election.chain_storage_nodes(download_nodes)
-
-    conflict_resolver = fn results ->
-      # Prioritize results over not found
-      with nil <- Enum.find(results, &match?(%SummaryAggregate{}, &1)),
-           nil <- Enum.find(results, &match?(%NotFound{}, &1)) do
-        %NotFound{}
-      else
-        res ->
-          res
-      end
-    end
-
-    case P2P.quorum_read(
-           storage_nodes,
-           %GetBeaconSummariesAggregate{date: summary_time},
-           conflict_resolver
-         ) do
-      {:ok, aggregate = %SummaryAggregate{}} ->
+  def fetch_summaries_aggregate(summary_time = %DateTime{}, nodes) do
+    case get_summaries_aggregate(summary_time) do
+      {:ok, aggregate} ->
         {:ok, aggregate}
 
-      {:ok, %NotFound{}} ->
-        {:error, :not_exists}
+      {:error, _} ->
+        conflict_resolver = fn results ->
+          # Prioritize results over not found
+          with nil <- Enum.find(results, &match?(%SummaryAggregate{}, &1)),
+               nil <- Enum.find(results, &match?(%NotFound{}, &1)) do
+            %NotFound{}
+          else
+            res ->
+              res
+          end
+        end
 
-      {:error, :network_issue} = e ->
-        e
+        case P2P.quorum_read(
+               nodes,
+               %GetBeaconSummariesAggregate{date: summary_time},
+               conflict_resolver
+             ) do
+          {:ok, aggregate = %SummaryAggregate{}} ->
+            {:ok, aggregate}
+
+          {:ok, %NotFound{}} ->
+            {:error, :not_exists}
+
+          {:error, :network_issue} = e ->
+            e
+        end
     end
   end
 
