@@ -138,11 +138,11 @@ defmodule Archethic.Contracts do
         ) :: boolean()
   def valid_condition?(
         condition_type,
-        contract = %Contract{version: version},
+        contract = %Contract{version: version, conditions: conditions},
         transaction = %Transaction{},
         datetime
       ) do
-    case get_condition(condition_type, contract) do
+    case Map.get(conditions, condition_type) do
       nil ->
         true
 
@@ -245,13 +245,4 @@ defmodule Archethic.Contracts do
       "_time_now" => DateTime.to_unix(datetime)
     }
   end
-
-  defp get_condition(:oracle, %Contract{conditions: conditions}),
-    do: Map.fetch!(conditions, :oracle)
-
-  defp get_condition(:transaction, %Contract{conditions: conditions}),
-    do: Map.fetch!(conditions, :transaction)
-
-  defp get_condition(:inherit, %Contract{conditions: conditions}),
-    do: Map.get(conditions, :inherit)
 end
