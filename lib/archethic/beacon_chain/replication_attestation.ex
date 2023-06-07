@@ -20,7 +20,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           confirmations: list({position :: non_neg_integer(), signature :: binary()})
         }
 
-  @limit_v1_timestamp ~U[2023-05-01 00:00:00.000Z]
+  @limit_v1_timestamp ~U[2023-06-30 00:00:00.000Z]
 
   # Minimum 10 nodes to start verifying the threshold
   @minimum_nodes_for_threshold 10

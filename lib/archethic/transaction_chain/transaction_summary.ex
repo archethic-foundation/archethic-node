@@ -217,9 +217,9 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   Apply a tranformation of a transaction summary based on the blockchain version
   """
   @spec transform(binary(), t()) :: t()
-  def transform("1.0.8", tx_summary = %__MODULE__{version: 1}), do: tx_summary
+  def transform("1.1.0", tx_summary = %__MODULE__{version: 1}), do: tx_summary
 
-  def transform("1.0.8", %__MODULE__{address: address}) do
+  def transform("1.1.0", %__MODULE__{address: address}) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     {:ok, tx} = TransactionChain.fetch_transaction(address, nodes)
@@ -229,8 +229,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   def transform(_, tx_summary), do: tx_summary
 
   @doc """
-  This function will be used during the summary day of 1.0.8 upgrade. This function can be deleted after the upgrade.
-  Migrate this function into files 1.0.8-migrate_old_tx_summaries
+  This function will be used during the summary day of 1.1.0 upgrade. This function can be deleted after the upgrade.
+  Migrate this function into files 1.1.0-migrate_old_tx_summaries
   Deserialize an old version of transaction summary
   """
   @spec deserialize_old(bitstring()) :: {t(), bitstring()}

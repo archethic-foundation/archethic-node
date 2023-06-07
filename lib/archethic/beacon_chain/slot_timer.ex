@@ -145,7 +145,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
       Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
     end
 
-    next_time = next_slot(next_time)
+    next_time = next_slot(DateTime.utc_now())
 
     new_state =
       state

@@ -322,7 +322,7 @@ defmodule Archethic.TransactionChain do
   def fetch_contract_calls(contract_address, nodes, before = %DateTime{} \\ DateTime.utc_now()) do
     conflict_resolver = fn results ->
       results
-      |> Enum.sort_by(&length(&1.inputs), :desc)
+      |> Enum.sort_by(&length(&1.transactions), :desc)
       |> List.first()
     end
 
