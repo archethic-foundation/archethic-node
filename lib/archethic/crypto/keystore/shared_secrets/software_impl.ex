@@ -59,7 +59,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   # we store functions in the ETS table, so we need to reload them
   # every upgrade to avoid: "xxx is invalid, likely because it points to an old version of the code"
-  @impl true
+  @impl GenServer
   def code_change(_, state, _extra) do
     :node_shared_secrets
     |> TransactionChain.list_addresses_by_type()
