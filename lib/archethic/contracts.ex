@@ -153,13 +153,7 @@ defmodule Archethic.Contracts do
   end
 
   defp validate_trigger({:datetime, datetime}, _trigger, trigger_datetime) do
-    now = DateTime.utc_now()
-
-    # Accept time drifting for 10seconds
-    if DateTime.diff(trigger_datetime, datetime) >= 0 and
-         DateTime.diff(trigger_datetime, datetime) < 10 and
-         DateTime.diff(now, trigger_datetime) >= 0 and
-         DateTime.diff(now, trigger_datetime) < 10 do
+    if is_within_drift_tolerance(trigger_datetime, datetime) do
       :ok
     else
       :invalid_triggers_execution
@@ -167,19 +161,12 @@ defmodule Archethic.Contracts do
   end
 
   defp validate_trigger({:interval, interval}, {:interval, interval_datetime}, trigger_datetime) do
-    now = DateTime.utc_now()
-
     matches_date? =
       interval
       |> CronParser.parse!(@extended_mode?)
       |> CronDateChecker.matches_date?(DateTime.to_naive(interval_datetime))
 
-    # Accept time drifting for 10seconds
-    if matches_date? &&
-         DateTime.diff(trigger_datetime, interval_datetime) >= 0 and
-         DateTime.diff(trigger_datetime, interval_datetime) < 10 and
-         DateTime.diff(now, trigger_datetime) >= 0 and
-         DateTime.diff(now, trigger_datetime) < 10 do
+    if matches_date? && is_within_drift_tolerance(trigger_datetime, interval_datetime) do
       :ok
     else
       :invalid_triggers_execution
@@ -197,6 +184,17 @@ defmodule Archethic.Contracts do
   end
 
   defp validate_trigger(_, _, _), do: :invalid_triggers_execution
+
+  # trigger_datetime: practical date of trigger
+  # datetime: theoretical date of trigger
+  defp is_within_drift_tolerance(trigger_datetime, datetime) do
+    now = DateTime.utc_now()
+
+    DateTime.diff(trigger_datetime, datetime) >= 0 and
+      DateTime.diff(trigger_datetime, datetime) < 10 and
+      DateTime.diff(now, trigger_datetime) >= 0 and
+      DateTime.diff(now, trigger_datetime) < 10
+  end
 
   @doc """
   List the address of the transaction which has contacted a smart contract
