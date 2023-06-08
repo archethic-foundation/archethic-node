@@ -228,7 +228,14 @@ defmodule Archethic.TransactionChain.TransactionSummary do
         _ ->
           nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
           # I don't know what to do if fetching transaction fail so I let it crash
-          {:ok, tx} = TransactionChain.fetch_transaction_remotely(address, nodes)
+          acceptance_resolver = fn
+            {:ok, %Transaction{address: ^address}} -> true
+            _ -> false
+          end
+
+          {:ok, tx} =
+            TransactionChain.fetch_transaction_remotely(address, nodes, 0, acceptance_resolver)
+
           tx
       end
 

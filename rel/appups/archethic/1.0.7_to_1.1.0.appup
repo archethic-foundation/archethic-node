@@ -1051,8 +1051,7 @@
                                         [[{keys, unique}, {name, 'Elixir.Archethic.RunExclusiveRegistry'}]]},
                                 type => supervisor
 			  }
-    ]}}, 
-    {apply,{'Elixir.Mix.Tasks.Archethic.Migrate',run,["1.1.0",true]}}]}],
+    ]}}]}],
  [{"1.0.7",
    [{delete_module,'Elixir.Archethic.BeaconChain.NetworkCoordinates'},
     {delete_module,'Elixir.Archethic.BeaconChain.Subset.StatsCollector'},
