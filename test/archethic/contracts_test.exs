@@ -2,6 +2,9 @@ defmodule Archethic.ContractsTest do
   use ExUnit.Case
 
   alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Archethic.Contracts.Interpreter
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -317,5 +320,51 @@ defmodule Archethic.ContractsTest do
 
       assert true == Contracts.accept_new_contract?(previous_tx, next_tx, time)
     end
+  end
+
+  test "case behavior is similar in legacy and current interpreter" do
+    contract_tx = %Transaction{
+      data: %TransactionData{
+        code: """
+        @version 1
+        condition inherit: []
+        condition transaction: [
+          content: Crypto.hash() == "3c3b183c50f8a3731582ec624af96a67e5254934146c19fb5415e0c3a83d9ba0"
+        ]
+        """
+      }
+    }
+
+    contract_legacy_tx = %Transaction{
+      data: %TransactionData{
+        code: """
+        condition inherit: []
+        condition transaction: [
+          content: hash() == "3c3b183c50f8a3731582ec624af96a67e5254934146c19fb5415e0c3a83d9ba0"
+        ]
+        """
+      }
+    }
+
+    trigger_tx = %Transaction{
+      type: :data,
+      data: %TransactionData{
+        content: "Han shot first"
+      }
+    }
+
+    contract = Contract.from_transaction!(contract_tx)
+    contract_legacy = Contract.from_transaction!(contract_legacy_tx)
+
+    # will be transformed into Contracts.valid_conditions? in 1.2.0
+    assert Interpreter.valid_conditions?(0, contract_legacy.conditions.transaction, %{
+             "transaction" => Constants.from_transaction(trigger_tx),
+             "contract" => contract_legacy.constants.contract
+           })
+
+    assert Interpreter.valid_conditions?(1, contract.conditions.transaction, %{
+             "transaction" => Constants.from_transaction(trigger_tx),
+             "contract" => contract.constants.contract
+           })
   end
 end
