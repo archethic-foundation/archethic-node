@@ -370,6 +370,21 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {new_node, acc}
   end
 
+  # uniform hexadecimal to all uppercase
+  def postwalk(node, acc) when is_binary(node) do
+    if String.printable?(node) do
+      case Base.decode16(node, case: :mixed) do
+        {:ok, hex} ->
+          {Base.encode16(hex), acc}
+
+        _ ->
+          {node, acc}
+      end
+    else
+      {node, acc}
+    end
+  end
+
   # whitelist rest
   def postwalk(node, acc), do: {node, acc}
 
