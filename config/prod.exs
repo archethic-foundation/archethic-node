@@ -77,7 +77,7 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
 config :archethic, Archethic.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold:
-    System.get_env("ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "54000") |> String.to_integer()
+    System.get_env("ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "1296000") |> String.to_integer()
 
 config :archethic, Archethic.BeaconChain.SlotTimer,
   # Every 10 minutes
