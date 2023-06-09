@@ -275,4 +275,10 @@ defmodule Archethic.SelfRepair do
         {:error, reason}
     end
   end
+
+  @doc """
+  Get the next repair time from the scheduler
+  """
+  @spec next_repair_time() :: DateTime.t()
+  defdelegate next_repair_time, to: Scheduler
 end
