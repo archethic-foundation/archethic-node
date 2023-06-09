@@ -32,6 +32,9 @@ defmodule Archethic.BeaconChain.Subset do
 
   alias Archethic.PubSub
 
+  alias Archethic.SelfRepair
+
+  alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -268,7 +271,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp forward_attestation?(slot_time, subset, node_public_key) do
-    # We need to forward the transaction if this is the last slot of a summary 
+    # We need to forward the transaction if this is the last slot of a summary
     # and we are not a summary node because the current slot will not be sent to summary node
     summary_time?(slot_time) and not beacon_summary_node?(subset, slot_time, node_public_key)
   end
@@ -374,7 +377,8 @@ defmodule Archethic.BeaconChain.Subset do
     else
       Logger.debug("Create beacon summary", beacon_subset: Base.encode16(subset))
 
-      patch_task = Task.async(fn -> get_network_patches(subset, time) end)
+      patch_task =
+        Task.Supervisor.async_nolink(TaskSupervisor, fn -> get_network_patches(subset, time) end)
 
       summary =
         %Summary{
@@ -386,7 +390,23 @@ defmodule Archethic.BeaconChain.Subset do
           P2PSampling.list_nodes_to_sample(subset)
         )
 
-      network_patches = Task.await(patch_task)
+      network_patches_timeout =
+        SelfRepair.next_repair_time()
+        |> DateTime.diff(DateTime.utc_now())
+        # We take 10% of the next repair time to determine the timeout
+        |> Kernel.*(0.9)
+        |> Kernel.*(1000)
+        |> round()
+
+      network_patches =
+        case Task.yield(patch_task, network_patches_timeout) || Task.shutdown(patch_task) do
+          {:ok, network_patches} ->
+            network_patches
+
+          _ ->
+            []
+        end
+
       BeaconChain.write_beacon_summary(%{summary | network_patches: network_patches})
 
       :ok
