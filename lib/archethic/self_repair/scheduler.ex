@@ -9,6 +9,7 @@ defmodule Archethic.SelfRepair.Scheduler do
   alias Archethic.{P2P, SelfRepair.Sync, TaskSupervisor, Utils, PubSub}
 
   alias Archethic.Bootstrap.Sync, as: BootstrapSync
+  alias Crontab.CronExpression.Parser, as: CronParser
 
   require Logger
 
@@ -174,5 +175,21 @@ defmodule Archethic.SelfRepair.Scheduler do
   @spec get_interval() :: binary()
   def get_interval do
     GenServer.call(__MODULE__, :get_interval)
+  end
+
+  @doc """
+  Calculates the next time the self-repair mechanism should run based on the current interval.
+
+  Args:
+  - ref_time: The reference time to calculate the next run time from. Defaults to the current UTC time.
+
+  Returns:
+  - The next time the self-repair mechanism should run.
+  """
+  @spec next_repair_time(DateTime.t()) :: DateTime.t()
+  def next_repair_time(ref_time \\ DateTime.utc_now()) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> Utils.next_date(ref_time)
   end
 end

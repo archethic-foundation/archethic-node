@@ -60,6 +60,8 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   @spec get_patch_from_latencies(Nx.Tensor.t()) :: list(String.t())
   def get_patch_from_latencies(matrix) do
     if Nx.size(matrix) > 1 do
+      start_time = System.monotonic_time()
+
       formated_matrix =
         matrix
         |> Nx.as_type(:f64)
@@ -68,7 +70,17 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
       center_mass = compute_distance_from_center_mass(formated_matrix)
       gram_matrix = get_gram_matrix(formated_matrix, center_mass)
       {x, y} = get_coordinates(gram_matrix)
-      get_patch_digits(x, y)
+      network_patches = get_patch_digits(x, y)
+
+      :telemetry.execute(
+        [:archethic, :beacon_chain, :network_coordinates, :compute_patch],
+        %{
+          duration: System.monotonic_time() - start_time
+        },
+        %{matrix_size: Nx.size(matrix)}
+      )
+
+      network_patches
     else
       []
     end

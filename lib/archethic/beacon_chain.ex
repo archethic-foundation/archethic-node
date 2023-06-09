@@ -290,20 +290,30 @@ defmodule Archethic.BeaconChain do
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     # get the summaries addresses to download per node
-    result =
+    summaries_by_node =
       list_subsets()
       |> Enum.flat_map(&get_summary_address_by_node(date, &1, authorized_nodes))
       |> Enum.reduce(%{}, fn {node, address}, acc ->
         Map.update(acc, node, [address], &[address | &1])
       end)
+      # chunk addresses every 10
+      # [{node1, [10 addresses]}, {node1, [10 other addresses]}, {node2, ...}]
+      |> Enum.flat_map(fn {node, addresses} ->
+        addresses
+        |> Enum.chunk_every(10)
+        |> Enum.map(&{node, &1})
+      end)
 
-      # download the summaries
-      |> Task.async_stream(
+    # download the summaries
+    result =
+      Task.Supervisor.async_stream(
+        TaskSupervisor,
+        summaries_by_node,
         fn {node, addresses} ->
           fetch_beacon_summaries(node, addresses)
         end,
         ordered: false,
-        max_concurrency: 256
+        max_concurrency: System.schedulers_online() * 10
       )
       |> Stream.filter(&match?({:ok, _}, &1))
       |> Stream.map(fn {:ok, summaries} -> summaries end)
@@ -399,38 +409,26 @@ defmodule Archethic.BeaconChain do
   end
 
   defp fetch_beacon_summaries(node, addresses) do
-    Logger.info(
-      "Self repair start download #{Enum.count(addresses)} summaries on node #{Base.encode16(node.first_public_key)}"
-    )
-
     start_time = System.monotonic_time()
 
-    addresses
-    |> Stream.chunk_every(10)
-    |> Task.async_stream(
-      fn addresses ->
-        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
-          {:ok, %BeaconSummaryList{summaries: summaries}} ->
-            summaries
+    summaries =
+      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+        {:ok, %BeaconSummaryList{summaries: summaries}} ->
+          summaries
 
-          _ ->
-            []
-        end
-      end,
-      on_timeout: :kill_task
+        _ ->
+          []
+      end
+
+    :telemetry.execute(
+      [:archethic, :self_repair, :summaries_fetch],
+      %{
+        duration: System.monotonic_time() - start_time
+      },
+      %{nb_summaries: length(addresses)}
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.flat_map(&elem(&1, 1))
-    |> Enum.to_list()
-    |> tap(fn _ ->
-      :telemetry.execute(
-        [:archethic, :self_repair, :summaries_fetch],
-        %{
-          duration: System.monotonic_time() - start_time
-        },
-        %{nb_summaries: length(addresses)}
-      )
-    end)
+
+    summaries
   end
 
   @doc """

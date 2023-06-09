@@ -8,6 +8,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   use GenServer
 
   alias Archethic.BeaconChain.NetworkCoordinates
+  alias Archethic.TaskSupervisor
 
   require Logger
 
@@ -31,7 +32,12 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   end
 
   def handle_call({:get, summary_time}, from, state = %{fetching_task: nil}) do
-    task = Task.async(fn -> NetworkCoordinates.fetch_network_stats(summary_time) end)
+    task =
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        start_time = System.monotonic_time()
+        stats = NetworkCoordinates.fetch_network_stats(summary_time)
+        {stats, start_time}
+      end)
 
     new_state =
       state
@@ -49,8 +55,19 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
     {:noreply, new_state}
   end
 
-  def handle_info({ref, stats}, state = %{clients: clients, fetching_task: %Task{ref: ref_task}})
+  def handle_info(
+        {ref, {stats, start_time}},
+        state = %{clients: clients, fetching_task: %Task{ref: ref_task}}
+      )
       when ref_task == ref do
+    :telemetry.execute(
+      [:archethic, :beacon_chain, :network_coordinates, :collect_stats],
+      %{
+        duration: System.monotonic_time() - start_time
+      },
+      %{matrix_size: Nx.size(stats)}
+    )
+
     Enum.each(clients, &GenServer.reply(&1, stats))
 
     new_state =
