@@ -404,7 +404,10 @@ defmodule Archethic.BeaconChain.Subset do
             network_patches
 
           _ ->
-            Logger.warning("Build network patches takes more than #{network_patches_timeout} ms", beacon_subset: Base.encode16(subset))
+            Logger.warning("Build network patches takes more than #{network_patches_timeout} ms",
+              beacon_subset: Base.encode16(subset)
+            )
+
             []
         end
 
