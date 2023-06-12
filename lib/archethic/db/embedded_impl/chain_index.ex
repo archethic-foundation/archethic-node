@@ -150,13 +150,15 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       [:binary, :append]
     )
 
-    # Write fast lookup entry for this transaction on LRU cache
-    :ok =
+    # pre-cache item (when node is not bootstrapping)
+    # so they are already cached when we'll need them
+    if Archethic.up?() do
       LRU.put(@archetic_db_tx_index_cache, tx_address, %{
         size: size,
         offset: last_offset,
         genesis_address: genesis_address
       })
+    end
 
     :ets.update_counter(
       @archethic_db_chain_stats,
