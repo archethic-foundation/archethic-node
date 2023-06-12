@@ -220,10 +220,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   def get_tx_entry(address, db_path) do
     case LRU.get(@archetic_db_tx_index_cache, address) do
       nil ->
-        # If the transaction is not found in the in memory lookup
-        # we scan the index file for the subset of the transaction to find the relative information
-        # This will update the LRU cache if the transaction is found
-        search_tx_entry(address, db_path)
+        case search_tx_entry(address, db_path) do
+          {:ok, entry} ->
+            LRU.put(@archetic_db_tx_index_cache, address, entry)
+            {:ok, entry}
+
+          {:error, :not_exists} ->
+            {:error, :not_exists}
+        end
 
       entry = %{} ->
         {:ok, entry}
@@ -242,12 +246,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
           {genesis_address, size, offset} ->
             :file.close(fd)
-
-            LRU.put(@archetic_db_tx_index_cache, search_address, %{
-              size: size,
-              offset: offset,
-              genesis_address: genesis_address
-            })
 
             {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
         end
