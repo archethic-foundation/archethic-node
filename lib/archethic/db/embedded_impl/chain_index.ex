@@ -66,14 +66,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp do_scan_summary_table(fd) do
-    with {:ok, <<current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
+    with {:ok, <<_current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
          hash_size <- Crypto.hash_size(current_hash_type),
-         {:ok, current_digest} <- :file.read(fd, hash_size),
+         {:ok, _current_digest} <- :file.read(fd, hash_size),
          {:ok, <<genesis_curve_id::8, genesis_hash_type::8>>} <- :file.read(fd, 2),
          hash_size <- Crypto.hash_size(genesis_hash_type),
          {:ok, genesis_digest} <- :file.read(fd, hash_size),
-         {:ok, <<size::32, offset::32>>} <- :file.read(fd, 8) do
-      current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
+         {:ok, <<size::32, _offset::32>>} <- :file.read(fd, 8) do
       genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
 
       :ets.update_counter(
@@ -85,13 +84,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         ],
         {genesis_address, 0, 0}
       )
-
-      ## Store each transaction in the LRU cache. If cache is full, the oldest entries will be evicted
-      LRU.put(@archetic_db_tx_index_cache, current_address, %{
-        size: size,
-        offset: offset,
-        genesis_address: genesis_address
-      })
 
       do_scan_summary_table(fd)
     else
