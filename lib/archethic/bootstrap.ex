@@ -117,9 +117,9 @@ defmodule Archethic.Bootstrap do
         network_patch,
         reward_address
       )
-    else
-      post_bootstrap()
     end
+
+    post_bootstrap()
 
     Logger.info("Bootstrapping finished!")
   end
@@ -170,7 +170,6 @@ defmodule Archethic.Bootstrap do
 
         Sync.initialize_network(tx)
 
-        post_bootstrap()
         SelfRepair.put_last_sync_date(DateTime.utc_now())
 
       Crypto.first_node_public_key() == Crypto.previous_node_public_key() ->
@@ -185,8 +184,6 @@ defmodule Archethic.Bootstrap do
           bootstrapping_seeds,
           configured_reward_address
         )
-
-        post_bootstrap()
 
       true ->
         Logger.info("Update node chain...")
@@ -208,8 +205,6 @@ defmodule Archethic.Bootstrap do
           bootstrapping_seeds,
           last_reward_address
         )
-
-        post_bootstrap()
     end
   end
 
