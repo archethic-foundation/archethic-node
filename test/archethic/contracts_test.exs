@@ -3,7 +3,6 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Crypto
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.TransactionChain
@@ -177,6 +176,7 @@ defmodule Archethic.ContractsTest do
       }
 
       next_tx = %Transaction{
+        type: :contract,
         address: random_address(),
         data: %TransactionData{
           code: code,
