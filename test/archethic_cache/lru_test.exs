@@ -76,6 +76,27 @@ defmodule ArchethicCache.LRUTest do
       assert nil == LRU.get(:my_cache, :key2)
     end
 
+    test "should evict the LRU in order" do
+      binary = :crypto.strong_rand_bytes(200)
+
+      {:ok, pid} = LRU.start_link(:my_cache, 1000)
+
+      LRU.put(:my_cache, :key1, binary)
+      LRU.put(:my_cache, :key2, binary)
+      LRU.put(:my_cache, :key3, binary)
+      LRU.put(:my_cache, :key4, binary)
+      LRU.put(:my_cache, :key5, binary)
+
+      :sys.get_state(pid)
+
+      LRU.put(:my_cache, :key6, :crypto.strong_rand_bytes(400))
+
+      :sys.get_state(pid)
+
+      assert nil == LRU.get(:my_cache, :key1)
+      assert nil == LRU.get(:my_cache, :key2)
+    end
+
     test "should not cache a binary bigger than cache size" do
       binary = get_a_binary_of_bytes(500)
 

@@ -146,7 +146,7 @@ defmodule ArchethicCache.LRU do
             %{
               state
               | bytes_used: bytes_used - size,
-                keys: rest
+                keys: Enum.reverse(rest)
             },
             predicate
           )
