@@ -8,7 +8,6 @@ defmodule Archethic.P2P.MemTableLoader do
 
   alias Archethic.DB
 
-  alias Archethic.P2P
   alias Archethic.P2P.Client
   alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.MemTable
@@ -71,18 +70,18 @@ defmodule Archethic.P2P.MemTableLoader do
     case previously_available do
       # Ensure the only single node is globally available after a delayed bootstrap
       [{^node_key, _, avg_availability, availability_update, network_patch}] ->
-        P2P.set_node_globally_synced(node_key)
-        P2P.set_node_globally_available(node_key, availability_update)
-        P2P.set_node_average_availability(node_key, avg_availability)
+        MemTable.set_node_synced(node_key)
+        MemTable.set_node_available(node_key, availability_update)
+        MemTable.update_node_average_availability(node_key, avg_availability)
 
         if network_patch do
-          P2P.update_node_network_patch(node_key, network_patch)
+          MemTable.update_node_network_patch(node_key, network_patch)
         end
 
       [] ->
-        P2P.set_node_globally_synced(node_key)
-        P2P.set_node_globally_available(node_key, last_sync_date)
-        P2P.set_node_average_availability(node_key, 1.0)
+        MemTable.set_node_synced(node_key)
+        MemTable.set_node_available(node_key, last_sync_date)
+        MemTable.update_node_average_availability(node_key, 1.0)
 
       _ ->
         Enum.each(p2p_summaries, &load_p2p_summary/1)
@@ -173,7 +172,7 @@ defmodule Archethic.P2P.MemTableLoader do
     )
 
     new_authorized_keys = Ownership.list_authorized_public_keys(ownership)
-    previous_authorized_keys = P2P.list_authorized_public_keys()
+    previous_authorized_keys = MemTable.list_authorized_public_keys()
 
     unauthorized_keys = previous_authorized_keys -- new_authorized_keys
 
@@ -193,8 +192,8 @@ defmodule Archethic.P2P.MemTableLoader do
          {node_public_key, available?, avg_availability, availability_update, network_patch}
        ) do
     if available? do
-      P2P.set_node_globally_synced(node_public_key)
-      P2P.set_node_globally_available(node_public_key, availability_update)
+      MemTable.set_node_synced(node_public_key)
+      MemTable.set_node_available(node_public_key, availability_update)
     end
 
     MemTable.update_node_average_availability(node_public_key, avg_availability)
