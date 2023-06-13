@@ -85,14 +85,7 @@ defmodule Archethic.P2P.MemTableLoader do
         P2P.set_node_average_availability(node_key, 1.0)
 
       _ ->
-        # We want to reload the previous beacon chain summary information
-        # if the node haven't been disconnected for a significant time (one self-repair cycle)
-        # if the node was disconnected for long time, then we don't load the previous view, as it's obsolete
-        missed_sync? = SelfRepair.missed_sync?(last_sync_date)
-
-        Enum.each(p2p_summaries, fn summary ->
-          load_p2p_summary(summary, missed_sync?)
-        end)
+        Enum.each(p2p_summaries, &load_p2p_summary/1)
     end
   end
 
@@ -197,15 +190,11 @@ defmodule Archethic.P2P.MemTableLoader do
   defp first_node_change?(_, _), do: false
 
   defp load_p2p_summary(
-         {node_public_key, available?, avg_availability, availability_update, network_patch},
-         missed_sync?
+         {node_public_key, available?, avg_availability, availability_update, network_patch}
        ) do
     if available? do
       P2P.set_node_globally_synced(node_public_key)
-
-      unless missed_sync? do
-        P2P.set_node_globally_available(node_public_key, availability_update)
-      end
+      P2P.set_node_globally_available(node_public_key, availability_update)
     end
 
     MemTable.update_node_average_availability(node_public_key, avg_availability)

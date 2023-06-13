@@ -102,9 +102,9 @@ defmodule Archethic.SelfRepair.Sync do
 
   Once retrieved, the transactions are downloaded and stored if not exists locally
   """
-  @spec load_missed_transactions(last_sync_date :: DateTime.t()) ::
+  @spec load_missed_transactions(last_sync_date :: DateTime.t(), download_nodes :: list(Node.t())) ::
           :ok | {:error, :unreachable_nodes}
-  def load_missed_transactions(last_sync_date = %DateTime{}) do
+  def load_missed_transactions(last_sync_date, download_nodes) do
     last_summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
     if DateTime.compare(last_summary_time, last_sync_date) == :gt do
@@ -112,7 +112,7 @@ defmodule Archethic.SelfRepair.Sync do
         "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
       )
 
-      do_load_missed_transactions(last_sync_date, last_summary_time)
+      do_load_missed_transactions(last_sync_date, last_summary_time, download_nodes)
     else
       Logger.info("Already synchronized for #{DateTime.to_string(last_sync_date)}")
 
@@ -121,10 +121,8 @@ defmodule Archethic.SelfRepair.Sync do
     end
   end
 
-  defp do_load_missed_transactions(last_sync_date, last_summary_time) do
+  defp do_load_missed_transactions(last_sync_date, last_summary_time, download_nodes) do
     start = System.monotonic_time()
-
-    download_nodes = P2P.authorized_and_available_nodes(last_summary_time, true)
 
     # Process first the old aggregates
     fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)

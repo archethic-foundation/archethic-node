@@ -16,9 +16,9 @@ defmodule Archethic.Bootstrap.Sync do
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
   alias Archethic.P2P.Node
 
-  alias Archethic.SelfRepair
-
   alias Archethic.SharedSecrets
+
+  alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -133,15 +133,27 @@ defmodule Archethic.Bootstrap.Sync do
   @doc """
   Fetch and load the nodes list
   """
-  @spec load_node_list() :: :ok | {:error, :network_issue}
-  def load_node_list() do
-    case P2P.fetch_nodes_list() do
+  @spec connect_current_node(closest_nodes :: list(Node.t())) ::
+          {:ok, list(Node.t())} | {:error, :network_issue}
+  def connect_current_node(closest_nodes) do
+    case P2P.fetch_nodes_list(true, closest_nodes) do
       {:ok, nodes} ->
-        Enum.each(nodes, &P2P.add_and_connect_node/1)
-        # After loading all current nodes, we update the p2p view with the last one stored in DB
-        # to have a proper view for the next beacon summary to self repair
-        SelfRepair.last_sync_date() |> P2P.reload_last_view()
+        nodes =
+          Task.Supervisor.async_stream(
+            TaskSupervisor,
+            nodes,
+            fn node ->
+              P2P.connect_node(node)
+              # Wait connection time
+              Process.sleep(500)
+              %Node{node | availability_history: <<1::1>>}
+            end
+          )
+          |> Stream.filter(&match?({:ok, _}, &1))
+          |> Enum.map(fn {:ok, node} -> node end)
+
         Logger.info("Node list refreshed")
+        {:ok, nodes}
 
       {:error, :network_issue} ->
         {:error, :network_issue}
@@ -180,17 +192,27 @@ defmodule Archethic.Bootstrap.Sync do
           {:ok, list(Node.t())} | {:error, :network_issue}
   def get_closest_nodes_and_renew_seeds([node | rest], patch) do
     case P2P.send_message(node, %GetBootstrappingNodes{patch: patch}) do
-      {:ok, %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds}} ->
+      {:ok,
+       %BootstrappingNodes{
+         closest_nodes: closest_nodes,
+         new_seeds: new_seeds,
+         first_enrolled_node: first_enrolled_node
+       }} ->
         :ok = P2P.new_bootstrapping_seeds(new_seeds)
+
+        P2P.add_and_connect_node(first_enrolled_node)
+        Logger.info("First enrolled node added into P2P MemTable")
 
         closest_nodes =
           (new_seeds ++ closest_nodes)
           |> P2P.distinct_nodes()
+          |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
           |> Task.async_stream(fn node ->
-            P2P.add_and_connect_node(node)
+            P2P.connect_node(node)
             # Wait for connection time
             Process.sleep(500)
-            P2P.get_node_info!(node.first_public_key)
+            # Set node locally available after connection
+            %Node{node | availability_history: <<1::1>>}
           end)
           |> Enum.filter(&match?({:ok, _}, &1))
           |> Enum.map(fn {:ok, node} -> node end)
