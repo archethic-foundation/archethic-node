@@ -222,7 +222,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       nil ->
         case search_tx_entry(address, db_path) do
           {:ok, entry} ->
-            LRU.put(@archetic_db_tx_index_cache, address, entry)
+            if Archethic.up?() do
+              LRU.put(@archetic_db_tx_index_cache, address, entry)
+            end
+
             {:ok, entry}
 
           {:error, :not_exists} ->
