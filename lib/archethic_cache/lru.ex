@@ -134,11 +134,11 @@ defmodule ArchethicCache.LRU do
     if predicate.(state) do
       state
     else
-      case Enum.reverse(keys) do
-        [] ->
+      case Enum.split(keys, -1) do
+        {[], []} ->
           state
 
-        [oldest_key | rest] ->
+        {rest, [oldest_key]} ->
           [{_, {size, oldest_value}}] = :ets.take(table, oldest_key)
           evict_fn.(oldest_key, oldest_value)
 
@@ -146,7 +146,7 @@ defmodule ArchethicCache.LRU do
             %{
               state
               | bytes_used: bytes_used - size,
-                keys: Enum.reverse(rest)
+                keys: rest
             },
             predicate
           )
