@@ -3,8 +3,6 @@ defmodule Archethic.Bootstrap.TransactionHandler do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
-
   alias Archethic.P2P
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.NewTransaction
@@ -32,7 +30,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   end
 
   defp do_send_transaction(
-         [node | rest],
+         nodes = [node | rest],
          tx = %Transaction{address: address, type: type, data: transaction_data}
        ) do
     case P2P.send_message(node, %NewTransaction{
@@ -45,15 +43,7 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           transaction_type: type
         )
 
-        storage_nodes =
-          Election.chain_storage_nodes_with_type(
-            address,
-            type,
-            P2P.authorized_and_available_nodes()
-          )
-          |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-
-        case Utils.await_confirmation(address, storage_nodes) do
+        case Utils.await_confirmation(address, nodes) do
           {:ok, validated_transaction = %Transaction{address: ^address, data: ^transaction_data}} ->
             {:ok, validated_transaction}
 

@@ -40,15 +40,19 @@ defmodule Archethic.P2P do
   def add_and_connect_node(node = %Node{first_public_key: first_public_key}) do
     :ok = MemTable.add_node(node)
     node = get_node_info!(first_public_key)
-    do_connect_node(node)
+    connect_node(node)
   end
 
-  defp do_connect_node(%Node{
-         ip: ip,
-         port: port,
-         transport: transport,
-         first_public_key: first_public_key
-       }) do
+  @doc """
+  Establish a connection with a node
+  """
+  @spec connect_node(Node.t()) :: :ok
+  def connect_node(%Node{
+        ip: ip,
+        port: port,
+        transport: transport,
+        first_public_key: first_public_key
+      }) do
     if first_public_key == Crypto.first_node_public_key() do
       :ok
     else
@@ -56,12 +60,6 @@ defmodule Archethic.P2P do
       :ok
     end
   end
-
-  @doc """
-  Reload last P2P view from DB
-  """
-  @spec reload_last_view(last_sync_date :: DateTime.t() | nil) :: :ok
-  defdelegate reload_last_view(last_sync_date), to: MemTableLoader, as: :load_p2p_view
 
   @doc """
   List the nodes registered.
@@ -72,8 +70,9 @@ defmodule Archethic.P2P do
   @doc """
   Fetch the list of nodes from close nodes
   """
-  @spec fetch_nodes_list() :: {:ok, list(Node.t())} | {:error, :network_issue}
-  def fetch_nodes_list() do
+  @spec fetch_nodes_list(authorized_and_available? :: boolean(), node_list :: list(Node.t())) ::
+          {:ok, list(Node.t())} | {:error, :network_issue}
+  def fetch_nodes_list(authorized_and_available?, nodes) do
     last_updated_nodes =
       fn new_node = %Node{
            first_public_key: public_key,
@@ -100,7 +99,11 @@ defmodule Archethic.P2P do
       %NodeList{nodes: nodes}
     end
 
-    case quorum_read(authorized_and_available_nodes(), %ListNodes{}, conflict_resolver) do
+    case quorum_read(
+           nodes,
+           %ListNodes{authorized_and_available?: authorized_and_available?},
+           conflict_resolver
+         ) do
       {:ok, %NodeList{nodes: nodes}} ->
         {:ok, nodes}
 
@@ -570,7 +573,7 @@ defmodule Archethic.P2P do
     previous_public_key
     |> TransactionChain.get_first_public_key()
     |> get_node_info!()
-    |> do_connect_node()
+    |> connect_node()
   end
 
   def load_transaction(tx), do: MemTableLoader.load_transaction(tx)

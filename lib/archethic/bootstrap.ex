@@ -107,19 +107,31 @@ defmodule Archethic.Bootstrap do
           P2P.get_geo_patch(ip)
       end
 
+    node_first_public_key = Crypto.first_node_public_key()
+
+    closest_bootstrapping_nodes =
+      case bootstrapping_seeds do
+        [%Node{first_public_key: ^node_first_public_key}] ->
+          bootstrapping_seeds
+
+        nodes ->
+          Enum.each(nodes, &P2P.connect_node/1)
+          {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(nodes, network_patch)
+          closest_nodes
+      end
+
     if should_bootstrap?(ip, port, http_port, transport, last_sync_date) do
       start_bootstrap(
         ip,
         port,
         http_port,
         transport,
-        bootstrapping_seeds,
-        network_patch,
+        closest_bootstrapping_nodes,
         reward_address
       )
     end
 
-    post_bootstrap()
+    post_bootstrap(closest_bootstrapping_nodes)
 
     Logger.info("Bootstrapping finished!")
   end
@@ -148,14 +160,13 @@ defmodule Archethic.Bootstrap do
          port,
          http_port,
          transport,
-         bootstrapping_seeds,
-         network_patch,
+         closest_bootstrapping_nodes,
          configured_reward_address
        ) do
     Logger.info("Bootstrapping starting")
 
     cond do
-      Sync.should_initialize_network?(bootstrapping_seeds) ->
+      Sync.should_initialize_network?(closest_bootstrapping_nodes) ->
         Logger.info("This node should initialize the network!!")
         Logger.debug("Create first node transaction")
 
@@ -180,8 +191,7 @@ defmodule Archethic.Bootstrap do
           port,
           http_port,
           transport,
-          network_patch,
-          bootstrapping_seeds,
+          closest_bootstrapping_nodes,
           configured_reward_address
         )
 
@@ -201,21 +211,20 @@ defmodule Archethic.Bootstrap do
           port,
           http_port,
           transport,
-          network_patch,
-          bootstrapping_seeds,
+          closest_bootstrapping_nodes,
           last_reward_address
         )
     end
   end
 
-  defp post_bootstrap() do
+  defp post_bootstrap(closest_bootstrapping_nodes) do
     last_sync_date = SelfRepair.last_sync_date()
 
     if SelfRepair.missed_sync?(last_sync_date) do
       Logger.info("Synchronization started")
       # Always load the current node list to have the current view for downloading transaction
-      :ok = Sync.load_node_list()
-      :ok = SelfRepair.bootstrap_sync(last_sync_date)
+      {:ok, current_nodes} = Sync.connect_current_node(closest_bootstrapping_nodes)
+      :ok = SelfRepair.bootstrap_sync(last_sync_date, current_nodes)
       Logger.info("Synchronization finished")
     end
 
@@ -236,23 +245,14 @@ defmodule Archethic.Bootstrap do
          port,
          http_port,
          transport,
-         patch,
-         bootstrapping_seeds,
+         closest_bootstrapping_nodes,
          configured_reward_address
        ) do
-    Enum.each(bootstrapping_seeds, &P2P.add_and_connect_node/1)
-
-    {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
-
-    closest_nodes =
-      closest_nodes
-      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-
     # In case node had lose it's DB, we ask the network if the node chain already exists
     {:ok, length} =
       Crypto.first_node_public_key()
       |> Crypto.derive_address()
-      |> TransactionChain.fetch_size_remotely(closest_nodes)
+      |> TransactionChain.fetch_size_remotely(closest_bootstrapping_nodes)
 
     Crypto.set_node_key_index(length)
 
@@ -260,10 +260,10 @@ defmodule Archethic.Bootstrap do
       if length > 0 do
         {:ok, last_address} =
           Crypto.derive_address(Crypto.first_node_public_key())
-          |> TransactionChain.fetch_last_address_remotely(closest_nodes)
+          |> TransactionChain.fetch_last_address_remotely(closest_bootstrapping_nodes)
 
         {:ok, %Transaction{data: %TransactionData{content: content}}} =
-          TransactionChain.fetch_transaction_remotely(last_address, closest_nodes)
+          TransactionChain.fetch_transaction_remotely(last_address, closest_bootstrapping_nodes)
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
          _key_certificate} = Node.decode_transaction_content(content)
@@ -276,41 +276,26 @@ defmodule Archethic.Bootstrap do
     tx =
       TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
 
-    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_nodes)
+    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
 
-    :ok = Sync.load_storage_nonce(closest_nodes)
+    :ok = Sync.load_storage_nonce(closest_bootstrapping_nodes)
 
-    Replication.sync_transaction_chain(validated_tx, closest_nodes)
+    Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
   end
 
-  defp update_node(ip, port, http_port, transport, patch, bootstrapping_seeds, reward_address) do
-    case Enum.reject(
-           bootstrapping_seeds,
-           &(&1.first_public_key == Crypto.first_node_public_key())
-         ) do
-      [] ->
-        Logger.warning("Not enough nodes in the network. No node update")
+  defp update_node(ip, port, http_port, transport, closest_bootstrapping_nodes, reward_address) do
+    tx =
+      TransactionHandler.create_node_transaction(
+        ip,
+        port,
+        http_port,
+        transport,
+        reward_address
+      )
 
-      _ ->
-        {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
+    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
 
-        closest_nodes =
-          closest_nodes
-          |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-
-        tx =
-          TransactionHandler.create_node_transaction(
-            ip,
-            port,
-            http_port,
-            transport,
-            reward_address
-          )
-
-        {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_nodes)
-
-        Replication.sync_transaction_chain(validated_tx, closest_nodes)
-    end
+    Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
   end
 
   @doc """
