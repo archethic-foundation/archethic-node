@@ -106,7 +106,6 @@ defmodule Archethic.Contracts do
     end
   rescue
     err ->
-      IO.inspect(Exception.format(:error, err, __STACKTRACE__))
       Logger.warn(Exception.format(:error, err, __STACKTRACE__))
       false
   end
