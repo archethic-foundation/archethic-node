@@ -66,7 +66,7 @@ defmodule Archethic.SelfRepair do
               {:halt, :ok}
             catch
               error, message ->
-                Logger.error("Error during self repair #{error} #{message}")
+                Logger.error("Error during self repair #{inspect(error)} #{inspect(message)}")
                 {:cont, :error}
             end
           end)
