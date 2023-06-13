@@ -128,13 +128,28 @@ defmodule ArchethicCache.LRU do
   end
 
   defp evict_until(
-         state = %{table: table, keys: keys, evict_fn: evict_fn, bytes_used: bytes_used},
+         state = %{keys: keys},
+         predicate
+       ) do
+    # we reverse the keys here so we don't need to reverse them in a loop
+    state = %{state | keys: Enum.reverse(keys)}
+    new_state = do_evict_until(state, predicate)
+    %{new_state | keys: Enum.reverse(new_state.keys)}
+  end
+
+  defp do_evict_until(
+         state = %{
+           table: table,
+           keys: reversed_keys,
+           evict_fn: evict_fn,
+           bytes_used: bytes_used
+         },
          predicate
        ) do
     if predicate.(state) do
       state
     else
-      case Enum.reverse(keys) do
+      case reversed_keys do
         [] ->
           state
 
@@ -142,11 +157,11 @@ defmodule ArchethicCache.LRU do
           [{_, {size, oldest_value}}] = :ets.take(table, oldest_key)
           evict_fn.(oldest_key, oldest_value)
 
-          evict_until(
+          do_evict_until(
             %{
               state
               | bytes_used: bytes_used - size,
-                keys: Enum.reverse(rest)
+                keys: rest
             },
             predicate
           )
