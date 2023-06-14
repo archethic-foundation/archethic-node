@@ -4,6 +4,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Client.Connection
+  alias Archethic.P2P.Client.ConnectionSupervisor
   alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.GetBalance
@@ -424,23 +425,9 @@ defmodule Archethic.P2P.Client.ConnectionTest do
     end
 
     test "should stop when node disconnect" do
-      defmodule MockTransportDisconnected3 do
-        alias Archethic.P2P.Client.Transport
-
-        @behaviour Transport
-
-        def handle_connect(_ip, _port) do
-          {:ok, make_ref()}
-        end
-
-        def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
-
-        def handle_message({_, _, _}), do: {:error, :closed}
-      end
-
       {:ok, pid} =
         Connection.start_link(
-          transport: __MODULE__.MockTransportDisconnected3,
+          transport: __MODULE__.MockTransportClosed,
           ip: {127, 0, 0, 1},
           port: 3000,
           node_public_key: Crypto.first_node_public_key()
@@ -467,7 +454,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
         }
         |> MessageEnvelop.encode(Crypto.first_node_public_key())
 
-      send(pid, {__MODULE__.MockTransportDisconnected, make_ref(), msg_envelop})
+      send(pid, {__MODULE__.MockTransportClosed, make_ref(), msg_envelop})
 
       Process.sleep(10)
 
@@ -511,6 +498,37 @@ defmodule Archethic.P2P.Client.ConnectionTest do
     end
   end
 
+  describe "connected?" do
+    test "shoud return true when node is connected and false when disconnected" do
+      node_key = Crypto.first_node_public_key()
+
+      {:ok, pid} =
+        ConnectionSupervisor.add_connection(
+          transport: __MODULE__.MockTransportClosed,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: node_key
+        )
+
+      Process.sleep(10)
+
+      assert ConnectionSupervisor.node_connected?(node_key)
+
+      assert {:error, :timeout} =
+               Connection.send_message(
+                 node_key,
+                 %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+                 10
+               )
+
+      Process.sleep(10)
+
+      refute ConnectionSupervisor.node_connected?(node_key)
+
+      ConnectionSupervisor.cancel_connection(pid, node_key)
+    end
+  end
+
   defmodule MockTransport do
     alias Archethic.P2P.Client.Transport
 
@@ -523,5 +541,19 @@ defmodule Archethic.P2P.Client.ConnectionTest do
     def handle_send(_socket, _data), do: :ok
 
     def handle_message({_, _, data}), do: {:ok, data}
+  end
+
+  defmodule MockTransportClosed do
+    alias Archethic.P2P.Client.Transport
+
+    @behaviour Transport
+
+    def handle_connect(_ip, _port) do
+      {:ok, make_ref()}
+    end
+
+    def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+
+    def handle_message({_, _, _}), do: {:error, :closed}
   end
 end

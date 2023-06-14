@@ -12,6 +12,7 @@ defmodule Archethic.P2P.Client.Connection do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Client.ConnectionRegistry
+  alias Archethic.P2P.Client.ConnectionSupervisor
 
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Message
@@ -67,7 +68,7 @@ defmodule Archethic.P2P.Client.Connection do
     GenStateMachine.call(via_tuple(public_key), {:get_timer, reset?})
   end
 
-  # fetch cnnoection details from registery for a node from its public key
+  # fetch connection details from registery for a node from its public key
   defp via_tuple(public_key), do: {:via, Registry, {ConnectionRegistry, public_key}}
 
   def init(arg) do
@@ -150,6 +151,7 @@ defmodule Archethic.P2P.Client.Connection do
     Logger.warning("Connection closed", node: Base.encode16(node_public_key))
 
     MemTable.decrease_node_availability(node_public_key)
+    ConnectionSupervisor.set_node_disconnected(node_public_key)
 
     # Stop availability timer
     new_data =
@@ -184,6 +186,7 @@ defmodule Archethic.P2P.Client.Connection do
         data = %{node_public_key: node_public_key}
       ) do
     MemTable.increase_node_availability(node_public_key)
+    ConnectionSupervisor.set_node_connected(node_public_key)
 
     # Start availability timer
     new_data =
@@ -345,6 +348,7 @@ defmodule Archethic.P2P.Client.Connection do
         )
 
         MemTable.decrease_node_availability(node_public_key)
+        ConnectionSupervisor.set_node_disconnected(node_public_key)
 
         # Stop availability timer
         new_data =
@@ -452,6 +456,7 @@ defmodule Archethic.P2P.Client.Connection do
 
       {:ok, msg} ->
         MemTable.increase_node_availability(node_public_key)
+        ConnectionSupervisor.set_node_connected(node_public_key)
 
         # Start availability timer
         new_data =
@@ -516,6 +521,21 @@ defmodule Archethic.P2P.Client.Connection do
   def handle_event(:info, _, _, _data) do
     # Unhandled message received
     :keep_state_and_data
+  end
+
+  def code_change(
+        "1.1.1",
+        state = {:connected, _},
+        data = %{node_public_key: node_public_key},
+        _extra
+      ) do
+    ConnectionSupervisor.set_node_connected(node_public_key)
+    {:ok, state, data}
+  end
+
+  def code_change("1.1.1", state, data = %{node_public_key: node_public_key}, _extra) do
+    ConnectionSupervisor.set_node_disconnected(node_public_key)
+    {:ok, state, data}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
