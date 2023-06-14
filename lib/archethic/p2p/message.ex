@@ -36,7 +36,6 @@ defmodule Archethic.P2P.Message do
     GetLastTransaction,
     GetLastTransactionAddress,
     GetNextAddresses,
-    GetP2PView,
     GetStorageNonce,
     GetTransaction,
     GetTransactionChain,
@@ -55,7 +54,6 @@ defmodule Archethic.P2P.Message do
     NotifyLastTransactionAddress,
     NotifyPreviousChain,
     Ok,
-    P2PView,
     Ping,
     RegisterBeaconUpdates,
     ReplicateTransaction,
@@ -91,7 +89,6 @@ defmodule Archethic.P2P.Message do
           | GetTransaction.t()
           | GetTransactionChain.t()
           | GetUnspentOutputs.t()
-          | GetP2PView.t()
           | NewTransaction.t()
           | StartMining.t()
           | AddMiningContext.t()
@@ -139,7 +136,6 @@ defmodule Archethic.P2P.Message do
           | Balance.t()
           | EncryptedStorageNonce.t()
           | BootstrappingNodes.t()
-          | P2PView.t()
           | TransactionSummaryMessage.t()
           | LastTransactionAddress.t()
           | FirstPublicKey.t()

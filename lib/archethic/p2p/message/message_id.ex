@@ -22,7 +22,6 @@ defmodule Archethic.P2P.MessageId do
     GetBalance,
     GetTransactionInputs,
     GetTransactionChainLength,
-    GetP2PView,
     GetFirstPublicKey,
     GetFirstTransactionAddress,
     FirstTransactionAddress,
@@ -49,7 +48,6 @@ defmodule Archethic.P2P.MessageId do
     Error,
     LastTransactionAddress,
     FirstPublicKey,
-    P2PView,
     TransactionInputList,
     TransactionChainLength,
     BootstrappingNodes,
@@ -101,7 +99,7 @@ defmodule Archethic.P2P.MessageId do
     GetBalance => 16,
     GetTransactionInputs => 17,
     GetTransactionChainLength => 18,
-    GetP2PView => 19,
+    # Message number 19 is available
     GetFirstPublicKey => 20,
     GetLastTransactionAddress => 21,
     NotifyLastTransactionAddress => 22,
@@ -141,7 +139,7 @@ defmodule Archethic.P2P.MessageId do
     Summary => 240,
     LastTransactionAddress => 241,
     FirstPublicKey => 242,
-    P2PView => 243,
+    # Message number 243 is available
     TransactionInputList => 244,
     TransactionChainLength => 245,
     BootstrappingNodes => 246,

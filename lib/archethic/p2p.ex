@@ -500,29 +500,6 @@ defmodule Archethic.P2P do
   defdelegate new_bootstrapping_seeds(nodes), to: BootstrappingSeeds, as: :update
 
   @doc """
-  Create a binary sequence from a list node and set bit regarding their availability
-
-  ## Examples
-
-      iex> P2P.nodes_availability_as_bits([
-      ...>   %Node{availability_history: <<1::1, 0::1>>},
-      ...>   %Node{availability_history: <<0::1, 1::1>>},
-      ...>   %Node{availability_history: <<1::1, 0::1>>}
-      ...> ])
-      <<1::1, 0::1, 1::1>>
-  """
-  @spec nodes_availability_as_bits(list(Node.t())) :: bitstring()
-  def nodes_availability_as_bits(node_list) when is_list(node_list) do
-    Enum.reduce(node_list, <<>>, fn node, acc ->
-      if Node.locally_available?(node) do
-        <<acc::bitstring, 1::1>>
-      else
-        <<acc::bitstring, 0::1>>
-      end
-    end)
-  end
-
-  @doc """
   Create a sequence of bits from a list of node and a subset
   by setting the bit where the subset node if found
 
