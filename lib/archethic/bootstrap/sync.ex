@@ -18,8 +18,6 @@ defmodule Archethic.Bootstrap.Sync do
 
   alias Archethic.SharedSecrets
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
@@ -138,20 +136,7 @@ defmodule Archethic.Bootstrap.Sync do
   def connect_current_node(closest_nodes) do
     case P2P.fetch_nodes_list(true, closest_nodes) do
       {:ok, nodes} ->
-        nodes =
-          Task.Supervisor.async_stream(
-            TaskSupervisor,
-            nodes,
-            fn node ->
-              P2P.connect_node(node)
-              # Wait connection time
-              Process.sleep(500)
-              %Node{node | availability_history: <<1::1>>}
-            end
-          )
-          |> Stream.filter(&match?({:ok, _}, &1))
-          |> Enum.map(fn {:ok, node} -> node end)
-
+        P2P.connect_nodes(nodes)
         Logger.info("Node list refreshed")
         {:ok, nodes}
 
@@ -207,15 +192,8 @@ defmodule Archethic.Bootstrap.Sync do
           (new_seeds ++ closest_nodes)
           |> P2P.distinct_nodes()
           |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-          |> Task.async_stream(fn node ->
-            P2P.connect_node(node)
-            # Wait for connection time
-            Process.sleep(500)
-            # Set node locally available after connection
-            %Node{node | availability_history: <<1::1>>}
-          end)
-          |> Enum.filter(&match?({:ok, _}, &1))
-          |> Enum.map(fn {:ok, node} -> node end)
+
+        P2P.connect_nodes(closest_nodes)
 
         Logger.info("Closest nodes and seeds loaded in the P2P view")
 

@@ -40,19 +40,22 @@ defmodule Archethic.P2P do
   def add_and_connect_node(node = %Node{first_public_key: first_public_key}) do
     :ok = MemTable.add_node(node)
     node = get_node_info!(first_public_key)
-    connect_node(node)
+    do_connect_node(node)
   end
 
   @doc """
-  Establish a connection with a node
+  Establish a connection on a list of node in parallel
   """
-  @spec connect_node(Node.t()) :: :ok
-  def connect_node(%Node{
-        ip: ip,
-        port: port,
-        transport: transport,
-        first_public_key: first_public_key
-      }) do
+  @spec connect_nodes(list(Node.t())) :: :ok
+  def connect_nodes(nodes),
+    do: Task.Supervisor.async_stream(TaskSupervisor, nodes, &do_connect_node/1) |> Stream.run()
+
+  defp do_connect_node(%Node{
+         ip: ip,
+         port: port,
+         transport: transport,
+         first_public_key: first_public_key
+       }) do
     if first_public_key == Crypto.first_node_public_key() do
       :ok
     else
@@ -573,7 +576,7 @@ defmodule Archethic.P2P do
     previous_public_key
     |> TransactionChain.get_first_public_key()
     |> get_node_info!()
-    |> connect_node()
+    |> do_connect_node()
   end
 
   def load_transaction(tx), do: MemTableLoader.load_transaction(tx)

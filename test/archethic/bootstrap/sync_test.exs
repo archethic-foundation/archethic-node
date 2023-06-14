@@ -355,7 +355,7 @@ defmodule Archethic.Bootstrap.SyncTest do
       network_patch: "AAA"
     }
 
-    :ok = P2P.connect_node(node)
+    :ok = P2P.connect_nodes([node])
 
     first_public_key = Crypto.first_node_public_key()
 
