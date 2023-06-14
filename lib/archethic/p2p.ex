@@ -47,8 +47,27 @@ defmodule Archethic.P2P do
   Establish a connection on a list of node in parallel
   """
   @spec connect_nodes(list(Node.t())) :: :ok
-  def connect_nodes(nodes),
-    do: Task.Supervisor.async_stream(TaskSupervisor, nodes, &do_connect_node/1) |> Stream.run()
+  def connect_nodes(nodes) do
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      nodes,
+      fn node = %Node{first_public_key: first_public_key} ->
+        do_connect_node(node)
+
+        receive do
+          :connected ->
+            :ok
+
+          {:error, reason} ->
+            Logger.warning("First connection attempt failed for #{inspect(reason)}",
+              node: Base.encode16(first_public_key)
+            )
+        end
+      end,
+      on_timeout: :kill_task
+    )
+    |> Stream.run()
+  end
 
   defp do_connect_node(%Node{
          ip: ip,
