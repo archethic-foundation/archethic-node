@@ -152,13 +152,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
     # pre-cache item (when node is not bootstrapping)
     # so they are already cached when we'll need them
-    if Archethic.up?() do
-      LRU.put(@archetic_db_tx_index_cache, tx_address, %{
-        size: size,
-        offset: last_offset,
-        genesis_address: genesis_address
-      })
-    end
+    add_entry_to_cache(tx_address, %{
+      size: size,
+      offset: last_offset,
+      genesis_address: genesis_address
+    })
 
     :ets.update_counter(
       @archethic_db_chain_stats,
@@ -222,10 +220,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       nil ->
         case search_tx_entry(address, db_path) do
           {:ok, entry} ->
-            if Archethic.up?() do
-              LRU.put(@archetic_db_tx_index_cache, address, entry)
-            end
-
+            add_entry_to_cache(address, entry)
             {:ok, entry}
 
           {:error, :not_exists} ->
@@ -698,6 +693,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       :eof ->
         :file.close(fd)
         acc
+    end
+  end
+
+  defp add_entry_to_cache(address, entry) do
+    if Archethic.up?() do
+      LRU.put(@archetic_db_tx_index_cache, address, entry)
     end
   end
 
