@@ -192,6 +192,7 @@ defmodule ArchethicCase do
       _, %Archethic.P2P.Message.ListNodes{}, _ ->
         {:ok, %Archethic.P2P.Message.NodeList{nodes: Archethic.P2P.list_nodes()}}
     end)
+    |> stub(:connected?, fn _ -> true end)
 
     start_supervised!(TokenLedger)
     start_supervised!(UCOLedger)

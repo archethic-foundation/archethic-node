@@ -708,7 +708,7 @@ defmodule Archethic.P2P do
         consistency_level
       ) do
     nodes
-    |> Enum.filter(&Node.locally_available?/1)
+    |> Enum.filter(&node_connected?/1)
     |> nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
     |> do_quorum_read(
