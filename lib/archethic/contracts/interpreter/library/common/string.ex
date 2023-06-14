@@ -14,11 +14,15 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
     to: String,
     as: :contains?
 
-  @spec to_hex(String.t()) :: String.t()
+  @spec to_hex(String.t()) :: String.t() | nil
   def to_hex(str) do
-    str
-    |> Base.decode16!(case: :mixed)
-    |> Base.encode16()
+    case Base.decode16(str, case: :mixed) do
+      {:ok, bin} ->
+        Base.encode16(bin)
+
+      :error ->
+        nil
+    end
   end
 
   @spec to_uppercase(String.t()) :: String.t()

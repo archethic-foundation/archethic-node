@@ -229,40 +229,28 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StringTest do
       {:error, _, "invalid function arguments"} = sanitize_parse_execute(code)
     end
 
-    test "should raise when not a hex" do
-      # string with non-hex characters
+    test "should return nil if size of string is incorrect" do
       code = ~s"""
       actions triggered_by: transaction do
-          Contract.set_content String.to_hex("zzz")
+          if nil == String.to_hex("abc") do
+            Contract.set_content "ok"
+          end
       end
       """
 
-      assert_raise(ArgumentError, fn ->
-        sanitize_parse_execute(code)
-      end)
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
 
-      # variable
+    test "should return nil if size of string contains non hexadecimal chars" do
       code = ~s"""
       actions triggered_by: transaction do
-          var = "ZZZ"
-          Contract.set_content String.to_hex(var)
+          if nil == String.to_hex("fghijk") do
+            Contract.set_content "ok"
+          end
       end
       """
 
-      assert_raise(ArgumentError, fn ->
-        sanitize_parse_execute(code)
-      end)
-
-      # string with invalid size
-      code = ~s"""
-      actions triggered_by: transaction do
-          Contract.set_content String.to_hex("abc")
-      end
-      """
-
-      assert_raise(ArgumentError, fn ->
-        sanitize_parse_execute(code)
-      end)
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
 
