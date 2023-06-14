@@ -115,7 +115,7 @@ defmodule Archethic.Bootstrap do
           bootstrapping_seeds
 
         nodes ->
-          Enum.each(nodes, &P2P.connect_node/1)
+          P2P.connect_nodes(nodes)
           {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(nodes, network_patch)
           closest_nodes
       end
