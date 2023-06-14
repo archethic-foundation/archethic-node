@@ -150,7 +150,7 @@ defmodule Archethic.Networking.Scheduler do
   defp handle_new_ip(%Transaction{address: tx_address, data: transaction_data}) do
     nodes =
       P2P.authorized_and_available_nodes()
-      |> Enum.filter(&Node.locally_available?/1)
+      |> Enum.filter(&P2P.node_connected?/1)
       |> P2P.nearest_nodes()
 
     case Utils.await_confirmation(tx_address, nodes) do

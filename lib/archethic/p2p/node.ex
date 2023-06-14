@@ -220,24 +220,6 @@ defmodule Archethic.P2P.Node do
   end
 
   @doc """
-  Determine if the node is locally available based on its availability history.
-
-  If the last exchange with node was succeed the node is considered as available
-
-  ## Examples
-
-      iex> Node.locally_available?(%Node{ availability_history: <<1::1, 0::1, 1::1, 1::1>>})
-      true
-
-      iex> Node.locally_available?(%Node{ availability_history: <<0::1, 1::1, 1::1, 1::1>>})
-      false
-
-  """
-  @spec locally_available?(t()) :: boolean()
-  def locally_available?(%__MODULE__{availability_history: <<1::1, _::bitstring>>}), do: true
-  def locally_available?(%__MODULE__{availability_history: <<0::1, _::bitstring>>}), do: false
-
-  @doc """
   Mark the node as authorized by including the authorization date
 
   ## Examples

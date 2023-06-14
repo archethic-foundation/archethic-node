@@ -337,9 +337,13 @@ defmodule Archethic.Bootstrap.SyncTest do
   test_with_mock "connect_current_node/1 should request node list from the closest nodes and connect to them",
                  Client,
                  [:passthrough],
-                 new_connection: fn _, _, _, public_key ->
-                   P2P.MemTable.increase_node_availability(public_key)
+                 new_connection: fn _, _, _, _ ->
+                   send(self(), :connected)
                    {:ok, make_ref()}
+                 end,
+                 connected?: fn
+                   "key1" -> true
+                   _ -> false
                  end do
     node = %Node{
       ip: {80, 10, 101, 202},
@@ -391,7 +395,8 @@ defmodule Archethic.Bootstrap.SyncTest do
 
     assert {:ok, [^node, ^node2, ^node3]} = Sync.connect_current_node([node])
 
-    assert_called_exactly(Client.new_connection(:_, :_, :_, "key1"), 2)
+    # Called 3 times 2 times with P2P.connect_nodes and 1 time with P2P.quorum
+    assert_called_exactly(Client.connected?("key1"), 3)
     assert_called(Client.new_connection(:_, :_, :_, "key2"))
   end
 

@@ -87,7 +87,7 @@ defmodule Archethic do
       |> Enum.reject(&(&1.first_public_key == welcome_node_key))
       |> Enum.sort_by(& &1.first_public_key)
       |> P2P.nearest_nodes(welcome_node_patch)
-      |> Enum.filter(&Node.locally_available?/1)
+      |> Enum.filter(&P2P.node_connected?/1)
 
     this_node = Crypto.first_node_public_key()
 
