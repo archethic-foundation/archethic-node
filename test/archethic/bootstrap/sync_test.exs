@@ -351,7 +351,6 @@ defmodule Archethic.Bootstrap.SyncTest do
       http_port: 4000,
       first_public_key: "key1",
       last_public_key: "key1",
-      availability_history: <<1::1>>,
       authorized?: true,
       available?: true,
       authorization_date: DateTime.utc_now(),
@@ -372,7 +371,6 @@ defmodule Archethic.Bootstrap.SyncTest do
       enrollment_date: DateTime.utc_now(),
       authorized?: true,
       available?: true,
-      availability_history: <<1::1>>,
       network_patch: "AAA"
     }
 
@@ -383,7 +381,6 @@ defmodule Archethic.Bootstrap.SyncTest do
       first_public_key: "key2",
       last_public_key: "key2",
       authorized?: true,
-      availability_history: <<1::1>>,
       available?: true
     }
 

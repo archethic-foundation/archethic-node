@@ -197,8 +197,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
       authorized?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-11, :minute),
       available?: true,
-      enrollment_date: enrollment_date,
-      availability_history: <<1::1>>
+      enrollment_date: enrollment_date
     }
 
     P2P.add_and_connect_node(node)
@@ -212,8 +211,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
           network_patch: "AAA",
           authorized?: true,
           authorization_date: DateTime.utc_now(),
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       end)
 

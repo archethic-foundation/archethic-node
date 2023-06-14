@@ -14,7 +14,6 @@ defmodule Archethic.P2P.Client.Connection do
   alias Archethic.P2P.Client.ConnectionRegistry
   alias Archethic.P2P.Client.ConnectionSupervisor
 
-  alias Archethic.P2P.MemTable
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
 
@@ -150,7 +149,6 @@ defmodule Archethic.P2P.Client.Connection do
       ) do
     Logger.warning("Connection closed", node: Base.encode16(node_public_key))
 
-    MemTable.decrease_node_availability(node_public_key)
     ConnectionSupervisor.set_node_disconnected(node_public_key)
 
     # Stop availability timer
@@ -185,7 +183,6 @@ defmodule Archethic.P2P.Client.Connection do
         {:connected, _socket},
         data = %{node_public_key: node_public_key}
       ) do
-    MemTable.increase_node_availability(node_public_key)
     ConnectionSupervisor.set_node_connected(node_public_key)
 
     # Start availability timer
@@ -347,7 +344,6 @@ defmodule Archethic.P2P.Client.Connection do
           message_id: msg_id
         )
 
-        MemTable.decrease_node_availability(node_public_key)
         ConnectionSupervisor.set_node_disconnected(node_public_key)
 
         # Stop availability timer
@@ -455,7 +451,6 @@ defmodule Archethic.P2P.Client.Connection do
         {:next_state, :disconnected, data}
 
       {:ok, msg} ->
-        MemTable.increase_node_availability(node_public_key)
         ConnectionSupervisor.set_node_connected(node_public_key)
 
         # Start availability timer

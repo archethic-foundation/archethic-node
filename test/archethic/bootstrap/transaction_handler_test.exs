@@ -46,8 +46,7 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
       available?: true,
       authorized?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-      enrollment_date: DateTime.utc_now(),
-      availability_history: <<1::1>>
+      enrollment_date: DateTime.utc_now()
     }
 
     :ok = P2P.add_and_connect_node(node)

@@ -125,22 +125,19 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
-          port: 3001,
-          availability_history: <<1::1>>
+          port: 3001
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
-          port: 3002,
-          availability_history: <<1::1>>
+          port: 3002
         }
       ]
 
@@ -161,24 +158,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -208,24 +202,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -255,24 +246,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -329,24 +317,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -382,24 +367,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -466,24 +448,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -520,24 +499,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -607,24 +583,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -645,24 +618,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -693,7 +663,6 @@ defmodule Archethic.TransactionChainTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           available?: true,
-          availability_history: <<1::1>>,
           authorized?: true,
           geo_patch: "AAA",
           authorization_date: DateTime.utc_now()
@@ -703,7 +672,6 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          availability_history: <<1::1>>,
           geo_patch: "AAA",
           authorized?: true,
           authorization_date: DateTime.utc_now()
@@ -714,7 +682,6 @@ defmodule Archethic.TransactionChainTest do
           geo_patch: "AAA",
           ip: {127, 0, 0, 1},
           port: 3002,
-          availability_history: <<1::1>>,
           authorized?: true,
           authorization_date: DateTime.utc_now()
         }
@@ -859,7 +826,6 @@ defmodule Archethic.TransactionChainTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           available?: true,
-          availability_history: <<1::1>>,
           authorized?: true,
           geo_patch: "AAA",
           authorization_date: DateTime.utc_now()
@@ -869,7 +835,6 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          availability_history: <<1::1>>,
           geo_patch: "AAA",
           authorized?: true,
           authorization_date: DateTime.utc_now()
@@ -880,7 +845,6 @@ defmodule Archethic.TransactionChainTest do
           geo_patch: "AAA",
           ip: {127, 0, 0, 1},
           port: 3002,
-          availability_history: <<1::1>>,
           authorized?: true,
           authorization_date: DateTime.utc_now()
         }
@@ -932,7 +896,6 @@ defmodule Archethic.TransactionChainTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           available?: true,
-          availability_history: <<1::1>>,
           authorized?: true,
           geo_patch: "AAA",
           authorization_date: DateTime.utc_now()
@@ -943,7 +906,6 @@ defmodule Archethic.TransactionChainTest do
           ip: {127, 0, 0, 1},
           port: 3001,
           available?: true,
-          availability_history: <<1::1>>,
           geo_patch: "AAA",
           authorized?: true,
           authorization_date: DateTime.utc_now()

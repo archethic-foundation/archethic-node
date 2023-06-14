@@ -45,7 +45,6 @@ defmodule Archethic.P2PTest do
           first_public_key: pub1,
           last_public_key: pub1,
           available?: true,
-          availability_history: <<1::1>>,
           network_patch: "AAA",
           geo_patch: "AAA"
         },
@@ -55,7 +54,6 @@ defmodule Archethic.P2PTest do
           first_public_key: pub2,
           last_public_key: pub2,
           available?: true,
-          availability_history: <<1::1>>,
           network_patch: "AAA",
           geo_patch: "AAA"
         },
@@ -65,7 +63,6 @@ defmodule Archethic.P2PTest do
           first_public_key: pub3,
           last_public_key: pub3,
           available?: true,
-          availability_history: <<1::1>>,
           network_patch: "AAA",
           geo_patch: "AAA"
         },
@@ -75,7 +72,6 @@ defmodule Archethic.P2PTest do
           first_public_key: pub4,
           last_public_key: pub4,
           available?: true,
-          availability_history: <<1::1>>,
           network_patch: "AAA",
           geo_patch: "AAA"
         },
@@ -85,7 +81,6 @@ defmodule Archethic.P2PTest do
           first_public_key: pub5,
           last_public_key: pub5,
           available?: true,
-          availability_history: <<1::1>>,
           network_patch: "AAA",
           geo_patch: "AAA"
         }

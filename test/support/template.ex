@@ -184,8 +184,7 @@ defmodule ArchethicCase do
     end)
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, public_key ->
-      P2PMemTable.increase_node_availability(public_key)
+    |> stub(:new_connection, fn _, _, _, _ ->
       {:ok, make_ref()}
     end)
     |> stub(:send_message, fn
