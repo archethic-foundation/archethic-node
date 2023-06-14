@@ -35,8 +35,7 @@ defmodule Archethic.SelfRepairTest do
       geo_patch: "AAA",
       authorized?: true,
       authorization_date: ~U[2022-11-27 00:00:00Z],
-      available?: true,
-      availability_history: <<1::1>>
+      available?: true
     }
 
     me = self()

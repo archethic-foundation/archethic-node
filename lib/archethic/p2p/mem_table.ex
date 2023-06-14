@@ -25,16 +25,15 @@ defmodule Archethic.P2P.MemTable do
     geo_patch: 6,
     network_patch: 7,
     average_availability: 8,
-    availability_history: 9,
-    enrollment_date: 10,
-    transport: 11,
-    reward_address: 12,
-    last_address: 13,
-    origin_public_key: 14,
-    synced?: 15,
-    last_update_date: 16,
-    available?: 17,
-    availability_update: 18
+    enrollment_date: 9,
+    transport: 10,
+    reward_address: 11,
+    last_address: 12,
+    origin_public_key: 13,
+    synced?: 14,
+    last_update_date: 15,
+    available?: 16,
+    availability_update: 17
   ]
 
   @doc """
@@ -55,6 +54,21 @@ defmodule Archethic.P2P.MemTable do
     {:ok, []}
   end
 
+  def code_change("1.1.1", state, _extra) do
+    # This match_spec remove the key :"$9" which is the availability_history
+    match_spec = [
+      {{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7", :"$8", :"$9", :"$10", :"$11", :"$12",
+        :"$13", :"$14", :"$15", :"$16", :"$17", :"$18"}, [],
+       [
+         {{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7", :"$8", :"$10", :"$11", :"$12", :"$13",
+           :"$14", :"$15", :"$16", :"$17", :"$18"}}
+       ]}
+    ]
+
+    :ets.select_replace(@discovery_table, match_spec)
+    {:ok, state}
+  end
+
   @doc """
   Add a node into the P2P view.
 
@@ -71,7 +85,6 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key2",
       ...>   geo_patch: "AFZ",
       ...>   network_patch: "AAA",
-      ...>   availability_history: <<1::1, 1::1>>,
       ...>   average_availability: 0.9,
       ...>   available?: true,
       ...>   synced?: true,
@@ -97,7 +110,7 @@ defmodule Archethic.P2P.MemTable do
       {
         # Discovery table
         [{
-          "key1", "key2", {127, 0, 0, 1}, 3000, 4000, "AFZ", "AAA", 0.9, <<1::1, 1::1>>, ~U[2020-10-22 23:19:45.797109Z], :tcp,
+          "key1", "key2", {127, 0, 0, 1}, 3000, 4000, "AFZ", "AAA", 0.9, ~U[2020-10-22 23:19:45.797109Z], :tcp,
           <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
             87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
           <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
@@ -123,7 +136,6 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key2",
       ...>   geo_patch: "AFZ",
       ...>   network_patch: "AAA",
-      ...>   availability_history: <<1::1, 1::1>>,
       ...>   average_availability: 0.9,
       ...>   available?: true,
       ...>   synced?: true,
@@ -148,7 +160,6 @@ defmodule Archethic.P2P.MemTable do
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key5",
       ...>   average_availability: 90,
-      ...>   availability_history: <<1::1, 1::1>>,
       ...>   last_update_date: ~U[2020-10-22 23:20:45.797109Z],
       ...>   synced?: false,
       ...>   availability_update: ~U[2020-10-23 23:20:45.797109Z],
@@ -171,7 +182,6 @@ defmodule Archethic.P2P.MemTable do
         "AFZ",
         "AAA",
         90,
-        <<1::1, 1::1>>,
         ~U[2020-10-22 23:19:45.797109Z],
         :sctp,
         <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182, 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -230,7 +240,6 @@ defmodule Archethic.P2P.MemTable do
          enrollment_date: enrollment_date,
          synced?: synced?,
          average_availability: average_availability,
-         availability_history: availability_history,
          transport: transport,
          reward_address: reward_address,
          last_address: last_address,
@@ -239,17 +248,11 @@ defmodule Archethic.P2P.MemTable do
          available?: available?,
          availability_update: availability_update
        }) do
-    availability_history =
-      if first_public_key == Crypto.first_node_public_key(),
-        do: <<1::1>>,
-        else: availability_history
-
     :ets.insert(
       @discovery_table,
       {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
-       average_availability, availability_history, enrollment_date, transport, reward_address,
-       last_address, origin_public_key, synced?, last_update_date, available?,
-       availability_update}
+       average_availability, enrollment_date, transport, reward_address, last_address,
+       origin_public_key, synced?, last_update_date, available?, availability_update}
     )
   end
 
@@ -837,86 +840,6 @@ defmodule Archethic.P2P.MemTable do
   end
 
   @doc """
-  Set the node as available if previously flagged as offline
-
-  ## Examples
-
-      iex> MemTable.start_link()
-      iex> node = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   http_port: 4000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key2",
-      ...>   availability_history: <<0::1>>
-      ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.increase_node_availability("key1")
-      iex> {:ok, %Node{availability_history: <<1::1, 0::1>>}} = MemTable.get_node("key1")
-  """
-  @spec increase_node_availability(first_public_key :: Crypto.key()) :: :ok
-  def increase_node_availability(first_public_key) when is_binary(first_public_key) do
-    if :ets.member(@discovery_table, first_public_key) do
-      tuple_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
-
-      case :ets.lookup_element(@discovery_table, first_public_key, tuple_pos) do
-        <<1::1, _::bitstring>> ->
-          :ok
-
-        <<0::1, _::bitstring>> = history ->
-          new_history = <<1::1, history::bitstring>>
-          true = :ets.update_element(@discovery_table, first_public_key, {tuple_pos, new_history})
-          Logger.info("P2P availability increase", node: Base.encode16(first_public_key))
-          notify_node_update(first_public_key)
-          :ok
-      end
-    else
-      :ok
-    end
-  end
-
-  @doc """
-  Set the node as unavailable if previously flagged as online
-
-  ## Examples
-
-      iex> MemTable.start_link()
-      iex> node = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   http_port: 4000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key2",
-      ...>   availability_history: <<1::1>>
-      ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.decrease_node_availability("key1")
-      iex> {:ok, %Node{availability_history: <<0::1, 1::1>>}} = MemTable.get_node("key1")
-  """
-  @spec decrease_node_availability(first_public_key :: Crypto.key()) :: :ok
-  def decrease_node_availability(first_public_key) when is_binary(first_public_key) do
-    if :ets.member(@discovery_table, first_public_key) do
-      tuple_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
-
-      case :ets.lookup_element(@discovery_table, first_public_key, tuple_pos) do
-        <<0::1, _::bitstring>> ->
-          :ok
-
-        <<1::1, _::bitstring>> = history ->
-          new_history = <<0::1, history::bitstring>>
-
-          true = :ets.update_element(@discovery_table, first_public_key, {tuple_pos, new_history})
-
-          Logger.info("P2P availability decrease", node: Base.encode16(first_public_key))
-          notify_node_update(first_public_key)
-          :ok
-      end
-    else
-      :ok
-    end
-  end
-
-  @doc """
   Update the average availability of the node and reset the history
 
   ## Examples
@@ -941,15 +864,10 @@ defmodule Archethic.P2P.MemTable do
   def update_node_average_availability(first_public_key, avg_availability)
       when is_binary(first_public_key) and is_float(avg_availability) do
     avg_availability_pos = Keyword.fetch!(@discovery_index_position, :average_availability)
-    availability_history_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
-
-    <<last_history::1, _rest::bitstring>> =
-      :ets.lookup_element(@discovery_table, first_public_key, availability_history_pos)
 
     true =
       :ets.update_element(@discovery_table, first_public_key, [
-        {avg_availability_pos, avg_availability},
-        {availability_history_pos, <<last_history::1>>}
+        {avg_availability_pos, avg_availability}
       ])
 
     Logger.info("New average availability: #{avg_availability}}",
