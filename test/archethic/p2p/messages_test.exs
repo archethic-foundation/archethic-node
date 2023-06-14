@@ -22,7 +22,6 @@ defmodule Archethic.P2P.MessageTest do
     GetFirstPublicKey,
     GetLastTransaction,
     GetLastTransactionAddress,
-    GetP2PView,
     GetStorageNonce,
     GetTransaction,
     GetTransactionChain,
@@ -39,7 +38,6 @@ defmodule Archethic.P2P.MessageTest do
     NotifyLastTransactionAddress,
     NotifyPreviousChain,
     Ok,
-    P2PView,
     Ping,
     RegisterBeaconUpdates,
     ReplicateTransaction,
@@ -811,33 +809,6 @@ defmodule Archethic.P2P.MessageTest do
             protocol_version: 1
           }
         ]
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "GetP2PView message" do
-      msg = %GetP2PView{
-        node_public_keys:
-          Enum.map(1..10, fn _ ->
-            <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-          end)
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "P2PView message" do
-      msg = %P2PView{
-        nodes_view: <<1::1, 0::1, 1::1, 1::1>>
       }
 
       assert msg ==
