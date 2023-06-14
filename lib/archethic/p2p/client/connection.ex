@@ -75,6 +75,7 @@ defmodule Archethic.P2P.Client.Connection do
     port = Keyword.get(arg, :port)
     node_public_key = Keyword.get(arg, :node_public_key)
     transport = Keyword.get(arg, :transport)
+    from = Keyword.get(arg, :from)
 
     data = %{
       ip: ip,
@@ -87,7 +88,7 @@ defmodule Archethic.P2P.Client.Connection do
       availability_timer: {nil, 0}
     }
 
-    {:ok, :initializing, data, [{:next_event, :internal, :connect}]}
+    {:ok, :initializing, data, [{:next_event, :internal, {:connect, from}}]}
   end
 
   # every messages sent while inializing will wait until state changes
@@ -204,7 +205,7 @@ defmodule Archethic.P2P.Client.Connection do
   # called from the :disconnected or :initializing state
   def handle_event(
         :internal,
-        :connect,
+        {:connect, from},
         _state,
         _data = %{
           ip: ip,
@@ -220,14 +221,14 @@ defmodule Archethic.P2P.Client.Connection do
       case transport.handle_connect(ip, port) do
         {:ok, socket} when is_port(socket) ->
           :gen_tcp.controlling_process(socket, me)
-          {:ok, socket}
+          {:ok, socket, from}
 
         # only used for tests (make_ref())
         {:ok, socket} ->
-          {:ok, socket}
+          {:ok, socket, from}
 
-        {:error, _} = e ->
-          e
+        {:error, reason} ->
+          {:error, reason, from}
       end
     end)
 
@@ -241,7 +242,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   # this message is used to delay next connection attempt
   def handle_event({:timeout, :reconnect}, _event_data, _state, _data) do
-    actions = [{:next_event, :internal, :connect}]
+    actions = [{:next_event, :internal, {:connect, nil}}]
     {:keep_state_and_data, actions}
   end
 
@@ -411,12 +412,23 @@ defmodule Archethic.P2P.Client.Connection do
   end
 
   # Task.async sending us the result of the handle_connect
-  def handle_event(:info, {_ref, {:ok, socket}}, _, data) do
+  def handle_event(:info, {_ref, {:ok, socket, nil}}, _, data) do
+    {:next_state, {:connected, socket}, data}
+  end
+
+  def handle_event(:info, {_ref, {:ok, socket, from}}, _, data) do
+    send(from, :connected)
     {:next_state, {:connected, socket}, data}
   end
 
   # Task.async sending us the result of the handle_connect
-  def handle_event(:info, {_ref, {:error, _reason}}, _, data) do
+  def handle_event(:info, {_ref, {:error, _reason, nil}}, _, data) do
+    actions = [{{:timeout, :reconnect}, 500, nil}]
+    {:next_state, :disconnected, data, actions}
+  end
+
+  def handle_event(:info, {_ref, {:error, reason, from}}, _, data) do
+    send(from, {:error, reason})
     actions = [{{:timeout, :reconnect}, 500, nil}]
     {:next_state, :disconnected, data, actions}
   end
