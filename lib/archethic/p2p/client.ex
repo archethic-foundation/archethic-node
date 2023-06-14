@@ -28,4 +28,6 @@ defmodule Archethic.P2P.Client do
               | {:error, :closed}
 
   @callback get_availability_timer(Crypto.key(), boolean()) :: non_neg_integer()
+
+  @callback connected?(Crypto.key()) :: boolean()
 end

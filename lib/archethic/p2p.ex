@@ -52,16 +52,18 @@ defmodule Archethic.P2P do
       TaskSupervisor,
       nodes,
       fn node = %Node{first_public_key: first_public_key} ->
-        do_connect_node(node)
+        unless node_connected?(node) do
+          do_connect_node(node)
 
-        receive do
-          :connected ->
-            :ok
+          receive do
+            :connected ->
+              :ok
 
-          {:error, reason} ->
-            Logger.warning("First connection attempt failed for #{inspect(reason)}",
-              node: Base.encode16(first_public_key)
-            )
+            {:error, reason} ->
+              Logger.warning("First connection attempt failed for #{inspect(reason)}",
+                node: Base.encode16(first_public_key)
+              )
+          end
         end
       end,
       on_timeout: :kill_task
@@ -80,6 +82,18 @@ defmodule Archethic.P2P do
     else
       {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key)
       :ok
+    end
+  end
+
+  @doc """
+  Return true if the node connection is established
+  """
+  @spec node_connected?(node :: Node.t()) :: boolean()
+  def node_connected?(%Node{first_public_key: first_public_key}) do
+    if first_public_key == Crypto.first_node_public_key() do
+      true
+    else
+      Client.connected?(first_public_key)
     end
   end
 
