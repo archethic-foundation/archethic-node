@@ -14,6 +14,23 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
     to: String,
     as: :contains?
 
+  @spec to_hex(String.t()) :: String.t()
+  def to_hex(str) do
+    str
+    |> Base.decode16!(case: :mixed)
+    |> Base.encode16()
+  end
+
+  @spec to_uppercase(String.t()) :: String.t()
+  defdelegate to_uppercase(str),
+    to: String,
+    as: :upcase
+
+  @spec to_lowercase(String.t()) :: String.t()
+  defdelegate to_lowercase(str),
+    to: String,
+    as: :downcase
+
   @spec to_number(String.t()) :: integer() | float() | nil
   def to_number(string) do
     try do
@@ -47,6 +64,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:size, [first]) do
+    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:to_hex, [first]) do
+    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:to_uppercase, [first]) do
+    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  end
+
+  def check_types(:to_lowercase, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 
