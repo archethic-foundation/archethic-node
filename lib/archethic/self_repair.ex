@@ -77,9 +77,10 @@ defmodule Archethic.SelfRepair do
       try do
         :ok = Sync.load_missed_transactions(last_sync_date, download_nodes)
         {:halt, :ok}
-      catch
-        error, message ->
-          Logger.error("Error during self repair #{inspect(error)} #{inspect(message)}")
+      rescue
+        error ->
+          Logger.error("Error during bootstrap self repair")
+          Logger.error(Exception.format(:error, error, __STACKTRACE__))
           {:cont, :error}
       end
     end)
