@@ -228,6 +228,11 @@ defmodule Archethic.Bootstrap do
       Logger.info("Synchronization finished")
     end
 
+    # Connect nodes after all synchronization are finished
+    # so we have the latest connection infos available at this time
+    Logger.info("Try connection on all nodes")
+    P2P.list_nodes() |> P2P.connect_nodes()
+
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
 
     Logger.info("Enforced Resync: Started!")
