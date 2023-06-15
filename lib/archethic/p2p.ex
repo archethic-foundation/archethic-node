@@ -56,7 +56,7 @@ defmodule Archethic.P2P do
       TaskSupervisor,
       not_connected_nodes,
       fn node = %Node{first_public_key: first_public_key} ->
-        do_connect_node(node)
+        do_connect_node(node, self())
 
         receive do
           :connected ->
@@ -73,16 +73,19 @@ defmodule Archethic.P2P do
     |> Stream.run()
   end
 
-  defp do_connect_node(%Node{
-         ip: ip,
-         port: port,
-         transport: transport,
-         first_public_key: first_public_key
-       }) do
+  defp do_connect_node(
+         %Node{
+           ip: ip,
+           port: port,
+           transport: transport,
+           first_public_key: first_public_key
+         },
+         from \\ nil
+       ) do
     if first_public_key == Crypto.first_node_public_key() do
       :ok
     else
-      {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key)
+      {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key, from)
       :ok
     end
   end
