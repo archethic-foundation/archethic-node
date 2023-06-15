@@ -45,6 +45,8 @@ defmodule Archethic.P2P do
 
   @doc """
   Establish a connection on a list of node in parallel
+  This function wait for the connections to be established
+  timeout for connection is 5 sec
   """
   @spec connect_nodes(list(Node.t())) :: :ok
   def connect_nodes(nodes) do
