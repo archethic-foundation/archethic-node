@@ -50,22 +50,22 @@ defmodule Archethic.P2P do
   """
   @spec connect_nodes(list(Node.t())) :: :ok
   def connect_nodes(nodes) do
+    not_connected_nodes = Enum.reject(nodes, &node_connected?/1)
+
     Task.Supervisor.async_stream(
       TaskSupervisor,
-      nodes,
+      not_connected_nodes,
       fn node = %Node{first_public_key: first_public_key} ->
-        unless node_connected?(node) do
-          do_connect_node(node)
+        do_connect_node(node)
 
-          receive do
-            :connected ->
-              :ok
+        receive do
+          :connected ->
+            :ok
 
-            {:error, reason} ->
-              Logger.warning("First connection attempt failed for #{inspect(reason)}",
-                node: Base.encode16(first_public_key)
-              )
-          end
+          {:error, reason} ->
+            Logger.warning("First connection attempt failed for #{inspect(reason)}",
+              node: Base.encode16(first_public_key)
+            )
         end
       end,
       on_timeout: :kill_task
