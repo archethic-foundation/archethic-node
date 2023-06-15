@@ -283,26 +283,13 @@ defmodule Archethic.P2P.MemTable do
       {Keyword.fetch!(@discovery_index_position, :last_public_key), last_public_key},
       {Keyword.fetch!(@discovery_index_position, :reward_address), reward_address},
       {Keyword.fetch!(@discovery_index_position, :last_address), last_address},
-      {Keyword.fetch!(@discovery_index_position, :origin_public_key), origin_public_key}
+      {Keyword.fetch!(@discovery_index_position, :origin_public_key), origin_public_key},
+      {Keyword.fetch!(@discovery_index_position, :ip), ip},
+      {Keyword.fetch!(@discovery_index_position, :port), port},
+      {Keyword.fetch!(@discovery_index_position, :http_port), http_port},
+      {Keyword.fetch!(@discovery_index_position, :transport), transport},
+      {Keyword.fetch!(@discovery_index_position, :last_update_date), timestamp}
     ]
-
-    # We change connection informations only if these infos are newer than the actual ones
-    timestamp_pos = Keyword.fetch!(@discovery_index_position, :last_update_date)
-    last_update_date = :ets.lookup_element(@discovery_table, first_public_key, timestamp_pos)
-
-    changes =
-      if DateTime.compare(timestamp, last_update_date) != :lt do
-        changes ++
-          [
-            {Keyword.fetch!(@discovery_index_position, :ip), ip},
-            {Keyword.fetch!(@discovery_index_position, :port), port},
-            {Keyword.fetch!(@discovery_index_position, :http_port), http_port},
-            {Keyword.fetch!(@discovery_index_position, :transport), transport},
-            {timestamp_pos, timestamp}
-          ]
-      else
-        changes
-      end
 
     changes =
       if geo_patch != nil do
