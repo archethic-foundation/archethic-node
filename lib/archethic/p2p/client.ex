@@ -12,10 +12,11 @@ defmodule Archethic.P2P.Client do
   use Knigge, otp_app: :archethic, default: DefaultImpl
 
   @callback new_connection(
-              :inet.ip_address(),
+              ip :: :inet.ip_address(),
               port :: :inet.port_number(),
-              P2P.supported_transport(),
-              Crypto.key()
+              transport :: P2P.supported_transport(),
+              node_first_public_key :: Crypto.key(),
+              from :: pid() | nil
             ) :: Supervisor.on_start()
 
   @callback send_message(

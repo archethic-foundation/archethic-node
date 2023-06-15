@@ -22,17 +22,19 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   """
   @impl Client
   @spec new_connection(
-          :inet.ip_address(),
+          ip :: :inet.ip_address(),
           port :: :inet.port_number(),
-          P2P.supported_transport(),
-          Crypto.key()
+          transport :: P2P.supported_transport(),
+          node_first_public_key :: Crypto.key(),
+          from :: pid() | nil
         ) :: Supervisor.on_start()
-  def new_connection(ip, port, transport, node_public_key) do
+  def new_connection(ip, port, transport, node_public_key, from) do
     case ConnectionSupervisor.add_connection(
            transport: transport_mod(transport),
            ip: ip,
            port: port,
-           node_public_key: node_public_key
+           node_public_key: node_public_key,
+           from: from
          ) do
       {:ok, pid} ->
         {:ok, pid}
@@ -44,7 +46,7 @@ defmodule Archethic.P2P.Client.DefaultImpl do
         with false <- connected?(node_public_key),
              true <- informations_changed?(ip, port, transport, current_conn) do
           ConnectionSupervisor.cancel_connection(pid, node_public_key)
-          new_connection(ip, port, transport, node_public_key)
+          new_connection(ip, port, transport, node_public_key, from)
         else
           _ ->
             {:ok, pid}

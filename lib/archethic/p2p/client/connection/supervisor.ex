@@ -26,7 +26,6 @@ defmodule Archethic.P2P.Client.ConnectionSupervisor do
 
   def add_connection(opts \\ []) do
     node_public_key = Keyword.get(opts, :node_public_key)
-    opts = Keyword.put(opts, :from, self())
 
     DynamicSupervisor.start_child(
       __MODULE__,
