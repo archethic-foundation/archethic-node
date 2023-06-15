@@ -28,8 +28,6 @@ defmodule Archethic.P2P.Client.ConnectionSupervisor do
     node_public_key = Keyword.get(opts, :node_public_key)
     opts = Keyword.put(opts, :from, self())
 
-    :ets.insert(@table_name, {node_public_key, false})
-
     DynamicSupervisor.start_child(
       __MODULE__,
       %{
@@ -56,7 +54,10 @@ defmodule Archethic.P2P.Client.ConnectionSupervisor do
   """
   @spec node_connected?(node_public_key :: Crypto.key()) :: boolean()
   def node_connected?(node_public_key) do
-    :ets.lookup_element(@table_name, node_public_key, 2)
+    case :ets.lookup(@table_name, node_public_key) do
+      [{_key, connected?}] -> connected?
+      _ -> false
+    end
   end
 
   @doc """
@@ -64,12 +65,12 @@ defmodule Archethic.P2P.Client.ConnectionSupervisor do
   """
   @spec set_node_connected(node_public_key :: Crypto.key()) :: boolean()
   def set_node_connected(node_public_key),
-    do: :ets.update_element(@table_name, node_public_key, {2, true})
+    do: :ets.insert(@table_name, {node_public_key, true})
 
   @doc """
   Set node connection status to disconnected
   """
   @spec set_node_disconnected(node_public_key :: Crypto.key()) :: boolean()
   def set_node_disconnected(node_public_key),
-    do: :ets.update_element(@table_name, node_public_key, {2, false})
+    do: :ets.insert(@table_name, {node_public_key, false})
 end
