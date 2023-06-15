@@ -39,17 +39,31 @@ defmodule Archethic.P2P.Client.DefaultImpl do
 
       {:error, {:already_started, pid}} ->
         # restart the connection if informations are updated
-        {_state, %{ip: conn_ip, port: conn_port, transport: conn_transport}} = :sys.get_state(pid)
+        {_state, current_conn} = :sys.get_state(pid)
 
-        with true <- conn_ip == ip,
-             true <- conn_port == port,
-             true <- conn_transport == transport_mod(transport) do
-          {:ok, pid}
+        with false <- connected?(node_public_key),
+             true <- informations_changed?(ip, port, transport, current_conn) do
+          ConnectionSupervisor.cancel_connection(pid, node_public_key)
+          new_connection(ip, port, transport, node_public_key)
         else
           _ ->
-            ConnectionSupervisor.cancel_connection(pid, node_public_key)
-            new_connection(ip, port, transport, node_public_key)
+            {:ok, pid}
         end
+    end
+  end
+
+  defp informations_changed?(ip, port, transport, %{
+         ip: conn_ip,
+         port: conn_port,
+         transport: conn_transport
+       }) do
+    with true <- conn_ip == ip,
+         true <- conn_port == port,
+         true <- conn_transport == transport_mod(transport) do
+      false
+    else
+      _ ->
+        true
     end
   end
 
