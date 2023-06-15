@@ -337,8 +337,8 @@ defmodule Archethic.Bootstrap.SyncTest do
   test_with_mock "connect_current_node/1 should request node list from the closest nodes and connect to them",
                  Client,
                  [:passthrough],
-                 new_connection: fn _, _, _, _ ->
-                   send(self(), :connected)
+                 new_connection: fn _, _, _, _, from ->
+                   send(from, :connected)
                    {:ok, make_ref()}
                  end,
                  connected?: fn
@@ -394,7 +394,7 @@ defmodule Archethic.Bootstrap.SyncTest do
 
     # Called 3 times 2 times with P2P.connect_nodes and 1 time with P2P.quorum
     assert_called_exactly(Client.connected?("key1"), 3)
-    assert_called(Client.new_connection(:_, :_, :_, "key2"))
+    assert_called(Client.new_connection(:_, :_, :_, "key2", :_))
   end
 
   test "load_storage_nonce/1 should fetch the storage nonce, decrypt it with the node key" do

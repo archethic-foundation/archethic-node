@@ -48,9 +48,6 @@ defmodule Archethic.BeaconChain.Subset.P2PSamplingTest do
     node_availability_time = [600, 500, 365, 0]
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, _ ->
-      {:ok, self()}
-    end)
     |> expect(:send_message, fn %Node{port: 3001}, %Ping{}, _ ->
       Process.sleep(10)
       {:ok, %Ok{}}
