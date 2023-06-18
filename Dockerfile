@@ -2,7 +2,7 @@ FROM elixir:1.14.1-alpine AS archethic-ci
 
 ARG with_tests=1
 ARG MIX_ENV=prod
-ARG USER_ID 
+ARG USER_ID
 ARG GROUP_ID
 
 # CI
@@ -36,7 +36,7 @@ RUN apk add --no-cache --update \
   openssl \
   libsodium-dev \
   libexecinfo-dev \
-  gmp-dev 
+  gmp-dev
 
 # Install hex and rebar
 RUN mix local.rebar --force \
@@ -49,12 +49,10 @@ COPY mix.exs mix.lock ./
 COPY config ./config
 RUN mix do deps.get, deps.compile
 
-# build assets
-COPY priv ./priv
-COPY assets ./assets 
-RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error 
-
 COPY . .
+
+# build assets
+RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error
 
 RUN git config user.name aebot \
   && git config user.email aebot@archethic.net \
@@ -74,7 +72,7 @@ FROM archethic-ci as build
 
 FROM elixir:1.14.1-alpine
 
-ARG USER_ID 
+ARG USER_ID
 ARG GROUP_ID
 
 RUN apk add --no-cache --update bash git openssl libsodium libexecinfo
