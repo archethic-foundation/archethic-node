@@ -89,11 +89,37 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> ActionInterpreter.parse()
 
       code = ~S"""
-      actions triggered_by: datetime, at: 1676282771 do
+      actions triggered_by: datetime, at: 1676282760 do
       end
       """
 
-      assert {:ok, {:datetime, ~U[2023-02-13 10:06:11Z]}, _} =
+      assert {:ok, {:datetime, ~U[2023-02-13 10:06:00Z]}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should not parse if datetime is not rounded" do
+      code = ~S"""
+      actions triggered_by: datetime, at: 1687164224 do
+      end
+      """
+
+      assert {:error, _, "Datetime triggers must be rounded to the minute"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should return a proper error message if trigger is invalid" do
+      code = ~S"""
+      actions triggered_by: datetime do
+      end
+      """
+
+      assert {:error, _, "Invalid trigger"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
