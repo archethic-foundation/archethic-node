@@ -4,16 +4,12 @@ defmodule Archethic do
   """
 
   alias Archethic.Account
-
   alias Archethic.BeaconChain
-
+  alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter
-
   alias Archethic.Crypto
-
   alias Archethic.Election
-
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message
@@ -30,11 +26,8 @@ defmodule Archethic do
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChain
   alias Archethic.SelfRepair.NetworkView
-
   alias Archethic.SharedSecrets
-
   alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
@@ -67,32 +60,37 @@ defmodule Archethic do
   @doc """
   Send a new transaction in the network to be mined. The current node will act as welcome node
   """
-  @spec send_new_transaction(Transaction.t()) :: :ok
+  @spec send_new_transaction(Transaction.t(), Crypto.key(), nil | Contract.Context.t()) :: :ok
   def send_new_transaction(
         tx = %Transaction{},
-        welcome_node_key \\ Crypto.first_node_public_key()
+        welcome_node_key \\ Crypto.first_node_public_key(),
+        contract_context \\ nil
       ) do
     if P2P.authorized_and_available_node?() do
       case NetworkChain.verify_synchronization(:node_shared_secrets) do
         :ok ->
-          do_send_transaction(tx, welcome_node_key)
+          do_send_transaction(tx, welcome_node_key, contract_context)
 
         :error ->
-          forward_transaction(tx, welcome_node_key)
+          forward_transaction(tx, welcome_node_key, contract_context)
 
         {:error, addresses} ->
           SharedSecrets.genesis_address(:node_shared_secrets) |> SelfRepair.resync(addresses, [])
 
-          forward_transaction(tx, welcome_node_key)
+          forward_transaction(tx, welcome_node_key, contract_context)
       end
     else
       # node not authorized
-      forward_transaction(tx, welcome_node_key)
+      forward_transaction(tx, welcome_node_key, contract_context)
     end
   end
 
-  @spec forward_transaction(tx :: Transaction.t(), welcome_node_key :: Crypto.key()) :: :ok
-  defp forward_transaction(tx, welcome_node_key) do
+  @spec forward_transaction(
+          tx :: Transaction.t(),
+          welcome_node_key :: Crypto.key(),
+          contract_context :: Contract.Context.t()
+        ) :: :ok
+  defp forward_transaction(tx, welcome_node_key, contract_context) do
     %Node{network_patch: welcome_node_patch} = P2P.get_node_info!(welcome_node_key)
 
     nodes =
@@ -118,7 +116,11 @@ defmodule Archethic do
     TaskSupervisor
     |> Task.Supervisor.start_child(fn ->
       :ok =
-        %NewTransaction{transaction: tx, welcome_node: welcome_node_key}
+        %NewTransaction{
+          transaction: tx,
+          welcome_node: welcome_node_key,
+          contract_context: contract_context
+        }
         |> do_forward_transaction(nodes)
     end)
 
@@ -137,7 +139,7 @@ defmodule Archethic do
 
   defp do_forward_transaction(_, []), do: {:error, :network_issue}
 
-  defp do_send_transaction(tx = %Transaction{type: tx_type}, welcome_node_key) do
+  defp do_send_transaction(tx = %Transaction{type: tx_type}, welcome_node_key, contract_context) do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
@@ -161,7 +163,8 @@ defmodule Archethic do
       welcome_node_public_key: get_welcome_node_public_key(tx_type, welcome_node_key),
       validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
       network_chains_view_hash: NetworkView.get_chains_hash(),
-      p2p_view_hash: NetworkView.get_p2p_hash()
+      p2p_view_hash: NetworkView.get_p2p_hash(),
+      contract_context: contract_context
     }
 
     Task.Supervisor.async_stream_nolink(
@@ -186,7 +189,7 @@ defmodule Archethic do
       maybe_start_resync(aggregated_responses)
 
       if should_forward_transaction?(aggregated_responses, length(validation_nodes)) do
-        forward_transaction(tx, welcome_node_key)
+        forward_transaction(tx, welcome_node_key, contract_context)
       else
         :ok
       end
@@ -321,7 +324,7 @@ defmodule Archethic do
       do_get_transaction_inputs(address, paging_offset, limit)
     else
       # TODO: latest inputs can be huge, we should have an other way to determine if a inputs
-      # is spent or not 
+      # is spent or not
       latest_tx_inputs = do_get_transaction_inputs(latest_address, 0, 0)
       current_tx_inputs = do_get_transaction_inputs(address, paging_offset, limit)
 
@@ -379,8 +382,7 @@ defmodule Archethic do
     as: :parse_transaction
 
   @doc """
-  Execute the contract in the given transaction.
-  We assume the contract is parse-able.
+  Execute the contract trigger.
   """
   @spec execute_contract(
           Contract.trigger_type(),
@@ -389,15 +391,10 @@ defmodule Archethic do
           [Transaction.t()]
         ) ::
           {:ok, nil | Transaction.t()}
-          | {:error,
-             :contract_failure
-             | :invalid_triggers_execution
-             | :invalid_transaction_constraints
-             | :invalid_oracle_constraints
-             | :invalid_inherit_constraints}
+          | {:error, :contract_failure | :invalid_triggers_execution}
   defdelegate execute_contract(trigger_type, contract, maybe_trigger_tx, calls),
-    to: Interpreter,
-    as: :execute
+    to: Contracts,
+    as: :execute_trigger
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes

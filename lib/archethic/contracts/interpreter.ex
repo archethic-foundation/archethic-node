@@ -19,7 +19,7 @@ defmodule Archethic.Contracts.Interpreter do
   alias Archethic.Utils
 
   @type version() :: integer()
-  @type execute_opts :: [skip_inherit_check?: boolean()]
+  @type execute_opts :: [time_now: DateTime.t()]
 
   @doc """
   Dispatch through the correct interpreter.
@@ -121,25 +121,10 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   @doc """
-  Execute the trigger/action code.
-  May return a new transaction or nil
-  """
-  @spec execute_trigger_code(version(), Macro.t(), map()) :: Transaction.t() | nil
-  def execute_trigger_code(0, ast, constants) do
-    Legacy.execute_trigger(ast, constants)
-  end
-
-  def execute_trigger_code(1, ast, constants) do
-    ActionInterpreter.execute(ast, constants)
-  end
-
-  @doc """
-  Execution the given contract's trigger.
-  Checks all conditions block.
-
+  Execution the given contract's trig
   /!\ The transaction returned is not complete, only the `type` and `data` are filled-in.
   """
-  @spec execute(
+  @spec execute_trigger(
           Contract.trigger_type(),
           Contract.t(),
           nil | Transaction.t(),
@@ -147,15 +132,14 @@ defmodule Archethic.Contracts.Interpreter do
           execute_opts()
         ) ::
           {:ok, nil | Transaction.t()}
-          | {:error,
-             :contract_failure
-             | :invalid_triggers_execution
-             | :invalid_transaction_constraints
-             | :invalid_oracle_constraints
-             | :invalid_inherit_constraints}
-  def execute(
+          | {:error, :contract_failure | :invalid_triggers_execution}
+  def execute_trigger(
         trigger_type,
-        contract = %Contract{triggers: triggers},
+        %Contract{
+          version: version,
+          triggers: triggers,
+          constants: %Constants{contract: contract_constants}
+        },
         maybe_trigger_tx,
         calls,
         opts \\ []
@@ -166,18 +150,39 @@ defmodule Archethic.Contracts.Interpreter do
 
       trigger_code ->
         timestamp_now =
-          time_now(trigger_type, maybe_trigger_tx)
+          case Keyword.get(opts, :time_now) do
+            nil ->
+              # you must use the :time_now opts during the validation workflow
+              # because there is no validation_stamp yet
+              time_now(trigger_type, maybe_trigger_tx)
+
+            time_now ->
+              time_now
+          end
           |> DateTime.to_unix()
 
-        do_execute(
-          trigger_type,
-          trigger_code,
-          contract,
-          maybe_trigger_tx,
-          calls,
-          timestamp_now,
-          opts
-        )
+        constants = %{
+          "calls" => Enum.map(calls, &Constants.from_transaction/1),
+          "transaction" =>
+            case maybe_trigger_tx do
+              nil ->
+                nil
+
+              trigger_tx ->
+                # :oracle & :transaction
+                Constants.from_transaction(trigger_tx)
+            end,
+          "contract" => contract_constants,
+          "_time_now" => timestamp_now
+        }
+
+        result =
+          case version do
+            0 -> Legacy.execute_trigger(trigger_code, constants)
+            _ -> ActionInterpreter.execute(trigger_code, constants)
+          end
+
+        {:ok, result}
     end
   rescue
     _ ->
@@ -269,160 +274,6 @@ defmodule Archethic.Contracts.Interpreter do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ------------------------------------------------------------
-
-  defp do_execute(
-         :transaction,
-         trigger_code,
-         contract = %Contract{
-           version: version,
-           conditions: conditions,
-           constants: %Constants{
-             contract: contract_constants
-           }
-         },
-         trigger_tx = %Transaction{},
-         calls,
-         timestamp_now,
-         opts
-       ) do
-    constants = %{
-      "transaction" => Constants.from_transaction(trigger_tx),
-      "contract" => contract_constants,
-      "_time_now" => timestamp_now
-    }
-
-    if valid_conditions?(version, conditions.transaction, constants) do
-      case execute_trigger(version, trigger_code, contract, trigger_tx, calls, timestamp_now) do
-        nil ->
-          {:ok, nil}
-
-        next_tx ->
-          if valid_inherit_condition?(contract, next_tx, timestamp_now, opts) do
-            {:ok, next_tx}
-          else
-            {:error, :invalid_inherit_constraints}
-          end
-      end
-    else
-      {:error, :invalid_transaction_constraints}
-    end
-  end
-
-  defp do_execute(
-         :oracle,
-         trigger_code,
-         contract = %Contract{
-           version: version,
-           conditions: conditions,
-           constants: %Constants{
-             contract: contract_constants
-           }
-         },
-         trigger_tx = %Transaction{},
-         calls,
-         timestamp_now,
-         opts
-       ) do
-    constants = %{
-      "transaction" => Constants.from_transaction(trigger_tx),
-      "contract" => contract_constants,
-      "_time_now" => timestamp_now
-    }
-
-    if valid_conditions?(version, conditions.oracle, constants) do
-      case execute_trigger(version, trigger_code, contract, trigger_tx, calls, timestamp_now) do
-        nil ->
-          {:ok, nil}
-
-        next_tx ->
-          if valid_inherit_condition?(contract, next_tx, timestamp_now, opts) do
-            {:ok, next_tx}
-          else
-            {:error, :invalid_inherit_constraints}
-          end
-      end
-    else
-      {:error, :invalid_oracle_constraints}
-    end
-  end
-
-  defp do_execute(
-         _trigger_type,
-         trigger_code,
-         contract = %Contract{version: version},
-         nil,
-         calls,
-         timestamp_now,
-         opts
-       ) do
-    case execute_trigger(version, trigger_code, contract, nil, calls, timestamp_now) do
-      nil ->
-        {:ok, nil}
-
-      next_tx ->
-        if valid_inherit_condition?(contract, next_tx, timestamp_now, opts) do
-          {:ok, next_tx}
-        else
-          {:error, :invalid_inherit_constraints}
-        end
-    end
-  end
-
-  defp execute_trigger(
-         version,
-         trigger_code,
-         _contract = %Contract{constants: %Constants{contract: contract_constants}},
-         maybe_trigger_tx,
-         calls,
-         timestamp_now
-       ) do
-    constants_trigger = %{
-      "calls" => Enum.map(calls, &Constants.from_transaction/1),
-      "transaction" =>
-        case maybe_trigger_tx do
-          nil ->
-            nil
-
-          trigger_tx ->
-            # :oracle & :transaction
-            Constants.from_transaction(trigger_tx)
-        end,
-      "contract" => contract_constants,
-      "_time_now" => timestamp_now
-    }
-
-    execute_trigger_code(version, trigger_code, constants_trigger)
-  end
-
-  defp valid_inherit_condition?(
-         %Contract{
-           version: version,
-           conditions: conditions,
-           constants: %{contract: contract_constants}
-         },
-         next_tx,
-         timestamp_now,
-         opts
-       ) do
-    # remove the this flag as soon as the validation workflow change
-    if Keyword.get(opts, :skip_inherit_check?, false) do
-      true
-    else
-      case Map.get(conditions, :inherit) do
-        nil ->
-          true
-
-        inherit_condition ->
-          constants_inherit = %{
-            "previous" => contract_constants,
-            "next" => Constants.from_transaction(next_tx),
-            "_time_now" => timestamp_now
-          }
-
-          valid_conditions?(version, inherit_condition, constants_inherit)
-      end
-    end
-  end
 
   # -----------------------------------------
   # format errors

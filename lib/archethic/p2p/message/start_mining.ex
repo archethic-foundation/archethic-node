@@ -16,9 +16,11 @@ defmodule Archethic.P2P.Message.StartMining do
     :welcome_node_public_key,
     :validation_node_public_keys,
     :network_chains_view_hash,
-    :p2p_view_hash
+    :p2p_view_hash,
+    :contract_context
   ]
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.Utils
@@ -35,7 +37,8 @@ defmodule Archethic.P2P.Message.StartMining do
           welcome_node_public_key: Crypto.key(),
           validation_node_public_keys: list(Crypto.key()),
           network_chains_view_hash: binary(),
-          p2p_view_hash: binary()
+          p2p_view_hash: binary(),
+          contract_context: nil | Contract.Context.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
@@ -45,7 +48,8 @@ defmodule Archethic.P2P.Message.StartMining do
           welcome_node_public_key: welcome_node_public_key,
           validation_node_public_keys: validation_nodes,
           network_chains_view_hash: network_chains_view_hash,
-          p2p_view_hash: p2p_view_hash
+          p2p_view_hash: p2p_view_hash,
+          contract_context: contract_context
         },
         _
       ) do
@@ -53,7 +57,7 @@ defmodule Archethic.P2P.Message.StartMining do
          :ok <- check_valid_election(tx, validation_nodes),
          :ok <- check_current_node_is_elected(validation_nodes),
          :ok <- check_not_already_mining(tx.address) do
-      {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
+      {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes, contract_context)
       %Ok{}
     else
       {:error, :invalid_validation_nodes_election} ->

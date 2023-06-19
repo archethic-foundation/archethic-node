@@ -47,14 +47,18 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   def init(arg) do
     tx = Keyword.get(arg, :transaction)
     welcome_node = Keyword.fetch!(arg, :welcome_node)
+    contract_context = Keyword.get(arg, :contract_context)
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
     {:ok, %{start_time: System.monotonic_time(), welcome_node: welcome_node},
-     {:continue, {:start_mining, tx}}}
+     {:continue, {:start_mining, tx, contract_context}}}
   end
 
-  def handle_continue({:start_mining, tx}, state = %{welcome_node: welcome_node}) do
+  def handle_continue(
+        {:start_mining, tx, contract_context},
+        state = %{welcome_node: welcome_node}
+      ) do
     Logger.info("Start mining",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -111,7 +115,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         beacon_storage_nodes: beacon_storage_nodes,
         io_storage_nodes: io_storage_nodes,
         validation_time: validation_time,
-        resolved_addresses: resolved_addresses
+        resolved_addresses: resolved_addresses,
+        contract_context: contract_context
       )
 
     validation_context =

@@ -5,19 +5,31 @@ defmodule Archethic.P2P.Message.NewTransaction do
   This message is used locally within a node during the bootstrap
   """
   @enforce_keys [:transaction, :welcome_node]
-  defstruct [:transaction, :welcome_node]
+  defstruct [:transaction, :welcome_node, :contract_context]
 
-  alias Archethic.{TransactionChain.Transaction, Crypto, Utils, P2P.Message}
-  alias Message.{Ok, Error}
+  alias Archethic.Contracts.Contract
+  alias Archethic.Crypto
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Error
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),
-          welcome_node: Crypto.key()
+          welcome_node: Crypto.key(),
+          contract_context: nil | Contract.Context.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
-  def process(%__MODULE__{transaction: tx, welcome_node: node_pbkey}, _) do
-    :ok = Archethic.send_new_transaction(tx, node_pbkey)
+  def process(
+        %__MODULE__{
+          transaction: tx,
+          welcome_node: node_pbkey,
+          contract_context: contract_context
+        },
+        _
+      ) do
+    :ok = Archethic.send_new_transaction(tx, node_pbkey, contract_context)
     %Ok{}
   end
 

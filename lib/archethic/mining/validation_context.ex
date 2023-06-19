@@ -10,6 +10,7 @@ defmodule Archethic.Mining.ValidationContext do
     :cross_validation_nodes,
     :validation_stamp,
     :validation_time,
+    :contract_context,
     resolved_addresses: [],
     unspent_outputs: [],
     cross_validation_stamps: [],
@@ -40,6 +41,7 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.BeaconChain.ReplicationAttestation
 
   alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
 
   alias Archethic.Crypto
 
@@ -99,7 +101,8 @@ defmodule Archethic.Mining.ValidationContext do
           storage_nodes_confirmations:
             list({node_public_key :: Crypto.key(), signature :: binary()}),
           pending_transaction_error_detail: binary(),
-          sub_replication_tree_validations: list(Crypto.key())
+          sub_replication_tree_validations: list(Crypto.key()),
+          contract_context: nil | Contract.Context.t()
         }
 
   @doc """
@@ -719,18 +722,10 @@ defmodule Archethic.Mining.ValidationContext do
           unspent_outputs: unspent_outputs,
           valid_pending_transaction?: valid_pending_transaction?,
           validation_time: validation_time,
-          resolved_addresses: resolved_addresses
+          resolved_addresses: resolved_addresses,
+          contract_context: contract_context
         }
       ) do
-    resolved_recipients =
-      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
-        if to in recipients do
-          [resolved | acc]
-        else
-          acc
-        end
-      end)
-
     ledger_operations = get_ledger_operations(context)
 
     validation_stamp =
@@ -741,7 +736,7 @@ defmodule Archethic.Mining.ValidationContext do
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
         ledger_operations: ledger_operations,
-        recipients: resolved_recipients,
+        recipients: resolved_recipients(recipients, resolved_addresses),
         error:
           get_validation_error(
             prev_tx,
@@ -750,7 +745,8 @@ defmodule Archethic.Mining.ValidationContext do
             unspent_outputs,
             valid_pending_transaction?,
             resolved_addresses,
-            validation_time
+            validation_time,
+            contract_context
           )
       }
       |> ValidationStamp.sign()
@@ -816,8 +812,9 @@ defmodule Archethic.Mining.ValidationContext do
           ledger_operations :: LedgerOperations.t(),
           unspent_outputs :: list(UnspentOutput.t()),
           valid_pending_transaction :: boolean(),
-          resolve_addresses :: list(binary()),
-          validation_time :: DateTime.t()
+          resolved_addresses :: list({binary(), binary()}),
+          validation_time :: DateTime.t(),
+          contract_context :: nil | Contract.Context.t()
         ) :: nil | ValidationStamp.error()
   defp get_validation_error(
          prev_tx,
@@ -826,70 +823,85 @@ defmodule Archethic.Mining.ValidationContext do
          unspent_outputs,
          valid_pending_transaction?,
          resolved_addresses,
-         validation_time
+         validation_time,
+         contract_context
        ) do
     cond do
-      chain_error?(prev_tx, tx) ->
+      not valid_pending_transaction? ->
+        :invalid_pending_transaction
+
+      not valid_inherit_condition?(prev_tx, tx, validation_time) ->
         :invalid_inherit_constraints
+
+      not valid_contract_execution?(prev_tx, tx, contract_context) ->
+        :invalid_contract_execution
+
+      not valid_contract_recipients?(tx, resolved_addresses, validation_time) ->
+        :invalid_recipients_execution
 
       has_insufficient_funds?(ledger_operations, unspent_outputs) ->
         :insufficient_funds
 
-      not valid_pending_transaction? ->
-        :invalid_pending_transaction
-
       true ->
-        get_smart_contract_error(tx, resolved_addresses, validation_time)
+        nil
     end
   end
 
-  defp get_smart_contract_error(
+  defp valid_contract_recipients?(
          %Transaction{data: %TransactionData{recipients: []}},
          _resolved_addresses,
          _validation_time
        ),
-       do: nil
+       do: true
 
-  defp get_smart_contract_error(
+  defp valid_contract_recipients?(
          tx = %Transaction{data: %TransactionData{recipients: recipients}},
          resolved_addresses,
          validation_time
        ) do
-    valid? =
-      recipients
-      |> Enum.map(&(Map.new(resolved_addresses) |> Map.get(&1)))
-      |> SmartContractValidation.valid_contract_calls?(tx, validation_time)
-
-    if valid? do
-      nil
-    else
-      :invalid_contract_execution
-    end
+    resolved_recipients(recipients, resolved_addresses)
+    |> SmartContractValidation.valid_contract_calls?(tx, validation_time)
   end
 
   defp has_insufficient_funds?(ledger_ops, inputs) do
     not LedgerOperations.sufficient_funds?(ledger_ops, inputs)
   end
 
-  defp chain_error?(nil, _tx = %Transaction{}), do: false
-
-  defp chain_error?(
-         prev_tx = %Transaction{data: %TransactionData{code: prev_code}},
-         tx = %Transaction{validation_stamp: nil}
+  ####################
+  defp valid_inherit_condition?(
+         prev_tx = %Transaction{data: %TransactionData{code: code}},
+         next_tx = %Transaction{},
+         validation_time
        )
-       when prev_code != "" do
-    !Contracts.accept_new_contract?(prev_tx, tx, DateTime.utc_now())
+       when code != "" do
+    Contracts.valid_condition?(
+      :inherit,
+      Contract.from_transaction!(prev_tx),
+      next_tx,
+      validation_time
+    )
   end
 
-  defp chain_error?(
-         prev_tx = %Transaction{data: %TransactionData{code: prev_code}},
-         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}
+  # handle cases:
+  #   - first transaction
+  #   - previous has no code
+  defp valid_inherit_condition?(_prev_tx, _next_tx, _validation_time), do: true
+
+  ####################
+  defp valid_contract_execution?(
+         prev_tx = %Transaction{data: %TransactionData{code: code}},
+         next_tx = %Transaction{},
+         contract_context = %Contract.Context{}
        )
-       when prev_code != "" do
-    !Contracts.accept_new_contract?(prev_tx, tx, timestamp)
+       when code != "" do
+    Contracts.valid_execution?(prev_tx, next_tx, contract_context)
   end
 
-  defp chain_error?(_, _), do: false
+  # handle cases:
+  #   - first transaction
+  #   - previous has no code
+  #   - there was no contract execution
+  defp valid_contract_execution?(_prev_tx, _next_tx, _contract_contract), do: true
 
   @doc """
   Create a replication tree based on the validation context (storage nodes and validation nodes)
@@ -1143,7 +1155,8 @@ defmodule Archethic.Mining.ValidationContext do
            valid_pending_transaction?: valid_pending_transaction?,
            unspent_outputs: unspent_outputs,
            resolved_addresses: resolved_addresses,
-           validation_time: validation_time
+           validation_time: validation_time,
+           contract_context: contract_context
          }
        ) do
     validated_context = %{context | transaction: %{tx | validation_stamp: stamp}}
@@ -1156,7 +1169,8 @@ defmodule Archethic.Mining.ValidationContext do
         unspent_outputs,
         valid_pending_transaction?,
         resolved_addresses,
-        validation_time
+        validation_time,
+        contract_context
       )
 
     error == expected_error
@@ -1165,20 +1179,14 @@ defmodule Archethic.Mining.ValidationContext do
   defp valid_stamp_recipients?(
          %ValidationStamp{recipients: stamp_recipients},
          %__MODULE__{
-           transaction: %Transaction{data: %TransactionData{recipients: origin_recipients}},
+           transaction: %Transaction{data: %TransactionData{recipients: recipients}},
            resolved_addresses: resolved_addresses
          }
        ) do
-    resolved_recipients_addresses =
-      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
-        if to in origin_recipients do
-          [resolved | acc]
-        else
-          acc
-        end
-      end)
-
-    Enum.all?(resolved_recipients_addresses, &(&1 in stamp_recipients))
+    Enum.all?(
+      resolved_recipients(recipients, resolved_addresses),
+      &(&1 in stamp_recipients)
+    )
   end
 
   defp valid_stamp_transaction_movements?(
@@ -1405,6 +1413,16 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.filter(fn {available, _} -> available == 1 end)
     |> Enum.map(fn {_, i} ->
       Enum.at(chain_storage_nodes, i)
+    end)
+  end
+
+  defp resolved_recipients(recipients, resolved_addresses) do
+    Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
+      if to in recipients do
+        [resolved | acc]
+      else
+        acc
+      end
     end)
   end
 end

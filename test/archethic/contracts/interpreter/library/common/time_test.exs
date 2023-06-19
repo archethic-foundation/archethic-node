@@ -1,13 +1,9 @@
 defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
-  @moduledoc """
-  We test via the Interpreter.execute because it's where we define the time to use
-  """
-
   use ArchethicCase
 
   alias Archethic.TransactionFactory
+  alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Library.Common.Time
 
   alias Archethic.TransactionChain.Transaction
@@ -39,11 +35,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
         )
 
       {:ok, tx} =
-        Interpreter.execute(
+        Contracts.execute_trigger(
           {:datetime, datetime},
           Contract.from_transaction!(contract_tx),
           nil,
-          []
+          [],
+          time_now: datetime
         )
 
       assert %Transaction{data: %TransactionData{content: content}} = tx
@@ -82,15 +79,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           timestamp: datetime
         )
 
-      assert {:ok, tx} =
-               Interpreter.execute(
-                 :transaction,
-                 Contract.from_transaction!(contract_tx),
-                 trigger_tx,
-                 [trigger_tx]
-               )
-
-      assert %Transaction{data: %TransactionData{content: "hallo"}} = tx
+      assert Contracts.valid_condition?(
+               :transaction,
+               Contract.from_transaction!(contract_tx),
+               trigger_tx,
+               datetime
+             )
     end
 
     test "should fail the contract if condition is falsy" do
@@ -125,13 +119,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           timestamp: datetime
         )
 
-      assert {:error, :invalid_transaction_constraints} =
-               Interpreter.execute(
-                 :transaction,
-                 Contract.from_transaction!(contract_tx),
-                 trigger_tx,
-                 [trigger_tx]
-               )
+      refute Contracts.valid_condition?(
+               :transaction,
+               Contract.from_transaction!(contract_tx),
+               trigger_tx,
+               datetime
+             )
     end
 
     test "should run the contract if condition inherit is truthy" do
@@ -157,13 +150,20 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           code: code
         )
 
-      assert {:ok, %Transaction{}} =
-               Interpreter.execute(
-                 {:datetime, datetime},
-                 Contract.from_transaction!(contract_tx),
-                 nil,
-                 []
-               )
+      next_tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :contract,
+          code: code,
+          content: "konnichiwa",
+          timestamp: datetime
+        )
+
+      assert Contracts.valid_condition?(
+               :inherit,
+               Contract.from_transaction!(contract_tx),
+               next_tx,
+               datetime
+             )
     end
 
     test "should fail the contract if condition inherit is falsy" do
@@ -188,13 +188,20 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           code: code
         )
 
-      assert {:error, :invalid_inherit_constraints} =
-               Interpreter.execute(
-                 {:datetime, datetime},
-                 Contract.from_transaction!(contract_tx),
-                 nil,
-                 []
-               )
+      next_tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :contract,
+          code: code,
+          content: "ciao",
+          timestamp: datetime
+        )
+
+      refute Contracts.valid_condition?(
+               :inherit,
+               Contract.from_transaction!(contract_tx),
+               next_tx,
+               datetime
+             )
     end
   end
 end
