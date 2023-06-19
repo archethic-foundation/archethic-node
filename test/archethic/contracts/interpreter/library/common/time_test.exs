@@ -17,7 +17,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
 
   describe "now/0" do
     test "should work in the action block" do
-      datetime = DateTime.utc_now() |> DateTime.truncate(:second)
+      datetime = ~U[1970-01-01 00:00:00Z]
       timestamp = DateTime.to_unix(datetime)
 
       code = ~s"""
@@ -51,7 +51,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
     end
 
     test "should run the contract if condition is truthy" do
-      datetime = DateTime.utc_now() |> DateTime.truncate(:second)
+      datetime = ~U[1970-01-01 00:00:00Z]
       timestamp = DateTime.to_unix(datetime)
 
       code = ~s"""
@@ -94,7 +94,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
     end
 
     test "should fail the contract if condition is falsy" do
-      datetime = DateTime.utc_now() |> DateTime.truncate(:second)
+      datetime = ~U[1970-01-01 00:00:00Z]
       timestamp = DateTime.to_unix(datetime)
 
       code = ~s"""
@@ -135,7 +135,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
     end
 
     test "should run the contract if condition inherit is truthy" do
-      datetime = DateTime.utc_now() |> DateTime.truncate(:second)
+      datetime = ~U[1970-01-01 00:00:00Z]
       timestamp = DateTime.to_unix(datetime)
 
       code = ~s"""
@@ -167,7 +167,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
     end
 
     test "should fail the contract if condition inherit is falsy" do
-      datetime = DateTime.utc_now() |> DateTime.truncate(:second)
+      datetime = ~U[1970-01-01 00:00:00Z]
       timestamp = DateTime.to_unix(datetime)
 
       code = ~s"""
