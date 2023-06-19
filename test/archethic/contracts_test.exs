@@ -267,7 +267,7 @@ defmodule Archethic.ContractsTest do
     end
 
     test "should return true when the transaction have been triggered by datetime and timestamp matches" do
-      now = ~U[2023-06-20 12:00:00Z]
+      now = %DateTime{DateTime.utc_now() | second: 0, microsecond: {0, 0}}
 
       code = """
       @version 1
@@ -304,7 +304,12 @@ defmodule Archethic.ContractsTest do
     end
 
     test "should return false when the transaction have been triggered by datetime but timestamp doesn't match" do
-      yesterday = ~U[2023-06-19 12:00:00Z]
+      yesterday = %DateTime{
+        (DateTime.utc_now()
+         |> DateTime.add(-1, :day))
+        | second: 0,
+          microsecond: {0, 0}
+      }
 
       code = """
       @version 1
