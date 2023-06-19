@@ -22,7 +22,9 @@ defmodule Archethic.P2P.Message.AddMiningContext do
 
   alias Archethic.Crypto
   alias Archethic.Mining
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Ok
+  alias Archethic.TaskSupervisor
   alias Archethic.Utils
 
   @type t :: %__MODULE__{
@@ -46,15 +48,21 @@ defmodule Archethic.P2P.Message.AddMiningContext do
         },
         _
       ) do
-    :ok =
-      Mining.add_mining_context(
-        tx_address,
-        validation_node,
-        previous_storage_nodes_public_keys,
-        chain_storage_nodes_view,
-        beacon_storage_nodes_view,
-        io_storage_nodes_view
-      )
+    Task.Supervisor.async_nolink(
+      TaskSupervisor,
+      fn ->
+        Mining.add_mining_context(
+          tx_address,
+          validation_node,
+          previous_storage_nodes_public_keys,
+          chain_storage_nodes_view,
+          beacon_storage_nodes_view,
+          io_storage_nodes_view
+        )
+      end,
+      timeout: Message.get_max_timeout(),
+      shutdown: :brutal_kill
+    )
 
     %Ok{}
   end
