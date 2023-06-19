@@ -539,20 +539,5 @@ defmodule Archethic.P2P.Client.Connection do
     :ets.delete(@table_name, node_public_key)
   end
 
-  def code_change(
-        "1.1.1",
-        state = {:connected, _},
-        data = %{node_public_key: node_public_key},
-        _extra
-      ) do
-    set_node_connected(node_public_key)
-    {:ok, state, data}
-  end
-
-  def code_change("1.1.1", state, data = %{node_public_key: node_public_key}, _extra) do
-    set_node_disconnected(node_public_key)
-    {:ok, state, data}
-  end
-
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 end

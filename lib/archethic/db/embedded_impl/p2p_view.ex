@@ -117,22 +117,4 @@ defmodule Archethic.DB.EmbeddedImpl.P2PView do
 
     deserialize(rest, [view | acc])
   end
-
-  def code_change("1.0.7", state = %{views: nodes_view, filepath: filepath}, _) do
-    new_nodes_view =
-      Enum.map(nodes_view, fn
-        {node_key, available?, avg_availability, availability_update} ->
-          {node_key, available?, avg_availability, availability_update, nil}
-
-        view ->
-          view
-      end)
-
-    nodes_view_bin = serialize(new_nodes_view, <<>>)
-    File.write!(filepath, nodes_view_bin, [:binary])
-
-    {:ok, %{state | views: new_nodes_view}}
-  end
-
-  def code_change(_, state, _), do: {:ok, state}
 end
