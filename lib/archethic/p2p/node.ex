@@ -31,7 +31,6 @@ defmodule Archethic.P2P.Node do
     available?: false,
     synced?: false,
     average_availability: 1.0,
-    availability_history: <<0::1>>,
     authorized?: false,
     authorization_date: nil,
     transport: :tcp,
@@ -178,7 +177,6 @@ defmodule Archethic.P2P.Node do
           available?: boolean(),
           synced?: boolean(),
           average_availability: float(),
-          availability_history: bitstring(),
           authorized?: boolean(),
           enrollment_date: nil | DateTime.t(),
           authorization_date: nil | DateTime.t(),
@@ -193,9 +191,8 @@ defmodule Archethic.P2P.Node do
   @spec cast(tuple()) :: __MODULE__.t()
   def cast(
         {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
-         average_availability, availability_history, enrollment_date, transport, reward_address,
-         last_address, origin_public_key, synced?, last_update_date, available?,
-         availability_update}
+         average_availability, enrollment_date, transport, reward_address, last_address,
+         origin_public_key, synced?, last_update_date, available?, availability_update}
       ) do
     %__MODULE__{
       ip: ip,
@@ -206,7 +203,6 @@ defmodule Archethic.P2P.Node do
       geo_patch: geo_patch,
       network_patch: network_patch,
       average_availability: average_availability,
-      availability_history: availability_history,
       enrollment_date: enrollment_date,
       synced?: synced?,
       transport: transport,
@@ -218,24 +214,6 @@ defmodule Archethic.P2P.Node do
       availability_update: availability_update
     }
   end
-
-  @doc """
-  Determine if the node is locally available based on its availability history.
-
-  If the last exchange with node was succeed the node is considered as available
-
-  ## Examples
-
-      iex> Node.locally_available?(%Node{ availability_history: <<1::1, 0::1, 1::1, 1::1>>})
-      true
-
-      iex> Node.locally_available?(%Node{ availability_history: <<0::1, 1::1, 1::1, 1::1>>})
-      false
-
-  """
-  @spec locally_available?(t()) :: boolean()
-  def locally_available?(%__MODULE__{availability_history: <<1::1, _::bitstring>>}), do: true
-  def locally_available?(%__MODULE__{availability_history: <<0::1, _::bitstring>>}), do: false
 
   @doc """
   Mark the node as authorized by including the authorization date

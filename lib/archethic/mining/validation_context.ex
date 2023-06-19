@@ -113,20 +113,20 @@ defmodule Archethic.Mining.ValidationContext do
 
     iex> ValidationContext.new(
     ...>   transaction: %Transaction{},
-    ...>   welcome_node: %Node{last_public_key: "key1", availability_history: <<1::1>>},
-    ...>   coordinator_node: %Node{last_public_key: "key2", availability_history: <<1::1>>},
-    ...>   cross_validation_nodes: [%Node{last_public_key: "key3", availability_history: <<1::1>>}],
-    ...>   chain_storage_nodes: [%Node{last_public_key: "key4", availability_history: <<1::1>>}, %Node{last_public_key: "key5", availability_history: <<1::1>>}],
-    ...>   beacon_storage_nodes: [%Node{last_public_key: "key6", availability_history: <<1::1>>}, %Node{last_public_key: "key7", availability_history: <<1::1>>}]
+    ...>   welcome_node: %Node{last_public_key: "key1"},
+    ...>   coordinator_node: %Node{last_public_key: "key2"},
+    ...>   cross_validation_nodes: [%Node{last_public_key: "key3"}],
+    ...>   chain_storage_nodes: [%Node{last_public_key: "key4"}, %Node{last_public_key: "key5"}],
+    ...>   beacon_storage_nodes: [%Node{last_public_key: "key6"}, %Node{last_public_key: "key7"}]
     ...> )
     %ValidationContext{
       transaction: %Transaction{},
-      welcome_node: %Node{last_public_key: "key1", availability_history: <<1::1>>},
-      coordinator_node: %Node{last_public_key: "key2", availability_history: <<1::1>>},
-      cross_validation_nodes: [%Node{last_public_key: "key3", availability_history: <<1::1>>}],
+      welcome_node: %Node{last_public_key: "key1"},
+      coordinator_node: %Node{last_public_key: "key2"},
+      cross_validation_nodes: [%Node{last_public_key: "key3"}],
       cross_validation_nodes_confirmation: <<0::1>>,
-      chain_storage_nodes: [%Node{last_public_key: "key4", availability_history: <<1::1>>}, %Node{last_public_key: "key5", availability_history: <<1::1>>}],
-      beacon_storage_nodes: [%Node{last_public_key: "key6", availability_history: <<1::1>>}, %Node{last_public_key: "key7", availability_history: <<1::1>>}]
+      chain_storage_nodes: [%Node{last_public_key: "key4"}, %Node{last_public_key: "key5"}],
+      beacon_storage_nodes: [%Node{last_public_key: "key6"}, %Node{last_public_key: "key7"}]
     }
   """
   @spec new(opts :: Keyword.t()) :: t()

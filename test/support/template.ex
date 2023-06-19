@@ -186,14 +186,19 @@ defmodule ArchethicCase do
     end)
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, public_key ->
-      P2PMemTable.increase_node_availability(public_key)
-      {:ok, make_ref()}
+    |> stub(:new_connection, fn
+      _, _, _, _, nil ->
+        {:ok, self()}
+
+      _, _, _, _, from ->
+        send(from, :connected)
+        {:ok, self()}
     end)
     |> stub(:send_message, fn
       _, %Archethic.P2P.Message.ListNodes{}, _ ->
         {:ok, %Archethic.P2P.Message.NodeList{nodes: Archethic.P2P.list_nodes()}}
     end)
+    |> stub(:connected?, fn _ -> true end)
 
     start_supervised!(TokenLedger)
     start_supervised!(UCOLedger)

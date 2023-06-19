@@ -45,35 +45,11 @@ defmodule Archethic.SelfRepair do
   @doc """
   Start the bootstrap's synchronization process using the last synchronization date
   """
-  @spec bootstrap_sync(last_sync_date :: DateTime.t()) :: :ok
-  def bootstrap_sync(date = %DateTime{}) do
-    # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
-    # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
-    # at the end of loading (in case there is a crash during self repair).
-
-    # Summary time after the the last synchronization date
-    summary_time = BeaconChain.next_summary_date(date)
-
-    # Before the first summary date, synchronization is useless
-    # as no data have been aggregated
-    if DateTime.diff(DateTime.utc_now(), summary_time) >= 0 do
-      loaded_missed_transactions? =
-        :ok ==
-          0..@max_retry_count
-          |> Enum.reduce_while(:error, fn _, _ ->
-            try do
-              :ok = Sync.load_missed_transactions(date)
-              {:halt, :ok}
-            catch
-              error, message ->
-                Logger.error("Error during self repair #{error} #{message}")
-                {:cont, :error}
-            end
-          end)
-
-      if loaded_missed_transactions? do
-        Logger.info("Bootstrap Sync succeded in loading missed transactions !")
-
+  @spec bootstrap_sync(last_sync_date :: DateTime.t(), download_nodes :: list(Node.t())) ::
+          :ok | :error
+  def bootstrap_sync(last_sync_date, download_nodes) do
+    case sync_with_retry(last_sync_date, download_nodes) do
+      :ok ->
         # At the end of self repair, if a new beacon summary as been created
         # we run bootstrap_sync again until the last beacon summary is loaded
         last_sync_date = last_sync_date()
@@ -82,21 +58,32 @@ defmodule Archethic.SelfRepair do
              |> BeaconChain.previous_summary_time()
              |> DateTime.compare(last_sync_date) do
           :gt ->
-            bootstrap_sync(last_sync_date)
+            bootstrap_sync(last_sync_date, download_nodes)
 
           _ ->
             :ok
         end
-      else
+
+      :error ->
         Logger.error(
           "Bootstrap Sync failed to load missed transactions after max retry of #{@max_retry_count} !"
         )
-
-        :error
-      end
-    else
-      Logger.info("Synchronization skipped (before first summary date)")
     end
+  end
+
+  defp sync_with_retry(last_sync_date, download_nodes) do
+    0..@max_retry_count
+    |> Enum.reduce_while(:error, fn _, _ ->
+      try do
+        :ok = Sync.load_missed_transactions(last_sync_date, download_nodes)
+        {:halt, :ok}
+      rescue
+        error ->
+          Logger.error("Error during bootstrap self repair")
+          Logger.error(Exception.format(:error, error, __STACKTRACE__))
+          {:cont, :error}
+      end
+    end)
   end
 
   @doc """

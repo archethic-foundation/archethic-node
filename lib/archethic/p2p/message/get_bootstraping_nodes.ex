@@ -28,7 +28,8 @@ defmodule Archethic.P2P.Message.GetBootstrappingNodes do
 
     %BootstrappingNodes{
       new_seeds: Enum.take_random(top_nodes, 5),
-      closest_nodes: closest_nodes
+      closest_nodes: closest_nodes,
+      first_enrolled_node: P2P.get_first_enrolled_node()
     }
   end
 

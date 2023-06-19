@@ -22,7 +22,6 @@ defmodule Archethic.P2P.MessageTest do
     GetFirstPublicKey,
     GetLastTransaction,
     GetLastTransactionAddress,
-    GetP2PView,
     GetStorageNonce,
     GetTransaction,
     GetTransactionChain,
@@ -39,7 +38,6 @@ defmodule Archethic.P2P.MessageTest do
     NotifyLastTransactionAddress,
     NotifyPreviousChain,
     Ok,
-    P2PView,
     Ping,
     RegisterBeaconUpdates,
     ReplicateTransaction,
@@ -85,8 +83,14 @@ defmodule Archethic.P2P.MessageTest do
     end
 
     test "ListNodes message" do
-      assert %ListNodes{} =
-               %ListNodes{}
+      assert %ListNodes{authorized_and_available?: true} =
+               %ListNodes{authorized_and_available?: true}
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+
+      assert %ListNodes{authorized_and_available?: false} =
+               %ListNodes{authorized_and_available?: false}
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
@@ -716,7 +720,34 @@ defmodule Archethic.P2P.MessageTest do
               <<0, 0, 76, 168, 99, 61, 84, 206, 158, 226, 212, 161, 60, 62, 55, 101, 249, 142,
                 174, 178, 157, 241, 148, 35, 19, 177, 109, 40, 224, 179, 31, 66, 129, 4>>
           }
-        ]
+        ],
+        first_enrolled_node: %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          http_port: 4000,
+          first_public_key:
+            <<0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+              92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
+          last_public_key:
+            <<0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+              92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
+          geo_patch: "FA9",
+          network_patch: "AVC",
+          available?: true,
+          average_availability: 0.8,
+          enrollment_date: ~U[2020-06-26 08:36:11Z],
+          authorization_date: ~U[2020-06-26 08:36:11Z],
+          authorized?: true,
+          reward_address:
+            <<0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+              87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+          last_address:
+            <<0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+              88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+          origin_public_key:
+            <<0, 0, 76, 168, 99, 61, 84, 206, 158, 226, 212, 161, 60, 62, 55, 101, 249, 142, 174,
+              178, 157, 241, 148, 35, 19, 177, 109, 40, 224, 179, 31, 66, 129, 4>>
+        }
       }
 
       assert msg ==
@@ -778,33 +809,6 @@ defmodule Archethic.P2P.MessageTest do
             protocol_version: 1
           }
         ]
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "GetP2PView message" do
-      msg = %GetP2PView{
-        node_public_keys:
-          Enum.map(1..10, fn _ ->
-            <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-          end)
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "P2PView message" do
-      msg = %P2PView{
-        nodes_view: <<1::1, 0::1, 1::1, 1::1>>
       }
 
       assert msg ==

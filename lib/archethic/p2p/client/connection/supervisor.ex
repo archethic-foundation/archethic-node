@@ -29,7 +29,8 @@ defmodule Archethic.P2P.Client.ConnectionSupervisor do
   @doc """
   Terminate a connection process
   """
-  @spec cancel_connection(pid) :: :ok | {:error, :not_found}
+  @spec cancel_connection(pid :: pid()) ::
+          :ok | {:error, :not_found}
   def cancel_connection(pid) do
     DynamicSupervisor.terminate_child(__MODULE__, pid)
   end

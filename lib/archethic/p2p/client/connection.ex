@@ -13,7 +13,6 @@ defmodule Archethic.P2P.Client.Connection do
 
   alias Archethic.P2P.Client.ConnectionRegistry
 
-  alias Archethic.P2P.MemTable
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
 
@@ -23,6 +22,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
   @vsn Mix.Project.config()[:version]
+  @table_name :connection_status
 
   @doc """
   Starts a new connection
@@ -67,7 +67,24 @@ defmodule Archethic.P2P.Client.Connection do
     GenStateMachine.call(via_tuple(public_key), {:get_timer, reset?})
   end
 
-  # fetch cnnoection details from registery for a node from its public key
+  @doc """
+  Return true if the connection is established
+  """
+  @spec connected?(node_public_key :: Crypto.key()) :: boolean()
+  def connected?(node_public_key) do
+    case :ets.lookup(@table_name, node_public_key) do
+      [{_key, connected?}] -> connected?
+      _ -> false
+    end
+  end
+
+  defp set_node_connected(node_public_key),
+    do: :ets.insert(@table_name, {node_public_key, true})
+
+  defp set_node_disconnected(node_public_key),
+    do: :ets.insert(@table_name, {node_public_key, false})
+
+  # fetch connection details from registery for a node from its public key
   defp via_tuple(public_key), do: {:via, Registry, {ConnectionRegistry, public_key}}
 
   def init(arg) do
@@ -75,6 +92,7 @@ defmodule Archethic.P2P.Client.Connection do
     port = Keyword.get(arg, :port)
     node_public_key = Keyword.get(arg, :node_public_key)
     transport = Keyword.get(arg, :transport)
+    from = Keyword.get(arg, :from)
 
     data = %{
       ip: ip,
@@ -87,7 +105,7 @@ defmodule Archethic.P2P.Client.Connection do
       availability_timer: {nil, 0}
     }
 
-    {:ok, :initializing, data, [{:next_event, :internal, :connect}]}
+    {:ok, :initializing, data, [{:next_event, :internal, {:connect, from}}]}
   end
 
   # every messages sent while inializing will wait until state changes
@@ -148,7 +166,7 @@ defmodule Archethic.P2P.Client.Connection do
       ) do
     Logger.warning("Connection closed", node: Base.encode16(node_public_key))
 
-    MemTable.decrease_node_availability(node_public_key)
+    set_node_disconnected(node_public_key)
 
     # Stop availability timer
     new_data =
@@ -182,7 +200,7 @@ defmodule Archethic.P2P.Client.Connection do
         {:connected, _socket},
         data = %{node_public_key: node_public_key}
       ) do
-    MemTable.increase_node_availability(node_public_key)
+    set_node_connected(node_public_key)
 
     # Start availability timer
     new_data =
@@ -204,7 +222,7 @@ defmodule Archethic.P2P.Client.Connection do
   # called from the :disconnected or :initializing state
   def handle_event(
         :internal,
-        :connect,
+        {:connect, from},
         _state,
         _data = %{
           ip: ip,
@@ -220,14 +238,14 @@ defmodule Archethic.P2P.Client.Connection do
       case transport.handle_connect(ip, port) do
         {:ok, socket} when is_port(socket) ->
           :gen_tcp.controlling_process(socket, me)
-          {:ok, socket}
+          {:ok, socket, from}
 
         # only used for tests (make_ref())
         {:ok, socket} ->
-          {:ok, socket}
+          {:ok, socket, from}
 
-        {:error, _} = e ->
-          e
+        {:error, reason} ->
+          {:error, reason, from}
       end
     end)
 
@@ -241,7 +259,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   # this message is used to delay next connection attempt
   def handle_event({:timeout, :reconnect}, _event_data, _state, _data) do
-    actions = [{:next_event, :internal, :connect}]
+    actions = [{:next_event, :internal, {:connect, nil}}]
     {:keep_state_and_data, actions}
   end
 
@@ -343,7 +361,7 @@ defmodule Archethic.P2P.Client.Connection do
           message_id: msg_id
         )
 
-        MemTable.decrease_node_availability(node_public_key)
+        set_node_disconnected(node_public_key)
 
         # Stop availability timer
         new_data =
@@ -411,12 +429,23 @@ defmodule Archethic.P2P.Client.Connection do
   end
 
   # Task.async sending us the result of the handle_connect
-  def handle_event(:info, {_ref, {:ok, socket}}, _, data) do
+  def handle_event(:info, {_ref, {:ok, socket, nil}}, _, data) do
+    {:next_state, {:connected, socket}, data}
+  end
+
+  def handle_event(:info, {_ref, {:ok, socket, from}}, _, data) do
+    send(from, :connected)
     {:next_state, {:connected, socket}, data}
   end
 
   # Task.async sending us the result of the handle_connect
-  def handle_event(:info, {_ref, {:error, _reason}}, _, data) do
+  def handle_event(:info, {_ref, {:error, _reason, nil}}, _, data) do
+    actions = [{{:timeout, :reconnect}, 500, nil}]
+    {:next_state, :disconnected, data, actions}
+  end
+
+  def handle_event(:info, {_ref, {:error, reason, from}}, _, data) do
+    send(from, {:error, reason})
     actions = [{{:timeout, :reconnect}, 500, nil}]
     {:next_state, :disconnected, data, actions}
   end
@@ -439,7 +468,7 @@ defmodule Archethic.P2P.Client.Connection do
         {:next_state, :disconnected, data}
 
       {:ok, msg} ->
-        MemTable.increase_node_availability(node_public_key)
+        set_node_connected(node_public_key)
 
         # Start availability timer
         new_data =
@@ -504,6 +533,25 @@ defmodule Archethic.P2P.Client.Connection do
   def handle_event(:info, _, _, _data) do
     # Unhandled message received
     :keep_state_and_data
+  end
+
+  def terminate(_, _, %{node_public_key: node_public_key}) do
+    :ets.delete(@table_name, node_public_key)
+  end
+
+  def code_change(
+        "1.1.1",
+        state = {:connected, _},
+        data = %{node_public_key: node_public_key},
+        _extra
+      ) do
+    set_node_connected(node_public_key)
+    {:ok, state, data}
+  end
+
+  def code_change("1.1.1", state, data = %{node_public_key: node_public_key}, _extra) do
+    set_node_disconnected(node_public_key)
+    {:ok, state, data}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}

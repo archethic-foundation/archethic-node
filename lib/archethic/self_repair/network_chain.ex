@@ -52,7 +52,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   def synchronous_resync(:node) do
     :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: :node})
 
-    case P2P.fetch_nodes_list() do
+    case P2P.fetch_nodes_list(false, P2P.authorized_and_available_nodes()) do
       {:ok, nodes} ->
         nodes_to_resync = Enum.filter(nodes, &node_require_resync?/1)
 

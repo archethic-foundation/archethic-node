@@ -8,8 +8,6 @@ defmodule Archethic.P2P.MemTableLoader do
 
   alias Archethic.DB
 
-  alias Archethic.P2P
-  alias Archethic.P2P.Client
   alias Archethic.P2P.GeoPatch
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Node
@@ -71,28 +69,21 @@ defmodule Archethic.P2P.MemTableLoader do
     case previously_available do
       # Ensure the only single node is globally available after a delayed bootstrap
       [{^node_key, _, avg_availability, availability_update, network_patch}] ->
-        P2P.set_node_globally_synced(node_key)
-        P2P.set_node_globally_available(node_key, availability_update)
-        P2P.set_node_average_availability(node_key, avg_availability)
+        MemTable.set_node_synced(node_key)
+        MemTable.set_node_available(node_key, availability_update)
+        MemTable.update_node_average_availability(node_key, avg_availability)
 
         if network_patch do
-          P2P.update_node_network_patch(node_key, network_patch)
+          MemTable.update_node_network_patch(node_key, network_patch)
         end
 
       [] ->
-        P2P.set_node_globally_synced(node_key)
-        P2P.set_node_globally_available(node_key, last_sync_date)
-        P2P.set_node_average_availability(node_key, 1.0)
+        MemTable.set_node_synced(node_key)
+        MemTable.set_node_available(node_key, last_sync_date)
+        MemTable.update_node_average_availability(node_key, 1.0)
 
       _ ->
-        # We want to reload the previous beacon chain summary information
-        # if the node haven't been disconnected for a significant time (one self-repair cycle)
-        # if the node was disconnected for long time, then we don't load the previous view, as it's obsolete
-        missed_sync? = SelfRepair.missed_sync?(last_sync_date)
-
-        Enum.each(p2p_summaries, fn summary ->
-          load_p2p_summary(summary, missed_sync?)
-        end)
+        Enum.each(p2p_summaries, &load_p2p_summary/1)
     end
   end
 
@@ -156,14 +147,6 @@ defmodule Archethic.P2P.MemTableLoader do
     end
 
     Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
-
-    if first_public_key != Crypto.first_node_public_key() do
-      {:ok, %Node{ip: ip, port: port, transport: transport}} = MemTable.get_node(first_public_key)
-      {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key)
-      :ok
-    else
-      :ok
-    end
   end
 
   def load_transaction(%Transaction{
@@ -180,7 +163,7 @@ defmodule Archethic.P2P.MemTableLoader do
     )
 
     new_authorized_keys = Ownership.list_authorized_public_keys(ownership)
-    previous_authorized_keys = P2P.list_authorized_public_keys()
+    previous_authorized_keys = MemTable.list_authorized_public_keys()
 
     unauthorized_keys = previous_authorized_keys -- new_authorized_keys
 
@@ -197,15 +180,11 @@ defmodule Archethic.P2P.MemTableLoader do
   defp first_node_change?(_, _), do: false
 
   defp load_p2p_summary(
-         {node_public_key, available?, avg_availability, availability_update, network_patch},
-         missed_sync?
+         {node_public_key, available?, avg_availability, availability_update, network_patch}
        ) do
     if available? do
-      P2P.set_node_globally_synced(node_public_key)
-
-      unless missed_sync? do
-        P2P.set_node_globally_available(node_public_key, availability_update)
-      end
+      MemTable.set_node_synced(node_public_key)
+      MemTable.set_node_available(node_public_key, availability_update)
     end
 
     MemTable.update_node_average_availability(node_public_key, avg_availability)
