@@ -9,8 +9,6 @@ defmodule ArchethicWeb.PlugThrottleByIPHigh do
   rule "Throttle by IP", conn do
     [period: period, limit: limit] = Application.get_env(:archethic, :throttle)[:by_ip_high]
 
-    limit = String.to_integer(limit)
-
     throttle(conn.remote_ip,
       period: period,
       limit: limit,
