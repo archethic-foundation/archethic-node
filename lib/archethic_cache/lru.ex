@@ -61,6 +61,16 @@ defmodule ArchethicCache.LRU do
      }}
   end
 
+  def code_change(_, state, _) do
+    # As we use hot reload we need to update also the lambda function stored in
+    # permanent term or GenServer state. But as we don't know the function definition
+    # we kill the current GenServer and the Supervisor will restart it with the new function
+    # using the last version
+    me = self()
+    Task.start(fn -> Process.exit(me, :kill) end)
+    {:ok, state}
+  end
+
   def handle_call(:purge, _from, state = %{table: table, evict_fn: evict_fn}) do
     # we call the evict_fn to be able to clean effects (ex: file written to disk)
     :ets.foldr(
