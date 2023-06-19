@@ -28,6 +28,26 @@ defmodule Archethic.P2P.Client.ConnectionTest do
     assert {{:connected, _socket}, %{request_id: 0, messages: %{}}} = :sys.get_state(pid)
   end
 
+  test "start_link/1 should acknowledge when connection is successful" do
+    me = self()
+
+    {:ok, pid} =
+      Connection.start_link(
+        transport: __MODULE__.MockTransport,
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        node_public_key: "key1",
+        from: me
+      )
+
+    assert {:initializing, _} = :sys.get_state(pid)
+
+    Process.sleep(10)
+
+    assert {{:connected, _socket}, %{request_id: 0, messages: %{}}} = :sys.get_state(pid)
+    assert_received :connected
+  end
+
   describe "send_message/3" do
     test "should send the message and enqueue the request" do
       {:ok, pid} =
@@ -512,7 +532,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       Process.sleep(10)
 
-      assert ConnectionSupervisor.node_connected?(node_key)
+      assert Connection.connected?(node_key)
 
       assert {:error, :timeout} =
                Connection.send_message(
@@ -523,9 +543,9 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
       Process.sleep(10)
 
-      refute ConnectionSupervisor.node_connected?(node_key)
+      refute Connection.connected?(node_key)
 
-      ConnectionSupervisor.cancel_connection(pid, node_key)
+      ConnectionSupervisor.cancel_connection(pid)
     end
   end
 

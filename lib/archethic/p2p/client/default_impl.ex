@@ -45,7 +45,7 @@ defmodule Archethic.P2P.Client.DefaultImpl do
 
         with false <- connected?(node_public_key),
              true <- informations_changed?(ip, port, transport, current_conn) do
-          ConnectionSupervisor.cancel_connection(pid, node_public_key)
+          ConnectionSupervisor.cancel_connection(pid)
           new_connection(ip, port, transport, node_public_key, from)
         else
           _ ->
@@ -109,5 +109,5 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   defdelegate get_availability_timer(public_key, reset?), to: Connection
 
   @impl Client
-  defdelegate connected?(public_key), to: ConnectionSupervisor, as: :node_connected?
+  defdelegate connected?(public_key), to: Connection
 end

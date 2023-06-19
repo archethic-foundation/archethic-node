@@ -184,8 +184,13 @@ defmodule ArchethicCase do
     end)
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, _ ->
-      {:ok, make_ref()}
+    |> stub(:new_connection, fn
+      _, _, _, _, nil ->
+        {:ok, self()}
+
+      _, _, _, _, from ->
+        send(from, :connected)
+        {:ok, self()}
     end)
     |> stub(:send_message, fn
       _, %Archethic.P2P.Message.ListNodes{}, _ ->

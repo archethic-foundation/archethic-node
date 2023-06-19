@@ -12,7 +12,6 @@ defmodule Archethic.P2P.Client.Connection do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Client.ConnectionRegistry
-  alias Archethic.P2P.Client.ConnectionSupervisor
 
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
@@ -23,6 +22,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
   @vsn Mix.Project.config()[:version]
+  @table_name :connection_status
 
   @doc """
   Starts a new connection
@@ -66,6 +66,23 @@ defmodule Archethic.P2P.Client.Connection do
   def get_availability_timer(public_key, reset?) do
     GenStateMachine.call(via_tuple(public_key), {:get_timer, reset?})
   end
+
+  @doc """
+  Return true if the connection is established
+  """
+  @spec connected?(node_public_key :: Crypto.key()) :: boolean()
+  def connected?(node_public_key) do
+    case :ets.lookup(@table_name, node_public_key) do
+      [{_key, connected?}] -> connected?
+      _ -> false
+    end
+  end
+
+  defp set_node_connected(node_public_key),
+    do: :ets.insert(@table_name, {node_public_key, true})
+
+  defp set_node_disconnected(node_public_key),
+    do: :ets.insert(@table_name, {node_public_key, false})
 
   # fetch connection details from registery for a node from its public key
   defp via_tuple(public_key), do: {:via, Registry, {ConnectionRegistry, public_key}}
@@ -149,7 +166,7 @@ defmodule Archethic.P2P.Client.Connection do
       ) do
     Logger.warning("Connection closed", node: Base.encode16(node_public_key))
 
-    ConnectionSupervisor.set_node_disconnected(node_public_key)
+    set_node_disconnected(node_public_key)
 
     # Stop availability timer
     new_data =
@@ -183,7 +200,7 @@ defmodule Archethic.P2P.Client.Connection do
         {:connected, _socket},
         data = %{node_public_key: node_public_key}
       ) do
-    ConnectionSupervisor.set_node_connected(node_public_key)
+    set_node_connected(node_public_key)
 
     # Start availability timer
     new_data =
@@ -344,7 +361,7 @@ defmodule Archethic.P2P.Client.Connection do
           message_id: msg_id
         )
 
-        ConnectionSupervisor.set_node_disconnected(node_public_key)
+        set_node_disconnected(node_public_key)
 
         # Stop availability timer
         new_data =
@@ -451,7 +468,7 @@ defmodule Archethic.P2P.Client.Connection do
         {:next_state, :disconnected, data}
 
       {:ok, msg} ->
-        ConnectionSupervisor.set_node_connected(node_public_key)
+        set_node_connected(node_public_key)
 
         # Start availability timer
         new_data =
@@ -518,18 +535,22 @@ defmodule Archethic.P2P.Client.Connection do
     :keep_state_and_data
   end
 
+  def terminate(_, _, %{node_public_key: node_public_key}) do
+    :ets.delete(@table_name, node_public_key)
+  end
+
   def code_change(
         "1.1.1",
         state = {:connected, _},
         data = %{node_public_key: node_public_key},
         _extra
       ) do
-    ConnectionSupervisor.set_node_connected(node_public_key)
+    set_node_connected(node_public_key)
     {:ok, state, data}
   end
 
   def code_change("1.1.1", state, data = %{node_public_key: node_public_key}, _extra) do
-    ConnectionSupervisor.set_node_disconnected(node_public_key)
+    set_node_disconnected(node_public_key)
     {:ok, state, data}
   end
 
