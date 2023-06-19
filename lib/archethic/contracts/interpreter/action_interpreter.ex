@@ -107,13 +107,25 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     {:interval, cron_interval}
   end
 
-  defp extract_trigger([
-         {{:atom, "triggered_by"}, {{:atom, "datetime"}, _, nil}},
-         {{:atom, "at"}, timestamp}
-       ])
+  defp extract_trigger(
+         node = [
+           {{:atom, "triggered_by"}, {{:atom, "datetime"}, _, nil}},
+           {{:atom, "at"}, timestamp}
+         ]
+       )
        when is_number(timestamp) do
-    datetime = DateTime.from_unix!(timestamp)
-    {:datetime, datetime}
+    case rem(timestamp, 60) do
+      0 ->
+        datetime = DateTime.from_unix!(timestamp)
+        {:datetime, datetime}
+
+      _ ->
+        throw({:error, node, "Datetime triggers must be rounded to the minute"})
+    end
+  end
+
+  defp extract_trigger(node) do
+    throw({:error, node, "Invalid trigger"})
   end
 
   defp parse_block(ast) do

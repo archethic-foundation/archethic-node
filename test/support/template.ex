@@ -36,6 +36,7 @@ defmodule ArchethicCase do
     |> stub(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
     |> stub(:get_transaction, fn _, _, _ -> {:error, :transaction_not_exists} end)
     |> stub(:get_transaction_chain, fn _, _, _ -> {[], false, nil} end)
+    |> stub(:stream_chain, fn _, _ -> [] end)
     |> stub(:list_last_transaction_addresses, fn -> [] end)
     |> stub(:add_last_transaction_address, fn _, _, _ -> :ok end)
     |> stub(:get_last_chain_address, fn addr -> {addr, DateTime.utc_now()} end)
@@ -44,6 +45,7 @@ defmodule ArchethicCase do
     |> stub(:get_genesis_address, fn addr -> addr end)
     |> stub(:chain_size, fn _ -> 0 end)
     |> stub(:list_transactions_by_type, fn _, _ -> [] end)
+    |> stub(:list_chain_addresses, fn _ -> [] end)
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
     |> stub(:list_addresses_by_type, fn _ -> [] end)
     |> stub(:list_transactions, fn _ -> [] end)
@@ -184,14 +186,19 @@ defmodule ArchethicCase do
     end)
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, public_key ->
-      P2PMemTable.increase_node_availability(public_key)
-      {:ok, make_ref()}
+    |> stub(:new_connection, fn
+      _, _, _, _, nil ->
+        {:ok, self()}
+
+      _, _, _, _, from ->
+        send(from, :connected)
+        {:ok, self()}
     end)
     |> stub(:send_message, fn
       _, %Archethic.P2P.Message.ListNodes{}, _ ->
         {:ok, %Archethic.P2P.Message.NodeList{nodes: Archethic.P2P.list_nodes()}}
     end)
+    |> stub(:connected?, fn _ -> true end)
 
     start_supervised!(TokenLedger)
     start_supervised!(UCOLedger)

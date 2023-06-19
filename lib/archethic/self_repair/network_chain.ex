@@ -4,6 +4,8 @@ defmodule Archethic.SelfRepair.NetworkChain do
   """
   alias Archethic.Crypto
 
+  alias Archethic.Election
+
   alias Archethic.OracleChain
 
   alias Archethic.P2P
@@ -50,7 +52,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
   def synchronous_resync(:node) do
     :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: :node})
 
-    case P2P.fetch_nodes_list() do
+    case P2P.fetch_nodes_list(false, P2P.authorized_and_available_nodes()) do
       {:ok, nodes} ->
         nodes_to_resync = Enum.filter(nodes, &node_require_resync?/1)
 
@@ -140,7 +142,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
 
     case last_transaction do
       {:ok, %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_timestamp}}} ->
-        validation_timestamp >= last_schedule_date
+        DateTime.compare(validation_timestamp, last_schedule_date) != :lt
 
       _ ->
         false
@@ -148,7 +150,9 @@ defmodule Archethic.SelfRepair.NetworkChain do
   end
 
   defp validate_last_address(genesis_address) do
-    case TransactionChain.resolve_last_address(genesis_address) do
+    nodes = Election.chain_storage_nodes(genesis_address, P2P.authorized_and_available_nodes())
+
+    case TransactionChain.fetch_last_address(genesis_address, nodes) do
       {:ok, remote_last_address} ->
         {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
 

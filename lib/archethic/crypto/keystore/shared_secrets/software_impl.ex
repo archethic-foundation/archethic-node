@@ -51,10 +51,22 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
     :node_shared_secrets
     |> TransactionChain.list_addresses_by_type()
-    |> Enum.at(-1)
-    |> load_node_shared_secrets_tx()
+    |> Stream.take(-2)
+    |> Enum.each(&load_node_shared_secrets_tx/1)
 
     {:ok, %{}}
+  end
+
+  # we store functions in the ETS table, so we need to reload them
+  # every upgrade to avoid: "xxx is invalid, likely because it points to an old version of the code"
+  @impl GenServer
+  def code_change(_, state, _extra) do
+    :node_shared_secrets
+    |> TransactionChain.list_addresses_by_type()
+    |> Stream.take(-2)
+    |> Enum.each(&load_node_shared_secrets_tx/1)
+
+    {:ok, state}
   end
 
   defp load_storage_nonce do

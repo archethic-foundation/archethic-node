@@ -3,18 +3,41 @@ defmodule Archethic do
   Provides high level functions serving the API and the Explorer
   """
 
-  alias __MODULE__.{Account, BeaconChain, Crypto, Election, P2P, P2P.Node, P2P.Message}
-  alias __MODULE__.{SelfRepair, TransactionChain, SharedSecrets, TaskSupervisor}
-  alias __MODULE__.Contracts.{Interpreter, Contract}
+  alias Archethic.Account
 
-  alias SelfRepair.NetworkView
-  alias SelfRepair.NetworkChain
+  alias Archethic.BeaconChain
 
-  alias Message.{NewTransaction, NotFound, StartMining}
-  alias Message.{Balance, GetBalance, GetTransactionSummary}
-  alias Message.{StartMining, Ok, Error, TransactionSummaryMessage}
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Interpreter
 
-  alias TransactionChain.{Transaction, TransactionInput, TransactionSummary}
+  alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message
+
+  alias Archethic.P2P.Message.{
+    Balance,
+    Error,
+    GetBalance,
+    NewTransaction,
+    Ok,
+    StartMining
+  }
+
+  alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.NetworkChain
+  alias Archethic.SelfRepair.NetworkView
+
+  alias Archethic.SharedSecrets
+
+  alias Archethic.TaskSupervisor
+
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
 
   require Logger
 
@@ -33,22 +56,12 @@ defmodule Archethic do
   @spec search_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
-          | {:error, :transaction_invalid}
+          | {:error, :invalid_transaction}
           | {:error, :network_issue}
   def search_transaction(address) when is_binary(address) do
-    case TransactionChain.get_transaction(address) do
-      {:ok, tx} ->
-        {:ok, tx}
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-      {:error, :invalid_transaction} ->
-        {:error, :transaction_invalid}
-
-      {:error, :transaction_not_exists} ->
-        storage_nodes =
-          Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-        TransactionChain.fetch_transaction_remotely(address, storage_nodes)
-    end
+    TransactionChain.fetch_transaction(address, storage_nodes)
   end
 
   @doc """
@@ -87,7 +100,7 @@ defmodule Archethic do
       |> Enum.reject(&(&1.first_public_key == welcome_node_key))
       |> Enum.sort_by(& &1.first_public_key)
       |> P2P.nearest_nodes(welcome_node_patch)
-      |> Enum.filter(&Node.locally_available?/1)
+      |> Enum.filter(&P2P.node_connected?/1)
 
     this_node = Crypto.first_node_public_key()
 
@@ -236,7 +249,7 @@ defmodule Archethic do
   @spec get_last_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
-          | {:error, :transaction_invalid}
+          | {:error, :invalid_transaction}
           | {:error, :network_issue}
   def get_last_transaction(address) when is_binary(address) do
     case get_last_transaction_address(address) do
@@ -255,7 +268,9 @@ defmodule Archethic do
           {:ok, binary()}
           | {:error, :network_issue}
   def get_last_transaction_address(address) when is_binary(address) do
-    TransactionChain.resolve_last_address(address)
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    TransactionChain.fetch_last_address(address, nodes)
   end
 
   @doc """
@@ -294,16 +309,21 @@ defmodule Archethic do
   @doc """
   Request to fetch the inputs for a transaction address from the closest nodes
   """
-  @spec get_transaction_inputs(binary()) :: list(TransactionInput.t())
-  def get_transaction_inputs(address) when is_binary(address) do
+  @spec get_transaction_inputs(Crypto.prepended_hash(), non_neg_integer(), non_neg_integer()) ::
+          list(TransactionInput.t())
+  def get_transaction_inputs(address, paging_offset \\ 0, limit \\ 0)
+      when is_binary(address) and is_integer(paging_offset) and paging_offset >= 0 and
+             is_integer(limit) and limit >= 0 do
     # check the last transaction inputs to determine if a utxo is spent or not
     {:ok, latest_address} = get_last_transaction_address(address)
 
     if latest_address == address do
-      do_get_transaction_inputs(address)
+      do_get_transaction_inputs(address, paging_offset, limit)
     else
-      latest_tx_inputs = do_get_transaction_inputs(latest_address)
-      current_tx_inputs = do_get_transaction_inputs(address)
+      # TODO: latest inputs can be huge, we should have an other way to determine if a inputs
+      # is spent or not 
+      latest_tx_inputs = do_get_transaction_inputs(latest_address, 0, 0)
+      current_tx_inputs = do_get_transaction_inputs(address, paging_offset, limit)
 
       Enum.map(current_tx_inputs, fn input ->
         spent? =
@@ -316,31 +336,12 @@ defmodule Archethic do
     end
   end
 
-  defp do_get_transaction_inputs(address) do
+  defp do_get_transaction_inputs(address, paging_offset, limit) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     address
-    |> TransactionChain.stream_inputs_remotely(nodes, DateTime.utc_now())
+    |> TransactionChain.fetch_inputs(nodes, DateTime.utc_now(), paging_offset, limit)
     |> Enum.to_list()
-  end
-
-  @doc """
-  Request to fetch the inputs for a transaction address from the closest nodes at a given page
-  """
-  @spec get_transaction_inputs(
-          binary(),
-          paging_offset :: non_neg_integer(),
-          limit :: non_neg_integer()
-        ) :: list(TransactionInput.t())
-  def get_transaction_inputs(address, page, limit)
-      when is_binary(address) and is_integer(page) and page >= 0 and is_integer(limit) and
-             limit >= 0 do
-    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    {inputs, _more?, _offset} =
-      TransactionChain.fetch_inputs_remotely(address, nodes, DateTime.utc_now(), page, limit)
-
-    inputs
   end
 
   @doc """
@@ -349,44 +350,20 @@ defmodule Archethic do
   """
   @spec get_transaction_chain_by_paging_address(binary(), binary() | nil, :asc | :desc) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def get_transaction_chain_by_paging_address(address, paging_address, :asc)
-      when is_binary(address) do
+  def get_transaction_chain_by_paging_address(address, paging_address, order) do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
-        with {local_chain, false, _} <-
-               TransactionChain.get(address, [], paging_state: paging_address, order: :asc),
-             %Transaction{address: ^last_address} <- List.last(local_chain) do
-          {:ok, local_chain}
-        else
-          {local_chain, true, _} ->
-            # Local chain already contains 10 transactions
-            {:ok, local_chain}
+        storage_nodes =
+          Election.chain_storage_nodes(last_address, P2P.authorized_and_available_nodes())
 
-          _ ->
-            last_address
-            |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-            |> TransactionChain.fetch_transaction_chain(last_address, paging_address, order: :asc)
-        end
+        transactions =
+          TransactionChain.fetch(last_address, storage_nodes,
+            paging_address: paging_address,
+            order: order
+          )
+          |> Enum.take(10)
 
-      error ->
-        error
-    end
-  end
-
-  def get_transaction_chain_by_paging_address(address, paging_address, :desc)
-      when is_binary(address) do
-    case get_last_transaction_address(address) do
-      {:ok, last_address} ->
-        if TransactionChain.transaction_exists?(last_address) do
-          {chain, _, _} =
-            TransactionChain.get(address, [], paging_state: paging_address, order: :desc)
-
-          {:ok, chain}
-        else
-          last_address
-          |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
-          |> TransactionChain.fetch_transaction_chain(address, paging_address, order: :desc)
-        end
+        {:ok, transactions}
 
       error ->
         error
@@ -431,7 +408,7 @@ defmodule Archethic do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
         nodes = Election.chain_storage_nodes(last_address, P2P.authorized_and_available_nodes())
-        TransactionChain.fetch_size_remotely(address, nodes)
+        TransactionChain.fetch_size(address, nodes)
 
       error ->
         error
@@ -445,14 +422,12 @@ defmodule Archethic do
   @spec fetch_summaries_aggregate(DateTime.t()) ::
           {:ok, BeaconChain.SummaryAggregate.t()} | {:error, atom()}
   def fetch_summaries_aggregate(date) do
-    case BeaconChain.get_summaries_aggregate(date) do
-      {:error, :not_exists} ->
-        nodes = P2P.authorized_and_available_nodes()
-        BeaconChain.fetch_summaries_aggregate(date, nodes)
+    storage_nodes =
+      date
+      |> Crypto.derive_beacon_aggregate_address()
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
 
-      {:ok, aggregate} ->
-        {:ok, aggregate}
-    end
+    BeaconChain.fetch_summaries_aggregate(date, storage_nodes)
   end
 
   @doc """
@@ -466,17 +441,9 @@ defmodule Archethic do
   @doc """
   Retrieve the genesis address locally or remotely
   """
-  def fetch_genesis_address_remotely(address) do
-    case TransactionChain.get_genesis_address(address) do
-      ^address ->
-        # if returned address is same as given, it means the DB does not contain the value
-        nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-        TransactionChain.fetch_genesis_address_remotely(address, nodes)
-
-      genesis_address ->
-        {:ok, genesis_address}
-    end
+  def fetch_genesis_address(address) do
+    nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    TransactionChain.fetch_genesis_address(address, nodes)
   end
 
   defdelegate list_transactions_summaries_from_current_slot(),
@@ -491,37 +458,7 @@ defmodule Archethic do
   """
   @spec transaction_exists?(binary()) :: boolean()
   def transaction_exists?(address) do
-    if TransactionChain.transaction_exists?(address) do
-      # if it exists locally, no need to query the network
-      true
-    else
-      storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-      conflict_resolver = fn results ->
-        # Prioritize transactions results over not found
-        case Enum.filter(results, &match?(%TransactionSummaryMessage{}, &1)) do
-          [] ->
-            %NotFound{}
-
-          [%{transaction_summary: first} | _] ->
-            first
-        end
-      end
-
-      case P2P.quorum_read(
-             storage_nodes,
-             %GetTransactionSummary{address: address},
-             conflict_resolver
-           ) do
-        {:ok, %TransactionSummary{address: ^address}} ->
-          true
-
-        {:ok, %NotFound{}} ->
-          false
-
-        {:error, e} ->
-          raise e
-      end
-    end
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    TransactionChain.transaction_exists_globally?(address, storage_nodes)
   end
 end

@@ -11,6 +11,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
   alias Archethic.DB.EmbeddedImpl.Encoding
   alias Archethic.DB.EmbeddedImpl.ChainIndex
+  alias Archethic.DB.EmbeddedImpl.ChainWriterSupervisor
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -26,9 +27,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   """
   @spec append_transaction(binary(), Transaction.t()) :: :ok
   def append_transaction(genesis_address, tx = %Transaction{}) do
-    partition = :erlang.phash2(genesis_address, 20)
-    [{_, pid}] = :ets.lookup(:archethic_db_chain_writers, partition)
-    GenServer.call(pid, {:append_tx, genesis_address, tx})
+    via_tuple = {:via, PartitionSupervisor, {ChainWriterSupervisor, genesis_address}}
+    GenServer.call(via_tuple, {:append_tx, genesis_address, tx})
   end
 
   @doc """
@@ -107,16 +107,17 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
   def init(arg) do
     db_path = Keyword.get(arg, :path)
-    partition = Keyword.get(arg, :partition)
 
-    :ets.insert(:archethic_db_chain_writers, {partition, self()})
-
-    setup_folders(db_path)
-
-    {:ok, %{db_path: db_path, partition: partition}}
+    {:ok, %{db_path: db_path}}
   end
 
-  defp setup_folders(path) do
+  @doc """
+  Create all folder needed for DB
+  """
+  @spec setup_folders!(binary()) :: :ok
+  def setup_folders!(path) do
+    File.mkdir_p!(path)
+
     path
     |> base_chain_path()
     |> File.mkdir_p!()
@@ -150,11 +151,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
       ) do
     write_io_transaction(tx, db_path)
     {:reply, :ok, state}
-  end
-
-  def terminate(_reason, _state = %{partition: partition}) do
-    :ets.delete(:archethic_db_chain_writers, partition)
-    :ignore
   end
 
   defp write_transaction(genesis_address, tx, db_path) do

@@ -150,4 +150,25 @@ defmodule Archethic.Contracts do
   """
   @spec stop_contract(binary()) :: :ok
   defdelegate stop_contract(address), to: Loader
+
+  @doc """
+  Determines if the contract's execution is valid for the given transaction
+  """
+  @spec valid_contract_execution?(Contract.t(), Transaction.t(), list(Transaction.t())) ::
+          boolean()
+  def valid_contract_execution?(contract = %Contract{}, tx = %Transaction{}, calls \\ []) do
+    case Interpreter.execute(:transaction, contract, tx, [tx | calls]) do
+      {:ok, _} ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  @doc """
+  Returns a contract instance from a transaction
+  """
+  @spec from_transaction(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
+  defdelegate from_transaction(tx), to: Contract, as: :from_transaction
 end

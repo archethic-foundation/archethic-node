@@ -43,25 +43,64 @@ defmodule Archethic.P2P do
     do_connect_node(node)
   end
 
-  defp do_connect_node(%Node{
-         ip: ip,
-         port: port,
-         transport: transport,
-         first_public_key: first_public_key
-       }) do
+  @doc """
+  Establish a connection on a list of node in parallel
+  This function wait for the connections to be established
+  timeout for connection is 5 sec
+  """
+  @spec connect_nodes(list(Node.t())) :: :ok
+  def connect_nodes(nodes) do
+    not_connected_nodes = Enum.reject(nodes, &node_connected?/1)
+
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      not_connected_nodes,
+      fn node = %Node{first_public_key: first_public_key} ->
+        do_connect_node(node, self())
+
+        receive do
+          :connected ->
+            :ok
+
+          {:error, reason} ->
+            Logger.warning("First connection attempt failed for #{inspect(reason)}",
+              node: Base.encode16(first_public_key)
+            )
+        end
+      end,
+      on_timeout: :kill_task
+    )
+    |> Stream.run()
+  end
+
+  defp do_connect_node(
+         %Node{
+           ip: ip,
+           port: port,
+           transport: transport,
+           first_public_key: first_public_key
+         },
+         from \\ nil
+       ) do
     if first_public_key == Crypto.first_node_public_key() do
       :ok
     else
-      {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key)
+      {:ok, _pid} = Client.new_connection(ip, port, transport, first_public_key, from)
       :ok
     end
   end
 
   @doc """
-  Reload last P2P view from DB
+  Return true if the node connection is established
   """
-  @spec reload_last_view(last_sync_date :: DateTime.t() | nil) :: :ok
-  defdelegate reload_last_view(last_sync_date), to: MemTableLoader, as: :load_p2p_view
+  @spec node_connected?(node :: Node.t()) :: boolean()
+  def node_connected?(%Node{first_public_key: first_public_key}) do
+    if first_public_key == Crypto.first_node_public_key() do
+      true
+    else
+      Client.connected?(first_public_key)
+    end
+  end
 
   @doc """
   List the nodes registered.
@@ -72,8 +111,9 @@ defmodule Archethic.P2P do
   @doc """
   Fetch the list of nodes from close nodes
   """
-  @spec fetch_nodes_list() :: {:ok, list(Node.t())} | {:error, :network_issue}
-  def fetch_nodes_list() do
+  @spec fetch_nodes_list(authorized_and_available? :: boolean(), node_list :: list(Node.t())) ::
+          {:ok, list(Node.t())} | {:error, :network_issue}
+  def fetch_nodes_list(authorized_and_available?, nodes) do
     last_updated_nodes =
       fn new_node = %Node{
            first_public_key: public_key,
@@ -100,7 +140,11 @@ defmodule Archethic.P2P do
       %NodeList{nodes: nodes}
     end
 
-    case quorum_read(authorized_and_available_nodes(), %ListNodes{}, conflict_resolver) do
+    case quorum_read(
+           nodes,
+           %ListNodes{authorized_and_available?: authorized_and_available?},
+           conflict_resolver
+         ) do
       {:ok, %NodeList{nodes: nodes}} ->
         {:ok, nodes}
 
@@ -494,29 +538,6 @@ defmodule Archethic.P2P do
   defdelegate new_bootstrapping_seeds(nodes), to: BootstrappingSeeds, as: :update
 
   @doc """
-  Create a binary sequence from a list node and set bit regarding their availability
-
-  ## Examples
-
-      iex> P2P.nodes_availability_as_bits([
-      ...>   %Node{availability_history: <<1::1, 0::1>>},
-      ...>   %Node{availability_history: <<0::1, 1::1>>},
-      ...>   %Node{availability_history: <<1::1, 0::1>>}
-      ...> ])
-      <<1::1, 0::1, 1::1>>
-  """
-  @spec nodes_availability_as_bits(list(Node.t())) :: bitstring()
-  def nodes_availability_as_bits(node_list) when is_list(node_list) do
-    Enum.reduce(node_list, <<>>, fn node, acc ->
-      if Node.locally_available?(node) do
-        <<acc::bitstring, 1::1>>
-      else
-        <<acc::bitstring, 0::1>>
-      end
-    end)
-  end
-
-  @doc """
   Create a sequence of bits from a list of node and a subset
   by setting the bit where the subset node if found
 
@@ -692,7 +713,7 @@ defmodule Archethic.P2P do
         consistency_level
       ) do
     nodes
-    |> Enum.filter(&Node.locally_available?/1)
+    |> Enum.filter(&node_connected?/1)
     |> nearest_nodes()
     |> unprioritize_node(Crypto.first_node_public_key())
     |> do_quorum_read(
@@ -749,25 +770,15 @@ defmodule Archethic.P2P do
         )
 
       1 ->
-        if previous_result != nil do
-          quorum_result = do_quorum([previous_result | results], conflict_resolver)
-
-          if acceptance_resolver.(quorum_result) do
-            {:ok, quorum_result}
+        quorum_result =
+          if previous_result do
+            do_quorum([previous_result | results], conflict_resolver)
           else
-            do_quorum_read(
-              rest,
-              message,
-              conflict_resolver,
-              acceptance_resolver,
-              consistency_level,
-              timeout,
-              quorum_result
-            )
+            List.first(results)
           end
-        else
-          result = List.first(results)
 
+        with true <- acceptance_resolver.(quorum_result),
+             nil <- previous_result do
           do_quorum_read(
             rest,
             message,
@@ -775,8 +786,22 @@ defmodule Archethic.P2P do
             acceptance_resolver,
             consistency_level,
             timeout,
-            result
+            quorum_result
           )
+        else
+          false ->
+            do_quorum_read(
+              rest,
+              message,
+              conflict_resolver,
+              acceptance_resolver,
+              consistency_level,
+              timeout,
+              previous_result
+            )
+
+          _ ->
+            {:ok, quorum_result}
         end
 
       _ ->
@@ -793,7 +818,7 @@ defmodule Archethic.P2P do
             acceptance_resolver,
             consistency_level,
             timeout,
-            quorum_result
+            previous_result
           )
         end
     end

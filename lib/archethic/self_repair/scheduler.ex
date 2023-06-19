@@ -5,10 +5,21 @@ defmodule Archethic.SelfRepair.Scheduler do
   """
   use GenServer
   @vsn Mix.Project.config()[:version]
-  alias Archethic
-  alias Archethic.{P2P, SelfRepair.Sync, TaskSupervisor, Utils, PubSub}
+
+  alias Archethic.BeaconChain
+
+  alias Archethic.P2P
+
+  alias Archethic.PubSub
+
+  alias Archethic.SelfRepair.Sync
+
+  alias Archethic.TaskSupervisor
+
+  alias Archethic.Utils
 
   alias Archethic.Bootstrap.Sync, as: BootstrapSync
+  alias Crontab.CronExpression.Parser, as: CronParser
 
   require Logger
 
@@ -86,7 +97,12 @@ defmodule Archethic.SelfRepair.Scheduler do
       # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
       # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
       # at the end of loading (in case there is a crash during self repair)
-      Sync.load_missed_transactions(last_sync_date)
+      download_nodes =
+        DateTime.utc_now()
+        |> BeaconChain.previous_summary_time()
+        |> P2P.authorized_and_available_nodes(true)
+
+      Sync.load_missed_transactions(last_sync_date, download_nodes)
     end)
 
     {:noreply, state, :hibernate}
@@ -174,5 +190,21 @@ defmodule Archethic.SelfRepair.Scheduler do
   @spec get_interval() :: binary()
   def get_interval do
     GenServer.call(__MODULE__, :get_interval)
+  end
+
+  @doc """
+  Calculates the next time the self-repair mechanism should run based on the current interval.
+
+  Args:
+  - ref_time: The reference time to calculate the next run time from. Defaults to the current UTC time.
+
+  Returns:
+  - The next time the self-repair mechanism should run.
+  """
+  @spec next_repair_time(DateTime.t()) :: DateTime.t()
+  def next_repair_time(ref_time \\ DateTime.utc_now()) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> Utils.next_date(ref_time)
   end
 end

@@ -141,29 +141,29 @@ defmodule Archethic.SelfRepair.NotifierTest do
     new_possible_nodes = (prev_available_nodes -- elec1) |> Enum.map(& &1.first_public_key)
 
     MockDB
-    |> stub(:stream_first_addresses, fn -> ["Alice1"] end)
-    |> stub(:get_transaction_chain, fn
-      "Alice1", _, _ ->
-        {[
-           %Transaction{
-             address: "Alice1",
-             validation_stamp: %ValidationStamp{
-               ledger_operations: %LedgerOperations{transaction_movements: []}
-             }
-           },
-           %Transaction{
-             address: "Alice2",
-             validation_stamp: %ValidationStamp{
-               ledger_operations: %LedgerOperations{transaction_movements: []}
-             }
-           },
-           %Transaction{
-             address: "Alice3",
-             validation_stamp: %ValidationStamp{
-               ledger_operations: %LedgerOperations{transaction_movements: []}
-             }
-           }
-         ], false, nil}
+    |> stub(:list_first_addresses, fn -> ["Alice1"] end)
+    |> stub(:stream_chain, fn
+      "Alice1", _ ->
+        [
+          %Transaction{
+            address: "Alice1",
+            validation_stamp: %ValidationStamp{
+              ledger_operations: %LedgerOperations{transaction_movements: []}
+            }
+          },
+          %Transaction{
+            address: "Alice2",
+            validation_stamp: %ValidationStamp{
+              ledger_operations: %LedgerOperations{transaction_movements: []}
+            }
+          },
+          %Transaction{
+            address: "Alice3",
+            validation_stamp: %ValidationStamp{
+              ledger_operations: %LedgerOperations{transaction_movements: []}
+            }
+          }
+        ]
     end)
 
     me = self()
@@ -197,8 +197,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
       authorized?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-11, :minute),
       available?: true,
-      enrollment_date: enrollment_date,
-      availability_history: <<1::1>>
+      enrollment_date: enrollment_date
     }
 
     P2P.add_and_connect_node(node)
@@ -212,8 +211,7 @@ defmodule Archethic.SelfRepair.NotifierTest do
           network_patch: "AAA",
           authorized?: true,
           authorization_date: DateTime.utc_now(),
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       end)
 

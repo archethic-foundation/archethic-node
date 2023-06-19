@@ -7,9 +7,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
 
   setup do
     db_path = Application.app_dir(:archethic, "data_test")
-    File.mkdir_p!(db_path)
+    ChainWriter.setup_folders!(db_path)
 
-    :ets.new(:archethic_db_chain_writers, [:named_table, :public])
     {:ok, _} = ChainWriter.start_link(path: db_path)
 
     on_exit(fn ->
@@ -40,6 +39,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
 
     test "should load transactions tables", %{db_path: db_path} do
       {:ok, _pid} = ChainIndex.start_link(path: db_path)
+      LRU.start_link(:chain_index_cache, 30_000_000)
       tx_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       genesis_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -58,7 +58,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
       assert {^tx_address, _} = ChainIndex.get_last_chain_address(genesis_address, db_path)
 
       # Remove the transaction from the cache and try to fetch from the file instead
-      LRU.purge(Archethic.Db.ChainIndex.LRU)
+      LRU.purge(:chain_index_cache)
       assert true == ChainIndex.transaction_exists?(tx_address, db_path)
       assert false == ChainIndex.transaction_exists?(:crypto.strong_rand_bytes(32), db_path)
     end

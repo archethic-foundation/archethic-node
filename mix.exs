@@ -4,13 +4,13 @@ defmodule Archethic.MixProject do
   def project do
     [
       app: :archethic,
-      version: "1.1.0-rc2",
+      version: "1.1.2",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
       lockfile: "mix.lock",
       aliases: aliases(),
-      elixir: "~> 1.11",
+      elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       compilers: [:elixir_make] ++ Mix.compilers(),
@@ -74,7 +74,7 @@ defmodule Archethic.MixProject do
       {:benchee_html, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.29", only: :dev, runtime: false},
       {:git_hooks, "~> 0.7", runtime: false},
-      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.6", runtime: false},
       {:elixir_make, "~> 0.6", runtime: false},
       {:dialyxir, "~> 1.2", runtime: false},
       {:logger_file_backend, "~> 0.0.13", only: :dev},
@@ -82,7 +82,7 @@ defmodule Archethic.MixProject do
       {:dart_sass, "~> 0.5", runtime: Mix.env() == :dev},
 
       # Security
-      {:sobelow, "~> 0.11", only: [:test, :dev], runtime: false},
+      {:sobelow, "~> 0.11", runtime: false},
 
       # Test
       {:mox, "~> 1.0", only: [:test]},

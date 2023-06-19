@@ -180,10 +180,7 @@ defmodule Archethic.ReplicationTest do
     end)
 
     assert :ok = Replication.validate_and_store_transaction_chain(tx)
-
-    Process.sleep(200)
-
-    assert_received :replicated
+    assert_receive :replicated
   end
 
   test "validate_and_store_transaction/1" do
@@ -211,7 +208,7 @@ defmodule Archethic.ReplicationTest do
 
     Process.sleep(200)
 
-    assert_received :replicated
+    assert_receive :replicated
   end
 
   defp p2p_context do

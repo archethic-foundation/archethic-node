@@ -16,7 +16,6 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.P2P.Message.{
     BootstrappingNodes,
     EncryptedStorageNonce,
-    GenesisAddress,
     GetBootstrappingNodes,
     GetGenesisAddress,
     GetLastTransactionAddress,
@@ -42,7 +41,6 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
 
   alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
-  alias Archethic.SelfRepair.NetworkChain
 
   alias Archethic.SharedSecrets
 
@@ -50,7 +48,6 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionFactory
 
   import Mox
   import Mock
@@ -207,8 +204,18 @@ defmodule Archethic.BootstrapTest do
          }
 
          validated_tx = %{tx | validation_stamp: stamp}
+         # This Replication is for the node that received the StartMining message
+         # expecting the transaction has been validated and replicated by all other nodes
          :ok = TransactionChain.write_transaction(validated_tx)
          :ok = Replication.ingest_transaction(validated_tx, false, false)
+
+         {:ok, validated_tx}
+       end},
+      {Replication, [:passthrough],
+       sync_transaction_chain: fn _tx, _nodes ->
+         # This replication is the one called by the starting node.
+         # But we don't replicate here as we previously did in other mock
+         :ok
        end}
     ]) do
       nodes = [
@@ -264,7 +271,8 @@ defmodule Archethic.BootstrapTest do
              ],
              closest_nodes: [
                Enum.at(nodes, 1)
-             ]
+             ],
+             first_enrolled_node: Enum.at(nodes, 0)
            }}
 
         _, %GetStorageNonce{}, _ ->
@@ -314,6 +322,8 @@ defmodule Archethic.BootstrapTest do
                  "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
+
+      assert_called(Replication.sync_transaction_chain(:_, :_))
 
       assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.first_node_public_key()))
     end
@@ -380,6 +390,7 @@ defmodule Archethic.BootstrapTest do
         transport: :tcp
       } = P2P.get_node_info()
 
+      assert_called_exactly(Replication.sync_transaction_chain(:_, :_), 2)
       assert first_public_key == Crypto.first_node_public_key()
       assert last_public_key == Crypto.last_node_public_key()
     end
@@ -427,204 +438,9 @@ defmodule Archethic.BootstrapTest do
                  |> Base.decode16!()
                )
 
+      assert_called_exactly(Replication.sync_transaction_chain(:_, :_), 1)
+
       Process.sleep(100)
-    end
-  end
-
-  describe "synchronous_resync/1 nss_chain" do
-    setup do
-      p2p_context()
-
-      curr_time = DateTime.utc_now()
-
-      txn0 =
-        TransactionFactory.create_network_tx(:node_shared_secrets,
-          index: 0,
-          timestamp: curr_time |> DateTime.add(-14_400, :second),
-          prev_txn: []
-        )
-
-      txn1 =
-        TransactionFactory.create_network_tx(:node_shared_secrets,
-          index: 1,
-          timestamp: curr_time |> DateTime.add(-14_400, :second),
-          prev_txn: [txn0]
-        )
-
-      txn2 =
-        TransactionFactory.create_network_tx(:node_shared_secrets,
-          index: 2,
-          timestamp: curr_time |> DateTime.add(-7_200, :second),
-          prev_txn: [txn1]
-        )
-
-      txn3 =
-        TransactionFactory.create_network_tx(:node_shared_secrets,
-          index: 3,
-          timestamp: curr_time |> DateTime.add(-3_600, :second),
-          prev_txn: [txn2]
-        )
-
-      txn4 =
-        TransactionFactory.create_network_tx(:node_shared_secrets,
-          index: 4,
-          timestamp: curr_time,
-          prev_txn: [txn3]
-        )
-
-      :persistent_term.put(:node_shared_secrets_gen_addr, txn0.address)
-      %{txn0: txn0, txn1: txn1, txn2: txn2, txn3: txn3, txn4: txn4}
-    end
-
-    test "Should return :ok when Genesis Address are not loaded", _nss_chain do
-      # first time boot no txns exits yet
-      :persistent_term.put(:node_shared_secrets_gen_addr, nil)
-
-      assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
-    end
-
-    test "Should return :ok when last address match (locally and remotely)", nss_chain do
-      # node restart but within renewal interval
-      me = self()
-      addr0 = nss_chain.txn0.address
-
-      MockDB
-      |> stub(:get_last_chain_address, fn ^addr0 ->
-        send(me, :local_last_addr_request)
-        {nss_chain.txn4.address, DateTime.utc_now()}
-      end)
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetLastTransactionAddress{address: ^addr0}, _ ->
-          send(me, :remote_last_addr_request)
-          {:ok, %LastTransactionAddress{address: nss_chain.txn4.address}}
-
-        _, %GetTransaction{}, _ ->
-          send(me, :fetch_last_txn)
-      end)
-
-      assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
-
-      assert_receive(:local_last_addr_request)
-      assert_receive(:remote_last_addr_request)
-      refute_receive(:fetch_last_txn)
-    end
-
-    test "should Retrieve and Store Network tx's, when last tx's not available", nss_chain do
-      # scenario nss chain
-      # addr0 -> addr1 -> addr2 -> addr3  -> addr4
-      # node1 =>  addr0 -> addr1 -> addr2
-      # node2 => addr0 -> addr1 -> addr2 -> addr3  -> addr4
-      addr0 = nss_chain.txn0.address
-      addr1 = nss_chain.txn1.address
-      addr2 = nss_chain.txn2.address
-      addr3 = nss_chain.txn3.address
-      addr4 = nss_chain.txn4.address
-
-      me = self()
-
-      now = DateTime.utc_now()
-
-      MockDB
-      |> stub(:list_chain_addresses, fn
-        ^addr0 -> [{addr1, now}, {addr2, now}, {addr3, now}, {addr4, now}]
-      end)
-      |> stub(:transaction_exists?, fn
-        ^addr4, _ -> false
-        ^addr3, _ -> false
-        ^addr2, _ -> true
-        ^addr1, _ -> true
-      end)
-      |> stub(:write_transaction, fn tx, _ ->
-        # to know this fx executed or not we use send
-        send(me, {:write_transaction, tx.address})
-        :ok
-      end)
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetLastTransactionAddress{address: ^addr0}, _ ->
-          {:ok, %LastTransactionAddress{address: addr4}}
-
-        _, %GetTransaction{address: ^addr4}, _ ->
-          {:ok, nss_chain.txn4}
-
-        _, %GetTransaction{address: ^addr3}, _ ->
-          {:ok, nss_chain.txn3}
-
-        _, %GetTransactionInputs{address: ^addr3}, _ ->
-          {:ok, %TransactionInputList{inputs: []}}
-
-        _, %GetGenesisAddress{address: ^addr3}, _ ->
-          {:ok, %GenesisAddress{address: addr0, timestamp: DateTime.utc_now()}}
-
-        _, %GetTransactionChain{address: ^addr3, paging_state: ^addr2}, _ ->
-          {:ok,
-           %TransactionList{
-             transactions: [nss_chain.txn3, nss_chain.txn4],
-             more?: false,
-             paging_state: nil
-           }}
-      end)
-
-      assert :ok = NetworkChain.synchronous_resync(:node_shared_secrets)
-
-      # flow
-      # get_gen_addr(:pers_term) -> resolve_last_address ->   get_last_address
-      #                                                         |
-      # validate_and_store_transaction_chain <-   fetch_transaction_remotely
-      #    |
-      # transaction_exists? -> fetch_context(tx) -> get_last_txn (db then -> remote check)
-      #                                                                 |
-      # transaction_exists?(prev_txn\tx3) <- stream_previous_chain <- fetch_inputs_remotely
-      #    |
-      # stream_transaction_chain(addr3/prev-tx) -> fetch_genesis_address_remotely ->
-      #                                                                 |
-      # &TransactionChain.write/1 <- stream_remotely(addr3,addr2) <- get_last_address(locally)
-      #    |
-      #   write_transaction(tx4) -> ingest txn4
-      assert_receive({:write_transaction, ^addr3})
-      assert_receive({:write_transaction, ^addr4})
-    end
-
-    defp p2p_context() do
-      pb_key3 = Crypto.derive_keypair("key33", 0) |> elem(0)
-
-      SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
-
-      coordinator_node = %Node{
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.last_node_public_key(),
-        authorized?: true,
-        available?: true,
-        authorization_date: DateTime.add(DateTime.utc_now(), -86_400, :second),
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        enrollment_date: DateTime.add(DateTime.utc_now(), -86_400, :second),
-        reward_address: Crypto.derive_address(Crypto.last_node_public_key())
-      }
-
-      storage_nodes = [
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          first_public_key: pb_key3,
-          last_public_key: pb_key3,
-          available?: true,
-          authorized?: true,
-          geo_patch: "BBB",
-          network_patch: "BBB",
-          authorization_date: DateTime.add(DateTime.utc_now(), -86_400, :second),
-          reward_address: Crypto.derive_address(pb_key3),
-          enrollment_date: DateTime.add(DateTime.utc_now(), -86_400, :second)
-        }
-      ]
-
-      Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
-
-      # P2P.add_and_connect_node(welcome_node)
-      P2P.add_and_connect_node(coordinator_node)
     end
   end
 end

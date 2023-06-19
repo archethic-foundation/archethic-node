@@ -36,7 +36,6 @@ defmodule Archethic.P2P.Message do
     GetLastTransaction,
     GetLastTransactionAddress,
     GetNextAddresses,
-    GetP2PView,
     GetStorageNonce,
     GetTransaction,
     GetTransactionChain,
@@ -55,7 +54,6 @@ defmodule Archethic.P2P.Message do
     NotifyLastTransactionAddress,
     NotifyPreviousChain,
     Ok,
-    P2PView,
     Ping,
     RegisterBeaconUpdates,
     ReplicateTransaction,
@@ -77,7 +75,10 @@ defmodule Archethic.P2P.Message do
     ReplicationAttestationMessage,
     GetTransactionSummary,
     GetNetworkStats,
-    NetworkStats
+    NetworkStats,
+    ValidateSmartContractCall,
+    SmartContractCallValidation,
+    GetContractCalls
   }
 
   require Logger
@@ -91,7 +92,6 @@ defmodule Archethic.P2P.Message do
           | GetTransaction.t()
           | GetTransactionChain.t()
           | GetUnspentOutputs.t()
-          | GetP2PView.t()
           | NewTransaction.t()
           | StartMining.t()
           | AddMiningContext.t()
@@ -128,6 +128,8 @@ defmodule Archethic.P2P.Message do
           | AcknowledgeStorage.t()
           | GetTransactionSummary.t()
           | GetNetworkStats.t()
+          | ValidateSmartContractCall.t()
+          | GetContractCalls.t()
 
   @type response ::
           Ok.t()
@@ -139,7 +141,6 @@ defmodule Archethic.P2P.Message do
           | Balance.t()
           | EncryptedStorageNonce.t()
           | BootstrappingNodes.t()
-          | P2PView.t()
           | TransactionSummaryMessage.t()
           | LastTransactionAddress.t()
           | FirstPublicKey.t()
@@ -154,6 +155,7 @@ defmodule Archethic.P2P.Message do
           | SummaryAggregate.t()
           | AddressList.t()
           | NetworkStats.t()
+          | SmartContractCallValidation.t()
 
   @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)

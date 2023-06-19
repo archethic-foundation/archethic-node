@@ -176,7 +176,7 @@ defmodule ArchethicWeb.OracleChainLive do
 
   defp list_transactions_by_date(date = %DateTime{}) do
     Crypto.derive_oracle_address(date, 0)
-    |> get_transaction_chain()
+    |> TransactionChain.get([:address, :type, validation_stamp: [:timestamp]])
     |> Enum.map(fn %Transaction{
                      address: address,
                      type: type,
@@ -188,14 +188,4 @@ defmodule ArchethicWeb.OracleChainLive do
   end
 
   defp list_transactions_by_date(nil), do: []
-
-  defp get_transaction_chain(address, opts \\ [], acc \\ []) do
-    case TransactionChain.get(address, [:address, :type, validation_stamp: [:timestamp]], opts) do
-      {transactions, false, _} ->
-        acc ++ transactions
-
-      {transactions, true, paging_state} ->
-        get_transaction_chain(address, [paging_state: paging_state], acc ++ transactions)
-    end
-  end
 end

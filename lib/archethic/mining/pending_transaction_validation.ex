@@ -1,15 +1,40 @@
 defmodule Archethic.Mining.PendingTransactionValidation do
   @moduledoc false
 
-  alias Archethic.{Contracts, Contracts.Contract, Crypto, DB, SharedSecrets, Election}
-  alias Archethic.{Governance, Networking, OracleChain, P2P, Reward, P2P.Message, P2P.Node}
-  alias Archethic.{SharedSecrets.NodeRenewal, Utils, TransactionChain}
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
 
-  alias Message.{FirstPublicKey, GetFirstPublicKey, GetTransactionSummary}
-  alias Message.{TransactionSummaryMessage, NotFound}
+  alias Archethic.Crypto
 
-  alias TransactionChain.{Transaction, TransactionData, TransactionSummary}
-  alias TransactionData.{Ledger, Ownership, UCOLedger, TokenLedger}
+  alias Archethic.DB
+
+  alias Archethic.Election
+
+  alias Archethic.Governance
+
+  alias Archethic.Networking
+
+  alias Archethic.OracleChain
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.FirstPublicKey
+  alias Archethic.P2P.Message.GetFirstPublicKey
+  alias Archethic.P2P.Node
+
+  alias Archethic.Reward
+
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.NodeRenewal
+
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+
+  alias Archethic.Utils
 
   alias Archethic.Governance.Code.Proposal, as: CodeProposal
 
@@ -55,7 +80,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          :ok <- validate_contract(tx),
          :ok <- validate_ownerships(tx),
          :ok <- do_accept_transaction(tx, validation_time),
-         :ok <- validate_previous_transaction_type?(tx) do
+         :ok <- validate_previous_transaction_type(tx) do
       :telemetry.execute(
         [:archethic, :mining, :pending_transaction_validation],
         %{duration: System.monotonic_time() - start},
@@ -90,32 +115,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp valid_not_exists(%Transaction{address: address}) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    conflict_resolver = fn results ->
-      # Prioritize transactions results over not found
-      case Enum.filter(results, &match?(%TransactionSummaryMessage{}, &1)) do
-        [] ->
-          %NotFound{}
-
-        res ->
-          Enum.sort_by(res, & &1.transaction_summary.timestamp, {:desc, DateTime})
-          |> List.first()
-      end
-    end
-
-    case P2P.quorum_read(
-           storage_nodes,
-           %GetTransactionSummary{address: address},
-           conflict_resolver
-         ) do
-      {:ok,
-       %TransactionSummaryMessage{transaction_summary: %TransactionSummary{address: ^address}}} ->
-        {:error, "Transaction already exists"}
-
-      {:ok, %NotFound{}} ->
-        :ok
-
-      {:error, _} = e ->
-        e
+    if TransactionChain.transaction_exists_globally?(address, storage_nodes) do
+      {:error, "Transaction already exists"}
+    else
+      :ok
     end
   end
 
@@ -251,16 +254,21 @@ defmodule Archethic.Mining.PendingTransactionValidation do
        ) do
     last_scheduling_date = Reward.get_last_scheduling_date(validation_time)
 
-    genesis_address = DB.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
-    {last_network_pool_address, _} = DB.get_last_chain_address(genesis_address)
+    genesis_address =
+      TransactionChain.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
+
+    {last_network_pool_address, _} = TransactionChain.get_last_address(genesis_address)
 
     previous_address = Transaction.previous_address(tx)
 
     time_validation =
       with {:ok, %Transaction{type: :node_rewards}} <-
-             TransactionChain.get_transaction(previous_address, [:type]),
+             TransactionChain.fetch_transaction(
+               previous_address,
+               P2P.authorized_and_available_nodes()
+             ),
            {^last_network_pool_address, _} <-
-             DB.get_last_chain_address(genesis_address, last_scheduling_date) do
+             TransactionChain.get_last_address(genesis_address, last_scheduling_date) do
         :ok
       else
         {:ok, %Transaction{type: :mint_rewards}} ->
@@ -401,7 +409,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       SharedSecrets.genesis_daily_nonce_public_key()
       |> Crypto.derive_address()
 
-    {last_address, _} = DB.get_last_chain_address(genesis_address)
+    {last_address, _} = TransactionChain.get_last_address(genesis_address)
 
     sorted_authorized_keys =
       authorized_keys
@@ -412,7 +420,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       NodeRenewal.next_authorized_node_public_keys()
       |> Enum.sort()
 
-    with {^last_address, _} <- DB.get_last_chain_address(genesis_address, last_scheduling_date),
+    with {^last_address, _} <-
+           TransactionChain.get_last_address(genesis_address, last_scheduling_date),
          {:ok, _, _} <- NodeRenewal.decode_transaction_content(content),
          true <- sorted_authorized_keys == sorted_node_renewal_authorized_keys do
       :ok
@@ -571,13 +580,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          _
        ) do
     total_fee = DB.get_latest_burned_fees()
-    genesis_address = DB.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
-    {last_address, _} = DB.get_last_chain_address(genesis_address)
+
+    genesis_address =
+      TransactionChain.list_addresses_by_type(:mint_rewards) |> Stream.take(1) |> Enum.at(0)
+
+    {last_address, _} = TransactionChain.get_last_address(genesis_address)
 
     with :ok <- verify_token_creation(content),
          {:ok, %{"supply" => ^total_fee}} <- Jason.decode(content),
          {^last_address, _} <-
-           DB.get_last_chain_address(genesis_address, Reward.get_last_scheduling_date()) do
+           TransactionChain.get_last_address(genesis_address, Reward.get_last_scheduling_date()) do
       :ok
     else
       {:ok, %{"supply" => _}} ->
@@ -607,10 +619,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       |> OracleChain.next_summary_date()
       |> Crypto.derive_oracle_address(0)
 
-    {last_address, _} = DB.get_last_chain_address(genesis_address)
+    {last_address, _} = TransactionChain.get_last_address(genesis_address)
 
     with {^last_address, _} <-
-           DB.get_last_chain_address(genesis_address, last_scheduling_date),
+           TransactionChain.get_last_address(genesis_address, last_scheduling_date),
          true <- OracleChain.valid_services_content?(content) do
       :ok
     else
@@ -641,12 +653,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       |> OracleChain.next_summary_date()
       |> Crypto.derive_oracle_address(0)
 
-    {last_address, _} = DB.get_last_chain_address(genesis_address)
+    {last_address, _} = TransactionChain.get_last_address(genesis_address)
 
     transactions =
-      TransactionChain.stream(previous_address, data: [:content], validation_stamp: [:timestamp])
+      TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp])
 
-    with {^last_address, _} <- DB.get_last_chain_address(genesis_address, last_scheduling_date),
+    with {^last_address, _} <-
+           TransactionChain.get_last_address(genesis_address, last_scheduling_date),
          eq when eq in [:gt, :eq] <-
            DateTime.compare(validation_time, OracleChain.previous_summary_date(validation_time)),
          true <- OracleChain.valid_summary?(content, transactions) do
@@ -674,7 +687,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp do_accept_transaction(_, _), do: :ok
 
-  defp validate_previous_transaction_type?(tx) do
+  defp validate_previous_transaction_type(tx) do
     case Transaction.network_type?(tx.type) do
       false ->
         # not a network tx, no need to validate with last tx
@@ -682,13 +695,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       true ->
         # when network tx, check with previous transaction
-        if validate_network_chain?(tx.type, tx),
+        if valid_network_chain?(tx.type, tx),
           do: :ok,
           else: {:error, "Invalid Transaction Type"}
     end
   end
 
-  @spec validate_network_chain?(
+  @spec valid_network_chain?(
           :code_approval
           | :code_proposal
           | :mint_rewards
@@ -700,81 +713,54 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           | :origin,
           Archethic.TransactionChain.Transaction.t()
         ) :: boolean
-  defp validate_network_chain?(type, tx = %Transaction{})
+  defp valid_network_chain?(type, tx = %Transaction{})
        when type in [:oracle, :oracle_summary] do
-    # multipe txn chain based on summary date
-
-    case OracleChain.genesis_addresses() do
-      nil ->
-        false
-
-      gen_addr ->
-        # first adddress found by looking up in the db
-        first_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        # 1: tx gen & validated in current summary cycle, gen_addr.current must match
-        # 2: tx gen in prev summary cycle &  validated in current summary cycle, gen_addr.prev must match
-        # situation: the shift b/w summary A to summary B
-        gen_addr.current |> elem(0) == first_addr ||
-          gen_addr.prev |> elem(0) == first_addr
+    with local_gen_addr when local_gen_addr != nil <- OracleChain.genesis_addresses(),
+         {:ok, chain_gen_addr} <- fetch_previous_tx_genesis_address(tx) do
+      local_gen_addr.current |> elem(0) == chain_gen_addr ||
+        local_gen_addr.prev |> elem(0) == chain_gen_addr
+    else
+      _ -> false
     end
   end
 
-  defp validate_network_chain?(type, tx = %Transaction{})
+  defp valid_network_chain?(type, tx = %Transaction{})
        when type in [:mint_rewards, :node_rewards] do
-    # singleton tx chain in network lifespan
-    case Reward.genesis_address() do
-      nil ->
-        false
-
-      gen_addr ->
-        # first addr located in db by prev_address from tx
-        first_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        gen_addr == first_addr
+    with local_gen_addr when local_gen_addr != nil <- Reward.genesis_address(),
+         {:ok, chain_gen_addr} <- fetch_previous_tx_genesis_address(tx) do
+      local_gen_addr == chain_gen_addr
+    else
+      _ -> false
     end
   end
 
-  defp validate_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
-    # singleton tx chain in network lifespan
-    case SharedSecrets.genesis_address(:node_shared_secrets) do
-      nil ->
-        false
-
-      gen_addr ->
-        first_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        first_addr == gen_addr
+  defp valid_network_chain?(:node_shared_secrets, tx = %Transaction{}) do
+    with local_gen_addr when local_gen_addr != nil <-
+           SharedSecrets.genesis_address(:node_shared_secrets),
+         {:ok, chain_gen_addr} <- fetch_previous_tx_genesis_address(tx) do
+      local_gen_addr == chain_gen_addr
+    else
+      _ -> false
     end
   end
 
-  defp validate_network_chain?(:origin, tx = %Transaction{}) do
-    # singleton tx chain in network lifespan
-    # not parsing orgin pub key for origin family
-    case SharedSecrets.genesis_address(:origin) do
-      nil ->
-        false
-
-      origin_gen_addr_list ->
-        first_addr_from_prev_addr =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-
-        first_addr_from_prev_addr in origin_gen_addr_list
+  defp valid_network_chain?(:origin, tx = %Transaction{}) do
+    with local_gen_addr when local_gen_addr != nil <-
+           SharedSecrets.genesis_address(:origin),
+         {:ok, chain_gen_addr} <- fetch_previous_tx_genesis_address(tx) do
+      chain_gen_addr in local_gen_addr
+    else
+      _ -> false
     end
   end
 
-  defp validate_network_chain?(_type, _tx), do: true
+  defp valid_network_chain?(_type, _tx), do: true
+
+  defp fetch_previous_tx_genesis_address(tx) do
+    tx
+    |> Transaction.previous_address()
+    |> TransactionChain.fetch_genesis_address(P2P.authorized_and_available_nodes())
+  end
 
   defp verify_token_creation(content) do
     with {:ok, json_token} <- Jason.decode(content),
@@ -849,7 +835,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     previous_address
     |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
     |> P2P.nearest_nodes()
-    |> Enum.filter(&Node.locally_available?/1)
+    |> Enum.filter(&P2P.node_connected?/1)
     |> get_first_public_key(previous_address)
   end
 

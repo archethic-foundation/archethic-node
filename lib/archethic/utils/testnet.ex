@@ -112,7 +112,8 @@ defmodule Archethic.Utils.Testnet do
   defp p2p_port, do: 30_002
   defp web_port, do: 40_000
 
-  @validator_ip 220
+  @validator_1_ip 220
+  @validator_2_ip 230
   @bench_ip 221
   @collector_ip 200
 
@@ -140,19 +141,19 @@ defmodule Archethic.Utils.Testnet do
         "- job_name: testnet\\n" <>
         "  static_configs:\\n" <>
         "  - targets:\\n" <>
-        "    - node1:40000\\n" <>
-        "    - node2:40000\\n" <>
-        "    - node3:40000\\n\\n"},
+        "    - 1.2.3.2:40000\\n" <>
+        "    - 1.2.3.3:40000\\n" <>
+        "    - 1.2.3.4:40000\\n\\n"},
       {"docker-compose.json", %{
         version: "3.9",
           networks: %{:net => %{ipam: %{config: [%{subnet: "1.2.3.0/24"}], driver: :default}}},
           services: %{
             "node1" => %{
+              build:  %{context: "c"},
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node1",
                 "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.2",
-                "ARCHETHIC_DB_HOST" => "scylladb1:9042",
                 "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
                 "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
                 "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
@@ -165,17 +166,17 @@ defmodule Archethic.Utils.Testnet do
                 "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
                 "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
                 "ARCHETHIC_NODE_IP_VALIDATION" => "false",
-                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE"
+                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE",
+                "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY" => "",
+                "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY" => "",
+                "ARCHETHIC_NETWORK_TYPE" => "testnet",
+                "ARCHETHIC_THROTTLE_IP_AND_PATH" => 999999,
+                "ARCHETHIC_THROTTLE_IP_HIGH" => 999999,
+                "ARCHETHIC_THROTTLE_IP_LOW" => 999999
               },
               image: "i",
-              build: %{ context: "c"},
               networks: %{:net => %{ipv4_address: "1.2.3.2"}},
               command: [
-                "/wait-for-tcp.sh",
-                "scylladb1:9042",
-                "--timeout=0",
-                "--strict",
-                "--",
                 "./bin/archethic_node",
                 "foreground"
               ],
@@ -185,11 +186,11 @@ defmodule Archethic.Utils.Testnet do
             },
             "node2" => %{
               depends_on: ["node1"],
+              build:  %{context: "c"},
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node2",
                 "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.3",
-                "ARCHETHIC_DB_HOST" => "scylladb2:9042",
                 "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
                 "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
                 "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
@@ -202,7 +203,13 @@ defmodule Archethic.Utils.Testnet do
                 "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
                 "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
                 "ARCHETHIC_NODE_IP_VALIDATION" => "false",
-                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE"
+                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE",
+                "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY" => "",
+                "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY" => "",
+                "ARCHETHIC_NETWORK_TYPE" => "testnet",
+                "ARCHETHIC_THROTTLE_IP_AND_PATH" => 999999,
+                "ARCHETHIC_THROTTLE_IP_HIGH" => 999999,
+                "ARCHETHIC_THROTTLE_IP_LOW" => 999999
               },
               image: "i",
               networks: %{:net => %{ipv4_address: "1.2.3.3"}},
@@ -212,26 +219,24 @@ defmodule Archethic.Utils.Testnet do
               ],
               command: [
                 "/wait-for-tcp.sh",
-                "scylladb2:9042",
+                "--host=1.2.3.2",
+                "--port=30002",
                 "--timeout=0",
-                "--strict", "--",
-                "/wait-for-tcp.sh",
-                "node1:40000",
-                "--timeout=0",
-                "--strict", "--",
+                "--strict",
+                "--",
                 "/wait-for-node.sh",
-                "http://node1:40000/up",
+                "http://1.2.3.2:40000/up",
                 "./bin/archethic_node",
                 "foreground"
               ]
             },
             "node3" => %{
               depends_on: ["node1"],
+              build:  %{context: "c"},
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node3",
                 "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.4",
-                "ARCHETHIC_DB_HOST" => "scylladb3:9042",
                 "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
                 "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
                 "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
@@ -244,7 +249,13 @@ defmodule Archethic.Utils.Testnet do
                 "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
                 "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
                 "ARCHETHIC_NODE_IP_VALIDATION" => "false",
-                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE"
+                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE",
+                "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY" => "",
+                "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY" => "",
+                "ARCHETHIC_NETWORK_TYPE" => "testnet",
+                "ARCHETHIC_THROTTLE_IP_AND_PATH" => 999999,
+                "ARCHETHIC_THROTTLE_IP_HIGH" => 999999,
+                "ARCHETHIC_THROTTLE_IP_LOW" => 999999
               },
               image: "i",
               networks: %{:net => %{ipv4_address: "1.2.3.4"}},
@@ -254,15 +265,13 @@ defmodule Archethic.Utils.Testnet do
               ],
               command: [
                 "/wait-for-tcp.sh",
-                "scylladb3:9042",
+                "--host=1.2.3.2",
+                "--port=30002",
                 "--timeout=0",
-                "--strict", "--",
-                "/wait-for-tcp.sh",
-                "node1:40000",
-                "--timeout=0",
-                "--strict", "--",
+                "--strict",
+                "--",
                 "/wait-for-node.sh",
-                "http://node1:40000/up",
+                "http://1.2.3.2:40000/up",
                 "./bin/archethic_node",
                 "foreground"
               ]
@@ -272,41 +281,39 @@ defmodule Archethic.Utils.Testnet do
               networks: %{:net => %{ipv4_address: "1.2.3.#{@collector_ip}"}},
               volumes: [".prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
             },
-            "validator" => %{
-              image: "archethic-node:latest",
+            "validator_1" => %{
+              image: "i",
               environment: %{
                 "ARCHETHIC_MUT_DIR" => "/opt/data"
               },
-              command: ["./bin/archethic_node", "regression_test", "--validate", "node1", "node2", "node3"],
+              command: ["./bin/archethic_node", "validate", "1.2.3.2", "1.2.3.3", "1.2.3.4", "--phase=1"],
               volumes: [
                 "./validator_data/:/opt/data"
               ],
-              profiles: ["validate"],
-              networks: %{:net => %{ipv4_address: "1.2.3.#{@validator_ip}"}},
+              networks: %{:net => %{ipv4_address: "1.2.3.#{@validator_1_ip}"}},
             },
-            "bench" => %{
-              image: "archethic-node:latest",
+             "validator_2" => %{
+              image: "i",
               environment: %{
                 "ARCHETHIC_MUT_DIR" => "/opt/data"
               },
-              command: ["./bin/archethic_node", "regression_test", "--bench", "node1", "node2", "node3"],
+              command: ["./bin/archethic_node", "validate", "1.2.3.2", "1.2.3.3", "1.2.3.4", "--phase=2"],
+              volumes: [
+                "./validator_data/:/opt/data"
+              ],
+              networks: %{:net => %{ipv4_address: "1.2.3.#{@validator_2_ip}"}},
+              profiles: ["validate_2"]
+            },
+            "bench" => %{
+              image: "i",
+              environment: %{
+                "ARCHETHIC_MUT_DIR" => "/opt/data"
+              },
+              command: ["./bin/archethic_node", "regression_test", "--bench", "1.2.3.2", "1.2.3.3", "1.2.3.4"],
               volumes: [
                 "./bench_data/:/opt/data"
               ],
-              profiles: ["validate"],
               networks: %{ :net => %{ipv4_address: "1.2.3.#{@bench_ip}"}}
-            },
-            "scylladb1" => %{
-              image: "scylladb/scylla",
-              networks: %{:net => %{ipv4_address: "1.2.3.51"}}
-            },
-            "scylladb2" => %{
-              image: "scylladb/scylla",
-              networks: %{:net => %{ipv4_address: "1.2.3.52"}}
-            },
-            "scylladb3" => %{
-              image: "scylladb/scylla",
-              networks: %{:net => %{ipv4_address: "1.2.3.53"}}
             }
           }
         }
@@ -323,18 +330,11 @@ defmodule Archethic.Utils.Testnet do
     ip = fn i -> Subnet.at(base, i) end
 
     services = nodes_from(nb_nodes, src, image, ip)
-    uninodes = Map.keys(services)
+
+    uninodes =
+      Enum.map(services, fn {_, %{environment: %{"ARCHETHIC_STATIC_IP" => ip}}} -> ip end)
 
     networks = %{:net => %{ipam: %{driver: :default, config: [%{subnet: subnet}]}}}
-
-    databases =
-      1..nb_nodes
-      |> Enum.reduce(%{}, fn i, acc ->
-        Map.put(acc, "scylladb#{i}", %{
-          image: "scylladb/scylla",
-          networks: %{:net => %{ipv4_address: ip.(i + 50)}}
-        })
-      end)
 
     services =
       services
@@ -343,20 +343,31 @@ defmodule Archethic.Utils.Testnet do
         networks: %{:net => %{ipv4_address: ip.(@collector_ip)}},
         volumes: [".prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
       })
-      |> Map.put("validator", %{
-        image: "archethic-node:latest",
+      |> Map.put("validator_1", %{
+        image: image,
         environment: %{
           "ARCHETHIC_MUT_DIR" => "/opt/data"
         },
-        command: ["./bin/archethic_node", "regression_test", "--validate" | uninodes],
+        command: ["./bin/archethic_node", "validate" | uninodes] ++ ["--phase=1"],
         volumes: [
           "./validator_data/:/opt/data"
         ],
-        profiles: ["validate"],
-        networks: %{:net => %{ipv4_address: ip.(@validator_ip)}}
+        networks: %{:net => %{ipv4_address: ip.(@validator_1_ip)}}
+      })
+      |> Map.put("validator_2", %{
+        image: image,
+        environment: %{
+          "ARCHETHIC_MUT_DIR" => "/opt/data"
+        },
+        command: ["./bin/archethic_node", "validate" | uninodes] ++ ["--phase=2"],
+        volumes: [
+          "./validator_data/:/opt/data"
+        ],
+        profiles: ["validate_2"],
+        networks: %{:net => %{ipv4_address: ip.(@validator_2_ip)}}
       })
       |> Map.put("bench", %{
-        image: "archethic-node:latest",
+        image: image,
         environment: %{
           "ARCHETHIC_MUT_DIR" => "/opt/data"
         },
@@ -364,10 +375,8 @@ defmodule Archethic.Utils.Testnet do
         volumes: [
           "./bench_data/:/opt/data"
         ],
-        profiles: ["validate"],
         networks: %{:net => %{ipv4_address: ip.(@bench_ip)}}
       })
-      |> Map.merge(databases)
 
     compose = %{version: "3.9", services: services, networks: networks}
 
@@ -419,6 +428,8 @@ defmodule Archethic.Utils.Testnet do
   end
 
   defp to_node(1, src, image, ip) do
+    node_1_ip_address = ip.(1 + 1)
+
     {"node1",
      %{
        build: %{context: src},
@@ -426,9 +437,8 @@ defmodule Archethic.Utils.Testnet do
        environment: %{
          "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE",
          "ARCHETHIC_CRYPTO_SEED" => "node1",
-         "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => seeder(ip.(1 + 1)),
+         "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => seeder(node_1_ip_address),
          "ARCHETHIC_STATIC_IP" => ip.(1 + 1),
-         "ARCHETHIC_DB_HOST" => "scylladb1:9042",
          "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
          "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
          "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
@@ -440,18 +450,19 @@ defmodule Archethic.Utils.Testnet do
          "ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL" => "40 * * * * * *",
          "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
          "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
-         "ARCHETHIC_NODE_IP_VALIDATION" => "false"
+         "ARCHETHIC_NODE_IP_VALIDATION" => "false",
+         "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY" => "",
+         "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY" => "",
+         "ARCHETHIC_NETWORK_TYPE" => "testnet",
+         "ARCHETHIC_THROTTLE_IP_HIGH" => 999_999,
+         "ARCHETHIC_THROTTLE_IP_LOW" => 999_999,
+         "ARCHETHIC_THROTTLE_IP_AND_PATH" => 999_999
        },
        volumes: [
          "#{Path.join([src, "/scripts/wait-for-tcp.sh"])}:/wait-for-tcp.sh:ro"
        ],
        networks: %{:net => %{ipv4_address: ip.(1 + 1)}},
        command: [
-         "/wait-for-tcp.sh",
-         "scylladb1:9042",
-         "--timeout=0",
-         "--strict",
-         "--",
          "./bin/archethic_node",
          "foreground"
        ]
@@ -459,16 +470,19 @@ defmodule Archethic.Utils.Testnet do
   end
 
   defp to_node(n, src, image, ip) do
+    node_1_ip_address = ip.(1 + 1)
+    ip_address = ip.(n + 1)
+
     {"node#{n}",
      %{
+       build: %{context: src},
        image: image,
        depends_on: ["node1"],
        environment: %{
          "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE",
          "ARCHETHIC_CRYPTO_SEED" => "node#{n}",
-         "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => seeder(ip.(1 + 1)),
-         "ARCHETHIC_STATIC_IP" => ip.(n + 1),
-         "ARCHETHIC_DB_HOST" => "scylladb#{n}:9042",
+         "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => seeder(node_1_ip_address),
+         "ARCHETHIC_STATIC_IP" => ip_address,
          "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
          "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
          "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
@@ -480,26 +494,28 @@ defmodule Archethic.Utils.Testnet do
          "ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL" => "40 * * * * * *",
          "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
          "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
-         "ARCHETHIC_NODE_IP_VALIDATION" => "false"
+         "ARCHETHIC_NODE_IP_VALIDATION" => "false",
+         "ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY" => "",
+         "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY" => "",
+         "ARCHETHIC_NETWORK_TYPE" => "testnet",
+         "ARCHETHIC_THROTTLE_IP_HIGH" => 999_999,
+         "ARCHETHIC_THROTTLE_IP_LOW" => 999_999,
+         "ARCHETHIC_THROTTLE_IP_AND_PATH" => 999_999
        },
-       networks: %{:net => %{ipv4_address: ip.(n + 1)}},
+       networks: %{:net => %{ipv4_address: ip_address}},
        volumes: [
          "#{Path.join([src, "/scripts/wait-for-tcp.sh"])}:/wait-for-tcp.sh:ro",
          "#{Path.join([src, "/scripts/wait-for-node.sh"])}:/wait-for-node.sh:ro"
        ],
        command: [
          "/wait-for-tcp.sh",
-         "scylladb#{n}:9042",
-         "--timeout=0",
-         "--strict",
-         "--",
-         "/wait-for-tcp.sh",
-         "node1:40000",
+         "--host=#{node_1_ip_address}",
+         "--port=#{p2p_port()}",
          "--timeout=0",
          "--strict",
          "--",
          "/wait-for-node.sh",
-         "http://node1:#{web_port()}/up",
+         "http://#{node_1_ip_address}:#{web_port()}/up",
          "./bin/archethic_node",
          "foreground"
        ]

@@ -21,7 +21,7 @@ defmodule Archethic.Replication.TransactionContext do
   def fetch_transaction(address) when is_binary(address) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
+    case TransactionChain.fetch_transaction(address, storage_nodes) do
       {:ok, tx} ->
         tx
 
@@ -37,12 +37,11 @@ defmodule Archethic.Replication.TransactionContext do
           Enumerable.t() | list(Transaction.t())
   def stream_transaction_chain(address, node_list) when is_binary(address) do
     with storage_nodes <- Election.chain_storage_nodes(address, node_list),
-         {:ok, genesis_address} <-
-           TransactionChain.fetch_genesis_address_remotely(address, storage_nodes),
-         true <- address != genesis_address,
-         paging_address <- TransactionChain.get_last_stored_address(genesis_address),
-         true <- paging_address != address do
-      TransactionChain.stream_remotely(address, storage_nodes, paging_address)
+         {:ok, genesis_address} when genesis_address != address <-
+           TransactionChain.fetch_genesis_address(address, storage_nodes),
+         paging_address when paging_address != address <-
+           TransactionChain.get_last_stored_address(genesis_address) do
+      TransactionChain.fetch(address, storage_nodes, paging_address: paging_address)
       |> Stream.take_while(&(Transaction.previous_address(&1) != address))
     else
       _ -> []
@@ -59,7 +58,7 @@ defmodule Archethic.Replication.TransactionContext do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     address
-    |> TransactionChain.stream_inputs_remotely(storage_nodes, timestamp)
+    |> TransactionChain.fetch_inputs(storage_nodes, timestamp)
     |> Enum.to_list()
   end
 end

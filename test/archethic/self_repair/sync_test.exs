@@ -69,7 +69,7 @@ defmodule Archethic.SelfRepair.SyncTest do
 
     :ok = Sync.store_last_sync_date(last_sync_date)
 
-    assert_received {:last_sync_time, ^last_sync_time}
+    assert_receive {:last_sync_time, ^last_sync_time}
   end
 
   describe "load_missed_transactions/2" do
@@ -236,9 +236,13 @@ defmodule Archethic.SelfRepair.SyncTest do
       MockDB
       |> stub(:register_stats, fn _, _, _, _ -> :ok end)
 
-      assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-86_400))
+      assert :ok =
+               Sync.load_missed_transactions(
+                 DateTime.utc_now() |> DateTime.add(-86_400),
+                 P2P.authorized_and_available_nodes()
+               )
 
-      assert_received :storage
+      assert_receive :storage
     end
   end
 
@@ -403,7 +407,10 @@ defmodule Archethic.SelfRepair.SyncTest do
         {:ok, %NotFound{}}
     end)
 
-    Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-1, :hour))
+    Sync.load_missed_transactions(
+      DateTime.utc_now() |> DateTime.add(-1, :hour),
+      P2P.authorized_and_available_nodes()
+    )
 
     assert_receive {:new_replication_attestation, ^attestation2}
     assert_receive :should_request
@@ -487,7 +494,7 @@ defmodule Archethic.SelfRepair.SyncTest do
                  P2P.authorized_and_available_nodes()
                )
 
-      assert_received :transaction_stored
+      assert_receive :transaction_stored
     end
   end
 

@@ -1,7 +1,9 @@
 FROM elixir:1.14.1-alpine AS archethic-ci
 
-ARG skip_tests=0
+ARG with_tests=1
 ARG MIX_ENV=prod
+ARG USER_ID 
+ARG GROUP_ID
 
 # CI
 #  - compile
@@ -19,25 +21,22 @@ ARG MIX_ENV=prod
 #  - code
 #  - release
 
-# running TESTNET with release upgrade should ???
+ENV ARCHETHIC_NETWORK_TYPE=testnet
 
 RUN apk add --no-cache --update \
   build-base \
+  grep \
   bash \
   gcc \
   make \
   g++ \
-  libexecinfo-dev \
-  libexecinfo \
   git \
   npm \
-  python3 \
   wget \
   openssl \
   libsodium-dev \
-  gmp-dev \
-  miniupnpc
-
+  libexecinfo-dev \
+  gmp-dev 
 
 # Install hex and rebar
 RUN mix local.rebar --force \
@@ -61,23 +60,12 @@ RUN git config user.name aebot \
   && git config user.email aebot@archethic.net \
   && git remote add origin https://github.com/archethic-foundation/archethic-node
 
-# Install Dart Sass
-RUN npm install -g sass
-
-# build Sass -> CSS
-RUN cd assets && \
-  sass --no-source-map --style=compressed css/app.scss ../priv/static/css/app.css && cd -
-
 # build release
-RUN mix do assets.deploy, distillery.release
-
-# gen PLT
-RUN if [ $with_tests -eq 1 ]; then mix git_hooks.run pre_push ;fi
-
+RUN mix assets.deploy
+RUN MIX_ENV=${MIX_ENV} mix distillery.release
 # Install
 RUN mkdir -p /opt/app \
-  && cd /opt/app \
-  && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz
+  && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz -C  /opt/app
 CMD /opt/app/bin/archethic_node foreground
 
 ################################################################################
@@ -86,13 +74,19 @@ FROM archethic-ci as build
 
 FROM elixir:1.14.1-alpine
 
-RUN apk add --no-cache --update bash git openssl libsodium
+ARG USER_ID 
+ARG GROUP_ID
+
+RUN apk add --no-cache --update bash git openssl libsodium libexecinfo
 
 COPY --from=build /opt/app /opt/app
 COPY --from=build /opt/code/.git /opt/code/.git
 
 WORKDIR /opt/code
 RUN git reset --hard
+
+RUN rm -rf /opt/code/.git
+RUN rm -rf /opt/code/priv
 
 WORKDIR /opt/app
 CMD /opt/app/bin/archethic_node foreground

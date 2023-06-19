@@ -16,6 +16,7 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.GetContractCalls
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetFirstTransactionAddress
   alias Archethic.P2P.Message.FirstTransactionAddress
@@ -36,9 +37,10 @@ defmodule Archethic.TransactionChainTest do
 
   doctest TransactionChain
 
+  import ArchethicCase
   import Mox
 
-  describe "resolve_last_address/1 should retrieve the last address for a chain" do
+  describe "fetch_last_address/1 should retrieve the last address for a chain" do
     test "when not conflicts" do
       MockClient
       |> stub(:send_message, fn
@@ -65,11 +67,13 @@ defmodule Archethic.TransactionChainTest do
         authorization_date: ~U[2021-03-25 15:11:29Z]
       })
 
+      nodes = P2P.authorized_and_available_nodes()
+
       assert {:ok, "@Alice1"} =
-               TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:11:29Z])
+               TransactionChain.fetch_last_address("@Alice1", nodes, ~U[2021-03-25 15:11:29Z])
 
       assert {:ok, "@Alice2"} =
-               TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:12:29Z])
+               TransactionChain.fetch_last_address("@Alice1", nodes, ~U[2021-03-25 15:12:29Z])
     end
 
     test "with conflicts" do
@@ -110,73 +114,67 @@ defmodule Archethic.TransactionChainTest do
         authorization_date: DateTime.utc_now()
       })
 
+      nodes = P2P.authorized_and_available_nodes()
+
       assert {:ok, "@Alice2"} =
-               TransactionChain.resolve_last_address("@Alice1", DateTime.utc_now())
+               TransactionChain.fetch_last_address("@Alice1", nodes, DateTime.utc_now())
     end
   end
 
-  describe "fetch_transaction_remotely/2" do
-    test "should get the transaction" do
+  describe "fetch_transaction/2" do
+    test "should get the transaction from DB" do
       nodes = [
         %Node{
           first_public_key: "node1",
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
-          port: 3001,
-          availability_history: <<1::1>>
+          port: 3001
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
-          port: 3002,
-          availability_history: <<1::1>>
+          port: 3002
         }
       ]
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
-      MockClient
-      |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
-        {:ok, %Transaction{}}
-      end)
+      MockDB
+      |> expect(:get_transaction, fn "Alice1", _, _ -> {:ok, %Transaction{}} end)
 
-      assert {:ok, %Transaction{}} = TransactionChain.fetch_transaction_remotely("Alice1", nodes)
+      assert {:ok, %Transaction{}} = TransactionChain.fetch_transaction("Alice1", nodes)
     end
 
-    test "should resolve and get tx if one tx is returned" do
+    test "should resolve conflict and get tx if one tx is returned" do
       nodes = [
         %Node{
           first_public_key: "node1",
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -194,11 +192,12 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %NotFound{}}
       end)
 
-      assert {:ok, %Transaction{}} = TransactionChain.fetch_transaction_remotely("Alice1", nodes)
+      assert {:ok, %Transaction{}} =
+               TransactionChain.fetch_transaction("Alice1", nodes, search_mode: :remote)
     end
   end
 
-  describe "stream_remotely/2" do
+  describe "fetch/3" do
     test "should get the transaction chain" do
       nodes = [
         %Node{
@@ -206,24 +205,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -240,10 +236,56 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert 1 =
-               TransactionChain.stream_remotely("Alice1", nodes)
-               |> Enum.to_list()
-               |> length()
+      assert 1 = TransactionChain.fetch("Alice1", nodes) |> Enum.count()
+    end
+
+    test "should get transactions from db and remote" do
+      nodes = [
+        %Node{
+          first_public_key: "node1",
+          last_public_key: "node1",
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          available?: true
+        },
+        %Node{
+          first_public_key: "node2",
+          last_public_key: "node2",
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          available?: true
+        },
+        %Node{
+          first_public_key: "node3",
+          last_public_key: "node3",
+          ip: {127, 0, 0, 1},
+          port: 3002,
+          available?: true
+        }
+      ]
+
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
+
+      MockDB
+      |> expect(:get_genesis_address, fn _ -> "Alice0" end)
+      |> expect(:get_transaction_chain, fn _, _, _ ->
+        {[%Transaction{address: "Alice1"}], false, nil}
+      end)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{address: _}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: [
+               %Transaction{address: "Alice2"}
+             ]
+           }}
+      end)
+
+      assert ["Alice1", "Alice2"] =
+               TransactionChain.fetch("Alice2", nodes)
+               |> Enum.map(& &1.address)
     end
 
     test "should resolve the longest chain" do
@@ -253,24 +295,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -312,14 +351,11 @@ defmodule Archethic.TransactionChainTest do
           %TransactionChainLength{length: 1}
       end)
 
-      assert 5 =
-               TransactionChain.stream_remotely("Alice1", nodes)
-               |> Enum.to_list()
-               |> length()
+      assert 5 = TransactionChain.fetch("Alice1", nodes) |> Enum.count()
     end
   end
 
-  describe "fetch_inputs_remotely/2" do
+  describe "fetch_inputs/5" do
     test "should get the inputs" do
       nodes = [
         %Node{
@@ -327,24 +363,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -369,8 +402,9 @@ defmodule Archethic.TransactionChainTest do
          }}
       end)
 
-      assert {[%TransactionInput{from: "Alice2", amount: 10, type: :UCO}], _more?, _offset} =
-               TransactionChain.fetch_inputs_remotely("Alice1", nodes, DateTime.utc_now())
+      assert [%TransactionInput{from: "Alice2", amount: 10, type: :UCO}] =
+               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
+               |> Enum.to_list()
     end
 
     test "should resolve the longest inputs when conflicts" do
@@ -380,24 +414,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -450,9 +481,9 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert {[%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}], _more?,
-              _offset} =
-               TransactionChain.fetch_inputs_remotely("Alice1", nodes, DateTime.utc_now())
+      assert [%TransactionInput{from: "Alice2"}, %TransactionInput{from: "Bob3"}] =
+               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
+               |> Enum.to_list()
     end
   end
 
@@ -464,24 +495,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -507,8 +535,8 @@ defmodule Archethic.TransactionChainTest do
          }}
       end)
 
-      assert {[%UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: ^timestamp}],
-              _more?, _offset} = TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
+      assert [%UnspentOutput{from: "Alice2", amount: 10, type: :UCO, timestamp: ^timestamp}] =
+               TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
     end
 
     test "should resolve the longest utxos when conflicts" do
@@ -518,24 +546,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -589,15 +614,14 @@ defmodule Archethic.TransactionChainTest do
            }}
       end)
 
-      assert {[
-                %UnspentOutput{from: "Alice2", timestamp: ^timestamp},
-                %UnspentOutput{from: "Bob3", timestamp: ^timestamp}
-              ], _more?,
-              _offset} = TransactionChain.fetch_unspent_outputs_remotely("Alice1", nodes)
+      assert [
+               %UnspentOutput{from: "Alice2", timestamp: ^timestamp},
+               %UnspentOutput{from: "Bob3", timestamp: ^timestamp}
+             ] = TransactionChain.fetch_unspent_outputs("Alice1", nodes) |> Enum.to_list()
     end
   end
 
-  describe "fetch_size_remotely/2" do
+  describe "fetch_size/2" do
     test "should get the transaction chain length" do
       nodes = [
         %Node{
@@ -605,24 +629,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -633,7 +654,7 @@ defmodule Archethic.TransactionChainTest do
         {:ok, %TransactionChainLength{length: 1}}
       end)
 
-      assert {:ok, 1} = TransactionChain.fetch_size_remotely("Alice1", nodes)
+      assert {:ok, 1} = TransactionChain.fetch_size("Alice1", nodes)
     end
 
     test "should resolve the longest transaction chain when conflicts" do
@@ -643,24 +664,21 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node1",
           ip: {127, 0, 0, 1},
           port: 3000,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node2",
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         },
         %Node{
           first_public_key: "node3",
           last_public_key: "node3",
           ip: {127, 0, 0, 1},
           port: 3002,
-          available?: true,
-          availability_history: <<1::1>>
+          available?: true
         }
       ]
 
@@ -678,7 +696,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %TransactionChainLength{length: 1}}
       end)
 
-      assert {:ok, 2} = TransactionChain.fetch_size_remotely("Alice1", nodes)
+      assert {:ok, 2} = TransactionChain.fetch_size("Alice1", nodes)
     end
   end
 
@@ -691,7 +709,6 @@ defmodule Archethic.TransactionChainTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           available?: true,
-          availability_history: <<1::1>>,
           authorized?: true,
           geo_patch: "AAA",
           authorization_date: DateTime.utc_now()
@@ -701,7 +718,6 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          availability_history: <<1::1>>,
           geo_patch: "AAA",
           authorized?: true,
           authorization_date: DateTime.utc_now()
@@ -712,7 +728,6 @@ defmodule Archethic.TransactionChainTest do
           geo_patch: "AAA",
           ip: {127, 0, 0, 1},
           port: 3002,
-          availability_history: <<1::1>>,
           authorized?: true,
           authorization_date: DateTime.utc_now()
         }
@@ -730,8 +745,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %FirstTransactionAddress{address: "addr1", timestamp: DateTime.utc_now()}}
       end)
 
-      assert {:ok, "addr1"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_first_transaction_address("addr2", nodes)
     end
 
     test "when asked from genesis address", %{nodes: nodes} do
@@ -754,11 +768,10 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %NotFound{}}
       end)
 
-      assert {:ok, "addr0"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr0", nodes)
+      assert {:ok, "addr0"} = TransactionChain.fetch_first_transaction_address("addr0", nodes)
 
       assert {:error, :does_not_exist} =
-               TransactionChain.fetch_first_transaction_address_remotely(
+               TransactionChain.fetch_first_transaction_address(
                  "not_existing_address",
                  nodes
                )
@@ -782,8 +795,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %FirstTransactionAddress{address: "addr1", timestamp: ~U[2023-01-01 00:00:00Z]}}
       end)
 
-      assert {:ok, "addr1"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_first_transaction_address("addr2", nodes)
     end
 
     test "should resolve conflict when one node does not have the transaction", %{nodes: nodes} do
@@ -804,8 +816,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %FirstTransactionAddress{address: "addr1", timestamp: ~U[2023-01-01 00:00:00Z]}}
       end)
 
-      assert {:ok, "addr1"} =
-               TransactionChain.fetch_first_transaction_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_first_transaction_address("addr2", nodes)
     end
   end
 
@@ -848,7 +859,7 @@ defmodule Archethic.TransactionChainTest do
     end
   end
 
-  describe "fetch_genesis_address_remotely/2" do
+  describe "fetch_genesis_address/2" do
     setup do
       nodes = [
         %Node{
@@ -857,7 +868,6 @@ defmodule Archethic.TransactionChainTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           available?: true,
-          availability_history: <<1::1>>,
           authorized?: true,
           geo_patch: "AAA",
           authorization_date: DateTime.utc_now()
@@ -867,7 +877,6 @@ defmodule Archethic.TransactionChainTest do
           last_public_key: "node2",
           ip: {127, 0, 0, 1},
           port: 3001,
-          availability_history: <<1::1>>,
           geo_patch: "AAA",
           authorized?: true,
           authorization_date: DateTime.utc_now()
@@ -878,7 +887,6 @@ defmodule Archethic.TransactionChainTest do
           geo_patch: "AAA",
           ip: {127, 0, 0, 1},
           port: 3002,
-          availability_history: <<1::1>>,
           authorized?: true,
           authorization_date: DateTime.utc_now()
         }
@@ -896,7 +904,7 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %GenesisAddress{address: "addr1", timestamp: DateTime.utc_now()}}
       end)
 
-      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
     end
 
     test "should resolve conflict when one node has a forked chain", %{nodes: nodes} do
@@ -917,7 +925,81 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %GenesisAddress{address: "addr1", timestamp: ~U[2023-01-01 00:00:00Z]}}
       end)
 
-      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address_remotely("addr2", nodes)
+      assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
+    end
+  end
+
+  describe "fetch_contract_calls/1" do
+    setup do
+      nodes = [
+        %Node{
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          available?: true,
+          authorized?: true,
+          geo_patch: "AAA",
+          authorization_date: DateTime.utc_now()
+        },
+        %Node{
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          available?: true,
+          geo_patch: "AAA",
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
+        }
+      ]
+
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
+
+      %{nodes: nodes}
+    end
+
+    test "should return empty when there is no transaction at address", %{nodes: nodes} do
+      address = random_address()
+
+      MockClient
+      |> expect(:send_message, fn _, %GetContractCalls{address: ^address}, _ ->
+        {:ok, %TransactionList{transactions: []}}
+      end)
+
+      assert {:ok, []} = TransactionChain.fetch_contract_calls(address, nodes)
+    end
+
+    test "should return the calls", %{nodes: nodes} do
+      address = random_address()
+
+      tx1 = %Transaction{}
+      tx2 = %Transaction{}
+
+      MockClient
+      |> expect(:send_message, fn _, %GetContractCalls{address: ^address}, _ ->
+        {:ok, %TransactionList{transactions: [tx1, tx2]}}
+      end)
+
+      assert {:ok, [^tx1, ^tx2]} = TransactionChain.fetch_contract_calls(address, nodes)
+    end
+
+    test "should resolve conflict", %{nodes: nodes = [node1, node2]} do
+      address = random_address()
+
+      tx1 = %Transaction{address: random_address()}
+      tx2 = %Transaction{address: random_address()}
+
+      MockClient
+      |> expect(:send_message, 2, fn
+        ^node1, %GetContractCalls{address: ^address}, _ ->
+          {:ok, %TransactionList{transactions: [tx1]}}
+
+        ^node2, %GetContractCalls{address: ^address}, _ ->
+          {:ok, %TransactionList{transactions: [tx1, tx2]}}
+      end)
+
+      assert {:ok, [^tx1, ^tx2]} = TransactionChain.fetch_contract_calls(address, nodes)
     end
   end
 end

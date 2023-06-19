@@ -191,6 +191,22 @@ defmodule Archethic.Telemetry do
         tags: [:nb_summaries]
       ),
       counter("archethic.self_repair.resync.count", tags: [:network_chain]),
+      distribution("archethic.beacon_chain.network_coordinates.compute_patch.duration",
+        unit: {:native, :second},
+        reporter_options: [
+          buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10, 20, 35, 60]
+        ],
+        measurement: :duration,
+        tags: [:matrix_size]
+      ),
+      distribution("archethic.beacon_chain.network_coordinates.collect_stats.duration",
+        unit: {:native, :second},
+        reporter_options: [
+          buckets: [0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 0.8, 1, 1.5, 2, 5, 10, 20, 35, 60]
+        ],
+        measurement: :duration,
+        tags: [:matrix_size]
+      ),
 
       # Archethic Web
       counter("archethic_web.hosting.cache_file.hit.count"),

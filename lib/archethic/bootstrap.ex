@@ -10,6 +10,8 @@ defmodule Archethic.Bootstrap do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias Archethic.Replication
+
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChain
 
@@ -96,14 +98,9 @@ defmodule Archethic.Bootstrap do
         reward_address
       )
       when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
-    network_patch =
-      case P2P.get_node_info(Crypto.first_node_public_key()) do
-        {:ok, %Node{network_patch: patch}} ->
-          patch
+    network_patch = get_network_patch(ip)
 
-        _ ->
-          P2P.get_geo_patch(ip)
-      end
+    closest_bootstrapping_nodes = get_closest_nodes(bootstrapping_seeds, network_patch)
 
     if should_bootstrap?(ip, port, http_port, transport, last_sync_date) do
       start_bootstrap(
@@ -111,15 +108,44 @@ defmodule Archethic.Bootstrap do
         port,
         http_port,
         transport,
-        bootstrapping_seeds,
-        network_patch,
+        closest_bootstrapping_nodes,
         reward_address
       )
-    else
-      post_bootstrap()
     end
 
+    post_bootstrap(closest_bootstrapping_nodes)
+
     Logger.info("Bootstrapping finished!")
+  end
+
+  defp get_network_patch(ip) do
+    case P2P.get_node_info(Crypto.first_node_public_key()) do
+      {:ok, %Node{network_patch: patch}} ->
+        patch
+
+      _ ->
+        P2P.get_geo_patch(ip)
+    end
+  end
+
+  defp get_closest_nodes(bootstrapping_seeds, network_patch) do
+    node_first_public_key = Crypto.first_node_public_key()
+
+    case bootstrapping_seeds do
+      [%Node{first_public_key: ^node_first_public_key}] ->
+        bootstrapping_seeds
+
+      nodes ->
+        P2P.connect_nodes(nodes)
+
+        case Sync.get_closest_nodes_and_renew_seeds(nodes, network_patch) do
+          {:ok, closest_nodes} when closest_nodes != [] ->
+            closest_nodes
+
+          _ ->
+            []
+        end
+    end
   end
 
   defp should_bootstrap?(_ip, _port, _http_port, _, nil), do: true
@@ -146,14 +172,13 @@ defmodule Archethic.Bootstrap do
          port,
          http_port,
          transport,
-         bootstrapping_seeds,
-         network_patch,
+         closest_bootstrapping_nodes,
          configured_reward_address
        ) do
     Logger.info("Bootstrapping starting")
 
     cond do
-      Sync.should_initialize_network?(bootstrapping_seeds) ->
+      Sync.should_initialize_network?(closest_bootstrapping_nodes) ->
         Logger.info("This node should initialize the network!!")
         Logger.debug("Create first node transaction")
 
@@ -168,7 +193,6 @@ defmodule Archethic.Bootstrap do
 
         Sync.initialize_network(tx)
 
-        post_bootstrap()
         SelfRepair.put_last_sync_date(DateTime.utc_now())
 
       Crypto.first_node_public_key() == Crypto.previous_node_public_key() ->
@@ -179,12 +203,9 @@ defmodule Archethic.Bootstrap do
           port,
           http_port,
           transport,
-          network_patch,
-          bootstrapping_seeds,
+          closest_bootstrapping_nodes,
           configured_reward_address
         )
-
-        post_bootstrap()
 
       true ->
         Logger.info("Update node chain...")
@@ -202,25 +223,27 @@ defmodule Archethic.Bootstrap do
           port,
           http_port,
           transport,
-          network_patch,
-          bootstrapping_seeds,
+          closest_bootstrapping_nodes,
           last_reward_address
         )
-
-        post_bootstrap()
     end
   end
 
-  defp post_bootstrap() do
+  defp post_bootstrap(closest_bootstrapping_nodes) do
     last_sync_date = SelfRepair.last_sync_date()
 
-    if SelfRepair.missed_sync?(last_sync_date) do
+    if SelfRepair.missed_sync?(last_sync_date) and closest_bootstrapping_nodes != [] do
       Logger.info("Synchronization started")
       # Always load the current node list to have the current view for downloading transaction
-      :ok = Sync.load_node_list()
-      :ok = SelfRepair.bootstrap_sync(last_sync_date)
+      {:ok, current_nodes} = Sync.connect_current_node(closest_bootstrapping_nodes)
+      :ok = SelfRepair.bootstrap_sync(last_sync_date, current_nodes)
       Logger.info("Synchronization finished")
     end
+
+    # Connect nodes after all synchronization are finished
+    # so we have the latest connection infos available at this time
+    Logger.info("Try connection on all nodes")
+    P2P.list_nodes() |> P2P.connect_nodes()
 
     Archethic.Bootstrap.NetworkConstraints.persist_genesis_address()
 
@@ -239,34 +262,26 @@ defmodule Archethic.Bootstrap do
          port,
          http_port,
          transport,
-         patch,
-         bootstrapping_seeds,
+         closest_bootstrapping_nodes,
          configured_reward_address
        ) do
-    Enum.each(bootstrapping_seeds, &P2P.add_and_connect_node/1)
-
-    {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
-
-    closest_nodes =
-      closest_nodes
-      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-
     # In case node had lose it's DB, we ask the network if the node chain already exists
     {:ok, length} =
       Crypto.first_node_public_key()
       |> Crypto.derive_address()
-      |> TransactionChain.fetch_size_remotely(closest_nodes)
+      |> TransactionChain.fetch_size(closest_bootstrapping_nodes)
 
     Crypto.set_node_key_index(length)
 
     reward_address =
       if length > 0 do
         {:ok, last_address} =
-          Crypto.derive_address(Crypto.first_node_public_key())
-          |> TransactionChain.fetch_last_address_remotely(closest_nodes)
+          Crypto.first_node_public_key()
+          |> Crypto.derive_address()
+          |> TransactionChain.fetch_last_address(closest_bootstrapping_nodes)
 
         {:ok, %Transaction{data: %TransactionData{content: content}}} =
-          TransactionChain.fetch_transaction_remotely(last_address, closest_nodes)
+          TransactionChain.fetch_transaction(last_address, closest_bootstrapping_nodes)
 
         {:ok, _ip, _p2p_port, _http_port, _transport, last_reward_address, _origin_public_key,
          _key_certificate} = Node.decode_transaction_content(content)
@@ -279,37 +294,30 @@ defmodule Archethic.Bootstrap do
     tx =
       TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
 
-    :ok = TransactionHandler.send_transaction(tx, closest_nodes)
+    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
 
-    :ok = Sync.load_storage_nonce(closest_nodes)
+    :ok = Sync.load_storage_nonce(closest_bootstrapping_nodes)
+
+    Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
   end
 
-  defp update_node(ip, port, http_port, transport, patch, bootstrapping_seeds, reward_address) do
-    case Enum.reject(
-           bootstrapping_seeds,
-           &(&1.first_public_key == Crypto.first_node_public_key())
-         ) do
-      [] ->
-        Logger.warning("Not enough nodes in the network. No node update")
+  defp update_node(_ip, _port, _http_port, _transport, [], _reward_address) do
+    Logger.warning("Not enough nodes in the network. No node update")
+  end
 
-      _ ->
-        {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
+  defp update_node(ip, port, http_port, transport, closest_bootstrapping_nodes, reward_address) do
+    tx =
+      TransactionHandler.create_node_transaction(
+        ip,
+        port,
+        http_port,
+        transport,
+        reward_address
+      )
 
-        closest_nodes =
-          closest_nodes
-          |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+    {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
 
-        tx =
-          TransactionHandler.create_node_transaction(
-            ip,
-            port,
-            http_port,
-            transport,
-            reward_address
-          )
-
-        :ok = TransactionHandler.send_transaction(tx, closest_nodes)
-    end
+    Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
   end
 
   @doc """

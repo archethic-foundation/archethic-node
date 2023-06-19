@@ -10,6 +10,7 @@ defmodule Archethic.Bootstrap.SyncTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P
+  alias Archethic.P2P.Client
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.EncryptedStorageNonce
@@ -46,6 +47,7 @@ defmodule Archethic.Bootstrap.SyncTest do
   @moduletag :capture_log
 
   import Mox
+  import Mock
 
   setup do
     MockClient
@@ -332,14 +334,23 @@ defmodule Archethic.Bootstrap.SyncTest do
     end
   end
 
-  test "load_node_list/0 should request node list from the closest nodes" do
+  test_with_mock "connect_current_node/1 should request node list from the closest nodes and connect to them",
+                 Client,
+                 [:passthrough],
+                 new_connection: fn _, _, _, _, from ->
+                   send(from, :connected)
+                   {:ok, make_ref()}
+                 end,
+                 connected?: fn
+                   "key1" -> true
+                   _ -> false
+                 end do
     node = %Node{
       ip: {80, 10, 101, 202},
       port: 4390,
       http_port: 4000,
       first_public_key: "key1",
       last_public_key: "key1",
-      availability_history: <<1::1>>,
       authorized?: true,
       available?: true,
       authorization_date: DateTime.utc_now(),
@@ -347,7 +358,7 @@ defmodule Archethic.Bootstrap.SyncTest do
       network_patch: "AAA"
     }
 
-    :ok = P2P.add_and_connect_node(node)
+    :ok = P2P.connect_nodes([node])
 
     first_public_key = Crypto.first_node_public_key()
 
@@ -358,43 +369,32 @@ defmodule Archethic.Bootstrap.SyncTest do
       first_public_key: first_public_key,
       last_public_key: Crypto.last_node_public_key(),
       enrollment_date: DateTime.utc_now(),
-      authorized?: false,
+      authorized?: true,
+      available?: true,
       network_patch: "AAA"
     }
 
-    :ok = P2P.add_and_connect_node(node2)
+    node3 = %Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      http_port: 4000,
+      first_public_key: "key2",
+      last_public_key: "key2",
+      authorized?: true,
+      available?: true
+    }
 
     MockClient
     |> stub(:send_message, fn
-      _, %ListNodes{}, _ ->
-        {:ok,
-         %NodeList{
-           nodes: [
-             %Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               http_port: 4000,
-               first_public_key: "key2",
-               last_public_key: "key2"
-             }
-           ]
-         }}
+      _, %ListNodes{authorized_and_available?: true}, _ ->
+        {:ok, %NodeList{nodes: [node, node2, node3]}}
     end)
 
-    assert :ok = Sync.load_node_list()
+    assert {:ok, [^node, ^node2, ^node3]} = Sync.connect_current_node([node])
 
-    assert [
-             %Node{first_public_key: ^first_public_key},
-             %Node{first_public_key: "key1"},
-             %Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               http_port: 4000,
-               first_public_key: "key2",
-               last_public_key: "key2",
-               availability_history: <<2::2>>
-             }
-           ] = P2P.list_nodes()
+    # Called 3 times 2 times with P2P.connect_nodes and 1 time with P2P.quorum
+    assert_called_exactly(Client.connected?("key1"), 3)
+    assert_called(Client.new_connection(:_, :_, :_, "key2", :_))
   end
 
   test "load_storage_nonce/1 should fetch the storage nonce, decrypt it with the node key" do

@@ -121,8 +121,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        availability_history: <<1::1>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       node2 = %Node{
@@ -135,8 +134,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        availability_history: <<1::1>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       node3 = %Node{
@@ -149,8 +147,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        availability_history: <<1::1>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       node4 = %Node{
@@ -163,8 +160,7 @@ defmodule Archethic.BeaconChainTest do
         available?: true,
         authorization_date: summary_time |> DateTime.add(-10),
         authorized?: true,
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        availability_history: <<1::1>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       P2P.add_and_connect_node(node1)

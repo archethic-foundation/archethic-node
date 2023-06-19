@@ -83,13 +83,17 @@ defmodule Archethic.Contracts.Worker do
         {:execute, trigger_tx = %Transaction{}},
         state = %{contract: contract}
       ) do
-    contract_tx = Constants.to_transaction(contract.constants.contract)
+    contract_tx =
+      %Transaction{address: contract_address} =
+      Constants.to_transaction(contract.constants.contract)
 
-    meta = log_metadata(contract_tx, trigger_tx)
+    meta = log_metadata(contract_address, trigger_tx)
     Logger.debug("Contract execution started (trigger=transaction)", meta)
 
-    with true <- enough_funds?(contract_tx.address),
-         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+    nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
+
+    with true <- enough_funds?(contract_address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
          {:ok, next_tx = %Transaction{}} <-
            Interpreter.execute(
              :transaction,
@@ -100,7 +104,7 @@ defmodule Archethic.Contracts.Worker do
              skip_inherit_check?: true
            ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
@@ -119,17 +123,21 @@ defmodule Archethic.Contracts.Worker do
         {:trigger, trigger_type = {:datetime, _}},
         state = %{contract: contract}
       ) do
-    contract_tx = Constants.to_transaction(contract.constants.contract)
+    contract_tx =
+      %Transaction{address: contract_address} =
+      Constants.to_transaction(contract.constants.contract)
 
-    meta = log_metadata(contract_tx)
+    meta = log_metadata(contract_address)
     Logger.debug("Contract execution started (trigger=datetime)", meta)
 
-    with true <- enough_funds?(contract_tx.address),
-         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+    nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
+
+    with true <- enough_funds?(contract_address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
          {:ok, next_tx = %Transaction{}} <-
            Interpreter.execute(trigger_type, contract, nil, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
@@ -148,17 +156,21 @@ defmodule Archethic.Contracts.Worker do
         {:trigger, trigger_type = {:interval, interval}},
         state = %{contract: contract = %Contract{triggers: triggers}}
       ) do
-    contract_tx = Constants.to_transaction(contract.constants.contract)
+    contract_tx =
+      %Transaction{address: contract_address} =
+      Constants.to_transaction(contract.constants.contract)
 
-    meta = log_metadata(contract_tx)
+    meta = log_metadata(contract_address)
     Logger.debug("Contract execution started (trigger=interval)", meta)
 
-    with true <- enough_funds?(contract_tx.address),
-         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+    nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
+
+    with true <- enough_funds?(contract_address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
          {:ok, next_tx = %Transaction{}} <-
            Interpreter.execute(trigger_type, contract, nil, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
@@ -178,18 +190,23 @@ defmodule Archethic.Contracts.Worker do
         {:new_transaction, tx_address, :oracle, _timestamp},
         state = %{contract: contract}
       ) do
-    contract_tx = Constants.to_transaction(contract.constants.contract)
+    contract_tx =
+      %Transaction{address: contract_address} =
+      Constants.to_transaction(contract.constants.contract)
+
     {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
 
-    meta = log_metadata(contract_tx, oracle_tx)
+    meta = log_metadata(contract_address, oracle_tx)
     Logger.debug("Contract execution started (trigger=oracle)", meta)
 
-    with true <- enough_funds?(contract_tx.address),
-         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_tx.address),
+    nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
+
+    with true <- enough_funds?(contract_address),
+         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
          {:ok, next_tx = %Transaction{}} <-
            Interpreter.execute(:oracle, contract, oracle_tx, calls, skip_inherit_check?: true),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_tx.address),
+         :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <- handle_new_transaction(next_tx) do
       Logger.debug("Contract execution success", meta)
     else
@@ -303,7 +320,7 @@ defmodule Archethic.Contracts.Worker do
        ) do
     case get_transaction_seed(prev_tx) do
       {:ok, transaction_seed} ->
-        length = TransactionChain.size(address)
+        length = TransactionChain.get_size(address)
 
         {:ok,
          Transaction.new(
@@ -403,17 +420,17 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  defp log_metadata(contract_tx), do: log_metadata(contract_tx, nil)
+  defp log_metadata(contract_address), do: log_metadata(contract_address, nil)
 
-  defp log_metadata(contract_tx, nil) do
-    [contract: Base.encode16(contract_tx.address)]
+  defp log_metadata(contract_address, nil) do
+    [contract: Base.encode16(contract_address)]
   end
 
-  defp log_metadata(contract_tx, %Transaction{type: type, address: address}) do
+  defp log_metadata(contract_address, %Transaction{type: type, address: address}) do
     [
       transaction_address: Base.encode16(address),
       transaction_type: type,
-      contract: Base.encode16(contract_tx.address)
+      contract: Base.encode16(contract_address)
     ]
   end
 end

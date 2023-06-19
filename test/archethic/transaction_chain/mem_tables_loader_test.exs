@@ -33,7 +33,7 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
                }
                |> MemTablesLoader.load_transaction()
 
-      assert ["@CodeProp1"] = PendingLedger.list_signatures("@CodeProp1")
+      assert ["@CodeProp1"] = PendingLedger.get_signatures("@CodeProp1")
     end
 
     test "should track pending transaction when a smart contract requires conditions is loaded" do
@@ -59,7 +59,7 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
                }
                |> MemTablesLoader.load_transaction()
 
-      assert ["@Contract2"] = PendingLedger.list_signatures("@Contract2")
+      assert ["@Contract2"] = PendingLedger.get_signatures("@Contract2")
     end
 
     test "should track recipients to add signature to pending transaction" do
@@ -89,7 +89,7 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
                }
                |> MemTablesLoader.load_transaction()
 
-      assert ["@CodeProp1", "@CodeApproval1"] = PendingLedger.list_signatures("@CodeProp1")
+      assert ["@CodeProp1", "@CodeApproval1"] = PendingLedger.get_signatures("@CodeProp1")
     end
   end
 
@@ -141,7 +141,7 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
 
       assert {:ok, _} = MemTablesLoader.start_link()
 
-      assert ["@CodeProp1", "@CodeApproval1"] == PendingLedger.list_signatures("@CodeProp1")
+      assert ["@CodeProp1", "@CodeApproval1"] == PendingLedger.get_signatures("@CodeProp1")
     end
   end
 end

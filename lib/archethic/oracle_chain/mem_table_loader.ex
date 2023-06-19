@@ -110,7 +110,7 @@ defmodule Archethic.OracleChain.MemTableLoader do
     |> Crypto.derive_oracle_address(0)
     |> TransactionChain.get_last_address()
     |> elem(0)
-    |> TransactionChain.stream([
+    |> TransactionChain.get([
       :address,
       :type,
       data: [:content],

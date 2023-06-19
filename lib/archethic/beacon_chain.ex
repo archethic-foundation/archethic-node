@@ -290,20 +290,30 @@ defmodule Archethic.BeaconChain do
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
 
     # get the summaries addresses to download per node
-    result =
+    summaries_by_node =
       list_subsets()
       |> Enum.flat_map(&get_summary_address_by_node(date, &1, authorized_nodes))
       |> Enum.reduce(%{}, fn {node, address}, acc ->
         Map.update(acc, node, [address], &[address | &1])
       end)
+      # chunk addresses every 10
+      # [{node1, [10 addresses]}, {node1, [10 other addresses]}, {node2, ...}]
+      |> Enum.flat_map(fn {node, addresses} ->
+        addresses
+        |> Enum.chunk_every(10)
+        |> Enum.map(&{node, &1})
+      end)
 
-      # download the summaries
-      |> Task.async_stream(
+    # download the summaries
+    result =
+      Task.Supervisor.async_stream(
+        TaskSupervisor,
+        summaries_by_node,
         fn {node, addresses} ->
           fetch_beacon_summaries(node, addresses)
         end,
         ordered: false,
-        max_concurrency: 256
+        max_concurrency: System.schedulers_online() * 10
       )
       |> Stream.filter(&match?({:ok, _}, &1))
       |> Stream.map(fn {:ok, summaries} -> summaries end)
@@ -344,7 +354,7 @@ defmodule Archethic.BeaconChain do
     |> Enum.map(fn subset ->
       subset
       |> Election.beacon_storage_nodes(next_summary_date, authorized_nodes)
-      |> Enum.filter(&Node.locally_available?/1)
+      |> Enum.filter(&P2P.node_connected?/1)
       |> P2P.nearest_nodes()
       |> Enum.take(3)
       |> Enum.map(&{&1, subset})
@@ -399,38 +409,26 @@ defmodule Archethic.BeaconChain do
   end
 
   defp fetch_beacon_summaries(node, addresses) do
-    Logger.info(
-      "Self repair start download #{Enum.count(addresses)} summaries on node #{Base.encode16(node.first_public_key)}"
-    )
-
     start_time = System.monotonic_time()
 
-    addresses
-    |> Stream.chunk_every(10)
-    |> Task.async_stream(
-      fn addresses ->
-        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
-          {:ok, %BeaconSummaryList{summaries: summaries}} ->
-            summaries
+    summaries =
+      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+        {:ok, %BeaconSummaryList{summaries: summaries}} ->
+          summaries
 
-          _ ->
-            []
-        end
-      end,
-      on_timeout: :kill_task
+        _ ->
+          []
+      end
+
+    :telemetry.execute(
+      [:archethic, :self_repair, :summaries_fetch],
+      %{
+        duration: System.monotonic_time() - start_time
+      },
+      %{nb_summaries: length(addresses)}
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.flat_map(&elem(&1, 1))
-    |> Enum.to_list()
-    |> tap(fn _ ->
-      :telemetry.execute(
-        [:archethic, :self_repair, :summaries_fetch],
-        %{
-          duration: System.monotonic_time() - start_time
-        },
-        %{nb_summaries: length(addresses)}
-      )
-    end)
+
+    summaries
   end
 
   @doc """
@@ -451,36 +449,37 @@ defmodule Archethic.BeaconChain do
   """
   @spec fetch_summaries_aggregate(DateTime.t(), list(Node.t())) ::
           {:ok, SummaryAggregate.t()} | {:error, :not_exists} | {:error, :network_issue}
-  def fetch_summaries_aggregate(summary_time = %DateTime{}, download_nodes) do
-    storage_nodes =
-      summary_time
-      |> Crypto.derive_beacon_aggregate_address()
-      |> Election.chain_storage_nodes(download_nodes)
-
-    conflict_resolver = fn results ->
-      # Prioritize results over not found
-      with nil <- Enum.find(results, &match?(%SummaryAggregate{}, &1)),
-           nil <- Enum.find(results, &match?(%NotFound{}, &1)) do
-        %NotFound{}
-      else
-        res ->
-          res
-      end
-    end
-
-    case P2P.quorum_read(
-           storage_nodes,
-           %GetBeaconSummariesAggregate{date: summary_time},
-           conflict_resolver
-         ) do
-      {:ok, aggregate = %SummaryAggregate{}} ->
+  def fetch_summaries_aggregate(summary_time = %DateTime{}, nodes) do
+    case get_summaries_aggregate(summary_time) do
+      {:ok, aggregate} ->
         {:ok, aggregate}
 
-      {:ok, %NotFound{}} ->
-        {:error, :not_exists}
+      {:error, _} ->
+        conflict_resolver = fn results ->
+          # Prioritize results over not found
+          with nil <- Enum.find(results, &match?(%SummaryAggregate{}, &1)),
+               nil <- Enum.find(results, &match?(%NotFound{}, &1)) do
+            %NotFound{}
+          else
+            res ->
+              res
+          end
+        end
 
-      {:error, :network_issue} = e ->
-        e
+        case P2P.quorum_read(
+               nodes,
+               %GetBeaconSummariesAggregate{date: summary_time},
+               conflict_resolver
+             ) do
+          {:ok, aggregate = %SummaryAggregate{}} ->
+            {:ok, aggregate}
+
+          {:ok, %NotFound{}} ->
+            {:error, :not_exists}
+
+          {:error, :network_issue} = e ->
+            e
+        end
     end
   end
 

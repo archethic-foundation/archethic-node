@@ -26,6 +26,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
 
+  alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
+
   alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
@@ -349,6 +351,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
       |> stub(:get_availability_timer, fn _, _ -> 0 end)
 
       summary_interval = "*/3 * * * *"
+
+      # This is needed to get network coordinates's task timeout
+      start_supervised!({SelfRepairScheduler, interval: "*/10 * * * *"})
 
       start_supervised!({SummaryTimer, interval: summary_interval})
       start_supervised!({SlotTimer, interval: "*/1 * * * *"})

@@ -133,21 +133,26 @@ defmodule Archethic.Replication do
     start_time = System.monotonic_time()
 
     # Stream the insertion of the chain
+    first_node_key = Crypto.first_node_public_key()
+
     tx
     |> stream_previous_chain(download_nodes)
-    |> Stream.each(fn tx = %Transaction{address: address} ->
+    |> Stream.each(fn tx = %Transaction{address: address, type: type} ->
       TransactionChain.write_transaction(tx)
 
       # There is some case where a transaction is not replicated while it should
       # because of some latency or network issue. So when we replicate a past chain
       # we also ingest the transaction if we are storage node of it
 
-      storage_node? =
-        address
-        |> Election.chain_storage_nodes(download_nodes)
-        |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+      ingest? =
+        if Transaction.network_type?(type),
+          do: true,
+          else:
+            address
+            |> Election.chain_storage_nodes(download_nodes)
+            |> Utils.key_in_node_list?(first_node_key)
 
-      if storage_node?, do: ingest_transaction(tx, false, self_repair?)
+      if ingest?, do: ingest_transaction(tx, false, self_repair?)
     end)
     |> Stream.run()
 
@@ -281,19 +286,7 @@ defmodule Archethic.Replication do
     # Otherwise we check others nodes
     previous_transaction_task =
       Task.Supervisor.async(TaskSupervisor, fn ->
-        case TransactionChain.get_transaction(previous_address) do
-          {:ok, tx = %Transaction{}} ->
-            tx
-
-          {:error, _} ->
-            Logger.debug(
-              "Try to fetch previous transaction (#{Base.encode16(previous_address)}) from remote nodes",
-              transaction_address: Base.encode16(tx.address),
-              transaction_type: tx.type
-            )
-
-            TransactionContext.fetch_transaction(previous_address)
-        end
+        TransactionContext.fetch_transaction(previous_address)
       end)
 
     inputs = fetch_inputs(tx)

@@ -15,7 +15,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @archethic_db_chain_stats :archethic_db_chain_stats
   @archethic_db_last_index :archethic_db_last_index
   @archethic_db_type_stats :archethic_db_type_stats
-  @archetic_db_tx_index_cache Archethic.Db.ChainIndex.LRU
+  @archetic_db_tx_index_cache :chain_index_cache
 
   require Logger
 
@@ -25,11 +25,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
   def init(opts) do
     db_path = Keyword.fetch!(opts, :path)
-
-    ## Start the LRU cache for chain indexes. Default max size is 300 Mb
-    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
-
-    LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
+    Logger.info("Index database at #{db_path}")
 
     :ets.new(@archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
@@ -40,41 +36,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     {:ok, %{db_path: db_path}}
   end
 
-  def code_change("1.0.7", state, _extra) do
-    ## We start the unstarted LRU cache
-    cache_max_size = Application.get_env(:archethic, Archethic.DB.ChainIndex.MaxCacheSize)
-    LRU.start_link(@archetic_db_tx_index_cache, cache_max_size)
-
-    ## We migrate the old ETS table to the LRU cache
-    index = :ets.first(:archethic_db_tx_index)
-    :ok = migrate_lru_cache(index)
+  def code_change("1.0.7", state, _) do
     :ets.delete(:archethic_db_tx_index)
     {:ok, state}
   end
 
-  # Stub clause to avoid crashes on unmatched version
-  def code_change(_, state, _extra) do
+  def code_change(_, state, _) do
     {:ok, state}
-  end
-
-  defp migrate_lru_cache(:"$end_of_table") do
-    :ok
-  end
-
-  defp migrate_lru_cache(index) do
-    case :ets.lookup(:archethic_db_tx_index, index) do
-      [{key, %{size: size, offset: offset, genesis_address: genesis_address}}] ->
-        LRU.put(@archetic_db_tx_index_cache, key, %{
-          size: size,
-          offset: offset,
-          genesis_address: genesis_address
-        })
-
-      _ ->
-        :ok
-    end
-
-    migrate_lru_cache(:ets.next(:archethic_db_tx_index, index))
   end
 
   defp fill_tables(db_path) do
@@ -98,14 +66,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp do_scan_summary_table(fd) do
-    with {:ok, <<current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
+    with {:ok, <<_current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
          hash_size <- Crypto.hash_size(current_hash_type),
-         {:ok, current_digest} <- :file.read(fd, hash_size),
+         {:ok, _current_digest} <- :file.read(fd, hash_size),
          {:ok, <<genesis_curve_id::8, genesis_hash_type::8>>} <- :file.read(fd, 2),
          hash_size <- Crypto.hash_size(genesis_hash_type),
          {:ok, genesis_digest} <- :file.read(fd, hash_size),
-         {:ok, <<size::32, offset::32>>} <- :file.read(fd, 8) do
-      current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
+         {:ok, <<size::32, _offset::32>>} <- :file.read(fd, 8) do
       genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
 
       :ets.update_counter(
@@ -117,13 +84,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         ],
         {genesis_address, 0, 0}
       )
-
-      ## Store each transaction in the LRU cache. If cache is full, the oldest entries will be evicted
-      LRU.put(@archetic_db_tx_index_cache, current_address, %{
-        size: size,
-        offset: offset,
-        genesis_address: genesis_address
-      })
 
       do_scan_summary_table(fd)
     else
@@ -190,13 +150,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       [:binary, :append]
     )
 
-    # Write fast lookup entry for this transaction on LRU cache
-    :ok =
-      LRU.put(@archetic_db_tx_index_cache, tx_address, %{
-        size: size,
-        offset: last_offset,
-        genesis_address: genesis_address
-      })
+    # pre-cache item (when node is not bootstrapping)
+    # so they are already cached when we'll need them
+    add_entry_to_cache(tx_address, %{
+      size: size,
+      offset: last_offset,
+      genesis_address: genesis_address
+    })
 
     :ets.update_counter(
       @archethic_db_chain_stats,
@@ -258,10 +218,14 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   def get_tx_entry(address, db_path) do
     case LRU.get(@archetic_db_tx_index_cache, address) do
       nil ->
-        # If the transaction is not found in the in memory lookup
-        # we scan the index file for the subset of the transaction to find the relative information
-        # This will update the LRU cache if the transaction is found
-        search_tx_entry(address, db_path)
+        case search_tx_entry(address, db_path) do
+          {:ok, entry} ->
+            add_entry_to_cache(address, entry)
+            {:ok, entry}
+
+          {:error, :not_exists} ->
+            {:error, :not_exists}
+        end
 
       entry = %{} ->
         {:ok, entry}
@@ -280,12 +244,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
           {genesis_address, size, offset} ->
             :file.close(fd)
-
-            LRU.put(@archetic_db_tx_index_cache, search_address, %{
-              size: size,
-              offset: offset,
-              genesis_address: genesis_address
-            })
 
             {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
         end
@@ -586,7 +544,16 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         genesis_address
 
       {:error, :not_exists} ->
-        address
+        # If the transaction is not found (the transaction is not storred)
+        # We may be aware if the genesis if the node storred a least one tranaction of this chain
+
+        # :ets.fun2ms(fn {genesis, last_address, _} when last_address == address -> genesis end)
+        match_pattern = [{{:"$1", :"$2", :_}, [{:==, :"$2", address}], [:"$1"]}]
+
+        case :ets.select(@archethic_db_last_index, match_pattern, 1) do
+          :"$end_of_table" -> address
+          genesis_address -> genesis_address
+        end
     end
   end
 
@@ -735,6 +702,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       :eof ->
         :file.close(fd)
         acc
+    end
+  end
+
+  defp add_entry_to_cache(address, entry) do
+    if Archethic.up?() do
+      LRU.put(@archetic_db_tx_index_cache, address, entry)
     end
   end
 

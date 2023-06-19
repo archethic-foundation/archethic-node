@@ -428,7 +428,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to simulate a trigger: datetime" do
       code = """
         @version 1
-        actions triggered_by: datetime, at: 1678984136 do
+        actions triggered_by: datetime, at: 1678984140 do
           Contract.set_content "hello"
         end
       """
@@ -442,7 +442,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute(
-                 {:datetime, ~U[2023-03-16 16:28:56Z]},
+                 {:datetime, ~U[2023-03-16 16:29:00Z]},
                  Contract.from_transaction!(contract_tx),
                  nil,
                  []
