@@ -7,8 +7,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   defstruct [:contract_address, :transaction, :inputs_before]
 
   alias Archethic.Contracts
-  alias Archethic.Election
-  alias Archethic.P2P
+  alias Archethic.Crypto
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -72,6 +71,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
         0, 0, 1, 136, 72, 253, 172, 190
       >>
   """
+
   def serialize(%__MODULE__{
         contract_address: contract_address,
         transaction: tx = %Transaction{},
@@ -150,22 +150,26 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     }
   end
 
+  @spec process(t(), Crypto.key()) :: SmartContractCallValidation.t()
   def process(
         %__MODULE__{
           contract_address: contract_address,
           transaction: transaction = %Transaction{},
-          inputs_before: inputs_before
+          inputs_before: datetime
         },
         _
       ) do
+    # the datetime is used for library function Time.now()
     valid? =
       with {:ok, contract_tx} <- TransactionChain.get_transaction(contract_address),
            {:ok, contract} <- Contracts.from_transaction(contract_tx),
-           nodes <-
-             Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes()),
-           {:ok, calls} <-
-             TransactionChain.fetch_contract_calls(contract_address, nodes, inputs_before) do
-        Contracts.valid_contract_execution?(contract, transaction, calls)
+           true <-
+             Contracts.valid_condition?(:transaction, contract, transaction, datetime),
+           {:ok, _} <-
+             Contracts.execute_trigger(:transaction, contract, transaction, [transaction],
+               time_now: datetime
+             ) do
+        true
       else
         _ ->
           false

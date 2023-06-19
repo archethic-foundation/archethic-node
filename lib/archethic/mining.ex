@@ -3,6 +3,7 @@ defmodule Archethic.Mining do
   Handle the ARCH consensus behavior and transaction mining
   """
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -36,23 +37,33 @@ defmodule Archethic.Mining do
   @spec start(
           transaction :: Transaction.t(),
           welcome_node_public_key :: Crypto.key(),
-          validation_node_public_keys :: list(Crypto.key())
+          validation_node_public_keys :: list(Crypto.key()),
+          contract_context :: nil | Contract.Context.t()
         ) :: {:ok, pid()}
-  def start(tx = %Transaction{}, welcome_node_public_key, [_ | []]) do
+  def start(tx, welcome_node_public_key, validation_nodes_public_keys, contract_context \\ nil)
+
+  def start(tx = %Transaction{}, welcome_node_public_key, [_ | []], contract_context) do
     StandaloneWorkflow.start_link(
       transaction: tx,
-      welcome_node: P2P.get_node_info!(welcome_node_public_key)
+      welcome_node: P2P.get_node_info!(welcome_node_public_key),
+      contract_context: contract_context
     )
   end
 
-  def start(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys)
+  def start(
+        tx = %Transaction{},
+        welcome_node_public_key,
+        validation_node_public_keys,
+        contract_context
+      )
       when is_binary(welcome_node_public_key) and is_list(validation_node_public_keys) do
     DynamicSupervisor.start_child(WorkerSupervisor, {
       DistributedWorkflow,
       transaction: tx,
       welcome_node: P2P.get_node_info!(welcome_node_public_key),
       validation_nodes: Enum.map(validation_node_public_keys, &P2P.get_node_info!/1),
-      node_public_key: Crypto.last_node_public_key()
+      node_public_key: Crypto.last_node_public_key(),
+      contract_context: contract_context
     })
   end
 

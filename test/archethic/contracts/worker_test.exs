@@ -13,8 +13,7 @@ defmodule Archethic.Contracts.WorkerTest do
   alias TransactionData.{Ledger, Ownership, UCOLedger, UCOLedger.Transfer, TokenLedger}
   alias TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
-  import ArchethicCase, only: [setup_before_send_tx: 0]
-
+  import ArchethicCase
   import Mox
 
   @bob_address <<0::16, :crypto.strong_rand_bytes(32)::binary>>
@@ -277,63 +276,6 @@ defmodule Archethic.Contracts.WorkerTest do
       end
     end
 
-    test "should check transaction condition before to execute a transaction trigger code using an incoming transaction",
-         %{
-           constants: constants = %{"address" => contract_address},
-           expected_tx: expected_tx,
-           to: to
-         } do
-      address = Base.encode16(to)
-
-      code = """
-      condition transaction: [
-        content: regex_match?(\"^Mr.Y|Mr.X{1}$\")
-      ]
-
-      condition inherit: [
-        uco_transfers: %{ \"#{address}\" => 1_040_000_000}
-      ]
-
-      actions triggered_by: transaction do
-        set_type transfer
-        add_uco_transfer to: \"#{address}\", amount: 1_040_000_000
-      end
-      """
-
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
-
-      {:ok, _pid} = Worker.start_link(contract)
-
-      Worker.execute(contract_address, %Transaction{
-        address: @bob_address,
-        data: %TransactionData{content: "Mr.X"},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      })
-
-      receive do
-        {:transaction_sent, tx} ->
-          assert tx.address == expected_tx.address
-          assert tx.data.ledger == expected_tx.data.ledger
-          assert tx.data.code == code
-      after
-        3_000 ->
-          raise "Timeout"
-      end
-
-      Worker.execute(contract_address, %Transaction{
-        address: @bob_address,
-        data: %TransactionData{content: "Mr.Z"},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      })
-
-      refute_receive {:transaction_sent, _}
-    end
-
     test "should return a different code if set in the smart contract code", %{
       constants: constants = %{"address" => contract_address},
       expected_tx: expected_tx,
@@ -342,9 +284,7 @@ defmodule Archethic.Contracts.WorkerTest do
       address = Base.encode16(to)
 
       code = ~s"""
-      condition transaction: [
-        content: regex_match?("^Mr.Y|Mr.X{1}$")
-      ]
+      condition transaction: []
 
       condition inherit: [
         uco_transfers: %{ "#{address}" => 1_040_000_000}
@@ -354,9 +294,7 @@ defmodule Archethic.Contracts.WorkerTest do
         set_type transfer
         add_uco_transfer to: "#{address}", amount: 1_040_000_000
         set_code "
-          condition transaction: [
-            content: regex_match?(\\"^Mr.Y|Mr.X{1}$\\")
-          ]
+          condition transaction: []
 
           condition inherit: [
             uco_transfers: %{ \\"#{address}\\" => 9_200_000_000}
@@ -389,9 +327,7 @@ defmodule Archethic.Contracts.WorkerTest do
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
           assert tx.data.code == "
-    condition transaction: [
-      content: regex_match?(\"^Mr.Y|Mr.X{1}$\")
-    ]
+    condition transaction: []
 
     condition inherit: [
       uco_transfers: %{ \"#{address}\" => 9_200_000_000}
@@ -571,6 +507,103 @@ defmodule Archethic.Contracts.WorkerTest do
           assert contract_address == token_address
           assert 0 == token_id
           assert @bob_address == to
+      after
+        3_000 ->
+          raise "Timeout"
+      end
+    end
+
+    test "voting system using get_calls() should trigger a tx after 10 calls", %{
+      constants: constants = %{"address" => contract_address}
+    } do
+      # the contract need uco to be executed
+      Archethic.Account.MemTables.TokenLedger.add_unspent_output(
+        contract_address,
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: "@Bob3",
+            amount: 100_000_000 * 10_000,
+            type: {:token, contract_address, 0},
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+          },
+          protocol_version: ArchethicCase.current_protocol_version()
+        }
+      )
+
+      code = ~S"""
+      @version 1
+
+      condition transaction: [
+        content: Regex.match?("^[X|Y]$")
+      ]
+
+      actions triggered_by: transaction do
+        calls = Contract.get_calls()
+        if List.size(calls) > 9 do
+          vote_for_x = 0
+          vote_for_y = 0
+
+          for call in calls do
+            if Regex.match?(call.content, "X") do
+              vote_for_x = vote_for_x + 1
+            else
+              vote_for_y = vote_for_y + 1
+            end
+          end
+          Contract.set_content "Votes results: X: #{String.from_number(vote_for_x)}; Y: #{String.from_number(vote_for_y)}"
+        end
+      end
+      """
+
+      {:ok, contract} = Interpreter.parse(code)
+
+      contract = %{
+        contract
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
+      }
+
+      {:ok, _} = Worker.start_link(contract)
+
+      # Mock 9 calls
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %StartMining{transaction: tx}, _ ->
+          send(me, {:transaction_sent, tx})
+          {:ok, %Ok{}}
+
+        _, %GetContractCalls{}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: [
+               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
+               %Transaction{address: random_address(), data: %TransactionData{content: "X"}}
+             ]
+           }}
+      end)
+
+      # Execute the 10th
+      Worker.execute(contract_address, %Transaction{
+        address: @bob_address,
+        type: :transfer,
+        data: %TransactionData{
+          content: "X",
+          recipients: [contract_address]
+        },
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      })
+
+      receive do
+        {:transaction_sent, %Transaction{data: %TransactionData{content: content}}} ->
+          assert ^content = "Votes results: X: 6; Y: 4"
       after
         3_000 ->
           raise "Timeout"

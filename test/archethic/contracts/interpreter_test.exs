@@ -187,7 +187,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
   end
 
-  describe "execute/3" do
+  describe "execute_trigger/4" do
     test "should return a transaction if the contract is correct and there was a Contract.* call" do
       code = """
         @version 1
@@ -211,7 +211,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, %Transaction{}} =
-               Interpreter.execute(
+               Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
@@ -244,124 +244,12 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, nil} =
-               Interpreter.execute(
+               Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  [incoming_tx]
                )
-    end
-
-    test "should return inherit constraints error when condition inherit fails" do
-      code = """
-        @version 1
-        condition inherit: [
-          content: "hello",
-          type: "data"
-        ]
-
-        condition transaction: []
-
-        actions triggered_by: transaction do
-          Contract.set_content "hello"
-        end
-      """
-
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
-
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
-
-      assert match?(
-               {:error, :invalid_inherit_constraints},
-               Interpreter.execute(
-                 :transaction,
-                 Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 [incoming_tx]
-               )
-             )
-    end
-
-    test "should return transaction constraints error when condition transaction fails" do
-      code = """
-        @version 1
-        condition transaction: [
-          type: "data"
-        ]
-
-        actions triggered_by: transaction do
-          Contract.set_content "hello"
-        end
-      """
-
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
-
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
-
-      assert match?(
-               {:error, :invalid_transaction_constraints},
-               Interpreter.execute(
-                 :transaction,
-                 Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 [incoming_tx]
-               )
-             )
-    end
-
-    test "should return oracle constraints error when condition oracle fails" do
-      code = """
-        @version 1
-        condition oracle: [
-          type: "oracle",
-          address: false
-        ]
-
-        actions triggered_by: oracle do
-          Contract.set_content "hello"
-        end
-      """
-
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
-
-      oracle_tx = %Transaction{
-        type: :oracle,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
-
-      assert match?(
-               {:error, :invalid_oracle_constraints},
-               Interpreter.execute(
-                 :oracle,
-                 Contract.from_transaction!(contract_tx),
-                 oracle_tx,
-                 [oracle_tx]
-               )
-             )
     end
 
     test "should return contract_failure if contract code crash" do
@@ -390,7 +278,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert match?(
                {:error, :contract_failure},
-               Interpreter.execute(
+               Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
@@ -416,7 +304,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert match?(
                {:error, :contract_failure},
-               Interpreter.execute(
+               Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
@@ -441,8 +329,8 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, %Transaction{}} =
-               Interpreter.execute(
-                 {:datetime, ~U[2023-03-16 16:29:00Z]},
+               Interpreter.execute_trigger(
+                 {:datetime, ~U[2023-03-16 16:28:00Z]},
                  Contract.from_transaction!(contract_tx),
                  nil,
                  []
@@ -465,7 +353,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, %Transaction{}} =
-               Interpreter.execute(
+               Interpreter.execute_trigger(
                  {:interval, "* * * * *"},
                  Contract.from_transaction!(contract_tx),
                  nil,
@@ -496,7 +384,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, %Transaction{}} =
-               Interpreter.execute(
+               Interpreter.execute_trigger(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
                  oracle_tx,
@@ -544,7 +432,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       ]
 
       assert {:ok, %Transaction{data: %TransactionData{content: "4"}}} =
-               Interpreter.execute(
+               Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,

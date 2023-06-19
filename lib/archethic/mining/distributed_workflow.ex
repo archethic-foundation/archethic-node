@@ -163,6 +163,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     validation_nodes = Keyword.get(opts, :validation_nodes)
     node_public_key = Keyword.get(opts, :node_public_key)
     timeout = Keyword.get(opts, :timeout, get_mining_timeout(tx.type))
+    contract_context = Keyword.get(opts, :contract_context)
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
@@ -172,7 +173,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     next_events = [
-      {:next_event, :internal, {:start_mining, tx, welcome_node, validation_nodes}},
+      {:next_event, :internal,
+       {:start_mining, tx, welcome_node, validation_nodes, contract_context}},
       {:next_event, :internal, :prior_validation}
     ]
 
@@ -184,7 +186,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
      }, next_events}
   end
 
-  def handle_event(:internal, {:start_mining, tx, welcome_node, validation_nodes}, :idle, data) do
+  def handle_event(
+        :internal,
+        {:start_mining, tx, welcome_node, validation_nodes, contract_context},
+        :idle,
+        data
+      ) do
     validation_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
@@ -221,7 +228,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
         beacon_storage_nodes: beacon_storage_nodes,
         io_storage_nodes: io_storage_nodes,
         validation_time: validation_time,
-        resolved_addresses: resolved_addresses
+        resolved_addresses: resolved_addresses,
+        contract_context: contract_context
       )
 
     {:keep_state, Map.put(data, :context, context)}

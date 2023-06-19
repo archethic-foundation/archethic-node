@@ -27,6 +27,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
           | :invalid_inherit_constraints
           | :insufficient_funds
           | :invalid_contract_execution
+          | :invalid_recipients_execution
 
   @typedoc """
   Validation performed by a coordinator:
@@ -374,10 +375,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   defp serialize_error(:invalid_inherit_constraints), do: 2
   defp serialize_error(:insufficient_funds), do: 3
   defp serialize_error(:invalid_contract_execution), do: 4
+  defp serialize_error(:invalid_recipients_execution), do: 5
 
   defp deserialize_error(0), do: nil
   defp deserialize_error(1), do: :invalid_pending_transaction
   defp deserialize_error(2), do: :invalid_inherit_constraints
   defp deserialize_error(3), do: :insufficient_funds
   defp deserialize_error(4), do: :invalid_contract_execution
+  defp deserialize_error(5), do: :invalid_recipients_execution
 end

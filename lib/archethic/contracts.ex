@@ -9,15 +9,14 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
-  alias __MODULE__.Worker
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker, as: CronDateChecker
 
+  alias Archethic.Election
+  alias Archethic.P2P
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-
-  alias Archethic.Contracts.ContractConstants, as: Constants
 
   require Logger
 
@@ -40,11 +39,20 @@ defmodule Archethic.Contracts do
   end
 
   @doc """
-  Execute a contract retrieved from its address with an incoming transaction
-  and validate it according to the smart contract conditions
+  Execute the contract trigger.
   """
-  @spec execute(binary(), Transaction.t()) :: :ok | {:error, :invalid_condition}
-  defdelegate execute(address, tx), to: Worker
+  @spec execute_trigger(
+          Contract.trigger_type(),
+          Contract.t(),
+          nil | Transaction.t(),
+          [Transaction.t()],
+          Keyword.t()
+        ) ::
+          {:ok, nil | Transaction.t()}
+          | {:error, :contract_failure | :invalid_triggers_execution}
+  defdelegate execute_trigger(trigger_type, contract, maybe_trigger_tx, calls, opts \\ []),
+    to: Interpreter,
+    as: :execute_trigger
 
   @doc """
   Load transaction into the Smart Contract context leveraging the interpreter
@@ -52,86 +60,143 @@ defmodule Archethic.Contracts do
   @spec load_transaction(Transaction.t(), list()) :: :ok
   defdelegate load_transaction(tx, opts), to: Loader
 
-  @spec accept_new_contract?(Transaction.t() | nil, Transaction.t(), DateTime.t()) :: boolean()
-  def accept_new_contract?(nil, _, _), do: true
-  def accept_new_contract?(%Transaction{data: %TransactionData{code: ""}}, _, _), do: true
+  @doc """
+  Validate an execution by re-executing the contract & comparing both transactions.
+  They should have the same type & data
 
-  def accept_new_contract?(
-        prev_tx = %Transaction{data: %TransactionData{code: code}},
-        next_tx = %Transaction{},
-        date = %DateTime{}
+  ps: this function is called in the Validation Workflow so next_tx.validation_stamp is nil
+  """
+  def valid_execution?(
+        prev_tx = %Transaction{address: previous_address},
+        _next_tx = %Transaction{type: next_tx_type, data: next_tx_data},
+        %Contract.Context{
+          trigger_type: trigger_type,
+          trigger: trigger,
+          timestamp: timestamp,
+          status: status
+        }
       ) do
-    {:ok,
-     %Contract{
-       version: version,
-       triggers: triggers,
-       conditions: conditions
-     }} = Interpreter.parse(code)
+    nodes = Election.chain_storage_nodes(previous_address, P2P.authorized_and_available_nodes())
 
-    with :ok <- validate_conditions(version, conditions, prev_tx, next_tx),
-         :ok <- validate_triggers(triggers, next_tx, date) do
-      true
+    with :ok <- validate_trigger(trigger_type, trigger, timestamp),
+         {:ok, contract} <- Interpreter.parse_transaction(prev_tx),
+         {:ok, calls} <-
+           TransactionChain.fetch_contract_calls(previous_address, nodes) do
+      case execute_trigger(
+             trigger_type,
+             contract,
+             trigger_to_maybe_trigger_tx(trigger),
+             calls,
+             trigger_to_execute_opts(trigger)
+           ) do
+        {:ok, %Transaction{type: expected_type, data: expected_data}} ->
+          status == :tx_output &&
+            next_tx_type == expected_type &&
+            next_tx_data == expected_data
+
+        {:ok, nil} ->
+          status == :no_output
+
+        {:error, _} ->
+          status == :failure
+      end
     else
-      {:error, _} ->
+      _ ->
         false
     end
+  rescue
+    err ->
+      IO.inspect(Exception.format(:error, err, __STACKTRACE__))
+      Logger.warn(Exception.format(:error, err, __STACKTRACE__))
+      false
   end
 
-  defp validate_conditions(version, conditions, prev_tx, next_tx) do
-    # here we only check that next_tx is allowed based on prev_tx inherit conditions
-    case Map.get(conditions, :inherit) do
+  # In the case of a trigger oracle/transaction,
+  # we need to fetch the transaction
+  defp trigger_to_maybe_trigger_tx({type, address}) when type in [:oracle, :transaction] do
+    {:ok, trigger_tx} = Archethic.search_transaction(address)
+    trigger_tx
+  end
+
+  defp trigger_to_maybe_trigger_tx(_), do: nil
+
+  # In the case of a trigger interval,
+  # because of the delay between execution and validation,
+  # we override the value returned by library function Time.now()
+  defp trigger_to_execute_opts({:interval, datetime}), do: [time_now: datetime]
+  defp trigger_to_execute_opts(_), do: []
+
+  @doc """
+  Validate any kind of condition.
+  The transaction and datetime depends on the condition.
+  """
+  @spec valid_condition?(
+          :oracle | :transaction | :inherit,
+          Contract.t(),
+          Transaction.t(),
+          DateTime.t()
+        ) :: boolean()
+  def valid_condition?(
+        condition_type,
+        contract = %Contract{version: version},
+        transaction = %Transaction{},
+        datetime
+      ) do
+    case get_condition(condition_type, contract) do
       nil ->
-        :ok
+        true
 
-      inherit_conditions ->
-        constants = %{
-          "previous" => Constants.from_transaction(prev_tx),
-          "next" => Constants.from_transaction(next_tx)
-        }
-
-        if Interpreter.valid_conditions?(version, inherit_conditions, constants) do
-          :ok
-        else
-          Logger.error("Inherit constraints not respected")
-          {:error, :invalid_inherit_constraints}
-        end
+      condition ->
+        constants = get_condition_constants(condition_type, contract, transaction, datetime)
+        Interpreter.valid_conditions?(version, condition, constants)
     end
   end
 
-  defp validate_triggers(triggers, _next_tx, _date) when map_size(triggers) == 0, do: :ok
+  defp validate_trigger({:datetime, datetime}, _trigger, trigger_datetime) do
+    now = DateTime.utc_now()
 
-  defp validate_triggers(triggers, next_tx, date) do
-    if Enum.any?(triggers, fn {trigger_type, _} ->
-         valid_from_trigger?(trigger_type, next_tx, date)
-       end) do
+    # Accept time drifting for 10seconds
+    if DateTime.diff(trigger_datetime, datetime) >= 0 and
+         DateTime.diff(trigger_datetime, datetime) < 10 and
+         DateTime.diff(now, trigger_datetime) >= 0 and
+         DateTime.diff(now, trigger_datetime) < 10 do
       :ok
     else
-      Logger.error("Transaction not processed by a valid smart contract trigger")
-      {:error, :invalid_triggers_execution}
+      :invalid_triggers_execution
     end
   end
 
-  defp valid_from_trigger?(
-         {:datetime, datetime},
-         %Transaction{},
-         validation_date = %DateTime{}
-       ) do
-    # Accept time drifing for 10seconds
-    DateTime.diff(validation_date, datetime) >= 0 and
-      DateTime.diff(validation_date, datetime) < 10
+  defp validate_trigger({:interval, interval}, {:interval, interval_datetime}, trigger_datetime) do
+    now = DateTime.utc_now()
+
+    matches_date? =
+      interval
+      |> CronParser.parse!(@extended_mode?)
+      |> CronDateChecker.matches_date?(DateTime.to_naive(interval_datetime))
+
+    # Accept time drifting for 10seconds
+    if matches_date? &&
+         DateTime.diff(trigger_datetime, interval_datetime) >= 0 and
+         DateTime.diff(trigger_datetime, interval_datetime) < 10 and
+         DateTime.diff(now, trigger_datetime) >= 0 and
+         DateTime.diff(now, trigger_datetime) < 10 do
+      :ok
+    else
+      :invalid_triggers_execution
+    end
   end
 
-  defp valid_from_trigger?(
-         {:interval, interval},
-         %Transaction{},
-         validation_date = %DateTime{}
-       ) do
-    interval
-    |> CronParser.parse!(@extended_mode?)
-    |> CronDateChecker.matches_date?(DateTime.to_naive(validation_date))
+  defp validate_trigger(:transaction, {:transaction, _address}, _) do
+    # maybe check address exist and contain the contract in the recipients?
+    :ok
   end
 
-  defp valid_from_trigger?(_, _, _), do: true
+  defp validate_trigger(:oracle, {:oracle, _address}, _) do
+    # maybe check that it is the last available oracle?
+    :ok
+  end
+
+  defp validate_trigger(_, _, _), do: :invalid_triggers_execution
 
   @doc """
   List the address of the transaction which has contacted a smart contract
@@ -152,23 +217,43 @@ defmodule Archethic.Contracts do
   defdelegate stop_contract(address), to: Loader
 
   @doc """
-  Determines if the contract's execution is valid for the given transaction
-  """
-  @spec valid_contract_execution?(Contract.t(), Transaction.t(), list(Transaction.t())) ::
-          boolean()
-  def valid_contract_execution?(contract = %Contract{}, tx = %Transaction{}, calls \\ []) do
-    case Interpreter.execute(:transaction, contract, tx, [tx | calls]) do
-      {:ok, _} ->
-        true
-
-      _ ->
-        false
-    end
-  end
-
-  @doc """
   Returns a contract instance from a transaction
   """
   @spec from_transaction(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
   defdelegate from_transaction(tx), to: Contract, as: :from_transaction
+
+  defp get_condition_constants(
+         :inherit,
+         %Contract{constants: %Constants{contract: contract_constant}},
+         transaction,
+         datetime
+       ) do
+    %{
+      "previous" => contract_constant,
+      "next" => Constants.from_transaction(transaction),
+      "_time_now" => DateTime.to_unix(datetime)
+    }
+  end
+
+  defp get_condition_constants(
+         _,
+         %Contract{constants: %Constants{contract: contract_constant}},
+         transaction,
+         datetime
+       ) do
+    %{
+      "transaction" => Constants.from_transaction(transaction),
+      "contract" => contract_constant,
+      "_time_now" => DateTime.to_unix(datetime)
+    }
+  end
+
+  defp get_condition(:oracle, %Contract{conditions: conditions}),
+    do: Map.fetch!(conditions, :oracle)
+
+  defp get_condition(:transaction, %Contract{conditions: conditions}),
+    do: Map.fetch!(conditions, :transaction)
+
+  defp get_condition(:inherit, %Contract{conditions: conditions}),
+    do: Map.get(conditions, :inherit)
 end

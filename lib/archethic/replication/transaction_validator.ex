@@ -4,6 +4,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.Bootstrap
 
   alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
 
   alias Archethic.DB
 
@@ -20,6 +21,7 @@ defmodule Archethic.Replication.TransactionValidator do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionInput
@@ -57,21 +59,33 @@ defmodule Archethic.Replication.TransactionValidator do
           :ok | {:error, error()}
   def validate(tx = %Transaction{}, previous_transaction, inputs) do
     with :ok <- valid_transaction(tx, inputs, true),
-         :ok <- validate_inheritance(tx, previous_transaction) do
+         :ok <- validate_inheritance(previous_transaction, tx) do
       validate_chain(tx, previous_transaction)
     end
   end
 
+  # it is fine to assume validation_stamp is valid because this step is done after validate_validation_stamp
   defp validate_inheritance(
-         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
-         prev_tx
+         prev_tx = %Transaction{data: %TransactionData{code: code}},
+         next_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}}
+       )
+       when code != "" do
+    if Contracts.valid_condition?(
+         :inherit,
+         Contract.from_transaction!(prev_tx),
+         next_tx,
+         validation_time
        ) do
-    if Contracts.accept_new_contract?(prev_tx, tx, timestamp) do
       :ok
     else
       {:error, :invalid_contract_acceptance}
     end
   end
+
+  # handle case:
+  # - no prev tx
+  # - prev tx has no inherit condition
+  defp validate_inheritance(_prev_tx, _next_tx), do: :ok
 
   defp validate_chain(tx, prev_tx) do
     if TransactionChain.valid?([tx, prev_tx]) do
