@@ -15,6 +15,7 @@ defmodule Archethic.Mining do
   alias __MODULE__.WorkflowRegistry
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.ReplicationError
 
   alias Archethic.TransactionChain.Transaction
@@ -104,7 +105,7 @@ defmodule Archethic.Mining do
         io_storage_nodes_view
       ) do
     tx_address
-    |> get_mining_process!()
+    |> get_mining_process!(Message.get_max_timeout())
     |> DistributedWorkflow.add_mining_context(
       validation_node_public_key,
       P2P.get_nodes_info(previous_storage_nodes_keys),
@@ -199,7 +200,7 @@ defmodule Archethic.Mining do
   end
 
   defp get_mining_process!(tx_address, timeout \\ 3_000) do
-    retry_while with: exponential_backoff(100, 2) |> expiry(timeout) do
+    retry_while with: constant_backoff(100) |> expiry(timeout) do
       case Registry.lookup(WorkflowRegistry, tx_address) do
         [{pid, _}] ->
           {:halt, pid}
