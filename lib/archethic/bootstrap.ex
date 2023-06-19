@@ -98,27 +98,9 @@ defmodule Archethic.Bootstrap do
         reward_address
       )
       when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
-    network_patch =
-      case P2P.get_node_info(Crypto.first_node_public_key()) do
-        {:ok, %Node{network_patch: patch}} ->
-          patch
+    network_patch = get_network_patch(ip)
 
-        _ ->
-          P2P.get_geo_patch(ip)
-      end
-
-    node_first_public_key = Crypto.first_node_public_key()
-
-    closest_bootstrapping_nodes =
-      case bootstrapping_seeds do
-        [%Node{first_public_key: ^node_first_public_key}] ->
-          bootstrapping_seeds
-
-        nodes ->
-          P2P.connect_nodes(nodes)
-          {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(nodes, network_patch)
-          closest_nodes
-      end
+    closest_bootstrapping_nodes = get_closest_nodes(bootstrapping_seeds, network_patch)
 
     if should_bootstrap?(ip, port, http_port, transport, last_sync_date) do
       start_bootstrap(
@@ -134,6 +116,36 @@ defmodule Archethic.Bootstrap do
     post_bootstrap(closest_bootstrapping_nodes)
 
     Logger.info("Bootstrapping finished!")
+  end
+
+  defp get_network_patch(ip) do
+    case P2P.get_node_info(Crypto.first_node_public_key()) do
+      {:ok, %Node{network_patch: patch}} ->
+        patch
+
+      _ ->
+        P2P.get_geo_patch(ip)
+    end
+  end
+
+  defp get_closest_nodes(bootstrapping_seeds, network_patch) do
+    node_first_public_key = Crypto.first_node_public_key()
+
+    case bootstrapping_seeds do
+      [%Node{first_public_key: ^node_first_public_key}] ->
+        bootstrapping_seeds
+
+      nodes ->
+        P2P.connect_nodes(nodes)
+
+        case Sync.get_closest_nodes_and_renew_seeds(nodes, network_patch) do
+          {:ok, closest_nodes} when closest_nodes != [] ->
+            closest_nodes
+
+          _ ->
+            []
+        end
+    end
   end
 
   defp should_bootstrap?(_ip, _port, _http_port, _, nil), do: true
@@ -220,7 +232,7 @@ defmodule Archethic.Bootstrap do
   defp post_bootstrap(closest_bootstrapping_nodes) do
     last_sync_date = SelfRepair.last_sync_date()
 
-    if SelfRepair.missed_sync?(last_sync_date) do
+    if SelfRepair.missed_sync?(last_sync_date) and closest_bootstrapping_nodes != [] do
       Logger.info("Synchronization started")
       # Always load the current node list to have the current view for downloading transaction
       {:ok, current_nodes} = Sync.connect_current_node(closest_bootstrapping_nodes)
@@ -286,6 +298,10 @@ defmodule Archethic.Bootstrap do
     :ok = Sync.load_storage_nonce(closest_bootstrapping_nodes)
 
     Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
+  end
+
+  defp update_node(_ip, _port, _http_port, _transport, [], _reward_address) do
+    Logger.warning("Not enough nodes in the network. No node update")
   end
 
   defp update_node(ip, port, http_port, transport, closest_bootstrapping_nodes, reward_address) do
