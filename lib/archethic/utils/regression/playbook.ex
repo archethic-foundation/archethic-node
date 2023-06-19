@@ -135,6 +135,55 @@ defmodule Archethic.Utils.Regression.Playbook do
     end
   end
 
+  def get_transaction_fee(
+        transaction_seed,
+        tx_type,
+        transaction_data = %TransactionData{},
+        host,
+        port,
+        curve \\ Crypto.default_curve(),
+        proto \\ :http
+      ) do
+    chain_length = get_chain_size(transaction_seed, curve, host, port)
+
+    {previous_public_key, previous_private_key} =
+      Crypto.derive_keypair(transaction_seed, chain_length, curve)
+
+    {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
+
+    genesis_origin_private_key = get_origin_private_key(host, port, proto)
+
+    tx =
+      %Transaction{
+        address: Crypto.derive_address(next_public_key),
+        type: tx_type,
+        data: transaction_data,
+        previous_public_key: previous_public_key
+      }
+      |> Transaction.previous_sign_transaction_with_key(previous_private_key)
+      |> Transaction.origin_sign_transaction(genesis_origin_private_key)
+
+    true =
+      Crypto.verify?(
+        tx.previous_signature,
+        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(),
+        tx.previous_public_key
+      )
+
+    case WebClient.with_connection(
+           host,
+           port,
+           &WebClient.json(&1, "/api/transaction_fee", tx_to_json(tx)),
+           proto
+         ) do
+      {:ok, _transaction_fee} = transaction_fee ->
+        transaction_fee
+
+      _ ->
+        :error
+    end
+  end
+
   defp get_origin_private_key(host, port, proto) do
     body = %{
       "origin_public_key" => Base.encode16(@genesis_origin_public_key)
