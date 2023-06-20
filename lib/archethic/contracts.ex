@@ -152,7 +152,7 @@ defmodule Archethic.Contracts do
   end
 
   defp validate_trigger({:datetime, datetime}, _trigger, trigger_datetime) do
-    if is_within_drift_tolerance(trigger_datetime, datetime) do
+    if within_drift_tolerance?(trigger_datetime, datetime) do
       :ok
     else
       :invalid_triggers_execution
@@ -165,7 +165,7 @@ defmodule Archethic.Contracts do
       |> CronParser.parse!(@extended_mode?)
       |> CronDateChecker.matches_date?(DateTime.to_naive(interval_datetime))
 
-    if matches_date? && is_within_drift_tolerance(trigger_datetime, interval_datetime) do
+    if matches_date? && within_drift_tolerance?(trigger_datetime, interval_datetime) do
       :ok
     else
       :invalid_triggers_execution
@@ -186,13 +186,9 @@ defmodule Archethic.Contracts do
 
   # trigger_datetime: practical date of trigger
   # datetime: theoretical date of trigger
-  defp is_within_drift_tolerance(trigger_datetime, datetime) do
-    now = DateTime.utc_now()
-
+  defp within_drift_tolerance?(trigger_datetime, datetime) do
     DateTime.diff(trigger_datetime, datetime) >= 0 and
-      DateTime.diff(trigger_datetime, datetime) < 10 and
-      DateTime.diff(now, trigger_datetime) >= 0 and
-      DateTime.diff(now, trigger_datetime) < 10
+      DateTime.diff(trigger_datetime, datetime) < 10
   end
 
   @doc """

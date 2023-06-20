@@ -330,7 +330,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
-                 {:datetime, ~U[2023-03-16 16:28:00Z]},
+                 {:datetime, ~U[2023-03-16 16:29:00Z]},
                  Contract.from_transaction!(contract_tx),
                  nil,
                  []
