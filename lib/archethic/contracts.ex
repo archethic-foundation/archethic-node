@@ -17,6 +17,7 @@ defmodule Archethic.Contracts do
   alias Archethic.P2P
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   require Logger
 
@@ -66,6 +67,19 @@ defmodule Archethic.Contracts do
 
   ps: this function is called in the Validation Workflow so next_tx.validation_stamp is nil
   """
+  def valid_execution?(
+        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        _next_tx = %Transaction{},
+        _contract_context = nil
+      )
+      when code != "" do
+    # only contract without triggers are allowed to NOT have a Contract.Context
+    case from_transaction(prev_tx) do
+      {:ok, %Contract{triggers: %{}}} -> true
+      _ -> false
+    end
+  end
+
   def valid_execution?(
         prev_tx = %Transaction{address: previous_address},
         _next_tx = %Transaction{type: next_tx_type, data: next_tx_data},
