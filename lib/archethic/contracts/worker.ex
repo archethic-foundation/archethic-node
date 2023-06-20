@@ -107,7 +107,6 @@ defmodule Archethic.Contracts.Worker do
          :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <-
            handle_new_transaction(
-             :transaction,
              {:transaction, trigger_tx_address},
              next_tx,
              trigger_datetime
@@ -145,7 +144,7 @@ defmodule Archethic.Contracts.Worker do
            Contracts.execute_trigger(trigger_type, contract, nil, calls),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_address),
-         :ok <- handle_new_transaction(trigger_type, trigger_type, next_tx, trigger_datetime) do
+         :ok <- handle_new_transaction(trigger_type, next_tx, trigger_datetime) do
       Logger.debug("Contract execution success", meta)
     else
       {:ok, nil} ->
@@ -182,8 +181,7 @@ defmodule Archethic.Contracts.Worker do
          :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <-
            handle_new_transaction(
-             trigger_type,
-             {:interval, interval_datetime},
+             {:interval, interval, interval_datetime},
              next_tx,
              trigger_datetime
            ) do
@@ -225,7 +223,7 @@ defmodule Archethic.Contracts.Worker do
            {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
            :ok <- ensure_enough_funds(next_tx, contract_address),
            :ok <-
-             handle_new_transaction(:oracle, {:oracle, tx_address}, next_tx, trigger_datetime) do
+             handle_new_transaction({:oracle, tx_address}, next_tx, trigger_datetime) do
         Logger.debug("Contract execution success", meta)
       else
         {:ok, nil} ->
@@ -293,7 +291,6 @@ defmodule Archethic.Contracts.Worker do
   defp schedule_trigger(_trigger_type, _triggers_type), do: :ok
 
   defp handle_new_transaction(
-         trigger_type,
          trigger,
          next_transaction = %Transaction{},
          trigger_datetime
@@ -304,7 +301,6 @@ defmodule Archethic.Contracts.Worker do
     contract_context = %Contract.Context{
       status: :tx_output,
       trigger: trigger,
-      trigger_type: trigger_type,
       timestamp: trigger_datetime
     }
 

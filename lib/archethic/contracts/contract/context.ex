@@ -3,13 +3,13 @@ defmodule Archethic.Contracts.Contract.Context do
   A structure to pass around between nodes that contains details about the contract execution.
   """
 
-  alias Archethic.Contracts.Contract
+  alias Archethic.Crypto
+  alias Archethic.Utils
 
-  @enforce_keys [:status, :trigger, :trigger_type, :timestamp]
+  @enforce_keys [:status, :trigger, :timestamp]
   defstruct [
     :status,
     :trigger,
-    :trigger_type,
     :timestamp
   ]
 
