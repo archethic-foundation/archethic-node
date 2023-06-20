@@ -77,7 +77,7 @@ FROM elixir:1.14.1-alpine
 ARG USER_ID 
 ARG GROUP_ID
 
-RUN apk add --no-cache --update bash git openssl libsodium libexecinfo
+RUN apk add --no-cache --update bash git openssl libsodium libexecinfo miniupnpc
 
 COPY --from=build /opt/app /opt/app
 COPY --from=build /opt/code/.git /opt/code/.git
