@@ -194,7 +194,7 @@ defmodule Archethic.ContractsTest do
   end
 
   describe "valid_execution?/3" do
-    setup_with_mocks([{TransactionChain, [], fetch_contract_calls: fn _, _ -> {:ok, []} end}]) do
+    setup_with_mocks([{TransactionChain, [], fetch_contract_calls: fn _, _, _ -> {:ok, []} end}]) do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -239,13 +239,12 @@ defmodule Archethic.ContractsTest do
 
       contract_context = %Contract.Context{
         trigger: {:datetime, now},
-        trigger_type: {:datetime, now},
         status: :tx_output,
         timestamp: now
       }
 
       assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-      assert_called(TransactionChain.fetch_contract_calls(:_, :_))
+      assert_called(TransactionChain.fetch_contract_calls(:_, :_, :_))
     end
 
     test "should return false when the transaction have been triggered by datetime but timestamp doesn't match" do
@@ -320,7 +319,7 @@ defmodule Archethic.ContractsTest do
       }
 
       assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-      assert_called(TransactionChain.fetch_contract_calls(:_, :_))
+      assert_called(TransactionChain.fetch_contract_calls(:_, :_, :_))
     end
 
     test "should return false when the transaction have been triggered by interval but timestamp doesn't match" do
