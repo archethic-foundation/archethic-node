@@ -38,9 +38,16 @@ RUN apk add --no-cache --update \
   libexecinfo-dev \
   gmp-dev
 
+# https://github.com/cargosense/dart_sass#compatibility-with-alpine-linux-mix-sass-default-exited-with-2
+ENV GLIBC_VERSION=2.34-r0
+RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub &&
+  wget -q -O /tmp/glibc.apk https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VERSION}/glibc-${GLIBC_VERSION}.apk &&
+  apk add --force-overwrite /tmp/glibc.apk &&
+  rm -rf /tmp/glibc.apk
+
 # Install hex and rebar
-RUN mix local.rebar --force \
-  && mix local.hex --if-missing --force
+RUN mix local.rebar --force &&
+  mix local.hex --if-missing --force
 
 WORKDIR /opt/code
 
@@ -49,21 +56,24 @@ COPY mix.exs mix.lock ./
 COPY config ./config
 RUN mix do deps.get, deps.compile
 
-COPY . .
-
 # build assets
+COPY priv ./priv
+COPY assets ./assets
 RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error
 
-RUN git config user.name aebot \
-  && git config user.email aebot@archethic.net \
-  && git remote add origin https://github.com/archethic-foundation/archethic-node
+COPY . .
+
+RUN git config user.name aebot &&
+  git config user.email aebot@archethic.net &&
+  git remote add origin https://github.com/archethic-foundation/archethic-node
 
 # build release
+RUN mix assets.saas
 RUN mix assets.deploy
 RUN MIX_ENV=${MIX_ENV} mix distillery.release
 # Install
-RUN mkdir -p /opt/app \
-  && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz -C  /opt/app
+RUN mkdir -p /opt/app &&
+  tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz -C /opt/app
 CMD /opt/app/bin/archethic_node foreground
 
 ################################################################################
@@ -75,7 +85,7 @@ FROM elixir:1.14.1-alpine
 ARG USER_ID
 ARG GROUP_ID
 
-RUN apk add --no-cache --update bash git openssl libsodium libexecinfo
+RUN apk add --no-cache --update bash git openssl libsodium libexecinfo miniupnpc
 
 COPY --from=build /opt/app /opt/app
 COPY --from=build /opt/code/.git /opt/code/.git
