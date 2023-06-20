@@ -144,7 +144,7 @@ defmodule Archethic.Utils.Regression.Playbook do
         curve \\ Crypto.default_curve(),
         proto \\ :http
       ) do
-    chain_length = get_chain_size(transaction_seed, curve, host, port)
+    chain_length = get_chain_size(transaction_seed, curve, host, port, proto)
 
     {previous_public_key, previous_private_key} =
       Crypto.derive_keypair(transaction_seed, chain_length, curve)
@@ -179,8 +179,8 @@ defmodule Archethic.Utils.Regression.Playbook do
       {:ok, _transaction_fee} = transaction_fee ->
         transaction_fee
 
-      _ ->
-        :error
+      error ->
+        error
     end
   end
 
