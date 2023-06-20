@@ -7,7 +7,6 @@ defmodule Archethic do
   alias Archethic.BeaconChain
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Interpreter
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
@@ -378,8 +377,8 @@ defmodule Archethic do
   """
   @spec parse_contract(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
   defdelegate parse_contract(contract_tx),
-    to: Interpreter,
-    as: :parse_transaction
+    to: Contracts,
+    as: :from_transaction
 
   @doc """
   Execute the contract trigger.
