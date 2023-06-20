@@ -40,8 +40,6 @@ defmodule Archethic.Mining do
           validation_node_public_keys :: list(Crypto.key()),
           contract_context :: nil | Contract.Context.t()
         ) :: {:ok, pid()}
-  def start(tx, welcome_node_public_key, validation_nodes_public_keys, contract_context \\ nil)
-
   def start(tx = %Transaction{}, welcome_node_public_key, [_ | []], contract_context) do
     StandaloneWorkflow.start_link(
       transaction: tx,

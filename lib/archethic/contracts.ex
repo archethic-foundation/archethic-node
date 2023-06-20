@@ -81,7 +81,7 @@ defmodule Archethic.Contracts do
     with :ok <- validate_trigger(trigger_type, trigger, timestamp),
          {:ok, contract} <- Interpreter.parse_transaction(prev_tx),
          {:ok, calls} <-
-           TransactionChain.fetch_contract_calls(previous_address, nodes) do
+           TransactionChain.fetch_contract_calls(previous_address, nodes, timestamp) do
       case execute_trigger(
              trigger_type,
              contract,
@@ -113,7 +113,8 @@ defmodule Archethic.Contracts do
   # In the case of a trigger oracle/transaction,
   # we need to fetch the transaction
   defp trigger_to_maybe_trigger_tx({type, address}) when type in [:oracle, :transaction] do
-    {:ok, trigger_tx} = Archethic.search_transaction(address)
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+    {:ok, trigger_tx} = TransactionChain.fetch_transaction(address, storage_nodes)
     trigger_tx
   end
 
