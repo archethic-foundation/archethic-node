@@ -891,16 +891,15 @@ defmodule Archethic.Mining.ValidationContext do
   defp valid_contract_execution?(
          prev_tx = %Transaction{data: %TransactionData{code: code}},
          next_tx = %Transaction{},
-         contract_context = %Contract.Context{}
+         maybe_contract_context
        )
        when code != "" do
-    Contracts.valid_execution?(prev_tx, next_tx, contract_context)
+    Contracts.valid_execution?(prev_tx, next_tx, maybe_contract_context)
   end
 
   # handle cases:
   #   - first transaction
   #   - previous has no code
-  #   - there was no contract execution
   defp valid_contract_execution?(_prev_tx, _next_tx, _contract_contract), do: true
 
   @doc """

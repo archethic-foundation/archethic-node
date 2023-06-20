@@ -84,7 +84,6 @@ defmodule Archethic.Contracts do
         prev_tx = %Transaction{address: previous_address},
         _next_tx = %Transaction{type: next_tx_type, data: next_tx_data},
         %Contract.Context{
-          trigger_type: trigger_type,
           trigger: trigger,
           timestamp: timestamp,
           status: status
@@ -92,12 +91,12 @@ defmodule Archethic.Contracts do
       ) do
     nodes = Election.chain_storage_nodes(previous_address, P2P.authorized_and_available_nodes())
 
-    with :ok <- validate_trigger(trigger_type, trigger, timestamp),
-         {:ok, contract} <- Interpreter.parse_transaction(prev_tx),
+    with :ok <- validate_trigger(trigger, timestamp),
+         {:ok, contract} <- from_transaction(prev_tx),
          {:ok, calls} <-
            TransactionChain.fetch_contract_calls(previous_address, nodes, timestamp) do
       case execute_trigger(
-             trigger_type,
+             trigger_to_trigger_type(trigger),
              contract,
              trigger_to_maybe_trigger_tx(trigger),
              calls,
@@ -124,6 +123,11 @@ defmodule Archethic.Contracts do
       false
   end
 
+  defp trigger_to_trigger_type({:transaction, _}), do: :transaction
+  defp trigger_to_trigger_type({:oracle, _}), do: :oracle
+  defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
+  defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
+
   # In the case of a trigger oracle/transaction,
   # we need to fetch the transaction
   defp trigger_to_maybe_trigger_tx({type, address}) when type in [:oracle, :transaction] do
@@ -137,7 +141,7 @@ defmodule Archethic.Contracts do
   # In the case of a trigger interval,
   # because of the delay between execution and validation,
   # we override the value returned by library function Time.now()
-  defp trigger_to_execute_opts({:interval, datetime}), do: [time_now: datetime]
+  defp trigger_to_execute_opts({:interval, _cron, datetime}), do: [time_now: datetime]
   defp trigger_to_execute_opts(_), do: []
 
   @doc """
@@ -166,7 +170,7 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_trigger({:datetime, datetime}, _trigger, trigger_datetime) do
+  defp validate_trigger({:datetime, datetime}, trigger_datetime) do
     if within_drift_tolerance?(trigger_datetime, datetime) do
       :ok
     else
@@ -174,7 +178,7 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_trigger({:interval, interval}, {:interval, interval_datetime}, trigger_datetime) do
+  defp validate_trigger({:interval, interval, interval_datetime}, trigger_datetime) do
     matches_date? =
       interval
       |> CronParser.parse!(@extended_mode?)
@@ -187,17 +191,17 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_trigger(:transaction, {:transaction, _address}, _) do
+  defp validate_trigger({:transaction, _address}, _) do
     # maybe check address exist and contain the contract in the recipients?
     :ok
   end
 
-  defp validate_trigger(:oracle, {:oracle, _address}, _) do
+  defp validate_trigger({:oracle, _address}, _) do
     # maybe check that it is the last available oracle?
     :ok
   end
 
-  defp validate_trigger(_, _, _), do: :invalid_triggers_execution
+  defp validate_trigger(_, _), do: :invalid_triggers_execution
 
   # trigger_datetime: practical date of trigger
   # datetime: theoretical date of trigger

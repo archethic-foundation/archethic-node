@@ -276,7 +276,6 @@ defmodule Archethic.ContractsTest do
 
       contract_context = %Contract.Context{
         trigger: {:datetime, yesterday},
-        trigger_type: {:datetime, yesterday},
         status: :tx_output,
         timestamp: DateTime.utc_now()
       }
@@ -312,8 +311,7 @@ defmodule Archethic.ContractsTest do
       }
 
       contract_context = %Contract.Context{
-        trigger: {:interval, now},
-        trigger_type: {:interval, "* * * * *"},
+        trigger: {:interval, "* * * * *", now},
         status: :tx_output,
         timestamp: now
       }
@@ -350,8 +348,7 @@ defmodule Archethic.ContractsTest do
       }
 
       contract_context = %Contract.Context{
-        trigger: {:interval, yesterday},
-        trigger_type: {:interval, "* * * * *"},
+        trigger: {:interval, "* * * * *", yesterday},
         status: :tx_output,
         timestamp: DateTime.utc_now()
       }
@@ -387,8 +384,7 @@ defmodule Archethic.ContractsTest do
       }
 
       contract_context = %Contract.Context{
-        trigger: {:interval, now},
-        trigger_type: {:interval, "* * * * *"},
+        trigger: {:interval, "* * * * *", now},
         status: :tx_output,
         timestamp: now
       }
@@ -424,8 +420,7 @@ defmodule Archethic.ContractsTest do
       }
 
       contract_context = %Contract.Context{
-        trigger: {:interval, now},
-        trigger_type: {:interval, "* * * * *"},
+        trigger: {:interval, "* * * * *", now},
         status: :tx_output,
         timestamp: now
       }
