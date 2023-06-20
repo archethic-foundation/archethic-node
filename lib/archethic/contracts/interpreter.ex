@@ -14,7 +14,6 @@ defmodule Archethic.Contracts.Interpreter do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Utils
 
@@ -56,25 +55,6 @@ defmodule Archethic.Contracts.Interpreter do
     })
 
     result
-  end
-
-  @doc """
-  Parse a transaction and return a contract.
-  This return a filled contract structure or an human-readable error.
-  """
-  @spec parse_transaction(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
-  def parse_transaction(contract_tx = %Transaction{data: %TransactionData{code: code}}) do
-    case parse(code) do
-      {:ok, contract} ->
-        {:ok,
-         %Contract{
-           contract
-           | constants: %Constants{contract: Constants.from_transaction(contract_tx)}
-         }}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
   end
 
   @doc """
