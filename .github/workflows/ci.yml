@@ -2,9 +2,9 @@ name: Elixir CI
 
 on:
   push:
-    branches: [master, develop, testnet]
+    branches: [master, develop, testnet, "release/*"]
   pull_request:
-    branches: [master, develop, testnet]
+    branches: [master, develop, testnet, "release/*"]
 
 env:
   MIX_ENV: test
