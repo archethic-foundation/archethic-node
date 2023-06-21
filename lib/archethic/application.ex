@@ -56,6 +56,10 @@ defmodule Archethic.Application do
   require Logger
 
   def start(_type, _args) do
+    # First start the migration process synchronously
+    Application.spec(:archethic, :vsn) |> Migrate.run(false)
+
+    # Then start the Archethic Supervisor
     p2p_endpoint_conf = Application.get_env(:archethic, Archethic.P2P.Listener)
     web_endpoint_conf = Application.get_env(:archethic, ArchethicWeb.Endpoint)
 

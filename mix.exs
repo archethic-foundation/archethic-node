@@ -33,8 +33,7 @@ defmodule Archethic.MixProject do
         :xmerl,
         :crypto
       ],
-      mod: {Archethic.Application, []},
-      start_phases: [migrate: []]
+      mod: {Archethic.Application, []}
     ]
   end
 
