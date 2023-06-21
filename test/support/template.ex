@@ -78,6 +78,7 @@ defmodule ArchethicCase do
     |> stub(:stop_inputs_writer, fn _ -> :ok end)
     |> stub(:append_input, fn _, _ -> :ok end)
     |> stub(:get_inputs, fn _, _ -> [] end)
+    |> stub(:get_last_chain_address_stored, fn addr -> addr end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)

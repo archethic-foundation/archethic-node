@@ -202,13 +202,9 @@ defmodule Archethic.TransactionChain do
   @doc """
   Retrieve the last transaction address for a chain stored locally
   """
-  @spec get_last_stored_address(genesis_address :: binary()) :: binary() | nil
-  def get_last_stored_address(genesis_address) do
-    list_chain_addresses(genesis_address)
-    |> Enum.reduce_while(nil, fn {address, _}, acc ->
-      if transaction_exists?(address), do: {:cont, address}, else: {:halt, acc}
-    end)
-  end
+  @spec get_last_stored_address(genesis_address :: Crypto.prepended_hash()) ::
+          Crypto.prepended_hash() | nil
+  defdelegate get_last_stored_address(genesis_address), to: DB, as: :get_last_chain_address_stored
 
   @doc """
   Get a transaction summary from a transaction address

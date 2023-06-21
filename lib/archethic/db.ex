@@ -58,6 +58,8 @@ defmodule Archethic.DB do
   @callback list_chain_public_keys(binary(), DateTime.t()) ::
               Enumerable.t() | list({binary(), DateTime.t()})
 
+  @callback get_last_chain_address_stored(genesis_address :: Crypto.prepended_hash()) ::
+              Crypto.prepended_hash() | nil
   @callback get_last_chain_address(binary()) :: {binary(), DateTime.t()}
   @callback get_last_chain_address(binary(), DateTime.t()) :: {binary(), DateTime.t()}
   @callback get_last_chain_public_key(binary()) :: Crypto.key()

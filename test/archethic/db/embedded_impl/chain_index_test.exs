@@ -5,6 +5,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
   alias Archethic.DB.EmbeddedImpl.ChainWriter
   alias ArchethicCache.LRU
 
+  import ArchethicCase
+
   setup do
     db_path = Application.app_dir(:archethic, "data_test")
     ChainWriter.setup_folders!(db_path)
@@ -97,6 +99,19 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
       ChainIndex.set_last_chain_address(genesis_address, tx_address_2, tomorrow, db_path)
 
       assert {^tx_address_2, _} = ChainIndex.get_last_chain_address(genesis_address, db_path)
+    end
+  end
+
+  describe "set_last_chain_address_stored" do
+    test "should write a new index containing the address", %{db_path: db_path} do
+      genesis_address = random_address()
+      last_address = random_address()
+
+      assert nil == ChainIndex.get_last_chain_address_stored(genesis_address, db_path)
+
+      ChainIndex.set_last_chain_address_stored(genesis_address, last_address, db_path)
+
+      assert last_address == ChainIndex.get_last_chain_address_stored(genesis_address, db_path)
     end
   end
 end

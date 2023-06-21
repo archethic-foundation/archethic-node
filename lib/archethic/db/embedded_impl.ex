@@ -230,6 +230,15 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Return the last address stored for a chain
+  """
+  @spec get_last_chain_address_stored(genesis_address :: Crypto.prepended_hash()) ::
+          Crypto.prepended_hash() | nil
+  def get_last_chain_address_stored(genesis_address) when is_binary(genesis_address) do
+    ChainIndex.get_last_chain_address_stored(genesis_address, db_path())
+  end
+
+  @doc """
   Return the last address from the given transaction's address until the given date along with its timestamp
   """
   @spec get_last_chain_address(address :: binary(), until :: DateTime.t()) ::

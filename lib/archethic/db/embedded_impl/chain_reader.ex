@@ -167,7 +167,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           genesis_address :: binary(),
           fields :: list(),
           db_path :: binary()
-        ) :: Enumerable.t()
+        ) :: Enumerable.t() | list(Transaction.t())
   def stream_chain(genesis_address, fields, db_path) do
     filepath = ChainWriter.chain_path(db_path, genesis_address)
 

@@ -407,6 +407,33 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   @doc """
+  Set the last stored address
+  """
+  @spec set_last_chain_address_stored(
+          genesis_address :: Crypto.prepended_hash(),
+          tx_address :: Crypto.prepended_hash(),
+          db_path :: binary()
+        ) :: :ok
+  def set_last_chain_address_stored(genesis_address, tx_address, db_path),
+    do: last_chain_address_stored_path(db_path, genesis_address) |> File.write!(tx_address)
+
+  @doc """
+  Return the last address stored for a chain
+  """
+  @spec get_last_chain_address_stored(
+          genesis_address :: Crypto.prepended_hash(),
+          db_path :: binary()
+        ) :: Crypto.prepended_hash() | nil
+  def get_last_chain_address_stored(genesis_address, db_path) do
+    filename = last_chain_address_stored_path(db_path, genesis_address)
+
+    case File.read(filename) do
+      {:ok, address} -> address
+      _ -> nil
+    end
+  end
+
+  @doc """
   Reference a new transaction address for the genesis address at the transaction time
   """
   @spec set_last_chain_address(binary(), binary(), DateTime.t(), String.t()) :: :ok
@@ -719,6 +746,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
     Path.join([
       ChainWriter.base_chain_path(db_path),
       "#{Base.encode16(genesis_address)}-addresses"
+    ])
+  end
+
+  defp last_chain_address_stored_path(db_path, genesis_address) do
+    Path.join([
+      ChainWriter.base_chain_path(db_path),
+      "#{Base.encode16(genesis_address)}-last-stored-address"
     ])
   end
 
