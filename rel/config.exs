@@ -59,6 +59,7 @@ release :archethic_node do
 
   set appup_transforms: [
     {Archethic.Release.TransformPurge, []},
+    {Archethic.Release.RestartTelemetry, []},
     {Archethic.Release.CallMigrateScript, []}
   ]
 end
