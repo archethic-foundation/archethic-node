@@ -552,4 +552,59 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
   end
+
+  describe "sanitize_code/1" do
+    test "should transform atom into tuple {:atom, \"value\"}" do
+      code = """
+      @version 1
+      condition transaction: [
+        address: "0xabc123def456"
+      ]
+      """
+
+      assert {:ok, ast} = Interpreter.sanitize_code(code)
+
+      assert match?(
+               {:__block__, [],
+                [
+                  {_, _, [{{:atom, "version"}, _, _}]},
+                  {{:atom, "condition"}, _,
+                   [[{{:atom, "transaction"}, [{{:atom, "address"}, "0xabc123def456"}]}]]}
+                ]},
+               ast
+             )
+    end
+
+    test "should transform 0x hex in uppercase string" do
+      code = """
+      @version 1
+      condition transaction: [
+        address: 0xabc123def456
+      ]
+      """
+
+      assert {:ok, ast} = Interpreter.sanitize_code(code)
+
+      assert match?(
+               {:__block__, [],
+                [
+                  {_, _, [{{:atom, "version"}, _, _}]},
+                  {{:atom, "condition"}, _,
+                   [[{{:atom, "transaction"}, [{{:atom, "address"}, "ABC123DEF456"}]}]]}
+                ]},
+               ast
+             )
+    end
+
+    test "should return an error when 0x format is not hexadecimal" do
+      code = """
+      @version 1
+      condition transaction: [
+        address: 0xnothexa
+      ]
+      """
+
+      assert {:error, {[line: _, column: _], _, _}} = Interpreter.sanitize_code(code)
+    end
+  end
 end
