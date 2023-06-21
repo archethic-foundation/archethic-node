@@ -327,6 +327,8 @@ defmodule Archethic.Contracts.Worker do
           end
         end
       )
+
+      :ok
     end
   end
 

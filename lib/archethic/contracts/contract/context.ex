@@ -1,6 +1,11 @@
 defmodule Archethic.Contracts.Contract.Context do
   @moduledoc """
   A structure to pass around between nodes that contains details about the contract execution.
+
+  A quick note about datetimes in this struct:
+
+  - datetimes within the `trigger` are truncated to the second: that is a contract requirement.
+  - `timestamp` is a datetime (not truncated) but we kept that naming because it is the validation_stamp.timestamp
   """
 
   alias Archethic.Crypto
@@ -71,12 +76,12 @@ defmodule Archethic.Contracts.Contract.Context do
   end
 
   defp serialize_trigger({:datetime, datetime}) do
-    <<2::8, DateTime.to_unix(datetime, :millisecond)::64>>
+    <<2::8, DateTime.to_unix(datetime)::64>>
   end
 
   defp serialize_trigger({:interval, cron, datetime}) do
     cron_size = byte_size(cron)
-    <<3::8, cron_size::16, cron::binary, DateTime.to_unix(datetime, :millisecond)::64>>
+    <<3::8, cron_size::16, cron::binary, DateTime.to_unix(datetime)::64>>
   end
 
   ##
@@ -91,12 +96,12 @@ defmodule Archethic.Contracts.Contract.Context do
   end
 
   defp deserialize_trigger(<<2::8, timestamp::64, rest::binary>>) do
-    {{:datetime, DateTime.from_unix!(timestamp, :millisecond)}, rest}
+    {{:datetime, DateTime.from_unix!(timestamp)}, rest}
   end
 
   defp deserialize_trigger(<<3::8, cron_size::16, rest::binary>>) do
     <<cron::binary-size(cron_size), timestamp::64, rest::binary>> = rest
 
-    {{:interval, cron, DateTime.from_unix!(timestamp, :millisecond)}, rest}
+    {{:interval, cron, DateTime.from_unix!(timestamp)}, rest}
   end
 end
