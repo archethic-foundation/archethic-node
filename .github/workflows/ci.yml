@@ -21,7 +21,7 @@ jobs:
           apt-get: libgmp-dev libssl-dev libtinfo-dev libsystemd-dev zlib1g-dev libsodium-dev autoconf-archive libcmocka0 libcmocka-dev procps iproute2 build-essential git pkg-config gcc libtool automake libssl-dev uthash-dev autoconf doxygen libjson-c-dev libini-config-dev libcurl4-openssl-dev libltdl-dev libtss2-dev tss2
       - uses: actions/checkout@v2
       - name: Set up Elixir
-        uses: erlef/setup-beam@988e02bfe678367a02564f65ca2e37726dc0268f
+        uses: erlef/setup-beam@v1
         id: beam
         with:
           elixir-version: "1.14.1" # Define the elixir version [required]
