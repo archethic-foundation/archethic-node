@@ -246,6 +246,10 @@ defmodule Archethic.Contracts.Interpreter do
     do_format_error_reason(reason, key, [])
   end
 
+  def format_error_reason(_node, reason) do
+    do_format_error_reason(reason, "", [])
+  end
+
   # ------------------------------------------------------------
   #              _            _
   #   _ __  _ __(___   ____ _| |_ ___
