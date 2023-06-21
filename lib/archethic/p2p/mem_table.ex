@@ -54,21 +54,6 @@ defmodule Archethic.P2P.MemTable do
     {:ok, []}
   end
 
-  def code_change("1.1.1", state, _extra) do
-    # This match_spec remove the key :"$9" which is the availability_history
-    match_spec = [
-      {{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7", :"$8", :"$9", :"$10", :"$11", :"$12",
-        :"$13", :"$14", :"$15", :"$16", :"$17", :"$18"}, [],
-       [
-         {{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7", :"$8", :"$10", :"$11", :"$12", :"$13",
-           :"$14", :"$15", :"$16", :"$17", :"$18"}}
-       ]}
-    ]
-
-    :ets.select_replace(@discovery_table, match_spec)
-    {:ok, state}
-  end
-
   @doc """
   Add a node into the P2P view.
 
