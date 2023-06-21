@@ -56,13 +56,7 @@ defmodule Archethic.Replication.TransactionContextTest do
     addr2 = Crypto.derive_address(pub2)
 
     MockDB
-    |> stub(:list_chain_addresses, fn _ ->
-      [{addr1, DateTime.utc_now()}, {addr2, DateTime.utc_now()}]
-    end)
-    |> stub(:transaction_exists?, fn
-      ^addr1, _ -> true
-      _, _ -> false
-    end)
+    |> stub(:get_last_chain_address_stored, fn _ -> addr1 end)
 
     MockClient
     |> stub(:send_message, fn

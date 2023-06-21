@@ -188,6 +188,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
     ChainIndex.add_tx(tx_address, genesis_address, encoded_size, db_path)
     ChainIndex.add_tx_type(tx_type, tx_address, db_path)
+    ChainIndex.set_last_chain_address_stored(genesis_address, tx_address, db_path)
     ChainIndex.set_last_chain_address(genesis_address, tx_address, timestamp, db_path)
     ChainIndex.set_public_key(genesis_address, previous_public_key, timestamp, db_path)
 
