@@ -1,3 +1,4 @@
+# credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
 defmodule ArchethicWeb.API.WebHostingController do
   @moduledoc false
 
@@ -48,6 +49,9 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:error, :invalid_encoding} ->
         send_resp(conn, 400, "Invalid file encoding")
 
+      {:error, :unpublished} ->
+        send_resp(conn, 410, "Website has been unpublished")
+
       {:error, {:is_a_directory, reference_transaction}} ->
         {:ok, listing_html, encoding, mime_type, cached?, etag} =
           DirectoryListing.list(
@@ -73,6 +77,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           | {:error, :invalid_address}
           | {:error, :website_not_found}
           | {:error, :invalid_content}
+          | {:error, :unpublished}
           | {:error, :file_not_found}
           | {:error, :invalid_encoding}
           | {:error, {:is_a_directory, ReferenceTransaction.t()}}
@@ -84,6 +89,7 @@ defmodule ArchethicWeb.API.WebHostingController do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
          {:ok, reference_transaction} <- ReferenceTransaction.fetch_last(address),
+         :ok <- published?(reference_transaction),
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
            Resources.load(reference_transaction, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
@@ -101,6 +107,11 @@ defmodule ArchethicWeb.API.WebHostingController do
         error
     end
   end
+
+  def published?(%ReferenceTransaction{json_content: %{"publicationStatus" => "UNPUBLISHED"}}),
+    do: {:error, :unpublished}
+
+  def published?(_reference_tx), do: :ok
 
   @doc """
   Return the list of headers for caching
