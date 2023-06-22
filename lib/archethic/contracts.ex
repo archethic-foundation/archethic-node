@@ -17,6 +17,7 @@ defmodule Archethic.Contracts do
   alias Archethic.P2P
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   require Logger
@@ -91,14 +92,14 @@ defmodule Archethic.Contracts do
       ) do
     nodes = Election.chain_storage_nodes(previous_address, P2P.authorized_and_available_nodes())
 
-    with :ok <- validate_trigger(trigger, timestamp),
+    with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
          {:ok, contract} <- from_transaction(prev_tx),
          {:ok, calls} <-
            TransactionChain.fetch_contract_calls(previous_address, nodes, timestamp) do
       case execute_trigger(
              trigger_to_trigger_type(trigger),
              contract,
-             trigger_to_maybe_trigger_tx(trigger),
+             maybe_trigger_tx,
              calls,
              trigger_to_execute_opts(trigger)
            ) do
@@ -127,16 +128,6 @@ defmodule Archethic.Contracts do
   defp trigger_to_trigger_type({:oracle, _}), do: :oracle
   defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
   defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
-
-  # In the case of a trigger oracle/transaction,
-  # we need to fetch the transaction
-  defp trigger_to_maybe_trigger_tx({type, address}) when type in [:oracle, :transaction] do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-    {:ok, trigger_tx} = TransactionChain.fetch_transaction(address, storage_nodes)
-    trigger_tx
-  end
-
-  defp trigger_to_maybe_trigger_tx(_), do: nil
 
   # In the case of a trigger interval,
   # because of the delay between execution and validation,
@@ -170,44 +161,63 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_trigger({:datetime, datetime}, trigger_datetime) do
-    if within_drift_tolerance?(trigger_datetime, datetime) do
-      :ok
+  defp validate_trigger({:datetime, datetime}, validation_datetime, _contract_address) do
+    if within_drift_tolerance?(validation_datetime, datetime) do
+      {:ok, nil}
     else
       :invalid_triggers_execution
     end
   end
 
-  defp validate_trigger({:interval, interval, interval_datetime}, trigger_datetime) do
+  defp validate_trigger(
+         {:interval, interval, interval_datetime},
+         validation_datetime,
+         _contract_address
+       ) do
     matches_date? =
       interval
       |> CronParser.parse!(@extended_mode?)
       |> CronDateChecker.matches_date?(DateTime.to_naive(interval_datetime))
 
-    if matches_date? && within_drift_tolerance?(trigger_datetime, interval_datetime) do
-      :ok
+    if matches_date? && within_drift_tolerance?(validation_datetime, interval_datetime) do
+      {:ok, nil}
     else
       :invalid_triggers_execution
     end
   end
 
-  defp validate_trigger({:transaction, _address}, _) do
-    # maybe check address exist and contain the contract in the recipients?
-    :ok
+  defp validate_trigger({:transaction, address}, _validation_datetime, contract_address) do
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
+
+    {:ok,
+     tx = %Transaction{
+       type: trigger_type,
+       address: trigger_address,
+       validation_stamp: %ValidationStamp{recipients: trigger_resolved_recipients}
+     }} = TransactionChain.fetch_transaction(address, storage_nodes)
+
+    if contract_address in trigger_resolved_recipients do
+      {:ok, tx}
+    else
+      Logger.error("Contract was wrongly triggered by transaction",
+        transaction_address: Base.encode16(trigger_address),
+        transaction_type: trigger_type,
+        contract: Base.encode16(contract_address)
+      )
+
+      :invalid_triggers_execution
+    end
   end
 
-  defp validate_trigger({:oracle, _address}, _) do
-    # maybe check that it is the last available oracle?
-    :ok
+  defp validate_trigger({:oracle, address}, _validation_datetime, _contract_address) do
+    TransactionChain.get_transaction(address)
   end
 
-  defp validate_trigger(_, _), do: :invalid_triggers_execution
-
-  # trigger_datetime: practical date of trigger
+  # validation_time: practical date of trigger
   # datetime: theoretical date of trigger
-  defp within_drift_tolerance?(trigger_datetime, datetime) do
-    DateTime.diff(trigger_datetime, datetime) >= 0 and
-      DateTime.diff(trigger_datetime, datetime) < 10
+  defp within_drift_tolerance?(validation_datetime, datetime) do
+    DateTime.diff(validation_datetime, datetime) >= 0 and
+      DateTime.diff(validation_datetime, datetime) < 10
   end
 
   @doc """
