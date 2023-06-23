@@ -280,13 +280,13 @@ config :archethic, ArchethicWeb.Endpoint,
 config :archethic, :throttle,
   by_ip_high: [
     period: 1000,
-    limit: System.get_env("ARCHETHIC_THROTTLE_IP_HIGH", "500")
+    limit: System.get_env("ARCHETHIC_THROTTLE_IP_HIGH", "500") |> String.to_integer()
   ],
   by_ip_low: [
     period: 1000,
-    limit: System.get_env("ARCHETHIC_THROTTLE_IP_LOW", "20")
+    limit: System.get_env("ARCHETHIC_THROTTLE_IP_LOW", "20") |> String.to_integer()
   ],
   by_ip_and_path: [
     period: 1000,
-    limit: System.get_env("ARCHETHIC_THROTTLE_IP_AND_PATH", "20")
+    limit: System.get_env("ARCHETHIC_THROTTLE_IP_AND_PATH", "20") |> String.to_integer()
   ]

@@ -60,14 +60,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {:noreply, state}
   end
 
-  def code_change("1.0.7", state, _extra) do
-    PubSub.register_to_current_epoch_of_slot_time()
-
-    {:ok, state}
-  end
-
-  def code_change(_, state, _), do: {:ok, state}
-
   defp clean_previous_summary_cache(subset, previous_summary_time) do
     subset
     |> stream_current_slots()

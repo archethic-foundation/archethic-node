@@ -483,23 +483,4 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp ensure_p2p_view(slot = %Slot{}, _), do: slot
-
-  def code_change(
-        "1.0.7",
-        state = %{postponed: %{transaction_attestations: postponed_attestations}},
-        _extra
-      ) do
-    new_state =
-      Enum.reduce(postponed_attestations, state, fn attestation, acc ->
-        Map.update!(acc, :current_slot, fn current_slot ->
-          {_, updated_slot} = Slot.add_transaction_attestation(current_slot, attestation)
-          updated_slot
-        end)
-      end)
-      |> Map.delete(:postponed)
-
-    {:ok, new_state}
-  end
-
-  def code_change(_, state, _), do: {:ok, state}
 end
