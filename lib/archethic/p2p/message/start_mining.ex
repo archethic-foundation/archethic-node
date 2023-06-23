@@ -106,10 +106,10 @@ defmodule Archethic.P2P.Message.StartMining do
     serialized_contract_context =
       case contract_context do
         nil ->
-          <<>>
+          <<0::8>>
 
         _ ->
-          Contract.Context.serialize(contract_context)
+          <<1::8, Contract.Context.serialize(contract_context)::bitstring>>
       end
 
     <<Transaction.serialize(tx)::binary, welcome_node_public_key::binary,
@@ -134,10 +134,10 @@ defmodule Archethic.P2P.Message.StartMining do
 
     {contract_context, rest} =
       case rest do
-        <<>> ->
-          {nil, <<>>}
+        <<0::8, rest::bitstring>> ->
+          {nil, rest}
 
-        _ ->
+        <<1::8, rest::bitstring>> ->
           Contract.Context.deserialize(rest)
       end
 
