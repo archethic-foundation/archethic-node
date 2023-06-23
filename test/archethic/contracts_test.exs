@@ -210,6 +210,62 @@ defmodule Archethic.ContractsTest do
       :ok
     end
 
+    test "should return false if there is no context and there is a trigger" do
+      now = ~U[2023-06-20 12:00:00Z]
+
+      code = """
+      @version 1
+      actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
+        Contract.set_content "wake up"
+      end
+      """
+
+      prev_tx = %Transaction{
+        address: ArchethicCase.random_address(),
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      next_tx = %Transaction{
+        type: :contract,
+        address: random_address(),
+        data: %TransactionData{
+          code: code,
+          content: "wake up"
+        }
+      }
+
+      assert Contracts.valid_execution?(prev_tx, next_tx, nil)
+    end
+
+    test "should return true if there is no context and there is no trigger" do
+      code = """
+      @version 1
+      condition inherit: [ content: true ]
+      """
+
+      prev_tx = %Transaction{
+        address: ArchethicCase.random_address(),
+        type: :oracle,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      next_tx = %Transaction{
+        type: :oracle,
+        address: random_address(),
+        data: %TransactionData{
+          code: code,
+          content: "{\"uco\":{\"eur\":0.00, \"usd\":0.00}}"
+        }
+      }
+
+      assert Contracts.valid_execution?(prev_tx, next_tx, nil)
+    end
+
     test "should return true when the transaction have been triggered by datetime and timestamp matches" do
       now = ~U[2023-06-20 12:00:00Z]
 

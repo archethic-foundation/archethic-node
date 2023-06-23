@@ -35,18 +35,22 @@ defmodule Archethic.Contracts.Contract.Context do
           timestamp: DateTime.t()
         }
 
-  @spec serialize(t()) :: bitstring()
+  @spec serialize(nil | t()) :: bitstring()
+  def serialize(nil), do: <<0::8>>
+
   def serialize(%__MODULE__{
         status: status,
         trigger: trigger,
         timestamp: timestamp
       }) do
-    <<serialize_status(status)::8, DateTime.to_unix(timestamp, :millisecond)::64,
+    <<1::8, serialize_status(status)::8, DateTime.to_unix(timestamp, :millisecond)::64,
       serialize_trigger(trigger)::binary>>
   end
 
-  @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<rest::bitstring>>) do
+  @spec deserialize(bitstring()) :: {nil | t(), bitstring()}
+  def deserialize(<<0::8, rest::bitstring>>), do: {nil, rest}
+
+  def deserialize(<<1::8, rest::bitstring>>) do
     {status, <<timestamp::64, rest::binary>>} = deserialize_status(rest)
 
     {trigger, rest} = deserialize_trigger(rest)

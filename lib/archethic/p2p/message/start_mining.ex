@@ -103,20 +103,11 @@ defmodule Archethic.P2P.Message.StartMining do
         p2p_view_hash: p2p_view_hash,
         contract_context: contract_context
       }) do
-    serialized_contract_context =
-      case contract_context do
-        nil ->
-          <<>>
-
-        _ ->
-          Contract.Context.serialize(contract_context)
-      end
-
     <<Transaction.serialize(tx)::binary, welcome_node_public_key::binary,
       length(validation_node_public_keys)::8,
       :erlang.list_to_binary(validation_node_public_keys)::binary,
       network_chains_view_hash::binary, p2p_view_hash::binary,
-      serialized_contract_context::binary>>
+      Contract.Context.serialize(contract_context)::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
@@ -132,14 +123,7 @@ defmodule Archethic.P2P.Message.StartMining do
     <<network_chains_view_hash::binary-size(32), p2p_view_hash::binary-size(32), rest::bitstring>> =
       rest
 
-    {contract_context, rest} =
-      case rest do
-        <<>> ->
-          {nil, <<>>}
-
-        _ ->
-          Contract.Context.deserialize(rest)
-      end
+    {contract_context, rest} = Contract.Context.deserialize(rest)
 
     {%__MODULE__{
        transaction: tx,

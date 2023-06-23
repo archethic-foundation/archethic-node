@@ -1,11 +1,15 @@
 defmodule Archethic.P2P.MessageTest do
   use ArchethicCase
 
+  import ArchethicCase
+
   alias Archethic.{
     Crypto,
     P2P.Message,
     P2P.Node
   }
+
+  alias Archethic.Contracts.Contract
 
   alias Archethic.P2P.Message.{
     AcknowledgeStorage,
@@ -148,8 +152,30 @@ defmodule Archethic.P2P.MessageTest do
     test "NewTransaction message" do
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
+      # no context
       assert %NewTransaction{transaction: tx, welcome_node: Crypto.first_node_public_key()} ==
                %NewTransaction{transaction: tx, welcome_node: Crypto.first_node_public_key()}
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+
+      # with contract context
+      ctx = %Contract.Context{
+        trigger: {:oracle, random_address()},
+        status: :tx_output,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      assert %NewTransaction{
+               transaction: tx,
+               welcome_node: Crypto.first_node_public_key(),
+               contract_context: ctx
+             } ==
+               %NewTransaction{
+                 transaction: tx,
+                 welcome_node: Crypto.first_node_public_key(),
+                 contract_context: ctx
+               }
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
@@ -168,6 +194,7 @@ defmodule Archethic.P2P.MessageTest do
       network_hash = :crypto.hash(:sha256, "networkview")
       p2p_hash = :crypto.hash(:sha256, "p2pview")
 
+      # no context
       assert %StartMining{
                transaction: tx,
                welcome_node_public_key: welcome_node_public_key,
@@ -181,6 +208,33 @@ defmodule Archethic.P2P.MessageTest do
                  validation_node_public_keys: validation_node_public_keys,
                  network_chains_view_hash: network_hash,
                  p2p_view_hash: p2p_hash
+               }
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+
+      # with contract context
+      ctx = %Contract.Context{
+        trigger: {:datetime, DateTime.utc_now() |> DateTime.truncate(:second)},
+        status: :tx_output,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      assert %StartMining{
+               transaction: tx,
+               welcome_node_public_key: welcome_node_public_key,
+               validation_node_public_keys: validation_node_public_keys,
+               network_chains_view_hash: network_hash,
+               p2p_view_hash: p2p_hash,
+               contract_context: ctx
+             } ==
+               %StartMining{
+                 transaction: tx,
+                 welcome_node_public_key: welcome_node_public_key,
+                 validation_node_public_keys: validation_node_public_keys,
+                 network_chains_view_hash: network_hash,
+                 p2p_view_hash: p2p_hash,
+                 contract_context: ctx
                }
                |> Message.encode()
                |> Message.decode()
