@@ -39,15 +39,32 @@ defmodule Archethic.P2P.Message.NewTransaction do
         welcome_node: node_pbkey,
         contract_context: contract_context
       }) do
+    serialized_contract_context =
+      case contract_context do
+        nil ->
+          <<>>
+
+        _ ->
+          Contract.Context.serialize(contract_context)
+      end
+
     <<Transaction.serialize(tx)::bitstring, node_pbkey::binary,
-      Contract.Context.serialize(contract_context)::binary>>
+      serialized_contract_context::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<rest::bitstring>>) do
     {tx, rest} = Transaction.deserialize(rest)
     {node_pbkey, rest} = Utils.deserialize_public_key(rest)
-    {contract_context, rest} = Contract.Context.deserialize(rest)
+
+    {contract_context, rest} =
+      case rest do
+        <<>> ->
+          {nil, <<>>}
+
+        _ ->
+          Contract.Context.deserialize(rest)
+      end
 
     {%__MODULE__{
        transaction: tx,
