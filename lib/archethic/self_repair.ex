@@ -45,10 +45,10 @@ defmodule Archethic.SelfRepair do
   @doc """
   Start the bootstrap's synchronization process using the last synchronization date
   """
-  @spec bootstrap_sync(last_sync_date :: DateTime.t(), download_nodes :: list(Node.t())) ::
+  @spec bootstrap_sync(download_nodes :: list(Node.t())) ::
           :ok | :error
-  def bootstrap_sync(last_sync_date, download_nodes) do
-    case sync_with_retry(last_sync_date, download_nodes) do
+  def bootstrap_sync(download_nodes) do
+    case sync_with_retry(download_nodes) do
       :ok ->
         # At the end of self repair, if a new beacon summary as been created
         # we run bootstrap_sync again until the last beacon summary is loaded
@@ -58,7 +58,7 @@ defmodule Archethic.SelfRepair do
              |> BeaconChain.previous_summary_time()
              |> DateTime.compare(last_sync_date) do
           :gt ->
-            bootstrap_sync(last_sync_date, download_nodes)
+            bootstrap_sync(download_nodes)
 
           _ ->
             :ok
@@ -71,11 +71,11 @@ defmodule Archethic.SelfRepair do
     end
   end
 
-  defp sync_with_retry(last_sync_date, download_nodes) do
+  defp sync_with_retry(download_nodes) do
     0..@max_retry_count
     |> Enum.reduce_while(:error, fn _, _ ->
       try do
-        :ok = Sync.load_missed_transactions(last_sync_date, download_nodes)
+        :ok = last_sync_date() |> Sync.load_missed_transactions(download_nodes)
         {:halt, :ok}
       rescue
         error ->
