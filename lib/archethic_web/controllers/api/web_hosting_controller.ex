@@ -81,7 +81,7 @@ defmodule ArchethicWeb.API.WebHostingController do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
          {:ok, reference_transaction} <- ReferenceTransaction.fetch_last(address),
-         :ok <- published?(reference_transaction),
+         :ok <- check_published(reference_transaction),
          {:ok, file_content, encoding, mime_type, cached?, etag} <-
            Resources.load(reference_transaction, url_path, cache_headers) do
       {:ok, file_content, encoding, mime_type, cached?, etag}
@@ -100,10 +100,8 @@ defmodule ArchethicWeb.API.WebHostingController do
     end
   end
 
-  def published?(%ReferenceTransaction{json_content: %{"publicationStatus" => "UNPUBLISHED"}}),
-    do: {:error, :unpublished}
-
-  def published?(_reference_tx), do: :ok
+  def check_published(%ReferenceTransaction{status: :published}), do: :ok
+  def check_published(%ReferenceTransaction{status: :unpublished}), do: {:error, :unpublished}
 
   @doc """
   Return the list of headers for caching
