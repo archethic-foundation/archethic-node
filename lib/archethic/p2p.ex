@@ -764,8 +764,8 @@ defmodule Archethic.P2P do
           message,
           conflict_resolver,
           acceptance_resolver,
-          consistency_level,
           timeout,
+          consistency_level,
           previous_result
         )
 
@@ -784,8 +784,8 @@ defmodule Archethic.P2P do
             message,
             conflict_resolver,
             acceptance_resolver,
-            consistency_level,
             timeout,
+            consistency_level,
             quorum_result
           )
         else
@@ -795,8 +795,8 @@ defmodule Archethic.P2P do
               message,
               conflict_resolver,
               acceptance_resolver,
-              consistency_level,
               timeout,
+              consistency_level,
               previous_result
             )
 
@@ -816,8 +816,8 @@ defmodule Archethic.P2P do
             message,
             conflict_resolver,
             acceptance_resolver,
-            consistency_level,
             timeout,
+            consistency_level,
             previous_result
           )
         end
