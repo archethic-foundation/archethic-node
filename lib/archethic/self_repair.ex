@@ -68,6 +68,8 @@ defmodule Archethic.SelfRepair do
         Logger.error(
           "Bootstrap Sync failed to load missed transactions after max retry of #{@max_retry_count} !"
         )
+
+        :error
     end
   end
 
