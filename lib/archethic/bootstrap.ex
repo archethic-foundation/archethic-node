@@ -236,7 +236,7 @@ defmodule Archethic.Bootstrap do
       Logger.info("Synchronization started")
       # Always load the current node list to have the current view for downloading transaction
       {:ok, current_nodes} = Sync.connect_current_node(closest_bootstrapping_nodes)
-      :ok = SelfRepair.bootstrap_sync(last_sync_date, current_nodes)
+      :ok = SelfRepair.bootstrap_sync(current_nodes)
       Logger.info("Synchronization finished")
     end
 
