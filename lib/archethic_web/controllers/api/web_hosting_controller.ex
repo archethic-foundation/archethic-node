@@ -1,4 +1,3 @@
-# credo:disable-for-this-file Credo.Check.Refactor.CyclomaticComplexity
 defmodule ArchethicWeb.API.WebHostingController do
   @moduledoc false
 
@@ -34,24 +33,6 @@ defmodule ArchethicWeb.API.WebHostingController do
       {:ok, file_content, encoding, mime_type, cached?, etag} ->
         send_response(conn, file_content, encoding, mime_type, cached?, etag)
 
-      {:error, :invalid_address} ->
-        send_resp(conn, 400, "Invalid address")
-
-      {:error, :invalid_content} ->
-        send_resp(conn, 400, "Invalid transaction content")
-
-      {:error, :website_not_found} ->
-        send_resp(conn, 404, "Cannot find website content")
-
-      {:error, :file_not_found} ->
-        send_resp(conn, 404, "Cannot find file content")
-
-      {:error, :invalid_encoding} ->
-        send_resp(conn, 400, "Invalid file encoding")
-
-      {:error, :unpublished} ->
-        send_resp(conn, 410, "Website has been unpublished")
-
       {:error, {:is_a_directory, reference_transaction}} ->
         {:ok, listing_html, encoding, mime_type, cached?, etag} =
           DirectoryListing.list(
@@ -63,10 +44,21 @@ defmodule ArchethicWeb.API.WebHostingController do
 
         send_response(conn, listing_html, encoding, mime_type, cached?, etag)
 
+      {:error, reason} when is_atom(reason) ->
+        send_err(conn, reason)
+
       {:error, _e} ->
         send_resp(conn, 404, "Not Found")
     end
   end
+
+  defp send_err(conn, :invalid_address), do: send_resp(conn, 400, "Invalid address")
+  defp send_err(conn, :invalid_content), do: send_resp(conn, 400, "Invalid transaction content")
+  defp send_err(conn, :website_not_found), do: send_resp(conn, 404, "Cannot find website content")
+  defp send_err(conn, :file_not_found), do: send_resp(conn, 404, "Cannot find file content")
+  defp send_err(conn, :invalid_encoding), do: send_resp(conn, 400, "Invalid file encoding")
+  defp send_err(conn, :unpublished), do: send_resp(conn, 410, "Website has been unpublished")
+  defp send_err(conn, atom), do: send_resp(conn, 400, "Unknown error: #{inspect(atom)}")
 
   @doc """
   Fetch the website file content
