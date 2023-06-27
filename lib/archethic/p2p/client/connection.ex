@@ -316,7 +316,7 @@ defmodule Archethic.P2P.Client.Connection do
         res = transport.handle_send(socket, message_envelop)
 
         :telemetry.execute(
-          [:archethic, :p2p, :transport_sending],
+          [:archethic, :p2p, :transport_sending_message],
           %{
             duration: System.monotonic_time() - start_transport_sending_time
           },
