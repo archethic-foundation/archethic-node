@@ -65,6 +65,74 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
 
+    test "should validate smart contract that does not have a transaction trigger but has a condition transaction" do
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{
+             code: ~s"""
+             @version 1
+
+             condition transaction: []
+
+             actions triggered_by: datetime, at: 1687874880 do
+               calls = Contract.get_calls
+               Contract.set_content List.size(calls)
+             end
+             """
+           }
+         }}
+      end)
+
+      incoming_tx = %Transaction{
+        data: %TransactionData{
+          content: "hola"
+        }
+      }
+
+      assert %SmartContractCallValidation{valid?: true} =
+               %ValidateSmartContractCall{
+                 contract_address: "@SC1",
+                 transaction: incoming_tx,
+                 inputs_before: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should not validate smart contract that does not have a condition transaction" do
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{
+             code: ~s"""
+             @version 1
+
+             actions triggered_by: datetime, at: 1687874880 do
+               calls = Contract.get_calls
+               Contract.set_content List.size(calls)
+             end
+             """
+           }
+         }}
+      end)
+
+      incoming_tx = %Transaction{
+        data: %TransactionData{
+          content: "hola"
+        }
+      }
+
+      assert %SmartContractCallValidation{valid?: false} =
+               %ValidateSmartContractCall{
+                 contract_address: "@SC1",
+                 transaction: incoming_tx,
+                 inputs_before: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
     test "should validate smart contract call and return invalid message" do
       MockDB
       |> expect(:get_transaction, fn "@SC1", _, _ ->

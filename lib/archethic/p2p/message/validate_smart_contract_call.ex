@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   defstruct [:contract_address, :transaction, :inputs_before]
 
   alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.TransactionChain
@@ -171,12 +172,10 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     valid? =
       with {:ok, contract_tx} <- TransactionChain.get_transaction(contract_address),
            {:ok, contract} <- Contracts.from_transaction(contract_tx),
+           :ok <- check_can_receive_calls(contract),
            true <-
              Contracts.valid_condition?(:transaction, contract, transaction, datetime),
-           {:ok, _} <-
-             Contracts.execute_trigger(:transaction, contract, transaction, [transaction],
-               time_now: datetime
-             ) do
+           :ok <- maybe_execute_trigger(contract, transaction, time_now: datetime) do
         true
       else
         _ ->
@@ -186,5 +185,27 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     %SmartContractCallValidation{
       valid?: valid?
     }
+  end
+
+  defp check_can_receive_calls(contract) do
+    if Contract.can_receive_calls?(contract) do
+      :ok
+    else
+      {:error, :contract_cannot_be_called}
+    end
+  end
+
+  defp maybe_execute_trigger(contract = %Contract{triggers: triggers}, transaction, opts) do
+    if Map.has_key?(triggers, :transaction) do
+      case Contracts.execute_trigger(:transaction, contract, transaction, [transaction], opts) do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      :ok
+    end
   end
 end

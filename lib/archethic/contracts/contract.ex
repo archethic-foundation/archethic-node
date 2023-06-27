@@ -94,4 +94,12 @@ defmodule Archethic.Contracts.Contract do
       ) do
     Map.update!(contract, :conditions, &Map.put(&1, condition_name, conditions))
   end
+
+  @doc """
+  Return wether or not a contract accepts calls.
+  """
+  @spec can_receive_calls?(t()) :: boolean()
+  def can_receive_calls?(%__MODULE__{conditions: conditions}) do
+    Map.has_key?(conditions, :transaction)
+  end
 end
