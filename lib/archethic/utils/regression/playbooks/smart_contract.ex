@@ -102,6 +102,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
         trigger_seed,
         :transfer,
         %TransactionData{
+          content: Keyword.get(opts, :content, ""),
           recipients: [contract_address]
         },
         endpoint
