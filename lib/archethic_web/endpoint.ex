@@ -62,7 +62,9 @@ defmodule ArchethicWeb.Endpoint do
   # ps: this handle only HTTP(S) requests
   #     for WS, see archethic_web/channels/user_socket.ex
   defp archethic_up(conn, _opts) do
-    if Archethic.up?() do
+    request_path = Map.get(conn, :request_path, nil)
+
+    if request_path in ["/metrics", "/metrics/"] or Archethic.up?() do
       conn
     else
       Logger.debug("Received a web request but node is bootstraping")
