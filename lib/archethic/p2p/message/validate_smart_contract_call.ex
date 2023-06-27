@@ -172,7 +172,6 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     valid? =
       with {:ok, contract_tx} <- TransactionChain.get_transaction(contract_address),
            {:ok, contract} <- Contracts.from_transaction(contract_tx),
-           :ok <- check_can_receive_calls(contract),
            true <-
              Contracts.valid_condition?(:transaction, contract, transaction, datetime),
            :ok <- maybe_execute_trigger(contract, transaction, time_now: datetime) do
@@ -185,14 +184,6 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     %SmartContractCallValidation{
       valid?: valid?
     }
-  end
-
-  defp check_can_receive_calls(contract) do
-    if Contract.can_receive_calls?(contract) do
-      :ok
-    else
-      {:error, :contract_cannot_be_called}
-    end
   end
 
   defp maybe_execute_trigger(contract = %Contract{triggers: triggers}, transaction, opts) do
