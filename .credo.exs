@@ -37,7 +37,7 @@
         # Readability Checks
         {Credo.Check.Readability.AliasOrder, []},
         {Credo.Check.Readability.FunctionNames, []},
-        {Credo.Check.Readability.LargeNumbers, []},
+        {Credo.Check.Readability.LargeNumbers, [only_greater_than: 99999]},
         {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 120, ignore_specs: true, ignore_strings: true]},
         {Credo.Check.Readability.ModuleAttributeNames, []},
         {Credo.Check.Readability.ModuleDoc, []},
