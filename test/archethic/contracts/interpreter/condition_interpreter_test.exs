@@ -67,6 +67,18 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
   end
 
   describe "parse/1 field" do
+    test "should not parse an unknown field" do
+      code = ~s"""
+      condition inherit: [  foo: true    ]
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse()
+    end
+
     test "parse strict value" do
       code = ~s"""
       condition transaction: [
