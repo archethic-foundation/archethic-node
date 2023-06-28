@@ -72,10 +72,7 @@ defmodule Archethic.P2P.MemTableLoader do
         MemTable.set_node_synced(node_key)
         MemTable.set_node_available(node_key, availability_update)
         MemTable.update_node_average_availability(node_key, avg_availability)
-
-        if network_patch do
-          MemTable.update_node_network_patch(node_key, network_patch)
-        end
+        MemTable.update_node_network_patch(node_key, network_patch)
 
       [] ->
         MemTable.set_node_synced(node_key)
@@ -182,15 +179,14 @@ defmodule Archethic.P2P.MemTableLoader do
   defp load_p2p_summary(
          {node_public_key, available?, avg_availability, availability_update, network_patch}
        ) do
+    MemTable.update_node_average_availability(node_public_key, avg_availability)
+    MemTable.update_node_network_patch(node_public_key, network_patch)
+
     if available? do
       MemTable.set_node_synced(node_public_key)
       MemTable.set_node_available(node_public_key, availability_update)
-    end
-
-    MemTable.update_node_average_availability(node_public_key, avg_availability)
-
-    if network_patch do
-      MemTable.update_node_network_patch(node_public_key, network_patch)
+    else
+      MemTable.set_node_unavailable(node_public_key, availability_update)
     end
   end
 end
