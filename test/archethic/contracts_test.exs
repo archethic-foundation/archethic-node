@@ -5,7 +5,6 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts.Contract
   alias Archethic.P2P
   alias Archethic.P2P.Node
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -14,7 +13,6 @@ defmodule Archethic.ContractsTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   import ArchethicCase
-  import Mock
 
   @moduletag capture_log: true
 
@@ -194,7 +192,7 @@ defmodule Archethic.ContractsTest do
   end
 
   describe "valid_execution?/3" do
-    setup_with_mocks([{TransactionChain, [], fetch_contract_calls: fn _, _, _ -> {:ok, []} end}]) do
+    setup do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -300,7 +298,6 @@ defmodule Archethic.ContractsTest do
       }
 
       assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-      assert_called(TransactionChain.fetch_contract_calls(:_, :_, :_))
     end
 
     test "should return false when the transaction have been triggered by datetime but timestamp doesn't match" do
@@ -378,7 +375,6 @@ defmodule Archethic.ContractsTest do
       }
 
       assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-      assert_called(TransactionChain.fetch_contract_calls(:_, :_, :_))
     end
 
     test "should return false when the transaction have been triggered by interval but timestamp doesn't match" do

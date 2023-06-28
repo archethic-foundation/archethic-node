@@ -6,19 +6,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
   """
   @behaviour Archethic.Contracts.Interpreter.Library
 
-  alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
   alias Archethic.Utils
-
-  @spec get_calls() :: list(map())
-  def get_calls() do
-    # DISCUSS:
-    # this function is not really needed, we might just tell the users there is a "calls" global variable?
-    Scope.read_global(["calls"])
-  end
 
   @spec set_type(Transaction.t(), binary()) :: Transaction.t()
   defdelegate set_type(next_tx, type),
@@ -130,10 +122,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Contract do
 
   def check_types(:add_uco_transfers, [first]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
-  end
-
-  def check_types(:get_calls, []) do
-    true
   end
 
   def check_types(_, _), do: false

@@ -269,10 +269,6 @@ defmodule Archethic.Contracts.ContractConstants do
         # ex: transaction might be nil when trigger=interval|datetime
         {name, nil}
 
-      # actions constants
-      {"calls", calls} ->
-        {"calls", Enum.map(calls, func)}
-
       # conditions constants
       {"next", map} ->
         {"next", func.(map)}

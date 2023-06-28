@@ -386,12 +386,11 @@ defmodule Archethic do
   @spec execute_contract(
           Contract.trigger_type(),
           Contract.t(),
-          nil | Transaction.t(),
-          [Transaction.t()]
+          nil | Transaction.t()
         ) ::
           {:ok, nil | Transaction.t()}
           | {:error, :contract_failure | :invalid_triggers_execution}
-  defdelegate execute_contract(trigger_type, contract, maybe_trigger_tx, calls),
+  defdelegate execute_contract(trigger_type, contract, maybe_trigger_tx),
     to: Contracts,
     as: :execute_trigger
 

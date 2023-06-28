@@ -24,7 +24,6 @@ defmodule Archethic.TransactionChain do
     AddressList,
     Error,
     GenesisAddress,
-    GetContractCalls,
     GetGenesisAddress,
     GetLastTransactionAddress,
     GetNextAddresses,
@@ -67,11 +66,11 @@ defmodule Archethic.TransactionChain do
   require Logger
 
   # ------------------------------------------------------------
-  #   _     ___ ____ _____ 
+  #   _     ___ ____ _____
   #  | |   |_ _/ ___|_   _|
-  #  | |    | |\___ \ | |  
-  #  | |___ | | ___) || |  
-  #  |_____|___|____/ |_|  
+  #  | |    | |\___ \ | |
+  #  | |___ | | ___) || |
+  #  |_____|___|____/ |_|
   # ------------------------------------------------------------
 
   @doc """
@@ -121,11 +120,11 @@ defmodule Archethic.TransactionChain do
   defdelegate list_first_addresses(), to: DB
 
   # ------------------------------------------------------------
-  #    ____ _____ _____ 
+  #    ____ _____ _____
   #   / ___| ____|_   _|
-  #  | |  _|  _|   | |  
-  #  | |_| | |___  | |  
-  #   \____|_____| |_|  
+  #  | |  _|  _|   | |
+  #  | |_| | |___  | |
+  #   \____|_____| |_|
   # ------------------------------------------------------------
 
   @doc """
@@ -252,7 +251,7 @@ defmodule Archethic.TransactionChain do
     as: :get_signatures
 
   # ------------------------------------------------------------
-  #   _____ _____ _____ ____ _   _ 
+  #   _____ _____ _____ ____ _   _
   #  |  ___| ____|_   _/ ___| | | |
   #  | |_  |  _|   | || |   | |_| |
   #  |  _| | |___  | || |___|  _  |
@@ -307,42 +306,13 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Fetch the transactions (not the inputs) that called the given contract.
-  """
-  @spec fetch_contract_calls(
-          contract_address :: binary(),
-          nodes :: list(Node.t()),
-          before :: DateTime.t()
-        ) ::
-          {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def fetch_contract_calls(contract_address, nodes, before = %DateTime{} \\ DateTime.utc_now()) do
-    conflict_resolver = fn results ->
-      results
-      |> Enum.sort_by(&length(&1.transactions), :desc)
-      |> List.first()
-    end
-
-    case P2P.quorum_read(
-           nodes,
-           %GetContractCalls{address: contract_address, before: before},
-           conflict_resolver
-         ) do
-      {:ok, %TransactionList{transactions: transactions}} ->
-        {:ok, transactions}
-
-      {:error, :network_issue} ->
-        {:error, :network_issue}
-    end
-  end
-
-  @doc """
   Fetch transaction remotely
 
   If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`.
   If the transaction doesn't exist, `{:error, :transaction_not_exists}` is returned.
   If no nodes are available to answer the request, `{:error, :network_issue}` is returned.
 
-  Options: 
+  Options:
   - search_mode: select where to request the data: :remote or :hybrid (default :hybrid)
   - timeout: set the timeout for the remote request (default Message.max_timeout)
   - acceptance_resolver: set the function to accept the result of the quorum (default fn _ -> true end)
@@ -793,11 +763,11 @@ defmodule Archethic.TransactionChain do
   end
 
   # ------------------------------------------------------------
-  #   _   _ _____ ___ _     ____  
-  #  | | | |_   _|_ _| |   / ___| 
-  #  | | | | | |  | || |   \___ \ 
+  #   _   _ _____ ___ _     ____
+  #  | | | |_   _|_ _| |   / ___|
+  #  | | | | | |  | || |   \___ \
   #  | |_| | | |  | || |___ ___) |
-  #   \___/  |_| |___|_____|____/ 
+  #   \___/  |_| |___|_____|____/
   # ------------------------------------------------------------
 
   @doc """
