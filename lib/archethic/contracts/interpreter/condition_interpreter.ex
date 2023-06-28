@@ -8,6 +8,10 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
   @modules_whitelisted Library.list_common_modules()
+  @condition_fields Conditions.__struct__()
+                    |> Map.keys()
+                    |> Enum.reject(&(&1 == :__struct__))
+                    |> Enum.map(&Atom.to_string/1)
 
   @type condition_type :: :transaction | :inherit | :oracle
 
@@ -16,7 +20,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   """
   @spec parse(any()) ::
           {:ok, condition_type(), Conditions.t()} | {:error, any(), String.t()}
-  def parse({{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]}) do
+  def parse(node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]}) do
     {condition_type, global_variable} =
       case condition_name do
         "transaction" -> {:transaction, "transaction"}
@@ -31,7 +35,10 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
 
     conditions =
       Enum.reduce(proplist, %Conditions{}, fn {key, value}, acc ->
-        # todo: throw if unknown key
+        if key not in @condition_fields do
+          throw({:error, node, "invalid condition field: #{key}"})
+        end
+
         new_value = to_boolean_expression([global_variable, key], value)
         Map.put(acc, String.to_existing_atom(key), new_value)
       end)
