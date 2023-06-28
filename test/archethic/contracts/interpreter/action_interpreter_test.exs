@@ -269,7 +269,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
     test "should be able to use a function call as a parameter to a lib function" do
       code = ~S"""
       actions triggered_by: transaction do
-        count = List.size(Contract.get_calls())
+        list = [1,2,3,4,5]
+        count = List.size(List.append(list, 6))
         Contract.set_content(count)
       end
       """

@@ -75,8 +75,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
              @version 1
 
              actions triggered_by: datetime, at: 1687874880 do
-               calls = Contract.get_calls
-               Contract.set_content List.size(calls)
+               Contract.set_content 42
              end
              """
            }

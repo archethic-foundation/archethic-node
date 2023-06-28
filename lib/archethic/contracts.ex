@@ -47,12 +47,11 @@ defmodule Archethic.Contracts do
           Contract.trigger_type(),
           Contract.t(),
           nil | Transaction.t(),
-          [Transaction.t()],
           Keyword.t()
         ) ::
           {:ok, nil | Transaction.t()}
           | {:error, :contract_failure | :invalid_triggers_execution}
-  defdelegate execute_trigger(trigger_type, contract, maybe_trigger_tx, calls, opts \\ []),
+  defdelegate execute_trigger(trigger_type, contract, maybe_trigger_tx, opts \\ []),
     to: Interpreter,
     as: :execute_trigger
 
@@ -90,17 +89,12 @@ defmodule Archethic.Contracts do
           status: status
         }
       ) do
-    nodes = Election.chain_storage_nodes(previous_address, P2P.authorized_and_available_nodes())
-
     with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
-         {:ok, contract} <- from_transaction(prev_tx),
-         {:ok, calls} <-
-           TransactionChain.fetch_contract_calls(previous_address, nodes, timestamp) do
+         {:ok, contract} <- from_transaction(prev_tx) do
       case execute_trigger(
              trigger_to_trigger_type(trigger),
              contract,
              maybe_trigger_tx,
-             calls,
              trigger_to_execute_opts(trigger)
            ) do
         {:ok, %Transaction{type: expected_type, data: expected_data}} ->

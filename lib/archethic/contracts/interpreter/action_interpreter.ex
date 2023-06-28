@@ -59,7 +59,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     # because it is mutable.
     #
     # constants should already contains the global variables:
-    #   - "calls": the transactions that called this exact contract version
     #   - "contract": current contract transaction
     #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
     #   - "_time_now": the time returned by Time.now()
@@ -181,20 +180,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # Contract.get_calls()
-  defp postwalk(
-         _node =
-           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, "get_calls"}]}, _, []},
-         acc
-       ) do
-    new_node =
-      quote do
-        Archethic.Contracts.Interpreter.Library.Contract.get_calls()
-      end
-
-    {new_node, acc}
-  end
-
   # handle the Contract module
   # here we have 2 things to do:
   #   - feed the `next_transaction` as the 1st function parameter
