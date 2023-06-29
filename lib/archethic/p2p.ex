@@ -166,9 +166,11 @@ defmodule Archethic.P2P do
           first_public_key :: Crypto.key(),
           availability_update :: DateTime.t()
         ) :: :ok
-  defdelegate set_node_globally_available(first_public_key, availability_update),
-    to: MemTable,
-    as: :set_node_available
+  def set_node_globally_available(first_public_key, availability_update) do
+    unless available_node?(first_public_key) do
+      MemTable.set_node_available(first_public_key, availability_update)
+    end
+  end
 
   @doc """
   Remove a node first public key to the list of nodes globally available.
@@ -177,9 +179,11 @@ defmodule Archethic.P2P do
           first_public_key :: Crypto.key(),
           availability_update :: DateTime.t()
         ) :: :ok
-  defdelegate set_node_globally_unavailable(first_public_key, availability_update),
-    to: MemTable,
-    as: :set_node_unavailable
+  def set_node_globally_unavailable(first_public_key, availability_update) do
+    if available_node?(first_public_key) do
+      MemTable.set_node_unavailable(first_public_key, availability_update)
+    end
+  end
 
   @doc """
   Add a node first public key to the list of nodes globally synced.

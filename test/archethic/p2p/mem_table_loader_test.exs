@@ -156,6 +156,70 @@ defmodule Archethic.P2P.MemTableLoaderTest do
       assert {:ok, _} = MemTableLoader.start_link()
       assert [@node_2_public_key] == MemTable.list_authorized_public_keys()
     end
+
+    test "should have the same view as P2P_view saved in DB" do
+      MemTable.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        enrollment_date: DateTime.utc_now()
+      })
+
+      MemTable.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: @node_1_public_key,
+        last_public_key: @node_1_public_key,
+        enrollment_date: DateTime.utc_now()
+      })
+
+      MemTable.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: @node_2_public_key,
+        last_public_key: @node_2_public_key,
+        enrollment_date: DateTime.utc_now()
+      })
+
+      MockDB
+      |> expect(:get_last_p2p_summaries, fn ->
+        [
+          {Crypto.first_node_public_key(), false, 0.45, ~U[2023-06-27 00:15:00Z], "AAA"},
+          {@node_1_public_key, true, 0.75, ~U[2023-03-12 00:15:00Z], "BBB"},
+          {@node_2_public_key, true, 1.0, ~U[2023-06-27 00:15:00Z], "CCC"}
+        ]
+      end)
+
+      assert {:ok, _} = MemTableLoader.start_link()
+
+      # Avoid test error on HypergeometricDistribution cathing node update while ETS table
+      # does not exists
+      Process.sleep(10)
+
+      nodes = MemTable.list_nodes()
+
+      assert %Node{
+               available?: false,
+               average_availability: 0.45,
+               availability_update: ~U[2023-06-27 00:15:00Z],
+               network_patch: "AAA"
+             } = Enum.find(nodes, &(&1.first_public_key == Crypto.first_node_public_key()))
+
+      assert %Node{
+               available?: true,
+               average_availability: 0.75,
+               availability_update: ~U[2023-03-12 00:15:00Z],
+               network_patch: "BBB"
+             } = Enum.find(nodes, &(&1.first_public_key == @node_1_public_key))
+
+      assert %Node{
+               available?: true,
+               average_availability: 1.0,
+               availability_update: ~U[2023-06-27 00:15:00Z],
+               network_patch: "CCC"
+             } = Enum.find(nodes, &(&1.first_public_key == @node_2_public_key))
+    end
   end
 
   defp create_node_transaction do
