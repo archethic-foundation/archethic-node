@@ -9,10 +9,17 @@ defmodule ArchethicWeb.API.WebHostingController.ReferenceTransaction do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias ArchethicCache.LRU
 
-  @enforce_keys [:address, :json_content, :timestamp, :ownerships]
-  defstruct [:address, :json_content, :timestamp, :ownerships]
+  @enforce_keys [:address, :json_content, :status, :timestamp, :ownerships]
+  defstruct [
+    :address,
+    :json_content,
+    :timestamp,
+    :ownerships,
+    status: :published
+  ]
 
   @type t() :: %__MODULE__{
+          status: :published | :unpublished,
           address: binary(),
           json_content: map(),
           timestamp: DateTime.t(),
@@ -61,6 +68,7 @@ defmodule ArchethicWeb.API.WebHostingController.ReferenceTransaction do
     with {:ok, json_content} <- Jason.decode(content) do
       {:ok,
        %__MODULE__{
+         status: get_status_from_json(json_content),
          address: address,
          json_content: json_content,
          timestamp: timestamp,
@@ -68,4 +76,7 @@ defmodule ArchethicWeb.API.WebHostingController.ReferenceTransaction do
        }}
     end
   end
+
+  defp get_status_from_json(%{"publicationStatus" => "UNPUBLISHED"}), do: :unpublished
+  defp get_status_from_json(_), do: :published
 end

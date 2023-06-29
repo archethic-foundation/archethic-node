@@ -21,6 +21,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   alias ArchethicCache.LRUDisk
 
   import Mox
+  import ArchethicCase
 
   setup do
     # There is a setup in ArchethicCase that removes the mut_dir()
@@ -48,6 +49,36 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   end
 
   describe "web_hosting/2" do
+    test "should return 410 when unpublished", %{conn: conn} do
+      address = random_address()
+      address_hex = Base.encode16(address)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: ^address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{address: ^address}, _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{
+               content: """
+               {
+                 "aewebVersion": 1,
+                 "publicationStatus": "UNPUBLISHED"
+               }
+               """
+             },
+             validation_stamp: %ValidationStamp{
+               timestamp: DateTime.utc_now()
+             }
+           }}
+      end)
+
+      conn1 = get(conn, "/api/web_hosting/#{address_hex}/")
+      assert "Website has been unpublished" = response(conn1, 410)
+    end
+
     test "should return Invalid address", %{conn: conn} do
       MockClient
       |> stub(:send_message, fn

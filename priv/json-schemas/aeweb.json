@@ -3,7 +3,7 @@
   "oneOf": [
     {
       "type": "object",
-      "description": "List of files",
+      "description": "Data tx",
       "minProperties": 1,
       "additionalProperties": {
         "type": "string"
@@ -11,12 +11,40 @@
     },
     {
       "type": "object",
-      "description": "MetaData",
+      "description": "Reference tx of an unpublished website",
       "properties": {
         "aewebVersion": {
           "type": "number",
           "exclusiveMinimum": 0,
           "description": "AEWeb's version"
+        },
+        "publicationStatus": {
+          "type": "string",
+          "enum": [
+            "UNPUBLISHED"
+          ]
+        }
+      },
+      "required": [
+        "aewebVersion",
+        "publicationStatus"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "description": "Reference tx of a published website",
+      "properties": {
+        "aewebVersion": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "AEWeb's version"
+        },
+        "publicationStatus": {
+          "type": "string",
+          "enum": [
+            "PUBLISHED"
+          ]
         },
         "sslCertificate": {
           "type": "string",
