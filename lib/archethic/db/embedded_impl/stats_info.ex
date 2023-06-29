@@ -91,9 +91,9 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
   end
 
   defp load_from_file(fd, acc \\ {0.0, 0, 0}) do
-    # Read each stats entry 20 bytes: 4(timestamp) + 8(tps) + 4(nb transactions) + 4(burned_fees)
-    case :file.read(fd, 20) do
-      {:ok, <<_timestamp::32, tps::float-64, nb_transactions::32, burned_fees::32>>} ->
+    # Read each stats entry 28 bytes: 4(timestamp) + 8(tps) + 8(nb transactions) + 8(burned_fees)
+    case :file.read(fd, 28) do
+      {:ok, <<_timestamp::32, tps::float-64, nb_transactions::64, burned_fees::64>>} ->
         {_, prev_nb_transactions, _} = acc
         load_from_file(fd, {tps, prev_nb_transactions + nb_transactions, burned_fees})
 
@@ -129,7 +129,7 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
   defp append_to_file(fd, date, tps, nb_transactions, burned_fees) do
     IO.binwrite(
       fd,
-      <<DateTime.to_unix(date)::32, tps::float-64, nb_transactions::32, burned_fees::32>>
+      <<DateTime.to_unix(date)::32, tps::float-64, nb_transactions::64, burned_fees::64>>
     )
   end
 end
