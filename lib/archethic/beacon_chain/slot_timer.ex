@@ -102,6 +102,11 @@ defmodule Archethic.BeaconChain.SlotTimer do
   def handle_info(:node_up, state = %{interval: interval}) do
     Logger.info("Slot Timer: Starting...")
 
+    case Map.get(state, :timer, nil) do
+      nil -> :ok
+      timer -> Process.cancel_timer(timer)
+    end
+
     new_state =
       state
       |> Map.put(:timer, schedule_new_slot(interval))
