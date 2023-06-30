@@ -139,7 +139,11 @@ defmodule Archethic do
     )
   end
 
-  defp forward_transaction(tx, welcome_node_key, contract_context) do
+  defp forward_transaction(
+         tx = %Transaction{address: address, type: type},
+         welcome_node_key,
+         contract_context
+       ) do
     %Node{network_patch: welcome_node_patch} = P2P.get_node_info!(welcome_node_key)
 
     nodes =
@@ -164,13 +168,22 @@ defmodule Archethic do
 
     TaskSupervisor
     |> Task.Supervisor.start_child(fn ->
-      :ok =
-        %NewTransaction{
-          transaction: tx,
-          welcome_node: welcome_node_key,
-          contract_context: contract_context
-        }
-        |> do_forward_transaction(nodes)
+      message = %NewTransaction{
+        transaction: tx,
+        welcome_node: welcome_node_key,
+        contract_context: contract_context
+      }
+
+      case do_forward_transaction(message, nodes) do
+        {:error, _} ->
+          Logger.warning("Forward transaction did not succeed",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
+        _ ->
+          :ok
+      end
     end)
 
     :ok
