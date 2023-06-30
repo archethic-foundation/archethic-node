@@ -7,7 +7,6 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter.Library.Contract
 
   alias Archethic.TransactionChain.Transaction
@@ -576,43 +575,6 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                  ]
                }
              } = sanitize_parse_execute(code)
-    end
-  end
-
-  # ----------------------------------------
-  describe "get_calls/1" do
-    test "should work" do
-      contract_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-      code = ~s"""
-      actions triggered_by: transaction do
-        calls = Contract.get_calls()
-        Contract.set_content List.size(calls)
-      end
-      """
-
-      assert %Transaction{
-               data: %TransactionData{
-                 content: "2"
-               }
-             } =
-               sanitize_parse_execute(code, %{
-                 "calls" => [
-                   Constants.from_transaction(%Transaction{
-                     data: %TransactionData{},
-                     address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>
-                   }),
-                   Constants.from_transaction(%Transaction{
-                     data: %TransactionData{},
-                     address: <<0::16, :crypto.strong_rand_bytes(32)::binary>>
-                   })
-                 ],
-                 "contract" =>
-                   Constants.from_transaction(%Transaction{
-                     data: %TransactionData{},
-                     address: contract_address
-                   })
-               })
     end
   end
 end

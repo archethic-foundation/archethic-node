@@ -77,8 +77,7 @@ defmodule Archethic.P2P.Message do
     GetNetworkStats,
     NetworkStats,
     ValidateSmartContractCall,
-    SmartContractCallValidation,
-    GetContractCalls
+    SmartContractCallValidation
   }
 
   require Logger
@@ -129,7 +128,6 @@ defmodule Archethic.P2P.Message do
           | GetTransactionSummary.t()
           | GetNetworkStats.t()
           | ValidateSmartContractCall.t()
-          | GetContractCalls.t()
 
   @type response ::
           Ok.t()

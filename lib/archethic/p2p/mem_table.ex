@@ -689,29 +689,15 @@ defmodule Archethic.P2P.MemTable do
       when is_binary(first_public_key) do
     Logger.info("Node globally available", node: Base.encode16(first_public_key))
 
-    # When a node bootstrap, before starting its self repair, it load the current p2p view of the network.
-    # But then when the self repair occurs, the node needs to know the p2p view at the summary time so we need to update
-    # the node availability update to match the one it was at the time of the current repairing summary.
-    # So if a node wants to update a node already available but with a lower availability_update, it means that 
-    # the node is performing a self repair from the bootstrap so we update the date
-
     availability_pos = Keyword.fetch!(@discovery_index_position, :available?)
     availability_update_pos = Keyword.fetch!(@discovery_index_position, :availability_update)
 
-    already_available? = :ets.lookup_element(@discovery_table, first_public_key, availability_pos)
+    :ets.update_element(@discovery_table, first_public_key, [
+      {availability_pos, true},
+      {availability_update_pos, availability_update}
+    ])
 
-    availability_update_from_bootstrap? =
-      :ets.lookup_element(@discovery_table, first_public_key, availability_update_pos)
-      |> DateTime.compare(availability_update) == :gt
-
-    if not already_available? or availability_update_from_bootstrap? do
-      :ets.update_element(@discovery_table, first_public_key, [
-        {availability_pos, true},
-        {availability_update_pos, availability_update}
-      ])
-
-      notify_node_update(first_public_key)
-    end
+    notify_node_update(first_public_key)
 
     :ok
   end
@@ -740,20 +726,14 @@ defmodule Archethic.P2P.MemTable do
     Logger.info("Node globally unavailable", node: Base.encode16(first_public_key))
 
     availability_pos = Keyword.fetch!(@discovery_index_position, :available?)
+    availability_update_pos = Keyword.fetch!(@discovery_index_position, :availability_update)
 
-    if :ets.lookup_element(@discovery_table, first_public_key, availability_pos) do
-      availability_update_pos = Keyword.fetch!(@discovery_index_position, :availability_update)
+    :ets.update_element(@discovery_table, first_public_key, [
+      {availability_pos, false},
+      {availability_update_pos, availability_update}
+    ])
 
-      :ets.update_element(@discovery_table, first_public_key, {availability_pos, false})
-
-      :ets.update_element(
-        @discovery_table,
-        first_public_key,
-        {availability_update_pos, availability_update}
-      )
-
-      notify_node_update(first_public_key)
-    end
+    notify_node_update(first_public_key)
 
     :ok
   end

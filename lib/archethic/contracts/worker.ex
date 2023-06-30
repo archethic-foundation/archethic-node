@@ -91,17 +91,12 @@ defmodule Archethic.Contracts.Worker do
     meta = log_metadata(contract_address, trigger_tx)
     Logger.debug("Contract execution started (trigger=transaction)", meta)
 
-    nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
-
     with true <- enough_funds?(contract_address),
-         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
          {:ok, next_tx = %Transaction{}} <-
            Contracts.execute_trigger(
              :transaction,
              contract,
-             trigger_tx,
-             # we append the trigger_tx to the calls in case it is missing due to race condition
-             Enum.uniq([trigger_tx | calls])
+             trigger_tx
            ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_address),
@@ -136,12 +131,9 @@ defmodule Archethic.Contracts.Worker do
     meta = log_metadata(contract_address)
     Logger.debug("Contract execution started (trigger=datetime)", meta)
 
-    nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
-
     with true <- enough_funds?(contract_address),
-         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
          {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(trigger_type, contract, nil, calls),
+           Contracts.execute_trigger(trigger_type, contract, nil),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <- handle_new_transaction(trigger_type, next_tx, trigger_datetime) do
@@ -170,13 +162,11 @@ defmodule Archethic.Contracts.Worker do
     meta = log_metadata(contract_address)
     Logger.debug("Contract execution started (trigger=interval)", meta)
 
-    nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
     interval_datetime = Utils.get_current_time_for_interval(interval)
 
     with true <- enough_funds?(contract_address),
-         {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
          {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(trigger_type, contract, nil, calls),
+           Contracts.execute_trigger(trigger_type, contract, nil),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <-
@@ -214,12 +204,9 @@ defmodule Archethic.Contracts.Worker do
       meta = log_metadata(contract_address, oracle_tx)
       Logger.debug("Contract execution started (trigger=oracle)", meta)
 
-      nodes = Election.chain_storage_nodes(contract_address, P2P.authorized_and_available_nodes())
-
       with true <- enough_funds?(contract_address),
-           {:ok, calls} <- TransactionChain.fetch_contract_calls(contract_address, nodes),
            {:ok, next_tx = %Transaction{}} <-
-             Contracts.execute_trigger(:oracle, contract, oracle_tx, calls),
+             Contracts.execute_trigger(:oracle, contract, oracle_tx),
            {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
            :ok <- ensure_enough_funds(next_tx, contract_address),
            :ok <-

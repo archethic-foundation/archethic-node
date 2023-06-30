@@ -108,7 +108,6 @@ defmodule Archethic.Contracts.Interpreter do
           Contract.trigger_type(),
           Contract.t(),
           nil | Transaction.t(),
-          [Transaction.t()],
           execute_opts()
         ) ::
           {:ok, nil | Transaction.t()}
@@ -121,7 +120,6 @@ defmodule Archethic.Contracts.Interpreter do
           constants: %Constants{contract: contract_constants}
         },
         maybe_trigger_tx,
-        calls,
         opts \\ []
       ) do
     case triggers[trigger_type] do
@@ -142,7 +140,6 @@ defmodule Archethic.Contracts.Interpreter do
           |> DateTime.to_unix()
 
         constants = %{
-          "calls" => Enum.map(calls, &Constants.from_transaction/1),
           "transaction" =>
             case maybe_trigger_tx do
               nil ->

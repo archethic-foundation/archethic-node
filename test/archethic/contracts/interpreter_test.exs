@@ -214,8 +214,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 [incoming_tx]
+                 incoming_tx
                )
     end
 
@@ -247,8 +246,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 [incoming_tx]
+                 incoming_tx
                )
     end
 
@@ -281,8 +279,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 [incoming_tx]
+                 incoming_tx
                )
              )
 
@@ -307,8 +304,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 [incoming_tx]
+                 incoming_tx
                )
              )
     end
@@ -332,8 +328,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:datetime, ~U[2023-03-16 16:29:00Z]},
                  Contract.from_transaction!(contract_tx),
-                 nil,
-                 []
+                 nil
                )
     end
 
@@ -356,8 +351,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:interval, "* * * * *"},
                  Contract.from_transaction!(contract_tx),
-                 nil,
-                 []
+                 nil
                )
     end
 
@@ -387,56 +381,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
-                 oracle_tx,
-                 [oracle_tx]
-               )
-    end
-
-    test "should be able to get_calls" do
-      code = ~s"""
-      @version 1
-      condition transaction: []
-      actions triggered_by: transaction do
-        calls = Contract.get_calls()
-        Contract.set_content List.size(calls)
-      end
-      """
-
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
-
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
-
-      calls = [
-        %Transaction{
-          type: :transfer,
-          data: %TransactionData{}
-        },
-        %Transaction{
-          type: :transfer,
-          data: %TransactionData{}
-        },
-        %Transaction{
-          type: :transfer,
-          data: %TransactionData{}
-        },
-        incoming_tx
-      ]
-
-      assert {:ok, %Transaction{data: %TransactionData{content: "4"}}} =
-               Interpreter.execute_trigger(
-                 :transaction,
-                 Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 calls
+                 oracle_tx
                )
     end
   end

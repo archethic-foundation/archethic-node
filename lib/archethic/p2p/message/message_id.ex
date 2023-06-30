@@ -66,7 +66,6 @@ defmodule Archethic.P2P.MessageId do
     ReplicationAttestationMessage,
     GetNetworkStats,
     NetworkStats,
-    GetContractCalls,
     ValidateSmartContractCall,
     SmartContractCallValidation
   }
@@ -122,7 +121,7 @@ defmodule Archethic.P2P.MessageId do
     ReplicatePendingTransactionChain => 37,
     NotifyReplicationValidation => 38,
     GetNetworkStats => 39,
-    GetContractCalls => 40,
+    # Message number 40 is available,
 
     # Responses
     SmartContractCallValidation => 226,

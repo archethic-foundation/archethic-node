@@ -16,7 +16,6 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.UnspentOutputList
-  alias Archethic.P2P.Message.GetContractCalls
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetFirstTransactionAddress
   alias Archethic.P2P.Message.FirstTransactionAddress
@@ -37,7 +36,6 @@ defmodule Archethic.TransactionChainTest do
 
   doctest TransactionChain
 
-  import ArchethicCase
   import Mox
 
   describe "fetch_last_address/1 should retrieve the last address for a chain" do
@@ -926,80 +924,6 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
-    end
-  end
-
-  describe "fetch_contract_calls/1" do
-    setup do
-      nodes = [
-        %Node{
-          first_public_key: random_public_key(),
-          last_public_key: random_public_key(),
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          available?: true,
-          authorized?: true,
-          geo_patch: "AAA",
-          authorization_date: DateTime.utc_now()
-        },
-        %Node{
-          first_public_key: random_public_key(),
-          last_public_key: random_public_key(),
-          ip: {127, 0, 0, 1},
-          port: 3001,
-          available?: true,
-          geo_patch: "AAA",
-          authorized?: true,
-          authorization_date: DateTime.utc_now()
-        }
-      ]
-
-      Enum.each(nodes, &P2P.add_and_connect_node/1)
-
-      %{nodes: nodes}
-    end
-
-    test "should return empty when there is no transaction at address", %{nodes: nodes} do
-      address = random_address()
-
-      MockClient
-      |> expect(:send_message, fn _, %GetContractCalls{address: ^address}, _ ->
-        {:ok, %TransactionList{transactions: []}}
-      end)
-
-      assert {:ok, []} = TransactionChain.fetch_contract_calls(address, nodes)
-    end
-
-    test "should return the calls", %{nodes: nodes} do
-      address = random_address()
-
-      tx1 = %Transaction{}
-      tx2 = %Transaction{}
-
-      MockClient
-      |> expect(:send_message, fn _, %GetContractCalls{address: ^address}, _ ->
-        {:ok, %TransactionList{transactions: [tx1, tx2]}}
-      end)
-
-      assert {:ok, [^tx1, ^tx2]} = TransactionChain.fetch_contract_calls(address, nodes)
-    end
-
-    test "should resolve conflict", %{nodes: nodes = [node1, node2]} do
-      address = random_address()
-
-      tx1 = %Transaction{address: random_address()}
-      tx2 = %Transaction{address: random_address()}
-
-      MockClient
-      |> expect(:send_message, 2, fn
-        ^node1, %GetContractCalls{address: ^address}, _ ->
-          {:ok, %TransactionList{transactions: [tx1]}}
-
-        ^node2, %GetContractCalls{address: ^address}, _ ->
-          {:ok, %TransactionList{transactions: [tx1, tx2]}}
-      end)
-
-      assert {:ok, [^tx1, ^tx2]} = TransactionChain.fetch_contract_calls(address, nodes)
     end
   end
 end

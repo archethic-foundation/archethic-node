@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
   alias Contracts.{Contract, Interpreter, Worker, ContractConstants}
 
-  alias P2P.Message.{Ok, StartMining, GetContractCalls, TransactionList}
+  alias P2P.Message.{Ok, StartMining}
 
   alias TransactionChain.{Transaction, TransactionData, Transaction.ValidationStamp}
   alias ValidationStamp.{LedgerOperations.UnspentOutput, LedgerOperations.VersionedUnspentOutput}
@@ -44,9 +44,6 @@ defmodule Archethic.Contracts.WorkerTest do
       _, %StartMining{transaction: tx}, _ ->
         send(me, {:transaction_sent, tx})
         {:ok, %Ok{}}
-
-      _, %GetContractCalls{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
     end)
 
     aes_key = :crypto.strong_rand_bytes(32)
@@ -507,103 +504,6 @@ defmodule Archethic.Contracts.WorkerTest do
           assert contract_address == token_address
           assert 0 == token_id
           assert @bob_address == to
-      after
-        3_000 ->
-          raise "Timeout"
-      end
-    end
-
-    test "voting system using get_calls() should trigger a tx after 10 calls", %{
-      constants: constants = %{"address" => contract_address}
-    } do
-      # the contract need uco to be executed
-      Archethic.Account.MemTables.TokenLedger.add_unspent_output(
-        contract_address,
-        %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: "@Bob3",
-            amount: 100_000_000 * 10_000,
-            type: {:token, contract_address, 0},
-            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
-          },
-          protocol_version: ArchethicCase.current_protocol_version()
-        }
-      )
-
-      code = ~S"""
-      @version 1
-
-      condition transaction: [
-        content: Regex.match?("^[X|Y]$")
-      ]
-
-      actions triggered_by: transaction do
-        calls = Contract.get_calls()
-        if List.size(calls) > 9 do
-          vote_for_x = 0
-          vote_for_y = 0
-
-          for call in calls do
-            if Regex.match?(call.content, "X") do
-              vote_for_x = vote_for_x + 1
-            else
-              vote_for_y = vote_for_y + 1
-            end
-          end
-          Contract.set_content "Votes results: X: #{String.from_number(vote_for_x)}; Y: #{String.from_number(vote_for_y)}"
-        end
-      end
-      """
-
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
-
-      {:ok, _} = Worker.start_link(contract)
-
-      # Mock 9 calls
-      me = self()
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %StartMining{transaction: tx}, _ ->
-          send(me, {:transaction_sent, tx})
-          {:ok, %Ok{}}
-
-        _, %GetContractCalls{}, _ ->
-          {:ok,
-           %TransactionList{
-             transactions: [
-               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "X"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "Y"}},
-               %Transaction{address: random_address(), data: %TransactionData{content: "X"}}
-             ]
-           }}
-      end)
-
-      # Execute the 10th
-      Worker.execute(contract_address, %Transaction{
-        address: @bob_address,
-        type: :transfer,
-        data: %TransactionData{
-          content: "X",
-          recipients: [contract_address]
-        },
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      })
-
-      receive do
-        {:transaction_sent, %Transaction{data: %TransactionData{content: content}}} ->
-          assert ^content = "Votes results: X: 6; Y: 4"
       after
         3_000 ->
           raise "Timeout"
