@@ -109,13 +109,68 @@ defmodule Archethic.Election do
         %Node{last_public_key: "node5", geo_patch: "F10"},
         %Node{last_public_key: "node3", geo_patch: "AA0"}
       ]
+
+      # Should discard nodes from the given list still keeping the right order
+
+      iex> %Transaction{
+      ...>   address:
+      ...>     <<0, 120, 195, 32, 77, 84, 215, 196, 116, 215, 56, 141, 40, 54, 226, 48, 66, 254, 119,
+      ...>       11, 73, 77, 243, 125, 62, 94, 133, 67, 9, 253, 45, 134, 89>>,
+      ...>   type: :transfer,
+      ...>   data: %TransactionData{},
+      ...>   previous_public_key:
+      ...>     <<0, 239, 240, 90, 182, 66, 190, 68, 20, 250, 131, 83, 190, 29, 184, 177, 52, 166, 207,
+      ...>       80, 193, 110, 57, 6, 199, 152, 184, 24, 178, 179, 11, 164, 150>>,
+      ...>   previous_signature:
+      ...>     <<200, 70, 0, 25, 105, 111, 15, 161, 146, 188, 100, 234, 147, 62, 127, 8, 152, 60, 66,
+      ...>       169, 113, 255, 51, 112, 59, 200, 61, 63, 128, 228, 111, 104, 47, 15, 81, 185, 179, 36,
+      ...>       59, 86, 171, 7, 138, 199, 203, 252, 50, 87, 160, 107, 119, 131, 121, 11, 239, 169, 99,
+      ...>       203, 76, 159, 158, 243, 133, 133>>,
+      ...>   origin_signature:
+      ...>     <<162, 223, 100, 72, 17, 56, 99, 212, 78, 132, 166, 81, 127, 91, 214, 143, 221, 32, 106,
+      ...>       189, 247, 64, 183, 27, 55, 142, 254, 72, 47, 215, 34, 108, 233, 55, 35, 94, 49, 165,
+      ...>       180, 248, 229, 160, 229, 220, 191, 35, 80, 127, 213, 240, 195, 185, 165, 89, 172, 97,
+      ...>       170, 217, 57, 254, 125, 127, 62, 169>>
+      ...> }
+      ...> |> Election.validation_nodes(
+      ...>     "daily_nonce_proof",
+      ...>     [
+      ...>       %Node{last_public_key: "node1", geo_patch: "AAA"},
+      ...>       %Node{last_public_key: "node2", geo_patch: "DEF"},
+      ...>       %Node{last_public_key: "node3", geo_patch: "AA0"},
+      ...>       %Node{last_public_key: "node4", geo_patch: "3AC"},
+      ...>       %Node{last_public_key: "node5", geo_patch: "F10"},
+      ...>       %Node{last_public_key: "node6", geo_patch: "ECA"},
+      ...>       %Node{last_public_key: "node7", geo_patch: "DAA"}
+      ...>     ],
+      ...>     [
+      ...>       %Node{last_public_key: "node10", geo_patch: "AAA"},
+      ...>       %Node{last_public_key: "node11", geo_patch: "DEF"},
+      ...>       %Node{last_public_key: "node13", geo_patch: "AA0"},
+      ...>       %Node{last_public_key: "node4", geo_patch: "3AC"},
+      ...>       %Node{last_public_key: "node8", geo_patch: "F10"},
+      ...>       %Node{last_public_key: "node9", geo_patch: "ECA"}
+      ...>     ],
+      ...>     %ValidationConstraints{ validation_number: fn _, 7 -> 3 end, min_geo_patch: fn -> 2 end },
+      ...>     [
+      ...>       %Node{last_public_key: "node1", geo_patch: "AAA"},
+      ...>       %Node{last_public_key: "node2", geo_patch: "DEF"},
+      ...>       %Node{last_public_key: "node3", geo_patch: "AA0"}
+      ...>     ]
+      ...> )
+      [
+        %Node{last_public_key: "node6", geo_patch: "ECA"},
+        %Node{last_public_key: "node5", geo_patch: "F10"},
+        %Node{last_public_key: "node7", geo_patch: "DAA"},
+      ]
   """
   @spec validation_nodes(
           pending_transaction :: Transaction.t(),
           sorting_seed :: binary(),
           authorized_nodes :: list(Node.t()),
           storage_nodes :: list(Node.t()),
-          constraints :: ValidationConstraints.t()
+          constraints :: ValidationConstraints.t(),
+          discarded_nodes :: list(Node.t())
         ) :: list(Node.t())
   def validation_nodes(
         tx = %Transaction{},
@@ -125,9 +180,11 @@ defmodule Archethic.Election do
         %ValidationConstraints{
           validation_number: validation_number_fun,
           min_geo_patch: min_geo_patch_fun
-        } \\ ValidationConstraints.new()
+        } \\ ValidationConstraints.new(),
+        discarded_nodes \\ []
       )
-      when is_binary(sorting_seed) and is_list(authorized_nodes) and is_list(storage_nodes) do
+      when is_binary(sorting_seed) and is_list(authorized_nodes) and is_list(storage_nodes) and
+             is_list(discarded_nodes) do
     start = System.monotonic_time()
 
     # Evaluate validation constraints
@@ -147,7 +204,8 @@ defmodule Archethic.Election do
           sorting_seed,
           nb_validations,
           min_geo_patch,
-          storage_nodes
+          storage_nodes,
+          discarded_nodes
         )
       end
 
@@ -168,7 +226,8 @@ defmodule Archethic.Election do
          sorting_seed,
          nb_validations,
          min_geo_patch,
-         storage_nodes
+         storage_nodes,
+         discarded_nodes
        ) do
     tx_hash =
       tx
@@ -189,12 +248,15 @@ defmodule Archethic.Election do
            ) do
           {:halt, acc}
         else
-          # Discard node in the first place if it's already a storage node and
+          # Discard node in the first place if it's already a storage node or
           # if another node already present in the geo zone to ensure geo distribution of validations
-          # Then if requires the node may be elected during a refining operation
-          # to ensure the require number of validations
+          # or if the node is discarded for example due to on non-availability
+          # Then if required, the node may be elected during a refining operation to ensure the require number of validations
 
           cond do
+            Utils.key_in_node_list?(discarded_nodes, last_public_key) ->
+              {:cont, acc}
+
             Utils.key_in_node_list?(storage_nodes, last_public_key) ->
               {:cont, acc}
 
@@ -215,18 +277,18 @@ defmodule Archethic.Election do
     )
     |> Map.get(:nodes)
     |> Enum.reverse()
-    |> refine_necessary_nodes(authorized_nodes, nb_validations)
+    |> refine_necessary_nodes(authorized_nodes, nb_validations, discarded_nodes)
   end
 
   defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
     MapSet.size(zones) >= min_geo_patch and nb_nodes >= nb_validations
   end
 
-  defp refine_necessary_nodes(selected_nodes, authorized_nodes, nb_validations) do
-    rest_nodes = authorized_nodes -- selected_nodes
+  defp refine_necessary_nodes(selected_nodes, authorized_nodes, nb_validations, discarded_nodes) do
+    remaining_nodes = (authorized_nodes -- selected_nodes) -- discarded_nodes
 
     if length(selected_nodes) < nb_validations do
-      selected_nodes ++ Enum.take(rest_nodes, nb_validations - length(selected_nodes))
+      selected_nodes ++ Enum.take(remaining_nodes, nb_validations - length(selected_nodes))
     else
       selected_nodes
     end
