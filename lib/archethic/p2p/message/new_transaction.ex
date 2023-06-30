@@ -29,7 +29,12 @@ defmodule Archethic.P2P.Message.NewTransaction do
         },
         _
       ) do
-    :ok = Archethic.send_new_transaction(tx, node_pbkey, contract_context)
+    Archethic.send_new_transaction(tx,
+      welcome_node_key: node_pbkey,
+      contract_context: contract_context,
+      forward?: true
+    )
+
     %Ok{}
   end
 

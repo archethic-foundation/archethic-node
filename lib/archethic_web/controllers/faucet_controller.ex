@@ -119,8 +119,7 @@ defmodule ArchethicWeb.FaucetController do
     tx_address = tx.address
     TransactionSubscriber.register(tx_address, System.monotonic_time())
 
-    # case Archethic.send_new_transaction(tx) do
-    :ok = Archethic.send_new_transaction(tx)
+    :ok = Archethic.send_new_transaction(tx, forward?: true)
 
     receive do
       {:new_transaction, ^tx_address} ->

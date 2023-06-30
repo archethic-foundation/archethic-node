@@ -1,18 +1,37 @@
 defmodule ArchethicTest do
   use ArchethicCase
 
-  alias Archethic.{Crypto, PubSub, P2P, P2P.Message, P2P.Node, TransactionChain}
-  alias Archethic.{BeaconChain.SummaryTimer, SharedSecrets}
+  alias Archethic.BeaconChain.SummaryTimer
+
+  alias Archethic.Crypto
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.Balance
+  alias Archethic.P2P.Message.GetBalance
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Message.TransactionChainLength
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.NewTransaction
+
+  alias Archethic.PubSub
+
   alias Archethic.SelfRepair
-  alias Archethic.SelfRepair.NetworkChain
 
-  alias Message.{Balance, GetBalance, GetLastTransactionAddress, GetTransaction, Ok}
-  alias Message.{GetTransactionChainLength, GetTransactionInputs, LastTransactionAddress}
-  alias Message.{NotFound, StartMining, TransactionChainLength, TransactionInputList}
-  alias Message.{NewTransaction}
+  alias Archethic.SharedSecrets
 
-  alias TransactionChain.{Transaction, TransactionData, Transaction.ValidationStamp}
-  alias TransactionChain.{TransactionInput, VersionedTransactionInput}
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   import ArchethicCase, only: [setup_before_send_tx: 0]
 
@@ -27,19 +46,7 @@ defmodule ArchethicTest do
   end
 
   describe "should follow sequence of checks when sending Transaction" do
-    test "should forward Transaction, Current Node Unauthorized and Available" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: false,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-
+    setup do
       P2P.add_and_connect_node(%Node{
         ip: {122, 12, 0, 5},
         port: 3000,
@@ -64,6 +71,22 @@ defmodule ArchethicTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
+      :ok
+    end
+
+    test "should forward Transaction, Current Node Unauthorized and Available" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: false,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+      })
+
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
       MockClient
@@ -72,7 +95,32 @@ defmodule ArchethicTest do
           {:ok, %Ok{}}
       end)
 
-      assert :ok = Archethic.send_new_transaction(tx)
+      assert :ok = Archethic.send_new_transaction(tx, forward?: true)
+      Process.sleep(10)
+    end
+
+    test "should not forward Transaction" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: false,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+      })
+
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      MockClient
+      |> expect(:send_message, 0, fn
+        _, %NewTransaction{}, _ ->
+          {:ok, %Ok{}}
+      end)
+
+      assert :ok = Archethic.send_new_transaction(tx, forward?: false)
       Process.sleep(10)
     end
 
@@ -91,30 +139,6 @@ defmodule ArchethicTest do
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {122, 12, 0, 5},
-        port: 3000,
-        first_public_key: "node2",
-        last_public_key: "node2",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {122, 12, 0, 5},
-        port: 3000,
-        first_public_key: "node3",
-        last_public_key: "node3",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
@@ -151,7 +175,7 @@ defmodule ArchethicTest do
       assert :ok = Archethic.send_new_transaction(tx)
     end
 
-    test "should forward Transaction & Start Repair,  Current Node Not Synchronized" do
+    test "should forward Transaction & Start Repair, Current Node Not Synchronized" do
       nss_genesis_address = "nss_genesis_address"
       nss_last_address = "nss_last_address"
       :persistent_term.put(:node_shared_secrets_gen_addr, nss_genesis_address)
@@ -166,30 +190,6 @@ defmodule ArchethicTest do
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {122, 12, 0, 5},
-        port: 3000,
-        first_public_key: "node2",
-        last_public_key: "node2",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {122, 12, 0, 5},
-        port: 3000,
-        first_public_key: "node3",
-        last_public_key: "node3",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
@@ -229,17 +229,14 @@ defmodule ArchethicTest do
           {:ok, %Ok{}}
       end)
 
-      # last address is d/f it returns last address from quorum
-      assert {:error, ["willnotmatchaddress"]} =
-               NetworkChain.verify_synchronization(:node_shared_secrets)
-
-      # trying to ssend a tx when NSS chain not synced
-      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-
       with_mock(SelfRepair, resync: fn _, _, _ -> :ok end) do
-        assert :ok = Archethic.send_new_transaction(tx)
-        assert_receive :new_transaction, 100
+        # trying to ssend a tx when NSS chain not synced
+        tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+        assert :ok = Archethic.send_new_transaction(tx, forward?: true)
+
         assert_called(SelfRepair.resync(:_, :_, :_))
+
+        assert_receive :new_transaction, 100
       end
     end
 
@@ -261,18 +258,6 @@ defmodule ArchethicTest do
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {122, 12, 0, 5},
-        port: 3000,
-        first_public_key: second_node_first_public_key,
-        last_public_key: second_node_first_public_key,
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       start_supervised!({SummaryTimer, Application.get_env(:archethic, SummaryTimer)})
@@ -302,8 +287,7 @@ defmodule ArchethicTest do
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
       MockClient
-      |> expect(:send_message, 5, fn
-        # validate nss chain from network , anticippated to be failed
+      |> expect(:send_message, 4, fn
         _, %GetLastTransactionAddress{}, _ ->
           {:ok, %LastTransactionAddress{address: "willnotmatchaddress"}}
 
@@ -322,20 +306,12 @@ defmodule ArchethicTest do
           {:ok, %Ok{}}
       end)
 
-      # last address is d/f it returns last address from quorum
-      assert {:error, ["willnotmatchaddress"]} =
-               NetworkChain.verify_synchronization(:node_shared_secrets)
-
       # trying to ssend a tx when NSS chain not synced
       with_mock(SelfRepair, resync: fn _, _, _ -> :ok end) do
-        assert :ok = Archethic.send_new_transaction(tx)
+        assert :ok = Archethic.send_new_transaction(tx, forward?: true)
         assert_receive {:forwarded_to_node2, ^tx}, 100
-
         assert_called(SelfRepair.resync(:_, :_, :_))
       end
-
-      Process.sleep(100)
-      assert :ok = Archethic.send_new_transaction(tx)
     end
   end
 

@@ -293,11 +293,7 @@ defmodule Archethic.Contracts.Worker do
 
     # The first storage node of the contract initiate the sending of the new transaction
     if trigger_node?(validation_nodes) do
-      Archethic.send_new_transaction(
-        next_transaction,
-        Crypto.first_node_public_key(),
-        contract_context
-      )
+      Archethic.send_new_transaction(next_transaction, contract_context: contract_context)
     else
       DetectNodeResponsiveness.start_link(
         next_transaction.address,
@@ -306,11 +302,7 @@ defmodule Archethic.Contracts.Worker do
           Logger.info("contract transaction ...attempt #{count}")
 
           if trigger_node?(validation_nodes, count) do
-            Archethic.send_new_transaction(
-              next_transaction,
-              Crypto.first_node_public_key(),
-              contract_context
-            )
+            Archethic.send_new_transaction(next_transaction, contract_context: contract_context)
           end
         end
       )

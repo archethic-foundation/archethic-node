@@ -120,7 +120,7 @@ defmodule Archethic.Networking.Scheduler do
             )
         })
 
-      Archethic.send_new_transaction(tx)
+      Archethic.send_new_transaction(tx, forward?: true)
       handle_new_ip(tx)
     else
       :error ->
