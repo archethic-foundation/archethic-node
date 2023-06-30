@@ -126,7 +126,8 @@ defmodule Archethic.SelfRepair.Sync do
 
     # Process first the old aggregates
     fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes)
-    |> Enum.each(&process_summary_aggregate(&1, download_nodes))
+    |> Stream.each(&process_summary_aggregate(&1, download_nodes))
+    |> Stream.run()
 
     # Then process the last one to have the last P2P view
     last_aggregate = BeaconChain.fetch_and_aggregate_summaries(last_summary_time, download_nodes)
@@ -141,24 +142,31 @@ defmodule Archethic.SelfRepair.Sync do
   end
 
   defp fetch_summaries_aggregates(last_sync_date, last_summary_time, download_nodes) do
-    last_sync_date
-    |> BeaconChain.next_summary_dates()
-    # Take only the previous summaries before the last one
-    |> Stream.take_while(fn date ->
-      DateTime.compare(date, last_summary_time) ==
-        :lt
-    end)
+    dates =
+      last_sync_date
+      |> BeaconChain.next_summary_dates()
+      # Take only the previous summaries before the last one
+      |> Stream.take_while(fn date ->
+        DateTime.compare(date, last_summary_time) ==
+          :lt
+      end)
+
     # Fetch the beacon summaries aggregate
-    |> Task.async_stream(fn date ->
-      Logger.debug("Fetch summary aggregate for #{date}")
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      dates,
+      fn date ->
+        Logger.debug("Fetch summary aggregate for #{date}")
 
-      storage_nodes =
-        date
-        |> Crypto.derive_beacon_aggregate_address()
-        |> Election.chain_storage_nodes(download_nodes)
+        storage_nodes =
+          date
+          |> Crypto.derive_beacon_aggregate_address()
+          |> Election.chain_storage_nodes(download_nodes)
 
-      BeaconChain.fetch_summaries_aggregate(date, storage_nodes)
-    end)
+        BeaconChain.fetch_summaries_aggregate(date, storage_nodes)
+      end,
+      max_concurrency: 2
+    )
     |> Stream.filter(fn
       {:ok, {:ok, %SummaryAggregate{}}} ->
         true

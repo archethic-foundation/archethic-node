@@ -136,8 +136,6 @@ defmodule Archethic.BeaconChain do
     end
   end
 
-  def load_transaction(_), do: :ok
-
   defp validate_slot(slot = %Slot{}) do
     cond do
       !SlotValidation.valid_transaction_attestations?(slot) ->
