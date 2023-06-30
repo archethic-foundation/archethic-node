@@ -9,6 +9,7 @@ defmodule Archethic do
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.Election
+  alias Archethic.Mining
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message
@@ -59,36 +60,85 @@ defmodule Archethic do
   @doc """
   Send a new transaction in the network to be mined. The current node will act as welcome node
   """
-  @spec send_new_transaction(Transaction.t(), Crypto.key(), nil | Contract.Context.t()) :: :ok
-  def send_new_transaction(
-        tx = %Transaction{},
-        welcome_node_key \\ Crypto.first_node_public_key(),
-        contract_context \\ nil
-      ) do
-    if P2P.authorized_and_available_node?() do
-      case NetworkChain.verify_synchronization(:node_shared_secrets) do
-        :ok ->
-          do_send_transaction(tx, welcome_node_key, contract_context)
+  @spec send_new_transaction(Transaction.t(), opts :: Keyword.t()) :: :ok
+  def send_new_transaction(tx = %Transaction{address: address, type: type}, opts \\ []) do
+    welcome_node_key = Keyword.get(opts, :welcome_node_key, Crypto.first_node_public_key())
+    contract_context = Keyword.get(opts, :contract_context, nil)
+    forward? = Keyword.get(opts, :forward?, false)
 
-        :error ->
-          forward_transaction(tx, welcome_node_key, contract_context)
+    cond do
+      P2P.authorized_and_available_node?() and shared_secret_synced?() ->
+        validation_nodes = Mining.get_validation_nodes(tx)
 
-        {:error, addresses} ->
-          SharedSecrets.genesis_address(:node_shared_secrets) |> SelfRepair.resync(addresses, [])
+        responses = do_send_transaction(tx, validation_nodes, welcome_node_key, contract_context)
 
-          forward_transaction(tx, welcome_node_key, contract_context)
-      end
-    else
-      # node not authorized
-      forward_transaction(tx, welcome_node_key, contract_context)
+        maybe_start_resync(responses)
+
+        if forward? and not enough_ack?(responses, length(validation_nodes)),
+          do: forward_transaction(tx, welcome_node_key, contract_context)
+
+      forward? ->
+        forward_transaction(tx, welcome_node_key, contract_context)
+
+      true ->
+        Logger.debug("Transaction has not been forwarded",
+          transaction_address: address,
+          transaction_type: type
+        )
+    end
+
+    :ok
+  end
+
+  defp shared_secret_synced?() do
+    case NetworkChain.verify_synchronization(:node_shared_secrets) do
+      :ok ->
+        true
+
+      {:error, addresses} ->
+        SharedSecrets.genesis_address(:node_shared_secrets) |> SelfRepair.resync(addresses, [])
+        false
+
+      _ ->
+        false
     end
   end
 
-  @spec forward_transaction(
-          tx :: Transaction.t(),
-          welcome_node_key :: Crypto.key(),
-          contract_context :: Contract.Context.t()
-        ) :: :ok
+  defp do_send_transaction(
+         tx = %Transaction{type: tx_type},
+         validation_nodes,
+         welcome_node_key,
+         contract_context
+       ) do
+    message = %StartMining{
+      transaction: tx,
+      welcome_node_public_key: get_welcome_node_public_key(tx_type, welcome_node_key),
+      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
+      network_chains_view_hash: NetworkView.get_chains_hash(),
+      p2p_view_hash: NetworkView.get_p2p_hash(),
+      contract_context: contract_context
+    }
+
+    Task.Supervisor.async_stream_nolink(
+      Archethic.TaskSupervisor,
+      validation_nodes,
+      &P2P.send_message(&1, message),
+      ordered: false,
+      on_timeout: :kill_task,
+      timeout: Message.get_timeout(message) + 2000
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.map(fn {:ok, res} -> res end)
+    |> Enum.reduce(
+      %{
+        ok: 0,
+        network_chains_resync_needed: false,
+        p2p_resync_needed: false
+      },
+      &reduce_start_mining_responses/2
+    )
+  end
+
   defp forward_transaction(tx, welcome_node_key, contract_context) do
     %Node{network_patch: welcome_node_patch} = P2P.get_node_info!(welcome_node_key)
 
@@ -138,63 +188,6 @@ defmodule Archethic do
 
   defp do_forward_transaction(_, []), do: {:error, :network_issue}
 
-  defp do_send_transaction(tx = %Transaction{type: tx_type}, welcome_node_key, contract_context) do
-    current_date = DateTime.utc_now()
-    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
-
-    # We are selecting only the authorized nodes the current date of the transaction
-    # If new nodes have been authorized, they only will be selected at the application date
-    node_list = P2P.authorized_and_available_nodes(current_date)
-
-    storage_nodes = Election.chain_storage_nodes(tx.address, node_list)
-
-    validation_nodes =
-      Election.validation_nodes(
-        tx,
-        sorting_seed,
-        node_list,
-        storage_nodes,
-        Election.get_validation_constraints()
-      )
-
-    message = %StartMining{
-      transaction: tx,
-      welcome_node_public_key: get_welcome_node_public_key(tx_type, welcome_node_key),
-      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-      network_chains_view_hash: NetworkView.get_chains_hash(),
-      p2p_view_hash: NetworkView.get_p2p_hash(),
-      contract_context: contract_context
-    }
-
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      validation_nodes,
-      &P2P.send_message(&1, message),
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: Message.get_timeout(message) + 2000
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.map(fn {:ok, res} -> res end)
-    |> Enum.reduce(
-      %{
-        ok: 0,
-        network_chains_resync_needed: false,
-        p2p_resync_needed: false
-      },
-      &reduce_start_mining_responses/2
-    )
-    |> then(fn aggregated_responses ->
-      maybe_start_resync(aggregated_responses)
-
-      if should_forward_transaction?(aggregated_responses, length(validation_nodes)) do
-        forward_transaction(tx, welcome_node_key, contract_context)
-      else
-        :ok
-      end
-    end)
-  end
-
   defp reduce_start_mining_responses({:ok, %Ok{}}, acc) do
     %{acc | ok: acc.ok + 1}
   end
@@ -225,8 +218,8 @@ defmodule Archethic do
     end
   end
 
-  defp should_forward_transaction?(_, 1), do: false
-  defp should_forward_transaction?(%{ok: ok_count}, _), do: ok_count < 2
+  defp enough_ack?(_, 1), do: false
+  defp enough_ack?(%{ok: ok_count}, _), do: ok_count < 2
 
   # Since welcome node is not anymore constant, as we want unauthorised
   # nodes to do some labor. Following bootstrapping, the txn of a new node

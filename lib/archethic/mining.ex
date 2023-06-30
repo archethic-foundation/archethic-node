@@ -66,14 +66,9 @@ defmodule Archethic.Mining do
   end
 
   @doc """
-  Determines if the election of validation nodes performed by the welcome node is valid
+  Elect validation nodes for a transaction
   """
-  @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
-  def valid_election?(
-        tx = %Transaction{address: tx_address, validation_stamp: nil},
-        validation_node_public_keys
-      )
-      when is_list(validation_node_public_keys) do
+  def get_validation_nodes(tx = %Transaction{address: tx_address, validation_stamp: nil}) do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
@@ -81,15 +76,22 @@ defmodule Archethic.Mining do
 
     storage_nodes = Election.chain_storage_nodes(tx_address, node_list)
 
-    validation_nodes =
-      Election.validation_nodes(
-        tx,
-        sorting_seed,
-        node_list,
-        storage_nodes,
-        Election.get_validation_constraints()
-      )
+    Election.validation_nodes(
+      tx,
+      sorting_seed,
+      node_list,
+      storage_nodes,
+      Election.get_validation_constraints()
+    )
+  end
 
+  @doc """
+  Determines if the election of validation nodes performed by the welcome node is valid
+  """
+  @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
+  def valid_election?(tx, validation_node_public_keys)
+      when is_list(validation_node_public_keys) do
+    validation_nodes = get_validation_nodes(tx)
     validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
   end
 

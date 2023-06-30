@@ -194,7 +194,7 @@ defmodule ArchethicWeb.SettingsLive do
 
     TransactionSubscriber.register(tx.address, System.monotonic_time())
 
-    Archethic.send_new_transaction(tx)
+    Archethic.send_new_transaction(tx, forward?: true)
   end
 
   defp get_token_transfers(previous_reward_address, next_reward_address) do
