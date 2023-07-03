@@ -700,11 +700,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
       new_context = ValidationContext.add_replication_validation(context, node_public_key)
 
       if ValidationContext.enough_replication_validations?(new_context) do
-        request_replication(context)
-        :keep_state_and_data
-      else
-        {:keep_state, %{data | context: new_context}}
+        request_replication(new_context)
       end
+
+      {:keep_state, %{data | context: new_context}}
     else
       :keep_state_and_data
     end
@@ -909,16 +908,45 @@ defmodule Archethic.Mining.DistributedWorkflow do
   def handle_event(
         {:timeout, :stop_timeout},
         :any,
-        _state,
-        data = %{context: %ValidationContext{transaction: tx}}
+        state,
+        data = %{
+          start_time: start_time,
+          context:
+            context = %ValidationContext{
+              transaction: tx,
+              storage_nodes_confirmations: confirmations
+            }
+        }
       ) do
-    Logger.warning("Timeout reached during mining",
-      transaction_type: tx.type,
-      transaction_address: Base.encode16(tx.address)
-    )
+    # Case when we received all replication validations, but some storage nodes didn't respond
+    # with storage confirmation. We still notify received attestation and previous chain
+    with :replication <- state,
+         true <- ValidationContext.enough_replication_validations?(context),
+         false <- Enum.empty?(confirmations) do
+      Logger.warning("Didn't received all attestations before mining timeout",
+        transaction_type: tx.type,
+        transaction_address: Base.encode16(tx.address)
+      )
 
-    notify_error(:timeout, data)
-    :stop
+      :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
+        duration: System.monotonic_time() - start_time
+      })
+
+      {:keep_state_and_data,
+       [
+         {:next_event, :internal, :notify_attestation},
+         {:next_event, :internal, :notify_previous_chain}
+       ]}
+    else
+      _ ->
+        Logger.warning("Timeout reached during mining",
+          transaction_type: tx.type,
+          transaction_address: Base.encode16(tx.address)
+        )
+
+        notify_error(:timeout, data)
+        :stop
+    end
   end
 
   def handle_event(
