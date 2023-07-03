@@ -7,6 +7,7 @@ defmodule Archethic.Mining do
   alias Archethic.Crypto
 
   alias Archethic.Election
+  alias Archethic.Election.ValidationConstraints
 
   alias __MODULE__.DistributedWorkflow
   alias __MODULE__.Fee
@@ -16,12 +17,15 @@ defmodule Archethic.Mining do
   alias __MODULE__.WorkflowRegistry
 
   alias Archethic.P2P
+  alias Archethic.P2P.Node
   alias Archethic.P2P.Message
   alias Archethic.P2P.Message.ReplicationError
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+
+  alias Archethic.Utils
 
   require Logger
 
@@ -68,31 +72,133 @@ defmodule Archethic.Mining do
   @doc """
   Elect validation nodes for a transaction
   """
-  def get_validation_nodes(tx = %Transaction{address: tx_address, validation_stamp: nil}) do
+  @spec get_validation_nodes(Transaction.t()) :: list(Node.t())
+  def get_validation_nodes(tx = %Transaction{address: tx_address}) do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
     node_list = P2P.authorized_and_available_nodes(current_date)
-
     storage_nodes = Election.chain_storage_nodes(tx_address, node_list)
 
-    Election.validation_nodes(
+    validation_constraints =
+      %ValidationConstraints{
+        min_validation_nodes: min_validation_nodes_fun
+      } = Election.get_validation_constraints()
+
+    min_validations = min_validation_nodes_fun.(length(node_list))
+
+    do_get_validation_nodes(
       tx,
       sorting_seed,
       node_list,
       storage_nodes,
-      Election.get_validation_constraints()
+      validation_constraints,
+      min_validations
     )
+  end
+
+  defp do_get_validation_nodes(
+         tx,
+         sorting_seed,
+         node_list,
+         storage_nodes,
+         validation_constraints,
+         min_validations,
+         rejected_nodes \\ []
+       )
+
+  defp do_get_validation_nodes(
+         _tx,
+         _sorting_seed,
+         node_list,
+         _storage_nodes,
+         _validation_constraints,
+         _min_validations,
+         rejected_nodes
+       )
+       when length(node_list) == length(rejected_nodes) do
+    throw("Network issue - not more available validation nodes")
+  end
+
+  defp do_get_validation_nodes(
+         tx,
+         sorting_seed,
+         node_list,
+         storage_nodes,
+         validation_constraints = %ValidationConstraints{},
+         min_validations,
+         rejected_nodes
+       ) do
+    validation_nodes =
+      Election.validation_nodes(
+        tx,
+        sorting_seed,
+        node_list,
+        storage_nodes,
+        validation_constraints,
+        rejected_nodes
+      )
+
+    %{available_nodes: available_nodes, unavailable_nodes: unavailable_nodes} =
+      Enum.reduce(
+        validation_nodes,
+        %{available_nodes: [], unavailable_nodes: rejected_nodes},
+        fn node, acc ->
+          if P2P.node_connected?(node) do
+            Map.update!(acc, :available_nodes, &[node | &1])
+          else
+            Map.update!(acc, :unavailable_nodes, &[node | &1])
+          end
+        end
+      )
+
+    nb_availables = length(available_nodes)
+
+    if nb_availables >= min_validations do
+      validation_nodes
+    else
+      remaining_nodes = (node_list -- available_nodes) -- unavailable_nodes
+
+      nb_remaining_available_nodes =
+        remaining_nodes
+        |> Enum.filter(&P2P.node_connected?/1)
+        |> Enum.count()
+
+      if nb_availables < min_validations and nb_remaining_available_nodes == 0 do
+        Enum.reverse(available_nodes)
+      else
+        do_get_validation_nodes(
+          tx,
+          sorting_seed,
+          node_list,
+          storage_nodes,
+          validation_constraints,
+          min_validations,
+          unavailable_nodes
+        )
+      end
+    end
   end
 
   @doc """
   Determines if the election of validation nodes performed by the welcome node is valid
+
+  Because we cannot know at certain time if a node was unavailable from the welcome node point of view
+  due to the refining of election, we can't do further verification abouts the nb validators or the geo patch distribution.
+
+  Hence the only deterministic check available is the authorized nodes capability.
+  By using the sorted list of nodes, the check will be faster in most of cases, as the first nodes will be located at the head of the list
   """
-  @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
-  def valid_election?(tx, validation_node_public_keys)
-      when is_list(validation_node_public_keys) do
-    validation_nodes = get_validation_nodes(tx)
-    validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
+  @spec valid_election?(
+          validation_node_public_keys :: list(Crypto.key()),
+          sorted_nodes :: list(Node.t())
+        ) :: boolean()
+  def valid_election?(validation_node_public_keys, sorted_nodes)
+      when is_list(validation_node_public_keys) and is_list(sorted_nodes) do
+    Enum.all?(
+      validation_node_public_keys,
+      &Utils.key_in_node_list?(sorted_nodes, &1)
+    )
   end
 
   @doc """

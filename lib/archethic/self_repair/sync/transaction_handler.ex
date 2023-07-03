@@ -150,30 +150,39 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     # so we ensure the transaction is valid looking at validation signature
     verify_attestation(attestation)
 
-    validation_nodes_public_keys = get_validation_nodes_keys(tx)
+    validation_nodes_public_keys =
+      tx
+      |> get_validation_nodes_keys()
+      |> List.flatten()
 
-    unless Transaction.valid_stamps_signature?(tx, validation_nodes_public_keys) do
-      Logger.error("Transaction signature error in self repair",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
+    with true <- Transaction.valid_coordinator_signature?(tx, validation_nodes_public_keys),
+         true <- Transaction.valid_cross_signatures?(tx, validation_nodes_public_keys) do
+      :ok
+    else
+      false ->
+        Logger.error("Transaction signature error in self repair",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-      raise "Transaction signature error in self repair"
+        raise "Transaction signature error in self repair"
     end
   end
 
   defp verify_transaction(attestation, _tx), do: verify_attestation(attestation)
 
-  # For the first node transaction of the network, there is not yet any public key stored in
-  # DB. So for this transaction we take the public key of the first enrolled node
   defp get_validation_nodes_keys(
          tx = %Transaction{type: :node, previous_public_key: previous_tx_public_key}
        ) do
     %Node{first_public_key: first_node_public_key} = P2P.get_first_enrolled_node()
 
+    # For the first node transaction of the network, there is not yet any public key stored in
+    # DB. So for this transaction we take the public key of the first enrolled node
     if first_node_public_key == previous_tx_public_key do
       [[first_node_public_key]]
     else
+      # Because node can changes keys during transaction validation of others, we have to keep track
+      # of the last two node public keys at least to ensure the success of the signature's verification
       do_get_validation_nodes_keys(tx)
     end
   end
@@ -183,10 +192,11 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   defp do_get_validation_nodes_keys(%Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
        }) do
-    P2P.authorized_and_available_nodes(timestamp)
+    timestamp
+    |> P2P.authorized_and_available_nodes()
     |> Enum.map(fn %Node{first_public_key: first_public_key} ->
       TransactionChain.list_chain_public_keys(first_public_key, timestamp)
-      |> Enum.reverse()
+      |> Stream.take(-2)
       |> Enum.map(&elem(&1, 0))
     end)
   end

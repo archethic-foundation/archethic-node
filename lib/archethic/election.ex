@@ -229,14 +229,8 @@ defmodule Archethic.Election do
          storage_nodes,
          discarded_nodes
        ) do
-    tx_hash =
-      tx
-      |> Transaction.to_pending()
-      |> Transaction.serialize()
-      |> Crypto.hash()
-
     authorized_nodes
-    |> sort_validation_nodes_by_key_rotation(sorting_seed, tx_hash)
+    |> sort_validation_nodes(tx, sorting_seed)
     |> Enum.reduce_while(
       %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
       fn node = %Node{geo_patch: geo_patch, last_public_key: last_public_key}, acc ->
@@ -278,6 +272,24 @@ defmodule Archethic.Election do
     |> Map.get(:nodes)
     |> Enum.reverse()
     |> refine_necessary_nodes(authorized_nodes, nb_validations, discarded_nodes)
+  end
+
+  @doc """
+  Sort the validation nodes with the given sorting seed
+  """
+  @spec sort_validation_nodes(
+          node_list :: list(Node.t()),
+          transaction :: Transaction.t(),
+          sorting_seed :: binary()
+        ) :: list(Node.t())
+  def sort_validation_nodes(node_list, tx, sorting_seed) do
+    tx_hash =
+      tx
+      |> Transaction.to_pending()
+      |> Transaction.serialize()
+      |> Crypto.hash()
+
+    sort_validation_nodes_by_key_rotation(node_list, sorting_seed, tx_hash)
   end
 
   defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do

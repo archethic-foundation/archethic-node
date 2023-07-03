@@ -180,11 +180,12 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp valid_election?(
          tx = %Transaction{
-           address: tx_address,
-           validation_stamp: %ValidationStamp{
-             timestamp: tx_timestamp,
-             proof_of_election: proof_of_election
-           }
+           validation_stamp:
+             validation_stamp = %ValidationStamp{
+               timestamp: tx_timestamp,
+               proof_of_election: proof_of_election
+             },
+           cross_validation_stamps: cross_validation_stamps
          }
        ) do
     authorized_nodes = P2P.authorized_and_available_nodes(tx_timestamp)
@@ -197,24 +198,53 @@ defmodule Archethic.Replication.TransactionValidator do
         daily_nonce_public_key == SharedSecrets.genesis_daily_nonce_public_key()
 
       _ ->
-        storage_nodes = Election.chain_storage_nodes(tx_address, authorized_nodes)
+        # We sort the nodes so the validation should be faster as the validation nodes should be located in the head of list
+        sorted_nodes = Election.sort_validation_nodes(authorized_nodes, tx, proof_of_election)
 
-        validation_nodes_public_key =
-          Election.validation_nodes(
-            tx,
-            proof_of_election,
-            authorized_nodes,
-            storage_nodes,
-            Election.get_validation_constraints()
-          )
+        coordinator_key = find_coordinator_key(validation_stamp, tx_timestamp, sorted_nodes)
+
+        if coordinator_key do
           # Update node last public key with the one at transaction date
-          |> Enum.map(fn %Node{first_public_key: public_key} ->
-            [DB.get_last_chain_public_key(public_key, tx_timestamp)]
-          end)
+          cross_validation_keys =
+            Enum.map(
+              cross_validation_stamps,
+              &DB.get_last_chain_public_key(&1.node_public_key, tx_timestamp)
+            )
 
-        Transaction.valid_stamps_signature?(tx, validation_nodes_public_key)
+          validation_keys = [coordinator_key | cross_validation_keys]
+
+          valid_signature? = Transaction.valid_cross_signatures?(tx, validation_keys)
+          valid_election? = Mining.valid_election?(validation_keys, sorted_nodes)
+
+          # we need to ensure that the coordinator node is not the same than the cross validation nodes on a distributed workflow
+          valid_uniq_keys? =
+            if length(authorized_nodes) > 1 do
+              coordinator_key not in cross_validation_keys
+            else
+              true
+            end
+
+          valid_signature? and valid_election? and valid_uniq_keys?
+        else
+          false
+        end
     end
   end
+
+  defp find_coordinator_key(validation_stamp, tx_timestamp, [
+         %Node{last_public_key: last_public_key} | tail
+       ]) do
+    # Update node last public key with the one at transaction date
+    public_key = DB.get_last_chain_public_key(last_public_key, tx_timestamp)
+
+    if ValidationStamp.valid_signature?(validation_stamp, public_key) do
+      public_key
+    else
+      find_coordinator_key(validation_stamp, tx_timestamp, tail)
+    end
+  end
+
+  defp find_coordinator_key(_, _, []), do: nil
 
   defp validate_transaction_fee(
          tx = %Transaction{

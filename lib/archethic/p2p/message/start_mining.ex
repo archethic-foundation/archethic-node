@@ -22,13 +22,15 @@ defmodule Archethic.P2P.Message.StartMining do
 
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
+  alias Archethic.Election
   alias Archethic.Mining
-  alias Archethic.Utils
-  alias Archethic.TransactionChain.Transaction
+  alias Archethic.P2P
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Error
   alias Archethic.SelfRepair.NetworkChain
   alias Archethic.SelfRepair.NetworkView
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.Utils
 
   require Logger
 
@@ -168,7 +170,17 @@ defmodule Archethic.P2P.Message.StartMining do
   end
 
   defp check_valid_election(tx, validation_nodes) do
-    if Mining.valid_election?(tx, validation_nodes) do
+    validation_time = DateTime.utc_now()
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, validation_time)
+
+    sorted_nodes =
+      Election.sort_validation_nodes(
+        P2P.authorized_and_available_nodes(validation_time),
+        tx,
+        sorting_seed
+      )
+
+    if Mining.valid_election?(validation_nodes, sorted_nodes) do
       :ok
     else
       {:error, :invalid_validation_nodes_election}

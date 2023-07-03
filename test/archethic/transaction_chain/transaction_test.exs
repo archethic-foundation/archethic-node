@@ -61,43 +61,47 @@ defmodule Archethic.TransactionChain.TransactionTest do
     assert Crypto.derive_address(tx2.previous_public_key) == tx.address
   end
 
-  describe "valid_stamps_signature?/2" do
+  describe "valid_coordinator_signature?/2" do
     test "should return false if validation stamp signature is invalid" do
       tx = TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
 
-      keys = [[Crypto.first_node_public_key()]]
+      keys = [Crypto.first_node_public_key()]
 
-      refute Transaction.valid_stamps_signature?(tx, keys)
+      refute Transaction.valid_coordinator_signature?(tx, keys)
     end
 
     test "should return true if validation stamp signature is good" do
       tx = TransactionFactory.create_valid_transaction()
 
-      keys = [[Crypto.first_node_public_key()]]
+      keys = [Crypto.first_node_public_key()]
 
-      assert Transaction.valid_stamps_signature?(tx, keys)
+      assert Transaction.valid_coordinator_signature?(tx, keys)
     end
 
     test "should return true if validation stamp signature is good having a list of public keys" do
       tx = TransactionFactory.create_valid_transaction()
 
       keys = [
-        [create_random_key(), Crypto.first_node_public_key()],
-        [create_random_key(), create_random_key()]
+        create_random_key(),
+        Crypto.first_node_public_key(),
+        create_random_key(),
+        create_random_key()
       ]
 
-      assert Transaction.valid_stamps_signature?(tx, keys)
+      assert Transaction.valid_coordinator_signature?(tx, keys)
     end
+  end
 
+  describe "valid_cross_signatures?/2" do
     test "should return false if multiple cross validation stamps are from the same node" do
       tx = TransactionFactory.create_valid_transaction()
       cross_stamps = tx.cross_validation_stamps
 
       tx = %Transaction{tx | cross_validation_stamps: cross_stamps ++ cross_stamps}
 
-      keys = [[Crypto.first_node_public_key()]]
+      keys = [Crypto.first_node_public_key()]
 
-      refute Transaction.valid_stamps_signature?(tx, keys)
+      refute Transaction.valid_cross_signatures?(tx, keys)
     end
 
     test "should return false if cross validation stamps are invalid" do
@@ -111,9 +115,9 @@ defmodule Archethic.TransactionChain.TransactionTest do
 
       tx = %Transaction{tx | cross_validation_stamps: cross_stamps}
 
-      keys = [[Crypto.first_node_public_key()]]
+      keys = [Crypto.first_node_public_key()]
 
-      refute Transaction.valid_stamps_signature?(tx, keys)
+      refute Transaction.valid_cross_signatures?(tx, keys)
     end
   end
 

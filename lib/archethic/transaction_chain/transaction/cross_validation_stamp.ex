@@ -71,6 +71,28 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
     Crypto.verify?(signature, data, node_public_key)
   end
 
+  @spec valid_signature?(
+          t(),
+          binary()
+        ) :: boolean()
+  def valid_signature?(
+        %__MODULE__{
+          signature: signature,
+          inconsistencies: inconsistencies,
+          node_public_key: node_public_key
+        },
+        raw_stamp
+      )
+      when is_binary(raw_stamp) do
+    data = [raw_stamp, marshal_inconsistencies(inconsistencies)]
+
+    Crypto.verify?(
+      signature,
+      data,
+      node_public_key
+    )
+  end
+
   defp marshal_inconsistencies(inconsistencies) do
     inconsistencies
     |> Enum.map(&serialize_inconsistency/1)
