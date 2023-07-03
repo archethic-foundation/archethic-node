@@ -31,6 +31,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
+  import Mock
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -450,8 +451,11 @@ defmodule Archethic.BeaconChain.SubsetTest do
         DateTime.utc_now()
         |> DateTime.truncate(:millisecond)
 
-      send(pid, {:create_slot, now})
-      assert_receive :beacon_transaction_summary_stored, 2_000
+      with_mock SummaryCache, [:passthrough], clean_previous_summary_slots: fn _, _ -> :ok end do
+        send(pid, {:create_slot, now})
+        assert_receive :beacon_transaction_summary_stored, 2_000
+        assert_called(SummaryCache.clean_previous_summary_slots(:_, :_))
+      end
     end
   end
 

@@ -375,10 +375,7 @@ defmodule Archethic.BeaconChain.Subset do
         Task.Supervisor.async_nolink(TaskSupervisor, fn -> get_network_patches(subset, time) end)
 
       summary =
-        %Summary{
-          subset: subset,
-          summary_time: Utils.truncate_datetime(time, second?: true, microsecond?: true)
-        }
+        %Summary{subset: subset, summary_time: time}
         |> Summary.aggregate_slots(
           beacon_slots,
           P2PSampling.list_nodes_to_sample(subset)
@@ -405,9 +402,9 @@ defmodule Archethic.BeaconChain.Subset do
             []
         end
 
-      BeaconChain.write_beacon_summary(%{summary | network_patches: network_patches})
+      :ok = BeaconChain.write_beacon_summary(%{summary | network_patches: network_patches})
 
-      :ok
+      SummaryCache.clean_previous_summary_slots(subset, time)
     end
   end
 

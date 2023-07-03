@@ -5,7 +5,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
 
@@ -34,33 +33,44 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     :ok = recover_slots(SummaryTimer.next_summary(DateTime.utc_now()))
 
     PubSub.register_to_current_epoch_of_slot_time()
+    PubSub.register_to_node_status()
 
     {:ok, %{}}
   end
 
+  def code_change("1.2.3", state, _extra) do
+    PubSub.register_to_node_status()
+    {:ok, state}
+  end
+
+  def code_change(_version, state, _extra), do: {:ok, state}
+
   def handle_info({:current_epoch_of_slot_timer, slot_time}, state) do
-    # Check if the slot in the first one of the summary interval
-    previous_summary_time = SummaryTimer.previous_summary(slot_time)
-    first_slot_time = SlotTimer.next_slot(previous_summary_time)
-
-    if slot_time == first_slot_time do
-      Enum.each(
-        BeaconChain.list_subsets(),
-        &clean_previous_summary_cache(&1, previous_summary_time)
-      )
-
-      next_summary_backup_path = SummaryTimer.next_summary(slot_time) |> recover_path()
-
-      Utils.mut_dir("slot_backup*")
-      |> Path.wildcard()
-      |> Enum.reject(&(&1 == next_summary_backup_path))
-      |> Enum.each(&File.rm/1)
-    end
+    if SummaryTimer.match_interval?(slot_time), do: delete_old_backup_file(slot_time)
 
     {:noreply, state}
   end
 
-  defp clean_previous_summary_cache(subset, previous_summary_time) do
+  def handle_info(:node_up, state) do
+    previous_summary_time = SummaryTimer.previous_summary(DateTime.utc_now())
+    delete_old_backup_file(previous_summary_time)
+
+    BeaconChain.list_subsets()
+    |> Enum.each(&clean_previous_summary_slots(&1, previous_summary_time))
+
+    {:noreply, state}
+  end
+
+  def handle_info(:node_down, state), do: {:noreply, state}
+
+  @doc """
+  Remove slots of previous summary time from ets table
+  """
+  @spec clean_previous_summary_slots(
+          subset :: binary(),
+          previous_summary_time :: DateTime.t()
+        ) :: :ok
+  def clean_previous_summary_slots(subset, previous_summary_time) do
     subset
     |> stream_current_slots()
     |> Stream.filter(fn {%Slot{slot_time: slot_time}, _} ->
@@ -104,6 +114,16 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   def add_slot(subset, slot = %Slot{}, node_public_key) do
     true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
     backup_slot(slot, node_public_key)
+  end
+
+  defp delete_old_backup_file(previous_summary_time) do
+    # We keep 2 backup, the current one and the last one
+    previous_backup_path = recover_path(previous_summary_time)
+
+    Utils.mut_dir("slot_backup*")
+    |> Path.wildcard()
+    |> Enum.filter(&(&1 < previous_backup_path))
+    |> Enum.each(&File.rm/1)
   end
 
   defp recover_path(summary_time = %DateTime{}),
