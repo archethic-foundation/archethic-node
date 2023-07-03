@@ -1040,18 +1040,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
       Task.Supervisor.async_stream_nolink(
         Archethic.TaskSupervisor,
         storage_nodes,
-        fn node ->
-          {P2P.send_message(node, message), node}
-        end,
+        &P2P.send_message(&1, message),
         ordered: false,
         on_timeout: :kill_task,
         timeout: Message.get_timeout(message) + 2000
       )
-      |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
-      |> Stream.map(fn {:ok, {{:ok, res}, node}} -> {res, node} end)
-      |> Enum.to_list()
+      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
+      |> Enum.map(fn {:ok, {:ok, res}} -> res end)
 
-    if Enum.all?(results, &match?({%Ok{}, _}, &1)) do
+    if Enum.all?(results, &match?(%Ok{}, &1)) do
       cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
 
       validation_nodes =
