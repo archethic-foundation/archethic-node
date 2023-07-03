@@ -498,6 +498,34 @@ defmodule Archethic.SelfRepair.SyncTest do
     end
   end
 
+  test "reduce_p2p_availabilities should add default network patch if not set" do
+    create_p2p_context()
+
+    <<_::16, subset::8, _::bitstring>> = Crypto.first_node_public_key()
+
+    assert %Node{network_patch: "ABC"} = P2P.get_node_info()
+
+    assert :ok =
+             Sync.process_summary_aggregate(
+               %SummaryAggregate{
+                 summary_time: DateTime.utc_now(),
+                 replication_attestations: [],
+                 availability_adding_time: 10,
+                 p2p_availabilities: %{
+                   <<subset>> => %{
+                     end_of_node_synchronizations: [],
+                     network_patches: [],
+                     node_availabilities: <<1::size(1)>>,
+                     node_average_availabilities: [1.0]
+                   }
+                 }
+               },
+               P2P.authorized_and_available_nodes()
+             )
+
+    assert %Node{network_patch: "AAA"} = P2P.get_node_info()
+  end
+
   defp create_p2p_context do
     pb_key1 = Crypto.derive_keypair("key11", 0) |> elem(0)
     pb_key3 = Crypto.derive_keypair("key33", 0) |> elem(0)
@@ -521,7 +549,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       geo_patch: "AAA",
-      network_patch: "AAA",
+      network_patch: "ABC",
       reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       enrollment_date: DateTime.utc_now()
     }
