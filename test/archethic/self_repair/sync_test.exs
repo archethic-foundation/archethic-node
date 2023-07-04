@@ -31,10 +31,12 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
   alias Archethic.SelfRepair.Sync
+  alias Archethic.SelfRepair.Sync.TransactionHandler
 
   alias Archethic.Utils
 
   import Mox
+  import Mock
 
   describe "last_sync_date/0" do
     test "should get nil if not last sync file and not prior nodes" do
@@ -495,6 +497,68 @@ defmodule Archethic.SelfRepair.SyncTest do
                )
 
       assert_receive :transaction_stored
+    end
+
+    test "should run storage node election using current node view and adding node itself" do
+      create_p2p_context()
+
+      current_nodes_view_with_self = P2P.authorized_and_available_nodes()
+
+      current_nodes_view =
+        current_nodes_view_with_self
+        |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+
+      past_node = %Node{
+        first_public_key: "past_node",
+        last_public_key: "past_node",
+        available?: true,
+        authorized?: true,
+        geo_patch: "BBB",
+        network_patch: "BBB",
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        enrollment_date: DateTime.utc_now()
+      }
+
+      transfer_tx = TransactionFactory.create_valid_transaction([], seed: "transfer_seed")
+      tx_summary = TransactionSummary.from_transaction(transfer_tx)
+
+      index =
+        ReplicationAttestation.get_node_index(
+          Crypto.first_node_public_key(),
+          tx_summary.timestamp
+        )
+
+      signature =
+        tx_summary |> TransactionSummary.serialize() |> Crypto.sign_with_first_node_key()
+
+      attestation = %ReplicationAttestation{
+        transaction_summary: tx_summary,
+        confirmations: [{index, signature}]
+      }
+
+      summary = %SummaryAggregate{
+        summary_time: DateTime.utc_now(),
+        replication_attestations: [attestation],
+        availability_adding_time: 10
+      }
+
+      with_mocks([
+        {P2P, [:passthrough], authorized_and_available_nodes: fn -> [past_node] end},
+        {Election, [:passthrough], []},
+        {TransactionHandler, [:passthrough],
+         download_transaction: fn _, _ -> transfer_tx end,
+         process_transaction: fn _, _, _ -> :ok end}
+      ]) do
+        assert :ok = Sync.process_summary_aggregate(summary, current_nodes_view)
+
+        assert_called(
+          Election.chain_storage_nodes_with_type(
+            transfer_tx.address,
+            transfer_tx.type,
+            current_nodes_view_with_self
+          )
+        )
+      end
     end
   end
 
