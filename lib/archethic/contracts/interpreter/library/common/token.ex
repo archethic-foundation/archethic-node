@@ -3,18 +3,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Token do
   @behaviour Archethic.Contracts.Interpreter.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter.Library.Common.TokenImpl
+
+  use Knigge, otp_app: :archethic, default: TokenImpl, delegate_at_runtime?: true
 
   @callback fetch_id_from_address(binary()) :: binary()
-
-  def fetch_id_from_address(address), do: impl().fetch_id_from_address(address)
-
-  defp impl,
-    do:
-      Application.get_env(
-        :archethic,
-        Archethic.Contracts.Interpreter.Library.Common.Token,
-        Archethic.Contracts.Interpreter.Library.Common.TokenImpl
-      )
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:fetch_id_from_address, [first]) do
