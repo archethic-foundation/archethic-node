@@ -286,10 +286,7 @@ defmodule Archethic.SelfRepair.Sync do
       ) do
     start_time = System.monotonic_time()
 
-    previous_available_nodes = P2P.authorized_and_available_nodes()
-
-    nodes_including_self =
-      [P2P.get_node_info() | previous_available_nodes] |> P2P.distinct_nodes()
+    nodes_including_self = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
 
     attestations_to_sync =
       attestations
@@ -304,6 +301,8 @@ defmodule Archethic.SelfRepair.Sync do
     )
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
+
+    previous_available_nodes = P2P.authorized_and_available_nodes()
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
