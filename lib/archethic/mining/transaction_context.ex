@@ -58,10 +58,10 @@ defmodule Archethic.Mining.TransactionContext do
       |> Enum.uniq()
 
     prev_tx_task = request_previous_tx(previous_address, prev_tx_nodes_split)
+    utxos_task = request_utxos(previous_address, unspent_outputs_nodes_split)
     nodes_view_task = request_nodes_view(node_public_keys)
 
-    prev_tx = Task.await(prev_tx_task)
-    nodes_view = Task.await(nodes_view_task)
+    [prev_tx, utxos, nodes_view] = Task.await_many([prev_tx_task, utxos_task, nodes_view_task])
 
     %{
       chain_nodes_view: chain_storage_nodes_view,
@@ -74,13 +74,6 @@ defmodule Archethic.Mining.TransactionContext do
         beacon_storage_node_public_keys,
         io_storage_node_public_keys
       )
-
-    utxos =
-      TransactionChain.fetch_unspent_outputs(
-        previous_address,
-        unspent_outputs_nodes_split
-      )
-      |> Enum.to_list()
 
     {prev_tx, utxos, [], chain_storage_nodes_view, beacon_storage_nodes_view,
      io_storage_nodes_view}
@@ -115,6 +108,12 @@ defmodule Archethic.Mining.TransactionContext do
         end
       end
     )
+  end
+
+  defp request_utxos(previous_address, nodes) do
+    Task.Supervisor.async(TaskSupervisor, fn ->
+      TransactionChain.fetch_unspent_outputs(previous_address, nodes) |> Enum.to_list()
+    end)
   end
 
   defp request_nodes_view(node_public_keys) do
