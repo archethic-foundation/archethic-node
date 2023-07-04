@@ -63,12 +63,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   defp clean_previous_summary_cache(subset, previous_summary_time) do
     subset
     |> stream_current_slots()
-    |> Stream.filter(fn
-      {%Slot{slot_time: slot_time}, _} ->
-        DateTime.compare(slot_time, previous_summary_time) != :gt
-
-      %Slot{slot_time: slot_time} ->
-        DateTime.compare(slot_time, previous_summary_time) != :gt
+    |> Stream.filter(fn {%Slot{slot_time: slot_time}, _} ->
+      DateTime.compare(slot_time, previous_summary_time) != :gt
     end)
     |> Stream.each(fn item ->
       :ets.delete_object(@table_name, {subset, item})
@@ -133,13 +129,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
       content = File.read!(backup_file_path)
 
       deserialize(content, [])
-      |> Enum.each(fn
-        {slot = %Slot{subset: subset}, node_public_key} ->
-          true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
-
-        # Backward compatibility
-        {slot = %Slot{subset: subset}} ->
-          true = :ets.insert(@table_name, {subset, slot})
+      |> Enum.each(fn {slot = %Slot{subset: subset}, node_public_key} ->
+        true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
       end)
     else
       :ok
@@ -159,14 +150,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {slot_size, rest} = VarInt.get_value(rest)
     <<slot_bin::binary-size(slot_size), rest::binary>> = rest
     {slot, _} = Slot.deserialize(slot_bin)
-
-    # Backward compatibility
-    try do
-      {node_public_key, rest} = Utils.deserialize_public_key(rest)
-      deserialize(rest, [{slot, node_public_key} | acc])
-    rescue
-      _ ->
-        deserialize(rest, [{slot} | acc])
-    end
+    {node_public_key, rest} = Utils.deserialize_public_key(rest)
+    deserialize(rest, [{slot, node_public_key} | acc])
   end
 end

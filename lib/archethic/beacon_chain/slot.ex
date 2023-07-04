@@ -13,8 +13,6 @@ defmodule Archethic.BeaconChain.Slot do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
@@ -630,34 +628,4 @@ defmodule Archethic.BeaconChain.Slot do
       do: true
 
   def empty?(%__MODULE__{}), do: false
-
-  @doc """
-  Apply a tranformation of a transaction summary based on the blockchain version
-  """
-  @spec transform(binary(), t()) :: t()
-  def transform(
-        "1.1.0",
-        slot = %__MODULE__{transaction_attestations: attestations}
-      ) do
-    if Enum.any?(attestations, fn %ReplicationAttestation{version: version} -> version == 1 end) do
-      new_attestations =
-        Task.Supervisor.async_stream_nolink(
-          TaskSupervisor,
-          attestations,
-          fn attestation = %ReplicationAttestation{transaction_summary: summary} ->
-            new_summary = TransactionSummary.transform("1.1.0", summary)
-            %ReplicationAttestation{attestation | transaction_summary: new_summary}
-          end,
-          max_concurrency: System.schedulers_online() * 10
-        )
-        |> Stream.filter(&match?({:ok, _}, &1))
-        |> Enum.map(fn {:ok, attestation} -> attestation end)
-
-      %__MODULE__{slot | transaction_attestations: new_attestations}
-    else
-      slot
-    end
-  end
-
-  def transform(_, slot), do: slot
 end
