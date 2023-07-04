@@ -3,24 +3,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   @behaviour Archethic.Contracts.Interpreter.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter.Library.Common.ChainImpl
+
+  use Knigge, otp_app: :archethic, default: ChainImpl, delegate_at_runtime?: true
 
   @callback get_genesis_address(binary()) :: binary()
   @callback get_first_transaction_address(binary()) :: binary()
   @callback get_genesis_public_key(binary()) :: binary()
-
-  def get_genesis_address(address), do: impl().get_genesis_address(address)
-
-  def get_first_transaction_address(address), do: impl().get_first_transaction_address(address)
-
-  def get_genesis_public_key(public_key), do: impl().get_genesis_public_key(public_key)
-
-  defp impl,
-    do:
-      Application.get_env(
-        :archethic,
-        Archethic.Contracts.Interpreter.Library.Common.Chain,
-        Archethic.Contracts.Interpreter.Library.Common.ChainImpl
-      )
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:get_genesis_address, [first]) do
