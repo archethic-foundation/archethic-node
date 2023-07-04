@@ -3,22 +3,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   @behaviour Archethic.Contracts.Interpreter.Library
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Legacy
 
-  @spec get_genesis_address(binary()) :: binary()
-  defdelegate get_genesis_address(address),
-    to: Legacy.Library,
-    as: :get_genesis_address
+  @callback get_genesis_address(binary()) :: binary()
+  @callback get_first_transaction_address(binary()) :: binary()
+  @callback get_genesis_public_key(binary()) :: binary()
 
-  @spec get_first_transaction_address(binary()) :: binary()
-  defdelegate get_first_transaction_address(address),
-    to: Legacy.Library,
-    as: :get_first_transaction_address
+  def get_genesis_address(address), do: impl().get_genesis_address(address)
 
-  @spec get_genesis_public_key(binary()) :: binary()
-  defdelegate get_genesis_public_key(public_key),
-    to: Legacy.Library,
-    as: :get_genesis_public_key
+  def get_first_transaction_address(address), do: impl().get_first_transaction_address(address)
+
+  def get_genesis_public_key(public_key), do: impl().get_genesis_public_key(public_key)
+
+  defp impl,
+    do:
+      Application.get_env(
+        :archethic,
+        Archethic.Contracts.Interpreter.Library.Common.Chain,
+        Archethic.Contracts.Interpreter.Library.Common.ChainImpl
+      )
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:get_genesis_address, [first]) do
