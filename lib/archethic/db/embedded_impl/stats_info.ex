@@ -101,7 +101,7 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
     {:noreply, new_state}
   end
 
-  def code_change("1.2.4", state, _extra) do
+  def code_change("1.2.3", state, _extra) do
     {fd, new_state} = Map.pop(state, :fd)
     File.close(fd)
     {:ok, new_state}
