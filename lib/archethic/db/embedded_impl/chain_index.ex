@@ -570,7 +570,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
         case :ets.select(@archethic_db_last_index, match_pattern, 1) do
           :"$end_of_table" -> address
-          genesis_address -> genesis_address
+          {[genesis_address], _} -> genesis_address
         end
     end
   end
