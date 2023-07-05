@@ -68,14 +68,14 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
            }}
       end)
 
-      assert Nx.tensor([
+      assert [
                [0, 0, 0, 100, 100, 90],
                [0, 0, 0, 110, 105, 105],
                [0, 0, 0, 90, 90, 90],
                [100, 110, 90, 0, 0, 0],
                [100, 105, 90, 0, 0, 0],
                [90, 105, 90, 0, 0, 0]
-             ]) == NetworkCoordinates.fetch_network_stats(DateTime.utc_now())
+             ] == NetworkCoordinates.fetch_network_stats(DateTime.utc_now()) |> Nx.to_list()
     end
   end
 end
