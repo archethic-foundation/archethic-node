@@ -170,15 +170,10 @@ defmodule Archethic.Election do
          min_geo_patch,
          storage_nodes
        ) do
-    tx_hash =
-      tx
-      |> Transaction.to_pending()
-      |> Transaction.serialize()
-      |> Crypto.hash()
+    sorted_nodes = sort_validation_nodes(authorized_nodes, tx, sorting_seed)
 
-    authorized_nodes
-    |> sort_validation_nodes_by_key_rotation(sorting_seed, tx_hash)
-    |> Enum.reduce_while(
+    Enum.reduce_while(
+      sorted_nodes,
       %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
       fn node = %Node{geo_patch: geo_patch, last_public_key: last_public_key}, acc ->
         if validation_constraints_satisfied?(
@@ -215,7 +210,25 @@ defmodule Archethic.Election do
     )
     |> Map.get(:nodes)
     |> Enum.reverse()
-    |> refine_necessary_nodes(authorized_nodes, nb_validations)
+    |> refine_necessary_nodes(sorted_nodes, nb_validations)
+  end
+
+  @doc """
+  Sort the validation nodes with the given sorting seed
+  """
+  @spec sort_validation_nodes(
+          node_list :: list(Node.t()),
+          transaction :: Transaction.t(),
+          sorting_seed :: binary()
+        ) :: list(Node.t())
+  def sort_validation_nodes(node_list, tx, sorting_seed) do
+    tx_hash =
+      tx
+      |> Transaction.to_pending()
+      |> Transaction.serialize()
+      |> Crypto.hash()
+
+    sort_validation_nodes_by_key_rotation(node_list, sorting_seed, tx_hash)
   end
 
   defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
