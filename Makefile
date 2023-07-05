@@ -1,4 +1,4 @@
-CC = /usr/bin/gcc
+CC = gcc
 OS := $(shell uname)
 TPM_INSTALLED := $(shell ldconfig -p | grep libtss2-esys.so > /dev/null; echo $$?)
 TPMFLAGS = -ltss2-esys -ltss2-rc -ltss2-mu -lcrypto
