@@ -229,10 +229,10 @@ defmodule Archethic.Election do
          storage_nodes,
          discarded_nodes
        ) do
-
     sorted_nodes = sort_validation_nodes(authorized_nodes, tx, sorting_seed)
 
-    Enum.reduce_while(sorted_nodes,
+    Enum.reduce_while(
+      sorted_nodes,
       %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
       fn node = %Node{geo_patch: geo_patch, last_public_key: last_public_key}, acc ->
         if validation_constraints_satisfied?(
