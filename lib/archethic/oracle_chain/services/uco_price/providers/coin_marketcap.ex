@@ -43,30 +43,24 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
                  :httpc.request(:get, {query, headers}, httpc_options, []),
                {:ok, document} <- Floki.parse_document(body) do
             price =
-              case Floki.find(document, "div.priceTitle > div.priceValue > span") do
-                [] ->
-                  regex = ~r/price today is (.+) with a/
+              extract_methods()
+              |> Enum.reduce_while(nil, fn extract_fn, acc ->
+                try do
+                  {:halt, extract_fn.(document)}
+                rescue
+                  _ ->
+                    {:cont, acc}
+                catch
+                  _ ->
+                    {:cont, acc}
+                end
+              end)
 
-                  Floki.find(document, "meta[name=description]")
-                  |> Floki.attribute("content")
-                  |> Enum.join()
-                  |> then(&Regex.run(regex, &1, capture: :all_but_first))
-                  |> Enum.join()
-                  |> String.graphemes()
-                  |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
-                  |> Enum.into("")
-                  |> String.to_float()
-
-                element ->
-                  element
-                  |> Floki.text()
-                  |> String.graphemes()
-                  |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
-                  |> Enum.into("")
-                  |> String.to_float()
-              end
-
-            {:ok, {pair, [price]}}
+            if is_number(price) do
+              {:ok, {pair, [price]}}
+            else
+              {:error, :not_a_number}
+            end
           else
             {:ok, {{_, _, status}, _, _}} ->
               {:error, status}
@@ -84,5 +78,62 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
       |> Enum.into(%{})
 
     {:ok, returned_prices}
+  end
+
+  defp extract_methods() do
+    [
+      &extract_method1/1,
+      &extract_method2/1,
+      &extract_method3/1,
+      # if every other failed
+      &fallback_error/1
+    ]
+  end
+
+  defp extract_method1(document) do
+    Floki.find(document, "div.priceTitle > div.priceValue > span")
+    |> Floki.text()
+    |> String.graphemes()
+    |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
+    |> Enum.into("")
+    |> String.to_float()
+  end
+
+  defp extract_method2(document) do
+    regex = ~r/price today is (.+) with a/
+
+    Floki.find(document, "meta[name=description]")
+    |> Floki.attribute("content")
+    |> Enum.join()
+    |> then(&Regex.run(regex, &1, capture: :all_but_first))
+    |> Enum.join()
+    |> String.graphemes()
+    |> Enum.filter(&(&1 in [".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]))
+    |> Enum.into("")
+    |> String.to_float()
+  end
+
+  defp extract_method3(document) do
+    document
+    |> Floki.find("#__NEXT_DATA__")
+    |> Floki.text(js: true)
+    |> Jason.decode!()
+    |> get_in(["props", "pageProps", "info", "statistics", "price"])
+  end
+
+  defp fallback_error(document) do
+    path = "/tmp/coinmarketcap.html"
+
+    case File.write(path, Floki.raw_html(document, pretty: true)) do
+      :ok ->
+        Logger.warning(
+          "Coinmarketcap failed to be parsed, you may find the page we receive at #{path}"
+        )
+
+      {:error, _posix} ->
+        Logger.warning("Coinmarketcap failed to be parsed")
+    end
+
+    throw("coinmarketcap failed to parse")
   end
 end
