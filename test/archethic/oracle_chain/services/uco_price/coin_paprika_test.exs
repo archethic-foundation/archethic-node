@@ -4,7 +4,7 @@ defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprikaTest do
   alias Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika
 
   @tag oracle_provider: true
-  test "fetch/1 should get the current UCO price from CoinGecko" do
+  test "fetch/1 should get the current UCO price from CoinPaprika" do
     assert {:ok, %{"eur" => prices}} = CoinPaprika.fetch(["eur"])
     assert is_list(prices)
   end
