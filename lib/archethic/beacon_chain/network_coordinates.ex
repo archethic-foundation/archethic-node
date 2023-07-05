@@ -52,9 +52,9 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
       ...>  [150, 200, 0]
       ...> ], names: [:line, :column], type: {:f, 64}))
       [
-        "B8",
-        "08",
-        "C8"
+        "28",
+        "48",
+        "F8"
       ]
   """
   @spec get_patch_from_latencies(Nx.Tensor.t()) :: list(String.t())

@@ -50,6 +50,9 @@ config :archethic, :faucet_rate_limit_expiry, 3_600_000
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Set nx backend to EXLA
+config :nx, default_backend: EXLA.Backend
+
 config :archethic, :src_dir, File.cwd!()
 
 config :archethic, :mut_dir, "data"
