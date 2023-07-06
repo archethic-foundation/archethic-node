@@ -95,14 +95,14 @@ defmodule Archethic.Utils.Regression.Playbook do
         curve \\ Crypto.default_curve(),
         proto \\ :http
       ) do
-    chain_length = get_chain_size(transaction_seed, curve, host, port)
+    chain_length = get_chain_size(transaction_seed, curve, host, port, proto)
 
     {previous_public_key, previous_private_key} =
       Crypto.derive_keypair(transaction_seed, chain_length, curve)
 
     {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
 
-    genesis_origin_private_key = get_origin_private_key(host, port)
+    genesis_origin_private_key = get_origin_private_key(host, port, proto)
 
     tx =
       %Transaction{
@@ -135,7 +135,7 @@ defmodule Archethic.Utils.Regression.Playbook do
     end
   end
 
-  defp get_origin_private_key(host, port, proto \\ :http) do
+  defp get_origin_private_key(host, port, proto) do
     body = %{
       "origin_public_key" => Base.encode16(@genesis_origin_public_key)
     }
@@ -172,14 +172,14 @@ defmodule Archethic.Utils.Regression.Playbook do
         curve \\ Crypto.default_curve(),
         proto \\ :http
       ) do
-    chain_length = get_chain_size(transaction_seed, curve, host, port)
+    chain_length = get_chain_size(transaction_seed, curve, host, port, proto)
 
     {previous_public_key, previous_private_key} =
       Crypto.derive_keypair(transaction_seed, chain_length, curve)
 
     {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
 
-    genesis_origin_private_key = get_origin_private_key(host, port)
+    genesis_origin_private_key = get_origin_private_key(host, port, proto)
 
     tx =
       %Transaction{
