@@ -272,6 +272,45 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
     end
 
+    test "should return :ok when we deploy a aeweb ref transaction with publicationStatus" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "aewebVersion" => 1,
+              "publicationStatus" => "PUBLISHED",
+              "metaData" => %{
+                "index.html" => %{
+                  "encoding" => "gzip",
+                  "hash" => "abcd123",
+                  "size" => 144,
+                  "addresses" => [
+                    Crypto.derive_keypair("seed", 0)
+                    |> elem(0)
+                    |> Crypto.derive_address()
+                    |> Base.encode16()
+                  ]
+                }
+              }
+            })
+        })
+
+      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :ok when we deploy a aeweb ref transaction (unpublished)" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "aewebVersion" => 1,
+              "publicationStatus" => "UNPUBLISHED"
+            })
+        })
+
+      assert :ok = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
     test "should return :ok when we deploy a aeweb file transaction" do
       tx =
         Transaction.new(:hosting, %TransactionData{
@@ -302,6 +341,58 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           content:
             Jason.encode!(%{
               "wrongKey" => 1,
+              "metaData" => %{
+                "index.html" => %{
+                  "encoding" => "gzip",
+                  "hash" => "abcd123",
+                  "size" => 144,
+                  "addresses" => [
+                    Crypto.derive_keypair("seed", 0)
+                    |> elem(0)
+                    |> Crypto.derive_address()
+                    |> Base.encode16()
+                  ]
+                }
+              }
+            })
+        })
+
+      assert {:error, _reason} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :error when we deploy a wrong aeweb ref transaction (unpublished)" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "aewebVersion" => 1,
+              "publicationStatus" => "UNPUBLISHED",
+              "metaData" => %{
+                "index.html" => %{
+                  "encoding" => "gzip",
+                  "hash" => "abcd123",
+                  "size" => 144,
+                  "addresses" => [
+                    Crypto.derive_keypair("seed", 0)
+                    |> elem(0)
+                    |> Crypto.derive_address()
+                    |> Base.encode16()
+                  ]
+                }
+              }
+            })
+        })
+
+      assert {:error, _error} = PendingTransactionValidation.validate(tx, DateTime.utc_now())
+    end
+
+    test "should return :error when it does not respect the schema" do
+      tx =
+        Transaction.new(:hosting, %TransactionData{
+          content:
+            Jason.encode!(%{
+              "aewebVersion" => 1,
+              "hello" => "world",
               "metaData" => %{
                 "index.html" => %{
                   "encoding" => "gzip",
