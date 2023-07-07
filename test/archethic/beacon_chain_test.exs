@@ -16,8 +16,6 @@ defmodule Archethic.BeaconChainTest do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
-
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetBeaconSummaries
 
@@ -34,6 +32,7 @@ defmodule Archethic.BeaconChainTest do
   doctest Archethic.BeaconChain
 
   import Mox
+  import Mock
 
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
@@ -103,19 +102,16 @@ defmodule Archethic.BeaconChainTest do
   end
 
   describe "fetch_and_aggregate_summaries/1" do
-    setup do
+    setup_with_mocks [
+      {ReplicationAttestation, [:passthrough], validate: fn _ -> :ok end}
+    ] do
       summary_time = ~U[2021-01-22 16:12:58Z]
-
-      node_keypair1 = Crypto.derive_keypair("node_seed", 1)
-      node_keypair2 = Crypto.derive_keypair("node_seed", 2)
-      node_keypair3 = Crypto.derive_keypair("node_seed", 3)
-      node_keypair4 = Crypto.derive_keypair("node_seed", 4)
 
       node1 = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: elem(node_keypair1, 0),
-        last_public_key: elem(node_keypair1, 0),
+        first_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
+        last_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
@@ -127,8 +123,8 @@ defmodule Archethic.BeaconChainTest do
       node2 = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: elem(node_keypair2, 0),
-        last_public_key: elem(node_keypair2, 0),
+        first_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
+        last_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
@@ -140,8 +136,8 @@ defmodule Archethic.BeaconChainTest do
       node3 = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: elem(node_keypair3, 0),
-        last_public_key: elem(node_keypair3, 0),
+        first_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
+        last_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
@@ -153,8 +149,8 @@ defmodule Archethic.BeaconChainTest do
       node4 = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: elem(node_keypair4, 0),
-        last_public_key: elem(node_keypair4, 0),
+        first_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
+        last_public_key: <<0::24, :crypto.strong_rand_bytes(31)::binary>>,
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
@@ -177,10 +173,7 @@ defmodule Archethic.BeaconChainTest do
       {:ok, %{summary_time: summary_time, nodes: [node1, node2, node3, node4]}}
     end
 
-    test "should download the beacon summary", %{
-      summary_time: summary_time,
-      nodes: [node1, node2, node3, node4]
-    } do
+    test "should download the beacon summary", %{summary_time: summary_time} do
       addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       tx_summary = %TransactionSummary{
@@ -191,24 +184,12 @@ defmodule Archethic.BeaconChainTest do
         validation_stamp_checksum: :crypto.strong_rand_bytes(32)
       }
 
-      nodes = P2P.authorized_and_available_nodes() |> Enum.sort_by(& &1.first_public_key)
+      attestation = %ReplicationAttestation{transaction_summary: tx_summary, confirmations: []}
 
       beacon_summary = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
-        transaction_attestations: [
-          %ReplicationAttestation{
-            transaction_summary: tx_summary,
-            confirmations:
-              [node1, node2, node3, node4]
-              |> Enum.with_index(1)
-              |> Enum.map(fn {node, index} ->
-                node_index = Enum.find_index(nodes, &(&1 == node))
-                {_, pv} = Crypto.derive_keypair("node_seed", index)
-                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
-              end)
-          }
-        ]
+        transaction_attestations: [attestation]
       }
 
       MockClient
@@ -227,6 +208,7 @@ defmodule Archethic.BeaconChainTest do
         )
         |> SummaryAggregate.aggregate()
 
+      assert_called(ReplicationAttestation.validate(attestation))
       assert [addr1] == Enum.map(attestations, & &1.transaction_summary.address)
     end
 
@@ -237,9 +219,7 @@ defmodule Archethic.BeaconChainTest do
       addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      storage_nodes = Election.chain_storage_nodes(addr1, P2P.authorized_and_available_nodes())
-
-      tx_summary = %TransactionSummary{
+      tx_summary1 = %TransactionSummary{
         address: addr1,
         timestamp: DateTime.utc_now(),
         type: :transfer,
@@ -247,57 +227,27 @@ defmodule Archethic.BeaconChainTest do
         validation_stamp_checksum: :crypto.strong_rand_bytes(32)
       }
 
+      tx_summary2 = %TransactionSummary{
+        address: addr2,
+        timestamp: DateTime.utc_now(),
+        type: :transfer,
+        fee: 100_000_000,
+        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
+      }
+
+      attestation1 = %ReplicationAttestation{transaction_summary: tx_summary1, confirmations: []}
+      attestation2 = %ReplicationAttestation{transaction_summary: tx_summary2, confirmations: []}
+
       summary_v1 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
-        transaction_attestations: [
-          %ReplicationAttestation{
-            transaction_summary: tx_summary,
-            confirmations:
-              [node1, node2, node3, node4]
-              |> Enum.with_index(1)
-              |> Enum.map(fn {node, index} ->
-                node_index = Enum.find_index(storage_nodes, &(&1 == node))
-                {_, pv} = Crypto.derive_keypair("node_seed", index)
-                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
-              end)
-          }
-        ]
+        transaction_attestations: [attestation1]
       }
 
       summary_v2 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
-        transaction_attestations: [
-          %ReplicationAttestation{
-            transaction_summary: tx_summary,
-            confirmations:
-              [node1, node2, node3, node4]
-              |> Enum.with_index(1)
-              |> Enum.map(fn {node, index} ->
-                node_index = Enum.find_index(storage_nodes, &(&1 == node))
-                {_, pv} = Crypto.derive_keypair("node_seed", index)
-                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
-              end)
-          },
-          %ReplicationAttestation{
-            transaction_summary: %TransactionSummary{
-              address: addr2,
-              timestamp: DateTime.utc_now(),
-              type: :transfer,
-              fee: 100_000_000,
-              validation_stamp_checksum: :crypto.strong_rand_bytes(32)
-            },
-            confirmations:
-              [node1, node2, node3, node4]
-              |> Enum.with_index(1)
-              |> Enum.map(fn {node, index} ->
-                node_index = Enum.find_index(storage_nodes, &(&1 == node))
-                {_, pv} = Crypto.derive_keypair("node_seed", index)
-                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
-              end)
-          }
-        ]
+        transaction_attestations: [attestation1, attestation2]
       }
 
       MockClient
@@ -313,9 +263,6 @@ defmodule Archethic.BeaconChainTest do
 
         ^node4, %GetBeaconSummaries{}, _ ->
           {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
-
-        _, %GetTransactionSummary{}, _ ->
-          {:ok, tx_summary}
       end)
 
       %SummaryAggregate{replication_attestations: attestations} =
@@ -327,6 +274,9 @@ defmodule Archethic.BeaconChainTest do
 
       transaction_addresses = Enum.map(attestations, & &1.transaction_summary.address)
 
+      assert_called(ReplicationAttestation.validate(attestation1))
+      assert_called(ReplicationAttestation.validate(attestation2))
+
       assert Enum.all?(transaction_addresses, &(&1 in [addr1, addr2]))
     end
 
@@ -335,34 +285,34 @@ defmodule Archethic.BeaconChainTest do
       nodes: [node1, node2, node3, node4]
     } do
       summary_v1 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
-        node_availabilities: <<1::1, 1::1, 0::1>>,
+        node_availabilities: <<1::1, 1::1, 0::1, 0::1>>,
         end_of_node_synchronizations: []
       }
 
       summary_v2 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
-        node_availabilities: <<1::1, 1::1, 1::1>>,
+        node_availabilities: <<1::1, 1::1, 1::1, 0::1>>,
         end_of_node_synchronizations: []
       }
 
       summary_v3 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
-        node_availabilities: <<1::1, 0::1, 1::1>>,
+        node_availabilities: <<1::1, 0::1, 1::1, 0::1>>,
         end_of_node_synchronizations: []
       }
 
       summary_v4 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
-        node_availabilities: <<1::1, 1::1, 0::1>>,
+        node_availabilities: <<1::1, 1::1, 0::1, 1::1>>,
         end_of_node_synchronizations: []
       }
 
-      subset_address = Crypto.derive_beacon_chain_address("A", summary_time, true)
+      subset_address = Crypto.derive_beacon_chain_address(<<0>>, summary_time, true)
 
       MockClient
       |> stub(:send_message, fn
@@ -408,7 +358,7 @@ defmodule Archethic.BeaconChainTest do
       end)
 
       assert %SummaryAggregate{
-               p2p_availabilities: %{"A" => %{node_availabilities: node_availabilities}}
+               p2p_availabilities: %{<<0>> => %{node_availabilities: node_availabilities}}
              } =
                BeaconChain.fetch_and_aggregate_summaries(
                  summary_time,
@@ -416,7 +366,7 @@ defmodule Archethic.BeaconChainTest do
                )
                |> SummaryAggregate.aggregate()
 
-      assert <<1::1, 1::1, 1::1>> == node_availabilities
+      assert <<1::1, 1::1, 1::1, 0::1>> == node_availabilities
     end
 
     test "should find other beacon summaries and accumulate node P2P avg availabilities", %{
@@ -424,31 +374,31 @@ defmodule Archethic.BeaconChainTest do
       nodes: [node1, node2, node3, node4]
     } do
       summary_v1 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_average_availabilities: [1.0, 0.9, 1.0, 1.0]
       }
 
       summary_v2 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_average_availabilities: [0.90, 0.9, 1.0, 1.0]
       }
 
       summary_v3 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_average_availabilities: [0.8, 0.9, 0.7, 1.0]
       }
 
       summary_v4 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_availabilities: <<1::1, 1::1, 0::1>>,
         node_average_availabilities: [1.0, 0.5, 1.0, 0.4]
       }
 
-      subset_address = Crypto.derive_beacon_chain_address("A", summary_time, true)
+      subset_address = Crypto.derive_beacon_chain_address(<<0>>, summary_time, true)
 
       MockClient
       |> stub(:send_message, fn
@@ -495,7 +445,7 @@ defmodule Archethic.BeaconChainTest do
 
       assert %SummaryAggregate{
                p2p_availabilities: %{
-                 "A" => %{node_average_availabilities: node_average_availabilities}
+                 <<0>> => %{node_average_availabilities: node_average_availabilities}
                }
              } =
                BeaconChain.fetch_and_aggregate_summaries(
@@ -512,34 +462,34 @@ defmodule Archethic.BeaconChainTest do
       nodes: [node1, node2, node3, node4]
     } do
       summary_v1 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_availabilities: <<1::1, 1::1>>,
         network_patches: ["ABC", "DEF"]
       }
 
       summary_v2 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_availabilities: <<1::1, 1::1>>,
         network_patches: ["ABC", "DEF"]
       }
 
       summary_v3 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_availabilities: <<1::1, 1::1>>,
         network_patches: ["ABC", "DEF"]
       }
 
       summary_v4 = %Summary{
-        subset: "A",
+        subset: <<0>>,
         summary_time: summary_time,
         node_availabilities: <<1::1, 1::1>>,
         network_patches: ["ABC", "DEF"]
       }
 
-      subset_address = Crypto.derive_beacon_chain_address("A", summary_time, true)
+      subset_address = Crypto.derive_beacon_chain_address(<<0>>, summary_time, true)
 
       MockClient
       |> stub(:send_message, fn
@@ -586,7 +536,7 @@ defmodule Archethic.BeaconChainTest do
 
       assert %SummaryAggregate{
                p2p_availabilities: %{
-                 "A" => %{
+                 <<0>> => %{
                    network_patches: [
                      ["ABC", "DEF"],
                      ["ABC", "DEF"],

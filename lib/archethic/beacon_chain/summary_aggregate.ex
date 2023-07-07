@@ -71,8 +71,8 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
       )
       |> Map.update!(:availability_adding_time, &[availability_adding_time | &1])
 
-    if bit_size(node_availabilities) > 0 or length(node_average_availabilities) > 0 or
-         length(end_of_node_synchronizations) > 0 do
+    if node_availabilities != <<>> or not Enum.empty?(node_average_availabilities) or
+         not Enum.empty?(end_of_node_synchronizations) or not Enum.empty?(network_patches) do
       update_in(
         agg,
         [
@@ -85,27 +85,61 @@ defmodule Archethic.BeaconChain.SummaryAggregate do
           })
         ],
         fn prev ->
-          prev
-          |> Map.update!(
-            :node_availabilities,
-            &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
-          )
-          |> Map.update!(
-            :node_average_availabilities,
-            &Enum.concat(&1, [node_average_availabilities])
-          )
-          |> Map.update!(
-            :end_of_node_synchronizations,
-            &Enum.concat(&1, end_of_node_synchronizations)
-          )
-          |> Map.update!(
-            :network_patches,
-            &Enum.concat(&1, [network_patches])
+          add_p2p_availabilities(
+            subset,
+            prev,
+            node_availabilities,
+            node_average_availabilities,
+            end_of_node_synchronizations,
+            network_patches
           )
         end
       )
     else
       agg
+    end
+  end
+
+  defp add_p2p_availabilities(
+         subset,
+         map,
+         node_availabilities,
+         node_average_availabilities,
+         end_of_node_synchronizations,
+         network_patches
+       ) do
+    map =
+      map
+      |> Map.update!(
+        :end_of_node_synchronizations,
+        &Enum.concat(&1, end_of_node_synchronizations)
+      )
+      |> Map.update!(
+        :network_patches,
+        &Enum.concat(&1, [network_patches])
+      )
+
+    expected_subset_length = P2PSampling.list_nodes_to_sample(subset) |> Enum.count()
+
+    map =
+      if bit_size(node_availabilities) == expected_subset_length do
+        map
+        |> Map.update!(
+          :node_availabilities,
+          &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
+        )
+      else
+        map
+      end
+
+    if Enum.count(node_average_availabilities) == expected_subset_length do
+      map
+      |> Map.update!(
+        :node_average_availabilities,
+        &Enum.concat(&1, [node_average_availabilities])
+      )
+    else
+      map
     end
   end
 
