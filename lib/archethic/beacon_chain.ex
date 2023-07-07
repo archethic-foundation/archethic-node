@@ -144,6 +144,9 @@ defmodule Archethic.BeaconChain do
       !SlotValidation.valid_end_of_node_sync?(slot) ->
         {:error, :invalid_end_of_node_sync}
 
+      !SlotValidation.valid_p2p_view?(slot) ->
+        {:error, :invalid_p2p_view}
+
       true ->
         :ok
     end
