@@ -71,7 +71,7 @@ defmodule Archethic.BeaconChainTest do
   end
 
   describe "load_slot/1" do
-    test "should fetch the transaction chain from the beacon involved nodes" do
+    test "should add slot in summary cache" do
       SummaryCache.start_link()
       File.mkdir_p!(Utils.mut_dir())
 
