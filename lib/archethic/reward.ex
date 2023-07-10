@@ -249,4 +249,65 @@ defmodule Archethic.Reward do
   def genesis_address() do
     :persistent_term.get(@key, nil)
   end
+
+  defmodule Gamification do
+    @gamification_wallet 34400000
+
+    def list_of_active_patches(node_list, current_date) do
+      Enum.filter(node_list, fn node ->
+        date_of_joining = elem(node, 3)
+        average_availability = elem(node, 1)
+
+        days_since_joining = Date.diff(current_date, date_of_joining) |> elem(0)
+        days_since_joining >= 45 and average_availability >= 0.75
+      end)
+    end
+
+    def organize_by_patch_id(node_list) do
+      sorted_node_list = Enum.sort(node_list, &elem(&1, 2))
+      Enum.reduce(sorted_node_list, [], fn node, acc ->
+        patch_id = elem(node, 2)
+
+        case acc do
+          [] -> [[node]]
+          [current_group | rest] ->
+            current_patch_id = elem(hd(current_group), 2)
+            if current_patch_id != patch_id do
+              [[node] | acc]
+            else
+              [[node | current_group] | rest]
+            end
+        end
+      end)
+      |> Enum.reverse()
+    end
+
+    def gamification_reward(gamification_node_list, current_date) do
+      reward_list = []
+
+      earliest_date_of_joining = Enum.min_by(gamification_node_list, &elem(&1, 3)) |> elem(3)
+      gamification_reward_duration = 10  # The gamification reward is designed for 10 years
+      years = Enum.to_list(1..gamification_reward_duration)
+      rewards_per_year_in_percentage = Enum.map(years, fn year -> 0.1 * year * year end)
+
+      Enum.each(gamification_node_list, fn node ->
+        node_id = elem(node, 0)
+        patch_id = elem(node, 2)
+        date_of_joining = elem(node, 3)
+        average_availability = elem(node, 1)
+
+        days_since_joining = Date.diff(current_date, earliest_date_of_joining) |> elem(0)
+        if rem(days_since_joining, 365) == 0 do
+          number_of_years = div(days_since_joining, 365)
+          gamification_reward_patch = (@gamification_wallet / (50 * Enum.sum(rewards_per_year_in_percentage))) * (0.1 * number_of_years * number_of_years)
+          gamification_reward_unit = average_availability * Date.diff(current_date, date_of_joining) |> elem(0)
+          node_reward = gamification_reward_unit * average_availability * Date.diff(current_date, date_of_joining) |> elem(0)
+          reward_list = [[node_id, patch_id, node_reward] | reward_list]
+        end
+      end)
+
+      reward_list
+    end
+  end
+
 end
