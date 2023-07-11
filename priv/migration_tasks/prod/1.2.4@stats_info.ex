@@ -26,11 +26,11 @@ defmodule Migration_1_2_4 do
     File.rm(filepath_backup)
   end
 
-  defp load_from_file(fd, acc \\ {0.0, 0, 0}) do
+  defp load_from_file(fd, acc \\ {nil, 0.0, 0, 0}) do
     # Read each stats entry 28 bytes: 4(timestamp) + 8(tps) + 8(nb transactions) + 8(burned_fees)
     case :file.read(fd, 28) do
       {:ok, <<timestamp::32, tps::float-64, nb_transactions::64, burned_fees::64>>} ->
-        {_, prev_nb_transactions, _} = acc
+        {_, _, prev_nb_transactions, _} = acc
 
         load_from_file(
           fd,

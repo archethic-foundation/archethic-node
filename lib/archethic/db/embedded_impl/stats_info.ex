@@ -102,7 +102,13 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
   end
 
   def code_change("1.2.3", state, _extra) do
-    {fd, new_state} = Map.pop(state, :fd)
+    last_update = Archethic.BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    {fd, new_state} =
+      state
+      |> Map.put(:last_update, last_update)
+      |> Map.pop(state, :fd)
+
     File.close(fd)
     {:ok, new_state}
   end
