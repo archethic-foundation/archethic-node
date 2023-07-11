@@ -31,7 +31,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
-  import Mock
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -43,7 +42,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
       network_patch: "AAA",
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+      authorization_date: ~U[2023-07-11 00:00:00Z]
     })
 
     StatsCollector.start_link()
@@ -58,404 +57,231 @@ defmodule Archethic.BeaconChain.SubsetTest do
     start_supervised!({SlotTimer, interval: "0 0 * * *"})
     pid = start_supervised!({Subset, subset: subset})
 
-    public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    end_of_sync = %EndOfNodeSync{
+      public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    }
 
-    :ok = Subset.add_end_of_node_sync(subset, %EndOfNodeSync{public_key: public_key})
+    :ok = Subset.add_end_of_node_sync(subset, end_of_sync)
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %NewBeaconSlot{}, _ ->
-        {:ok, %Ok{}}
-    end)
-
-    assert %{
-             current_slot: %Slot{
-               end_of_node_synchronizations: [%EndOfNodeSync{public_key: ^public_key}]
-             }
-           } = :sys.get_state(pid)
+    assert %{current_slot: %Slot{end_of_node_synchronizations: [^end_of_sync]}} =
+             :sys.get_state(pid)
   end
 
   describe "handle_info/1" do
     test "new transaction summary is added to the slot and include the storage node confirmation",
          %{subset: subset} do
-      MockClient
-      |> stub(:send_message, fn
-        _, %TransactionSummary{}, _ ->
-          {:ok, %Ok{}}
-
-        _, %NewBeaconSlot{}, _ ->
-          {:ok, %Ok{}}
-      end)
-
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
       pid = start_supervised!({Subset, subset: subset})
 
-      tx_time = DateTime.utc_now()
-      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      slot_time = ~U[2023-07-11 00:20:00Z]
 
-      tx_summary = %TransactionSummary{
-        address: tx_address,
-        timestamp: tx_time,
-        type: :node,
-        fee: 0,
-        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
-      }
+      # Replace state to update date for test purpose
+      :sys.replace_state(pid, fn state ->
+        Map.update!(state, :current_slot, fn slot -> %Slot{slot | slot_time: slot_time} end)
+      end)
 
-      sig = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
+      attestation = create_attestation(subset, ~U[2023-07-11 00:15:00Z])
 
-      send(
-        pid,
-        {:new_replication_attestation,
-         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig}]}}
-      )
+      send(pid, {:new_replication_attestation, attestation})
 
-      assert %{
-               current_slot: %Slot{
-                 transaction_attestations: [
-                   %ReplicationAttestation{
-                     transaction_summary: %TransactionSummary{
-                       address: ^tx_address
-                     },
-                     confirmations: [{0, ^sig}]
-                   }
-                 ]
-               }
-             } = :sys.get_state(pid)
+      assert %{current_slot: %Slot{transaction_attestations: [^attestation]}} =
+               :sys.get_state(pid)
     end
 
     test "new transaction summary's confirmation added to the slot",
          %{subset: subset} do
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
       pid = start_supervised!({Subset, subset: subset})
 
-      MockClient
-      |> stub(:send_message, fn _, %NewBeaconSlot{}, _ ->
-        {:ok, %Ok{}}
+      slot_time = ~U[2023-07-11 00:20:00Z]
+
+      # Replace state to update date for test purpose
+      :sys.replace_state(pid, fn state ->
+        Map.update!(state, :current_slot, fn slot -> %Slot{slot | slot_time: slot_time} end)
       end)
 
-      tx_time = DateTime.utc_now()
-      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
-
-      tx_summary = %TransactionSummary{
-        address: tx_address,
-        timestamp: tx_time,
-        type: :node,
-        fee: 0,
-        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
-      }
+      attestation1 =
+        %ReplicationAttestation{transaction_summary: tx_summary} =
+        create_attestation(subset, ~U[2023-07-11 00:15:00Z])
 
       tx_summary_payload = TransactionSummary.serialize(tx_summary)
-
-      sig1 = Crypto.sign_with_last_node_key(tx_summary_payload)
 
       {_, node2_private_key} = Crypto.generate_deterministic_keypair("node2")
       sig2 = Crypto.sign(tx_summary_payload, node2_private_key)
 
-      send(
-        pid,
-        {:new_replication_attestation,
-         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig1}]}}
-      )
+      attestation2 = %ReplicationAttestation{attestation1 | confirmations: [{1, sig2}]}
 
-      send(
-        pid,
-        {:new_replication_attestation,
-         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{1, sig2}]}}
-      )
+      expected_attestation = %ReplicationAttestation{
+        transaction_summary: tx_summary,
+        confirmations: attestation1.confirmations ++ attestation2.confirmations
+      }
 
-      assert %{
-               current_slot: %Slot{
-                 transaction_attestations: [
-                   %ReplicationAttestation{
-                     transaction_summary: %TransactionSummary{
-                       address: ^tx_address
-                     },
-                     confirmations: confirmations
-                   }
-                 ]
-               }
-             } = :sys.get_state(pid)
+      send(pid, {:new_replication_attestation, attestation1})
+      send(pid, {:new_replication_attestation, attestation2})
 
-      assert Enum.count(confirmations) == 2
+      assert %{current_slot: %Slot{transaction_attestations: [^expected_attestation]}} =
+               :sys.get_state(pid)
     end
 
     test "new transaction summary's should be refused if it is too old",
          %{subset: subset} do
-      MockClient
-      |> stub(:send_message, fn
-        _, %TransactionSummary{}, _ ->
-          {:ok, %Ok{}}
-
-        _, %NewBeaconSlot{}, _ ->
-          {:ok, %Ok{}}
-      end)
-
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
       start_supervised!({SlotTimer, interval: "0 */10 * * *"})
       pid = start_supervised!({Subset, subset: subset})
 
+      slot_time = ~U[2023-07-11 02:20:00Z]
+
+      # Replace state to update date for test purpose
+      :sys.replace_state(pid, fn state ->
+        Map.update!(state, :current_slot, fn slot -> %Slot{slot | slot_time: slot_time} end)
+      end)
+
       # Tx from last summary should pass
-      tx_time = DateTime.utc_now() |> DateTime.add(-1, :hour)
-      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      attestation1 = create_attestation(subset, ~U[2023-07-11 01:15:00Z])
 
-      tx_summary = %TransactionSummary{
-        address: tx_address,
-        timestamp: tx_time,
-        type: :node,
-        fee: 0,
-        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
-      }
+      send(pid, {:new_replication_attestation, attestation1})
 
-      sig = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
-
-      send(
-        pid,
-        {:new_replication_attestation,
-         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig}]}}
-      )
+      assert %{current_slot: %Slot{transaction_attestations: [^attestation1]}} =
+               :sys.get_state(pid)
 
       # Tx from 2 last summary should not pass
-      tx_time = DateTime.utc_now() |> DateTime.add(-2, :hour)
-      tx_address2 = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      attestation2 = create_attestation(subset, ~U[2023-07-11 00:15:00Z])
 
-      tx_summary = %TransactionSummary{
-        address: tx_address2,
-        timestamp: tx_time,
-        type: :node,
-        fee: 0,
-        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
-      }
+      send(pid, {:new_replication_attestation, attestation2})
 
-      sig2 = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
-
-      send(
-        pid,
-        {:new_replication_attestation,
-         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig2}]}}
-      )
-
-      assert %{
-               current_slot: %Slot{
-                 transaction_attestations: [
-                   %ReplicationAttestation{
-                     transaction_summary: %TransactionSummary{
-                       address: ^tx_address
-                     },
-                     confirmations: [{0, ^sig}]
-                   }
-                 ]
-               }
-             } = :sys.get_state(pid)
+      assert %{current_slot: %Slot{transaction_attestations: [^attestation1]}} =
+               :sys.get_state(pid)
     end
 
-    test "new slot is created when receive a :create_slot message", %{subset: subset} do
+    test "new slot is created when receive :current_epoch_of_slot_timer message", %{
+      subset: subset
+    } do
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "0 */10 * * *"})
       pid = start_supervised!({Subset, subset: subset})
 
-      tx_time = DateTime.utc_now()
-      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      slot_time = ~U[2023-07-11 00:20:00Z]
 
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
+      # Replace state to update date for test purpose
+      :sys.replace_state(pid, fn state ->
+        Map.update!(state, :current_slot, fn slot -> %Slot{slot | slot_time: slot_time} end)
+      end)
 
-      tx_summary = %TransactionSummary{
-        address: tx_address,
-        timestamp: tx_time,
-        type: :keychain,
-        movements_addresses: [
-          <<0, 0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11,
-            232, 210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-          <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
-            24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
-        ],
-        fee: 0,
-        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
-      }
+      attestation = create_attestation(subset, ~U[2023-07-11 00:15:00Z])
 
-      tx_summary_payload = TransactionSummary.serialize(tx_summary)
-
-      sig1 = Crypto.sign_with_last_node_key(tx_summary_payload)
-
-      send(
-        pid,
-        {:new_replication_attestation,
-         %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig1}]}}
-      )
+      send(pid, {:new_replication_attestation, attestation})
 
       me = self()
 
       MockClient
-      |> stub(:send_message, fn
-        _, %NewBeaconSlot{slot: slot}, _ ->
-          send(me, {:beacon_slot, slot})
-          {:ok, %Ok{}}
-
-        _, %Ping{}, _ ->
-          {:ok, %Ok{}}
+      |> expect(:send_message, fn _, %NewBeaconSlot{slot: slot}, _ ->
+        send(me, {:beacon_slot, slot})
+        {:ok, %Ok{}}
       end)
 
-      Process.sleep(200)
-
-      send(pid, {:create_slot, DateTime.utc_now()})
+      send(pid, {:current_epoch_of_slot_timer, slot_time})
 
       assert_receive {:beacon_slot, slot}
 
-      assert %Slot{
-               transaction_attestations: [
-                 %ReplicationAttestation{
-                   transaction_summary: %TransactionSummary{
-                     address: ^tx_address
-                   },
-                   confirmations: [{_, _}]
-                 }
-               ]
-             } = slot
+      assert %Slot{transaction_attestations: [^attestation]} = slot
     end
 
     test "new summary is created when the slot time is the summary time", %{
       subset: subset
     } do
-      MockClient
-      |> stub(:send_message, fn
-        _, %Ping{}, _ ->
-          {:ok, %Ok{}}
-
-        _, %NewBeaconSlot{slot: slot = %Slot{subset: subset}}, _ ->
-          SummaryCache.add_slot(subset, slot, Crypto.first_node_public_key())
-          {:ok, %Ok{}}
-
-        _, %GetNetworkStats{subsets: _}, _ ->
-          {:ok,
-           %NetworkStats{
-             stats: %{
-               <<subset>> => %{
-                 Crypto.first_node_public_key() => [%{latency: 90}, %{latency: 100}],
-                 <<0::8, 0::8, "key_beacon_node2">> => [%{latency: 90}, %{latency: 100}]
-               }
-             }
-           }}
-      end)
-
-      MockClient
-      |> stub(:get_availability_timer, fn _, _ -> 0 end)
-
-      summary_interval = "*/3 * * * *"
-
       # This is needed to get network coordinates's task timeout
       start_supervised!({SelfRepairScheduler, interval: "*/10 * * * *"})
-
-      start_supervised!({SummaryTimer, interval: summary_interval})
-      start_supervised!({SlotTimer, interval: "*/1 * * * *"})
+      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "* */10 * * *"})
       start_supervised!(SummaryCache)
-      File.mkdir_p!(Utils.mut_dir())
       pid = start_supervised!({Subset, subset: subset})
 
-      allow(MockClient, self(), NewBeaconSlot)
+      mut_dir = Utils.mut_dir()
+      File.mkdir_p!(mut_dir)
 
-      tx_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      # Nodes for network patch calculation
+      node1_key = <<0::24, :crypto.strong_rand_bytes(31)::binary>>
+      node2_key = <<0::24, :crypto.strong_rand_bytes(31)::binary>>
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.first_node_public_key(),
-        last_public_key: Crypto.first_node_public_key(),
+        first_public_key: node1_key,
+        last_public_key: node1_key,
         geo_patch: "AAA",
         network_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: ~U[2020-09-01 00:00:00Z],
-        enrollment_date: ~U[2020-09-01 00:00:00Z]
+        authorization_date: ~U[2023-07-11 00:00:00Z],
+        enrollment_date: ~U[2023-07-11 00:00:00Z]
       })
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3001,
-        first_public_key: <<0::8, 0::8, "key_beacon_node2">>,
-        last_public_key: <<0::8, 0::8, "key_beacon_node2">>,
+        first_public_key: node2_key,
+        last_public_key: node2_key,
         geo_patch: "AAA",
         network_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: ~U[2020-09-01 00:00:00Z],
-        enrollment_date: ~U[2020-09-01 00:00:00Z]
+        authorization_date: ~U[2023-07-11 00:00:00Z],
+        enrollment_date: ~U[2023-07-11 00:00:00Z]
       })
 
-      # Sampled nodes
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3005,
-        first_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node1">>,
-        last_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node1">>,
-        enrollment_date: ~U[2020-09-01 00:00:00Z]
-      })
+      MockClient
+      |> expect(:send_message, 2, fn _, %Ping{}, _ -> {:ok, %Ok{}} end)
+      |> expect(:send_message, fn _, %GetNetworkStats{subsets: _}, _ ->
+        {:ok,
+         %NetworkStats{
+           stats: %{
+             subset => %{
+               node1_key => [%{latency: 90}, %{latency: 100}],
+               node2_key => [%{latency: 90}, %{latency: 100}]
+             }
+           }
+         }}
+      end)
+      |> expect(:get_availability_timer, 4, fn _, _ -> 0 end)
 
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3006,
-        first_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node2">>,
-        last_public_key: <<0::8, 0::8, subset::binary-size(1), "key_sample_node2">>,
-        enrollment_date: ~U[2020-09-01 00:00:00Z]
-      })
+      # slot time matches summary time interval
+      slot_time = ~U[2023-07-11 01:00:00Z]
 
-      tx_summary = %TransactionSummary{
-        address: tx_address,
-        timestamp: tx_time,
-        type: :keychain,
-        movements_addresses: [
-          <<0, 0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11,
-            232, 210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-          <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
-            24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
-        ],
-        fee: 0,
-        validation_stamp_checksum: :crypto.strong_rand_bytes(32)
-      }
+      # Replace state to update date for test purpose
+      :sys.replace_state(pid, fn state ->
+        Map.update!(state, :current_slot, fn slot -> %Slot{slot | slot_time: slot_time} end)
+      end)
 
-      send(
-        pid,
-        {:new_replication_attestation, %ReplicationAttestation{transaction_summary: tx_summary}}
-      )
+      attestation = create_attestation(subset, ~U[2023-07-11 00:55:00Z])
+
+      send(pid, {:new_replication_attestation, attestation})
+
+      # Add old slot in SummaryCache to ensure it will be deleted
+      %{current_slot: slot} = :sys.get_state(pid)
+      old_slot = %Slot{slot | slot_time: ~U[2023-07-11 00:50:00Z]}
+      SummaryCache.add_slot(subset, old_slot, Crypto.first_node_public_key())
 
       me = self()
 
       MockDB
-      |> stub(:write_beacon_summary, fn
-        %Summary{
-          transaction_attestations: [
-            %ReplicationAttestation{
-              transaction_summary: ^tx_summary
-            }
-          ],
-          network_patches: [_ | _]
-        } ->
-          send(me, :beacon_transaction_summary_stored)
-      end)
+      |> expect(:write_beacon_summary, fn summary -> send(me, {:summary_stored, summary}) end)
 
-      offset = Archethic.Utils.time_offset(summary_interval)
-      Process.sleep(offset * 1000)
+      send(pid, {:current_epoch_of_slot_timer, slot_time})
 
-      now =
-        DateTime.utc_now()
-        |> DateTime.truncate(:millisecond)
+      assert_receive {:summary_stored, summary}
 
-      with_mock SummaryCache, [:passthrough], clean_previous_summary_slots: fn _, _ -> :ok end do
-        send(pid, {:create_slot, now})
-        assert_receive :beacon_transaction_summary_stored, 2_000
-        assert_called(SummaryCache.clean_previous_summary_slots(:_, :_))
-      end
+      assert %Summary{
+               subset: ^subset,
+               summary_time: ^slot_time,
+               transaction_attestations: [^attestation],
+               network_patches: ["F8A", "48A"]
+             } = summary
+
+      Process.sleep(5)
+
+      assert [] = SummaryCache.stream_current_slots(subset) |> Enum.to_list()
     end
   end
 
@@ -464,14 +290,13 @@ defmodule Archethic.BeaconChain.SubsetTest do
          subset: subset
        } do
     start_supervised!({SummaryTimer, interval: "0 0 * * *"})
-    start_supervised!({SlotTimer, interval: "0 0 * * *"})
+    start_supervised!({SlotTimer, interval: "0 */10 * * *"})
     pid = start_supervised!({Subset, subset: subset})
 
     public_key1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     Subset.subscribe_for_beacon_updates(subset, public_key1)
 
     assert %{subscribed_nodes: [^public_key1]} = :sys.get_state(pid)
-    assert [^public_key1] = Map.get(:sys.get_state(pid), :subscribed_nodes)
 
     public_key2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     Subset.subscribe_for_beacon_updates(subset, public_key2)
@@ -486,66 +311,59 @@ defmodule Archethic.BeaconChain.SubsetTest do
     start_supervised!({SlotTimer, interval: "0 0 * * *"})
     pid = start_supervised!({Subset, subset: subset})
 
-    first_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-    P2P.add_and_connect_node(%Node{
+    subscribed_node = %Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: first_public_key,
-      last_public_key:
-        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
       authorized?: true,
       authorization_date: ~U[2020-09-01 00:00:00Z]
-    })
+    }
+
+    P2P.add_and_connect_node(subscribed_node)
+    # slot time matches summary time interval
+    slot_time = ~U[2023-07-11 01:00:00Z]
+
+    # Replace state to update date for test purpose
+    :sys.replace_state(pid, fn state ->
+      Map.update!(state, :current_slot, fn slot -> %Slot{slot | slot_time: slot_time} end)
+    end)
+
+    attestation = create_attestation(subset, ~U[2023-07-11 00:55:00Z])
+
+    send(pid, {:new_replication_attestation, attestation})
 
     me = self()
 
+    MockClient
+    |> expect(
+      :send_message,
+      fn ^subscribed_node, %BeaconUpdate{transaction_attestations: attestations}, _ ->
+        send(me, {:transaction_attestations, attestations})
+        {:ok, %Ok{}}
+      end
+    )
+
+    Subset.subscribe_for_beacon_updates(subset, subscribed_node.first_public_key)
+
+    assert_receive {:transaction_attestations, [^attestation]}
+  end
+
+  defp create_attestation(subset, time) do
     tx_summary = %TransactionSummary{
       address: <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-      timestamp: DateTime.utc_now(),
+      timestamp: time,
       type: :keychain,
-      movements_addresses: [
-        <<0, 0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11,
-          232, 210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-        <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
-          24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
-      ],
+      movements_addresses: [],
       fee: 0,
       validation_stamp_checksum: :crypto.strong_rand_bytes(32)
     }
 
-    tx_summary_payload = TransactionSummary.serialize(tx_summary)
+    sig = tx_summary |> TransactionSummary.serialize() |> Crypto.sign_with_last_node_key()
 
-    sig1 = Crypto.sign_with_last_node_key(tx_summary_payload)
-
-    send(
-      pid,
-      {:new_replication_attestation,
-       %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig1}]}}
-    )
-
-    MockClient
-    |> stub(:send_message, fn
-      _, %BeaconUpdate{transaction_attestations: transaction_attestations}, _ ->
-        send(me, {:transaction_attestations, transaction_attestations})
-        {:ok, %Ok{}}
-
-      _, %ReplicationAttestation{}, _ ->
-        {:ok, %Ok{}}
-
-      _, %NewBeaconSlot{}, _ ->
-        {:ok, %Ok{}}
-
-      _, %Ping{}, _ ->
-        {:ok, %Ok{}}
-    end)
-
-    Subset.subscribe_for_beacon_updates(subset, first_public_key)
-
-    assert [^first_public_key] = Map.get(:sys.get_state(pid), :subscribed_nodes)
-    assert_receive {:transaction_attestations, [%ReplicationAttestation{}]}
+    %ReplicationAttestation{transaction_summary: tx_summary, confirmations: [{0, sig}]}
   end
 end
