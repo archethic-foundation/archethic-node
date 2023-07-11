@@ -6,15 +6,10 @@ defmodule Archethic.BeaconChain.SlotTimer do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
-  alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.SubsetRegistry
   alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.DB
 
-  alias Archethic.Crypto
-
-  alias Archethic.P2P
   alias Archethic.PubSub
 
   alias Archethic.Utils
@@ -137,18 +132,13 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
     slot_time = next_time
 
-    PubSub.notify_current_epoch_of_slot_timer(slot_time)
-
     if SummaryTimer.match_interval?(slot_time) do
       # We clean the previously stored summaries - The retention time is for a self repair cycle
       # as the aggregates will be handled for long term storage.
       DB.clear_beacon_summaries()
     end
 
-    if P2P.authorized_and_available_node?(Crypto.first_node_public_key(), slot_time) do
-      Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
-      Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
-    end
+    PubSub.notify_current_epoch_of_slot_timer(slot_time)
 
     next_time = next_slot(DateTime.utc_now())
 
@@ -169,20 +159,6 @@ defmodule Archethic.BeaconChain.SlotTimer do
         :ets.insert(@slot_timer_ets, {:interval, new_interval})
         {:noreply, Map.put(state, :interval, new_interval)}
     end
-  end
-
-  defp list_subset_processes do
-    BeaconChain.list_subsets()
-    |> Enum.map(fn subset ->
-      case Registry.lookup(SubsetRegistry, subset) do
-        [{pid, _}] ->
-          pid
-
-        _ ->
-          nil
-      end
-    end)
-    |> Enum.filter(& &1)
   end
 
   defp schedule_new_slot(interval) do
