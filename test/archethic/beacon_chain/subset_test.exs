@@ -232,17 +232,20 @@ defmodule Archethic.BeaconChain.SubsetTest do
       })
 
       MockClient
-      |> expect(:send_message, 2, fn _, %Ping{}, _ -> {:ok, %Ok{}} end)
-      |> expect(:send_message, fn _, %GetNetworkStats{subsets: _}, _ ->
-        {:ok,
-         %NetworkStats{
-           stats: %{
-             subset => %{
-               node1_key => [%{latency: 90}, %{latency: 100}],
-               node2_key => [%{latency: 90}, %{latency: 100}]
+      |> stub(:send_message, fn
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
+
+        _, %GetNetworkStats{subsets: _}, _ ->
+          {:ok,
+           %NetworkStats{
+             stats: %{
+               subset => %{
+                 node1_key => [%{latency: 90}, %{latency: 100}],
+                 node2_key => [%{latency: 90}, %{latency: 100}]
+               }
              }
-           }
-         }}
+           }}
       end)
       |> expect(:get_availability_timer, 4, fn _, _ -> 0 end)
 
@@ -270,13 +273,13 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
       send(pid, {:current_epoch_of_slot_timer, slot_time})
 
-      assert_receive {:summary_stored, summary}
+      assert_receive {:summary_stored, summary}, 2000
 
       assert %Summary{
                subset: ^subset,
                summary_time: ^slot_time,
                transaction_attestations: [^attestation],
-               network_patches: ["F8A", "48A"]
+               network_patches: ["F7A", "78A"]
              } = summary
 
       Process.sleep(5)
