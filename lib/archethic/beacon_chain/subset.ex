@@ -88,6 +88,7 @@ defmodule Archethic.BeaconChain.Subset do
 
   def init([subset]) do
     PubSub.register_to_new_replication_attestations()
+    PubSub.register_to_current_epoch_of_slot_time()
 
     {:ok,
      %{
@@ -101,8 +102,14 @@ defmodule Archethic.BeaconChain.Subset do
      }}
   end
 
+  def code_change("1.2.3", state, _extra) do
+    PubSub.register_to_current_epoch_of_slot_time()
+    {:ok, state}
+  end
+
+  def code_change(_, state, _extra), do: {:ok, state}
+
   def handle_call(:get_current_slot, _from, state = %{current_slot: current_slot}) do
-    current_slot = Slot.transform("1.1.0", current_slot)
     {:reply, current_slot, state}
   end
 
@@ -142,33 +149,49 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   def handle_info(
-        {:create_slot, time},
-        state = %{subset: subset, node_public_key: node_public_key, current_slot: current_slot}
-      ) do
-    nodes_availability_times =
-      P2PSampling.list_nodes_to_sample(subset)
-      |> Task.async_stream(
-        fn node ->
-          if node.first_public_key == Crypto.first_node_public_key() do
-            SlotTimer.get_time_interval()
-          else
-            Client.get_availability_timer(node.first_public_key, true)
-          end
-        end,
-        on_timeout: :kill_task
+        {:current_epoch_of_slot_timer, time},
+        state = %{
+          subset: subset,
+          node_public_key: node_public_key,
+          current_slot: current_slot = %Slot{slot_time: slot_time}
+        }
       )
-      |> Enum.map(fn
-        {:ok, res} -> res
-        _ -> 0
-      end)
+      when time == slot_time do
+    if P2P.authorized_and_available_node?(Crypto.first_node_public_key(), time, true) do
+      nodes_availability_times =
+        P2PSampling.list_nodes_to_sample(subset)
+        |> Task.async_stream(
+          fn node ->
+            if node.first_public_key == Crypto.first_node_public_key() do
+              SlotTimer.get_time_interval()
+            else
+              Client.get_availability_timer(node.first_public_key, true)
+            end
+          end,
+          on_timeout: :kill_task
+        )
+        |> Enum.map(fn
+          {:ok, res} -> res
+          _ -> 0
+        end)
 
-    if beacon_slot_node?(subset, time, node_public_key) do
-      handle_slot(time, current_slot, nodes_availability_times)
+      if beacon_slot_node?(subset, time, node_public_key) do
+        handle_slot(time, current_slot, nodes_availability_times)
+      end
 
       if summary_time?(time) and beacon_summary_node?(subset, time, node_public_key) do
         handle_summary(time, subset)
       end
     end
+
+    {:noreply, next_state(state, time)}
+  end
+
+  def handle_info(
+        {:current_epoch_of_slot_timer, time},
+        state = %{current_slot: %Slot{slot_time: slot_time}}
+      ) do
+    Logger.warning("Received new slot time #{time} while current slot_time is #{slot_time}")
 
     {:noreply, next_state(state, time)}
   end
@@ -320,8 +343,6 @@ defmodule Archethic.BeaconChain.Subset do
 
     # Avoid to store or dispatch an empty beacon's slot
     unless Slot.empty?(current_slot) do
-      current_slot = %{current_slot | slot_time: time}
-
       if summary_time?(time) do
         SummaryCache.add_slot(subset, current_slot, Crypto.first_node_public_key())
       else
@@ -356,8 +377,6 @@ defmodule Archethic.BeaconChain.Subset do
   defp broadcast_beacon_slot(subset, next_time, slot) do
     nodes = P2P.authorized_and_available_nodes(next_time, true)
 
-    slot = Slot.transform("1.1.0", slot)
-
     subset
     |> Election.beacon_storage_nodes(next_time, nodes)
     |> P2P.broadcast_message(%NewBeaconSlot{slot: slot})
@@ -367,10 +386,7 @@ defmodule Archethic.BeaconChain.Subset do
     beacon_slots =
       subset
       |> SummaryCache.stream_current_slots()
-      |> Stream.map(fn
-        {slot, _} -> slot
-        slot -> slot
-      end)
+      |> Stream.map(fn {slot, _} -> slot end)
 
     if Enum.empty?(beacon_slots) do
       :ok
@@ -381,10 +397,7 @@ defmodule Archethic.BeaconChain.Subset do
         Task.Supervisor.async_nolink(TaskSupervisor, fn -> get_network_patches(subset, time) end)
 
       summary =
-        %Summary{
-          subset: subset,
-          summary_time: Utils.truncate_datetime(time, second?: true, microsecond?: true)
-        }
+        %Summary{subset: subset, summary_time: time}
         |> Summary.aggregate_slots(
           beacon_slots,
           P2PSampling.list_nodes_to_sample(subset)
@@ -411,9 +424,9 @@ defmodule Archethic.BeaconChain.Subset do
             []
         end
 
-      BeaconChain.write_beacon_summary(%{summary | network_patches: network_patches})
+      :ok = BeaconChain.write_beacon_summary(%{summary | network_patches: network_patches})
 
-      :ok
+      SummaryCache.clean_previous_summary_slots(subset, time)
     end
   end
 

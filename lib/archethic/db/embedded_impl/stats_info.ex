@@ -4,8 +4,6 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
-  alias Archethic.Crypto
-
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -44,62 +42,27 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
     GenServer.cast(__MODULE__, {:new_stats, date, tps, nb_transactions, burned_fees})
   end
 
-  def register_p2p_summaries(node_public_key, date, available?, avg_availability)
-      when is_binary(node_public_key) and is_boolean(available?) and is_float(avg_availability) do
-    GenServer.cast(
-      __MODULE__,
-      {:new_p2p_summaries, node_public_key, date, available?, avg_availability}
-    )
-  end
-
-  @doc """
-  Return the last P2P summary from the last self-repair cycle
-  """
-  @spec get_last_p2p_summaries :: %{
-          (node_public_key :: Crypto.key()) => {
-            available? :: boolean(),
-            average_availability :: float()
-          }
-        }
-  def get_last_p2p_summaries do
-    GenServer.call(__MODULE__, :get_p2p_summaries)
-  end
-
   def init(opts) do
     db_path = Keyword.get(opts, :path)
     filepath = Path.join(db_path, "stats")
-    fd = File.open!(filepath, [:binary, :read, :append])
 
-    {:ok, %{fd: fd, filepath: filepath, tps: 0.0, nb_transactions: 0, burned_fees: 0},
-     {:continue, :load_from_file}}
-  end
+    {last_update, tps, nb_transactions, burned_fees} =
+      case File.read(filepath) do
+        {:ok, <<timestamp::32, tps::float-64, nb_transactions::64, burned_fees::64>>} ->
+          {DateTime.from_unix!(timestamp), tps, nb_transactions, burned_fees}
 
-  def handle_continue(:load_from_file, state = %{filepath: filepath, fd: fd}) do
-    if File.exists?(filepath) do
-      {tps, nb_transactions, burned_fees} = load_from_file(fd)
+        _ ->
+          {DateTime.from_unix!(0), 0.0, 0, 0}
+      end
 
-      new_state =
-        state
-        |> Map.put(:tps, tps)
-        |> Map.put(:nb_transactions, nb_transactions)
-        |> Map.put(:burned_fees, burned_fees)
+    state =
+      %{:filepath => filepath}
+      |> Map.put(:last_update, last_update)
+      |> Map.put(:tps, tps)
+      |> Map.put(:nb_transactions, nb_transactions)
+      |> Map.put(:burned_fees, burned_fees)
 
-      {:noreply, new_state}
-    else
-      {:noreply, state}
-    end
-  end
-
-  defp load_from_file(fd, acc \\ {0.0, 0, 0}) do
-    # Read each stats entry 28 bytes: 4(timestamp) + 8(tps) + 8(nb transactions) + 8(burned_fees)
-    case :file.read(fd, 28) do
-      {:ok, <<_timestamp::32, tps::float-64, nb_transactions::64, burned_fees::64>>} ->
-        {_, prev_nb_transactions, _} = acc
-        load_from_file(fd, {tps, prev_nb_transactions + nb_transactions, burned_fees})
-
-      :eof ->
-        acc
-    end
+    {:ok, state}
   end
 
   def handle_call(:get_nb_transactions, _, state = %{nb_transactions: nb_transactions}) do
@@ -114,22 +77,41 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
     {:reply, burned_fees, state}
   end
 
-  def handle_cast({:new_stats, date, tps, nb_transactions, burned_fees}, state = %{fd: fd}) do
-    append_to_file(fd, date, tps, nb_transactions, burned_fees)
-
+  def handle_cast(
+        {:new_stats, date, tps, nb_transactions, burned_fees},
+        state = %{last_update: last_update, filepath: filepath, nb_transactions: prev_nb_tx}
+      ) do
     new_state =
-      state
-      |> Map.put(:tps, tps)
-      |> Map.update!(:nb_transactions, &(&1 + nb_transactions))
-      |> Map.put(:burned_fees, burned_fees)
+      if DateTime.compare(date, last_update) == :gt do
+        new_nb_transactions = prev_nb_tx + nb_transactions
+
+        File.write!(
+          filepath,
+          <<DateTime.to_unix(date)::32, tps::float-64, new_nb_transactions::64, burned_fees::64>>
+        )
+
+        state
+        |> Map.put(:tps, tps)
+        |> Map.put(:nb_transactions, new_nb_transactions)
+        |> Map.put(:burned_fees, burned_fees)
+      else
+        state
+      end
 
     {:noreply, new_state}
   end
 
-  defp append_to_file(fd, date, tps, nb_transactions, burned_fees) do
-    IO.binwrite(
-      fd,
-      <<DateTime.to_unix(date)::32, tps::float-64, nb_transactions::64, burned_fees::64>>
-    )
+  def code_change("1.2.3", state, _extra) do
+    last_update = Archethic.BeaconChain.previous_summary_time(DateTime.utc_now())
+
+    {fd, new_state} =
+      state
+      |> Map.put(:last_update, last_update)
+      |> Map.pop(state, :fd)
+
+    File.close(fd)
+    {:ok, new_state}
   end
+
+  def code_change(_, state, _), do: {:ok, state}
 end

@@ -5,7 +5,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.Crypto
 
@@ -34,41 +33,48 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     :ok = recover_slots(SummaryTimer.next_summary(DateTime.utc_now()))
 
     PubSub.register_to_current_epoch_of_slot_time()
+    PubSub.register_to_node_status()
 
     {:ok, %{}}
   end
 
+  def code_change("1.2.3", state, _extra) do
+    PubSub.register_to_node_status()
+    {:ok, state}
+  end
+
+  def code_change(_version, state, _extra), do: {:ok, state}
+
   def handle_info({:current_epoch_of_slot_timer, slot_time}, state) do
-    # Check if the slot in the first one of the summary interval
-    previous_summary_time = SummaryTimer.previous_summary(slot_time)
-    first_slot_time = SlotTimer.next_slot(previous_summary_time)
-
-    if slot_time == first_slot_time do
-      Enum.each(
-        BeaconChain.list_subsets(),
-        &clean_previous_summary_cache(&1, previous_summary_time)
-      )
-
-      next_summary_backup_path = SummaryTimer.next_summary(slot_time) |> recover_path()
-
-      Utils.mut_dir("slot_backup*")
-      |> Path.wildcard()
-      |> Enum.reject(&(&1 == next_summary_backup_path))
-      |> Enum.each(&File.rm/1)
-    end
+    if SummaryTimer.match_interval?(slot_time), do: delete_old_backup_file(slot_time)
 
     {:noreply, state}
   end
 
-  defp clean_previous_summary_cache(subset, previous_summary_time) do
+  def handle_info(:node_up, state) do
+    previous_summary_time = SummaryTimer.previous_summary(DateTime.utc_now())
+    delete_old_backup_file(previous_summary_time)
+
+    BeaconChain.list_subsets()
+    |> Enum.each(&clean_previous_summary_slots(&1, previous_summary_time))
+
+    {:noreply, state}
+  end
+
+  def handle_info(:node_down, state), do: {:noreply, state}
+
+  @doc """
+  Remove slots of previous summary time from ets table
+  """
+  @spec clean_previous_summary_slots(
+          subset :: binary(),
+          previous_summary_time :: DateTime.t()
+        ) :: :ok
+  def clean_previous_summary_slots(subset, previous_summary_time) do
     subset
     |> stream_current_slots()
-    |> Stream.filter(fn
-      {%Slot{slot_time: slot_time}, _} ->
-        DateTime.compare(slot_time, previous_summary_time) != :gt
-
-      %Slot{slot_time: slot_time} ->
-        DateTime.compare(slot_time, previous_summary_time) != :gt
+    |> Stream.filter(fn {%Slot{slot_time: slot_time}, _} ->
+      DateTime.compare(slot_time, previous_summary_time) != :gt
     end)
     |> Stream.each(fn item ->
       :ets.delete_object(@table_name, {subset, item})
@@ -110,6 +116,16 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     backup_slot(slot, node_public_key)
   end
 
+  defp delete_old_backup_file(previous_summary_time) do
+    # We keep 2 backup, the current one and the last one
+    previous_backup_path = recover_path(previous_summary_time)
+
+    Utils.mut_dir("slot_backup*")
+    |> Path.wildcard()
+    |> Enum.filter(&(&1 < previous_backup_path))
+    |> Enum.each(&File.rm/1)
+  end
+
   defp recover_path(summary_time = %DateTime{}),
     do: Utils.mut_dir("slot_backup-#{DateTime.to_unix(summary_time)}")
 
@@ -133,13 +149,8 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
       content = File.read!(backup_file_path)
 
       deserialize(content, [])
-      |> Enum.each(fn
-        {slot = %Slot{subset: subset}, node_public_key} ->
-          true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
-
-        # Backward compatibility
-        {slot = %Slot{subset: subset}} ->
-          true = :ets.insert(@table_name, {subset, slot})
+      |> Enum.each(fn {slot = %Slot{subset: subset}, node_public_key} ->
+        true = :ets.insert(@table_name, {subset, {slot, node_public_key}})
       end)
     else
       :ok
@@ -159,14 +170,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {slot_size, rest} = VarInt.get_value(rest)
     <<slot_bin::binary-size(slot_size), rest::binary>> = rest
     {slot, _} = Slot.deserialize(slot_bin)
-
-    # Backward compatibility
-    try do
-      {node_public_key, rest} = Utils.deserialize_public_key(rest)
-      deserialize(rest, [{slot, node_public_key} | acc])
-    rescue
-      _ ->
-        deserialize(rest, [{slot} | acc])
-    end
+    {node_public_key, rest} = Utils.deserialize_public_key(rest)
+    deserialize(rest, [{slot, node_public_key} | acc])
   end
 end

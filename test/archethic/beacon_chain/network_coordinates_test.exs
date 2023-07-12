@@ -13,7 +13,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
   import Mox
 
   describe "fetch_network_stats/1" do
-    test "should retrieve the stats for a given summary time" do
+    setup do
       beacon_nodes =
         Enum.map(0..2, fn i ->
           %Node{
@@ -40,9 +40,11 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
 
       Enum.each(beacon_nodes, &P2P.add_and_connect_node/1)
       Enum.each(sampled_nodes, &P2P.add_and_connect_node/1)
+    end
 
+    test "should retrieve the stats for a given summary time" do
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, 3, fn
         _, %GetNetworkStats{subsets: _}, _ ->
           {:ok,
            %NetworkStats{
@@ -75,6 +77,63 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
                [100, 110, 90, 0, 0, 0],
                [100, 105, 90, 0, 0, 0],
                [90, 105, 90, 0, 0, 0]
+             ] == NetworkCoordinates.fetch_network_stats(DateTime.utc_now()) |> Nx.to_list()
+    end
+
+    test "should filter stats that are different from expected nodes for a subset" do
+      ok_stats_1 = %NetworkStats{
+        stats: %{
+          <<0>> => %{
+            <<0::8, 0::8, 1::8, "key_b0">> => [%{latency: 100}, %{latency: 100}, %{latency: 100}],
+            <<0::8, 0::8, 1::8, "key_b1">> => [%{latency: 100}, %{latency: 100}, %{latency: 100}],
+            <<0::8, 0::8, 1::8, "key_b2">> => [%{latency: 100}, %{latency: 100}, %{latency: 100}]
+          }
+        }
+      }
+
+      ok_stats_2 = %NetworkStats{
+        stats: %{
+          <<0>> => %{
+            <<0::8, 0::8, 1::8, "key_b0">> => [%{latency: 200}, %{latency: 200}, %{latency: 200}],
+            <<0::8, 0::8, 1::8, "key_b1">> => [%{latency: 200}, %{latency: 200}, %{latency: 200}],
+            <<0::8, 0::8, 1::8, "key_b2">> => [%{latency: 200}, %{latency: 200}, %{latency: 200}]
+          }
+        }
+      }
+
+      wrong_stats = %NetworkStats{
+        stats: %{
+          <<0>> => %{
+            <<0::8, 0::8, 1::8, "key_b0">> => [%{latency: 100}, %{latency: 200}],
+            <<0::8, 0::8, 1::8, "key_b1">> => [%{latency: 100}, %{latency: 105}, %{latency: 90}],
+            <<0::8, 0::8, 1::8, "key_b2">> => [%{latency: 90}, %{latency: 105}, %{latency: 90}]
+          }
+        }
+      }
+
+      wrong_node = P2P.get_node_info!(<<0::8, 0::8, 1::8, "key_b0">>)
+      ok_node_1 = P2P.get_node_info!(<<0::8, 0::8, 1::8, "key_b1">>)
+      ok_node_2 = P2P.get_node_info!(<<0::8, 0::8, 1::8, "key_b2">>)
+
+      MockClient
+      |> expect(:send_message, 3, fn
+        ^wrong_node, %GetNetworkStats{subsets: _}, _ ->
+          {:ok, wrong_stats}
+
+        ^ok_node_1, %GetNetworkStats{subsets: _}, _ ->
+          {:ok, ok_stats_1}
+
+        ^ok_node_2, %GetNetworkStats{subsets: _}, _ ->
+          {:ok, ok_stats_2}
+      end)
+
+      assert [
+               [0, 0, 0, 150, 150, 150],
+               [0, 0, 0, 150, 150, 150],
+               [0, 0, 0, 150, 150, 150],
+               [150, 150, 150, 0, 0, 0],
+               [150, 150, 150, 0, 0, 0],
+               [150, 150, 150, 0, 0, 0]
              ] == NetworkCoordinates.fetch_network_stats(DateTime.utc_now()) |> Nx.to_list()
     end
   end

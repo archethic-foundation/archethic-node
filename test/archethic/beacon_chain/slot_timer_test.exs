@@ -9,6 +9,8 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias Archethic.PubSub
+
   alias Archethic.Crypto
 
   setup do
@@ -21,8 +23,10 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
     :ok
   end
 
-  test "receive create_slot message after timer elapsed" do
+  test "send current_epoch_of_slot_timer message after timer elapsed" do
     :persistent_term.put(:archethic_up, nil)
+
+    PubSub.register_to_current_epoch_of_slot_time()
 
     {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
     assert %{interval: "*/1 * * * * * *"} = :sys.get_state(pid)
@@ -39,53 +43,8 @@ defmodule Archethic.BeaconChain.SlotTimerTest do
       authorization_date: DateTime.utc_now()
     })
 
-    receive do
-      {:create_slot, time} ->
-        assert 1 == DateTime.diff(time, current)
-    end
-  end
-
-  test "should not send create slot event if node is unavailable" do
-    :persistent_term.put(:archethic_up, nil)
-
-    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
-    assert %{interval: "*/1 * * * * * *"} = :sys.get_state(pid)
-    send(pid, :node_up)
-    assert %{interval: "*/1 * * * * * *", timer: _} = :sys.get_state(pid)
-
-    P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: false,
-      authorization_date: DateTime.utc_now()
-    })
-
-    refute_receive({:create_slot, _}, 1200)
-  end
-
-  test "handle_info/3 receive a slot creation message" do
-    :persistent_term.put(:archethic_up, nil)
-
-    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
-    assert %{interval: "*/1 * * * * * *"} = :sys.get_state(pid)
-    send(pid, :node_up)
-    assert %{interval: "*/1 * * * * * *", timer: _} = :sys.get_state(pid)
-
-    P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: true,
-      authorization_date: DateTime.utc_now()
-    })
-
-    send(pid, :new_slot)
-
-    Process.sleep(200)
-
-    for _ <- 1..256, do: assert_receive({:create_slot, _})
-    refute_received {:create_slot, _}
+    assert_receive {:current_epoch_of_slot_timer, time}, 1100
+    assert 1 == DateTime.diff(time, current)
   end
 
   test "next_slot/1 should get the slot time from a given date" do

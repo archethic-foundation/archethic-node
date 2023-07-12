@@ -286,10 +286,7 @@ defmodule Archethic.SelfRepair.Sync do
       ) do
     start_time = System.monotonic_time()
 
-    previous_available_nodes = P2P.authorized_and_available_nodes()
-
-    nodes_including_self =
-      [P2P.get_node_info() | previous_available_nodes] |> P2P.distinct_nodes()
+    nodes_including_self = [P2P.get_node_info() | download_nodes] |> P2P.distinct_nodes()
 
     attestations_to_sync =
       attestations
@@ -304,6 +301,8 @@ defmodule Archethic.SelfRepair.Sync do
     )
 
     availability_update = DateTime.add(summary_time, availability_adding_time)
+
+    previous_available_nodes = P2P.authorized_and_available_nodes()
 
     p2p_availabilities
     |> Enum.reduce(%{}, fn {subset,
@@ -387,7 +386,7 @@ defmodule Archethic.SelfRepair.Sync do
     |> Enum.reduce(acc, fn {available_bit, index}, acc ->
       node = Enum.at(subset_node_list, index)
       avg_availability = Enum.at(node_average_availabilities, index)
-      network_patch = Enum.at(network_patches, index)
+      network_patch = Enum.at(network_patches, index, node.geo_patch)
       available? = available_bit == 1 and node.synced?
 
       Map.put(acc, node, %{
@@ -415,10 +414,7 @@ defmodule Archethic.SelfRepair.Sync do
     end
 
     P2P.set_node_average_availability(node_key, avg_availability)
-
-    if network_patch do
-      P2P.update_node_network_patch(node_key, network_patch)
-    end
+    P2P.update_node_network_patch(node_key, network_patch)
 
     %Node{availability_update: availability_update} = P2P.get_node_info!(node_key)
 

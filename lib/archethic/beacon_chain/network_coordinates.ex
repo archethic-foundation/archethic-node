@@ -267,12 +267,21 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
     )
     |> Stream.filter(fn
       {:ok, {:ok, %NetworkStats{stats: stats}}} when map_size(stats) > 0 ->
-        true
+        valid_stats?(stats)
 
       _ ->
         false
     end)
     |> Stream.map(fn {:ok, {:ok, %NetworkStats{stats: stats}}} -> stats end)
+  end
+
+  defp valid_stats?(stats) do
+    Enum.all?(stats, fn {subset, nodes_stats} ->
+      expected_stats_length = P2PSampling.list_nodes_to_sample(subset) |> length()
+
+      Enum.map(nodes_stats, fn {_node, stats} -> length(stats) end)
+      |> Enum.all?(&(&1 == expected_stats_length))
+    end)
   end
 
   defp aggregate_stats_per_subset(stats) do

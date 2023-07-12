@@ -144,6 +144,9 @@ defmodule Archethic.BeaconChain do
       !SlotValidation.valid_end_of_node_sync?(slot) ->
         {:error, :invalid_end_of_node_sync}
 
+      !SlotValidation.valid_p2p_view?(slot) ->
+        {:error, :invalid_p2p_view}
+
       true ->
         :ok
     end
@@ -195,10 +198,7 @@ defmodule Archethic.BeaconChain do
   @spec get_summary_slots(binary()) :: list(TransactionSummary.t())
   def get_summary_slots(subset) when is_binary(subset) do
     SummaryCache.stream_current_slots(subset)
-    |> Stream.map(fn
-      {slot, _} -> slot
-      slot -> slot
-    end)
+    |> Stream.map(fn {slot, _} -> slot end)
     |> Stream.flat_map(fn %Slot{transaction_attestations: transaction_attestations} ->
       transaction_summaries =
         transaction_attestations
