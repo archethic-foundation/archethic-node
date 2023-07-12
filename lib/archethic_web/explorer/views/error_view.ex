@@ -1,7 +1,7 @@
 defmodule ArchethicWeb.ErrorView do
   @moduledoc false
 
-  use ArchethicWeb, :view
+  use ArchethicWeb, :explorer_view
 
   alias Ecto.Changeset
   alias Phoenix.Controller

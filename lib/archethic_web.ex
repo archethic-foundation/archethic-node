@@ -11,10 +11,24 @@ defmodule ArchethicWeb do
     end
   end
 
-  def view do
+  def explorer_view do
     quote do
       use Phoenix.View,
-        root: "lib/archethic_web/templates",
+        root: "lib/archethic_web/explorer/templates",
+        namespace: ArchethicWeb
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller, only: [get_flash: 1, get_flash: 2, view_module: 1]
+
+      # Include shared imports and aliases for views
+      unquote(view_helpers())
+    end
+  end
+
+  def aeweb_view do
+    quote do
+      use Phoenix.View,
+        root: "lib/archethic_web/aeweb/templates",
         namespace: ArchethicWeb
 
       # Import convenience functions from controllers
