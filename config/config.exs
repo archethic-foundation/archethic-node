@@ -121,11 +121,11 @@ config :archethic,
 # Configure the endpoint
 config :archethic, ArchethicWeb.Endpoint,
   secret_key_base: "5mFu4p5cPMY5Ii0HvjkLfhYZYtC0JAJofu70bzmi5x3xzFIJNlXFgIY5g8YdDPMf",
-  render_errors: [view: ArchethicWeb.ErrorView, accepts: ~w(json)],
+  render_errors: [view: ArchethicWeb.Explorer.ErrorView, accepts: ~w(json)],
   pubsub_server: ArchethicWeb.PubSub,
   live_view: [
     signing_salt: "3D6jYvx3",
-    layout: {ArchethicWeb.LayoutView, "live.html"}
+    layout: {ArchethicWeb.Explorer.LayoutView, "live.html"}
   ]
 
 config :archethic, Archethic.Mining.StandaloneWorkflow, global_timeout: 10_000
@@ -149,7 +149,7 @@ config :archethic, Archethic.OracleChain.Services.UCOPrice,
     Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika => [refresh_interval: 120_000]
   }
 
-config :archethic, ArchethicWeb.FaucetController,
+config :archethic, ArchethicWeb.Explorer.FaucetController,
   seed:
     "3A7B579DBFB7CEBE26293850058F180A65D6A3D2F6964543F5EDE07BEB2EFDA4"
     |> Base.decode16!(case: :mixed)
@@ -165,7 +165,7 @@ config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
 config :archethic, Archethic.Networking.PortForwarding, port_range: 49_152..65_535
 # -----End-of-Networking-configs ------
 
-config :archethic, ArchethicWeb.API.WebHostingController,
+config :archethic, ArchethicWeb.AEWeb.WebHostingController,
   # The tx_cache is stored on RAM
   # 750MB should hold a minimum 250 transactions
   tx_cache_bytes: 750 * 1024 * 1024,

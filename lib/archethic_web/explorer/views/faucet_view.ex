@@ -1,5 +1,5 @@
-defmodule ArchethicWeb.FaucetView do
-  use ArchethicWeb, :explorer_view
+defmodule ArchethicWeb.Explorer.FaucetView do
+  use ArchethicWeb.Explorer, :view
 
   def faucet_rate_limit_message() do
     rate_limit = Application.get_env(:archethic, :faucet_rate_limit)

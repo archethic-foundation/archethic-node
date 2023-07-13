@@ -32,7 +32,7 @@ defmodule ArchethicWeb.API.OriginKeyController do
       changeset ->
         conn
         |> put_status(400)
-        |> put_view(ArchethicWeb.ErrorView)
+        |> put_view(ArchethicWeb.Explorer.ErrorView)
         |> render("400.json", changeset: changeset)
     end
   end

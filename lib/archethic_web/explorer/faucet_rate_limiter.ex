@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.FaucetRateLimiter do
+defmodule ArchethicWeb.Explorer.FaucetRateLimiter do
   @moduledoc false
 
   use GenServer

@@ -1,11 +1,11 @@
-defmodule ArchethicWeb.CodeController do
+defmodule ArchethicWeb.Explorer.CodeController do
   @moduledoc false
-  use ArchethicWeb, :controller
+  use ArchethicWeb.Explorer, :controller
 
   # alias Archethic.TransactionChain
 
-  # alias ArchethicWeb.CodeProposalDetailsLive
-  # alias ArchethicWeb.ExplorerView
+  # alias ArchethicWeb.Explorer.CodeProposalDetailsLive
+  # alias ArchethicWeb.Explorer.ExplorerView
 
   @src_dir Application.compile_env(:archethic, :src_dir)
 

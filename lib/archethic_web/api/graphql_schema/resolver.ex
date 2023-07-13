@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.GraphQLSchema.Resolver do
+defmodule ArchethicWeb.API.GraphQLSchema.Resolver do
   @moduledoc false
 
   alias Archethic

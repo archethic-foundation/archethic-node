@@ -1,13 +1,13 @@
-defmodule ArchethicWeb.ExplorerController do
+defmodule ArchethicWeb.Explorer.ExplorerController do
   @moduledoc false
 
-  use ArchethicWeb, :controller
+  use ArchethicWeb.Explorer, :controller
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
 
   def index(conn, _params) do
-    render(conn, "index.html", layout: {ArchethicWeb.LayoutView, "index.html"})
+    render(conn, "index.html", layout: {ArchethicWeb.Explorer.LayoutView, "index.html"})
   end
 
   def search(conn, _params = %{"address" => address}) do

@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.RewardsLiveTest do
+defmodule ArchethicWeb.Explorer.RewardsLiveTest do
   @moduledoc false
   use ArchethicCase
   use ArchethicWeb.ConnCase
@@ -10,7 +10,7 @@ defmodule ArchethicWeb.RewardsLiveTest do
 
   import Mox
 
-  # alias ArchethicWeb.{RewardChainLive}
+  # alias ArchethicWeb.Explorer.{RewardChainLive}
 
   alias Archethic.{
     Crypto,

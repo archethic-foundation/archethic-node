@@ -1,12 +1,12 @@
-defmodule ArchethicWeb.NodeListLive do
+defmodule ArchethicWeb.Explorer.NodeListLive do
   @moduledoc false
 
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.P2P
   alias Archethic.PubSub
 
-  alias ArchethicWeb.NodeView
+  alias ArchethicWeb.Explorer.NodeView
 
   alias Phoenix.View
 

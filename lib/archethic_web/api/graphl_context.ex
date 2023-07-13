@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.GraphQLContext do
+defmodule ArchethicWeb.API.GraphQLContext do
   @moduledoc false
 
   @behaviour Plug

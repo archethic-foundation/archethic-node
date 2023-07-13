@@ -2,7 +2,7 @@
     <%= if info = get_flash(@conn, :info) do %>
       <div class="notification is-info is-link has-text-centered"> 
         <div class="delete"></div>
-      <%= link to: Routes.live_path(@conn, ArchethicWeb.TransactionDetailsLive, @link_address) do%>
+      <%= link to: Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionDetailsLive, @link_address) do%>
         <%= info %>
       <% end %>
       </div>

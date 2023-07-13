@@ -1,6 +1,6 @@
-defmodule ArchethicWeb.BeaconChainLive do
+defmodule ArchethicWeb.Explorer.BeaconChainLive do
   @moduledoc false
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SummaryAggregate
@@ -11,8 +11,8 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Archethic.PubSub
 
   alias Archethic.TransactionChain.TransactionSummary
-  alias ArchethicWeb.ExplorerView
-  alias ArchethicWeb.TransactionCache
+  alias ArchethicWeb.Explorer.ExplorerView
+  alias ArchethicWeb.Explorer.TransactionCache
 
   alias Phoenix.View
 

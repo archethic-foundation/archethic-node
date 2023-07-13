@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.ExplorerLive.TopTransactionsCache do
+defmodule ArchethicWeb.Explorer.ExplorerLive.TopTransactionsCache do
   @table :last_transactions
 
   @moduledoc false

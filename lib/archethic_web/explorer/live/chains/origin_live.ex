@@ -1,19 +1,20 @@
-defmodule ArchethicWeb.OriginChainLive do
+defmodule ArchethicWeb.Explorer.OriginChainLive do
   @moduledoc false
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
-  alias Archethic.{
-    TransactionChain,
-    TransactionChain.Transaction,
-    TransactionChain.TransactionData,
-    TransactionChain.Transaction.ValidationStamp,
-    PubSub,
-    SharedSecrets,
-    Utils
-  }
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.PubSub
+  alias Archethic.SharedSecrets
+  alias Archethic.Utils
 
-  alias ArchethicWeb.{ExplorerView, WebUtils}
-  alias Phoenix.{LiveView, View}
+  alias ArchethicWeb.Explorer.ExplorerView
+  alias ArchethicWeb.WebUtils
+
+  alias Phoenix.LiveView
+  alias Phoenix.View
 
   @display_limit 10
   @txn_type :origin

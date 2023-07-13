@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.TransactionChainLive do
+defmodule ArchethicWeb.Explorer.TransactionChainLive do
   @moduledoc """
   Displays the transaction chain (all transactions in the chain) of an address.
   User can type any address part of the chain. We will always fetch from the latest transaction DESC.
@@ -8,12 +8,12 @@ defmodule ArchethicWeb.TransactionChainLive do
       We use instead the address of the last transaction loaded for the pagination.
   """
 
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Crypto
   alias Archethic.OracleChain
 
-  alias ArchethicWeb.{ExplorerView}
+  alias ArchethicWeb.Explorer.{ExplorerView}
 
   alias Phoenix.{View}
 

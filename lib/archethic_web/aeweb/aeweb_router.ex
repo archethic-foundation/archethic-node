@@ -1,20 +1,23 @@
 defmodule ArchethicWeb.AEWebRouter do
   @moduledoc false
 
-  use ArchethicWeb, :router
+  alias ArchethicWeb.Plug.ThrottleByIPHigh
+  alias ArchethicWeb.Plug.ThrottleByIPandPath
+
+  use ArchethicWeb.AEWeb, :router
 
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_live_flash)
     plug(:put_secure_browser_headers)
-    plug(ArchethicWeb.PlugThrottleByIPHigh)
-    plug(ArchethicWeb.PlugThrottleByIPandPath)
+    plug(ThrottleByIPHigh)
+    plug(ThrottleByIPandPath)
   end
 
-  scope "/", ArchethicWeb do
+  scope "/", ArchethicWeb.AEWeb do
     pipe_through(:browser)
 
-    get("/*url_path", AEWebRootController, :index)
+    get("/*url_path", RootController, :index)
   end
 end

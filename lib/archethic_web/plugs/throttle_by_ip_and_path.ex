@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.PlugThrottleByIPandPath do
+defmodule ArchethicWeb.Plug.ThrottleByIPandPath do
   @moduledoc """
     Throttle requests based on the ip address
     and the path requested by the user

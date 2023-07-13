@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.GraphQLSchema.AddressType do
+defmodule ArchethicWeb.API.GraphQLSchema.AddressType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

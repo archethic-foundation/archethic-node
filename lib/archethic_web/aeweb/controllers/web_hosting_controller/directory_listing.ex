@@ -1,7 +1,8 @@
-defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
+defmodule ArchethicWeb.AEWeb.WebHostingController.DirectoryListing do
   @moduledoc false
 
-  alias ArchethicWeb.API.WebHostingController.ReferenceTransaction
+  alias ArchethicWeb.AEWeb.DirListingView
+  alias ArchethicWeb.AEWeb.WebHostingController.ReferenceTransaction
 
   require Logger
 
@@ -40,8 +41,9 @@ defmodule ArchethicWeb.API.WebHostingController.DirectoryListing do
             address
           )
 
-        {:ok, Phoenix.View.render_to_iodata(ArchethicWeb.DirListingView, "index.html", assigns),
-         nil, mime_type, cached?, etag}
+        render = Phoenix.View.render_to_iodata(DirListingView, "index.html", assigns)
+
+        {:ok, render, nil, mime_type, cached?, etag}
     end
   end
 

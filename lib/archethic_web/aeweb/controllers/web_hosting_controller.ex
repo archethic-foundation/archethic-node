@@ -1,17 +1,15 @@
-defmodule ArchethicWeb.API.WebHostingController do
+defmodule ArchethicWeb.AEWeb.WebHostingController do
   @moduledoc false
 
-  use ArchethicWeb, :controller
+  use ArchethicWeb.AEWeb, :controller
 
   alias Archethic.Crypto
 
-  require Logger
+  alias ArchethicWeb.AEWeb.WebHostingController.Resources
+  alias ArchethicWeb.AEWeb.WebHostingController.DirectoryListing
+  alias ArchethicWeb.AEWeb.WebHostingController.ReferenceTransaction
 
-  alias ArchethicWeb.API.WebHostingController.{
-    Resources,
-    DirectoryListing,
-    ReferenceTransaction
-  }
+  require Logger
 
   @spec web_hosting(Plug.Conn.t(), params :: map()) :: Plug.Conn.t()
   def web_hosting(conn, params = %{"url_path" => []}) do

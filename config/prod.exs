@@ -232,10 +232,10 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
 
 config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 10_000
 
-config :archethic, ArchethicWeb.FaucetController,
+config :archethic, ArchethicWeb.Explorer.FaucetController,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
 
-config :archethic, ArchethicWeb.FaucetRateLimiter,
+config :archethic, ArchethicWeb.Explorer.FaucetRateLimiter,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
 
 # For production, don't forget to configure the url host
@@ -272,7 +272,7 @@ config :archethic, ArchethicWeb.Endpoint,
     cipher_suite: :strong,
     otp_app: :archethic,
     port: System.get_env("ARCHETHIC_HTTPS_PORT", "50000") |> String.to_integer(),
-    sni_fun: &ArchethicWeb.Domain.sni/1,
+    sni_fun: &ArchethicWeb.AEWeb.Domain.sni/1,
     keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEYFILE", "priv/cert/selfsigned_key.pem"),
     certfile: System.get_env("ARCHETHIC_WEB_SSL_CERTFILE", "priv/cert/selfsigned.pem")
   ]

@@ -5,7 +5,7 @@
         </div>
         <%= if assigns[:error] == nil do %>
             <div class="column is-2-desktop">
-                <%= link class: "button is-primary is-outl-ned is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.TransactionChainLive, address: Base.encode16(@node_address)) do%>
+                <%= link class: "button is-primary is-outl-ned is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@node_address)) do%>
                     Explore node chain
                 <% end %>
             </div>
@@ -81,7 +81,7 @@
                 <div>
                     <p class="heading">Reward address</p>
                     <span>
-                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
+                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
                             <%= Base.encode16(@node.reward_address) %>
                         <% end %>
                     </span>

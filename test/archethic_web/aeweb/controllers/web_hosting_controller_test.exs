@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.WebHostingControllerTest do
+defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
   use ArchethicCase, async: false
   use ArchethicWeb.ConnCase
 

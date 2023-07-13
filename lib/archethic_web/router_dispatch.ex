@@ -4,7 +4,7 @@ defmodule ArchethicWeb.RouterDispatch do
   If the connection contains a dnslink redirection aeweb route is used, otherwise explorer route is used
   """
 
-  alias ArchethicWeb.Domain
+  alias ArchethicWeb.AEWeb.Domain
   alias ArchethicWeb.AEWebRouter
   alias ArchethicWeb.ExplorerRouter
 

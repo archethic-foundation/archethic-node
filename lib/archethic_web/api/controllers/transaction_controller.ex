@@ -13,7 +13,7 @@ defmodule ArchethicWeb.API.TransactionController do
   alias Archethic.OracleChain
 
   alias ArchethicWeb.API.TransactionPayload
-  alias ArchethicWeb.ErrorView
+  alias ArchethicWeb.Explorer.ErrorView
   alias ArchethicWeb.TransactionSubscriber
 
   require Logger
@@ -42,7 +42,7 @@ defmodule ArchethicWeb.API.TransactionController do
 
       changeset ->
         Logger.debug(
-          "Invalid transaction #{inspect(Ecto.Changeset.traverse_errors(changeset, &ArchethicWeb.ErrorHelpers.translate_error/1))}"
+          "Invalid transaction #{inspect(Ecto.Changeset.traverse_errors(changeset, &ArchethicWeb.WebUtils.translate_error/1))}"
         )
 
         conn
@@ -212,7 +212,10 @@ defmodule ArchethicWeb.API.TransactionController do
 
       changeset ->
         error_details =
-          Ecto.Changeset.traverse_errors(changeset, &ArchethicWeb.ErrorHelpers.translate_error/1)
+          Ecto.Changeset.traverse_errors(
+            changeset,
+            &ArchethicWeb.WebUtils.translate_error/1
+          )
 
         json_body =
           Map.merge(error_details, %{"valid" => false, "reason" => "Query validation failled"})

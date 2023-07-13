@@ -1,7 +1,7 @@
-defmodule ArchethicWeb.CodeView do
+defmodule ArchethicWeb.Explorer.CodeView do
   @moduledoc false
 
-  use ArchethicWeb, :explorer_view
+  use ArchethicWeb.Explorer, :view
 
   def render_tree(tree, expanded_folders) when is_map(tree) and is_list(expanded_folders) do
     Enum.reduce(tree, [], &reduce_node(&1, &2, [], expanded_folders))

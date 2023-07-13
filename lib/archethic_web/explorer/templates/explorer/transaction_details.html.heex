@@ -18,12 +18,12 @@
             <%= if assigns[:error] == nil do %>
                 <div class="columns">
                     <div class="column is-2-desktop">
-                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
+                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
                             Previous transaction
                         <% end %>
                     </div>
                     <div class="column is-2-desktop">
-                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.TransactionChainLive, address: Base.encode16(@address)) do%>
+                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@address)) do%>
                             Explore chain
                         <% end %>
                     </div>
@@ -175,7 +175,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">To</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
                                                     <% end %>
                                                 </div>
@@ -202,7 +202,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">To</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
                                                     <% end %>
                                                 </div>
@@ -217,7 +217,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">Token</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.token_address)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(transfer.token_address)) do%>
                                                     <span class="text_wrap">
                                                         <%= case Map.get(@token_properties, transfer.token_address, %{}) |> Map.get(:symbol) do
                                                             nil -> Base.encode16(transfer.token_address)
@@ -268,7 +268,7 @@
                                             <div class="box">
                                                 <div class="columns">
                                                     <div class="column">
-                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(address)) do%>
+                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(address)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(address) %></span>
                                                         <% end %>
                                                     </div>
@@ -354,7 +354,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">To</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(movement.to)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(movement.to)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(movement.to) %></span>
                                                     <% end %>
                                                 </div>
@@ -377,7 +377,7 @@
                                                                     (#<%= token_id %>)
                                                                 <% end %>
                                                             </span>
-                                                            <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                                            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
                                                                 <span>
                                                                     <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do
                                                                         nil -> "#{Base.encode16(:binary.part(token_address, 0, 13))}..."
@@ -400,7 +400,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">From</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(unspent_output.from)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(unspent_output.from)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(unspent_output.from) %></span>
                                                     <% end %>
                                                 </div>
@@ -423,7 +423,7 @@
                                                                 (#<%= token_id %>)
                                                             <% end %>
                                                         </span>
-                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
                                                             <span>
                                                                 <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do
                                                                     nil -> "#{Base.encode16(:binary.part(token_address, 0, 13))}..."
@@ -446,7 +446,7 @@
                                             <%= if @transaction.validation_stamp.ledger_operations.fee > 0 do %>
                                               (<%= format_full_usd_amount(@transaction.validation_stamp.ledger_operations.fee, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                               <p class="is-size-7 mt-2">The fees have been transfered to the
-                                              <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.burning_address())) do %><span>burning address</span><% end %></p>
+                                              <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.burning_address())) do %><span>burning address</span><% end %></p>
                                             <% end %>
                                         </p>
                                     </div>
@@ -461,7 +461,7 @@
                                     <% end %>
 
                                     <%= for recipient <- @transaction.validation_stamp.recipients do %>
-                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(recipient)) do%>
+                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(recipient)) do%>
                                             <p class="text_wrap"><%= Base.encode16(recipient) %></p>
                                         <% end %>
                                     <%  end %>
@@ -485,7 +485,7 @@
                                             <div class="columns">
                                                 <div class="column is-2 heading">Node public key</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.NodeDetailsLive, Base.encode16(cross_validation_stamp.node_public_key)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(cross_validation_stamp.node_public_key)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(cross_validation_stamp.node_public_key) %></span>
                                                     <% end %>
                                                 </div>
@@ -539,7 +539,7 @@
                                       </div>
                                       <div class="columns">
                                         <div class="column">
-                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(input.from)) do%>
+                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(input.from)) do%>
                                             <span class="is-hidden-mobile"><%= Base.encode16(input.from) %></span>
                                             <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(input.from, 0, 12)) %>...</span>
                                         <% end %>
@@ -583,7 +583,7 @@
                                                       <% end %>
                                                     </span></div>
                                                   <div class="column is-4-desktop">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do
                                                         case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
                                                             <% nil -> %>
                                                                 <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(token_address, 0, 6)) %>...</span>
@@ -621,7 +621,7 @@
                               </div>
                               <div class="columns">
                                 <div class="column">
-                                  <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(call.from)) do%>
+                                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(call.from)) do%>
                                     <span class="is-hidden-mobile"><%= Base.encode16(call.from) %></span>
                                     <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(call.from, 0, 12)) %>...</span>
                                   <% end %>

@@ -1,9 +1,9 @@
-defmodule ArchethicWeb do
+defmodule ArchethicWeb.Explorer do
   @moduledoc false
 
   def controller do
     quote do
-      use Phoenix.Controller, namespace: ArchethicWeb
+      use Phoenix.Controller, namespace: ArchethicWeb.Explorer
 
       import Plug.Conn
       import Phoenix.LiveView.Controller
@@ -11,25 +11,11 @@ defmodule ArchethicWeb do
     end
   end
 
-  def explorer_view do
+  def view do
     quote do
       use Phoenix.View,
         root: "lib/archethic_web/explorer/templates",
-        namespace: ArchethicWeb
-
-      # Import convenience functions from controllers
-      import Phoenix.Controller, only: [get_flash: 1, get_flash: 2, view_module: 1]
-
-      # Include shared imports and aliases for views
-      unquote(view_helpers())
-    end
-  end
-
-  def aeweb_view do
-    quote do
-      use Phoenix.View,
-        root: "lib/archethic_web/aeweb/templates",
-        namespace: ArchethicWeb.AEWeb
+        namespace: ArchethicWeb.Explorer
 
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 1, get_flash: 2, view_module: 1]
@@ -42,7 +28,7 @@ defmodule ArchethicWeb do
   def live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {ArchethicWeb.LayoutView, :live}
+        layout: {ArchethicWeb.Explorer.LayoutView, :live}
 
       unquote(view_helpers())
     end
@@ -67,8 +53,7 @@ defmodule ArchethicWeb do
       # Import basic rendering functionality (render, render_layout, etc)
       import Phoenix.View
 
-      import ArchethicWeb.ErrorHelpers
-      import ArchethicWeb.LayoutHelpers
+      import ArchethicWeb.WebUtils
 
       alias ArchethicWeb.ExplorerRouter.Helpers, as: Routes
     end

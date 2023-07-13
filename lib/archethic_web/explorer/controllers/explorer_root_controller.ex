@@ -1,7 +1,7 @@
-defmodule ArchethicWeb.ExplorerRootController do
+defmodule ArchethicWeb.Explorer.ExplorerRootController do
   @moduledoc false
 
-  use ArchethicWeb, :controller
+  use ArchethicWeb.Explorer, :controller
 
   # def index(conn, _params), do: redirect(conn, to: "/explorer")
   def index(conn, _params) do

@@ -11,7 +11,7 @@
 
   <div class="columns">
     <div class="column">
-      <ArchethicWeb.Pagination.previous_next
+      <ArchethicWeb.Explorer.Pagination.previous_next
         current_page={@current_date_page}
         total_pages={Enum.count(@dates)} />
     </div>
@@ -31,7 +31,7 @@
     <%= for tx <- @transactions do %>
         <div class="columns">
           <div class="column is-5-desktop">
-            <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
                 <span class="text_wrap"><%= Base.encode16(tx.address) %></span>
               <% end %>
           </div>

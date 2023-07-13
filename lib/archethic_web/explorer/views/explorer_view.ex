@@ -1,8 +1,8 @@
-defmodule ArchethicWeb.ExplorerView do
+defmodule ArchethicWeb.Explorer.ExplorerView do
   @moduledoc false
 
-  use ArchethicWeb, :explorer_view
-  use ArchethicWeb, :live_component
+  use ArchethicWeb.Explorer, :view
+  use ArchethicWeb.Explorer, :live_component
 
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot

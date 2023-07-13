@@ -1,19 +1,17 @@
-defmodule ArchethicWeb.FaucetController do
+defmodule ArchethicWeb.Explorer.FaucetController do
   @moduledoc false
 
-  use ArchethicWeb, :controller
+  use ArchethicWeb.Explorer, :controller
 
   alias Archethic.Crypto
 
-  alias Archethic.TransactionChain.{
-    Transaction,
-    TransactionData,
-    TransactionData.Ledger,
-    TransactionData.UCOLedger
-  }
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   alias ArchethicWeb.TransactionSubscriber
-  alias ArchethicWeb.FaucetRateLimiter
+  alias ArchethicWeb.Explorer.FaucetRateLimiter
 
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
   @faucet_rate_limit_expiry Application.compile_env(:archethic, :faucet_rate_limit_expiry)
@@ -26,7 +24,7 @@ defmodule ArchethicWeb.FaucetController do
     else
       conn
       |> put_status(:not_found)
-      |> put_view(ArchethicWeb.ErrorView)
+      |> put_view(ArchethicWeb.Explorer.ErrorView)
       |> render("404.html")
       |> halt()
     end

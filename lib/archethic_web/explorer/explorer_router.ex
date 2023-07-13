@@ -1,7 +1,13 @@
 defmodule ArchethicWeb.ExplorerRouter do
   @moduledoc false
 
-  use ArchethicWeb, :router
+  alias ArchethicWeb.Explorer
+
+  alias ArchethicWeb.Plug.ThrottleByIPHigh
+  alias ArchethicWeb.Plug.ThrottleByIPandPath
+  alias ArchethicWeb.Plug.ThrottleByIPLow
+
+  use ArchethicWeb.Explorer, :router
   import Phoenix.LiveDashboard.Router
 
   pipeline :browser do
@@ -10,23 +16,23 @@ defmodule ArchethicWeb.ExplorerRouter do
     plug(:fetch_live_flash)
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
-    plug(ArchethicWeb.PlugThrottleByIPLow)
-    plug(:put_root_layout, {ArchethicWeb.LayoutView, :root})
+    plug(ThrottleByIPLow)
+    plug(:put_root_layout, {ArchethicWeb.Explorer.LayoutView, :root})
   end
 
   pipeline :api do
     plug(:accepts, ["json"])
-    plug(ArchethicWeb.PlugThrottleByIPLow)
-    plug(ArchethicWeb.GraphQLContext)
+    plug(ThrottleByIPLow)
+    plug(ArchethicWeb.API.GraphQLContext)
   end
 
   pipeline :unrestricted_api do
     plug(:accepts, ["json"])
-    plug(ArchethicWeb.PlugThrottleByIPHigh)
-    plug(ArchethicWeb.PlugThrottleByIPandPath)
+    plug(ThrottleByIPHigh)
+    plug(ThrottleByIPandPath)
   end
 
-  scope "/", ArchethicWeb do
+  scope "/", Explorer do
     pipe_through(:browser)
 
     get("/", ExplorerRootController, :index)
@@ -47,7 +53,7 @@ defmodule ArchethicWeb.ExplorerRouter do
     post("/faucet", FaucetController, :create_transfer)
   end
 
-  scope "/explorer", ArchethicWeb do
+  scope "/explorer", Explorer do
     pipe_through(:browser)
 
     live("/", ExplorerIndexLive)
@@ -74,7 +80,7 @@ defmodule ArchethicWeb.ExplorerRouter do
 
   scope "/api" do
     pipe_through(:unrestricted_api)
-    get("/web_hosting/:address/*url_path", ArchethicWeb.API.WebHostingController, :web_hosting)
+    get("/web_hosting/:address/*url_path", ArchethicWeb.AEWeb.WebHostingController, :web_hosting)
   end
 
   scope "/api" do
@@ -99,23 +105,23 @@ defmodule ArchethicWeb.ExplorerRouter do
     forward(
       "/graphiql",
       Absinthe.Plug.GraphiQL,
-      schema: ArchethicWeb.GraphQLSchema,
+      schema: ArchethicWeb.API.GraphQLSchema,
       socket: ArchethicWeb.UserSocket
     )
 
     forward(
       "/",
       Absinthe.Plug,
-      schema: ArchethicWeb.GraphQLSchema
+      schema: ArchethicWeb.API.GraphQLSchema
     )
   end
 
   live_session :settings, session: {ArchethicWeb.WebUtils, :keep_remote_ip, []} do
     pipe_through(:browser)
-    live("/settings", ArchethicWeb.SettingsLive)
+    live("/settings", ArchethicWeb.Explorer.SettingsLive)
   end
 
-  scope "/", ArchethicWeb do
+  scope "/", Explorer do
     get("/*path", ExplorerRootController, :index)
     post("/*path", ExplorerRootController, :return_404)
   end

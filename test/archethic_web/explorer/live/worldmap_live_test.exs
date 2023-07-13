@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.WorldMapLiveTest do
+defmodule ArchethicWeb.Explorer.WorldMapLiveTest do
   @moduledoc """
   This module defines the test case to be used by
   WorlMapLive tests.

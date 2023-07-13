@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.FaucetControllerTest do
+defmodule ArchethicWeb.Explorer.FaucetControllerTest do
   use ArchethicCase, async: false
   use ArchethicWeb.ConnCase
 
@@ -11,12 +11,12 @@ defmodule ArchethicWeb.FaucetControllerTest do
   alias TransactionData.{Ledger, UCOLedger}
   alias TransactionChain.{Transaction, TransactionSummary}
 
-  alias ArchethicWeb.FaucetRateLimiter
+  alias ArchethicWeb.Explorer.FaucetRateLimiter
 
   import ArchethicCase, only: [setup_before_send_tx: 0]
   import Mox
 
-  @pool_seed Application.compile_env(:archethic, [ArchethicWeb.FaucetController, :seed])
+  @pool_seed Application.compile_env(:archethic, [ArchethicWeb.Explorer.FaucetController, :seed])
 
   setup do
     P2P.add_and_connect_node(%Node{

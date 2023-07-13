@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.Pagination do
+defmodule ArchethicWeb.Explorer.Pagination do
   @moduledoc false
 
   use Phoenix.Component

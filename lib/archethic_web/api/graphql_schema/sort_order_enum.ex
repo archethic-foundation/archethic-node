@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.GraphQLSchema.SortOrderEnum do
+defmodule ArchethicWeb.API.GraphQLSchema.SortOrderEnum do
   @moduledoc false
 
   use Absinthe.Schema.Notation

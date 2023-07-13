@@ -1,3 +1,3 @@
-defmodule ArchethicWeb.DashboardView do
-  use ArchethicWeb, :explorer_view
+defmodule ArchethicWeb.Explorer.DashboardView do
+  use ArchethicWeb.Explorer, :view
 end

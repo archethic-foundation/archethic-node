@@ -1,7 +1,7 @@
-defmodule ArchethicWeb.UpController do
+defmodule ArchethicWeb.Explorer.UpController do
   @moduledoc false
 
-  use ArchethicWeb, :controller
+  use ArchethicWeb.Explorer, :controller
 
   @doc """
   The logic to respond 503 when node is not bootstraped is moved in a plug

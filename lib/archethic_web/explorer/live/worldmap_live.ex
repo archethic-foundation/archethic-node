@@ -1,10 +1,10 @@
-defmodule ArchethicWeb.WorldMapLive do
+defmodule ArchethicWeb.Explorer.WorldMapLive do
   @moduledoc false
 
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Phoenix.View
-  alias ArchethicWeb.NodeView
+  alias ArchethicWeb.Explorer.NodeView
   alias Archethic.P2P
   alias Archethic.PubSub
   alias Archethic.P2P.Node

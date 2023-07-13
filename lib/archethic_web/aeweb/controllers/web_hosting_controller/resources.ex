@@ -1,9 +1,9 @@
-defmodule ArchethicWeb.API.WebHostingController.Resources do
+defmodule ArchethicWeb.AEWeb.WebHostingController.Resources do
   @moduledoc false
 
   alias Archethic.TransactionChain.{Transaction, TransactionData}
   alias ArchethicCache.LRUDisk
-  alias ArchethicWeb.API.WebHostingController.ReferenceTransaction
+  alias ArchethicWeb.AEWeb.WebHostingController.ReferenceTransaction
 
   require Logger
 

@@ -1,7 +1,7 @@
-defmodule ArchethicWeb.OracleChainLive do
+defmodule ArchethicWeb.Explorer.OracleChainLive do
   @moduledoc false
 
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Crypto
 
@@ -17,7 +17,7 @@ defmodule ArchethicWeb.OracleChainLive do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
-  alias ArchethicWeb.ExplorerView
+  alias ArchethicWeb.Explorer.ExplorerView
 
   alias Phoenix.View
 

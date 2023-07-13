@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.GraphQLSchema.ContentType do
+defmodule ArchethicWeb.API.GraphQLSchema.ContentType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

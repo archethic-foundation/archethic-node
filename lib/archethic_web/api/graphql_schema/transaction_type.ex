@@ -1,9 +1,9 @@
-defmodule ArchethicWeb.GraphQLSchema.TransactionType do
+defmodule ArchethicWeb.API.GraphQLSchema.TransactionType do
   @moduledoc false
 
   use Absinthe.Schema.Notation
 
-  alias ArchethicWeb.GraphQLSchema.Resolver
+  alias ArchethicWeb.API.GraphQLSchema.Resolver
 
   alias Archethic.TransactionChain.Transaction
 

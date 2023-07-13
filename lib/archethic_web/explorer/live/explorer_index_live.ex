@@ -1,14 +1,14 @@
-defmodule ArchethicWeb.ExplorerIndexLive do
+defmodule ArchethicWeb.Explorer.ExplorerIndexLive do
   @moduledoc false
 
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Phoenix.View
 
   alias Archethic.{DB, PubSub, BeaconChain}
   alias Archethic.TransactionChain.TransactionSummary
-  alias ArchethicWeb.ExplorerView
-  alias ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent
+  alias ArchethicWeb.Explorer.ExplorerView
+  alias ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent
 
   def mount(_params, _session, socket) do
     tps = DB.get_latest_tps()

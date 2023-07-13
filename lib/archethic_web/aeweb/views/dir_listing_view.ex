@@ -1,6 +1,6 @@
-defmodule ArchethicWeb.DirListingView do
+defmodule ArchethicWeb.AEWeb.DirListingView do
   @moduledoc false
-  use ArchethicWeb, :aeweb_view
+  use ArchethicWeb.AEWeb, :view
 
   @spec prepare_addresses(list(String.t())) :: list(map())
   def prepare_addresses(addresses) do

@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.TransactionCache do
+defmodule ArchethicWeb.Explorer.TransactionCache do
   @table :transactions
   # 5 minutes
   @default_time 5 * 60 * 1000

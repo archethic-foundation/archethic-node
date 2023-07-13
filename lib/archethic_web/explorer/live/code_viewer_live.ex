@@ -1,9 +1,9 @@
-defmodule ArchethicWeb.CodeViewerLive do
+defmodule ArchethicWeb.Explorer.CodeViewerLive do
   @moduledoc false
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Governance
-  alias ArchethicWeb.CodeView
+  alias ArchethicWeb.Explorer.CodeView
 
   alias Phoenix.View
 

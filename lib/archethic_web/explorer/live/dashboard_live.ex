@@ -1,11 +1,11 @@
-defmodule ArchethicWeb.DashboardLive do
+defmodule ArchethicWeb.Explorer.DashboardLive do
   @moduledoc """
   Live-View for Network-Metric-Dashboard
   """
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Metrics.Poller
-  alias ArchethicWeb.DashboardView
+  alias ArchethicWeb.Explorer.DashboardView
 
   alias Phoenix.View
 

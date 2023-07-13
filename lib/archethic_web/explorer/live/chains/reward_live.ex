@@ -1,16 +1,16 @@
-defmodule ArchethicWeb.RewardChainLive do
+defmodule ArchethicWeb.Explorer.RewardChainLive do
   @moduledoc false
 
-  alias Archethic.{
-    TransactionChain,
-    PubSub,
-    Reward
-  }
+  use ArchethicWeb.Explorer, :live_view
 
-  use ArchethicWeb, :live_view
+  alias Archethic.TransactionChain
+  alias Archethic.PubSub
+  alias Archethic.Reward
 
-  alias ArchethicWeb.{ExplorerView, WebUtils}
-  alias Phoenix.{View}
+  alias ArchethicWeb.Explorer.ExplorerView
+  alias ArchethicWeb.WebUtils
+
+  alias Phoenix.View
 
   @display_limit 10
 

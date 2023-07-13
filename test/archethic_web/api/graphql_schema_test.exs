@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.GraphQLSchemaTest do
+defmodule ArchethicWeb.API.GraphQLSchemaTest do
   @moduledoc false
   use ArchethicCase
   use ArchethicWeb.ConnCase
@@ -18,7 +18,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Message.{GetBeaconSummariesAggregate, GetCurrentSummaries, GetBeaconSummaries}
   alias Message.{BeaconSummaryList, TransactionSummaryList}
 
-  alias ArchethicWeb.GraphQLSchema.Resolver
+  alias ArchethicWeb.API.GraphQLSchema.Resolver
 
   import Mox
   @transaction_chain_page_size 10

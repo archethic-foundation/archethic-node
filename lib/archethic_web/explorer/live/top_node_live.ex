@@ -1,6 +1,6 @@
-defmodule ArchethicWeb.TopNodeLive do
+defmodule ArchethicWeb.Explorer.TopNodeLive do
   @moduledoc false
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   alias Phoenix.View
 
@@ -9,7 +9,7 @@ defmodule ArchethicWeb.TopNodeLive do
 
   alias Archethic.PubSub
 
-  alias ArchethicWeb.ExplorerView
+  alias ArchethicWeb.Explorer.ExplorerView
 
   def mount(_params, _session, socket) do
     if connected?(socket) do

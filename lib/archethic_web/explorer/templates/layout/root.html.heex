@@ -14,7 +14,7 @@
     <div class="container is-fluid">
       <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-          <a class="navbar-item is-size-5 is-uppercase" href={Routes.live_path(@conn, ArchethicWeb.ExplorerIndexLive)}>
+          <a class="navbar-item is-size-5 is-uppercase" href={Routes.live_path(@conn, ArchethicWeb.Explorer.ExplorerIndexLive)}>
             <img src={Routes.static_path(@conn, "/images/logo_full_white.svg")} alt="archethic_logo"/>
           </a>
           <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
@@ -30,7 +30,7 @@
 
 
 
-              <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.DashboardLive)}>Dashboard </a>
+              <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.DashboardLive)}>Dashboard </a>
 
 
 
@@ -40,31 +40,31 @@
               </a>
             <% end %>
             <div class="navbar-item has-dropdown is-hoverable" >
-              <a class="navbar-link" href={Routes.live_path(@conn, ArchethicWeb.TransactionChainLive)}>Chains</a>
+              <a class="navbar-link" href={Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionChainLive)}>Chains</a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.OracleChainLive)}>
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.OracleChainLive)}>
                   Oracle
                 </a>
-                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.BeaconChainLive)}>
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.BeaconChainLive)}>
                   Beacon
                 </a>
-                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.RewardChainLive)}>
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.RewardChainLive)}>
                   Reward
                 </a>
-                 <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.NodeSharedSecretsChainLive)}>
+                 <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.NodeSharedSecretsChainLive)}>
                   Node Shared Secrets
                 </a>
-                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.OriginChainLive)}>
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.OriginChainLive)}>
                    Origin
                 </a>
               </div>
             </div>
             <div class="navbar-item has-dropdown is-hoverable" >
-              <a class="navbar-link" href={Routes.live_path(@conn, ArchethicWeb.NodeListLive)}>
+              <a class="navbar-link" href={Routes.live_path(@conn, ArchethicWeb.Explorer.NodeListLive)}>
                 Nodes
               </a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item"  href={Routes.live_path(@conn, ArchethicWeb.WorldMapLive)}>
+                <a class="navbar-item"  href={Routes.live_path(@conn, ArchethicWeb.Explorer.WorldMapLive)}>
                   Map
                 </a>
               </div>
@@ -74,10 +74,10 @@
                 Governance
               </a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.CodeViewerLive)}>
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.CodeViewerLive)}>
                   Code Viewer
                 </a>
-                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.CodeProposalsLive)}>
+                <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.CodeProposalsLive)}>
                   Code Proposals
                 </a>
               </div>

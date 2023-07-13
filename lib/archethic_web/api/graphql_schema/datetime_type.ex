@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.GraphQLSchema.DateTimeType do
+defmodule ArchethicWeb.API.GraphQLSchema.DateTimeType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

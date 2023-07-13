@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.NodeView do
+defmodule ArchethicWeb.Explorer.NodeView do
   @moduledoc false
-  use ArchethicWeb, :explorer_view
+  use ArchethicWeb.Explorer, :view
 end

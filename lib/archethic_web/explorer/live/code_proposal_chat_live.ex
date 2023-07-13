@@ -1,6 +1,6 @@
-defmodule ArchethicWeb.CodeProposalChatLive do
+defmodule ArchethicWeb.Explorer.CodeProposalChatLive do
   @moduledoc false
-  use ArchethicWeb, :live_view
+  use ArchethicWeb.Explorer, :live_view
 
   # alias Archethic.P2P
   # alias Archethic.P2P.Message.NewChatProposal
@@ -10,7 +10,7 @@ defmodule ArchethicWeb.CodeProposalChatLive do
 
   alias Phoenix.View
 
-  alias ArchethicWeb.CodeView
+  alias ArchethicWeb.Explorer.CodeView
   alias ArchethicWeb.Endpoint
 
   def mount(_params, %{"proposal_address" => proposal_address}, socket) do

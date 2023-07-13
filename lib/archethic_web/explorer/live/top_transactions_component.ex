@@ -1,11 +1,11 @@
-defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
+defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
   @moduledoc """
   Live component for Dashboard Explorer to display recent transactions
   """
 
-  use ArchethicWeb, :live_component
+  use ArchethicWeb.Explorer, :live_component
 
-  alias ArchethicWeb.ExplorerLive.TopTransactionsCache
+  alias ArchethicWeb.Explorer.ExplorerLive.TopTransactionsCache
 
   def mount(socket) do
     socket =
@@ -57,7 +57,7 @@ defmodule ArchethicWeb.ExplorerIndexLive.TopTransactionsComponent do
             <%= for tx <- @transactions do %>
               <div class="columns">
                 <div class="column is-7-desktop">
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
                     <span class="text_wrap has-text-primary is-size-6"><%= Base.encode16(tx.address) %></span>
                     <% end %>
                 </div>

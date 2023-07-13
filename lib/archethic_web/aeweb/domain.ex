@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.Domain do
+defmodule ArchethicWeb.AEWeb.Domain do
   @moduledoc """
   Manage AEWeb domain logic
   """
@@ -6,7 +6,8 @@ defmodule ArchethicWeb.Domain do
   alias Archethic
   alias Archethic.Crypto
   alias Archethic.TransactionChain.TransactionData.Ownership
-  alias ArchethicWeb.API.WebHostingController.ReferenceTransaction
+
+  alias ArchethicWeb.AEWeb.WebHostingController.ReferenceTransaction
 
   require Logger
 

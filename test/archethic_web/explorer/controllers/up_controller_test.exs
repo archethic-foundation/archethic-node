@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.UpControllerTest do
+defmodule ArchethicWeb.Explorer.UpControllerTest do
   @moduledoc false
   use ArchethicCase
   use ArchethicWeb.ConnCase

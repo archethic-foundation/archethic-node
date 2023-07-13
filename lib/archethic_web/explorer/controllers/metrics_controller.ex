@@ -1,6 +1,6 @@
-defmodule ArchethicWeb.MetricsController do
+defmodule ArchethicWeb.Explorer.MetricsController do
   alias TelemetryMetricsPrometheus.Core
-  use ArchethicWeb, :controller
+  use ArchethicWeb.Explorer, :controller
 
   def index(conn, _params) do
     metrics = Core.scrape()
