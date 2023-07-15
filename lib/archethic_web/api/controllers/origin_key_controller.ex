@@ -1,15 +1,15 @@
 defmodule ArchethicWeb.API.OriginKeyController do
-  use ArchethicWeb, :controller
+  use ArchethicWeb.API, :controller
 
-  alias ArchethicWeb.{TransactionSubscriber, API.Schema.OriginPublicKey}
+  alias ArchethicWeb.API.Schema.OriginPublicKey
 
-  alias Archethic.{
-    Crypto,
-    SharedSecrets,
-    TransactionChain,
-    TransactionChain.TransactionData,
-    TransactionChain.Transaction
-  }
+  alias ArchethicWeb.TransactionSubscriber
+
+  alias Archethic.Crypto
+  alias Archethic.SharedSecrets
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
 
   @spec origin_key(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def origin_key(conn, params = %{}) do

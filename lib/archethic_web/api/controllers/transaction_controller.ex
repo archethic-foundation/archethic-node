@@ -1,9 +1,7 @@
 defmodule ArchethicWeb.API.TransactionController do
   @moduledoc false
 
-  use ArchethicWeb, :controller
-
-  alias Archethic
+  use ArchethicWeb.API, :controller
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp

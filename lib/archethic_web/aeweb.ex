@@ -6,8 +6,6 @@ defmodule ArchethicWeb.AEWeb do
       use Phoenix.Controller, namespace: ArchethicWeb.AEWeb
 
       import Plug.Conn
-      import Phoenix.LiveView.Controller
-      alias ArchethicWeb.Router.Helpers, as: Routes
     end
   end
 
@@ -28,9 +26,7 @@ defmodule ArchethicWeb.AEWeb do
   def router do
     quote do
       use Phoenix.Router
-      import Plug.Conn
       import Phoenix.Controller
-      import Phoenix.LiveView.Router
     end
   end
 

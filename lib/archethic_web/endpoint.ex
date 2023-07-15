@@ -3,6 +3,12 @@ defmodule ArchethicWeb.Endpoint do
 
   alias ArchethicWeb.Plugs.ArchethicUp
   alias ArchethicWeb.Plugs.RemoteIP
+  alias ArchethicWeb.RouterDispatch
+
+  alias ArchethicWeb.AEWebRouter
+  alias ArchethicWeb.APIRouter
+  alias ArchethicWeb.DNSLinkRouter
+  alias ArchethicWeb.ExplorerRouter
 
   use Phoenix.Endpoint, otp_app: :archethic
   use Absinthe.Phoenix.Endpoint
@@ -56,5 +62,6 @@ defmodule ArchethicWeb.Endpoint do
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
   plug(CORSPlug, origin: "*")
-  plug(ArchethicWeb.RouterDispatch)
+
+  plug(RouterDispatch, routers: [DNSLinkRouter, AEWebRouter, APIRouter, ExplorerRouter])
 end

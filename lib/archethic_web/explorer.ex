@@ -63,8 +63,8 @@ defmodule ArchethicWeb.Explorer do
     quote do
       use Phoenix.Router
       import Plug.Conn
-      import Phoenix.Controller
       import Phoenix.LiveView.Router
+      import Phoenix.LiveDashboard.Router
     end
   end
 
