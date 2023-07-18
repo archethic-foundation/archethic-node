@@ -75,8 +75,11 @@ defmodule Archethic.Contracts do
       when code != "" do
     # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
     case from_transaction(prev_tx) do
-      {:ok, %Contract{triggers: %{}}} -> true
-      _ -> false
+      {:ok, %Contract{triggers: triggers}} when map_size(triggers) == 0 ->
+        true
+
+      _ ->
+        false
     end
   end
 

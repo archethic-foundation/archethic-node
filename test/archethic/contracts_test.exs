@@ -219,7 +219,7 @@ defmodule Archethic.ContractsTest do
       """
 
       prev_tx = %Transaction{
-        address: ArchethicCase.random_address(),
+        address: random_address(),
         type: :contract,
         data: %TransactionData{
           code: code
@@ -235,7 +235,7 @@ defmodule Archethic.ContractsTest do
         }
       }
 
-      assert Contracts.valid_execution?(prev_tx, next_tx, nil)
+      refute Contracts.valid_execution?(prev_tx, next_tx, nil)
     end
 
     test "should return true if there is no context and there is no trigger" do
@@ -245,7 +245,7 @@ defmodule Archethic.ContractsTest do
       """
 
       prev_tx = %Transaction{
-        address: ArchethicCase.random_address(),
+        address: random_address(),
         type: :oracle,
         data: %TransactionData{
           code: code
@@ -275,7 +275,7 @@ defmodule Archethic.ContractsTest do
       """
 
       prev_tx = %Transaction{
-        address: ArchethicCase.random_address(),
+        address: random_address(),
         type: :contract,
         data: %TransactionData{
           code: code
