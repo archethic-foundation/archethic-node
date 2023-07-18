@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.GraphQLSchema.TransactionError do
+defmodule ArchethicWeb.API.GraphQL.Schema.TransactionError do
   @moduledoc false
 
   use Absinthe.Schema.Notation

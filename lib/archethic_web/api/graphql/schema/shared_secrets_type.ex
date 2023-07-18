@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.GraphQLSchema.SharedSecretsType do
+defmodule ArchethicWeb.API.GraphQL.Schema.SharedSecretsType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

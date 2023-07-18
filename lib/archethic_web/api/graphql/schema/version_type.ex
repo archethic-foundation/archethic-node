@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.GraphQLSchema.Version do
+defmodule ArchethicWeb.API.GraphQL.Schema.Version do
   @moduledoc false
 
   use Absinthe.Schema.Notation

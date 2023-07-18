@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.GraphQLSchema.BeaconChainSummary do
+defmodule ArchethicWeb.API.GraphQL.Schema.BeaconChainSummary do
   @moduledoc false
 
   use Absinthe.Schema.Notation

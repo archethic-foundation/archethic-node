@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.GraphQLSchema.OracleData do
+defmodule ArchethicWeb.API.GraphQL.Schema.OracleData do
   @moduledoc false
 
   use Absinthe.Schema.Notation

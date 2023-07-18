@@ -75,7 +75,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
            }}
       end)
 
-      conn1 = get(conn, "/api/web_hosting/#{address_hex}/")
+      conn1 = get(conn, "/aeweb/#{address_hex}/")
       assert "Website has been unpublished" = response(conn1, 410)
     end
 
@@ -89,8 +89,8 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
           {:error, :transaction_not_exists}
       end)
 
-      conn1 = get(conn, "/api/web_hosting/AZERTY/")
-      conn2 = get(conn, "/api/web_hosting/0123456789/")
+      conn1 = get(conn, "/aeweb/AZERTY/")
+      conn2 = get(conn, "/aeweb/0123456789/")
 
       assert "Invalid address" = response(conn1, 400)
       assert "Invalid address" = response(conn2, 400)
@@ -118,7 +118,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "Invalid transaction content" = response(conn, 400)
@@ -199,7 +199,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/file.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/file.html"
         )
 
       assert "<h1>Archethic</h1>" = response(conn, 200)
@@ -211,7 +211,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "<h1>Archethic</h1>" = response(conn, 200) |> :zlib.gunzip()
@@ -223,7 +223,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200) |> :zlib.gunzip()
@@ -335,7 +335,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/error.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/error.html"
         )
 
       assert "Invalid file encoding" = response(conn, 400)
@@ -345,7 +345,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/no_content.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/no_content.html"
         )
 
       assert "Cannot find file content" = response(conn, 404)
@@ -355,7 +355,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200)
@@ -367,7 +367,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200) |> :zlib.gunzip()
@@ -377,7 +377,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200)
@@ -387,13 +387,13 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn1 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/raw.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/raw.html"
         )
 
       conn2 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/unsupported.xml"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/unsupported.xml"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn1, 200)
@@ -404,25 +404,25 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn1 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/raw.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/raw.html"
         )
 
       conn2 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/unsupported.xml"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/unsupported.xml"
         )
 
       conn3 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
         )
 
       conn4 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/image.png"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/image.png"
         )
 
       assert ["text/html; charset=utf-8"] = get_resp_header(conn1, "content-type")
@@ -516,21 +516,21 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn1 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       # directory listing in a sub folder with trailing /
       conn2 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/dir1/"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/dir1/"
         )
 
       # directory listing in a sub folder w/o trailing /
       conn3 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/dir1"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/dir1"
         )
 
       html1 = response(conn1, 200)
@@ -638,7 +638,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/address_content.png"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/address_content.png"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200)
@@ -648,7 +648,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/concat_content.png"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/concat_content.png"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200)
@@ -720,7 +720,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn1 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
         )
 
       etag = get_resp_header(conn1, "etag") |> Enum.at(0)
@@ -731,7 +731,7 @@ defmodule ArchethicWeb.AEWeb.WebHostingControllerTest do
       conn2 =
         get(
           conn |> put_req_header("if-none-match", etag),
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
+          "/aeweb/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
         )
 
       assert "" = response(conn2, 304)

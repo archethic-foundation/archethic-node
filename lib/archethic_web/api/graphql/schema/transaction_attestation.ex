@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.GraphQLSchema.TransactionAttestation do
+defmodule ArchethicWeb.API.GraphQL.Schema.TransactionAttestation do
   @moduledoc false
 
   use Absinthe.Schema.Notation

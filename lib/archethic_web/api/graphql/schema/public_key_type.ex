@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.GraphQLSchema.PublicKeyType do
+defmodule ArchethicWeb.API.GraphQL.Schema.PublicKeyType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

@@ -15,6 +15,14 @@ defmodule ArchethicWeb.AEWebRouter do
   end
 
   scope "/aeweb" do
+    pipe_through(:browser)
+
+    get("/:address/*url_path", WebHostingController, :web_hosting)
+  end
+
+  scope "/api/web_hosting" do
+    pipe_through(:browser)
+
     get("/:address/*url_path", WebHostingController, :web_hosting)
   end
 end

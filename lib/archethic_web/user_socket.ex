@@ -4,7 +4,7 @@ defmodule ArchethicWeb.UserSocket do
   use Phoenix.Socket
 
   use Absinthe.Phoenix.Socket,
-    schema: ArchethicWeb.API.GraphQLSchema
+    schema: ArchethicWeb.API.GraphQL.Schema
 
   require Logger
 

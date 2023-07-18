@@ -12,7 +12,7 @@ defmodule ArchethicWeb.GraphQLSubscriptionCase do
       import PhoenixChannelTest
       import ArchethicWeb.GraphQLSubscriptionCase
 
-      use Absinthe.Phoenix.SubscriptionTest, schema: ArchethicWeb.API.GraphQLSchema
+      use Absinthe.Phoenix.SubscriptionTest, schema: ArchethicWeb.API.GraphQL.Schema
 
       defp get_socket do
         {:ok, socket} = PhoenixChannelTest.connect(ArchethicWeb.UserSocket, %{}, %{})
