@@ -105,9 +105,10 @@ defmodule Archethic.Contracts.Contract do
         :public,
         function_name,
         ast,
-        args = []
+        args
       ) do
-    Map.update!(contract, :public_functions, &Map.put(&1, function_name, [ast, args]))
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+    Map.update!(contract, :public_functions, &Map.put(&1, function_key, %{ast: ast, args: args}))
   end
 
   def add_function(
@@ -115,8 +116,9 @@ defmodule Archethic.Contracts.Contract do
         :private,
         function_name,
         ast,
-        args = []
+        args
       ) do
-    Map.update!(contract, :private_functions, &Map.put(&1, function_name, [ast, args]))
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+    Map.update!(contract, :private_functions, &Map.put(&1, function_key, %{ast: ast, args: args}))
   end
 end
