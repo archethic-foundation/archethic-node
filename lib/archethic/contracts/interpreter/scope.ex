@@ -8,6 +8,9 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   """
   @spec init(map()) :: :ok
   def init(global_variables \\ %{}) do
+    # add functions to global var
+    global_variables = Map.put(global_variables, :functions, %{})
+
     Process.put(
       :scope,
       global_variables
@@ -112,6 +115,29 @@ defmodule Archethic.Contracts.Interpreter.Scope do
       Process.get(:scope),
       where_is(scopes_hierarchy, map_name) ++ [map_name, key_name]
     )
+  end
+
+  def add_function(function_name, args, ast) do
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+
+    Process.put(
+      :scope,
+      put_in(
+        Process.get(:scope),
+        [:functions, function_key],
+        %{args: args, ast: ast}
+      )
+    )
+  end
+
+  def get_function_ast(function_name, nil) do
+    function_key = function_name <> "/" <> Integer.to_string(0)
+    get_in(Process.get(:scope), [:functions, function_key, :ast])
+  end
+
+  def get_function_ast(function_name, args) do
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+    get_in(Process.get(:scope), [:functions, function_key, :ast])
   end
 
   # Return the path where to assign/read a variable.
