@@ -3,6 +3,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   require Logger
 
+  alias Archethic.Contracts.Interpreter.FunctionInterpreter
   alias __MODULE__.Legacy
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
@@ -330,6 +331,26 @@ defmodule Archethic.Contracts.Interpreter do
     case ActionInterpreter.parse(ast) do
       {:ok, trigger_type, actions} ->
         {:ok, Contract.add_trigger(contract, trigger_type, actions)}
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast = {{:atom, "fun"}, _, _}, contract) do
+    case FunctionInterpreter.parse(ast) do
+      {:ok, function_name, args, ast} ->
+        {:ok, Contract.add_function(contract, :private, function_name, ast, args)}
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast = {{:atom, "export"}, _, [{:atom, "fun"}, _, _]}, contract) do
+    case FunctionInterpreter.parse(ast) do
+      {:ok, function_name, args, ast} ->
+        {:ok, Contract.add_function(contract, :public, function_name, ast, args)}
 
       {:error, _, _} = e ->
         e
