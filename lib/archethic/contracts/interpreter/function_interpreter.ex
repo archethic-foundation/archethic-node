@@ -7,11 +7,11 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @doc """
   Parse the given node and return the function name it's args as strings and the AST block.
   """
-  def parse({{:atom, "fun"}, _, [{{:atom, function_name}, _, args}, [do: block]]}) do
+  def parse(_, _ \\ [])
 
-    ast = parse_block(block)
+  def parse({{:atom, "fun"}, _, [{{:atom, function_name}, _, args}, [do: block]]}, functions_keys) do
+    ast = parse_block(block, functions_keys)
     args = parse_args(args)
-
     {:ok, function_name, args, ast}
   catch
     {:error, node} ->
@@ -23,9 +23,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
 
   def parse(
         {{:atom, "export"}, _,
-         [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args}]}, [do: block]]}
+         [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args}]}, [do: block]]},
+        functions_keys
       ) do
-    ast = parse_block(block)
+    ast = parse_block(block, functions_keys)
     args = parse_args(args)
 
     {:ok, function_name, args, ast}
@@ -37,7 +38,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
       {:error, node, reason}
   end
 
-  def parse(node) do
+  def parse(node, _) do
     {:error, node, "unexpected term"}
   end
 
@@ -45,7 +46,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   Execute function code and returns the result
   """
   def execute(ast) do
-    #FIXME:
+    # FIXME:
     # perturbant voir process
     Scope.init()
     {result, _} = Code.eval_quoted(ast)
@@ -60,7 +61,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ----------------------------------------------------------------------
-  defp parse_block(ast) do
+  defp parse_block(ast, functions_keys) do
     # here the accumulator is an list of parent scopes & current scope
     # where we can access variables from all of them
     # `acc = [ref1]` means read variable from scope.ref1 or scope
@@ -76,7 +77,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
           prewalk(node, acc)
         end,
         fn node, acc ->
-          postwalk(node, acc)
+          postwalk(node, acc, functions_keys)
         end
       )
 
@@ -121,8 +122,39 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
+  # ------------- catch function call -----------
+  defp postwalk(
+         node = {{:atom, "export"}, _, [{{:atom, function_name}, _, args} | _]},
+         acc,
+         function_keys
+       )
+       when is_list(args) do
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+
+    case Enum.member?(function_keys, function_key) do
+      true ->
+        {node, acc}
+
+      false ->
+        throw({:error, node, "The function " <> function_key <> " does not exist"})
+    end
+  end
+
+  defp postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys)
+       when is_list(args) do
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+
+    case Enum.member?(function_keys, function_key) do
+      true ->
+        {node, acc}
+
+      false ->
+        throw({:error, node, "The function " <> function_key <> " does not exist"})
+    end
+  end
+
   # --------------- catch all -------------------
-  defp postwalk(node, acc) do
+  defp postwalk(node, acc, _) do
     CommonInterpreter.postwalk(node, acc)
   end
 end
