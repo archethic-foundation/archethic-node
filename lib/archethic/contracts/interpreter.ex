@@ -152,6 +152,7 @@ defmodule Archethic.Contracts.Interpreter do
             end,
           "contract" => contract_constants,
           "_time_now" => timestamp_now
+          # for condition pass functions
         }
 
         result =
@@ -292,7 +293,9 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_contract(1, ast) do
-    case parse_ast_block(ast, %Contract{}) do
+    functions_keys = get_functions(ast)
+
+    case parse_ast_block(ast, %Contract{}, functions_keys) do
       {:ok, contract} ->
         {:ok, %{contract | version: 1}}
 
@@ -305,19 +308,19 @@ defmodule Archethic.Contracts.Interpreter do
     {:error, "@version not supported"}
   end
 
-  defp parse_ast_block([ast | rest], contract) do
-    case parse_ast(ast, contract) do
+  defp parse_ast_block([ast | rest], contract, functions_keys) do
+    case parse_ast(ast, contract, functions_keys) do
       {:ok, contract} ->
-        parse_ast_block(rest, contract)
+        parse_ast_block(rest, contract, functions_keys)
 
       {:error, _, _} = e ->
         e
     end
   end
 
-  defp parse_ast_block([], contract), do: {:ok, contract}
+  defp parse_ast_block([], contract, _), do: {:ok, contract}
 
-  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract) do
+  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract, _) do
     case ConditionInterpreter.parse(ast) do
       {:ok, condition_type, condition} ->
         {:ok, Contract.add_condition(contract, condition_type, condition)}
@@ -327,7 +330,7 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract) do
+  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract, _) do
     case ActionInterpreter.parse(ast) do
       {:ok, trigger_type, actions} ->
         {:ok, Contract.add_trigger(contract, trigger_type, actions)}
@@ -337,18 +340,12 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  defp parse_ast(ast = {{:atom, "fun"}, _, _}, contract) do
-    case FunctionInterpreter.parse(ast) do
-      {:ok, function_name, args, ast} ->
-        {:ok, Contract.add_function(contract, :private, function_name, ast, args)}
-
-      {:error, _, _} = e ->
-        e
-    end
-  end
-
-  defp parse_ast(ast = {{:atom, "export"}, _, [{:atom, "fun"}, _, _]}, contract) do
-    case FunctionInterpreter.parse(ast) do
+  defp parse_ast(
+         ast = {{:atom, "export"}, _, [{{:atom, "fun"}, _, _} | _]},
+         contract,
+         functions_keys
+       ) do
+    case FunctionInterpreter.parse(ast, functions_keys) do
       {:ok, function_name, args, ast} ->
         {:ok, Contract.add_function(contract, :public, function_name, ast, args)}
 
@@ -357,7 +354,17 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  defp parse_ast(ast, _), do: {:error, ast, "unexpected term"}
+  defp parse_ast(ast = {{:atom, "fun"}, _, _}, contract, functions_keys) do
+    case FunctionInterpreter.parse(ast, functions_keys) do
+      {:ok, function_name, args, ast} ->
+        {:ok, Contract.add_function(contract, :private, function_name, ast, args)}
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast, _, _), do: {:error, ast, "unexpected term"}
 
   defp time_now(:transaction, %Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
@@ -378,6 +385,33 @@ defmodule Archethic.Contracts.Interpreter do
   defp time_now({:interval, interval}, nil) do
     Utils.get_current_time_for_interval(interval)
   end
+
+  defp get_functions([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
+    arity =
+      case args do
+        nil -> 0
+        _ -> length(args)
+      end
+
+    [function_name <> "/" <> Integer.to_string(arity) | get_functions(rest)]
+  end
+
+  defp get_functions([
+         {{:atom, "export"}, _,
+          [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
+         | rest
+       ]) do
+    arity =
+      case args do
+        nil -> 0
+        _ -> length(args)
+      end
+
+    [function_name <> "/" <> Integer.to_string(arity) | get_functions(rest)]
+  end
+
+  defp get_functions([_ | rest]), do: get_functions(rest)
+  defp get_functions([]), do: []
 
   # -----------------------------------------
   # contract validation
