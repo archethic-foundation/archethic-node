@@ -376,7 +376,7 @@ defmodule Archethic.Utils.Regression.Playbook do
           }
         },
         "code" => code,
-        "content" => content,
+        "content" => Base.encode16(content),
         "recipients" => Enum.map(recipients, &Base.encode16(&1)),
         "ownerships" =>
           Enum.map(ownerships, fn %Ownership{
