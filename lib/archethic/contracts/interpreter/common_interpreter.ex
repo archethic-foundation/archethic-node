@@ -101,6 +101,12 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {{:., _, [{:__aliases__, _, _}, _]}, _, _}, acc), do: {node, acc}
   def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
 
+  # function call
+  # no args
+  def prewalk(node = {{:atom, _}, _, []}, acc), do: {node, acc}
+  # with args
+  def prewalk(node = {{:atom, _}, _, [_]}, acc), do: {node, acc}
+
   # whitelisted modules
   def prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
       when module_name in @modules_whitelisted,
