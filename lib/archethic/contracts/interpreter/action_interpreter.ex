@@ -190,7 +190,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
          node =
            {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, function_name}]}, _, args},
          acc,
-         function_keys
+         _
        ) do
     absolute_module_atom = Archethic.Contracts.Interpreter.Library.Contract
 
@@ -208,9 +208,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     function_atom = String.to_existing_atom(function_name)
 
     # check the type of the args, and allow custom function call as args
-    function_key = function_name <> "/" <> Integer.to_string(length(args))
-
-    unless absolute_module_atom.check_types(function_atom, args) or !Enum.member?(function_keys, function_key) do
+    unless absolute_module_atom.check_types(function_atom, args) do
       throw({:error, node, "invalid function arguments"})
     end
 
