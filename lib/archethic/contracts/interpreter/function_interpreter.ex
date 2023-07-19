@@ -122,39 +122,8 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # ------------- catch function call -----------
-  defp postwalk(
-         node = {{:atom, "export"}, _, [{{:atom, function_name}, _, args} | _]},
-         acc,
-         function_keys
-       )
-       when is_list(args) do
-    function_key = function_name <> "/" <> Integer.to_string(length(args))
-
-    case Enum.member?(function_keys, function_key) do
-      true ->
-        {node, acc}
-
-      false ->
-        throw({:error, node, "The function " <> function_key <> " does not exist"})
-    end
-  end
-
-  defp postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys)
-       when is_list(args) do
-    function_key = function_name <> "/" <> Integer.to_string(length(args))
-
-    case Enum.member?(function_keys, function_key) do
-      true ->
-        {node, acc}
-
-      false ->
-        throw({:error, node, "The function " <> function_key <> " does not exist"})
-    end
-  end
-
   # --------------- catch all -------------------
-  defp postwalk(node, acc, _) do
-    CommonInterpreter.postwalk(node, acc)
+  defp postwalk(node, acc, function_keys) do
+    CommonInterpreter.postwalk(node, acc, function_keys)
   end
 end
