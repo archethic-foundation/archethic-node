@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionInterpreter
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -475,6 +476,34 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> ActionInterpreter.parse()
+    end
+
+    test "should not be able to use non existing function" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        hello()
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse()
+    end
+
+    test "should be able to use existing function" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        hello()
+      end
+      """
+
+      assert {:ok, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse(["hello/0"]) #mark as existing
     end
   end
 
