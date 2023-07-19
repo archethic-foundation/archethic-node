@@ -115,13 +115,19 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   end
 
   def get_function_ast(function_name, nil) do
-    function_key = function_name <> "/" <> Integer.to_string(0)
+    function_key = function_name <> "/" <> "0"
     get_in(Process.get(:scope), [:functions, function_key, :ast])
   end
 
   def get_function_ast(function_name, args) do
     function_key = function_name <> "/" <> Integer.to_string(length(args))
     get_in(Process.get(:scope), [:functions, function_key, :ast])
+  end
+
+  def execute_function_ast(function_name, args) do
+      get_function_ast(function_name, args)
+      |> Code.eval_quoted()
+      |> elem(0)
   end
 
   # Return the path where to assign/read a variable.
