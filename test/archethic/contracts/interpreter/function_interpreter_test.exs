@@ -4,14 +4,13 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
   use ArchethicCase
   use ExUnitProperties
 
-  import ArchethicCase
-
   alias Archethic.Contracts.Interpreter.FunctionInterpreter
   alias Archethic.Contracts.Interpreter
+
   # ----------------------------------------------
-  # parse/1
+  # parse/2
   # ----------------------------------------------
-  describe "parse/1" do
+  describe "parse/2" do
     test "should be able to parse a private function" do
       code = ~S"""
       fun test_private do
@@ -94,6 +93,67 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> FunctionInterpreter.parse()
+    end
+
+    test "should not be able to call non declared function" do
+      code = ~S"""
+      fun test do
+       hello()
+      end
+      """
+
+      assert {:error, _, "The function hello/0 does not exist"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse()
+    end
+
+    test "should be able to call declared function" do
+      code = ~S"""
+      fun test do
+       hello()
+      end
+      """
+
+      assert {:ok, "test", _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse(["hello/0"])  # mark function as declared
+    end
+
+
+  describe "execute/2" do
+    test "should be able to execute function without args" do
+      fun1 = ~S"""
+      export fun hello do
+        1 + 3
+      end
+      """
+
+      {:ok, "hello", [], ast_hello} =
+        fun1
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        |> FunctionInterpreter.parse()
+
+      fun2 = ~S"""
+      fun test() do
+        hello()
+      end
+      """
+
+      {:ok, "test", [], ast_test} =
+        fun2
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        # pass allowed function
+        |> FunctionInterpreter.parse(["hello/0"])
+
+      function_constant = %{functions: %{"hello/0" => %{args: [], ast: ast_hello}}}
+
+      assert 4.0 = FunctionInterpreter.execute(ast_test, function_constant)
     end
   end
 end
