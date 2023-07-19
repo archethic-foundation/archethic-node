@@ -350,6 +350,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
           quote do
             Scope.get_function_ast(unquote(function_name), unquote(args))
             |> Code.eval_quoted()
+            |> elem(0)
           end
 
         {new_node, acc}
