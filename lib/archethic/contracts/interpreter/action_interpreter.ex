@@ -13,13 +13,15 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
-  @spec parse(any()) :: {:ok, atom(), any()} | {:error, any(), String.t()}
-  def parse({{:atom, "actions"}, _, [keyword, [do: block]]}) do
+  @spec parse(any(), list) :: {:ok, atom(), any()} | {:error, any(), String.t()}
+  def parse(_, _ \\ [])
+
+  def parse({{:atom, "actions"}, _, [keyword, [do: block]]}, functions_keys) do
     trigger_type = extract_trigger(keyword)
 
     # We only parse the do..end block with the macro.traverse
     # this help us keep a clean accumulator that is used only for scoping.
-    actions_ast = parse_block(AST.wrap_in_block(block))
+    actions_ast = parse_block(AST.wrap_in_block(block), functions_keys)
 
     {:ok, trigger_type, actions_ast}
   catch
@@ -30,7 +32,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
       {:error, node, reason}
   end
 
-  def parse(node) do
+  def parse(node, _) do
     {:error, node, "unexpected term"}
   end
 
@@ -127,7 +129,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     throw({:error, node, "Invalid trigger"})
   end
 
-  defp parse_block(ast) do
+  defp parse_block(ast, functions_keys) do
     # here the accumulator is an list of parent scopes & current scope
     # where we can access variables from all of them
     # `acc = [ref1]` means read variable from scope.ref1 or scope
@@ -142,7 +144,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
           prewalk(node, acc)
         end,
         fn node, acc ->
-          postwalk(node, acc)
+          postwalk(node, acc, functions_keys)
         end
       )
 
@@ -187,7 +189,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   defp postwalk(
          node =
            {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, function_name}]}, _, args},
-         acc
+         acc,
+         function_keys
        ) do
     absolute_module_atom = Archethic.Contracts.Interpreter.Library.Contract
 
@@ -204,8 +207,10 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
     function_atom = String.to_existing_atom(function_name)
 
-    # check the type of the args
-    unless absolute_module_atom.check_types(function_atom, args) do
+    # check the type of the args, and allow custom function call as args
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+
+    unless absolute_module_atom.check_types(function_atom, args) or !Enum.member?(function_keys, function_key) do
       throw({:error, node, "invalid function arguments"})
     end
 
@@ -226,8 +231,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   end
 
   # --------------- catch all -------------------
-  defp postwalk(node, acc) do
-    CommonInterpreter.postwalk(node, acc)
+  defp postwalk(node, acc, functions_keys) do
+    CommonInterpreter.postwalk(node, acc, functions_keys)
   end
 
   # keep only the transaction fields we are interested in
