@@ -45,10 +45,8 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @doc """
   Execute function code and returns the result
   """
-  def execute(ast) do
-    # FIXME:
-    # perturbant voir process
-    Scope.init()
+  def execute(ast, constants) do
+    Scope.init(constants)
     {result, _} = Code.eval_quoted(ast)
     result
   end
