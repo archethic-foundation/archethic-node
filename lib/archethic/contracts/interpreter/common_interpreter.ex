@@ -101,9 +101,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {{:., _, [{:__aliases__, _, _}, _]}, _, _}, acc), do: {node, acc}
   def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
 
-  # function call
-  def prewalk(node = {{:atom, _}, _, args}, acc) when is_list(args), do: {node, acc}
-
   # whitelisted modules
   def prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
       when module_name in @modules_whitelisted,
@@ -256,6 +253,9 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {ast, acc}
   end
 
+  # function call, should be placed after "for" prewalk
+  def prewalk(node = {{:atom, _}, _, args}, acc) when is_list(args), do: {node, acc}
+
   # log (not documented, only useful for developer debugging)
   # will soon be updated to log into the playground console
   def prewalk(_node = {{:atom, "log"}, _, [data]}, acc) do
@@ -314,6 +314,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     function_atom = String.to_existing_atom(function_name)
 
     # check the type of the args
+
     unless absolute_module_atom.check_types(function_atom, args) do
       throw({:error, node, "invalid function arguments"})
     end
@@ -332,7 +333,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
         acc,
         _
       ) do
-
     new_node =
       quote do
         Scope.read(unquote(acc), unquote(var_name))
@@ -341,24 +341,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {new_node, acc}
   end
 
-  def postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys) when is_list(args) do
-    function_key = function_name <> "/" <> Integer.to_string(length(args))
-
-    case Enum.member?(function_keys, function_key) do
-      true ->
-        new_node =
-          quote do
-            Scope.get_function_ast(unquote(function_name), unquote(args))
-            |> Code.eval_quoted()
-            |> elem(0)
-          end
-
-        {new_node, acc}
-
-      false ->
-        throw({:error, node, "The function " <> function_key <> " does not exist"})
-    end
-  end
 
   # for var in list
   def postwalk(
@@ -371,6 +353,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
         acc,
         _
       ) do
+
     # FIXME: here acc is already the parent acc, it is not the acc of the do block
     # FIXME: this means that our `var_name` will live in the parent scope
     # FIXME: it works (since we can read from parent) but it will override the parent binding if there's one
@@ -387,6 +370,23 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       end
 
     {new_node, acc}
+  end
+
+  def postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys) when is_list(args) do
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+
+    case Enum.member?(function_keys, function_key) do
+      true ->
+        new_node =
+          quote do
+              Scope.execute_function_ast(unquote(function_name), unquote(args))
+          end
+
+        {new_node, acc}
+
+      false ->
+        throw({:error, node, "The function " <> function_key <> " does not exist"})
+    end
   end
 
   # BigInt mathematics to avoid floating point issues
