@@ -102,10 +102,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
 
   # function call
-  # no args
-  def prewalk(node = {{:atom, _}, _, []}, acc), do: {node, acc}
-  # with args
-  def prewalk(node = {{:atom, _}, _, [_]}, acc), do: {node, acc}
+  def prewalk(node = {{:atom, _}, _, args}, acc) when is_list(args), do: {node, acc}
 
   # whitelisted modules
   def prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
@@ -278,9 +275,12 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   #  |_|
   # ----------------------------------------------------------------------
   # exit block == set parent scope
+  def postwalk(_, _, function_keys \\ [])
+
   def postwalk(
         node = {:__block__, _, _},
-        acc
+        acc,
+        _
       ) do
     {node, List.delete_at(acc, -1)}
   end
@@ -289,7 +289,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def postwalk(
         node =
           {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
-        acc
+        acc,
+        _
       )
       when module_name in @modules_whitelisted do
     absolute_module_atom =
@@ -328,14 +329,34 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   # variable are read from scope
   def postwalk(
         _node = {{:atom, var_name}, _, nil},
-        acc
+        acc,
+        _
       ) do
+
     new_node =
       quote do
         Scope.read(unquote(acc), unquote(var_name))
       end
 
     {new_node, acc}
+  end
+
+  def postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys) when is_list(args) do
+    function_key = function_name <> "/" <> Integer.to_string(length(args))
+
+    case Enum.member?(function_keys, function_key) do
+      true ->
+        new_node =
+          quote do
+            Scope.get_function_ast(unquote(function_name), unquote(args))
+            |> Code.eval_quoted()
+          end
+
+        {new_node, acc}
+
+      false ->
+        throw({:error, node, "The function " <> function_key <> " does not exist"})
+    end
   end
 
   # for var in list
@@ -346,7 +367,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
              {:%{}, _, [{var_name, list}]},
              [do: block]
            ]},
-        acc
+        acc,
+        _
       ) do
     # FIXME: here acc is already the parent acc, it is not the acc of the do block
     # FIXME: this means that our `var_name` will live in the parent scope
@@ -367,7 +389,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # BigInt mathematics to avoid floating point issues
-  def postwalk(_node = {ast, meta, [lhs, rhs]}, acc) when ast in [:*, :/, :+, :-] do
+  def postwalk(_node = {ast, meta, [lhs, rhs]}, acc, _) when ast in [:*, :/, :+, :-] do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
         AST.decimal_arithmetic(unquote(ast), unquote(lhs), unquote(rhs))
@@ -377,7 +399,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # whitelist rest
-  def postwalk(node, acc), do: {node, acc}
+  def postwalk(node, acc, _), do: {node, acc}
 
   # ----------------------------------------------------------------------
   #              _            _
