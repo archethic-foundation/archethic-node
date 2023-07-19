@@ -118,7 +118,9 @@ defmodule Archethic.Contracts.Interpreter do
         %Contract{
           version: version,
           triggers: triggers,
-          constants: %Constants{contract: contract_constants}
+          constants: %Constants{contract: contract_constants},
+          public_functions: public_functions,
+          private_functions: private_functions
         },
         maybe_trigger_tx,
         opts \\ []
@@ -151,8 +153,8 @@ defmodule Archethic.Contracts.Interpreter do
                 Constants.from_transaction(trigger_tx)
             end,
           "contract" => contract_constants,
-          "_time_now" => timestamp_now
-          # for condition pass functions
+          "_time_now" => timestamp_now,
+          functions: public_functions ++ private_functions
         }
 
         result =
@@ -320,8 +322,8 @@ defmodule Archethic.Contracts.Interpreter do
 
   defp parse_ast_block([], contract, _), do: {:ok, contract}
 
-  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract, _) do
-    case ConditionInterpreter.parse(ast) do
+  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract, functions_keys) do
+    case ConditionInterpreter.parse(ast, functions_keys) do
       {:ok, condition_type, condition} ->
         {:ok, Contract.add_condition(contract, condition_type, condition)}
 
@@ -330,8 +332,8 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract, _) do
-    case ActionInterpreter.parse(ast) do
+  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract, functions_keys) do
+    case ActionInterpreter.parse(ast, functions_keys) do
       {:ok, trigger_type, actions} ->
         {:ok, Contract.add_trigger(contract, trigger_type, actions)}
 
