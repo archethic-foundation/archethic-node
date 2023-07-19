@@ -125,9 +125,9 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   end
 
   def execute_function_ast(function_name, args) do
-      get_function_ast(function_name, args)
-      |> Code.eval_quoted()
-      |> elem(0)
+    get_function_ast(function_name, args)
+    |> Code.eval_quoted()
+    |> elem(0)
   end
 
   # Return the path where to assign/read a variable.

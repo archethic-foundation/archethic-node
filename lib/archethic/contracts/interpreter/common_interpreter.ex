@@ -341,7 +341,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {new_node, acc}
   end
 
-
   # for var in list
   def postwalk(
         _node =
@@ -353,7 +352,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
         acc,
         _
       ) do
-
     # FIXME: here acc is already the parent acc, it is not the acc of the do block
     # FIXME: this means that our `var_name` will live in the parent scope
     # FIXME: it works (since we can read from parent) but it will override the parent binding if there's one
@@ -379,7 +377,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       true ->
         new_node =
           quote do
-              Scope.execute_function_ast(unquote(function_name), unquote(args))
+            Scope.execute_function_ast(unquote(function_name), unquote(args))
           end
 
         {new_node, acc}

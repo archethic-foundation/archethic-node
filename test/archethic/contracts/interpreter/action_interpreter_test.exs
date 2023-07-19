@@ -503,7 +503,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse(["hello/0"]) #mark as existing
+               # mark as existing
+               |> ActionInterpreter.parse(["hello/0"])
     end
   end
 
@@ -566,7 +567,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello world"}} = sanitize_parse_execute(code, function_constant, ["hello/0"])
+      assert %Transaction{data: %TransactionData{content: "hello world"}} =
+               sanitize_parse_execute(code, function_constant, ["hello/0"])
     end
 
     test "should be able to use a custom function call as parameter" do
@@ -590,7 +592,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello world"}} = sanitize_parse_execute(code, function_constant, ["hello/0"])
+      assert %Transaction{data: %TransactionData{content: "hello world"}} =
+               sanitize_parse_execute(code, function_constant, ["hello/0"])
     end
 
     test "should be able to use a function call as parameter" do
