@@ -93,6 +93,63 @@ defmodule Archethic.Contracts.InterpreterTest do
                |> Interpreter.parse()
     end
 
+    test "should be able to use custom functions" do
+      assert {:ok, _} =
+               """
+               @version 1
+
+               fun hello_world() do
+                  "hello world"
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = hello_world()
+                 x
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error if custom function does not exist" do
+      assert {:error, "The function hello_world/0 does not exist - hello_world - L9"} =
+               """
+               @version 1
+
+               fun hello() do
+                  "hello world"
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = hello_world()
+                 x
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error if custom fn is called with bad arity" do
+      assert {:error, "The function hello_world/1 does not exist - hello_world - L9"} =
+               """
+               @version 1
+
+               fun hello_world() do
+                  "hello world"
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = hello_world(1)
+                 x
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
     test "should return an human readable error if lib fn is called with bad arity" do
       assert {:error, "invalid function arity - List.empty?([1], \"foobar\") - L4"} =
                """
@@ -211,6 +268,47 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, %Transaction{}} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+
+      code = """
+        @version 1
+
+        fun hey() do
+          hello()
+        end
+
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content hey()
+        end
+
+        export fun hello() do
+          "hello"
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, %Transaction{
+              data: %TransactionData{
+                    content: "hello"
+                  }
+             }} =
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
