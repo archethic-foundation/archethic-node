@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.Schema.OriginPublicKey do
+defmodule ArchethicWeb.API.OriginPublicKeyPayload do
   @moduledoc false
 
   use Ecto.Schema
@@ -7,9 +7,11 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKey do
   @supported_curve_bin [0, 1, 2]
   @supported_origin_bin [0, 1, 2, 3]
 
-  alias ArchethicWeb.API.Types.{Hex, PublicKey}
+  alias ArchethicWeb.API.Types.Hex
+  alias ArchethicWeb.API.Types.PublicKey
 
-  alias Archethic.{Crypto, SharedSecrets}
+  alias Archethic.Crypto
+  alias Archethic.SharedSecrets
 
   embedded_schema do
     field(:origin_public_key, PublicKey)

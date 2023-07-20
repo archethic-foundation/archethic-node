@@ -1,13 +1,16 @@
-defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
+defmodule ArchethicWeb.API.Schema.OriginPublicKeyPayloadTest do
   @moduledoc false
   use ArchethicCase
 
   use Ecto.Schema
 
-  alias ArchethicWeb.API.Schema.OriginPublicKey
-  alias Archethic.{P2P, P2P.Node, SharedSecrets, SharedSecrets.MemTables.OriginKeyLookup}
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+  alias ArchethicWeb.API.OriginPublicKeyPayload
 
-  describe "OriginPublicKey Schema Test" do
+  describe "OriginPublicKeyPayload Schema Test" do
     setup do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -30,13 +33,13 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
       params = parameters(_origin_public_key = "", _certificate = "")
 
       assert [{:origin_public_key, {"can't be blank", [validation: :required]}}] ==
-               OriginPublicKey.changeset(params).errors
+               OriginPublicKeyPayload.changeset(params).errors
     end
 
     test "Should return invalid key size" do
       params = parameters("0001540315", "")
 
-      change_set = OriginPublicKey.changeset(params)
+      change_set = OriginPublicKeyPayload.changeset(params)
       assert [origin_public_key: {"invalid key size", _}] = change_set.errors
     end
 
@@ -44,7 +47,7 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
       params =
         parameters("00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599ZZZ", "")
 
-      change_set = OriginPublicKey.changeset(params)
+      change_set = OriginPublicKeyPayload.changeset(params)
 
       assert [origin_public_key: {"must be hexadecimal", _}] = change_set.errors
     end
@@ -57,17 +60,17 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
 
       params = parameters(_origin_public_key = public_key, _certificate = "")
 
-      change_set = OriginPublicKey.changeset(params)
+      change_set = OriginPublicKeyPayload.changeset(params)
 
       assert [origin_public_key: {"Already Exists", _}] = change_set.errors
     end
 
-    test "Should Accept, Empty certificate  Valid OriginPublicKey" do
+    test "Should Accept, Empty certificate  Valid OriginPublicKeyPayload" do
       {public_key_bin, public_key} = gen_public_key()
       refute SharedSecrets.has_origin_public_key?(public_key_bin)
 
       params = parameters(_origin_public_key = public_key, _certificate = "")
-      assert [] == OriginPublicKey.changeset(params).errors
+      assert [] == OriginPublicKeyPayload.changeset(params).errors
     end
 
     test "Should Return Error: Must Be Hexadecimal, with Certificate having erroneous hexadecimal value" do
@@ -79,7 +82,7 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
       assert [
                {:certificate,
                 {"must be hexadecimal", [type: ArchethicWeb.API.Types.Hex, validation: :cast]}}
-             ] == OriginPublicKey.changeset(params).errors
+             ] == OriginPublicKeyPayload.changeset(params).errors
     end
 
     test "Should Return Invalid Certificate, with erroneous Certificate Value" do
@@ -88,7 +91,8 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
 
       params = parameters(_origin_public_key = public_key, _certificate = gen_certificate())
 
-      assert [certificate: {"Invalid Certificate", []}] = OriginPublicKey.changeset(params).errors
+      assert [certificate: {"Invalid Certificate", []}] =
+               OriginPublicKeyPayload.changeset(params).errors
     end
 
     test "Should Return Error-Certificate: Size Exceeds Limit,when Certificate Size Exceeds Limit" do
@@ -99,7 +103,7 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
 
       assert [
                certificate: {"Certificate size exceeds limit", _}
-             ] = OriginPublicKey.changeset(params).errors
+             ] = OriginPublicKeyPayload.changeset(params).errors
     end
 
     test "Should Accept empty Certificate" do
@@ -108,7 +112,7 @@ defmodule ArchethicWeb.API.Schema.OriginPublicKeyTest do
 
       params = parameters(_origin_public_key = public_key, _certificate = "")
 
-      assert [] = OriginPublicKey.changeset(params).errors
+      assert [] = OriginPublicKeyPayload.changeset(params).errors
     end
   end
 
