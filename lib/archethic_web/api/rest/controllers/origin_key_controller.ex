@@ -1,7 +1,7 @@
 defmodule ArchethicWeb.API.REST.OriginKeyController do
   use ArchethicWeb.API, :controller
 
-  alias ArchethicWeb.API.Schema.OriginPublicKey
+  alias ArchethicWeb.API.OriginPublicKeyPayload
 
   alias ArchethicWeb.TransactionSubscriber
 
@@ -13,7 +13,7 @@ defmodule ArchethicWeb.API.REST.OriginKeyController do
 
   @spec origin_key(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def origin_key(conn, params = %{}) do
-    case OriginPublicKey.changeset(params) do
+    case OriginPublicKeyPayload.changeset(params) do
       %{
         valid?: true,
         changes: %{origin_public_key: origin_public_key, certificate: certificate}
