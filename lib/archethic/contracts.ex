@@ -255,27 +255,37 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          :inherit,
-         %Contract{constants: %Constants{contract: contract_constant}},
+         %Contract{
+           constants: %Constants{contract: contract_constant},
+           public_functions: public_functions,
+           private_functions: private_functions
+         },
          transaction,
          datetime
        ) do
     %{
       "previous" => contract_constant,
       "next" => Constants.from_transaction(transaction),
-      "_time_now" => DateTime.to_unix(datetime)
+      "_time_now" => DateTime.to_unix(datetime),
+      functions: Map.merge(public_functions, private_functions)
     }
   end
 
   defp get_condition_constants(
          _,
-         %Contract{constants: %Constants{contract: contract_constant}},
+         %Contract{
+           constants: %Constants{contract: contract_constant},
+           public_functions: public_functions,
+           private_functions: private_functions
+         },
          transaction,
          datetime
        ) do
     %{
       "transaction" => Constants.from_transaction(transaction),
       "contract" => contract_constant,
-      "_time_now" => DateTime.to_unix(datetime)
+      "_time_now" => DateTime.to_unix(datetime),
+      functions: Map.merge(public_functions, private_functions)
     }
   end
 end
