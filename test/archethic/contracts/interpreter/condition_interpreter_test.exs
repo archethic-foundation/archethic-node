@@ -5,6 +5,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionInterpreter
+
   alias Archethic.Contracts.Interpreter.ConditionValidator
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -107,6 +109,23 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> ConditionInterpreter.parse()
+
+      assert is_tuple(ast) && :ok == Macro.validate(ast)
+    end
+
+    test "parse custom functions" do
+      code = ~s"""
+      condition transaction: [
+        uco_transfers: get_uco_transfers() > 0
+      ]
+      """
+
+      assert {:ok, :transaction, %Conditions{uco_transfers: ast}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark function as existing
+               |> ConditionInterpreter.parse(["get_uco_transfers/0"])
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end
@@ -558,6 +577,74 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
                "next" => Constants.from_transaction(next_tx)
+             })
+    end
+
+    test "should be able to use functions" do
+      func_smth = ~S"""
+      fun smth() do
+        "smth"
+      end
+      """
+
+      {:ok, "smth", [], ast_smth} =
+        func_smth
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        |> FunctionInterpreter.parse()
+
+      code = ~s"""
+      condition inherit: [
+        content: (
+          "smth" == smth()
+        )
+      ]
+      """
+
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "smth"}}
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse(["smth/0"])
+             |> elem(2)
+             |> ConditionValidator.valid_conditions?(%{
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx),
+               functions: %{"smth/0" => %{args: [], ast: ast_smth}}
+             })
+
+      func_bool = ~S"""
+      fun im_true() do
+        1 == 1
+      end
+      """
+
+      {:ok, "im_true", [], ast_bool} =
+        func_bool
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        |> FunctionInterpreter.parse()
+
+      code = ~s"""
+      condition inherit: [
+        content: im_true()
+      ]
+      """
+
+      previous_tx = %Transaction{data: %TransactionData{}}
+      next_tx = %Transaction{data: %TransactionData{content: "hello"}}
+
+      assert code
+             |> Interpreter.sanitize_code()
+             |> elem(1)
+             |> ConditionInterpreter.parse(["im_true/0"])
+             |> elem(2)
+             |> ConditionValidator.valid_conditions?(%{
+               "previous" => Constants.from_transaction(previous_tx),
+               "next" => Constants.from_transaction(next_tx),
+               functions: %{"im_true/0" => %{args: [], ast: ast_bool}}
              })
     end
 
