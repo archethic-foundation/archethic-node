@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.OriginKeyController do
+defmodule ArchethicWeb.API.REST.OriginKeyController do
   use ArchethicWeb.API, :controller
 
   alias ArchethicWeb.API.Schema.OriginPublicKey

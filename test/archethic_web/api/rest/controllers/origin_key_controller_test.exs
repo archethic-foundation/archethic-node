@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.OriginKeyControllerTest do
+defmodule ArchethicWeb.API.REST.OriginKeyControllerTest do
   use ArchethicCase
   use ArchethicWeb.ConnCase
 
