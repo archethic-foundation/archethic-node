@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.TransactionControllerTest do
+defmodule ArchethicWeb.API.REST.TransactionControllerTest do
   use ArchethicCase
   use ArchethicWeb.ConnCase
 

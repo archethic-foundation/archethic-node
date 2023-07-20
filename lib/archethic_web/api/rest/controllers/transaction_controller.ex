@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.TransactionController do
+defmodule ArchethicWeb.API.REST.TransactionController do
   @moduledoc false
 
   use ArchethicWeb.API, :controller

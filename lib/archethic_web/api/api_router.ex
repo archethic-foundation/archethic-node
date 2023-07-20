@@ -1,7 +1,7 @@
 defmodule ArchethicWeb.APIRouter do
   @moduledoc false
 
-  alias ArchethicWeb.API
+  alias ArchethicWeb.API.REST
   alias ArchethicWeb.Plug.ThrottleByIPLow
 
   use ArchethicWeb.Explorer, :router
@@ -12,7 +12,7 @@ defmodule ArchethicWeb.APIRouter do
     plug(ArchethicWeb.API.GraphQL.Context)
   end
 
-  scope "/api", API do
+  scope "/api", REST do
     pipe_through(:api)
 
     get("/last_transaction/:address/content", TransactionController, :last_transaction_content)
