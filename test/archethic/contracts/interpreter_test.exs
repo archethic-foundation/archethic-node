@@ -304,11 +304,12 @@ defmodule Archethic.Contracts.InterpreterTest do
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
-      assert {:ok, %Transaction{
-              data: %TransactionData{
-                    content: "hello"
-                  }
-             }} =
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "hello"
+                }
+              }} =
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),

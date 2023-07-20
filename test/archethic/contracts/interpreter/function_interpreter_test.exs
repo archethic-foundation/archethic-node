@@ -123,8 +123,6 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                # mark function as declared
                |> FunctionInterpreter.parse(["hello/0"])
     end
-
-
   end
 
   describe "execute/2" do
@@ -151,7 +149,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
         fun2
         |> Interpreter.sanitize_code()
         |> elem(1)
-          # pass allowed function
+        # pass allowed function
         |> FunctionInterpreter.parse(["hello/0"])
 
       function_constant = %{"functions" => %{"hello/0" => %{args: [], ast: ast_hello}}}

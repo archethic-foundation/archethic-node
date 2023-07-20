@@ -143,6 +143,7 @@ defmodule Archethic.Contracts.Interpreter do
               time_now
           end
           |> DateTime.to_unix()
+
         constants = %{
           "transaction" =>
             case maybe_trigger_tx do
@@ -155,7 +156,7 @@ defmodule Archethic.Contracts.Interpreter do
             end,
           "contract" => contract_constants,
           "_time_now" => timestamp_now,
-          "functions" => Map.merge(public_functions , private_functions)
+          "functions" => Map.merge(public_functions, private_functions)
         }
 
         result =

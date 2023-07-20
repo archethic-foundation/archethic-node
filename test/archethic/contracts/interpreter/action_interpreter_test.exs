@@ -558,7 +558,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
         |> elem(1)
         |> FunctionInterpreter.parse()
 
-      function_constant = %{"functions"=> %{"hello/0" => %{args: [], ast: ast_hello}}}
+      function_constant = %{"functions" => %{"hello/0" => %{args: [], ast: ast_hello}}}
 
       code = ~S"""
       actions triggered_by: transaction do
