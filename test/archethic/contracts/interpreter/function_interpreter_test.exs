@@ -124,37 +124,39 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                |> FunctionInterpreter.parse(["hello/0"])
     end
 
-    describe "execute/2" do
-      test "should be able to execute function without args" do
-        fun1 = ~S"""
-        export fun hello do
-          1 + 3
-        end
-        """
 
-        {:ok, "hello", [], ast_hello} =
-          fun1
-          |> Interpreter.sanitize_code()
-          |> elem(1)
-          |> FunctionInterpreter.parse()
+  end
 
-        fun2 = ~S"""
-        fun test() do
-          hello()
-        end
-        """
-
-        {:ok, "test", [], ast_test} =
-          fun2
-          |> Interpreter.sanitize_code()
-          |> elem(1)
-          # pass allowed function
-          |> FunctionInterpreter.parse(["hello/0"])
-
-        function_constant = %{functions: %{"hello/0" => %{args: [], ast: ast_hello}}}
-
-        assert 4.0 = FunctionInterpreter.execute(ast_test, function_constant)
+  describe "execute/2" do
+    test "should be able to execute function without args" do
+      fun1 = ~S"""
+      export fun hello do
+        1 + 3
       end
+      """
+
+      {:ok, "hello", [], ast_hello} =
+        fun1
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        |> FunctionInterpreter.parse()
+
+      fun2 = ~S"""
+      fun test() do
+        hello()
+      end
+      """
+
+      {:ok, "test", [], ast_test} =
+        fun2
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+          # pass allowed function
+        |> FunctionInterpreter.parse(["hello/0"])
+
+      function_constant = %{functions: %{"hello/0" => %{args: [], ast: ast_hello}}}
+
+      assert 4.0 = FunctionInterpreter.execute(ast_test, function_constant)
     end
   end
 end
