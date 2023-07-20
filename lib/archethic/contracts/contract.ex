@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Contract do
   alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Scope
 
   alias Archethic.SharedSecrets
 
@@ -107,7 +108,7 @@ defmodule Archethic.Contracts.Contract do
         ast,
         args
       ) do
-    function_key = function_name <> "/" <> Integer.to_string(length(args))
+    function_key = Scope.function_to_function_key(function_name, args)
     Map.update!(contract, :public_functions, &Map.put(&1, function_key, %{ast: ast, args: args}))
   end
 
@@ -118,7 +119,7 @@ defmodule Archethic.Contracts.Contract do
         ast,
         args
       ) do
-    function_key = function_name <> "/" <> Integer.to_string(length(args))
+    function_key = Scope.function_to_function_key(function_name, args)
     Map.update!(contract, :private_functions, &Map.put(&1, function_key, %{ast: ast, args: args}))
   end
 end

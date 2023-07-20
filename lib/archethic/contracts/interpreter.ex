@@ -3,10 +3,12 @@ defmodule Archethic.Contracts.Interpreter do
 
   require Logger
 
-  alias Archethic.Contracts.Interpreter.FunctionInterpreter
   alias __MODULE__.Legacy
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
+  alias __MODULE__.FunctionInterpreter
+  alias __MODULE__.Scope
+
   alias __MODULE__.ConditionValidator
 
   alias Archethic.Contracts.Contract
@@ -388,13 +390,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp get_functions([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
-    arity =
-      case args do
-        nil -> 0
-        _ -> length(args)
-      end
-
-    [function_name <> "/" <> Integer.to_string(arity) | get_functions(rest)]
+    [Scope.function_to_function_key(function_name, args) | get_functions(rest)]
   end
 
   defp get_functions([
@@ -402,13 +398,7 @@ defmodule Archethic.Contracts.Interpreter do
           [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
          | rest
        ]) do
-    arity =
-      case args do
-        nil -> 0
-        _ -> length(args)
-      end
-
-    [function_name <> "/" <> Integer.to_string(arity) | get_functions(rest)]
+    [Scope.function_to_function_key(function_name, args) | get_functions(rest)]
   end
 
   defp get_functions([_ | rest]), do: get_functions(rest)

@@ -371,7 +371,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   def postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys) when is_list(args) do
-    function_key = function_name <> "/" <> Integer.to_string(length(args))
+    function_key = Scope.function_to_function_key(function_name, args)
 
     case Enum.member?(function_keys, function_key) do
       true ->
