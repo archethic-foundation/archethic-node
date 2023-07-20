@@ -612,7 +612,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
                "next" => Constants.from_transaction(next_tx),
-               functions: %{"smth/0" => %{args: [], ast: ast_smth}}
+               "functions" => %{"smth/0" => %{args: [], ast: ast_smth}}
              })
 
       func_bool = ~S"""
@@ -644,7 +644,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
                "next" => Constants.from_transaction(next_tx),
-               functions: %{"im_true/0" => %{args: [], ast: ast_bool}}
+               "functions" => %{"im_true/0" => %{args: [], ast: ast_bool}}
              })
     end
 

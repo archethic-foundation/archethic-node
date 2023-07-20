@@ -153,7 +153,7 @@ defmodule Archethic.Contracts.Interpreter do
             end,
           "contract" => contract_constants,
           "_time_now" => timestamp_now,
-          functions: Map.merge(public_functions , private_functions)
+          "functions" => Map.merge(public_functions , private_functions)
         }
 
         result =

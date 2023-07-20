@@ -154,7 +154,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
           # pass allowed function
         |> FunctionInterpreter.parse(["hello/0"])
 
-      function_constant = %{functions: %{"hello/0" => %{args: [], ast: ast_hello}}}
+      function_constant = %{"functions" => %{"hello/0" => %{args: [], ast: ast_hello}}}
 
       assert 4.0 = FunctionInterpreter.execute(ast_test, function_constant)
     end

@@ -116,12 +116,12 @@ defmodule Archethic.Contracts.Interpreter.Scope do
 
   def get_function_ast(function_name, nil) do
     function_key = function_name <> "/" <> "0"
-    get_in(Process.get(:scope), [:functions, function_key, :ast])
+    get_in(Process.get(:scope), ["functions", function_key, :ast])
   end
 
   def get_function_ast(function_name, args) do
     function_key = function_name <> "/" <> Integer.to_string(length(args))
-    get_in(Process.get(:scope), [:functions, function_key, :ast])
+    get_in(Process.get(:scope), ["functions", function_key, :ast])
   end
 
   def execute_function_ast(function_name, args) do
