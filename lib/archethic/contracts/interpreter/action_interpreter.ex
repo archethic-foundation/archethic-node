@@ -11,6 +11,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
 
+  # Module `Contract` is handled differently
+  @modules_whitelisted ["Http"]
+
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
@@ -156,6 +159,11 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     {node, acc}
   end
 
+  # autorize the use of modules whitelisted
+  defp prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
+       when module_name in @modules_whitelisted,
+       do: {node, acc}
+
   defp prewalk(
          node,
          acc
@@ -215,6 +223,17 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
       end
 
     {new_node, acc}
+  end
+
+  # handle modules whitelisted (but not Contract)
+  defp postwalk(
+         node =
+           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, _function_name}]}, _,
+            _args},
+         acc
+       )
+       when module_name in @modules_whitelisted do
+    {CommonInterpreter.module_call(node, common: false), acc}
   end
 
   # --------------- catch all -------------------
