@@ -291,43 +291,12 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   # common modules call
   def postwalk(
         node =
-          {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
-        acc,
-        _
+          {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, _function_name}]}, _,
+           _args},
+        acc
       )
       when module_name in @modules_whitelisted do
-    absolute_module_atom =
-      Code.ensure_loaded!(
-        String.to_existing_atom(
-          "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
-        )
-      )
-
-    # check function exists
-    unless Library.function_exists?(absolute_module_atom, function_name) do
-      throw({:error, node, "unknown function"})
-    end
-
-    # check function is available with given arity
-    unless Library.function_exists?(absolute_module_atom, function_name, length(args)) do
-      throw({:error, node, "invalid function arity"})
-    end
-
-    module_atom = String.to_existing_atom(module_name)
-    function_atom = String.to_existing_atom(function_name)
-
-    # check the type of the args
-
-    unless absolute_module_atom.check_types(function_atom, args) do
-      throw({:error, node, "invalid function arguments"})
-    end
-
-    meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
-
-    new_node =
-      {{:., meta, [{:__aliases__, meta_with_alias, [module_atom]}, function_atom]}, meta, args}
-
-    {new_node, acc}
+    {module_call(node), acc}
   end
 
   # variable are read from scope
@@ -400,6 +369,43 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   # whitelist rest
   def postwalk(node, acc, _), do: {node, acc}
+
+  def module_call(
+        node =
+          {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
+        opts \\ []
+      ) do
+    absolute_module_name =
+      if Keyword.get(opts, :common, true) do
+        "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
+      else
+        "Elixir.Archethic.Contracts.Interpreter.Library.#{module_name}"
+      end
+
+    absolute_module_atom = Code.ensure_loaded!(String.to_existing_atom(absolute_module_name))
+
+    # check function exists
+    unless Library.function_exists?(absolute_module_atom, function_name) do
+      throw({:error, node, "unknown function"})
+    end
+
+    # check function is available with given arity
+    unless Library.function_exists?(absolute_module_atom, function_name, length(args)) do
+      throw({:error, node, "invalid function arity"})
+    end
+
+    module_atom = String.to_existing_atom(module_name)
+    function_atom = String.to_existing_atom(function_name)
+
+    # check the type of the args
+    unless absolute_module_atom.check_types(function_atom, args) do
+      throw({:error, node, "invalid function arguments"})
+    end
+
+    meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
+
+    {{:., meta, [{:__aliases__, meta_with_alias, [module_atom]}, function_atom]}, meta, args}
+  end
 
   # ----------------------------------------------------------------------
   #              _            _
