@@ -87,4 +87,102 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
+
+  describe "fetch_many/1" do
+    @tag :http
+    test "should return an empty list if it receives an empty list" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        responses = Http.fetch_many([])
+        if responses == [] do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    @tag :http
+    test "should return a list with all kind of responses" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        responses = Http.fetch_many([
+          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
+          "https://archethic-archethic-archethic-archethic-archethic-archethic.net",
+          "https://www.archethic.net/hopefully-non-existing-page",
+          "http://archethic.net"
+        ])
+
+        statuses = []
+        for r in responses do
+          statuses = List.append(statuses, r.status)
+        end
+
+        if statuses == [200, 404, 404, #{Http.error_not_https()}] do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    @tag :http
+    test "should return an error if there is more than 5 urls" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        responses = Http.fetch_many([
+          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
+          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
+          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
+          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
+          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
+          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text"
+        ])
+
+        statuses = []
+        for r in responses do
+          statuses = List.append(statuses, r.status)
+        end
+
+        if statuses == [
+          #{Http.error_too_many()},
+          #{Http.error_too_many()},
+          #{Http.error_too_many()},
+          #{Http.error_too_many()},
+          #{Http.error_too_many()},
+          #{Http.error_too_many()}] do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    @tag :http
+    test "should return an error if the combinaison of urls' body is too large" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        # this request should return ~180KB
+        # 2 of them cannot pass
+        responses = Http.fetch_many([
+          "https://fakerapi.it/api/v1/companies?_quantity=500",
+          "https://fakerapi.it/api/v1/companies?_quantity=500"
+        ])
+        statuses = []
+        for r in responses do
+          statuses = List.append(statuses, r.status)
+        end
+
+        if statuses == [#{Http.error_too_large()}, #{Http.error_too_large()}] do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+  end
 end
