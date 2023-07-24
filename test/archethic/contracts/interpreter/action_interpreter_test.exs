@@ -7,7 +7,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
-  alias Archethic.Contracts.Interpreter.FunctionInterpreter
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -543,57 +542,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
-    end
-
-    test "should be able to use a function" do
-      func_hello = ~S"""
-      fun hello() do
-          "hello world"
-      end
-      """
-
-      {:ok, "hello", [], ast_hello} =
-        func_hello
-        |> Interpreter.sanitize_code()
-        |> elem(1)
-        |> FunctionInterpreter.parse([])
-
-      function_constant = %{"functions" => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
-
-      code = ~S"""
-      actions triggered_by: transaction do
-          test = hello()
-          Contract.set_content test
-      end
-      """
-
-      assert %Transaction{data: %TransactionData{content: "hello world"}} =
-               sanitize_parse_execute(code, function_constant, [{"hello", 0}])
-    end
-
-    test "should be able to use a custom function call as parameter" do
-      func_hello = ~S"""
-      fun hello() do
-          "hello world"
-      end
-      """
-
-      {:ok, "hello", [], ast_hello} =
-        func_hello
-        |> Interpreter.sanitize_code()
-        |> elem(1)
-        |> FunctionInterpreter.parse([])
-
-      function_constant = %{"functions" => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
-
-      code = ~S"""
-      actions triggered_by: transaction do
-          Contract.set_content hello()
-      end
-      """
-
-      assert %Transaction{data: %TransactionData{content: "hello world"}} =
-               sanitize_parse_execute(code, function_constant, [{"hello", 0}])
     end
 
     test "should be able to use a function call as parameter" do
