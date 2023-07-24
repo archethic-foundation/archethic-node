@@ -122,6 +122,10 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     get_in(Process.get(:scope), ["functions", {function_name, length(args)}, :ast])
   end
 
+  @doc """
+  Return the AST of an executable function
+  """
+  @spec get_function_ast(String.t(), list(any())) :: any()
   def execute_function_ast(function_name, args) do
     get_function_ast(function_name, args)
     |> Code.eval_quoted()
