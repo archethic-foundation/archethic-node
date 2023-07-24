@@ -1,10 +1,17 @@
 defmodule Archethic.Contracts.Interpreter.Library.Http do
-  @moduledoc false
+  @moduledoc """
+  Http client for the Smart Contracts.
+  Implements AEIP-20.
+
+  Mint library is processless so in order to not mess with
+  other processes, we use it from inside a Task.
+  """
 
   @behaviour Archethic.Contracts.Interpreter.Library
   @threshold 256 * 1024
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.TaskSupervisor
 
   def error_other(), do: -4000
   def error_timeout(), do: -4001
@@ -13,34 +20,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
   def error_not_https(), do: -4004
 
   def fetch(uri) do
-    uri = URI.parse(uri)
+    task =
+      Task.Supervisor.async_nolink(
+        TaskSupervisor,
+        fn -> do_fetch(uri) end
+      )
 
-    with "https" <- uri.scheme,
-         {:ok, conn} <- Mint.HTTP.connect(:https, uri.host, uri.port),
-         {:ok, conn, _} <- Mint.HTTP.request(conn, "GET", path(uri), [], nil) do
-      case stream_response(conn) do
-        {:ok, %{body: body, status: status}} ->
-          %{
-            "status" => status,
-            "body" => body
-          }
+    case Task.yield(task, 2_000) || Task.shutdown(task) do
+      {:ok, reply} ->
+        reply
 
-        {:error, :timeout} ->
-          %{"status" => error_timeout()}
-
-        {:error, :threshold_reached} ->
-          %{"status" => error_too_large()}
-
-        {:error, _} ->
-          %{"status" => error_other()}
-      end
-    else
-      "http" ->
-        %{"status" => error_not_https()}
-
-      # we handle nxdomain as 404
       _ ->
-        %{"status" => 404}
+        %{"status" => error_timeout()}
     end
   end
 
@@ -51,7 +42,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
       for _ <- 1..uris_count, do: %{"status" => error_too_many()}
     else
       Task.Supervisor.async_stream_nolink(
-        Archethic.TaskSupervisor,
+        TaskSupervisor,
         uris,
         &fetch/1,
         ordered: true,
@@ -78,6 +69,35 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
   end
 
   def check_types(_, _), do: false
+
+  defp do_fetch(uri) do
+    uri = URI.parse(uri)
+
+    with "https" <- uri.scheme,
+         {:ok, conn} <- Mint.HTTP.connect(:https, uri.host, uri.port),
+         {:ok, conn, _} <- Mint.HTTP.request(conn, "GET", path(uri), [], nil) do
+      case stream_response(conn) do
+        {:ok, %{body: body, status: status}} ->
+          %{
+            "status" => status,
+            "body" => body
+          }
+
+        {:error, :threshold_reached} ->
+          %{"status" => error_too_large()}
+
+        {:error, _} ->
+          %{"status" => error_other()}
+      end
+    else
+      "http" ->
+        %{"status" => error_not_https()}
+
+      # we handle nxdomain as 404
+      _ ->
+        %{"status" => 404}
+    end
+  end
 
   # copied over from Mint
   defp path(uri) do
@@ -122,9 +142,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
           {:error, _, reason, _} ->
             {:error, reason}
         end
-    after
-      2_000 ->
-        {:error, :timeout}
     end
   end
 end
