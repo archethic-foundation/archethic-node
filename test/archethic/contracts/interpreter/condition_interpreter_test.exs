@@ -125,7 +125,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as existing
-               |> ConditionInterpreter.parse(["get_uco_transfers/0"])
+               |> ConditionInterpreter.parse([{"get_uco_transfers", 0}])
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end
@@ -607,12 +607,12 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse(["smth/0"])
+             |> ConditionInterpreter.parse([{"smth", 0}])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
                "next" => Constants.from_transaction(next_tx),
-               "functions" => %{"smth/0" => %{args: [], ast: ast_smth}}
+               "functions" => %{{"smth", 0} => %{args: [], ast: ast_smth}}
              })
 
       func_bool = ~S"""
@@ -639,12 +639,12 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse(["im_true/0"])
+             |> ConditionInterpreter.parse([{"im_true", 0}])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
                "next" => Constants.from_transaction(next_tx),
-               "functions" => %{"im_true/0" => %{args: [], ast: ast_bool}}
+               "functions" => %{{"im_true", 0} => %{args: [], ast: ast_bool}}
              })
     end
 

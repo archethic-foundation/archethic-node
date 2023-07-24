@@ -371,9 +371,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   def postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys) when is_list(args) do
-    function_key = Scope.function_to_function_key(function_name, args)
-
-    if Enum.member?(function_keys, function_key) do
+    if Enum.member?(function_keys, {function_name, length(args)}) do
       new_node =
         quote do
           Scope.execute_function_ast(unquote(function_name), unquote(args))
@@ -381,7 +379,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
       {new_node, acc}
     else
-      throw({:error, node, "The function " <> function_key <> " does not exist"})
+      throw({:error, node, "The function " <> function_name <>  "/" <> Integer.to_string(length(args)) <> " does not exist"})
     end
   end
 

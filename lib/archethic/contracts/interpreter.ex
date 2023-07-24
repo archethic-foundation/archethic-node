@@ -7,7 +7,6 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
   alias __MODULE__.FunctionInterpreter
-  alias __MODULE__.Scope
 
   alias __MODULE__.ConditionValidator
 
@@ -391,7 +390,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp get_functions([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
-    [Scope.function_to_function_key(function_name, args) | get_functions(rest)]
+    [{function_name, length(args)} | get_functions(rest)]
   end
 
   defp get_functions([
@@ -399,7 +398,7 @@ defmodule Archethic.Contracts.Interpreter do
           [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
          | rest
        ]) do
-    [Scope.function_to_function_key(function_name, args) | get_functions(rest)]
+    [{function_name, length(args)} | get_functions(rest)]
   end
 
   defp get_functions([_ | rest]), do: get_functions(rest)
