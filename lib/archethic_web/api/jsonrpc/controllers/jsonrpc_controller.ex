@@ -3,6 +3,8 @@ defmodule ArchethicWeb.API.JsonRPCController do
 
   alias Archethic.TaskSupervisor
 
+  alias ArchethicWeb.API.JsonRPC.Error
+
   require Logger
 
   @jsonrpc_schema :archethic
@@ -114,7 +116,7 @@ defmodule ArchethicWeb.API.JsonRPCController do
 
     case module.execute(params) do
       {:ok, result} -> {:ok, result}
-      {:error, code, message} -> {:error, {:custom_error, code, message}}
+      {:error, reason, message} -> {:error, {:custom_error, reason, message}}
     end
   end
 
@@ -127,24 +129,10 @@ defmodule ArchethicWeb.API.JsonRPCController do
   defp create_error_response(request = %{"jsonrpc" => jsonrpc}, error) do
     id = Map.get(request, "id", nil)
 
-    %{"jsonrpc" => jsonrpc, "error" => get_error(error), "id" => id}
+    %{"jsonrpc" => jsonrpc, "error" => Error.get_error(error), "id" => id}
   end
 
   defp create_error_response(_, error) do
-    %{"jsonrpc" => "2.0", "error" => get_error(error), "id" => nil}
+    %{"jsonrpc" => "2.0", "error" => Error.get_error(error), "id" => nil}
   end
-
-  defp get_error(:parse_error), do: %{"code" => -32700, "message" => "Parse error"}
-
-  defp get_error({:invalid_request, reasons}),
-    do: %{"code" => -32600, "message" => "Invalid request", "data" => reasons}
-
-  defp get_error({:invalid_method, method}),
-    do: %{"code" => -32601, "message" => "Method #{method} not found"}
-
-  defp get_error({:invalid_method_params, reasons}),
-    do: %{"code" => -32602, "message" => "Invalid params", "data" => reasons}
-
-  defp get_error({:internal_error, message}), do: %{"code" => -32603, "message" => message}
-  defp get_error({:custom_error, code, message}), do: %{"code" => code, "message" => message}
 end
