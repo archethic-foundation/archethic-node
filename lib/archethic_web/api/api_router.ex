@@ -1,6 +1,7 @@
 defmodule ArchethicWeb.APIRouter do
   @moduledoc false
 
+  alias ArchethicWeb.API
   alias ArchethicWeb.API.REST
   alias ArchethicWeb.Plug.ThrottleByIPLow
 
@@ -10,6 +11,10 @@ defmodule ArchethicWeb.APIRouter do
     plug(:accepts, ["json"])
     plug(ThrottleByIPLow)
     plug(ArchethicWeb.API.GraphQL.Context)
+  end
+
+  scope "/api/rpc", API do
+    post("/", JsonRPCController, :rpc)
   end
 
   scope "/api", REST do
