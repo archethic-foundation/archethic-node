@@ -26,10 +26,11 @@ defmodule Archethic.TransactionFactory do
     content = Keyword.get(opts, :content, "")
     code = Keyword.get(opts, :code, "")
     ledger = Keyword.get(opts, :ledger, %Ledger{})
+    recipients = Keyword.get(opts, :recipients, [])
 
     Transaction.new(
       type,
-      %TransactionData{content: content, code: code, ledger: ledger},
+      %TransactionData{content: content, code: code, ledger: ledger, recipients: recipients},
       seed,
       index
     )

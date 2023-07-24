@@ -387,6 +387,32 @@ defmodule Archethic do
     as: :from_transaction
 
   @doc """
+  Verify if the condition of a contract is respected
+  """
+  @spec validate_contract_condition(
+          condition_type :: :oracle | :transaction | :inherit,
+          contract :: Contract.t(),
+          tx :: Transaction.t(),
+          timestamp :: DateTime.t()
+        ) ::
+          :ok
+          | {:error,
+             :invalid_inherit_constraints
+             | :invalid_transaction_constraints
+             | :invalid_oracle_constraints}
+  def validate_contract_condition(condition_type, contract, tx, timestamp) do
+    if Contracts.valid_condition?(condition_type, contract, tx, timestamp) do
+      :ok
+    else
+      case condition_type do
+        :inherit -> {:error, :invalid_inherit_constraints}
+        :transaction -> {:error, :invalid_transaction_constraints}
+        :oracle -> {:error, :invalid_oracle_constraints}
+      end
+    end
+  end
+
+  @doc """
   Execute the contract trigger.
   """
   @spec execute_contract(
