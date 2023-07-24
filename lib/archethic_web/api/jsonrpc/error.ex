@@ -26,5 +26,19 @@ defmodule ArchethicWeb.API.JsonRPC.Error do
   def get_error({:custom_error, reason, message}),
     do: %{"code" => get_custom_code(reason), "message" => message}
 
+  def get_error({:custom_error, reason, message, data}),
+    do: %{"code" => get_custom_code(reason), "message" => message, "data" => data}
+
+  # Transaction context
+  defp get_custom_code(:invalid_transaction), do: 103
+  defp get_custom_code(:transaction_not_exists), do: 104
   defp get_custom_code(:transaction_exists), do: 122
+
+  # Smart Contract context
+  defp get_custom_code(:contract_failure), do: 203
+  defp get_custom_code(:no_recipients), do: 204
+  defp get_custom_code(:invalid_triggers_execution), do: 205
+  defp get_custom_code(:invalid_transaction_constraints), do: 206
+  defp get_custom_code(:invalid_inherit_constraints), do: 207
+  defp get_custom_code(:parsing_contract), do: 208
 end
