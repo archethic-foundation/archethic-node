@@ -120,8 +120,7 @@ defmodule Archethic.Contracts.Interpreter do
           version: version,
           triggers: triggers,
           constants: %Constants{contract: contract_constants},
-          public_functions: public_functions,
-          private_functions: private_functions
+          functions: functions,
         },
         maybe_trigger_tx,
         opts \\ []
@@ -155,7 +154,7 @@ defmodule Archethic.Contracts.Interpreter do
             end,
           "contract" => contract_constants,
           "_time_now" => timestamp_now,
-          "functions" => Map.merge(public_functions, private_functions)
+          "functions" => functions
         }
 
         result =
@@ -350,7 +349,7 @@ defmodule Archethic.Contracts.Interpreter do
        ) do
     case FunctionInterpreter.parse(ast, functions_keys) do
       {:ok, function_name, args, ast} ->
-        {:ok, Contract.add_function(contract, :public, function_name, ast, args)}
+        {:ok, Contract.add_function(contract, function_name, ast, args, :public)}
 
       {:error, _, _} = e ->
         e
@@ -360,7 +359,7 @@ defmodule Archethic.Contracts.Interpreter do
   defp parse_ast(ast = {{:atom, "fun"}, _, _}, contract, functions_keys) do
     case FunctionInterpreter.parse(ast, functions_keys) do
       {:ok, function_name, args, ast} ->
-        {:ok, Contract.add_function(contract, :private, function_name, ast, args)}
+        {:ok, Contract.add_function(contract, function_name, ast, args, :private)}
 
       {:error, _, _} = e ->
         e

@@ -257,8 +257,7 @@ defmodule Archethic.Contracts do
          :inherit,
          %Contract{
            constants: %Constants{contract: contract_constant},
-           public_functions: public_functions,
-           private_functions: private_functions
+           functions: functions,
          },
          transaction,
          datetime
@@ -267,7 +266,7 @@ defmodule Archethic.Contracts do
       "previous" => contract_constant,
       "next" => Constants.from_transaction(transaction),
       "_time_now" => DateTime.to_unix(datetime),
-      "functions" => Map.merge(public_functions, private_functions)
+      "functions" => functions
     }
   end
 
@@ -275,8 +274,7 @@ defmodule Archethic.Contracts do
          _,
          %Contract{
            constants: %Constants{contract: contract_constant},
-           public_functions: public_functions,
-           private_functions: private_functions
+           functions: functions,
          },
          transaction,
          datetime
@@ -285,7 +283,7 @@ defmodule Archethic.Contracts do
       "transaction" => Constants.from_transaction(transaction),
       "contract" => contract_constant,
       "_time_now" => DateTime.to_unix(datetime),
-      "functions" => Map.merge(public_functions, private_functions)
+      "functions" => functions
     }
   end
 end

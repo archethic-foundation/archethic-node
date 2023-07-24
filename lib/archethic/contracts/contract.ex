@@ -14,8 +14,7 @@ defmodule Archethic.Contracts.Contract do
   alias Archethic.TransactionChain.TransactionData
 
   defstruct triggers: %{},
-            public_functions: %{},
-            private_functions: %{},
+            functions: %{},
             version: 0,
             conditions: %{},
             constants: %Constants{},
@@ -102,21 +101,12 @@ defmodule Archethic.Contracts.Contract do
   """
   def add_function(
         contract = %__MODULE__{},
-        :public,
         function_name,
         ast,
-        args
+        args,
+        visibility
       ) do
-    Map.update!(contract, :public_functions, &Map.put(&1, {function_name, length(args)}, %{ast: ast, args: args}))
+    Map.update!(contract, :functions, &Map.put(&1, {function_name, length(args)}, %{args: args, ast: ast, visibility: visibility}))
   end
 
-  def add_function(
-        contract = %__MODULE__{},
-        :private,
-        function_name,
-        ast,
-        args
-      ) do
-    Map.update!(contract, :private_functions, &Map.put(&1, {function_name, length(args)}, %{ast: ast, args: args}))
-  end
 end
