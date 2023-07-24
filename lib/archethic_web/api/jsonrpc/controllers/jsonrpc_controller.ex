@@ -4,6 +4,7 @@ defmodule ArchethicWeb.API.JsonRPCController do
   alias Archethic.TaskSupervisor
 
   alias ArchethicWeb.API.JsonRPC.Error
+  alias ArchethicWeb.API.JsonRPC.Method.SendTransaction
 
   require Logger
 
