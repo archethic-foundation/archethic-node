@@ -22,7 +22,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse()
+               |> FunctionInterpreter.parse([])
     end
 
     test "should be able to parse a public function" do
@@ -36,7 +36,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse()
+               |> FunctionInterpreter.parse([])
     end
 
     test "should be able to parse a private function with arguments" do
@@ -50,7 +50,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse()
+               |> FunctionInterpreter.parse([])
     end
 
     test "should be able to parse a public function with arguments" do
@@ -64,7 +64,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse()
+               |> FunctionInterpreter.parse([])
     end
 
     test "should not be able to use non-whitelisted modules" do
@@ -78,7 +78,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse()
+               |> FunctionInterpreter.parse([])
     end
 
     test "should be able to parse when there is whitelisted module" do
@@ -92,7 +92,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse()
+               |> FunctionInterpreter.parse([])
     end
 
     test "should not be able to call non declared function" do
@@ -106,7 +106,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse()
+               |> FunctionInterpreter.parse([])
     end
 
     test "should be able to call declared function" do
@@ -137,7 +137,7 @@ defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
         fun1
         |> Interpreter.sanitize_code()
         |> elem(1)
-        |> FunctionInterpreter.parse()
+        |> FunctionInterpreter.parse([])
 
       fun2 = ~S"""
       fun test() do

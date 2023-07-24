@@ -20,8 +20,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   """
   @spec parse(any(), list) ::
           {:ok, condition_type(), Conditions.t()} | {:error, any(), String.t()}
-  def parse(_, _ \\ [])
-
   def parse(
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
         functions_keys
@@ -155,7 +153,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       cond do
         # check function is available with given arity
         Library.function_exists?(absolute_module_atom, function_name, arity) ->
-          {new_node, _} = CommonInterpreter.postwalk(node, acc)
+          {new_node, _} = CommonInterpreter.postwalk(node, acc, [])
           new_node
 
         # if function exist with arity+1 => prepend the key to args
@@ -170,7 +168,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
             {{:., meta, [{:__aliases__, meta, [atom: module_name]}, {:atom, function_name}]},
              meta, [ast | args]}
 
-          {new_node, _} = CommonInterpreter.postwalk(node_with_key_appended, acc)
+          {new_node, _} = CommonInterpreter.postwalk(node_with_key_appended, acc, [])
           new_node
 
         # check function exists

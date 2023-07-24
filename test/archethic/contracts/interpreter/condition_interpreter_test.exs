@@ -28,7 +28,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
 
     test "parse a condition oracle" do
@@ -40,7 +40,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
 
     test "parse a condition transaction" do
@@ -52,7 +52,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
 
     test "does not parse anything else" do
@@ -64,7 +64,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
   end
 
@@ -78,7 +78,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
 
     test "parse strict value" do
@@ -92,7 +92,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end
@@ -108,7 +108,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end
@@ -141,7 +141,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
 
     test "parse false" do
@@ -155,7 +155,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
 
     test "parse AST" do
@@ -169,7 +169,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ConditionInterpreter.parse()
+               |> ConditionInterpreter.parse([])
     end
   end
 
@@ -189,7 +189,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "transaction" => Constants.from_transaction(tx)
@@ -209,7 +209,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -233,7 +233,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "transaction" => Constants.from_transaction(tx)
@@ -253,7 +253,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -272,7 +272,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -306,7 +306,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -324,7 +324,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -374,7 +374,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "transaction" => Constants.from_transaction(tx)
@@ -405,7 +405,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "transaction" => Constants.from_transaction(tx)
@@ -420,7 +420,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "transaction" => Constants.from_transaction(tx)
@@ -435,7 +435,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "transaction" => Constants.from_transaction(tx)
@@ -450,7 +450,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "transaction" => Constants.from_transaction(tx)
@@ -470,7 +470,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -489,7 +489,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -510,7 +510,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -529,7 +529,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -548,7 +548,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       refute code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -572,7 +572,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),
@@ -591,7 +591,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
         func_smth
         |> Interpreter.sanitize_code()
         |> elem(1)
-        |> FunctionInterpreter.parse()
+        |> FunctionInterpreter.parse([])
 
       code = ~s"""
       condition inherit: [
@@ -625,7 +625,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
         func_bool
         |> Interpreter.sanitize_code()
         |> elem(1)
-        |> FunctionInterpreter.parse()
+        |> FunctionInterpreter.parse([])
 
       code = ~s"""
       condition inherit: [
@@ -685,7 +685,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert code
              |> Interpreter.sanitize_code()
              |> elem(1)
-             |> ConditionInterpreter.parse()
+             |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
                "previous" => Constants.from_transaction(previous_tx),

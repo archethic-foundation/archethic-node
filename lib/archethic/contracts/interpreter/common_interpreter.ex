@@ -275,8 +275,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   #  |_|
   # ----------------------------------------------------------------------
   # exit block == set parent scope
-  def postwalk(_, _, function_keys \\ [])
-
   def postwalk(
         node = {:__block__, _, _},
         acc,
