@@ -8,6 +8,7 @@ defmodule ArchethicWeb.API.JsonRPCController do
   alias ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee
   alias ArchethicWeb.API.JsonRPC.Method.SendTransaction
   alias ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution
+  alias ArchethicWeb.API.JsonRPC.Method.AddOriginKey
 
   require Logger
 
@@ -20,7 +21,8 @@ defmodule ArchethicWeb.API.JsonRPCController do
   @methods %{
     "send_transaction" => SendTransaction,
     "estimate_transaction_fee" => EstimateTransactionFee,
-    "simulate_contract_execution" => SimulateContractExecution
+    "simulate_contract_execution" => SimulateContractExecution,
+    "add_origin_key" => AddOriginKey
   }
 
   @max_batch_size 20
