@@ -114,10 +114,6 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     )
   end
 
-  defp get_function_ast(function_name, nil) do
-    get_in(Process.get(:scope), ["functions", {function_name, 0}, :ast])
-  end
-
   defp get_function_ast(function_name, args) do
     get_in(Process.get(:scope), ["functions", {function_name, length(args)}, :ast])
   end
