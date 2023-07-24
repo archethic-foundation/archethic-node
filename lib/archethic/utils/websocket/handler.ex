@@ -17,8 +17,9 @@ defmodule Archethic.Utils.WebSocket.SocketHandler do
     name = Keyword.get(opts, :ws_name, __MODULE__)
     host = Keyword.get(opts, :host, "localhost")
     port = Keyword.get(opts, :port, "4000")
+    protocol = Keyword.get(opts, :protocol, "ws")
 
-    ws_url = "ws://#{host}:#{port}/socket/websocket"
+    ws_url = "#{protocol}://#{host}:#{port}/socket/websocket"
 
     state = %{
       subscriptions: %{},

@@ -219,7 +219,8 @@ defmodule Archethic.Utils.Regression.Playbook do
         host,
         port,
         curve \\ Crypto.default_curve(),
-        proto \\ :http
+        proto \\ :http,
+        opts \\ []
       ) do
     chain_length = get_chain_size(transaction_seed, curve, host, port, proto)
 
@@ -256,7 +257,10 @@ defmodule Archethic.Utils.Regression.Playbook do
            proto
          ) do
       {:ok, %{"status" => "pending"}} ->
-        case Task.yield(replication_attestation, 5_000) || Task.shutdown(replication_attestation) do
+        await_timeout = Keyword.get(opts, :await_timeout, 5_000)
+
+        case Task.yield(replication_attestation, await_timeout) ||
+               Task.shutdown(replication_attestation) do
           {:ok, :ok} ->
             {:ok, tx.address}
 
@@ -314,7 +318,7 @@ defmodule Archethic.Utils.Regression.Playbook do
     )
 
     receive do
-      %{"transactionConfirmed" => %{"nbConfirmations" => 1}} ->
+      %{"transactionConfirmed" => %{"nbConfirmations" => n}} when n > 0 ->
         :ok
 
       %{"transactionError" => %{"reason" => reason}} ->
@@ -322,6 +326,9 @@ defmodule Archethic.Utils.Regression.Playbook do
 
       {:error, reason} ->
         {:error, reason}
+
+      unknown_msg ->
+        Logger.warn("await_replication received an unknown message: #{inspect(unknown_msg)}")
     end
   end
 
