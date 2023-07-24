@@ -6,10 +6,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
 
-  def error_not_https(), do: -4003
-  def error_timeout(), do: -4000
+  def error_other(), do: -4000
+  def error_timeout(), do: -4001
   def error_too_large(), do: -4002
-  def error_other(), do: -4001
+  def error_too_many(), do: -4003
+  def error_not_https(), do: -4004
 
   def fetch(uri) do
     uri = URI.parse(uri)
@@ -44,29 +45,28 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
   end
 
   def fetch_many(uris) do
-    if length(uris) > 5 do
-      throw("Tried to Http.fetch_many/1 with more than 5 urls")
+    uris_count = length(uris)
+
+    if uris_count > 5 do
+      for _ <- 1..uris_count, do: %{"status" => error_too_many()}
+    else
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        uris,
+        &fetch/1,
+        ordered: true,
+        max_concurrency: 5,
+        on_timeout: :kill_task
+      )
+      |> Stream.map(fn
+        {:ok, map} ->
+          map
+
+        {:exit, :timeout} ->
+          %{"status" => error_timeout()}
+      end)
+      |> Enum.to_list()
     end
-
-    Task.Supervisor.async_stream_nolink(
-      Archethic.TaskSupervisor,
-      uris,
-      &fetch/1,
-      ordered: true,
-      max_concurrency: 5
-    )
-    |> Enum.to_list()
-
-    [
-      %{
-        "status" => 200,
-        "body" => "{\"result\": 42}"
-      },
-      %{
-        "status" => 200,
-        "body" => "{\"result\": 43}"
-      }
-    ]
   end
 
   def check_types(:fetch, [first]) do
@@ -74,7 +74,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
   end
 
   def check_types(:fetch_many, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    AST.is_list?(first) || AST.is_variable_or_function_call?(first)
   end
 
   def check_types(_, _), do: false
@@ -94,28 +94,26 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
         case Mint.HTTP.stream(conn, message) do
           {:ok, conn, responses} ->
             acc2 =
-              Enum.reduce(responses, acc0, fn response, acc1 ->
-                case response do
-                  {:status, _, status} ->
-                    %{acc1 | status: status}
+              Enum.reduce(responses, acc0, fn
+                {:status, _, status}, acc1 ->
+                  %{acc1 | status: status}
 
-                  {:data, _, data} ->
-                    %{acc1 | data: acc1.data ++ [data], bytes: acc1.bytes + byte_size(data)}
+                {:data, _, data}, acc1 ->
+                  %{acc1 | data: acc1.data ++ [data], bytes: acc1.bytes + byte_size(data)}
 
-                  {:headers, _, _} ->
-                    acc1
+                {:headers, _, _}, acc1 ->
+                  acc1
 
-                  {:done, _} ->
-                    %{acc1 | done: true}
-                end
+                {:done, _}, acc1 ->
+                  %{acc1 | done: true}
               end)
 
             cond do
-              acc2.done ->
-                {:ok, %{status: acc2.status, body: Enum.join(acc2.data)}}
-
               acc2.bytes > @threshold ->
                 {:error, :threshold_reached}
+
+              acc2.done ->
+                {:ok, %{status: acc2.status, body: Enum.join(acc2.data)}}
 
               true ->
                 stream_response(conn, acc2)
