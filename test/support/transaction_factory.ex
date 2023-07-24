@@ -19,6 +19,22 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
 
+  def create_non_valided_transaction(opts \\ []) do
+    type = Keyword.get(opts, :type, :transfer)
+    seed = Keyword.get(opts, :seed, "seed")
+    index = Keyword.get(opts, :index, 0)
+    content = Keyword.get(opts, :content, "")
+    code = Keyword.get(opts, :code, "")
+    ledger = Keyword.get(opts, :ledger, %Ledger{})
+
+    Transaction.new(
+      type,
+      %TransactionData{content: content, code: code, ledger: ledger},
+      seed,
+      index
+    )
+  end
+
   def create_valid_transaction(
         inputs \\ [],
         opts \\ []
