@@ -257,7 +257,7 @@ defmodule Archethic.Contracts do
          :inherit,
          %Contract{
            constants: %Constants{contract: contract_constant},
-           functions: functions,
+           functions: functions
          },
          transaction,
          datetime
@@ -274,7 +274,7 @@ defmodule Archethic.Contracts do
          _,
          %Contract{
            constants: %Constants{contract: contract_constant},
-           functions: functions,
+           functions: functions
          },
          transaction,
          datetime

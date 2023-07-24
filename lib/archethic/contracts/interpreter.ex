@@ -120,7 +120,7 @@ defmodule Archethic.Contracts.Interpreter do
           version: version,
           triggers: triggers,
           constants: %Constants{contract: contract_constants},
-          functions: functions,
+          functions: functions
         },
         maybe_trigger_tx,
         opts \\ []

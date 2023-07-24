@@ -106,7 +106,10 @@ defmodule Archethic.Contracts.Contract do
         args,
         visibility
       ) do
-    Map.update!(contract, :functions, &Map.put(&1, {function_name, length(args)}, %{args: args, ast: ast, visibility: visibility}))
+    Map.update!(
+      contract,
+      :functions,
+      &Map.put(&1, {function_name, length(args)}, %{args: args, ast: ast, visibility: visibility})
+    )
   end
-
 end
