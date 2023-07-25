@@ -376,6 +376,114 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
 
+    test "Should not be able to use out of scope variables" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          my_var = "toto"
+          Contract.set_content my_func()
+        end
+
+        fun my_func() do
+          my_var
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:error, _} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content func2()
+        end
+
+        export fun func1() do
+          my_var = "content"
+        end
+
+        fun func2() do
+          my_var
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:error, _} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should be able to use variables from scope in functions" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content my_func()
+        end
+
+        fun my_func() do
+          my_var = "toto"
+          my_var
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, _} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
     test "should return nil when the contract is correct but no Contract.* call" do
       code = """
         @version 1
