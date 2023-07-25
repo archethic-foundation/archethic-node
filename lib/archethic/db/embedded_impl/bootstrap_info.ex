@@ -47,6 +47,6 @@ defmodule Archethic.DB.EmbeddedImpl.BootstrapInfo do
 
   defp load_data(filepath) do
     data = File.read!(filepath)
-    :erlang.binary_to_term(data, [:safe])
+    Plug.Crypto.non_executable_binary_to_term(data, [:safe])
   end
 end
