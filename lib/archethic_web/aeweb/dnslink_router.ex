@@ -16,11 +16,11 @@ defmodule ArchethicWeb.DNSLinkRouter do
         WebHostingController.web_hosting(conn, %{"address" => address, "url_path" => url_path})
 
       _ ->
-        raise "No DNSLink defined"
+        throw("No DNSLink defined")
     end
   end
 
-  def call(_conn, _), do: raise("No DNSLink defined")
+  def call(_conn, _), do: throw("No DNSLink defined")
 
   defp get_dnslink_address(host) do
     if is_ip_address?(host), do: {:error, :ip_address}, else: Domain.lookup_dnslink_address(host)
