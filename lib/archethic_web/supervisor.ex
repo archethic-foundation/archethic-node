@@ -5,15 +5,14 @@ defmodule ArchethicWeb.Supervisor do
 
   alias Archethic.Utils
 
-  alias ArchethicCache.{LRU, LRUDisk}
+  alias ArchethicCache.LRU
+  alias ArchethicCache.LRUDisk
 
-  alias ArchethicWeb.{
-    Endpoint,
-    TransactionCache,
-    FaucetRateLimiter,
-    TransactionSubscriber,
-    ExplorerLive.TopTransactionsCache
-  }
+  alias ArchethicWeb.Endpoint
+  alias ArchethicWeb.Explorer.TransactionCache
+  alias ArchethicWeb.Explorer.FaucetRateLimiter
+  alias ArchethicWeb.TransactionSubscriber
+  alias ArchethicWeb.Explorer.ExplorerLive.TopTransactionsCache
 
   require Logger
 
@@ -70,7 +69,7 @@ defmodule ArchethicWeb.Supervisor do
   end
 
   defp web_hosting_config(key) do
-    config = Application.fetch_env!(:archethic, ArchethicWeb.API.WebHostingController)
+    config = Application.fetch_env!(:archethic, ArchethicWeb.AEWeb.WebHostingController)
     Keyword.get(config, key)
   end
 end

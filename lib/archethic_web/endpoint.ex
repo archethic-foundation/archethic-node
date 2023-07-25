@@ -1,14 +1,20 @@
 defmodule ArchethicWeb.Endpoint do
   @moduledoc false
 
+  alias ArchethicWeb.Plugs.ArchethicUp
+  alias ArchethicWeb.Plugs.RemoteIP
+  alias ArchethicWeb.RouterDispatch
+
+  alias ArchethicWeb.AEWebRouter
+  alias ArchethicWeb.APIRouter
+  alias ArchethicWeb.DNSLinkRouter
+  alias ArchethicWeb.ExplorerRouter
+
   use Phoenix.Endpoint, otp_app: :archethic
   use Absinthe.Phoenix.Endpoint
 
-  require Logger
-
-  plug(:archethic_up)
-
-  plug(ArchethicWeb.Plugs.RemoteIP)
+  plug(ArchethicUp)
+  plug(RemoteIP)
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -56,22 +62,6 @@ defmodule ArchethicWeb.Endpoint do
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
   plug(CORSPlug, origin: "*")
-  plug(ArchethicWeb.RouterDispatch)
-  # don't serve anything before the node is bootstraped
-  #
-  # ps: this handle only HTTP(S) requests
-  #     for WS, see archethic_web/channels/user_socket.ex
-  defp archethic_up(conn, _opts) do
-    request_path = Map.get(conn, :request_path, nil)
 
-    if request_path in ["/metrics", "/metrics/"] or Archethic.up?() do
-      conn
-    else
-      Logger.debug("Received a web request but node is bootstraping")
-
-      conn
-      |> send_resp(503, "")
-      |> halt()
-    end
-  end
+  plug(RouterDispatch, routers: [DNSLinkRouter, AEWebRouter, APIRouter, ExplorerRouter])
 end

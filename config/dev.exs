@@ -125,8 +125,8 @@ config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,
 config :archethic, Archethic.P2P.Listener,
   port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
 
-config :archethic, ArchethicWeb.FaucetController, enabled: true
-config :archethic, ArchethicWeb.FaucetRateLimiter, enabled: true
+config :archethic, ArchethicWeb.Explorer.FaucetController, enabled: true
+config :archethic, ArchethicWeb.Explorer.FaucetRateLimiter, enabled: true
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -159,7 +159,7 @@ config :archethic, ArchethicWeb.Endpoint,
     port: System.get_env("ARCHETHIC_HTTPS_PORT", "5000") |> String.to_integer(),
     cipher_suite: :strong,
     otp_app: :archethic,
-    sni_fun: &ArchethicWeb.Domain.sni/1,
+    sni_fun: &ArchethicWeb.AEWeb.Domain.sni/1,
     keyfile: "priv/cert/selfsigned_key.pem",
     certfile: "priv/cert/selfsigned.pem"
   ]

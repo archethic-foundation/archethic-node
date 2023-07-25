@@ -1,40 +1,44 @@
 defmodule ArchethicWeb.RouterDispatch do
   @moduledoc """
-  This module is used to dispatch the connection to the right route.
-  If the connection contains a dnslink redirection aeweb route is used, otherwise explorer route is used
+  This module is used to dispatch the connection between multiple routers
   """
 
-  alias ArchethicWeb.Domain
-  alias ArchethicWeb.AEWebRouter
-  alias ArchethicWeb.ExplorerRouter
-
   @behaviour Plug
+  require Logger
 
-  def init(opts \\ []) do
-    Enum.into(opts, %{})
+  def init(opts), do: opts
+
+  def call(conn, opts) do
+    routers = Keyword.get(opts, :routers, [])
+
+    # here we catch the NoRouteError and the NoDNSLink error
+    # to continue try routers
+    # all others error are logged
+    Enum.reduce_while(routers, conn, fn router, _acc ->
+      try do
+        conn = router.call(conn, [])
+        {:halt, conn}
+      rescue
+        Phoenix.Router.NoRouteError ->
+          {:cont, conn}
+
+        e ->
+          {:halt, conn |> send_error(e, __STACKTRACE__)}
+      catch
+        "No DNSLink defined" ->
+          {:cont, conn}
+
+        e ->
+          {:halt, conn |> send_error(e, __STACKTRACE__)}
+      end
+    end)
   end
 
-  def call(conn = %Plug.Conn{host: host}, params) do
-    case :inet.parse_address(String.to_charlist(host)) do
-      {:ok, _ip} ->
-        ExplorerRouter.call(conn, params)
+  defp send_error(conn, e, stacktrace) do
+    Logger.error(Exception.format(:error, e, stacktrace))
 
-      {:error, _} ->
-        resolve_domain_name(conn, params)
-    end
-  end
-
-  defp resolve_domain_name(conn = %Plug.Conn{host: "localhost"}, params),
-    do: ExplorerRouter.call(conn, params)
-
-  defp resolve_domain_name(conn = %Plug.Conn{host: host}, params) do
-    case Domain.lookup_dnslink_address(host) do
-      {:error, :not_found} ->
-        ExplorerRouter.call(conn, params)
-
-      {:ok, address} ->
-        conn = Map.update!(conn, :params, &Map.put(&1, "address", address))
-        AEWebRouter.call(conn, params)
-    end
+    conn
+    |> Plug.Conn.put_status(500)
+    |> Phoenix.Controller.json(%{"error" => "internal error"})
   end
 end

@@ -165,8 +165,8 @@ config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
 
 config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 1_000
 
-config :archethic, ArchethicWeb.FaucetController, enabled: true
-config :archethic, ArchethicWeb.FaucetRateLimiter, enabled: false
+config :archethic, ArchethicWeb.Explorer.FaucetController, enabled: true
+config :archethic, ArchethicWeb.Explorer.FaucetRateLimiter, enabled: false
 config :archethic, ArchethicWeb.TransactionSubscriber, enabled: false
 
 # We don't run a server during test. If one is required,
