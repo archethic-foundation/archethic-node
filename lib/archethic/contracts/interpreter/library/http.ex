@@ -31,7 +31,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
         reply
 
       _ ->
-        %{"status" => error_timeout()}
+        error_status(error_timeout())
     end
   end
 
@@ -39,7 +39,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
     uris_count = length(uris)
 
     if uris_count > 5 do
-      for _ <- 1..uris_count, do: %{"status" => error_too_many()}
+      for _ <- 1..uris_count, do: error_status(error_too_many())
     else
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,
@@ -49,14 +49,32 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
         max_concurrency: 5,
         on_timeout: :kill_task
       )
-      |> Stream.map(fn
-        {:ok, map} ->
-          map
-
-        {:exit, :timeout} ->
-          %{"status" => error_timeout()}
-      end)
       |> Enum.to_list()
+      # count the number of bytes to be able to send a error too large
+      # this is sub optimal because miners might still download threshold N times before returning the error
+      # TODO: improve this
+      |> Enum.reduce({0, []}, fn
+        {:ok, map}, {bytes_acc, result_acc} ->
+          bytes =
+            case map["body"] do
+              nil -> 0
+              body -> byte_size(body)
+            end
+
+          {bytes_acc + bytes, result_acc ++ [map]}
+
+        {:exit, :timeout}, {bytes_acc, result_acc} ->
+          # should not be triggered since default timeout of 5_000 is much longer
+          # than fetch/1 timeout (2_000)
+          {bytes_acc, result_acc ++ [error_status(error_timeout())]}
+      end)
+      |> then(fn {bytes_total, result} ->
+        if bytes_total > @threshold do
+          for _ <- 1..uris_count, do: error_status(error_too_large())
+        else
+          result
+        end
+      end)
     end
   end
 
@@ -73,8 +91,15 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
   defp do_fetch(uri) do
     uri = URI.parse(uri)
 
+    # we use the transport_opts to be able to test (MIX_ENV=test) with self signed certificates
+    conn_opts = [
+      transport_opts:
+        Application.get_env(:archethic, __MODULE__, [])
+        |> Keyword.get(:transport_opts, [])
+    ]
+
     with "https" <- uri.scheme,
-         {:ok, conn} <- Mint.HTTP.connect(:https, uri.host, uri.port),
+         {:ok, conn} <- Mint.HTTP.connect(:https, uri.host, uri.port, conn_opts),
          {:ok, conn, _} <- Mint.HTTP.request(conn, "GET", path(uri), [], nil) do
       case stream_response(conn) do
         {:ok, %{body: body, status: status}} ->
@@ -84,18 +109,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
           }
 
         {:error, :threshold_reached} ->
-          %{"status" => error_too_large()}
+          error_status(error_too_large())
 
         {:error, _} ->
-          %{"status" => error_other()}
+          error_status(error_other())
       end
     else
       "http" ->
-        %{"status" => error_not_https()}
+        error_status(error_not_https())
 
-      # we handle nxdomain as 404
+      # we handle nxdomain/econnrefused as 404
       _ ->
-        %{"status" => 404}
+        error_status(404)
     end
   end
 
@@ -143,5 +168,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Http do
             {:error, reason}
         end
     end
+  end
+
+  defp error_status(status) do
+    # we prefer body to be "" instead of nil
+    # so sc developers do not have to check for nil
+    %{"status" => status, "body" => ""}
   end
 end
