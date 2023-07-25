@@ -7,6 +7,8 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @doc """
   Parse the given node and return the function name it's args as strings and the AST block.
   """
+  @spec parse(any(), list(Interpreter.function_key())) ::
+          {:ok, atom(), any()} | {:error, any(), String.t()}
   def parse({{:atom, "fun"}, _, [{{:atom, function_name}, _, args}, [do: block]]}, functions_keys) do
     ast = parse_block(block, functions_keys)
     args = parse_args(args)

@@ -6,6 +6,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter
 
   @modules_whitelisted Library.list_common_modules()
   @condition_fields Conditions.__struct__()
@@ -18,7 +19,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
-  @spec parse(any(), list) ::
+  @spec parse(any(), list(Interpreter.function_key())) ::
           {:ok, condition_type(), Conditions.t()} | {:error, any(), String.t()}
   def parse(
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},

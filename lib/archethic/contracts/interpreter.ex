@@ -21,6 +21,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   @type version() :: integer()
   @type execute_opts :: [time_now: DateTime.t()]
+  @type function_key() :: {String.t(), integer()}
 
   @doc """
   Dispatch through the correct interpreter.

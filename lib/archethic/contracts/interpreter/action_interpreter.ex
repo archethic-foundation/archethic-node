@@ -13,7 +13,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
-  @spec parse(any(), list) :: {:ok, atom(), any()} | {:error, any(), String.t()}
+  @spec parse(any(), list(Interpreter.function_key())) ::
+          {:ok, atom(), any()} | {:error, any(), String.t()}
   def parse({{:atom, "actions"}, _, [keyword, [do: block]]}, functions_keys) do
     trigger_type = extract_trigger(keyword)
 
