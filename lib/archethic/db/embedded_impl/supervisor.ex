@@ -22,14 +22,6 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
     path = Archethic.DB.EmbeddedImpl.db_path()
     ChainWriter.setup_folders!(path)
 
-    # Remove old things while in hot reload
-    # TODO remove after version 1.1.0
-    if :ets.whereis(:archethic_db_chain_writers) != :undefined do
-      :ets.delete(:archethic_db_chain_writers)
-      Process.whereis(ChainWriterSupervisor) |> Process.unlink()
-      DynamicSupervisor.stop(ChainWriterSupervisor)
-    end
-
     children = [
       {PartitionSupervisor,
        child_spec: {ChainWriter, path: path}, name: ChainWriterSupervisor, partitions: 20},
