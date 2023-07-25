@@ -6,6 +6,8 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.Legacy
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
+  alias __MODULE__.FunctionInterpreter
+
   alias __MODULE__.ConditionValidator
 
   alias Archethic.Contracts.Contract
@@ -19,6 +21,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   @type version() :: integer()
   @type execute_opts :: [time_now: DateTime.t()]
+  @type function_key() :: {String.t(), integer()}
 
   @doc """
   Dispatch through the correct interpreter.
@@ -117,7 +120,8 @@ defmodule Archethic.Contracts.Interpreter do
         %Contract{
           version: version,
           triggers: triggers,
-          constants: %Constants{contract: contract_constants}
+          constants: %Constants{contract: contract_constants},
+          functions: functions
         },
         maybe_trigger_tx,
         opts \\ []
@@ -150,7 +154,8 @@ defmodule Archethic.Contracts.Interpreter do
                 Constants.from_transaction(trigger_tx)
             end,
           "contract" => contract_constants,
-          "_time_now" => timestamp_now
+          "_time_now" => timestamp_now,
+          "functions" => functions
         }
 
         result =
@@ -291,7 +296,9 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_contract(1, ast) do
-    case parse_ast_block(ast, %Contract{}) do
+    functions_keys = get_function_keys(ast)
+
+    case parse_ast_block(ast, %Contract{}, functions_keys) do
       {:ok, contract} ->
         {:ok, %{contract | version: 1}}
 
@@ -304,20 +311,20 @@ defmodule Archethic.Contracts.Interpreter do
     {:error, "@version not supported"}
   end
 
-  defp parse_ast_block([ast | rest], contract) do
-    case parse_ast(ast, contract) do
+  defp parse_ast_block([ast | rest], contract, functions_keys) do
+    case parse_ast(ast, contract, functions_keys) do
       {:ok, contract} ->
-        parse_ast_block(rest, contract)
+        parse_ast_block(rest, contract, functions_keys)
 
       {:error, _, _} = e ->
         e
     end
   end
 
-  defp parse_ast_block([], contract), do: {:ok, contract}
+  defp parse_ast_block([], contract, _), do: {:ok, contract}
 
-  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract) do
-    case ConditionInterpreter.parse(ast) do
+  defp parse_ast(ast = {{:atom, "condition"}, _, _}, contract, functions_keys) do
+    case ConditionInterpreter.parse(ast, functions_keys) do
       {:ok, condition_type, condition} ->
         {:ok, Contract.add_condition(contract, condition_type, condition)}
 
@@ -326,8 +333,8 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract) do
-    case ActionInterpreter.parse(ast) do
+  defp parse_ast(ast = {{:atom, "actions"}, _, _}, contract, functions_keys) do
+    case ActionInterpreter.parse(ast, functions_keys) do
       {:ok, trigger_type, actions} ->
         {:ok, Contract.add_trigger(contract, trigger_type, actions)}
 
@@ -336,7 +343,31 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  defp parse_ast(ast, _), do: {:error, ast, "unexpected term"}
+  defp parse_ast(
+         ast = {{:atom, "export"}, _, [{{:atom, "fun"}, _, _} | _]},
+         contract,
+         functions_keys
+       ) do
+    case FunctionInterpreter.parse(ast, functions_keys) do
+      {:ok, function_name, args, ast} ->
+        {:ok, Contract.add_function(contract, function_name, ast, args, :public)}
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast = {{:atom, "fun"}, _, _}, contract, functions_keys) do
+    case FunctionInterpreter.parse(ast, functions_keys) do
+      {:ok, function_name, args, ast} ->
+        {:ok, Contract.add_function(contract, function_name, ast, args, :private)}
+
+      {:error, _, _} = e ->
+        e
+    end
+  end
+
+  defp parse_ast(ast, _, _), do: {:error, ast, "unexpected term"}
 
   defp time_now(:transaction, %Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
@@ -357,6 +388,21 @@ defmodule Archethic.Contracts.Interpreter do
   defp time_now({:interval, interval}, nil) do
     Utils.get_current_time_for_interval(interval)
   end
+
+  defp get_function_keys([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
+    [{function_name, length(args)} | get_function_keys(rest)]
+  end
+
+  defp get_function_keys([
+         {{:atom, "export"}, _,
+          [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
+         | rest
+       ]) do
+    [{function_name, length(args)} | get_function_keys(rest)]
+  end
+
+  defp get_function_keys([_ | rest]), do: get_function_keys(rest)
+  defp get_function_keys([]), do: []
 
   # -----------------------------------------
   # contract validation

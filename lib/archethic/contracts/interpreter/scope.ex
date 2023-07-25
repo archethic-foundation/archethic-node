@@ -114,6 +114,20 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     )
   end
 
+  defp get_function_ast(function_name, args) do
+    get_in(Process.get(:scope), ["functions", {function_name, length(args)}, :ast])
+  end
+
+  @doc """
+  Execute a function AST
+  """
+  @spec execute_function_ast(String.t(), list(any())) :: any()
+  def execute_function_ast(function_name, args) do
+    get_function_ast(function_name, args)
+    |> Code.eval_quoted()
+    |> elem(0)
+  end
+
   # Return the path where to assign/read a variable.
   # It will recurse from the deepest path to the root path until it finds a match.
   # If no match it will return the current path.

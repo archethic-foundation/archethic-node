@@ -258,27 +258,35 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          :inherit,
-         %Contract{constants: %Constants{contract: contract_constant}},
+         %Contract{
+           constants: %Constants{contract: contract_constant},
+           functions: functions
+         },
          transaction,
          datetime
        ) do
     %{
       "previous" => contract_constant,
       "next" => Constants.from_transaction(transaction),
-      "_time_now" => DateTime.to_unix(datetime)
+      "_time_now" => DateTime.to_unix(datetime),
+      "functions" => functions
     }
   end
 
   defp get_condition_constants(
          _,
-         %Contract{constants: %Constants{contract: contract_constant}},
+         %Contract{
+           constants: %Constants{contract: contract_constant},
+           functions: functions
+         },
          transaction,
          datetime
        ) do
     %{
       "transaction" => Constants.from_transaction(transaction),
       "contract" => contract_constant,
-      "_time_now" => DateTime.to_unix(datetime)
+      "_time_now" => DateTime.to_unix(datetime),
+      "functions" => functions
     }
   end
 end

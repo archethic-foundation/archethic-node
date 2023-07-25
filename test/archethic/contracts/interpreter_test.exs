@@ -93,6 +93,89 @@ defmodule Archethic.Contracts.InterpreterTest do
                |> Interpreter.parse()
     end
 
+    test "should be able to use custom functions" do
+      assert {:ok, _} =
+               """
+               @version 1
+
+               fun hello_world() do
+                  "hello world"
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = hello_world()
+                 x
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should be able to use custom functions no matter the declaration order" do
+      assert {:ok, _} =
+               """
+               @version 1
+
+               fun hello() do
+                  "hello world"
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 hello_world()
+               end
+
+               fun hey() do
+                  hello()
+               end
+
+               fun hello_world() do
+                  hey()
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error if custom function does not exist" do
+      assert {:error, "The function hello_world/0 does not exist - hello_world - L9"} =
+               """
+               @version 1
+
+               fun hello() do
+                  "hello world"
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = hello_world()
+                 x
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
+    test "should return an human readable error if custom fn is called with bad arity" do
+      assert {:error, "The function hello_world/1 does not exist - hello_world - L9"} =
+               """
+               @version 1
+
+               fun hello_world() do
+                  "hello world"
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = hello_world(1)
+                 x
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
     test "should return an human readable error if lib fn is called with bad arity" do
       assert {:error, "invalid function arity - List.empty?([1], \"foobar\") - L4"} =
                """
@@ -211,6 +294,193 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, %Transaction{}} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+
+      code = """
+        @version 1
+
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "hello"
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "should be able to use a custom function call as parameter" do
+      code = """
+      @version 1
+
+      fun hello_world() do
+         "hello world"
+      end
+
+      condition transaction: []
+      actions triggered_by: transaction do
+        Contract.set_content hello_world()
+      end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "hello world"
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should not be able to use out of scope variables" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          my_var = "toto"
+          Contract.set_content my_func()
+        end
+
+        fun my_func() do
+          my_var
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:error, _} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          temp = func1()
+          Contract.set_content func2()
+        end
+
+        export fun func1() do
+          my_var = "content"
+        end
+
+        fun func2() do
+          my_var
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:error, _} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should be able to use variables from scope in functions" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content my_func()
+        end
+
+        fun my_func() do
+          my_var = ""
+          if true do
+            my_var = "toto"
+          end
+          my_var
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, _} =
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),

@@ -260,9 +260,9 @@ defmodule ArchethicCase do
     expect(mock, function_name, 0, function)
   end
 
-  def sanitize_parse_execute(code, constants \\ %{}) do
+  def sanitize_parse_execute(code, constants \\ %{}, functions \\ []) do
     with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
-         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code) do
+         {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code, functions) do
       ActionInterpreter.execute(
         action_ast,
         constants |> ContractFactory.append_contract_constant(code)

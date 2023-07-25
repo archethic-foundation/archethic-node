@@ -6,6 +6,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+  alias Archethic.Contracts.Interpreter
 
   @modules_whitelisted Library.list_common_modules()
   @condition_fields Conditions.__struct__()
@@ -18,9 +19,12 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
-  @spec parse(any()) ::
+  @spec parse(any(), list(Interpreter.function_key())) ::
           {:ok, condition_type(), Conditions.t()} | {:error, any(), String.t()}
-  def parse(node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]}) do
+  def parse(
+        node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
+        functions_keys
+      ) do
     {condition_type, global_variable} =
       case condition_name do
         "transaction" -> {:transaction, "transaction"}
@@ -39,7 +43,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
           throw({:error, node, "invalid condition field: #{key}"})
         end
 
-        new_value = to_boolean_expression([global_variable, key], value)
+        new_value = to_boolean_expression([global_variable, key], value, functions_keys)
         Map.put(acc, String.to_existing_atom(key), new_value)
       end)
 
@@ -52,7 +56,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       {:error, node, reason}
   end
 
-  def parse(node) do
+  def parse(node, _) do
     {:error, node, "unexpected term"}
   end
 
@@ -64,7 +68,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ----------------------------------------------------------------------
-  defp to_boolean_expression(_subject, bool) when is_boolean(bool) do
+  defp to_boolean_expression(_subject, bool, _) when is_boolean(bool) do
     bool
   end
 
@@ -79,14 +83,14 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   #   - `subject == ["next", "content"]`
   #   - `value == "ciao"`
   #
-  defp to_boolean_expression(subject, value)
+  defp to_boolean_expression(subject, value, _)
        when is_binary(value) or is_integer(value) or is_float(value) do
     quote do
       unquote(value) == Scope.read_global(unquote(subject))
     end
   end
 
-  defp to_boolean_expression(subject, ast) do
+  defp to_boolean_expression(subject, ast, functions_keys) do
     # here the accumulator is an list of parent scopes & current scope
     # where we can access variables from all of them
     # `acc = [ref1]` means read variable from scope.ref1 or scope
@@ -101,7 +105,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
           prewalk(subject, node, acc)
         end,
         fn node, acc ->
-          postwalk(subject, node, acc)
+          postwalk(subject, node, acc, functions_keys)
         end
       )
 
@@ -134,7 +138,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
          subject,
          node =
            {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
-         acc
+         acc,
+         function_keys
        )
        when module_name in @modules_whitelisted do
     # if function exist with arity => node
@@ -149,7 +154,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       cond do
         # check function is available with given arity
         Library.function_exists?(absolute_module_atom, function_name, arity) ->
-          {new_node, _} = CommonInterpreter.postwalk(node, acc)
+          {new_node, _} = CommonInterpreter.postwalk(node, acc, function_keys)
           new_node
 
         # if function exist with arity+1 => prepend the key to args
@@ -164,7 +169,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
             {{:., meta, [{:__aliases__, meta, [atom: module_name]}, {:atom, function_name}]},
              meta, [ast | args]}
 
-          {new_node, _} = CommonInterpreter.postwalk(node_with_key_appended, acc)
+          {new_node, _} = CommonInterpreter.postwalk(node_with_key_appended, acc, function_keys)
           new_node
 
         # check function exists
@@ -178,7 +183,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     {new_node, acc}
   end
 
-  defp postwalk(_subject, node, acc) do
-    CommonInterpreter.postwalk(node, acc)
+  defp postwalk(_subject, node, acc, functions_keys) do
+    CommonInterpreter.postwalk(node, acc, functions_keys)
   end
 end

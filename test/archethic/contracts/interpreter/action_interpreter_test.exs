@@ -33,7 +33,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use whitelisted module existing function" do
@@ -47,7 +47,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to have comments" do
@@ -62,7 +62,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should return the correct trigger type" do
@@ -75,7 +75,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
 
       code = ~S"""
       actions triggered_by: interval, at: "* * * * *"  do
@@ -86,7 +86,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
 
       code = ~S"""
       actions triggered_by: datetime, at: 1676282760 do
@@ -97,7 +97,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should not parse if datetime is not rounded" do
@@ -110,7 +110,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should return a proper error message if trigger is invalid" do
@@ -123,7 +123,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should not be able to use whitelisted module non existing function" do
@@ -137,7 +137,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -149,7 +149,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to create variables" do
@@ -163,7 +163,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to create lists" do
@@ -177,7 +177,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to create keywords" do
@@ -191,7 +191,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use common functions" do
@@ -206,7 +206,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should not be able to use non existing functions" do
@@ -221,7 +221,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -234,7 +234,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should not be able to use wrong types in common functions" do
@@ -249,7 +249,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use the result of a function call as a parameter" do
@@ -263,7 +263,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use a function call as a parameter to a lib function" do
@@ -279,7 +279,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should not be able to use wrong types in contract functions" do
@@ -293,7 +293,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should not be able to use if as an expression" do
@@ -311,7 +311,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should not be able to use for as an expression" do
@@ -327,7 +327,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use nested ." do
@@ -344,7 +344,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -358,7 +358,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use [] access with a string" do
@@ -374,7 +374,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use [] access with a variable" do
@@ -391,7 +391,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use [] access with a dot access" do
@@ -408,7 +408,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use [] access with a fn call" do
@@ -424,7 +424,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use nested [] access" do
@@ -440,7 +440,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use loop" do
@@ -460,7 +460,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
     end
 
     test "should be able to use ranges" do
@@ -474,7 +474,36 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse()
+               |> ActionInterpreter.parse([])
+    end
+
+    test "should not be able to use non existing function" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        hello()
+      end
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse([])
+    end
+
+    test "should be able to use existing function" do
+      code = ~S"""
+      actions triggered_by: transaction do
+        hello()
+      end
+      """
+
+      assert {:ok, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark as existing
+               |> ActionInterpreter.parse([{"hello", 0}])
     end
   end
 
