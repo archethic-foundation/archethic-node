@@ -1,5 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @moduledoc false
+  alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   require Logger
@@ -10,7 +11,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @spec parse(any(), list(Interpreter.function_key())) ::
           {:ok, atom(), any()} | {:error, any(), String.t()}
   def parse({{:atom, "fun"}, _, [{{:atom, function_name}, _, args}, [do: block]]}, functions_keys) do
-    ast = parse_block(block, functions_keys)
+    ast = parse_block(AST.wrap_in_block(block), functions_keys)
     args = parse_args(args)
     {:ok, function_name, args, ast}
   catch
@@ -26,7 +27,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
          [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args}]}, [do: block]]},
         functions_keys
       ) do
-    ast = parse_block(block, functions_keys)
+    ast = parse_block(AST.wrap_in_block(block), functions_keys)
     args = parse_args(args)
 
     {:ok, function_name, args, ast}

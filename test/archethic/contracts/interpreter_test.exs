@@ -414,6 +414,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         @version 1
         condition transaction: []
         actions triggered_by: transaction do
+          temp = func1()
           Contract.set_content func2()
         end
 
@@ -457,7 +458,10 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
 
         fun my_func() do
-          my_var = "toto"
+          my_var = ""
+          if true do
+            my_var = "toto"
+          end
           my_var
         end
 
