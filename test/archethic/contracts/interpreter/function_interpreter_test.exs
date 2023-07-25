@@ -1,4 +1,4 @@
-defmodule(Archethic.Contracts.Interpreter.FunctionInterpreterTest) do
+defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
   @moduledoc false
 
   use ArchethicCase

@@ -296,7 +296,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_contract(1, ast) do
-    functions_keys = get_functions(ast)
+    functions_keys = get_function_keys(ast)
 
     case parse_ast_block(ast, %Contract{}, functions_keys) do
       {:ok, contract} ->
@@ -389,20 +389,20 @@ defmodule Archethic.Contracts.Interpreter do
     Utils.get_current_time_for_interval(interval)
   end
 
-  defp get_functions([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
-    [{function_name, length(args)} | get_functions(rest)]
+  defp get_function_keys([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
+    [{function_name, length(args)} | get_function_keys(rest)]
   end
 
-  defp get_functions([
+  defp get_function_keys([
          {{:atom, "export"}, _,
           [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
          | rest
        ]) do
-    [{function_name, length(args)} | get_functions(rest)]
+    [{function_name, length(args)} | get_function_keys(rest)]
   end
 
-  defp get_functions([_ | rest]), do: get_functions(rest)
-  defp get_functions([]), do: []
+  defp get_function_keys([_ | rest]), do: get_function_keys(rest)
+  defp get_function_keys([]), do: []
 
   # -----------------------------------------
   # contract validation
