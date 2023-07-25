@@ -31,7 +31,7 @@ defmodule Archethic.Utils.Regression.Playbook do
                              )
                              |> Enum.at(0)
 
-  @faucet_seed Application.compile_env(:archethic, [ArchethicWeb.FaucetController, :seed])
+  @faucet_seed Application.compile_env(:archethic, [ArchethicWeb.Explorer.FaucetController, :seed])
 
   defmacro __using__(_opts \\ []) do
     quote do
