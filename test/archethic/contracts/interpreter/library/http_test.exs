@@ -4,7 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
   in the ActionInterpreter and we want to test the whole thing.
   """
 
-  use ArchethicCase
+  use ArchethicCase, async: false
   import ArchethicCase
 
   alias Archethic.Contracts.Interpreter.Library.Http
@@ -14,14 +14,40 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
 
   doctest Http
 
+  setup_all do
+    # start (once) a HTTPS server for our test
+    {:ok, pid} =
+      Supervisor.start_link(
+        [
+          {Plug.Cowboy,
+           scheme: :https,
+           plug: Archethic.MockServer,
+           options: [
+             otp_app: :archethic,
+             port: 8081,
+             keyfile: "priv/cert/selfsigned_key.pem",
+             certfile: "priv/cert/selfsigned.pem"
+           ]}
+        ],
+        strategy: :one_for_one,
+        name: ArchethicHTTPTestSupervisor
+      )
+
+    on_exit(fn ->
+      Process.exit(pid, :normal)
+    end)
+
+    :ok
+  end
+
   # ----------------------------------------
   describe "fetch/1" do
     @tag :http
     test "should return a 200 with body when endpoint is OK" do
       code = ~S"""
       actions triggered_by: transaction do
-        response = Http.fetch("https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text")
-        if response.status == 200 do
+        response = Http.fetch("https://127.0.0.1:8081")
+        if response.status == 200 && response.body == "hello" do
           Contract.set_content "ok"
         end
       end
@@ -34,8 +60,8 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
     test "should return a 404 if domain does not exist" do
       code = ~S"""
       actions triggered_by: transaction do
-        response = Http.fetch("https://archethic-archethic-archethic-archethic-archethic-archethic.net")
-        if response.status == 404 do
+        response = Http.fetch("https://localhost.local")
+        if response.status == 404 && response.body == "" do
           Contract.set_content "ok"
         end
       end
@@ -48,7 +74,7 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
     test "should return a 404 if page does not exist" do
       code = ~S"""
       actions triggered_by: transaction do
-        response = Http.fetch("https://www.archethic.net/hopefully-non-existing-page")
+        response = Http.fetch("https://127.0.0.1:8081/non-existing-page")
         if response.status == 404 do
           Contract.set_content "ok"
         end
@@ -62,8 +88,8 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
     test "should return an error if endpoint is not HTTPS" do
       code = ~s"""
       actions triggered_by: transaction do
-        response = Http.fetch("http://archethic.net")
-        if response.status == #{Http.error_not_https()} do
+        response = Http.fetch("http://127.0.0.1")
+        if response.status == #{Http.error_not_https()} && response.body == "" do
           Contract.set_content "ok"
         end
       end
@@ -76,9 +102,22 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
     test "should return an error if the result data is too large" do
       code = ~s"""
       actions triggered_by: transaction do
-        # this request return ~360KB which is bigger than 256KB threshold
-        response = Http.fetch("https://fakerapi.it/api/v1/companies?_quantity=1000")
-        if response.status == #{Http.error_too_large()} do
+        response = Http.fetch("https://127.0.0.1:8081/data?kbytes=260")
+        if response.status == #{Http.error_too_large()} && response.body == "" do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+    end
+
+    @tag :http
+    test "should return an error if the endpoint is too slow" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        response = Http.fetch("https://127.0.0.1:8081/very-slow")
+        if response.status == #{Http.error_timeout()} && response.body == "" do
           Contract.set_content "ok"
         end
       end
@@ -108,10 +147,10 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
       code = ~s"""
       actions triggered_by: transaction do
         responses = Http.fetch_many([
-          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
-          "https://archethic-archethic-archethic-archethic-archethic-archethic.net",
-          "https://www.archethic.net/hopefully-non-existing-page",
-          "http://archethic.net"
+          "https://127.0.0.1:8081",
+          "https://localhost.local",
+          "https://127.0.0.1:8081/non-existing-page",
+          "http://127.0.0.1"
         ])
 
         statuses = []
@@ -133,12 +172,12 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
       code = ~s"""
       actions triggered_by: transaction do
         responses = Http.fetch_many([
-          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
-          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
-          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
-          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
-          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text",
-          "https://baconipsum.com/api/?type=meat-and-filler&paras=5&format=text"
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081"
         ])
 
         statuses = []
@@ -165,11 +204,9 @@ defmodule Archethic.Contracts.Interpreter.Library.HttpTest do
     test "should return an error if the combinaison of urls' body is too large" do
       code = ~s"""
       actions triggered_by: transaction do
-        # this request should return ~180KB
-        # 2 of them cannot pass
         responses = Http.fetch_many([
-          "https://fakerapi.it/api/v1/companies?_quantity=500",
-          "https://fakerapi.it/api/v1/companies?_quantity=500"
+          "https://127.0.0.1:8081/data?kbytes=200",
+          "https://127.0.0.1:8081/data?kbytes=200"
         ])
         statuses = []
         for r in responses do
