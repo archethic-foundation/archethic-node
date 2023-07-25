@@ -1,5 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @moduledoc false
+  alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.Interpreter.CommonInterpreter
@@ -8,8 +9,9 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @doc """
   Parse the given node and return the function name it's args as strings and the AST block.
   """
-  @spec parse(any(), list(Interpreter.function_key())) ::
-          {:ok, atom(), any()} | {:error, any(), String.t()}
+  @spec parse(ast :: any(), function_keys :: list(Interpreter.function_key())) ::
+          {:ok, function_name :: binary(), args :: list(), function_ast :: any()}
+          | {:error, node :: any(), reason :: binary()}
   def parse({{:atom, "fun"}, _, [{{:atom, function_name}, _, args}, [do: block]]}, functions_keys) do
     ast = parse_block(AST.wrap_in_block(block), functions_keys)
     args = parse_args(args)
@@ -46,6 +48,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @doc """
   Execute function code and returns the result
   """
+  @spec execute(ast :: any(), constants :: map()) :: result :: any()
   def execute(ast, constants) do
     Scope.init(constants)
     {result, _} = Code.eval_quoted(ast)

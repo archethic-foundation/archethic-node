@@ -99,6 +99,13 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Add a public or private function to the contract
   """
+  @spec add_function(
+          contract :: t(),
+          function_name :: binary(),
+          ast :: any(),
+          args :: list(),
+          visibility :: atom()
+        ) :: t()
   def add_function(
         contract = %__MODULE__{},
         function_name,

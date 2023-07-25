@@ -5,6 +5,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Library
