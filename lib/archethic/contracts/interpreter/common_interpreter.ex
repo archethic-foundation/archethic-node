@@ -377,11 +377,9 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
       {new_node, acc}
     else
-      throw(
-        {:error, node,
-         "The function " <>
-           function_name <> "/" <> Integer.to_string(length(args)) <> " does not exist"}
-      )
+      reason = "The function #{function_name}/#{Integer.to_string(length(args))} does not exist"
+
+      throw({:error, node, reason})
     end
   end
 
