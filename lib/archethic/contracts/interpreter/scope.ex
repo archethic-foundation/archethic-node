@@ -119,9 +119,9 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   end
 
   @doc """
-  Return the AST of an executable function
+  Execute a function AST
   """
-  @spec get_function_ast(String.t(), list(any())) :: any()
+  @spec execute_function_ast(String.t(), list(any())) :: any()
   def execute_function_ast(function_name, args) do
     get_function_ast(function_name, args)
     |> Code.eval_quoted()
