@@ -253,15 +253,16 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {ast, acc}
   end
 
-  # function call, should be placed after "for" prewalk
-  def prewalk(node = {{:atom, _}, _, args}, acc) when is_list(args), do: {node, acc}
-
   # log (not documented, only useful for developer debugging)
+  # TODO: should be implemented in a module Logger (only available if config allows it)
   # will soon be updated to log into the playground console
   def prewalk(_node = {{:atom, "log"}, _, [data]}, acc) do
     new_node = quote do: apply(IO, :inspect, [unquote(data)])
     {new_node, acc}
   end
+
+  # function call, should be placed after "for" prewalk
+  def prewalk(node = {{:atom, _}, _, args}, acc) when is_list(args), do: {node, acc}
 
   # blacklist rest
   def prewalk(node, _acc), do: throw({:error, node, "unexpected term"})
