@@ -586,6 +586,40 @@ defmodule Archethic.ContractsTest do
                DateTime.utc_now()
              )
     end
+
+    test "should return false if condition execution raise an error" do
+      code = """
+        @version 1
+        condition transaction: [
+          type: 1 + "one"
+        ]
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = %Transaction{
+        address: random_address(),
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        type: :transfer,
+        address: random_address(),
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      refute Contracts.valid_condition?(
+               :transaction,
+               Contract.from_transaction!(contract_tx),
+               trigger_tx,
+               DateTime.utc_now()
+             )
+    end
   end
 
   describe "valid_condition?/4 (oracle)" do
