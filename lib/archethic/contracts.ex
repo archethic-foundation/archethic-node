@@ -156,6 +156,9 @@ defmodule Archethic.Contracts do
         constants = get_condition_constants(condition_type, contract, transaction, datetime)
         Interpreter.valid_conditions?(version, condition, constants)
     end
+  rescue
+    _ ->
+      false
   end
 
   defp validate_trigger({:datetime, datetime}, validation_datetime, _contract_address) do
