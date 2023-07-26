@@ -67,7 +67,7 @@ defmodule Archethic.Contracts.Interpreter do
   @spec sanitize_code(binary()) :: {:ok, Macro.t()} | {:error, any()}
   def sanitize_code(code) when is_binary(code) do
     opts = [static_atoms_encoder: &atom_encoder/2]
-    charlist_code = code |> String.trim() |> String.to_charlist()
+    charlist_code = code |> String.to_charlist()
 
     case :elixir.string_to_tokens(charlist_code, 1, 1, "nofile", opts) do
       {:ok, tokens} ->
