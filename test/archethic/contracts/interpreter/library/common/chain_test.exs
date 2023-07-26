@@ -19,6 +19,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
@@ -109,6 +110,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       end
       """
 
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetFirstTransactionAddress{address: ^tx_address}, _ ->
+          {:ok, %NotFound{}}
+      end)
+
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
@@ -145,6 +152,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
         end
       end
       """
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetFirstPublicKey{public_key: ^pub_key}, _ ->
+          {:ok, %NotFound{}}
+      end)
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
@@ -188,6 +201,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
         end
       end
       """
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^address}, _ ->
+          {:ok, %NotFound{}}
+      end)
 
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
