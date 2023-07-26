@@ -18,7 +18,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   alias Archethic.P2P.Message.GetFirstTransactionAddress
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetGenesisAddress
-  alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Node
 
@@ -99,25 +98,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       assert content == Base.encode16(first_address)
     end
 
-    test "should raise if there are no transaction" do
-      # DISCUSS: I don't like this behaviour but it's what's done in legacy
+    test "should return nil if there are no transaction" do
       tx_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       code = ~s"""
       actions triggered_by: transaction do
-        Contract.set_content Chain.get_first_transaction_address("#{Base.encode16(tx_address)}")
+        if Chain.get_first_transaction_address("#{Base.encode16(tx_address)}") == nil do
+          Contract.set_content "ok"
+        end
       end
       """
 
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetFirstTransactionAddress{address: ^tx_address}, _ ->
-          {:ok, %NotFound{}}
-      end)
-
-      assert_raise(RuntimeError, fn ->
-        sanitize_parse_execute(code)
-      end)
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
 
@@ -141,6 +133,20 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
       assert content == Base.encode16(genesis_pub_key)
+    end
+
+    test "should return nil if the key does not exist" do
+      {pub_key, _} = Crypto.derive_keypair("seed", 19)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        if Chain.get_genesis_public_key("#{Base.encode16(pub_key)}") == nil do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
 

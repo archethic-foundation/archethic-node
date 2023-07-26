@@ -12,14 +12,22 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
     as: :get_genesis_address
 
   @impl Archethic.Contracts.Interpreter.Library.Common.Chain
-  defdelegate get_first_transaction_address(address),
-    to: Legacy.Library,
-    as: :get_first_transaction_address
+  def get_first_transaction_address(address) do
+    try do
+      Legacy.Library.get_first_transaction_address(address)
+    rescue
+      _ -> nil
+    end
+  end
 
   @impl Archethic.Contracts.Interpreter.Library.Common.Chain
-  defdelegate get_genesis_public_key(public_key),
-    to: Legacy.Library,
-    as: :get_genesis_public_key
+  def get_genesis_public_key(public_key) do
+    try do
+      Legacy.Library.get_genesis_public_key(public_key)
+    rescue
+      _ -> nil
+    end
+  end
 
   @impl Archethic.Contracts.Interpreter.Library.Common.Chain
   def get_transaction(address) do
