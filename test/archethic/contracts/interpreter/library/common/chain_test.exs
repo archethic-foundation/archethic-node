@@ -19,6 +19,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
@@ -140,6 +141,49 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
       assert content == Base.encode16(genesis_pub_key)
+    end
+  end
+
+  describe "get_transaction/1" do
+    test "should return the existing transaction" do
+      address = random_address()
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^address}, _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             type: :data,
+             data: %TransactionData{
+               content: "Gloubi-Boulga"
+             }
+           }}
+      end)
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        tx = Chain.get_transaction("#{Base.encode16(address)}")
+        Contract.set_content tx.content
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
+      assert content == "Gloubi-Boulga"
+    end
+
+    test "should return nil when the transaction does not exist" do
+      address = random_address()
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        if Chain.get_transaction("#{Base.encode16(address)}") == nil do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
 end
