@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.Library.Http do
+defmodule Archethic.Contracts.Interpreter.Library.Common.Http do
   @moduledoc """
   Http client for the Smart Contracts.
   Implements AEIP-20.
