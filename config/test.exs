@@ -190,5 +190,5 @@ config :archethic, :throttle,
     limit: System.get_env("ARCHETHIC_THROTTLE_IP_AND_PATH", "5000") |> String.to_integer()
   ]
 
-config :archethic, Archethic.Contracts.Interpreter.Library.Http,
+config :archethic, Archethic.Contracts.Interpreter.Library.Common.Http,
   transport_opts: [verify: :verify_none]

@@ -33,7 +33,7 @@ defmodule Archethic.Contracts.Interpreter.Library do
   This function is also used to create the atoms of the modules
   """
   def list_common_modules() do
-    [:Map, :List, :Regex, :Json, :Time, :Chain, :Crypto, :Token, :String, :Code]
+    [:Map, :List, :Regex, :Json, :Time, :Chain, :Crypto, :Token, :String, :Code, :Http]
     |> Enum.map(&Atom.to_string/1)
   end
 
