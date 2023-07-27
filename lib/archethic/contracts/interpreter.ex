@@ -64,14 +64,16 @@ defmodule Archethic.Contracts.Interpreter do
   Sanitize code takes care of converting atom to {:atom, bin()}.
   This way the user cannot create atoms at all. (which is mandatory to avoid atoms-table exhaustion)
   """
-  @spec sanitize_code(binary()) :: {:ok, Macro.t()} | {:error, any()}
-  def sanitize_code(code) when is_binary(code) do
+  @spec sanitize_code(binary(), list()) :: {:ok, Macro.t()} | {:error, any()}
+  def sanitize_code(code, opts \\ []) when is_binary(code) do
+    ignore_meta? = Keyword.get(opts, :ignore_meta?, false)
+
     opts = [static_atoms_encoder: &atom_encoder/2]
     charlist_code = code |> String.to_charlist()
 
     case :elixir.string_to_tokens(charlist_code, 1, 1, "nofile", opts) do
       {:ok, tokens} ->
-        transform_0x_to_hex(tokens) |> :elixir.tokens_to_quoted("nofile", opts)
+        transform_tokens(tokens, ignore_meta?) |> :elixir.tokens_to_quoted("nofile", opts)
 
       error ->
         error
@@ -80,14 +82,22 @@ defmodule Archethic.Contracts.Interpreter do
     _ -> {:error, :invalid_syntax}
   end
 
-  defp transform_0x_to_hex(tokens) do
+  defp transform_tokens(tokens, ignore_meta?) do
     Enum.map(tokens, fn
+      # Transform 0x to hex
       {:int, {line, column, _}, [?0, ?x | hex]} ->
         string_hex = hex |> List.to_string() |> String.upcase()
-        {:bin_string, {line, column, nil}, [string_hex]}
+        meta = if ignore_meta?, do: {0, 0, nil}, else: {line, column, nil}
+
+        {:bin_string, meta, [string_hex]}
 
       token ->
-        token
+        if ignore_meta? do
+          {_line, _colum, last} = elem(token, 1)
+          token |> Tuple.delete_at(1) |> Tuple.insert_at(1, {0, 0, last})
+        else
+          token
+        end
     end)
   end
 
