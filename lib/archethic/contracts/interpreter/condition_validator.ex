@@ -97,8 +97,10 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
            "previous" => %{"code" => prev_code}
          }
        ) do
-    {"code",
-     Interpreter.sanitize_code(prev_code || "") == Interpreter.sanitize_code(next_code || "")}
+    prev_ast = prev_code |> Interpreter.sanitize_code(ignore_meta?: true)
+    next_ast = next_code |> Interpreter.sanitize_code(ignore_meta?: true)
+
+    {"code", prev_ast == next_ast}
   end
 
   # Validation rules for inherit constraints
