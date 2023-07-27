@@ -67,7 +67,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       """
 
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, fn
         _, %GetGenesisAddress{address: ^tx_address}, _ ->
           {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
@@ -90,7 +90,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       """
 
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, fn
         _, %GetFirstTransactionAddress{address: ^tx_address}, _ ->
           {:ok, %FirstTransactionAddress{address: first_address, timestamp: DateTime.utc_now()}}
       end)
@@ -111,7 +111,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       """
 
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, fn
         _, %GetFirstTransactionAddress{address: ^tx_address}, _ ->
           {:ok, %NotFound{}}
       end)
@@ -133,7 +133,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       """
 
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, fn
         _, %GetFirstPublicKey{public_key: ^pub_key}, _ ->
           {:ok, %FirstPublicKey{public_key: genesis_pub_key}}
       end)
@@ -154,7 +154,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       """
 
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, fn
         _, %GetFirstPublicKey{public_key: ^pub_key}, _ ->
           {:ok, %NotFound{}}
       end)
@@ -168,7 +168,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       address = random_address()
 
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, fn
         _, %GetTransaction{address: ^address}, _ ->
           {:ok,
            %Transaction{
@@ -203,7 +203,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       """
 
       MockClient
-      |> stub(:send_message, fn
+      |> expect(:send_message, fn
         _, %GetTransaction{address: ^address}, _ ->
           {:ok, %NotFound{}}
       end)
