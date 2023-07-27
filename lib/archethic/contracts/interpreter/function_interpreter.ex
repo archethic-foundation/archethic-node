@@ -50,9 +50,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   """
   @spec execute(ast :: any(), constants :: map()) :: result :: any()
   def execute(ast, constants) do
-    Scope.init(constants)
-    {result, _} = Code.eval_quoted(ast)
-    result
+    Scope.execute(ast, constants)
   end
 
   # ----------------------------------------------------------------------
