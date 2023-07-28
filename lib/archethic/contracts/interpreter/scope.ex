@@ -91,7 +91,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     new_scope =
       Process.get(:scope)
       |> Map.delete(current_context)
-      |> Map.update!("context_list", &List.delete_at(&1, 0))
+      |> Map.update!("context_list", fn [_first | rest] -> rest end)
 
     Process.put(:scope, new_scope)
 
