@@ -27,14 +27,14 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     current_scope_hierarchy = get_context_scope_hierarchy(current_context)
     ref = new_ref()
 
-    Process.put(
-      :scope,
-      put_in(Process.get(:scope), [current_context] ++ current_scope_hierarchy ++ [ref], %{})
-    )
+    new_scope =
+      Process.get(:scope)
+      |> put_in([current_context] ++ current_scope_hierarchy ++ [ref], %{})
+      |> update_in([current_context, "scope_hierarchy"], &(&1 ++ [ref]))
 
     Process.put(
       :scope,
-      update_in(Process.get(:scope), [current_context, "scope_hierarchy"], &(&1 ++ [ref]))
+      new_scope
     )
 
     :ok
