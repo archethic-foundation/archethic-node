@@ -5,6 +5,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpTest do
   """
 
   use ArchethicCase, async: false
+
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Http
 
   doctest Http
@@ -41,29 +43,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpTest do
       assert %{"status" => 200, "body" => "hello"} = Http.fetch("https://127.0.0.1:8081")
     end
 
-    test "should return a 404 if domain does not exist" do
-      assert %{"status" => 404, "body" => ""} = Http.fetch("https://localhost.local")
+    test "should raise if domain does not exist" do
+      assert_raise Library.Error, fn -> Http.fetch("https://localhost.local") end
     end
 
     test "should return a 404 if page does not exist" do
       assert %{"status" => 404} = Http.fetch("https://127.0.0.1:8081/non-existing-page")
     end
 
-    test "should return an error if endpoint is not HTTPS" do
-      assert %{"status" => status, "body" => ""} = Http.fetch("http://127.0.0.1")
-      assert status == Http.error_not_https()
+    test "should raise if endpoint is not HTTPS" do
+      assert_raise Library.Error, fn -> Http.fetch("http://127.0.0.1") end
     end
 
-    test "should return an error if the result data is too large" do
-      assert %{"status" => status, "body" => ""} =
-               Http.fetch("https://127.0.0.1:8081/data?kbytes=260")
-
-      assert status == Http.error_too_large()
+    test "should raise if the result data is too large" do
+      assert_raise Library.Error, fn -> Http.fetch("https://127.0.0.1:8081/data?kbytes=260") end
     end
 
-    test "should return an error if the endpoint is too slow" do
-      assert %{"status" => status, "body" => ""} = Http.fetch("https://127.0.0.1:8081/very-slow")
-      assert status == Http.error_timeout()
+    test "should raise if the endpoint is too slow" do
+      assert_raise Library.Error, fn -> Http.fetch("https://127.0.0.1:8081/very-slow") end
     end
   end
 
@@ -73,57 +70,61 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpTest do
     end
 
     test "should return a list with all kind of responses" do
-      not_https_status = Http.error_not_https()
-      timeout_status = Http.error_timeout()
-
       assert [
                %{"status" => 200},
-               %{"status" => 404},
-               %{"status" => 404},
-               %{"status" => ^not_https_status},
-               %{"status" => ^timeout_status}
+               %{"status" => 404}
              ] =
                Http.fetch_many([
                  "https://127.0.0.1:8081",
-                 "https://localhost.local",
-                 "https://127.0.0.1:8081/non-existing-page",
-                 "http://127.0.0.1",
-                 "https://127.0.0.1:8081/very-slow"
+                 "https://127.0.0.1:8081/non-existing-page"
                ])
     end
 
-    test "should return an error if there is more than 5 urls" do
-      too_many_status = Http.error_too_many()
-
-      assert [
-               %{"status" => ^too_many_status},
-               %{"status" => ^too_many_status},
-               %{"status" => ^too_many_status},
-               %{"status" => ^too_many_status},
-               %{"status" => ^too_many_status},
-               %{"status" => ^too_many_status}
-             ] =
-               Http.fetch_many([
-                 "https://127.0.0.1:8081",
-                 "https://127.0.0.1:8081",
-                 "https://127.0.0.1:8081",
-                 "https://127.0.0.1:8081",
-                 "https://127.0.0.1:8081",
-                 "https://127.0.0.1:8081"
-               ])
+    test "should raise if there is at least 1 timeout" do
+      assert_raise Library.Error, fn ->
+        Http.fetch_many([
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081/very-slow"
+        ])
+      end
     end
 
-    test "should return an error if the combinaison of urls' body is too large" do
-      too_large_status = Http.error_too_large()
+    test "should raise if there is a wrong url" do
+      assert_raise Library.Error, fn ->
+        Http.fetch_many([
+          "https://127.0.0.1:8081",
+          "https://localhost.local"
+        ])
+      end
 
-      assert [
-               %{"status" => ^too_large_status},
-               %{"status" => ^too_large_status}
-             ] =
-               Http.fetch_many([
-                 "https://127.0.0.1:8081/data?kbytes=200",
-                 "https://127.0.0.1:8081/data?kbytes=200"
-               ])
+      assert_raise Library.Error, fn ->
+        Http.fetch_many([
+          "https://127.0.0.1:8081",
+          "http://127.0.0.1"
+        ])
+      end
+    end
+
+    test "should raise if there is more than 5 urls" do
+      assert_raise Library.Error, fn ->
+        Http.fetch_many([
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081",
+          "https://127.0.0.1:8081"
+        ])
+      end
+    end
+
+    test "should raise if the combinaison of urls' body is too large" do
+      assert_raise Library.Error, fn ->
+        Http.fetch_many([
+          "https://127.0.0.1:8081/data?kbytes=200",
+          "https://127.0.0.1:8081/data?kbytes=200"
+        ])
+      end
     end
   end
 end
