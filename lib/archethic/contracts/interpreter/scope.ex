@@ -68,15 +68,15 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   @spec leave_scope() :: :ok
   def leave_scope() do
     current_context = get_current_context()
+    current_scope_hierarchy = get_context_scope_hierarchy(current_context)
 
-    Process.put(
-      :scope,
-      update_in(
-        Process.get(:scope),
-        [current_context, "scope_hierarchy"],
-        &List.delete_at(&1, -1)
-      )
-    )
+    new_scope =
+      Process.get(:scope)
+      |> update_in([current_context, "scope_hierarchy"], &List.delete_at(&1, -1))
+      |> pop_in([current_context] ++ current_scope_hierarchy)
+      |> elem(1)
+
+    Process.put(:scope, new_scope)
 
     :ok
   end
