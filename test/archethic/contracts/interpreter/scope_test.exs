@@ -14,24 +14,24 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
   end
 
   describe "create_context/0" do
-    test "create_context/0 should create empty context to existing scope" do
+    test "should create empty context to existing scope" do
       Process.put(:scope, %{"context_list" => [], "var1" => %{"prop" => 1}, "var2" => 4})
 
       Scope.create_context()
 
-      %{"context_list" => [context_ref]} = Process.get(:scope)
+      assert %{"context_list" => [context_ref]} = Process.get(:scope)
 
       assert %{
-               "context_list" => [^context_ref],
+               "context_list" => [context_ref],
                "var1" => %{"prop" => 1},
                "var2" => 4,
-               ^context_ref => %{
+               context_ref => %{
                  "scope_hierarchy" => []
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
-    test "create_context/0 should create new context if one already exists" do
+    test "should create new context if one already exists" do
       # create scope with existing context
       Process.put(:scope, %{
         "context_list" => ["context_1"],
@@ -44,24 +44,24 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Scope.create_context()
 
-      %{"context_list" => [context_ref_2, _]} = Process.get(:scope)
+      assert %{"context_list" => [context_ref_2, _]} = Process.get(:scope)
 
       assert %{
-               "context_list" => [^context_ref_2, _],
+               "context_list" => [context_ref_2, "context_1"],
                "var1" => %{"prop" => 1},
                "var2" => 4,
                "context_1" => %{
                  "scope_hierarchy" => []
                },
-               ^context_ref_2 => %{
+               context_ref_2 => %{
                  "scope_hierarchy" => []
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
   end
 
   describe "leave_context/0" do
-    test "leave_context/0 should remove the only existing context" do
+    test "should remove the only existing context" do
       Process.put(:scope, %{
         "context_list" => ["context_1"],
         "var1" => %{"prop" => 1},
@@ -77,10 +77,10 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                "context_list" => [],
                "var1" => %{"prop" => 1},
                "var2" => 4
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
-    test "leave_context/0 should remove the current context when multiple contexts exist" do
+    test "should remove the current context when multiple contexts exist" do
       Process.put(:scope, %{
         "context_list" => ["context_1", "context_2"],
         "var1" => %{"prop" => 1},
@@ -102,7 +102,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                "context_2" => %{
                  "scope_hierarchy" => []
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
   end
 
@@ -124,24 +124,24 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Scope.create()
 
-      %{
-        "current_context" => %{
-          "scope_hierarchy" => [scope_ref]
-        }
-      } = Process.get(:scope)
+      assert %{
+               "current_context" => %{
+                 "scope_hierarchy" => [scope_ref]
+               }
+             } = Process.get(:scope)
 
       assert %{
                "context_list" => ["current_context", "other_context"],
                "var1" => %{"prop" => 1},
                "var2" => 4,
                "current_context" => %{
-                 "scope_hierarchy" => [^scope_ref],
-                 ^scope_ref => %{}
+                 "scope_hierarchy" => [scope_ref],
+                 scope_ref => %{}
                },
                "other_context" => %{
                  "scope_hierarchy" => []
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
     test "should add another scope to an existing context hierarchy, inside current scope" do
@@ -160,23 +160,23 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Scope.create()
 
-      %{
-        "current_context" => %{
-          "scope_hierarchy" => ["first_scope", "second_scope", new_scope_ref]
-        }
-      } = Process.get(:scope)
+      assert %{
+               "current_context" => %{
+                 "scope_hierarchy" => ["first_scope", "second_scope", new_scope_ref]
+               }
+             } = Process.get(:scope)
 
       assert %{
                "context_list" => ["current_context"],
                "current_context" => %{
-                 "scope_hierarchy" => ["first_scope", "second_scope", ^new_scope_ref],
+                 "scope_hierarchy" => ["first_scope", "second_scope", new_scope_ref],
                  "first_scope" => %{
                    "second_scope" => %{
-                     ^new_scope_ref => %{}
+                     new_scope_ref => %{}
                    }
                  }
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
   end
 
@@ -203,7 +203,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                  "scope_hierarchy" => ["first_scope"],
                  "first_scope" => %{}
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
     test "should handle removing the only scope from the scope_hierarchy correctly" do
@@ -225,7 +225,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                "current_context" => %{
                  "scope_hierarchy" => []
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
   end
 
@@ -252,7 +252,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                    "my_var" => 42
                  }
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
     test "should write a variable in the most nested scope" do
@@ -281,7 +281,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                    }
                  }
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
     test "should correctly write in the current scope the current context" do
@@ -312,7 +312,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                "other_context" => %{
                  "scope_hierarchy" => []
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
   end
 
@@ -338,7 +338,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                    "my_var" => 42
                  }
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
     test "should overwrite the variable in the closest parent scope" do
@@ -370,7 +370,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                    }
                  }
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
     test "should correctly overwrite variable in closest parent scope among multiple parent scopes" do
@@ -404,7 +404,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                    }
                  }
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
 
     test "should overwrite global variable at the root level of scope" do
@@ -426,7 +426,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                  "scope_hierarchy" => []
                },
                "global_var" => 100
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
   end
 
@@ -449,11 +449,8 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Process.put(:scope, scope)
 
-      var_value = Scope.read("var_in_second")
-      assert var_value == "value_in_second"
-
-      outer_var_value = Scope.read("var_in_first")
-      assert outer_var_value == "value_in_first"
+      assert "value_in_second" == Scope.read("var_in_second")
+      assert "value_in_first" == Scope.read("var_in_first")
     end
 
     test "should read a variable from the current context when multiple contexts exist" do
@@ -477,11 +474,8 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Process.put(:scope, scope)
 
-      var_in_current_value = Scope.read("var_in_current")
-      assert var_in_current_value == "value_in_current"
-
-      var_in_another_value = Scope.read("var_in_another")
-      assert var_in_another_value == nil
+      assert "value_in_current" == Scope.read("var_in_current")
+      assert nil == Scope.read("var_in_another")
     end
 
     test "should cascade until the global scope when variable not found in context's scope" do
@@ -496,8 +490,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Process.put(:scope, scope)
 
-      global_var_value = Scope.read("global_var")
-      assert global_var_value == "global_value"
+      assert "global_value" == Scope.read("global_var")
     end
 
     test "should return nil if variable not found even in the global scope" do
@@ -511,8 +504,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Process.put(:scope, scope)
 
-      non_existing_var_value = Scope.read("non_existing_var")
-      assert non_existing_var_value == nil
+      assert nil == Scope.read("non_existing_var")
     end
   end
 
@@ -541,14 +533,9 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Process.put(:scope, scope)
 
-      key_in_current_value = Scope.read("map_in_current", "key_in_current")
-      assert key_in_current_value == "value_in_current"
-
-      another_key_value = Scope.read("another_map", "another_key")
-      assert another_key_value == "another_value"
-
-      key_in_another_value = Scope.read("map_in_another", "key_in_another")
-      assert key_in_another_value == nil
+      assert "value_in_current" == Scope.read("map_in_current", "key_in_current")
+      assert "another_value" == Scope.read("another_map", "another_key")
+      assert nil == Scope.read("map_in_another", "key_in_another")
     end
   end
 
@@ -568,7 +555,7 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
                "transaction" => %{
                  "content" => "dog"
                }
-             } = Process.get(:scope)
+             } == Process.get(:scope)
     end
   end
 
@@ -583,11 +570,29 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       Process.put(:scope, scope)
 
-      user_name = Scope.read_global(["user", "name"])
-      assert user_name == "Alice"
+      assert "Alice" == Scope.read_global(["user", "name"])
+      assert "TX_001" == Scope.read_global(["transaction"])
+    end
+  end
 
-      transaction_id = Scope.read_global(["transaction"])
-      assert transaction_id == "TX_001"
+  describe "execute/2" do
+    test "should execute ast and return correct value" do
+      ast =
+        quote do
+          1 + 1
+        end
+
+      assert Scope.execute(ast, %{}) == 2
+    end
+
+    test "should be able to read global variables" do
+      ast =
+        quote do
+          var = Scope.read("my_var")
+          var + 1
+        end
+
+      assert Scope.execute(ast, %{"my_var" => 9}) == 10
     end
   end
 end
