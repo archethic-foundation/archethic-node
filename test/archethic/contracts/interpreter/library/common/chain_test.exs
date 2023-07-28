@@ -211,4 +211,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
     end
   end
+
+  describe "get_burn_address/0" do
+    test "should return burn address" do
+      assert <<0::16, 0::256>> |> Base.encode16() == Chain.get_burn_address()
+    end
+  end
 end
