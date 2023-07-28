@@ -5,14 +5,6 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
   doctest Scope
 
-  describe "init/1" do
-    test "should instantiate Scope with empty context list and global vars" do
-      constants = %{"var1" => %{"prop" => 1}, "var2" => 4}
-      Scope.init(constants)
-      assert %{"context_list" => [], "var1" => %{"prop" => 1}, "var2" => 4} == Process.get(:scope)
-    end
-  end
-
   describe "create_context/0" do
     test "should create empty context to existing scope" do
       Process.put(:scope, %{"context_list" => [], "var1" => %{"prop" => 1}, "var2" => 4})

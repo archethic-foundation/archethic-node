@@ -3,11 +3,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   Helper functions to deal with scopes
   """
 
-  @doc """
-  Initialize the scope with given map
-  """
-  @spec init(map()) :: :ok
-  def init(global_variables \\ %{}) do
+  defp init(global_variables) do
     global_variables = Map.put(global_variables, "context_list", [])
 
     Process.put(
