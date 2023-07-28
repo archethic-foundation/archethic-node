@@ -49,8 +49,8 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   Execute function code and returns the result
   """
   @spec execute(ast :: any(), constants :: map()) :: result :: any()
-  def execute(ast, constants) do
-    Scope.execute(ast, constants)
+  def execute(ast, constants, args_names \\ [], args_ast \\ []) do
+    Scope.execute(ast, constants, args_names, args_ast)
   end
 
   # ----------------------------------------------------------------------

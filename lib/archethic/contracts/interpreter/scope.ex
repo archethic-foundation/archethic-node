@@ -97,10 +97,26 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   @doc """
   Execute ast after creating specific context for it and return execution's result
   """
-  @spec execute(any(), map()) :: :ok
-  def execute(ast, constants) do
+  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) :: :ok
+  def execute(ast, constants, args_names \\ [], args_ast \\ []) do
     init(constants)
+
+    evaluated_ast =
+      args_ast
+      |> Enum.map(&(Code.eval_quoted(&1) |> elem(0)))
+
     create_context()
+
+    unless Enum.empty?(args_names) do
+      create()
+
+      args_names
+      |> Enum.zip(evaluated_ast)
+      |> Enum.map(fn {arg_name, arg_value} ->
+        write_at(arg_name, arg_value)
+      end)
+    end
+
     {result, _} = Code.eval_quoted(ast)
     leave_context()
     result
@@ -217,8 +233,8 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     :erlang.list_to_binary(:erlang.ref_to_list(make_ref()))
   end
 
-  defp get_function_ast(function_name, args) do
-    get_in(Process.get(:scope), ["functions", {function_name, length(args)}, :ast])
+  defp get_function(function_name, args) do
+    get_in(Process.get(:scope), ["functions", {function_name, length(args)}])
   end
 
   @doc """
@@ -226,10 +242,22 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   """
   @spec execute_function_ast(String.t(), list(any())) :: any()
   def execute_function_ast(function_name, args) do
+    # evaluate args before entering new scope context
+    evaluated_args = Enum.map(args, &(Code.eval_quoted(&1) |> elem(0)))
+
+    %{ast: ast, args: args_names} = get_function(function_name, args)
+
     create_context()
+    create()
+
+    args_names
+    |> Enum.zip(evaluated_args)
+    |> Enum.map(fn {arg_name, evaluated_arg} ->
+      write_at(arg_name, evaluated_arg)
+    end)
 
     result =
-      get_function_ast(function_name, args)
+      ast
       |> Code.eval_quoted()
       |> elem(0)
 
