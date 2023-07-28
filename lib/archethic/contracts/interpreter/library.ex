@@ -8,6 +8,10 @@ defmodule Archethic.Contracts.Interpreter.Library do
   """
   @callback check_types(atom(), list(Macro.t())) :: boolean()
 
+  defmodule Error do
+    defexception [:message]
+  end
+
   @doc """
   Checks if a function exists in given module
   """
