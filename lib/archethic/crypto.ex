@@ -41,7 +41,7 @@ defmodule Archethic.Crypto do
   @typedoc """
   List of the supported hash algorithms
   """
-  @type supported_hash :: :sha256 | :sha512 | :sha3_256 | :sha3_512 | :blake2b
+  @type supported_hash :: :sha256 | :sha512 | :sha3_256 | :sha3_512 | :blake2b | :keccak256
 
   @typedoc """
   List of the supported elliptic curves
@@ -932,6 +932,7 @@ defmodule Archethic.Crypto do
   defp do_hash(data, :sha3_256), do: :crypto.hash(:sha3_256, data)
   defp do_hash(data, :sha3_512), do: :crypto.hash(:sha3_512, data)
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
+  defp do_hash(data, :keccak256), do: ExKeccak.hash_256(data)
 
   @doc """
   Generate an address as per Archethic specification
@@ -1005,13 +1006,17 @@ defmodule Archethic.Crypto do
 
       iex> Crypto.hash_size(ID.from_hash(:blake2b))
       64
+
+      iex> Crypto.hash_size(ID.from_hash(:keccak256))
+      32
   """
-  @spec hash_size(hash_algo_id :: 0 | 1 | 2 | 3 | 4) :: 32 | 64
+  @spec hash_size(hash_algo_id :: 0 | 1 | 2 | 3 | 4 | 5) :: 32 | 64
   def hash_size(0), do: 32
   def hash_size(1), do: 64
   def hash_size(2), do: 32
   def hash_size(3), do: 64
   def hash_size(4), do: 64
+  def hash_size(5), do: 32
 
   @doc """
   Determine if a hash is valid
@@ -1022,6 +1027,7 @@ defmodule Archethic.Crypto do
   def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
   def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
   def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<5::8, _::binary-size(32)>>), do: true
   def valid_hash?(_), do: false
 
   @doc """
