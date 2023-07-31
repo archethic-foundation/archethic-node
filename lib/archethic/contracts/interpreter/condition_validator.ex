@@ -137,9 +137,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
 
   defp evaluate_condition(ast, constants) do
     # reset scope and set constants
-    Scope.init(constants)
-
-    {result, _} = Code.eval_quoted(ast)
-    result
+    Scope.execute(ast, constants)
   end
 end

@@ -48,21 +48,15 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
         _node = {:__block__, meta, expressions},
         acc
       ) do
-    # create a "ref" for each block
-    # references are not AST valid, so we convert them to binary
-    # (ps: charlist is a slow alternative because the Macro.traverse will step into every character)
-    ref = :erlang.list_to_binary(:erlang.ref_to_list(make_ref()))
-    new_acc = acc ++ [ref]
-
     # create the child scope in parent scope
     create_scope_ast =
       quote do
-        Scope.create(unquote(new_acc))
+        Scope.create()
       end
 
     {
       {:__block__, meta, [create_scope_ast | expressions]},
-      new_acc
+      acc
     }
   end
 
@@ -166,7 +160,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       ) do
     new_node =
       quote do
-        Scope.write_cascade(unquote(acc), unquote(var_name), unquote(value))
+        Scope.write_cascade(unquote(var_name), unquote(value))
       end
 
     {
@@ -179,7 +173,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(_node = {{:., _, [{{:atom, map_name}, _, nil}, {:atom, key_name}]}, _, _}, acc) do
     new_node =
       quote do
-        Scope.read(unquote(acc), unquote(map_name), unquote(key_name))
+        Scope.read(unquote(map_name), unquote(key_name))
       end
 
     {new_node, acc}
@@ -205,7 +199,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     # accessor can be a variable, a function call, a dot access, a string
     new_node =
       quote do
-        Scope.read(unquote(acc), unquote(map_name), unquote(accessor))
+        Scope.read(unquote(map_name), unquote(accessor))
       end
 
     {new_node, acc}
@@ -276,12 +270,22 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   #  |_|
   # ----------------------------------------------------------------------
   # exit block == set parent scope
+  # we need to return user's last expression and not the result of Scope.leave_scope()
   def postwalk(
-        node = {:__block__, _, _},
+        _node = {:__block__, meta, expressions},
         acc,
         _
       ) do
-    {node, List.delete_at(acc, -1)}
+    {last_expression, expressions} = List.pop_at(expressions, -1)
+
+    {:__block__, _meta, new_expressions} =
+      quote do
+        result = unquote(last_expression)
+        Scope.leave_scope()
+        result
+      end
+
+    {{:__block__, meta, expressions ++ new_expressions}, acc}
   end
 
   # common modules call
@@ -334,7 +338,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       ) do
     new_node =
       quote do
-        Scope.read(unquote(acc), unquote(var_name))
+        Scope.read(unquote(var_name))
       end
 
     {new_node, acc}
@@ -360,7 +364,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     new_node =
       quote do
         Enum.each(unquote(list), fn x ->
-          Scope.write_at(unquote(acc), unquote(var_name), x)
+          Scope.write_at(unquote(var_name), x)
 
           unquote(block)
         end)

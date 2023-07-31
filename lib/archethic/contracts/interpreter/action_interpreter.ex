@@ -52,29 +52,18 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
     # Apply some transformations to the transactions
     # We do it here because the Constants module is still used by InterpreterLegacy
+    # also, constants should already contains the global variables:
+    #   - "contract": current contract transaction
+    #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
+    #   - "_time_now": the time returned by Time.now()
     constants =
       constants
       |> Constants.map_transactions(&Constants.stringify_transaction/1)
       |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
-
-    # we use the process dictionary to store our scope
-    # because it is mutable.
-    #
-    # constants should already contains the global variables:
-    #   - "contract": current contract transaction
-    #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
-    #   - "_time_now": the time returned by Time.now()
-
-    Scope.init(
-      constants
       |> Map.put("next_transaction", initial_next_tx)
       |> Map.put("next_transaction_changed", false)
-    )
 
-    # we can ignore the result & binding
-    #   - `result` would be the returned value of the AST
-    #   - `binding` would be the variables (none since everything is written to the process dictionary)
-    {_result, _binding} = Code.eval_quoted(ast)
+    Scope.execute(ast, constants)
 
     # return a next transaction only if it has been modified
     if Scope.read_global(["next_transaction_changed"]) do
