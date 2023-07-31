@@ -128,9 +128,9 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
   describe "execute/2" do
     test "should be able to execute function without args" do
       fun1 = ~S"""
-      export fun hello do
-        1 + 3
-      end
+        export fun hello do
+          1 + 3
+        end
       """
 
       {:ok, "hello", [], ast_hello} =
@@ -155,6 +155,40 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
       function_constant = %{"functions" => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
 
       assert 4.0 = FunctionInterpreter.execute(ast_test, function_constant)
+    end
+
+    test "should be able to execute function with arg" do
+      fun = ~S"""
+      fun test(var1) do
+        var1
+      end
+      """
+
+      {:ok, "test", ["var1"], ast_fun} =
+        fun
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        # pass allowed function
+        |> FunctionInterpreter.parse([])
+
+      assert "BOB" = FunctionInterpreter.execute(ast_fun, %{}, ["var1"], ["BOB"])
+    end
+
+    test "should be able to execute function with multiple args" do
+      fun = ~S"""
+      fun test(var1, var2) do
+        var1 + var2
+      end
+      """
+
+      {:ok, "test", ["var1", "var2"], ast_fun} =
+        fun
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        # pass allowed function
+        |> FunctionInterpreter.parse([])
+
+      assert 12.0 == FunctionInterpreter.execute(ast_fun, %{}, ["var1", "var2"], [4, 8])
     end
   end
 end
