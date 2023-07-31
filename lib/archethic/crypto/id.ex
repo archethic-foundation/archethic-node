@@ -52,6 +52,7 @@ defmodule Archethic.Crypto.ID do
   def from_hash(:sha3_256), do: 2
   def from_hash(:sha3_512), do: 3
   def from_hash(:blake2b), do: 4
+  def from_hash(:keccak256), do: 5
 
   @doc """
   Get an identification from a key origin
