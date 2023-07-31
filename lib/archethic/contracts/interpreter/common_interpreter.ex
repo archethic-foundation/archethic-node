@@ -293,7 +293,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
         node =
           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, _function_name}]}, _,
            _args},
-        acc
+        acc,
+        _
       )
       when module_name in @modules_whitelisted do
     {module_call(node), acc}
