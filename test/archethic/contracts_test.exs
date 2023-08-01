@@ -620,6 +620,119 @@ defmodule Archethic.ContractsTest do
                DateTime.utc_now()
              )
     end
+
+    test "should be able to use a custom function call as parameter in condition block" do
+      code = """
+      @version 1
+
+      fun check_content() do
+         true
+      end
+
+      condition transaction: [
+          content: check_content()
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "hello world"
+      end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert Contracts.valid_condition?(
+               :transaction,
+               Contract.from_transaction!(contract_tx),
+               incoming_tx,
+               DateTime.utc_now()
+             )
+
+      code = """
+      @version 1
+
+      fun check_content() do
+         false
+      end
+
+      condition transaction: [
+          content: check_content()
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "hello world"
+      end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{
+          content: "I'm a content"
+        },
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      refute Contracts.valid_condition?(
+               :transaction,
+               Contract.from_transaction!(contract_tx),
+               incoming_tx,
+               DateTime.utc_now()
+             )
+    end
+
+    test "should pass first parameter automatically to custom fun in condition block" do
+      code = """
+      @version 1
+
+      fun check_content(content) do
+         content == "tresor"
+      end
+
+      condition transaction: [
+          content: check_content()
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "tresor found"
+      end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{
+          content: "tresor"
+        },
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert Contracts.valid_condition?(
+               :transaction,
+               Contract.from_transaction!(contract_tx),
+               incoming_tx,
+               DateTime.utc_now()
+             )
+    end
   end
 
   describe "valid_condition?/4 (oracle)" do

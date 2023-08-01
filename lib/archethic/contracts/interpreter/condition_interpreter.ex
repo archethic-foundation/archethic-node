@@ -146,8 +146,13 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
 
         # if function exist with arity+1 => prepend the key to args
         Enum.member?(function_keys, {function_name, arity + 1}) ->
-          # add subject as first function argument
-          node_subject_appened = {{:atom, function_name}, meta, [subject | args]}
+          ast =
+            quote do
+              Scope.read_global(unquote(subject))
+            end
+
+          # add ast as first function argument
+          node_subject_appened = {{:atom, function_name}, meta, [ast | args]}
 
           {new_node, _} = CommonInterpreter.postwalk(node_subject_appened, acc, function_keys)
           new_node
