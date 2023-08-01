@@ -18,6 +18,24 @@
         "token_reference": {
             "type": "string",
             "description": "Address of the fungible token to resupply"
+        },
+        "recipients": {
+            "type": "array",
+            "description": "Token recipients (AEIP-19)",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "to": {
+                        "type": "string",
+                        "description": "Recipient address"
+                    },
+                    "amount": {
+                        "type": "integer",
+                        "description": "Amount of tokens to sent to this recipient (100 000 000 for 1 token if decimals=8)"
+                    }
+                }
+            }
         }
     },
     "required": [
