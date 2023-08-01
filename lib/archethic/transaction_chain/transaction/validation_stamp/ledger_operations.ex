@@ -140,6 +140,17 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   def from_transaction(ops = %__MODULE__{}, %Transaction{}, _timestamp), do: ops
 
+  defp get_token_utxos(%{"token_reference" => token_ref, "supply" => supply}, address, timestamp) do
+    [
+      %UnspentOutput{
+        from: address,
+        amount: supply,
+        type: {:token, Base.decode16!(token_ref), 0},
+        timestamp: timestamp
+      }
+    ]
+  end
+
   defp get_token_utxos(%{"type" => "fungible", "supply" => supply}, address, timestamp) do
     [
       %UnspentOutput{
