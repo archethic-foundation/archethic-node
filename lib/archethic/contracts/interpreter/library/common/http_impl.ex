@@ -13,6 +13,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
 
   @behaviour Http
   @threshold 256 * 1024
+  @timeout Application.compile_env(:archethic, [__MODULE__, :timeout], 2_000)
 
   @impl Http
   def fetch(uri) do
@@ -22,7 +23,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
         fn -> do_fetch(uri) end
       )
 
-    case Task.yield(task, 2_000) || Task.shutdown(task) do
+    case Task.yield(task, @timeout) || Task.shutdown(task) do
       {:ok, {:ok, reply}} ->
         reply
 
@@ -54,20 +55,37 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,
         uris,
-        &fetch/1,
+        &do_fetch/1,
         ordered: true,
-        max_concurrency: 5
+        max_concurrency: 5,
+        timeout: @timeout,
+        on_timeout: :kill_task
       )
-      |> Enum.to_list()
+      |> Enum.zip(uris)
       # count the number of bytes to be able to send a error too large
       # this is sub optimal because miners might still download threshold N times before returning the error
       # TODO: improve this
       |> Enum.reduce({0, []}, fn
-        {:exit, {e, _stacktrace}}, _ ->
-          # if any fetch/1 raised, we raise
-          raise Library.Error, message: e.message
+        {{:exit, :timeout}, uri}, _ ->
+          raise Library.Error,
+            message: "Http.fetch_many/1 timed out for url: #{uri}"
 
-        {:ok, map}, {bytes_acc, result_acc} ->
+        {{:ok, {:error, :threshold_reached}}, uri}, _ ->
+          raise Library.Error,
+            message: "Http.fetch_many/1 response is bigger than threshold for url: #{uri}"
+
+        {{:ok, {:error, _}}, uri}, _ ->
+          # Mint.HTTP.connect error
+          # Mint.HTTP.stream error
+          raise Library.Error,
+            message: "Http.fetch_many/1 failed for url: #{uri}"
+
+        {{:ok, {:error, _, _}}, uri}, _ ->
+          # Mint.HTTP.request error
+          raise Library.Error,
+            message: "Http.fetch_many/1 failed for url: #{uri}"
+
+        {{:ok, {:ok, map}}, _uri}, {bytes_acc, result_acc} ->
           bytes =
             case map["body"] do
               nil -> 0
@@ -76,12 +94,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
 
           {bytes_acc + bytes, result_acc ++ [map]}
       end)
-      |> then(fn {bytes_total, result} ->
+      |> then(fn {bytes_total, results} ->
         if bytes_total > @threshold do
           raise Library.Error,
             message: "Http.fetch_many/1 sum of responses is bigger than threshold"
         else
-          result
+          results
         end
       end)
     end
@@ -97,7 +115,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
         |> Keyword.get(:transport_opts, [])
     ]
 
-    with :ok <- check_scheme(uri.scheme),
+    with :ok <- validate_scheme(uri.scheme),
          {:ok, conn} <- Mint.HTTP.connect(:https, uri.host, uri.port, conn_opts),
          {:ok, conn, _} <- Mint.HTTP.request(conn, "GET", path(uri), [], nil),
          {:ok, %{body: body, status: status}} <- stream_response(conn) do
@@ -105,8 +123,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     end
   end
 
-  defp check_scheme("https"), do: :ok
-  defp check_scheme(_), do: {:error, :not_https}
+  defp validate_scheme("https"), do: :ok
+  defp validate_scheme(_), do: {:error, :not_https}
 
   # copied over from Mint
   defp path(uri) do
