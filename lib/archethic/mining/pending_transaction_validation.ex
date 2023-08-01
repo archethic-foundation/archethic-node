@@ -776,10 +776,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         case {ExJsonSchema.Validator.validate(@token_schema, json_token),
               ExJsonSchema.Validator.validate(@token_resupply_schema, json_token)} do
           {:ok, _} ->
-            verify_token_creation(json_token)
+            verify_token_creation(json_token) && verify_token_recipients(json_token)
 
           {_, :ok} ->
-            verify_token_resupply(tx, json_token)
+            verify_token_resupply(tx, json_token) && verify_token_recipients(json_token)
 
           _ ->
             {:error, "Invalid token transaction - neither a token creation nor a token resupply"}
@@ -868,6 +868,41 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       :error ->
         {:error, "Invalid token transaction - token_reference is not an hexadecimal"}
+    end
+  end
+
+  defp verify_token_recipients(json_token) do
+    case json_token["recipients"] do
+      [] ->
+        :ok
+
+      nil ->
+        :ok
+
+      recipients ->
+        total_amounts =
+          recipients
+          |> Enum.map(& &1["amount"])
+          |> Enum.sum()
+
+        if total_amounts > json_token["supply"] do
+          {:error, "Invalid token transaction - sum of recipients' amounts is bigger than supply"}
+        else
+          valid_addresses? =
+            recipients
+            |> Enum.map(& &1["to"])
+            |> Enum.map(&Base.decode16/1)
+            |> Enum.all?(fn
+              {:ok, address} -> Crypto.valid_address?(address)
+              _ -> false
+            end)
+
+          if valid_addresses? do
+            :ok
+          else
+            {:error, "Invalid token transaction - invalid recipients addresses"}
+          end
+        end
     end
   end
 
