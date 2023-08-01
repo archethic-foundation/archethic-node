@@ -867,7 +867,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          "Invalid token transaction - token_reference exists but does not contain a valid JSON"}
 
       :error ->
-        {:error, "Invalid token transaction - token_reference is not an hexacdecimal"}
+        {:error, "Invalid token transaction - token_reference is not an hexadecimal"}
     end
   end
 

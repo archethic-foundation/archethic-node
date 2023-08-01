@@ -116,6 +116,19 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       %LedgerOperations{
         unspent_outputs: []
       }
+
+      iex> LedgerOperations.from_transaction(%LedgerOperations{},
+      ...>   %Transaction{
+      ...>     address: "@Token2",
+      ...>     type: :token,
+      ...>     data: %TransactionData{content: "{\"supply\": 100000000, \"token_reference\": \"40546F6B656E526566\", \"aeip\": [2, 18]}"}
+      ...>   }, ~U[2022-10-10 08:07:31.784Z]
+      ...>  )
+      %LedgerOperations{
+        unspent_outputs: [
+          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@TokenRef", 0}, timestamp: ~U[2022-10-10 08:07:31.784Z]}
+        ]
+      }
   """
   @spec from_transaction(t(), Transaction.t(), DateTime.t()) :: t()
   def from_transaction(
