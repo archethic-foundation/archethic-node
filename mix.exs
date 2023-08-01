@@ -127,7 +127,8 @@ defmodule Archethic.MixProject do
       # Numbering
       {:nx, "~> 0.5"},
       {:exla, "~> 0.5"},
-      {:ex_keccak, "~> 0.7.1"}
+      {:ex_keccak, "~> 0.7.1"},
+      {:ex_secp256k1, "~> 0.7"}
     ]
   end
 
