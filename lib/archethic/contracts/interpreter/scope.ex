@@ -112,7 +112,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
 
       args_names
       |> Enum.zip(evaluated_ast)
-      |> Enum.map(fn {arg_name, arg_value} ->
+      |> Enum.each(fn {arg_name, arg_value} ->
         write_at(arg_name, arg_value)
       end)
     end
@@ -252,7 +252,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
 
     args_names
     |> Enum.zip(evaluated_args)
-    |> Enum.map(fn {arg_name, evaluated_arg} ->
+    |> Enum.each(fn {arg_name, evaluated_arg} ->
       write_at(arg_name, evaluated_arg)
     end)
 
@@ -277,16 +277,20 @@ defmodule Archethic.Contracts.Interpreter.Scope do
 
   defp do_where_is(_context, variable_name, []) do
     # there are magic variables at the root of scope (contract/transaction/next/previous)
-    case get_in(Process.get(:scope), [variable_name]) do
-      nil -> nil
-      _ -> []
-    end
+    if Map.has_key?(Process.get(:scope), variable_name),
+      do: [],
+      else: nil
   end
 
   defp do_where_is(context, variable_name, acc) do
-    case get_in(Process.get(:scope), [context] ++ acc ++ [variable_name]) do
-      nil -> do_where_is(context, variable_name, List.delete_at(acc, -1))
-      _ -> [context] ++ acc
+    case get_in(Process.get(:scope), [context] ++ acc) do
+      nil ->
+        do_where_is(context, variable_name, List.delete_at(acc, -1))
+
+      scope ->
+        if Map.has_key?(scope, variable_name),
+          do: [context] ++ acc,
+          else: do_where_is(context, variable_name, List.delete_at(acc, -1))
     end
   end
 end
