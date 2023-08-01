@@ -60,6 +60,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                 |> Jason.decode!()
                 |> ExJsonSchema.Schema.resolve()
 
+  @token_resupply_schema :archethic
+                         |> Application.app_dir("priv/json-schemas/token-resupply.json")
+                         |> File.read!()
+                         |> Jason.decode!()
+                         |> ExJsonSchema.Schema.resolve()
+
   @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
 
   @tx_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
@@ -560,20 +566,19 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     do: {:error, "Invalid Keychain Access transaction"}
 
   defp do_accept_transaction(
-         %Transaction{
-           type: :token,
-           data: %TransactionData{content: content}
+         tx = %Transaction{
+           type: :token
          },
          _
        ) do
-    verify_token_creation(content)
+    verify_token_transaction(tx)
   end
 
   # To accept mint_rewards transaction, we ensure that the supply correspond to the
   # burned fees from the last summary and that there is no transaction since the last
   # reward schedule
   defp do_accept_transaction(
-         %Transaction{
+         tx = %Transaction{
            type: :mint_rewards,
            data: %TransactionData{content: content}
          },
@@ -586,7 +591,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
     {last_address, _} = TransactionChain.get_last_address(genesis_address)
 
-    with :ok <- verify_token_creation(content),
+    with :ok <- verify_token_transaction(tx),
          {:ok, %{"supply" => ^total_fee}} <- Jason.decode(content),
          {^last_address, _} <-
            TransactionChain.get_last_address(genesis_address, Reward.get_last_scheduling_date()) do
@@ -762,10 +767,28 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     |> TransactionChain.fetch_genesis_address(P2P.authorized_and_available_nodes())
   end
 
-  defp verify_token_creation(content) do
-    with {:ok, json_token} <- Jason.decode(content),
-         :ok <- ExJsonSchema.Validator.validate(@token_schema, json_token),
-         %{
+  defp verify_token_transaction(tx = %Transaction{data: %TransactionData{content: content}}) do
+    case Jason.decode(content) do
+      {:error, _} ->
+        {:error, "Invalid token transaction - invalid JSON"}
+
+      {:ok, json_token} ->
+        case {ExJsonSchema.Validator.validate(@token_schema, json_token),
+              ExJsonSchema.Validator.validate(@token_resupply_schema, json_token)} do
+          {:ok, _} ->
+            verify_token_creation(json_token)
+
+          {_, :ok} ->
+            verify_token_resupply(tx, json_token)
+
+          _ ->
+            {:error, "Invalid token transaction - neither a token creation nor a token resupply"}
+        end
+    end
+  end
+
+  defp verify_token_creation(json_token) do
+    with %{
            "type" => "non-fungible",
            "supply" => supply,
            "collection" => collection
@@ -775,9 +798,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          {:id, true} <- {:id, valid_collection_id?(collection)} do
       :ok
     else
-      {:error, reason} ->
-        {:error, "Invalid token transaction - Invalid specification #{inspect(reason)}"}
-
       %{"type" => "fungible", "collection" => _collection} ->
         {:error, "Invalid token transaction - Fungible should not have collection attribute"}
 
@@ -801,6 +821,53 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:id, false} ->
         {:error,
          "Invalid token transaction - Specified id must be different for all item in the collection"}
+    end
+  end
+
+  defp verify_token_resupply(tx, %{"token_reference" => token_ref}) do
+    with {:ok, token_address} <- Base.decode16(token_ref, case: :mixed),
+         # verify same chain
+         {:ok, genesis_address} <- fetch_previous_tx_genesis_address(tx),
+         storage_nodes <-
+           Election.chain_storage_nodes(token_address, P2P.authorized_and_available_nodes()),
+         {:ok, ^genesis_address} <-
+           TransactionChain.fetch_genesis_address(token_address, storage_nodes),
+         # verify token_reference
+         {:ok,
+          %Transaction{
+            data: %TransactionData{
+              content: content
+            }
+          }} <- TransactionChain.fetch_transaction(token_address, storage_nodes),
+         {:ok, reference_json_token} <- Jason.decode(content),
+         %{"type" => "fungible", "allow_mint" => true} <- reference_json_token do
+      :ok
+    else
+      %{"type" => "non-fungible"} ->
+        {:error, "Invalid token transaction - token_reference must be fungible"}
+
+      %{"type" => "fungible"} ->
+        {:error, "Invalid token transaction - token_reference does not have allow_mint: true"}
+
+      {:ok, _} ->
+        {:error,
+         "Invalid token transaction - token_reference is not in the same transaction chain"}
+
+      {:error, :transaction_not_exists} ->
+        {:error, "Invalid token transaction - token_reference not found"}
+
+      {:error, :invalid_transaction} ->
+        {:error, "Invalid token transaction - token_reference is invalid"}
+
+      {:error, :network_issue} ->
+        {:error, "A network issue was raised, please retry later"}
+
+      {:error, %Jason.DecodeError{}} ->
+        {:error,
+         "Invalid token transaction - token_reference exists but does not contain a valid JSON"}
+
+      :error ->
+        {:error, "Invalid token transaction - token_reference is not an hexacdecimal"}
     end
   end
 
