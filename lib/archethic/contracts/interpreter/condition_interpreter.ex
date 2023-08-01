@@ -132,6 +132,40 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
+  # Override custom function calls
+  # because we might need to inject the contract as first argument
+  defp postwalk(subject, node = {{:atom, function_name}, meta, args}, acc, function_keys)
+       when is_list(args) and function_name != "for" do
+    arity = length(args)
+
+    new_node =
+      cond do
+        Enum.member?(function_keys, {function_name, arity}) ->
+          {new_node, _} = CommonInterpreter.postwalk(node, acc, function_keys)
+          new_node
+
+        # if function exist with arity+1 => prepend the key to args
+        Enum.member?(function_keys, {function_name, arity + 1}) ->
+          ast =
+            quote do
+              Scope.read_global(unquote(subject))
+            end
+
+          # add ast as first function argument
+          node_subject_appened = {{:atom, function_name}, meta, [ast | args]}
+
+          {new_node, _} = CommonInterpreter.postwalk(node_subject_appened, acc, function_keys)
+          new_node
+
+        true ->
+          reason = "The function #{function_name}/#{Integer.to_string(arity)} does not exist"
+
+          throw({:error, node, reason})
+      end
+
+    {new_node, acc}
+  end
+
   # Override Module.function call
   # because we might need to inject the contract as first argument
   defp postwalk(

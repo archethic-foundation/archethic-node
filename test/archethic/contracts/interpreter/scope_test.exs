@@ -333,6 +333,38 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
              } == Process.get(:scope)
     end
 
+    test "should be able to write value where current value is nil" do
+      scope = %{
+        "context_list" => ["current_context"],
+        "current_context" => %{
+          "scope_hierarchy" => ["first_scope", "second_scope"],
+          "first_scope" => %{
+            "my_var" => nil,
+            "second_scope" => %{
+              "another_var" => 99
+            }
+          }
+        }
+      }
+
+      Process.put(:scope, scope)
+
+      Scope.write_cascade("my_var", 42)
+
+      assert %{
+               "context_list" => ["current_context"],
+               "current_context" => %{
+                 "scope_hierarchy" => ["first_scope", "second_scope"],
+                 "first_scope" => %{
+                   "my_var" => 42,
+                   "second_scope" => %{
+                     "another_var" => 99
+                   }
+                 }
+               }
+             } == Process.get(:scope)
+    end
+
     test "should overwrite the variable in the closest parent scope" do
       scope = %{
         "context_list" => ["current_context"],

@@ -112,6 +112,25 @@ defmodule Archethic.Contracts.InterpreterTest do
                |> Interpreter.parse()
     end
 
+    test "should be able to use custom functions with args" do
+      assert {:ok, _} =
+               """
+               @version 1
+
+               fun sum(a,b) do
+                 a + t
+               end
+
+               condition transaction: []
+               actions triggered_by: transaction do
+                 x = sum(5,6)
+                 x
+               end
+
+               """
+               |> Interpreter.parse()
+    end
+
     test "should be able to use custom functions no matter the declaration order" do
       assert {:ok, _} =
                """
@@ -481,6 +500,256 @@ defmodule Archethic.Contracts.InterpreterTest do
       }
 
       assert {:ok, _} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should be able to use variables as args for custom functions" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          salary = 1000
+          tax = 0.7
+          Contract.set_content net_income(salary, tax)
+        end
+
+        fun net_income(salary, tax) do
+          salary - (salary * tax)
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "300"
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should be able to use module function calls as args for custom functions" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content counter(String.to_number(contract.content))
+        end
+
+        export fun counter(current_val) do
+          current_val + 1
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code,
+          content: "4"
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "5"
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should be able to use custom function calls as args for custom functions" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content counter(other_function())
+        end
+
+        export fun counter(current_val) do
+          current_val + 1
+        end
+
+        fun other_function() do
+          4
+        end
+
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "5"
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should be able to use string interpolation as arg for custom functions" do
+      code = ~S"""
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          name = "Toto"
+          Contract.set_content hello("my name is #{name}")
+        end
+
+        export fun hello(phrase) do
+          phrase
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "my name is Toto"
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "Should be able to calculate arg before passing it to custom functions" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          name = "Toto"
+          Contract.set_content sum_a_b(1 + 5, 4)
+        end
+
+        export fun sum_a_b(a, b) do
+          a + b
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "10"
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+    end
+
+    test "recursivity with custom functions should work" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          Contract.set_content integer_sum(10)
+        end
+
+        export fun integer_sum(current_val) do
+          return_value = 0
+          if current_val != 0 do
+            return_value = current_val + integer_sum(current_val - 1)
+          end
+          return_value
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: "55"
+                }
+              }} =
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
