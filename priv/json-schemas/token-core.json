@@ -27,6 +27,17 @@
       "type": "string",
       "description": "Symbol of the token"
     },
+    "aeip": {
+      "type": "array",
+      "description": "List of supported AEIPs",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "allow_mint": {
+      "type": "boolean",
+      "description": "This token can be resupplied later or not (AEIP-18)"
+    },
     "properties": {
       "description": "List of the global token properties",
       "type": "object"
@@ -50,5 +61,6 @@
   "required": [
     "supply",
     "type"
-  ]
+  ],
+  "additionalProperties": false
 }
