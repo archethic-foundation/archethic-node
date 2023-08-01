@@ -1,9 +1,5 @@
 defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
-  @moduledoc """
-  Here we test the module within the action block. Because there is AST modification (such as keywords to maps)
-  in the ActionInterpreter and we want to test the whole thing.
-  """
-
+  @moduledoc false
   use ArchethicCase, async: false
 
   alias Archethic.Contracts.Interpreter.Library

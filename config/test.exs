@@ -191,4 +191,5 @@ config :archethic, :throttle,
   ]
 
 config :archethic, Archethic.Contracts.Interpreter.Library.Common.HttpImpl,
-  transport_opts: [verify: :verify_none]
+  transport_opts: [verify: :verify_none],
+  timeout: 500
