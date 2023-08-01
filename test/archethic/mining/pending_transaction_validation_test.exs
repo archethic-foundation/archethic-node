@@ -20,6 +20,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
@@ -32,6 +33,8 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias UCOLedger.Transfer, as: UCOTransfer
 
   import Mox
+  import Mock
+  import ArchethicCase
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -996,6 +999,373 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return ok with a token creation with allow_mint flag" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                aeip: [2, 18],
+                supply: 100_000_000_000,
+                decimals: 8,
+                name: "CoinCoin",
+                type: "fungible",
+                symbol: "CC",
+                allow_mint: true
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return ok with a valid token resupply" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      address = random_address()
+      genesis_address = random_address()
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 100_000_000_000,
+                aeip: [2, 18],
+                token_reference: address |> Base.encode16()
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      with_mock(
+        TransactionChain,
+        [:passthrough],
+        fetch_genesis_address: fn _, _ ->
+          {:ok, genesis_address}
+        end,
+        fetch_transaction: fn _, _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{
+               content: """
+               {
+                "supply": 10000000000,
+                "type": "fungible",
+                "decimals": 8,
+                "name": "CoinCoin",
+                "allow_mint": true,
+                "aeip": [2, 18]
+               }
+               """
+             }
+           }}
+        end
+      ) do
+        assert :ok = PendingTransactionValidation.validate(tx)
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+      end
+    end
+
+    test "should return error if not in the same chain" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      address = random_address()
+      genesis_address = random_address()
+      genesis_address2 = random_address()
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 100_000_000_000,
+                aeip: [2, 18],
+                token_reference: address |> Base.encode16()
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      with_mock(
+        TransactionChain,
+        [:passthrough],
+        fetch_genesis_address: fn
+          ^address, _ ->
+            {:ok, genesis_address}
+
+          _, _ ->
+            {:ok, genesis_address2}
+        end,
+        fetch_transaction: fn _, _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{
+               content: """
+               {
+                "supply": 10000000000,
+                "type": "fungible",
+                "decimals": 8,
+                "name": "CoinCoin",
+                "allow_mint": true,
+                "aeip": [2, 18]
+               }
+               """
+             }
+           }}
+        end
+      ) do
+        assert {:error,
+                "Invalid token transaction - token_reference is not in the same transaction chain"} =
+                 PendingTransactionValidation.validate(tx)
+
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+      end
+    end
+
+    test "should return error if allow_mint is not true" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      address = random_address()
+      genesis_address = random_address()
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 100_000_000_000,
+                aeip: [2, 18],
+                token_reference: address |> Base.encode16()
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      with_mock(
+        TransactionChain,
+        [:passthrough],
+        fetch_genesis_address: fn
+          _, _ ->
+            {:ok, genesis_address}
+        end,
+        fetch_transaction: fn _, _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{
+               content: """
+               {
+                "supply": 10000000000,
+                "type": "fungible",
+                "decimals": 8,
+                "name": "CoinCoin",
+                "aeip": [2, 18]
+               }
+               """
+             }
+           }}
+        end
+      ) do
+        assert {:error,
+                "Invalid token transaction - token_reference does not have allow_mint: true"} =
+                 PendingTransactionValidation.validate(tx)
+
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+      end
+    end
+
+    test "should return error if token is non-fungible" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      address = random_address()
+      genesis_address = random_address()
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 100_000_000_000,
+                aeip: [2, 18],
+                token_reference: address |> Base.encode16()
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      with_mock(
+        TransactionChain,
+        [:passthrough],
+        fetch_genesis_address: fn
+          _, _ ->
+            {:ok, genesis_address}
+        end,
+        fetch_transaction: fn _, _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{
+               content: """
+               {
+                "supply": 300000000,
+                "name": "My NFT",
+                "type": "non-fungible",
+                "symbol": "MNFT",
+                "properties": {
+                   "description": "this property is for all NFT"
+                },
+                "collection": [
+                   { "image": "link of the 1st NFT image" },
+                   { "image": "link of the 2nd NFT image" },
+                   {
+                      "image": "link of the 3rd NFT image",
+                      "other_property": "other value"
+                   }
+                ]
+               }
+               """
+             }
+           }}
+        end
+      ) do
+        assert {:error, "Invalid token transaction - token_reference must be fungible"} =
+                 PendingTransactionValidation.validate(tx)
+
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+      end
+    end
+
+    test "should return error if token reference does not exist" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      address = random_address()
+      genesis_address = random_address()
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 100_000_000_000,
+                aeip: [2, 18],
+                token_reference: address |> Base.encode16()
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      with_mock(
+        TransactionChain,
+        [:passthrough],
+        fetch_genesis_address: fn
+          _, _ ->
+            {:ok, genesis_address}
+        end,
+        fetch_transaction: fn _, _ ->
+          {:error, :transaction_not_exists}
+        end
+      ) do
+        assert {:error, "Invalid token transaction - token_reference not found"} =
+                 PendingTransactionValidation.validate(tx)
+
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+      end
+    end
+
+    test "should return error if token reference is not a proper token definition" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      address = random_address()
+      genesis_address = random_address()
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 100_000_000_000,
+                aeip: [2, 18],
+                token_reference: address |> Base.encode16()
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      with_mock(
+        TransactionChain,
+        [:passthrough],
+        fetch_genesis_address: fn
+          _, _ ->
+            {:ok, genesis_address}
+        end,
+        fetch_transaction: fn _, _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{
+               content: """
+               not a json
+               """
+             }
+           }}
+        end
+      ) do
+        assert {:error,
+                "Invalid token transaction - token_reference exists but does not contain a valid JSON"} =
+                 PendingTransactionValidation.validate(tx)
+
+        assert_called_exactly(TransactionChain.fetch_genesis_address(:_, :_), 2)
+      end
+    end
+
+    test "should return error if token reference is not hexadecimal" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 100_000_000_000,
+                aeip: [2, 18],
+                token_reference: "invalidtokenref"
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid token transaction - token_reference is not an hexadecimal"} =
+               PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return error if token transaction is incorrect" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content: Jason.encode!(%{})
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid token transaction - neither a token creation nor a token resupply"} =
+               PendingTransactionValidation.validate(tx)
     end
   end
 
