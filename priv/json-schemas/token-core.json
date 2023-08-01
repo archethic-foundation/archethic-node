@@ -4,7 +4,7 @@
   "properties": {
     "supply": {
       "type": "integer",
-      "description": "Number of tokens to create",
+      "description": "Number of tokens to create (100 000 000 for 1 token if decimals=8)",
       "exclusiveMinimum": 0,
       "maximum": 1.84467440737095e19
     },
@@ -37,6 +37,24 @@
     "allow_mint": {
       "type": "boolean",
       "description": "This token can be resupplied later or not (AEIP-18)"
+    },
+    "recipients": {
+      "type": "array",
+      "description": "Token recipients (AEIP-19)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "to": {
+            "type": "string",
+            "description": "Recipient address"
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Amount of tokens to sent to this recipient (100 000 000 for 1 token if decimals=8)"
+          }
+        }
+      }
     },
     "properties": {
       "description": "List of the global token properties",
