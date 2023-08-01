@@ -1,0 +1,28 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "supply": {
+            "type": "integer",
+            "description": "Number of tokens to create",
+            "exclusiveMinimum": 0,
+            "maximum": 1.84467440737095e19
+        },
+        "aeip": {
+            "type": "array",
+            "description": "List of supported AEIPs",
+            "items": {
+                "type": "integer"
+            }
+        },
+        "token_reference": {
+            "type": "string",
+            "description": "Address of the fungible token to resupply"
+        }
+    },
+    "required": [
+        "supply",
+        "token_reference"
+    ],
+    "additionalProperties": false
+}
