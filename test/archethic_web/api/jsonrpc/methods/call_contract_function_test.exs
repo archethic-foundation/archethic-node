@@ -191,7 +191,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       assert {:ok, 21.0} == CallContractFunction.execute(params)
     end
 
-    test "should be able to call a public function from a public function" do
+    test "should not be able to call a public function from a public function" do
       code = """
       @version 1
 
@@ -237,7 +237,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         args: []
       }
 
-      assert {:ok, "hello bob"} == CallContractFunction.execute(params)
+      assert {:error, :function_failure, "There was an error while executing the function",
+              "hello/0"} = CallContractFunction.execute(params)
     end
 
     test "should not be able to call a private function from a public function" do

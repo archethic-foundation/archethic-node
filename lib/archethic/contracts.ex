@@ -96,7 +96,6 @@ defmodule Archethic.Contracts do
   end
 
   defp get_function_constants_from_contract(%{
-         functions: functions,
          constants: %Constants{contract: contract_constant}
        }) do
     contract_constant
@@ -105,15 +104,8 @@ defmodule Archethic.Contracts do
 
     %{
       "contract" => contract_constant,
-      "_time_now" => DateTime.utc_now() |> DateTime.to_unix(),
-      "functions" => get_public_functions(functions)
+      "_time_now" => DateTime.utc_now() |> DateTime.to_unix()
     }
-  end
-
-  defp get_public_functions(functions) do
-    functions
-    |> Enum.filter(fn {_function, %{visibility: visibility}} -> visibility == :public end)
-    |> Enum.into(%{})
   end
 
   @doc """
