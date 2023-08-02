@@ -1,5 +1,5 @@
 defmodule Archethic.TransactionChain.MemTablesLoaderTest do
-  use ExUnit.Case
+  use ArchethicCase
 
   alias Archethic.Crypto
 
@@ -11,14 +11,6 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   import Mox
-
-  setup :set_mox_global
-  setup :verify_on_exit!
-
-  setup do
-    start_supervised!(PendingLedger)
-    :ok
-  end
 
   describe "load_transaction/1" do
     test "should track pending transaction when a code proposal transaction is loaded" do

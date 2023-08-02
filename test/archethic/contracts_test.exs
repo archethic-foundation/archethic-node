@@ -13,6 +13,8 @@ defmodule Archethic.ContractsTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
+  alias Archethic.ContractFactory
+
   import ArchethicCase
 
   @moduletag capture_log: true
@@ -34,31 +36,22 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      contract_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      ledger = %Ledger{
+        uco: %UCOLedger{
+          transfers: [
+            %Transfer{
+              to:
+                <<50, 101, 204, 215, 140, 215, 73, 132, 250, 179, 204, 105, 132, 211, 12, 140,
+                  130, 4, 78, 187, 171, 26, 79, 255, 182, 131, 189, 178, 216, 197, 188, 249>>,
+              amount: 20
+            }
+          ]
         }
       }
 
-      next_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{
-                  to:
-                    <<50, 101, 204, 215, 140, 215, 73, 132, 250, 179, 204, 105, 132, 211, 12, 140,
-                      130, 4, 78, 187, 171, 26, 79, 255, 182, 131, 189, 178, 216, 197, 188, 249>>,
-                  amount: 20.0
-                }
-              ]
-            }
-          }
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(contract_tx, ledger: ledger)
 
       refute Contracts.valid_condition?(
                :inherit,
@@ -82,21 +75,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "hola"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hola")
 
       refute Contracts.valid_condition?(
                :inherit,
@@ -126,32 +107,18 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      ledger = %Ledger{
+        uco: %UCOLedger{transfers: [%Transfer{to: address, amount: 1_000_000_000}]}
       }
 
-      next_tx = %Transaction{
-        type: :transfer,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
+      next_tx =
+        ContractFactory.create_next_contract_tx(contract_tx,
+          ledger: ledger,
           content: "hello",
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{
-                  to: address,
-                  amount: 1_000_000_000
-                }
-              ]
-            }
-          }
-        }
-      }
+          type: :transfer
+        )
 
       assert Contracts.valid_condition?(
                :inherit,
@@ -169,22 +136,9 @@ defmodule Archethic.ContractsTest do
       ]
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hello")
 
       assert Contracts.valid_condition?(
                :inherit,
@@ -223,22 +177,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      prev_tx = %Transaction{
-        address: random_address(),
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "wake up"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
 
       refute Contracts.valid_execution?(prev_tx, next_tx, nil)
     end
@@ -249,22 +190,13 @@ defmodule Archethic.ContractsTest do
       condition inherit: [ content: true ]
       """
 
-      prev_tx = %Transaction{
-        address: random_address(),
-        type: :oracle,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :oracle,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "{\"uco\":{\"eur\":0.00, \"usd\":0.00}}"
-        }
-      }
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx,
+          content: "{\"uco\":{\"eur\":0.00, \"usd\":0.00}}",
+          type: :oracle
+        )
 
       assert Contracts.valid_execution?(prev_tx, next_tx, nil)
     end
@@ -279,22 +211,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      prev_tx = %Transaction{
-        address: random_address(),
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "wake up"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
 
       contract_context = %Contract.Context{
         trigger: {:datetime, now},
@@ -320,22 +239,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      prev_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "wake up"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
 
       contract_context = %Contract.Context{
         trigger: {:datetime, yesterday},
@@ -356,22 +262,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      prev_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "beep"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "beep")
 
       contract_context = %Contract.Context{
         trigger: {:interval, "* * * * *", now},
@@ -392,22 +285,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      prev_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "beep"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "beep")
 
       contract_context = %Contract.Context{
         trigger: {:interval, "* * * * *", yesterday},
@@ -428,22 +308,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      prev_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "beep"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "beep")
 
       contract_context = %Contract.Context{
         trigger: {:interval, "* * * * *", now},
@@ -464,22 +331,9 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      prev_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
 
-      next_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code,
-          content: "boop"
-        }
-      }
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "boop")
 
       contract_context = %Contract.Context{
         trigger: {:interval, "* * * * *", now},
@@ -502,12 +356,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      contract_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       trigger_tx = %Transaction{
         type: :transfer,
@@ -537,12 +386,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      contract_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       trigger_tx = %Transaction{
         type: :transfer,
@@ -572,12 +416,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      contract_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       trigger_tx = %Transaction{
         type: :transfer,
@@ -607,12 +446,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      contract_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       trigger_tx = %Transaction{
         type: :transfer,
@@ -646,12 +480,7 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -682,12 +511,7 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -722,12 +546,7 @@ defmodule Archethic.ContractsTest do
       end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -758,12 +577,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      contract_tx = %Transaction{
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       oracle_tx = %Transaction{
         type: :oracle,
@@ -793,13 +607,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       oracle_tx = %Transaction{
         address: random_address(),
@@ -829,13 +637,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: random_address(),
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       oracle_tx = %Transaction{
         address: random_address(),

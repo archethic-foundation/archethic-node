@@ -329,12 +329,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -360,12 +355,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -401,12 +391,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -442,12 +427,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -481,12 +461,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -521,12 +496,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -559,12 +529,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -600,13 +565,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code,
-          content: "4"
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code, content: "4")
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -646,12 +605,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -687,12 +641,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -728,12 +677,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -766,12 +710,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -799,12 +738,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       incoming_tx = %Transaction{
         type: :transfer,
@@ -831,12 +765,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       assert match?(
                {:error, :contract_failure},
@@ -857,12 +786,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
@@ -881,12 +805,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
@@ -906,12 +825,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       oracle_tx = %Transaction{
         type: :oracle,

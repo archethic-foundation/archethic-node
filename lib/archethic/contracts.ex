@@ -14,6 +14,7 @@ defmodule Archethic.Contracts do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker, as: CronDateChecker
 
+  alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.TransactionChain
@@ -361,16 +362,20 @@ defmodule Archethic.Contracts do
          :inherit,
          %Contract{
            constants: %Constants{contract: contract_constant},
-           functions: functions
+           functions: functions,
+           seed: seed
          },
          transaction,
          datetime
        ) do
+    {:ok, seed} = decrypt_contract_seed(seed)
+
     %{
       "previous" => contract_constant,
       "next" => Constants.from_transaction(transaction),
       :time_now => DateTime.to_unix(datetime),
-      :functions => functions
+      :functions => functions,
+      :contract_seed => seed
     }
   end
 
@@ -378,16 +383,32 @@ defmodule Archethic.Contracts do
          _,
          %Contract{
            constants: %Constants{contract: contract_constant},
-           functions: functions
+           functions: functions,
+           seed: seed
          },
          transaction,
          datetime
        ) do
+    {:ok, seed} = decrypt_contract_seed(seed)
+
     %{
       "transaction" => Constants.from_transaction(transaction),
       "contract" => contract_constant,
       :time_now => DateTime.to_unix(datetime),
-      :functions => functions
+      :functions => functions,
+      :contract_seed => seed
     }
+  end
+
+  defp decrypt_contract_seed(nil), do: {:ok, nil}
+
+  defp decrypt_contract_seed({encrypted_seed, encrypted_key}) do
+    case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
+      {:ok, aes_key} ->
+        Crypto.aes_decrypt(encrypted_seed, aes_key)
+
+      {:error, :decryption_failed} ->
+        {:error, :decryption_failed}
+    end
   end
 end

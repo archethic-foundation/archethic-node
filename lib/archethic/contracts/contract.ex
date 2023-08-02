@@ -3,6 +3,8 @@ defmodule Archethic.Contracts.Contract do
   Represents a smart contract
   """
 
+  alias Archethic.Crypto
+
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
@@ -14,13 +16,15 @@ defmodule Archethic.Contracts.Contract do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   defstruct triggers: %{},
             functions: %{},
             version: 0,
             conditions: %{},
             constants: %Constants{},
-            next_transaction: %Transaction{data: %TransactionData{}}
+            next_transaction: %Transaction{data: %TransactionData{}},
+            seed: {"", ""}
 
   @type trigger_type() ::
           :oracle
@@ -59,7 +63,8 @@ defmodule Archethic.Contracts.Contract do
             condition_key() => Conditions.t()
           },
           constants: Constants.t(),
-          next_transaction: Transaction.t()
+          next_transaction: Transaction.t(),
+          seed: {binary(), binary()}
         }
 
   @doc """
@@ -68,24 +73,35 @@ defmodule Archethic.Contracts.Contract do
   @spec from_transaction!(Transaction.t()) :: t()
   def from_transaction!(tx = %Transaction{data: %TransactionData{code: code}})
       when is_binary(code) and code != "" do
-    {:ok, contract} = Interpreter.parse(code)
-
-    %__MODULE__{
-      contract
-      | constants: %Constants{contract: Constants.from_transaction(tx)}
-    }
+    {:ok, contract} = from_transaction(tx)
+    contract
   end
 
   @doc """
   Create a contract from a transaction
   """
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
-  def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
+  def from_transaction(
+        tx = %Transaction{data: %TransactionData{code: code, ownerships: ownerships}}
+      ) do
     case Interpreter.parse(code) do
       {:ok, contract} ->
+        storage_nonce = Crypto.storage_nonce_public_key()
+
+        seed =
+          case Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce)) do
+            nil ->
+              nil
+
+            ownership = %Ownership{secret: encrypted_seed} ->
+              encrypted_key = Ownership.get_encrypted_key(ownership, storage_nonce)
+              {encrypted_seed, encrypted_key}
+          end
+
         contract_with_constants = %__MODULE__{
           contract
-          | constants: %Constants{contract: Constants.from_transaction(tx)}
+          | constants: %Constants{contract: Constants.from_transaction(tx)},
+            seed: seed
         }
 
         {:ok, contract_with_constants}

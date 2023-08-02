@@ -11,6 +11,8 @@ defmodule Archethic.Contracts.Interpreter do
 
   alias __MODULE__.ConditionValidator
 
+  alias Archethic.Crypto
+
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
@@ -133,7 +135,8 @@ defmodule Archethic.Contracts.Interpreter do
           version: version,
           triggers: triggers,
           constants: %Constants{contract: contract_constants},
-          functions: functions
+          functions: functions,
+          seed: seed
         },
         maybe_trigger_tx,
         maybe_recipient,
@@ -156,6 +159,7 @@ defmodule Archethic.Contracts.Interpreter do
           end
           |> DateTime.to_unix()
 
+        {:ok, seed} = decrypt_contract_seed(seed)
         named_action_constants = get_named_action_constants(args, maybe_recipient)
 
         transaction_constant =
@@ -174,7 +178,8 @@ defmodule Archethic.Contracts.Interpreter do
             "transaction" => transaction_constant,
             "contract" => contract_constants,
             :time_now => timestamp_now,
-            :functions => functions
+            :functions => functions,
+            :contract_seed => seed
           })
 
         result =
@@ -432,6 +437,18 @@ defmodule Archethic.Contracts.Interpreter do
 
   defp time_now({:interval, interval}, nil) do
     Utils.get_current_time_for_interval(interval)
+  end
+
+  defp decrypt_contract_seed(nil), do: {:ok, nil}
+
+  defp decrypt_contract_seed({encrypted_seed, encrypted_key}) do
+    case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
+      {:ok, aes_key} ->
+        Crypto.aes_decrypt(encrypted_seed, aes_key)
+
+      {:error, :decryption_failed} ->
+        {:error, :decryption_failed}
+    end
   end
 
   defp parse_functions_keys(blocks, function_keys \\ FunctionKeys.new())
