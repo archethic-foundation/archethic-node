@@ -56,6 +56,67 @@ defmodule Archethic.Contracts do
     as: :execute_trigger
 
   @doc """
+  Execute contract's function
+  """
+  @spec execute_function(
+          Contract.t(),
+          :string,
+          list()
+        ) ::
+          {:ok, result :: any()}
+          | {:error, :function_failure}
+          | {:error, :function_does_not_exist}
+          | {:error, :function_is_private}
+
+  def execute_function(contract, function_name, args) do
+    with {:ok, function} <- get_function_from_contract(contract, function_name, args),
+         constants <- get_function_constants_from_contract(contract) do
+      result = Interpreter.execute_function(function, constants, args)
+      {:ok, result}
+    end
+  rescue
+    _ ->
+      {:error, :function_failure}
+  end
+
+  defp get_function_from_contract(%{functions: functions}, function_name, args) do
+    case Map.get(functions, {function_name, length(args)}) do
+      nil ->
+        {:error, :function_does_not_exist}
+
+      function ->
+        case function do
+          %{visibility: :public} ->
+            {:ok, function}
+
+          %{visibility: :private} ->
+            {:error, :function_is_private}
+        end
+    end
+  end
+
+  defp get_function_constants_from_contract(%{
+         functions: functions,
+         constants: %Constants{contract: contract_constant}
+       }) do
+    contract_constant
+    |> Constants.map_transactions(&Constants.stringify_transaction/1)
+    |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
+
+    %{
+      "contract" => contract_constant,
+      "_time_now" => DateTime.utc_now() |> DateTime.to_unix(),
+      "functions" => get_public_functions(functions)
+    }
+  end
+
+  defp get_public_functions(functions) do
+    functions
+    |> Enum.filter(fn {_function, %{visibility: visibility}} -> visibility == :public end)
+    |> Enum.into(%{})
+  end
+
+  @doc """
   Load transaction into the Smart Contract context leveraging the interpreter
   """
   @spec load_transaction(Transaction.t(), list()) :: :ok

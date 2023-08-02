@@ -427,6 +427,23 @@ defmodule Archethic do
     as: :execute_trigger
 
   @doc """
+  Execute the function.
+  """
+  @spec execute_function(
+          Contract.t(),
+          :string,
+          list()
+        ) ::
+          result ::
+          any()
+          | {:error, :function_failure}
+          | {:error, :function_does_not_exist}
+          | {:error, :function_is_private}
+  defdelegate execute_function(contract, function_name, args),
+    to: Contracts,
+    as: :execute_function
+
+  @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes
   """
   @spec get_transaction_chain_length(binary()) ::
