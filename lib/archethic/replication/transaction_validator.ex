@@ -340,7 +340,7 @@ defmodule Archethic.Replication.TransactionValidator do
       %LedgerOperations{
         fee: fee,
         transaction_movements: transaction_movements,
-        unspent_outputs: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       }
       |> LedgerOperations.consume_inputs(
         address,

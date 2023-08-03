@@ -10,6 +10,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   defstruct transaction_movements: [],
             unspent_outputs: [],
+            tokens_to_mint: [],
             fee: 0
 
   alias Archethic.Crypto
@@ -32,6 +33,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @type t() :: %__MODULE__{
           transaction_movements: list(TransactionMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
+          tokens_to_mint: list(UnspentOutput.t()),
           fee: non_neg_integer()
         }
 
@@ -382,13 +384,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ) ::
           {boolean(), t()}
   def consume_inputs(
-        ops = %__MODULE__{unspent_outputs: unspent_outputs},
+        ops = %__MODULE__{tokens_to_mint: tokens_to_mint},
         change_address,
         inputs,
         timestamp
       )
       when is_binary(change_address) and is_list(inputs) and not is_nil(timestamp) do
-    inputs = inputs ++ unspent_outputs
+    # Since AEIP-19 we can consume from minted tokens
+    inputs = inputs ++ tokens_to_mint
 
     if sufficient_funds?(ops, inputs) do
       %{uco: uco_balance, token: tokens_received} = ledger_balances(inputs)
@@ -410,7 +413,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           )
       ]
 
-      {true, Map.put(ops, :unspent_outputs, new_unspent_outputs)}
+      {true,
+       ops
+       |> Map.put(:unspent_outputs, new_unspent_outputs)
+       |> Map.put(:tokens_to_mint, [])}
     else
       {false, ops}
     end

@@ -795,7 +795,7 @@ defmodule Archethic.Mining.ValidationContext do
     %LedgerOperations{
       fee: fee,
       transaction_movements: resolved_movements,
-      unspent_outputs: LedgerOperations.get_utxos_from_transaction(tx, validation_time)
+      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, validation_time)
     }
     |> LedgerOperations.consume_inputs(
       tx.address,
@@ -1224,7 +1224,7 @@ defmodule Archethic.Mining.ValidationContext do
       %LedgerOperations{
         fee: fee,
         transaction_movements: Transaction.get_movements(tx),
-        unspent_outputs: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+        tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       }
       |> LedgerOperations.consume_inputs(
         tx.address,
