@@ -73,15 +73,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
          %{"token_reference" => token_ref, "supply" => supply},
          address,
          timestamp
-       ) do
-    [
-      %UnspentOutput{
-        from: address,
-        amount: supply,
-        type: {:token, Base.decode16!(token_ref, case: :mixed), 0},
-        timestamp: timestamp
-      }
-    ]
+       )
+       when is_binary(token_ref) and is_integer(supply) do
+    case Base.decode16(token_ref, case: :mixed) do
+      {:ok, token_address} ->
+        [
+          %UnspentOutput{
+            from: address,
+            amount: supply,
+            type: {:token, token_address, 0},
+            timestamp: timestamp
+          }
+        ]
+
+      _ ->
+        []
+    end
   end
 
   defp get_token_utxos(
@@ -249,132 +256,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc """
   Use the necessary inputs to satisfy the uco amount to spend
-
   The remaining unspent outputs will go to the change address
-
-  ## Examples
-
-    # When a single unspent output is sufficient to satisfy the transaction movements
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-      ...>    ],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Bob3", amount: 2_000_000_000, type: :UCO,timestamp: ~U[2022-10-09 08:39:10.463Z]}
-      ...> ], ~U[2022-10-10 10:44:38.983Z])
-      %LedgerOperations{
-          transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-            %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-          ],
-          fee: 40_000_000,
-          unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 703_000_000, type: :UCO, timestamp:  ~U[2022-10-10 10:44:38.983Z]}
-          ]
-      }
-
-    # When multiple little unspent output are sufficient to satisfy the transaction movements
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-      ...>    ],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
-      ...>    %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
-      ...>    %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO},
-      ...>    %UnspentOutput{from: "@Hugo", amount: 800_000_000, type: :UCO}
-      ...> ],~U[2022-10-10 10:44:38.983Z])
-      %LedgerOperations{
-          transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-            %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
-          ],
-          fee: 40_000_000,
-          unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 1_103_000_000, type: :UCO, timestamp: ~U[2022-10-10 10:44:38.983Z]},
-          ]
-      }
-
-     # When using Token unspent outputs are sufficient to satisfy the transaction movements
-
-       iex> %LedgerOperations{
-       ...>    transaction_movements: [
-       ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:token, "@CharlieToken", 0}}
-       ...>    ],
-       ...>    fee: 40_000_000
-       ...> }
-       ...> |> LedgerOperations.consume_inputs("@Alice2", [
-       ...>    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO, timestamp: ~U[2022-10-09 08:39:10.463Z]},
-       ...>    %UnspentOutput{from: "@Bob3", amount: 1_200_000_000, type: {:token, "@CharlieToken", 0}, timestamp: ~U[2022-10-09 08:39:10.463Z]}
-       ...> ],~U[2022-10-10 10:44:38.983Z])
-       %LedgerOperations{
-           transaction_movements: [
-             %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:token, "@CharlieToken", 0}}
-           ],
-           fee: 40_000_000,
-           unspent_outputs: [
-             %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO, timestamp: ~U[2022-10-10 10:44:38.983Z]},
-             %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: {:token, "@CharlieToken", 0}, timestamp: ~U[2022-10-10 10:44:38.983Z]}
-           ]
-       }
-
-    #  When multiple Token unspent outputs are sufficient to satisfy the transaction movements
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:token, "@CharlieToken", 0}}
-      ...>    ],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
-      ...>    %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: {:token, "@CharlieToken", 0}},
-      ...>    %UnspentOutput{from: "@Hugo5", amount: 700_000_000, type: {:token, "@CharlieToken", 0}},
-      ...>    %UnspentOutput{from: "@Tom1", amount: 700_000_000, type: {:token, "@CharlieToken", 0}}
-      ...> ], ~U[2022-10-10 10:44:38.983Z])
-      %LedgerOperations{
-          transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:token, "@CharlieToken", 0}}
-          ],
-          fee: 40_000_000,
-          unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO, timestamp: ~U[2022-10-10 10:44:38.983Z]},
-            %UnspentOutput{from: "@Alice2", amount: 900_000_000, type: {:token, "@CharlieToken", 0}, timestamp: ~U[2022-10-10 10:44:38.983Z]}
-          ]
-      }
-
-      # When non-fungible tokens are used as input but want to consume only a single input
-
-      iex> %LedgerOperations{
-      ...>   transaction_movements: [
-      ...>     %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:token, "@CharlieToken", 2}}
-      ...> ],
-      ...>   fee: 40_000_000
-      ...> } |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>     %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO, timestamp: ~U[2022-10-09 08:39:10.463Z]},
-      ...>      %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 1}, timestamp: ~U[2022-10-09 08:39:10.463Z]},
-      ...>      %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 2}, timestamp: ~U[2022-10-09 08:39:10.463Z]},
-      ...>      %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 3}, timestamp: ~U[2022-10-09 08:39:10.463Z]}
-      ...> ], ~U[2022-10-10 10:44:38.983Z])
-      %LedgerOperations{
-        fee: 40_000_000,
-        transaction_movements: [
-          %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:token, "@CharlieToken", 2}}
-        ],
-        unspent_outputs: [
-          %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO, timestamp: ~U[2022-10-10 10:44:38.983Z]},
-          %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 1}, timestamp: ~U[2022-10-09 08:39:10.463Z]},
-          %UnspentOutput{from: "@CharlieToken", amount: 100_000_000, type: {:token, "@CharlieToken", 3}, timestamp: ~U[2022-10-09 08:39:10.463Z]}
-        ]
-      }
+  Also return a boolean indicating if there was sufficient funds
   """
   @spec consume_inputs(
           ledger_operations :: t(),
