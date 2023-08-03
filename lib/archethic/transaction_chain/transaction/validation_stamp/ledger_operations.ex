@@ -143,13 +143,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       when type in [:token, :mint_rewards] and not is_nil(timestamp) do
     case Jason.decode(content) do
       {:ok, json} ->
-        {utxos, movements} =
-          get_token_utxos(json, address, timestamp)
-          |> make_movements_for_recipients(json)
+        utxos = get_token_utxos(json, address, timestamp)
 
         ops
         |> Map.update(:unspent_outputs, utxos, &(utxos ++ &1))
-        |> Map.update(:transaction_movements, movements, &(movements ++ &1))
 
       _ ->
         ops
@@ -162,7 +159,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     json_content["recipients"] || []
   end
 
-  defp get_token_utxos(%{"token_reference" => token_ref, "supply" => supply}, address, timestamp) do
+  defp get_token_utxos(
+         json_content = %{"token_reference" => token_ref, "supply" => supply},
+         address,
+         timestamp
+       ) do
     [
       %UnspentOutput{
         from: address,
@@ -171,9 +172,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: timestamp
       }
     ]
+    |> subtract_recipients(json_content)
   end
 
-  defp get_token_utxos(%{"type" => "fungible", "supply" => supply}, address, timestamp) do
+  defp get_token_utxos(
+         json_content = %{"type" => "fungible", "supply" => supply},
+         address,
+         timestamp
+       ) do
     [
       %UnspentOutput{
         from: address,
@@ -182,10 +188,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: timestamp
       }
     ]
+    |> subtract_recipients(json_content)
   end
 
   defp get_token_utxos(
-         %{"type" => "non-fungible", "supply" => supply, "collection" => collection},
+         json_content = %{
+           "type" => "non-fungible",
+           "supply" => supply,
+           "collection" => collection
+         },
          address,
          timestamp
        ) do
@@ -202,13 +213,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           timestamp: timestamp
         }
       end)
+      |> subtract_recipients(json_content)
     else
       []
     end
   end
 
   defp get_token_utxos(
-         %{"type" => "non-fungible", "supply" => @unit_uco},
+         json_content = %{"type" => "non-fungible", "supply" => @unit_uco},
          address,
          timestamp
        ) do
@@ -220,53 +232,37 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: timestamp
       }
     ]
+    |> subtract_recipients(json_content)
   end
 
   defp get_token_utxos(_, _, _), do: []
 
-  defp make_movements_for_recipients([], _), do: {[], []}
+  defp subtract_recipients([], _), do: []
 
-  defp make_movements_for_recipients(utxos, json_content = %{"recipients" => recipients})
+  defp subtract_recipients(utxos, json_content = %{"recipients" => recipients})
        when is_list(recipients) do
-    Enum.reduce(utxos, {[], []}, fn utxo = %UnspentOutput{type: {:token, _, token_id}},
-                                    {utxos_acc0, movements_acc0} ->
-      {utxos_acc1, movements_acc2} =
+    Enum.reduce(utxos, [], fn utxo = %UnspentOutput{type: {:token, _, token_id}}, acc0 ->
+      utxo_modified =
         json_content
         |> get_token_recipients()
         |> Enum.filter(&((&1["token_id"] || 0) == token_id))
-        |> Enum.reduce({utxo, []}, &do_create_movement_for_recipient/2)
+        |> Enum.reduce(utxo, fn
+          %{"amount" => amount}, acc1 ->
+            %UnspentOutput{acc1 | amount: acc1.amount - amount}
 
-      # if all the tokens were sent to recipients, remove the utxo
-      if utxos_acc1.amount == 0 do
-        {utxos_acc0, movements_acc0 ++ movements_acc2}
+          _, acc1 ->
+            acc1
+        end)
+
+      if utxo_modified.amount > 0 do
+        [utxo_modified | acc0]
       else
-        {[utxos_acc1 | utxos_acc0], movements_acc0 ++ movements_acc2}
+        acc0
       end
     end)
   end
 
-  defp make_movements_for_recipients(utxos, _) do
-    {utxos, []}
-  end
-
-  defp do_create_movement_for_recipient(
-         %{"amount" => amount, "to" => address_hex},
-         {utxo = %UnspentOutput{type: utxo_type, amount: utxo_amount}, movements}
-       ) do
-    {
-      %UnspentOutput{utxo | amount: utxo_amount - amount},
-      [
-        %TransactionMovement{
-          to: Base.decode16!(address_hex, case: :mixed),
-          amount: amount,
-          type: utxo_type
-        }
-        | movements
-      ]
-    }
-  end
-
-  defp do_create_movement_for_recipient(_, acc), do: acc
+  defp subtract_recipients(utxos, _), do: utxos
 
   @doc """
   Returns the amount to spend from the transaction movements and the fee
