@@ -4,10 +4,14 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Crypto do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Legacy
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
   @spec hash(binary(), binary()) :: binary()
   def hash(content, algo \\ "sha256")
-  def hash(content, "keccak256"), do: ExKeccak.hash_256(content) |> Base.encode16()
+
+  def hash(content, "keccak256"),
+    do: UtilsInterpreter.maybe_decode_hex(content) |> ExKeccak.hash_256() |> Base.encode16()
+
   def hash(content, algo), do: Legacy.Library.hash(content, algo)
 
   @spec check_types(atom(), list()) :: boolean()
