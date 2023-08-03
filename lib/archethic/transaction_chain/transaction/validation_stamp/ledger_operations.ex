@@ -380,9 +380,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           inputs :: list(UnspentOutput.t() | TransactionInput.t()),
           timestamp :: DateTime.t()
         ) ::
-          t()
-  def consume_inputs(ops = %__MODULE__{}, change_address, inputs, timestamp)
+          {boolean(), t()}
+  def consume_inputs(
+        ops = %__MODULE__{unspent_outputs: unspent_outputs},
+        change_address,
+        inputs,
+        timestamp
+      )
       when is_binary(change_address) and is_list(inputs) and not is_nil(timestamp) do
+    inputs = inputs ++ unspent_outputs
+
     if sufficient_funds?(ops, inputs) do
       %{uco: uco_balance, token: tokens_received} = ledger_balances(inputs)
       %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(ops)
@@ -403,10 +410,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           )
       ]
 
-      Map.update!(ops, :unspent_outputs, &(new_unspent_outputs ++ &1))
+      {true, Map.put(ops, :unspent_outputs, new_unspent_outputs)}
     else
-      IO.inspect("NOT SUFFICIENT FUNDS IN CONSUME INPUTS =====================")
-      ops
+      {false, ops}
     end
   end
 

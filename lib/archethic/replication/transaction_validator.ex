@@ -323,20 +323,6 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp do_check_inputs(
          tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             timestamp: timestamp,
-             ledger_operations: ops = %LedgerOperations{}
-           }
-         },
-         inputs
-       ) do
-    with :ok <- validate_inputs(tx, inputs) do
-      validate_funds(ops, inputs ++ LedgerOperations.get_utxos_from_transaction(tx, timestamp))
-    end
-  end
-
-  defp validate_inputs(
-         tx = %Transaction{
            type: type,
            address: address,
            validation_stamp: %ValidationStamp{
@@ -353,13 +339,15 @@ defmodule Archethic.Replication.TransactionValidator do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
       %LedgerOperations{
         fee: fee,
-        transaction_movements: transaction_movements
+        transaction_movements: transaction_movements,
+        unspent_outputs: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       }
       |> LedgerOperations.consume_inputs(
         address,
-        inputs ++ LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        inputs,
         timestamp
       )
+      |> elem(1)
 
     same? =
       Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
@@ -376,14 +364,6 @@ defmodule Archethic.Replication.TransactionValidator do
       )
 
       {:error, :invalid_unspent_outputs}
-    end
-  end
-
-  defp validate_funds(ops = %LedgerOperations{}, inputs) do
-    if LedgerOperations.sufficient_funds?(ops, inputs) do
-      :ok
-    else
-      {:error, :insufficient_funds}
     end
   end
 end
