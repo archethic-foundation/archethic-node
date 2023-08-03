@@ -423,33 +423,6 @@ defmodule Archethic.TransactionChain.Transaction do
 
   @doc """
   Get the transfers and transaction movements from a transaction
-
-  ## Examples
-
-      iex> %Transaction{
-      ...>  data: %TransactionData{
-      ...>    ledger: %Ledger{
-      ...>      uco: %UCOLedger{
-      ...>        transfers: [
-      ...>          %UCOLedger.Transfer{to: "@Alice1", amount: 10}
-      ...>        ]
-      ...>      },
-      ...>      token: %TokenLedger{
-      ...>        transfers: [
-      ...>          %TokenLedger.Transfer{to: "@Alice1", amount: 3, token_address: "@BobToken", token_id: 0}
-      ...>        ]
-      ...>      }
-      ...>    }
-      ...>  }
-      ...> } |> Transaction.get_movements()
-      [
-        %TransactionMovement{
-          to: "@Alice1", amount: 10, type: :UCO,
-        },
-        %TransactionMovement{
-          to: "@Alice1", amount: 3, type: {:token, "@BobToken", 0},
-        }
-      ]
   """
   @spec get_movements(t()) :: list(TransactionMovement.t())
   def get_movements(%__MODULE__{
@@ -477,8 +450,11 @@ defmodule Archethic.TransactionChain.Transaction do
         :token ->
           case Jason.decode(content) do
             {:ok, json_content = %{"recipients" => recipients}} when is_list(recipients) ->
+              # resupply token transactions do not have a type, but is applied only to fungible tokens
+              fungible? = (json_content["type"] || "fungible") == "fungible"
+
               Enum.map(recipients, fn r = %{"to" => address_hex, "amount" => amount} ->
-                token_id = r["token_id"] || 0
+                token_id = r["token_id"] || if fungible?, do: 0, else: 1
 
                 token_address =
                   case json_content["token_reference"] do
