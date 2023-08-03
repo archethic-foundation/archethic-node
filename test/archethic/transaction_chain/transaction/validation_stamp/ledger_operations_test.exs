@@ -231,6 +231,29 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
              ] = LedgerOperations.get_utxos_from_transaction(tx, now)
     end
 
+    test "should return an empty list if amount is incorrect (for non-fungible)" do
+      now = DateTime.utc_now()
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          content: """
+          {
+            "supply": 1,
+            "type": "non-fungible",
+            "name": "My NFT",
+            "symbol": "MNFT",
+            "properties": {
+               "image": "base64 of the image",
+               "description": "This is a NFT with an image"
+            }
+          }
+          """
+        )
+
+      assert [] = LedgerOperations.get_utxos_from_transaction(tx, now)
+    end
+
     test "should return an empty list if invalid tx" do
       now = DateTime.utc_now()
 
@@ -535,6 +558,244 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  ~U[2022-10-10 10:44:38.983Z]
                )
                |> elem(1)
+    end
+
+    test "should return insufficient funds when not enough uco" do
+      ops = %LedgerOperations{fee: 1_000}
+      assert {false, _} = LedgerOperations.consume_inputs(ops, "@Alice", [], DateTime.utc_now())
+    end
+
+    test "should return insufficient funds when not enough tokens" do
+      ops = %LedgerOperations{
+        fee: 1_000,
+        transaction_movements: [
+          %TransactionMovement{
+            to: "@JeanClaude",
+            amount: 100_000_000,
+            type: {:token, "@CharlieToken", 0}
+          }
+        ]
+      }
+
+      assert {false, _} =
+               LedgerOperations.consume_inputs(
+                 ops,
+                 "@Alice",
+                 [
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 1_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 DateTime.utc_now()
+               )
+    end
+
+    test "should be able to pay with the minted fungible tokens" do
+      now = DateTime.utc_now()
+
+      ops = %LedgerOperations{
+        fee: 1_000,
+        tokens_to_mint: [
+          %UnspentOutput{
+            from: "@Bob",
+            amount: 100_000_000,
+            type: {:token, "@Token", 0},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ],
+        transaction_movements: [
+          %TransactionMovement{
+            to: "@JeanClaude",
+            amount: 50_000_000,
+            type: {:token, "@Token", 0}
+          }
+        ]
+      }
+
+      assert {true, ops_result} =
+               LedgerOperations.consume_inputs(
+                 ops,
+                 "@Alice",
+                 [
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 1_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 now
+               )
+
+      assert [
+               # I don't like utxo of amount=0
+               %UnspentOutput{
+                 from: "@Alice",
+                 amount: 0,
+                 type: :UCO,
+                 timestamp: ^now
+               },
+               %UnspentOutput{
+                 from: "@Alice",
+                 amount: 50_000_000,
+                 type: {:token, "@Token", 0},
+                 timestamp: ^now
+               }
+             ] = ops_result.unspent_outputs
+    end
+
+    test "should be able to pay with the minted non-fungible tokens" do
+      now = DateTime.utc_now()
+
+      ops = %LedgerOperations{
+        fee: 1_000,
+        tokens_to_mint: [
+          %UnspentOutput{
+            from: "@Bob",
+            amount: 100_000_000,
+            type: {:token, "@Token", 1},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ],
+        transaction_movements: [
+          %TransactionMovement{
+            to: "@JeanClaude",
+            amount: 100_000_000,
+            type: {:token, "@Token", 1}
+          }
+        ]
+      }
+
+      assert {true, ops_result} =
+               LedgerOperations.consume_inputs(
+                 ops,
+                 "@Alice",
+                 [
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 1_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 now
+               )
+
+      assert [
+               # I don't like utxo of amount=0
+               %UnspentOutput{
+                 from: "@Alice",
+                 amount: 0,
+                 type: :UCO,
+                 timestamp: ^now
+               }
+             ] = ops_result.unspent_outputs
+    end
+
+    test "should be able to pay with the minted non-fungible tokens (collection)" do
+      now = DateTime.utc_now()
+
+      ops = %LedgerOperations{
+        fee: 1_000,
+        tokens_to_mint: [
+          %UnspentOutput{
+            from: "@Bob",
+            amount: 100_000_000,
+            type: {:token, "@Token", 1},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          },
+          %UnspentOutput{
+            from: "@Bob",
+            amount: 100_000_000,
+            type: {:token, "@Token", 2},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ],
+        transaction_movements: [
+          %TransactionMovement{
+            to: "@JeanClaude",
+            amount: 100_000_000,
+            type: {:token, "@Token", 2}
+          }
+        ]
+      }
+
+      assert {true, ops_result} =
+               LedgerOperations.consume_inputs(
+                 ops,
+                 "@Alice",
+                 [
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 1_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 now
+               )
+
+      assert [
+               # I don't like utxo of amount=0
+               %UnspentOutput{
+                 from: "@Alice",
+                 amount: 0,
+                 type: :UCO,
+                 timestamp: ^now
+               },
+               %UnspentOutput{
+                 from: "@Bob",
+                 amount: 100_000_000,
+                 type: {:token, "@Token", 1},
+                 timestamp: ~U[2022-10-09 08:39:10.463Z]
+               }
+             ] = ops_result.unspent_outputs
+    end
+
+    test "should not be able to pay with the same non-fungible token twice" do
+      now = DateTime.utc_now()
+
+      ops = %LedgerOperations{
+        fee: 1_000,
+        tokens_to_mint: [
+          %UnspentOutput{
+            from: "@Bob",
+            amount: 100_000_000,
+            type: {:token, "@Token", 1},
+            timestamp: ~U[2022-10-09 08:39:10.463Z]
+          }
+        ],
+        transaction_movements: [
+          %TransactionMovement{
+            to: "@JeanClaude",
+            amount: 100_000_000,
+            type: {:token, "@Token", 1}
+          },
+          %TransactionMovement{
+            to: "@JeanBob",
+            amount: 100_000_000,
+            type: {:token, "@Token", 1}
+          }
+        ]
+      }
+
+      assert {false, _} =
+               LedgerOperations.consume_inputs(
+                 ops,
+                 "@Alice",
+                 [
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 1_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 now
+               )
     end
   end
 end

@@ -18,6 +18,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias Archethic.Utils
 
+  @unit_uco 100_000_000
   @version 1
 
   defstruct [
@@ -476,11 +477,15 @@ defmodule Archethic.TransactionChain.Transaction do
 
                 case Base.decode16(address_hex, case: :mixed) do
                   {:ok, address} ->
-                    %TransactionMovement{
-                      to: address,
-                      amount: amount,
-                      type: {:token, token_address, token_id}
-                    }
+                    if not fungible? && amount != @unit_uco do
+                      []
+                    else
+                      %TransactionMovement{
+                        to: address,
+                        amount: amount,
+                        type: {:token, token_address, token_id}
+                      }
+                    end
 
                   _ ->
                     []

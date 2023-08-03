@@ -366,5 +366,29 @@ defmodule Archethic.TransactionChain.TransactionTest do
                }
              ] = Transaction.get_movements(tx)
     end
+
+    test "should return an empty list when trying to send a fraction of a non-fungible" do
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          content: """
+          {
+            "supply": 100000000,
+            "type": "non-fungible",
+            "name": "My NFT",
+            "symbol": "MNFT",
+            "recipients": [{
+              "to": "#{recipient1_hex}",
+              "amount": 1
+            }]
+          }
+          """
+        )
+
+      assert [] = Transaction.get_movements(tx)
+    end
   end
 end
