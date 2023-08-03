@@ -122,11 +122,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   end
 
   defp parse_block(ast, functions_keys) do
-    # here the accumulator is an list of parent scopes & current scope
-    # where we can access variables from all of them
-    # `acc = [ref1]` means read variable from scope.ref1 or scope
-    # `acc = [ref1, ref2]` means read variable from scope.ref1.ref2 or scope.ref1 or scope
-    acc = []
+    acc = %{
+      functions: functions_keys
+    }
 
     {new_ast, _} =
       Macro.traverse(
@@ -136,7 +134,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
           prewalk(node, acc)
         end,
         fn node, acc ->
-          postwalk(node, acc, functions_keys)
+          postwalk(node, acc)
         end
       )
 
@@ -186,8 +184,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   defp postwalk(
          node =
            {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, function_name}]}, _, args},
-         acc,
-         _
+         acc
        ) do
     absolute_module_atom = Archethic.Contracts.Interpreter.Library.Contract
 
@@ -237,8 +234,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   # end
 
   # --------------- catch all -------------------
-  defp postwalk(node, acc, functions_keys) do
-    CommonInterpreter.postwalk(node, acc, functions_keys)
+  defp postwalk(node, acc) do
+    CommonInterpreter.postwalk(node, acc)
   end
 
   # keep only the transaction fields we are interested in

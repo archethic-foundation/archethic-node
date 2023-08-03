@@ -722,7 +722,7 @@ defmodule Archethic.Contracts.InterpreterTest do
           Contract.set_content integer_sum(10)
         end
 
-        export fun integer_sum(current_val) do
+        fun integer_sum(current_val) do
           return_value = 0
           if current_val != 0 do
             return_value = current_val + integer_sum(current_val - 1)

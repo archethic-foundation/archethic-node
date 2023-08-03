@@ -273,8 +273,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   # we need to return user's last expression and not the result of Scope.leave_scope()
   def postwalk(
         _node = {:__block__, meta, expressions},
-        acc,
-        _
+        acc
       ) do
     {last_expression, expressions} = List.pop_at(expressions, -1)
 
@@ -293,8 +292,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
         node =
           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, _function_name}]}, _,
            _args},
-        acc,
-        _
+        acc
       )
       when module_name in @modules_whitelisted do
     {module_call(node), acc}
@@ -303,8 +301,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   # variable are read from scope
   def postwalk(
         _node = {{:atom, var_name}, _, nil},
-        acc,
-        _
+        acc
       ) do
     new_node =
       quote do
@@ -322,8 +319,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
              {:%{}, _, [{var_name, list}]},
              [do: block]
            ]},
-        acc,
-        _
+        acc
       ) do
     # FIXME: here acc is already the parent acc, it is not the acc of the do block
     # FIXME: this means that our `var_name` will live in the parent scope
@@ -343,8 +339,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {new_node, acc}
   end
 
-  def postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys) when is_list(args) do
-    if Enum.member?(function_keys, {function_name, length(args)}) do
+  def postwalk(node = {{:atom, function_name}, _, args}, acc) when is_list(args) do
+    if Enum.member?(Map.get(acc, :functions), {function_name, length(args)}) do
       new_node =
         quote do
           Scope.execute_function_ast(unquote(function_name), unquote(args))
@@ -359,7 +355,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # BigInt mathematics to avoid floating point issues
-  def postwalk(_node = {ast, meta, [lhs, rhs]}, acc, _) when ast in [:*, :/, :+, :-] do
+  def postwalk(_node = {ast, meta, [lhs, rhs]}, acc) when ast in [:*, :/, :+, :-] do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
         AST.decimal_arithmetic(unquote(ast), unquote(lhs), unquote(rhs))
@@ -369,7 +365,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # whitelist rest
-  def postwalk(node, acc, _), do: {node, acc}
+  def postwalk(node, acc), do: {node, acc}
 
   def module_call(
         node =
