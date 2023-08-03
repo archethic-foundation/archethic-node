@@ -45,8 +45,11 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
                 ],
                 function: [
                   "can't be blank"
+                ],
+                args: [
+                  "is invalid"
                 ]
-              }} = CallContractFunction.validate_params(%{})
+              }} = CallContractFunction.validate_params(%{args: "not a list"})
     end
   end
 
