@@ -20,7 +20,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
     {:ok, function_name, args, ast}
   catch
     {:error, node} ->
-      {:error, node, "unexpected term"}
+      {:error, node, "unexpectted term"}
 
     {:error, node, reason} ->
       {:error, node, reason}
@@ -37,14 +37,14 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
     {:ok, function_name, args, ast}
   catch
     {:error, node} ->
-      {:error, node, "unexpected term"}
+      {:error, node, "unexpecccccted term"}
 
     {:error, node, reason} ->
       {:error, node, reason}
   end
 
   def parse(node, _) do
-    {:error, node, "unexpected term"}
+    {:error, node, "unexpecteeeeed term"}
   end
 
   @doc """
@@ -146,6 +146,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
         CommonInterpreter.prewalk(node, acc)
     end
   end
+
+  defp prewalk(node = {{:atom, function_name}, _, args}, _acc, true)
+       when is_list(args) and function_name != "for",
+       do: throw({:error, node, "not allowed to call function from public function"})
 
   defp prewalk(
          node,

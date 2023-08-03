@@ -148,11 +148,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # # autorize the use of modules whitelisted
-  # defp prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
-  #      when module_name in @modules_whitelisted,
-  #      do: {node, acc}
-
   defp prewalk(
          node,
          acc
@@ -168,7 +163,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # --------------- catch all -------------------
   defp postwalk(node, acc) do
     CommonInterpreter.postwalk(node, acc)
   end
