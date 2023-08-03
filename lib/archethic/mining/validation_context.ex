@@ -1214,6 +1214,13 @@ defmodule Archethic.Mining.ValidationContext do
         end
       end)
 
+    IO.inspect(
+      transaction_movements: transaction_movements,
+      initial_movements: initial_movements,
+      resolved_movements: resolved_movements,
+      resolved_addresses: resolved_addresses
+    )
+
     length(resolved_movements) == length(transaction_movements) and
       Enum.all?(resolved_movements, &(&1 in transaction_movements))
   end

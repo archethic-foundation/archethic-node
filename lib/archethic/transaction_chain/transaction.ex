@@ -453,14 +453,18 @@ defmodule Archethic.TransactionChain.Transaction do
   """
   @spec get_movements(t()) :: list(TransactionMovement.t())
   def get_movements(%__MODULE__{
+        type: type,
+        address: tx_address,
         data: %TransactionData{
+          content: content,
           ledger: %Ledger{
             uco: %UCOLedger{transfers: uco_transfers},
             token: %TokenLedger{transfers: token_transfers}
           }
         }
       }) do
-    Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}) ++
+    List.flatten([
+      Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}),
       Enum.map(
         token_transfers,
         &%TransactionMovement{
@@ -468,7 +472,53 @@ defmodule Archethic.TransactionChain.Transaction do
           amount: &1.amount,
           type: {:token, &1.token_address, &1.token_id}
         }
-      )
+      ),
+      case type do
+        :token ->
+          case Jason.decode(content) do
+            {:ok, json_content = %{"recipients" => recipients}} when is_list(recipients) ->
+              Enum.map(recipients, fn r = %{"to" => address_hex, "amount" => amount} ->
+                token_id = r["token_id"] || 0
+
+                token_address =
+                  case json_content["token_reference"] do
+                    nil ->
+                      # it's a token creation
+                      tx_address
+
+                    token_reference_hex ->
+                      # it's a token resupply
+                      case Base.decode16(token_reference_hex, case: :mixed) do
+                        {:ok, token_reference} ->
+                          token_reference
+
+                        _ ->
+                          # failure
+                          ""
+                      end
+                  end
+
+                case Base.decode16(address_hex, case: :mixed) do
+                  {:ok, address} ->
+                    %TransactionMovement{
+                      to: address,
+                      amount: amount,
+                      type: {:token, token_address, token_id}
+                    }
+
+                  _ ->
+                    []
+                end
+              end)
+
+            _ ->
+              []
+          end
+
+        _ ->
+          []
+      end
+    ])
   end
 
   @doc """

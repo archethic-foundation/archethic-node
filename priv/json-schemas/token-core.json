@@ -51,6 +51,7 @@
           },
           "amount": {
             "type": "integer",
+            "minimum": 1,
             "description": "Amount of tokens to sent to this recipient (100 000 000 for 1 token if decimals=8)"
           }
         }

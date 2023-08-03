@@ -54,11 +54,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
               |> Jason.decode!()
               |> ExJsonSchema.Schema.resolve()
 
-  @token_schema :archethic
-                |> Application.app_dir("priv/json-schemas/token-core.json")
-                |> File.read!()
-                |> Jason.decode!()
-                |> ExJsonSchema.Schema.resolve()
+  @token_creation_schema :archethic
+                         |> Application.app_dir("priv/json-schemas/token-core.json")
+                         |> File.read!()
+                         |> Jason.decode!()
+                         |> ExJsonSchema.Schema.resolve()
 
   @token_resupply_schema :archethic
                          |> Application.app_dir("priv/json-schemas/token-resupply.json")
@@ -773,15 +773,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         {:error, "Invalid token transaction - invalid JSON"}
 
       {:ok, json_token} ->
-        case {ExJsonSchema.Validator.validate(@token_schema, json_token),
-              ExJsonSchema.Validator.validate(@token_resupply_schema, json_token)} do
-          {:ok, _} ->
-            verify_token_creation(json_token) && verify_token_recipients(json_token)
+        cond do
+          ExJsonSchema.Validator.valid?(@token_creation_schema, json_token) ->
+            with :ok <- verify_token_recipients(json_token),
+                 :ok <- verify_token_creation(json_token),
+                 do: :ok
 
-          {_, :ok} ->
-            verify_token_resupply(tx, json_token) && verify_token_recipients(json_token)
+          ExJsonSchema.Validator.valid?(@token_resupply_schema, json_token) ->
+            with :ok <- verify_token_recipients(json_token),
+                 :ok <- verify_token_resupply(tx, json_token),
+                 do: :ok
 
-          _ ->
+          true ->
             {:error, "Invalid token transaction - neither a token creation nor a token resupply"}
         end
     end
@@ -872,37 +875,66 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp verify_token_recipients(json_token) do
-    case json_token["recipients"] do
+    case json_token["recipients"] || [] do
       [] ->
         :ok
 
-      nil ->
-        :ok
-
       recipients ->
-        total_amounts =
-          recipients
-          |> Enum.map(& &1["amount"])
-          |> Enum.sum()
-
-        if total_amounts > json_token["supply"] do
-          {:error, "Invalid token transaction - sum of recipients' amounts is bigger than supply"}
-        else
-          valid_addresses? =
-            recipients
-            |> Enum.map(& &1["to"])
-            |> Enum.map(&Base.decode16/1)
-            |> Enum.all?(fn
-              {:ok, address} -> Crypto.valid_address?(address)
-              _ -> false
-            end)
-
-          if valid_addresses? do
-            :ok
-          else
-            {:error, "Invalid token transaction - invalid recipients addresses"}
-          end
+        with :ok <- validate_token_recipients_amounts(recipients, json_token),
+             :ok <- validate_token_recipients_total(recipients, json_token),
+             :ok <- validate_token_recipients_addresses(recipients) do
+          :ok
         end
+    end
+  end
+
+  defp validate_token_recipients_addresses(recipients) do
+    valid? =
+      recipients
+      |> Enum.map(& &1["to"])
+      |> Enum.map(&Base.decode16(&1, case: :mixed))
+      |> Enum.all?(fn
+        {:ok, address} -> Crypto.valid_address?(address)
+        _ -> false
+      end)
+
+    if valid? do
+      :ok
+    else
+      {:error, "Invalid token transaction - invalid recipients addresses"}
+    end
+  end
+
+  defp validate_token_recipients_total(recipients, json_token) do
+    total =
+      recipients
+      |> Enum.map(& &1["amount"])
+      |> Enum.sum()
+
+    if total <= json_token["supply"] do
+      :ok
+    else
+      {:error, "Invalid token transaction - sum of recipients' amounts is bigger than supply"}
+    end
+  end
+
+  defp validate_token_recipients_amounts(recipients, json_token) do
+    # resupply token transactions do not have a type, but is applied only to fungible tokens
+    fungible? = (json_token["type"] || "fungible") == "fungible"
+
+    valid? =
+      Enum.all?(recipients, fn %{"amount" => amount} ->
+        if fungible? do
+          amount > 0
+        else
+          amount == 1 * @unit_uco
+        end
+      end)
+
+    if valid? do
+      :ok
+    else
+      {:error, "Invalid token transaction - invalid amount in recipients"}
     end
   end
 
