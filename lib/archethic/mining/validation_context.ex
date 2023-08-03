@@ -726,6 +726,7 @@ defmodule Archethic.Mining.ValidationContext do
           contract_context: contract_context
         }
       ) do
+    # return sufficient_funds? in a tuple and give it to validation_error so it does not have to do it
     ledger_operations = get_ledger_operations(context)
 
     validation_stamp =
@@ -742,7 +743,10 @@ defmodule Archethic.Mining.ValidationContext do
             prev_tx,
             tx,
             ledger_operations,
-            unspent_outputs,
+            unspent_outputs ++
+              IO.inspect(LedgerOperations.get_utxos_from_transaction(tx, validation_time),
+                label: "SQODSQODQSODOQDS"
+              ),
             valid_pending_transaction?,
             resolved_addresses,
             validation_time,
@@ -798,10 +802,9 @@ defmodule Archethic.Mining.ValidationContext do
       fee: fee,
       transaction_movements: resolved_movements
     }
-    |> LedgerOperations.from_transaction(tx, validation_time)
     |> LedgerOperations.consume_inputs(
       tx.address,
-      unspent_outputs,
+      unspent_outputs ++ LedgerOperations.get_utxos_from_transaction(tx, validation_time),
       validation_time |> DateTime.truncate(:millisecond)
     )
   end
@@ -864,7 +867,8 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   defp has_insufficient_funds?(ledger_ops, inputs) do
-    not LedgerOperations.sufficient_funds?(ledger_ops, inputs)
+    IO.inspect([ops: ledger_ops, inputs: inputs], label: "has_insufficient_funds?")
+    not LedgerOperations.sufficient_funds?(ledger_ops, inputs ++ ledger_ops.unspent_outputs)
   end
 
   ####################
@@ -1165,7 +1169,7 @@ defmodule Archethic.Mining.ValidationContext do
         prev_tx,
         tx,
         get_ledger_operations(validated_context),
-        unspent_outputs,
+        unspent_outputs ++ LedgerOperations.get_utxos_from_transaction(tx, validation_time),
         valid_pending_transaction?,
         resolved_addresses,
         validation_time,
@@ -1214,13 +1218,6 @@ defmodule Archethic.Mining.ValidationContext do
         end
       end)
 
-    IO.inspect(
-      transaction_movements: transaction_movements,
-      initial_movements: initial_movements,
-      resolved_movements: resolved_movements,
-      resolved_addresses: resolved_addresses
-    )
-
     length(resolved_movements) == length(transaction_movements) and
       Enum.all?(resolved_movements, &(&1 in transaction_movements))
   end
@@ -1240,8 +1237,11 @@ defmodule Archethic.Mining.ValidationContext do
         fee: fee,
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.from_transaction(tx, timestamp)
-      |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs, timestamp)
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        previous_unspent_outputs ++ LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        timestamp
+      )
 
     expected_unspent_outputs == next_unspent_outputs
   end

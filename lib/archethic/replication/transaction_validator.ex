@@ -324,19 +324,23 @@ defmodule Archethic.Replication.TransactionValidator do
   defp do_check_inputs(
          tx = %Transaction{
            validation_stamp: %ValidationStamp{
+             timestamp: timestamp,
              ledger_operations: ops = %LedgerOperations{}
            }
          },
          inputs
        ) do
     with :ok <- validate_inputs(tx, inputs) do
-      validate_funds(ops, inputs)
+      validate_funds(ops, inputs ++ LedgerOperations.get_utxos_from_transaction(tx, timestamp))
     end
   end
 
   defp validate_inputs(
          tx = %Transaction{
+           type: type,
+           address: address,
            validation_stamp: %ValidationStamp{
+             timestamp: timestamp,
              ledger_operations: %LedgerOperations{
                unspent_outputs: next_unspent_outputs,
                fee: fee,
@@ -351,8 +355,11 @@ defmodule Archethic.Replication.TransactionValidator do
         fee: fee,
         transaction_movements: transaction_movements
       }
-      |> LedgerOperations.from_transaction(tx, tx.validation_stamp.timestamp)
-      |> LedgerOperations.consume_inputs(tx.address, inputs, tx.validation_stamp.timestamp)
+      |> LedgerOperations.consume_inputs(
+        address,
+        inputs ++ LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        timestamp
+      )
 
     same? =
       Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
@@ -364,8 +371,8 @@ defmodule Archethic.Replication.TransactionValidator do
     else
       Logger.error(
         "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type
+        transaction_address: Base.encode16(address),
+        transaction_type: type
       )
 
       {:error, :invalid_unspent_outputs}

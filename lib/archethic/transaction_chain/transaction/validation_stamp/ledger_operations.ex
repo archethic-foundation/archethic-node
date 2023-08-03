@@ -45,94 +45,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc ~S"""
   Build some ledger operations from a specific transaction
-  ## Examples
-      iex> LedgerOperations.from_transaction(%LedgerOperations{},
-      ...>   %Transaction{
-      ...>     address: "@Token2",
-      ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 1000000000, \"type\": \"fungible\" }"}
-      ...>   },~U[2022-10-10 08:07:31.784Z]
-      ...> )
-      %LedgerOperations{
-          unspent_outputs: [%UnspentOutput{from: "@Token2", amount: 1000000000, type: {:token, "@Token2", 0},timestamp: ~U[2022-10-10 08:07:31.784Z]}]
-      }
-
-      iex> LedgerOperations.from_transaction(%LedgerOperations{},
-      ...>   %Transaction{
-      ...>     address: "@Token2",
-      ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 1000000000, \"type\": \"non-fungible\", \"collection\": [{},{},{},{},{},{},{},{},{},{}]}"}
-      ...>   },~U[2022-10-10 08:07:31.784Z]
-      ...>  )
-      %LedgerOperations{
-        unspent_outputs: [
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 1}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 2}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 3}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 4}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 5}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 6}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 7}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 8}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 9}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 10},timestamp: ~U[2022-10-10 08:07:31.784Z]}
-        ]
-      }
-
-      iex> LedgerOperations.from_transaction(%LedgerOperations{},
-      ...>   %Transaction{
-      ...>     address: "@Token2",
-      ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 100000000, \"type\": \"non-fungible\"}"}
-      ...>   },~U[2022-10-10 08:07:31.784Z]
-      ...>  )
-      %LedgerOperations{
-        unspent_outputs: [
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 1}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-        ]
-      }
-
-      iex> LedgerOperations.from_transaction(%LedgerOperations{},
-      ...>   %Transaction{
-      ...>     address: "@Token2",
-      ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 200000000, \"type\": \"non-fungible\", \"collection\": [{\"id\": 42}, {\"id\": 38}]}"}
-      ...>   },~U[2022-10-10 08:07:31.784Z]
-      ...>  )
-      %LedgerOperations{
-        unspent_outputs: [
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 42}, timestamp: ~U[2022-10-10 08:07:31.784Z]},
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@Token2", 38}, timestamp: ~U[2022-10-10 08:07:31.784Z]}
-        ]
-      }
-
-      iex> LedgerOperations.from_transaction(%LedgerOperations{},
-      ...>   %Transaction{
-      ...>     address: "@Token2",
-      ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 1000000000, \"type\": \"non-fungible\", \"collection\": [{}]}"}
-      ...>   }, ~U[2022-10-10 08:07:31.784Z]
-      ...>  )
-      %LedgerOperations{
-        unspent_outputs: []
-      }
-
-      iex> LedgerOperations.from_transaction(%LedgerOperations{},
-      ...>   %Transaction{
-      ...>     address: "@Token2",
-      ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 100000000, \"token_reference\": \"40546F6B656E526566\", \"aeip\": [2, 18]}"}
-      ...>   }, ~U[2022-10-10 08:07:31.784Z]
-      ...>  )
-      %LedgerOperations{
-        unspent_outputs: [
-          %UnspentOutput{from: "@Token2", amount: 100_000_000, type: {:token, "@TokenRef", 0}, timestamp: ~U[2022-10-10 08:07:31.784Z]}
-        ]
-      }
   """
-  @spec from_transaction(t(), Transaction.t(), DateTime.t()) :: t()
-  def from_transaction(
-        ops = %__MODULE__{},
+  @spec get_utxos_from_transaction(Transaction.t(), DateTime.t()) :: list(UnspentOutput.t())
+  def get_utxos_from_transaction(
         %Transaction{
           address: address,
           type: type,
@@ -143,24 +58,17 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       when type in [:token, :mint_rewards] and not is_nil(timestamp) do
     case Jason.decode(content) do
       {:ok, json} ->
-        utxos = get_token_utxos(json, address, timestamp)
-
-        ops
-        |> Map.update(:unspent_outputs, utxos, &(utxos ++ &1))
+        get_token_utxos(json, address, timestamp)
 
       _ ->
-        ops
+        []
     end
   end
 
-  def from_transaction(ops = %__MODULE__{}, %Transaction{}, _timestamp), do: ops
-
-  defp get_token_recipients(json_content) do
-    json_content["recipients"] || []
-  end
+  def get_utxos_from_transaction(%Transaction{}, _timestamp), do: []
 
   defp get_token_utxos(
-         json_content = %{"token_reference" => token_ref, "supply" => supply},
+         %{"token_reference" => token_ref, "supply" => supply},
          address,
          timestamp
        ) do
@@ -172,11 +80,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: timestamp
       }
     ]
-    |> subtract_recipients(json_content)
   end
 
   defp get_token_utxos(
-         json_content = %{"type" => "fungible", "supply" => supply},
+         %{"type" => "fungible", "supply" => supply},
          address,
          timestamp
        ) do
@@ -188,11 +95,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: timestamp
       }
     ]
-    |> subtract_recipients(json_content)
   end
 
   defp get_token_utxos(
-         json_content = %{
+         %{
            "type" => "non-fungible",
            "supply" => supply,
            "collection" => collection
@@ -213,14 +119,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           timestamp: timestamp
         }
       end)
-      |> subtract_recipients(json_content)
     else
       []
     end
   end
 
   defp get_token_utxos(
-         json_content = %{"type" => "non-fungible", "supply" => @unit_uco},
+         %{"type" => "non-fungible", "supply" => @unit_uco},
          address,
          timestamp
        ) do
@@ -232,37 +137,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp: timestamp
       }
     ]
-    |> subtract_recipients(json_content)
   end
 
   defp get_token_utxos(_, _, _), do: []
-
-  defp subtract_recipients([], _), do: []
-
-  defp subtract_recipients(utxos, json_content = %{"recipients" => recipients})
-       when is_list(recipients) do
-    Enum.reduce(utxos, [], fn utxo = %UnspentOutput{type: {:token, _, token_id}}, acc0 ->
-      utxo_modified =
-        json_content
-        |> get_token_recipients()
-        |> Enum.filter(&((&1["token_id"] || 0) == token_id))
-        |> Enum.reduce(utxo, fn
-          %{"amount" => amount}, acc1 ->
-            %UnspentOutput{acc1 | amount: acc1.amount - amount}
-
-          _, acc1 ->
-            acc1
-        end)
-
-      if utxo_modified.amount > 0 do
-        [utxo_modified | acc0]
-      else
-        acc0
-      end
-    end)
-  end
-
-  defp subtract_recipients(utxos, _), do: utxos
 
   @doc """
   Returns the amount to spend from the transaction movements and the fee
@@ -528,6 +405,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       Map.update!(ops, :unspent_outputs, &(new_unspent_outputs ++ &1))
     else
+      IO.inspect("NOT SUFFICIENT FUNDS IN CONSUME INPUTS =====================")
       ops
     end
   end

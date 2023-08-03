@@ -169,6 +169,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_type: validated_tx.type
     )
 
+    IO.inspect(validated_tx: validated_tx)
     message = %ValidateTransaction{
       transaction: validated_tx
     }

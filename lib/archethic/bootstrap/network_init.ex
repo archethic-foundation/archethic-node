@@ -187,8 +187,11 @@ defmodule Archethic.Bootstrap.NetworkInit do
         fee: Mining.get_transaction_fee(tx, 0.07, timestamp),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.from_transaction(tx, timestamp)
-      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        unspent_outputs ++ LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        timestamp
+      )
 
     validation_stamp =
       %ValidationStamp{
