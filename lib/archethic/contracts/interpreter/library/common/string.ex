@@ -21,7 +21,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
         Base.encode16(bin)
 
       :error ->
-        nil
+        Base.encode16(str)
     end
   end
 
