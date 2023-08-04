@@ -7,6 +7,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method do
               {:ok, params :: any()} | {:error, reasons :: list()}
 
   @callback execute(params :: any()) ::
-              {:ok, result :: map() | list()}
+              {:ok, result :: map() | list() | any()}
               | {:error, reason :: atom(), message :: binary()}
+              | {:error, reason :: atom(), message :: binary(), data :: any()}
 end

@@ -183,6 +183,14 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   @doc """
+  Execute the given function with the givent constants and arguments
+  """
+  @spec execute_function(any(), map(), list()) :: result :: any()
+  def execute_function(%{ast: ast, args: args_names}, constants, args) do
+    FunctionInterpreter.execute(ast, constants, args_names, args)
+  end
+
+  @doc """
   Format an error message from the failing ast node
 
   It returns message with metadata if possible to indicate the line of the error

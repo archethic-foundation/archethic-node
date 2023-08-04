@@ -97,7 +97,8 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   @doc """
   Execute ast after creating specific context for it and return execution's result
   """
-  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) :: :ok
+  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
+          result :: any()
   def execute(ast, constants, args_names \\ [], args_ast \\ []) do
     init(constants)
 
