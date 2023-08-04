@@ -218,6 +218,8 @@ defmodule Archethic.TransactionChain.TransactionTest do
     test "should return an empty list if invalid transaction" do
       token = random_address()
       token_hex = token |> Base.encode16()
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
 
       assert [] =
                Transaction.get_movements(
@@ -226,6 +228,23 @@ defmodule Archethic.TransactionChain.TransactionTest do
                    content: """
                    {
                     "token_reference": "#{token_hex}"
+                   }
+                   """
+                 )
+               )
+
+      assert [] =
+               Transaction.get_movements(
+                 TransactionFactory.create_valid_transaction([],
+                   type: :token,
+                   content: """
+                   {
+                    "token_reference": "not an hexadecimal",
+                    "supply": 100000000,
+                    "recipients": [{
+                      "to": "#{recipient1_hex}",
+                      "amount": 1000
+                    }]
                    }
                    """
                  )

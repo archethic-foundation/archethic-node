@@ -18,6 +18,18 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias Archethic.Utils
 
+  @token_creation_schema :archethic
+                         |> Application.app_dir("priv/json-schemas/token-core.json")
+                         |> File.read!()
+                         |> Jason.decode!()
+                         |> ExJsonSchema.Schema.resolve()
+
+  @token_resupply_schema :archethic
+                         |> Application.app_dir("priv/json-schemas/token-resupply.json")
+                         |> File.read!()
+                         |> Jason.decode!()
+                         |> ExJsonSchema.Schema.resolve()
+
   @unit_uco 100_000_000
   @version 1
 
@@ -448,56 +460,9 @@ defmodule Archethic.TransactionChain.Transaction do
         }
       ),
       case type do
-        :token ->
-          case Jason.decode(content) do
-            {:ok, json_content = %{"recipients" => recipients}} when is_list(recipients) ->
-              # resupply token transactions do not have a type, but is applied only to fungible tokens
-              fungible? = (json_content["type"] || "fungible") == "fungible"
-
-              Enum.map(recipients, fn r = %{"to" => address_hex, "amount" => amount} ->
-                token_id = r["token_id"] || if fungible?, do: 0, else: 1
-
-                token_address =
-                  case json_content["token_reference"] do
-                    nil ->
-                      # it's a token creation
-                      tx_address
-
-                    token_reference_hex ->
-                      # it's a token resupply
-                      case Base.decode16(token_reference_hex, case: :mixed) do
-                        {:ok, token_reference} ->
-                          token_reference
-
-                        _ ->
-                          # failure
-                          ""
-                      end
-                  end
-
-                case Base.decode16(address_hex, case: :mixed) do
-                  {:ok, address} ->
-                    if not fungible? && amount != @unit_uco do
-                      []
-                    else
-                      %TransactionMovement{
-                        to: address,
-                        amount: amount,
-                        type: {:token, token_address, token_id}
-                      }
-                    end
-
-                  _ ->
-                    []
-                end
-              end)
-
-            _ ->
-              []
-          end
-
-        _ ->
-          []
+        :token -> get_movements_from_token_transaction(tx_address, content)
+        :mint_reward -> get_movements_from_token_transaction(tx_address, content)
+        _ -> []
       end
     ])
   end
@@ -983,5 +948,62 @@ defmodule Archethic.TransactionChain.Transaction do
         (Map.get(tx, :cross_validation_stamps) || [])
         |> Enum.map(&CrossValidationStamp.cast/1)
     }
+  end
+
+  defp get_movements_from_token_transaction(tx_address, tx_content) do
+    case Jason.decode(tx_content) do
+      {:ok, json} ->
+        cond do
+          ExJsonSchema.Validator.valid?(@token_creation_schema, json) ->
+            get_movements_from_token_creation(tx_address, json)
+
+          ExJsonSchema.Validator.valid?(@token_resupply_schema, json) ->
+            get_movements_from_token_resupply(json)
+
+          true ->
+            []
+        end
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  defp get_movements_from_token_creation(tx_address, json) do
+    recipients = json["recipients"] || []
+    fungible? = json["type"] == "fungible"
+
+    Enum.map(recipients, fn r = %{"to" => address_hex, "amount" => amount} ->
+      token_id = r["token_id"] || if fungible?, do: 0, else: 1
+      address = Base.decode16!(address_hex, case: :mixed)
+
+      if not fungible? and amount != @unit_uco do
+        nil
+      else
+        %TransactionMovement{
+          to: address,
+          amount: amount,
+          type: {:token, tx_address, token_id}
+        }
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp get_movements_from_token_resupply(json) do
+    recipients = json["recipients"] || []
+    token_reference = json["token_reference"]
+
+    Enum.map(recipients, fn r = %{"to" => address_hex, "amount" => amount} ->
+      token_id = r["token_id"] || 0
+      token_address = Base.decode16!(token_reference, case: :mixed)
+      address = Base.decode16!(address_hex, case: :mixed)
+
+      %TransactionMovement{
+        to: address,
+        amount: amount,
+        type: {:token, token_address, token_id}
+      }
+    end)
   end
 end

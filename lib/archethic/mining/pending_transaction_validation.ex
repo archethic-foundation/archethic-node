@@ -768,25 +768,28 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp verify_token_transaction(tx = %Transaction{data: %TransactionData{content: content}}) do
-    case Jason.decode(content) do
-      {:error, _} ->
+    with {:ok, json_token} <- Jason.decode(content),
+         :ok <- verify_token_creation(tx, json_token) do
+      verify_token_recipients(json_token)
+    else
+      {:error, %Jason.DecodeError{}} ->
         {:error, "Invalid token transaction - invalid JSON"}
 
-      {:ok, json_token} ->
-        cond do
-          ExJsonSchema.Validator.valid?(@token_creation_schema, json_token) ->
-            with :ok <- verify_token_recipients(json_token),
-                 :ok <- verify_token_creation(json_token),
-                 do: :ok
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
-          ExJsonSchema.Validator.valid?(@token_resupply_schema, json_token) ->
-            with :ok <- verify_token_recipients(json_token),
-                 :ok <- verify_token_resupply(tx, json_token),
-                 do: :ok
+  defp verify_token_creation(tx, json_token) do
+    cond do
+      ExJsonSchema.Validator.valid?(@token_creation_schema, json_token) ->
+        verify_token_creation(json_token)
 
-          true ->
-            {:error, "Invalid token transaction - neither a token creation nor a token resupply"}
-        end
+      ExJsonSchema.Validator.valid?(@token_resupply_schema, json_token) ->
+        verify_token_resupply(tx, json_token)
+
+      true ->
+        {:error, "Invalid token transaction - neither a token creation nor a token resupply"}
     end
   end
 
@@ -828,7 +831,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp verify_token_resupply(tx, %{"token_reference" => token_ref}) do
-    with {:ok, token_address} <- Base.decode16(token_ref, case: :mixed),
+    with token_address <- Base.decode16!(token_ref, case: :mixed),
          # verify same chain
          {:ok, genesis_address} <- fetch_previous_tx_genesis_address(tx),
          storage_nodes <-
@@ -868,9 +871,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:error, %Jason.DecodeError{}} ->
         {:error,
          "Invalid token transaction - token_reference exists but does not contain a valid JSON"}
-
-      :error ->
-        {:error, "Invalid token transaction - token_reference is not an hexadecimal"}
     end
   end
 
@@ -881,9 +881,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
       recipients ->
         with :ok <- validate_token_recipients_amounts(recipients, json_token),
-             :ok <- validate_token_recipients_total(recipients, json_token),
-             :ok <- validate_token_recipients_addresses(recipients) do
-          :ok
+             :ok <- validate_token_recipients_total(recipients, json_token) do
+          validate_token_recipients_addresses(recipients)
         end
     end
   end

@@ -1347,7 +1347,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           0
         )
 
-      assert {:error, "Invalid token transaction - token_reference is not an hexadecimal"} =
+      assert {:error, "Invalid token transaction - neither a token creation nor a token resupply"} =
                PendingTransactionValidation.validate(tx)
     end
 
