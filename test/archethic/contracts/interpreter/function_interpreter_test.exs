@@ -109,7 +109,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> FunctionInterpreter.parse([])
     end
 
-    test "should be able to call declared function from private function" do
+    test "should be able to call declared public function from private function" do
       code = ~S"""
       fun test do
        hello()
@@ -121,7 +121,22 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0}])
+               |> FunctionInterpreter.parse([{"hello", 0, :public}])
+    end
+
+    test "should not be able to call declared private function from private function" do
+      code = ~S"""
+      fun test do
+       hello()
+      end
+      """
+
+      assert {:error, _, "not allowed to call private function from a private function"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark function as declared
+               |> FunctionInterpreter.parse([{"hello", 0, :private}])
     end
 
     test "should not be able to call declared function from public function" do
@@ -136,7 +151,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0}])
+               |> FunctionInterpreter.parse([{"hello", 0, :public}])
     end
   end
 
@@ -165,7 +180,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
         |> Interpreter.sanitize_code()
         |> elem(1)
         # pass allowed function
-        |> FunctionInterpreter.parse([{"hello", 0}])
+        |> FunctionInterpreter.parse([{"hello", 0, :public}])
 
       function_constant = %{:functions => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
 

@@ -110,6 +110,13 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     new_ast
   end
 
+  defp function_exists?(functions, function_name, arity) do
+    Enum.find(functions, fn
+      {^function_name, ^arity, _} -> true
+      _ -> false
+    end) != nil
+  end
+
   # ----------------------------------------------------------------------
   #                                _ _
   #   _ __  _ __ _____      ____ _| | | __
@@ -132,20 +139,22 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   # ----------------------------------------------------------------------
   # Override custom function calls
   # because we might need to inject the contract as first argument
-  defp postwalk(subject, node = {{:atom, function_name}, meta, args}, acc)
+  defp postwalk(
+         subject,
+         node = {{:atom, function_name}, meta, args},
+         acc = %{functions: functions}
+       )
        when is_list(args) and function_name != "for" do
     arity = length(args)
 
-    functions = Map.get(acc, :functions)
-
     new_node =
       cond do
-        Enum.member?(functions, {function_name, arity}) ->
+        function_exists?(functions, function_name, arity) ->
           {new_node, _} = CommonInterpreter.postwalk(node, acc)
           new_node
 
         # if function exist with arity+1 => prepend the key to args
-        Enum.member?(functions, {function_name, arity + 1}) ->
+        function_exists?(functions, function_name, arity + 1) ->
           ast =
             quote do
               Scope.read_global(unquote(subject))

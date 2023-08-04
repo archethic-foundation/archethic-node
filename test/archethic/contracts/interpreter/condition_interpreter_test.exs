@@ -114,7 +114,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as existing
-               |> ConditionInterpreter.parse([{"get_uco_transfers", 0}])
+               |> ConditionInterpreter.parse([{"get_uco_transfers", 0, :public}])
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end

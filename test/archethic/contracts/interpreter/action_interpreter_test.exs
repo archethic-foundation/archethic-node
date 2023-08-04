@@ -498,12 +498,21 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
+      # public function
       assert {:ok, _, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark as existing
-               |> ActionInterpreter.parse([{"hello", 0}])
+               |> ActionInterpreter.parse([{"hello", 0, :public}])
+
+      # private function
+      assert {:ok, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark as existing
+               |> ActionInterpreter.parse([{"hello", 0, :private}])
     end
   end
 

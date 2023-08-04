@@ -339,18 +339,24 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {new_node, acc}
   end
 
-  def postwalk(node = {{:atom, function_name}, _, args}, acc) when is_list(args) do
-    if Enum.member?(Map.get(acc, :functions), {function_name, length(args)}) do
-      new_node =
-        quote do
-          Scope.execute_function_ast(unquote(function_name), unquote(args))
-        end
+  def postwalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
+      when is_list(args) do
+    arity = length(args)
 
-      {new_node, acc}
-    else
-      reason = "The function #{function_name}/#{Integer.to_string(length(args))} does not exist"
+    case Enum.find(functions, fn
+           {^function_name, ^arity, _} -> true
+           _ -> false
+         end) do
+      nil ->
+        throw({:error, node, "The function #{function_name}/#{arity} does not exist"})
 
-      throw({:error, node, reason})
+      {_, _, _} ->
+        new_node =
+          quote do
+            Scope.execute_function_ast(unquote(function_name), unquote(args))
+          end
+
+        {new_node, acc}
     end
   end
 

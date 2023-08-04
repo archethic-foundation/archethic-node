@@ -408,7 +408,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp get_function_keys([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
-    [{function_name, length(args)} | get_function_keys(rest)]
+    [{function_name, length(args), :private} | get_function_keys(rest)]
   end
 
   defp get_function_keys([
@@ -416,7 +416,7 @@ defmodule Archethic.Contracts.Interpreter do
           [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
          | rest
        ]) do
-    [{function_name, length(args)} | get_function_keys(rest)]
+    [{function_name, length(args), :public} | get_function_keys(rest)]
   end
 
   defp get_function_keys([_ | rest]), do: get_function_keys(rest)
