@@ -232,7 +232,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0}])
+               |> FunctionInterpreter.parse([{"hello", 0, :public}])
     end
   end
 

@@ -173,8 +173,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
        when is_list(args) and function_name != "for" do
     arity = length(args)
 
-    functions = Map.get(acc, :functions)
-
     new_node =
       cond do
         function_exists?(functions, function_name, arity) ->
