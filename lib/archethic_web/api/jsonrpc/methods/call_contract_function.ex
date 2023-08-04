@@ -18,9 +18,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
       changeset ->
         reasons =
           Ecto.Changeset.traverse_errors(changeset, fn
-            {message, [type: {:array, :any}, validation: :cast]} ->
-              WebUtils.translate_error({message, [type: :array, validation: :cast]})
-
             change ->
               WebUtils.translate_error(change)
           end)
