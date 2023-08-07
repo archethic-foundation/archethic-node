@@ -2,8 +2,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Json do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Legacy
+
+  use Tag
 
   @spec path_extract(String.t(), String.t()) :: String.t()
   defdelegate path_extract(text, path),

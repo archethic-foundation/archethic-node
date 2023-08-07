@@ -2,7 +2,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.String do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+
+  use Tag
 
   @spec size(String.t()) :: integer()
   defdelegate size(str),

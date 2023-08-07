@@ -201,6 +201,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       export fun bob() do 
         "hello bob"
       end
+
       export fun hello() do 
         bob()
       end
@@ -240,8 +241,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         args: []
       }
 
-      assert {:error, :function_failure, "There was an error while executing the function",
-              "hello/0"} = CallContractFunction.execute(params)
+      assert {:error, :parsing_contract, _,
+              "not allowed to call function from public function - bob - L8"} =
+               CallContractFunction.execute(params)
     end
 
     test "should not be able to call a private function from a public function" do
@@ -290,8 +292,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         args: []
       }
 
-      assert {:error, :function_failure, "There was an error while executing the function",
-              "hello/0"} = CallContractFunction.execute(params)
+      assert {:error, :parsing_contract, _,
+              "not allowed to call function from public function - bob - L7"} =
+               CallContractFunction.execute(params)
     end
 
     test "should return error when called function does not exist" do

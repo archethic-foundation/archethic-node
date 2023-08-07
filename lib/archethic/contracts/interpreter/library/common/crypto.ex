@@ -2,9 +2,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Crypto do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Legacy
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
+
+  use Tag
 
   @spec hash(binary(), binary()) :: binary()
   def hash(content, algo \\ "sha256")

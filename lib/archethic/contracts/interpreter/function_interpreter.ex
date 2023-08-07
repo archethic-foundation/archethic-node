@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.Interpreter.CommonInterpreter
+  alias Knigge
   require Logger
 
   @doc """
@@ -18,7 +19,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
     {:ok, function_name, args, ast}
   catch
     {:error, node} ->
-      {:error, node, "unexpectted term"}
+      {:error, node, "unexpected term"}
 
     {:error, node, reason} ->
       {:error, node, reason}
@@ -35,14 +36,14 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
     {:ok, function_name, args, ast}
   catch
     {:error, node} ->
-      {:error, node, "unexpecccccted term"}
+      {:error, node, "unexpected term"}
 
     {:error, node, reason} ->
       {:error, node, reason}
   end
 
   def parse(node, _) do
-    {:error, node, "unexpecteeeeed term"}
+    {:error, node, "unexpected term"}
   end
 
   @doc """
@@ -97,11 +98,50 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   # ----------------------------------------------------------------------
   # Ban access to Contract module
   defp prewalk(
-         node = {:__aliases__, _, [atom: "Contract"]},
-         _,
+         node =
+           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, function_name}]}, _, _},
+         acc,
          _visibility
        ) do
-    throw({:error, node, "Contract is not allowed in function"})
+    absolute_module_atom =
+      Code.ensure_loaded!(
+        String.to_existing_atom("Elixir.Archethic.Contracts.Interpreter.Library.Contract")
+      )
+
+    if absolute_module_atom.tagged_with?(String.to_atom(function_name), :write_contract) do
+      throw({:error, node, "Write contract functions are not allowed in custom functions"})
+    end
+
+    CommonInterpreter.prewalk(node, acc)
+  end
+
+  defp prewalk(
+         node =
+           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, _},
+         acc,
+         true
+       ) do
+    absolute_module_atom =
+      Code.ensure_loaded!(
+        String.to_existing_atom(
+          "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
+        )
+      )
+
+    absolute_module_atom =
+      try do
+        %Knigge.Options{default: module} = Knigge.options!(absolute_module_atom)
+        module
+      rescue
+        _ ->
+          absolute_module_atom
+      end
+
+    if absolute_module_atom.tagged_with?(String.to_atom(function_name), :io) do
+      throw({:error, node, "IO function calls not allowed in public functions"})
+    end
+
+    CommonInterpreter.prewalk(node, acc)
   end
 
   defp prewalk(node = {{:atom, function_name}, _, args}, _acc, true)
