@@ -26,6 +26,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.NodeRenewal
 
+  alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -831,41 +832,64 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp verify_token_resupply(tx, %{"token_reference" => token_ref}) do
-    with token_address <- Base.decode16!(token_ref, case: :mixed),
-         # verify same chain
-         {:ok, genesis_address} <- fetch_previous_tx_genesis_address(tx),
-         storage_nodes <-
-           Election.chain_storage_nodes(token_address, P2P.authorized_and_available_nodes()),
-         {:ok, ^genesis_address} <-
-           TransactionChain.fetch_genesis_address(token_address, storage_nodes),
-         # verify token_reference
-         {:ok,
-          %Transaction{
-            data: %TransactionData{
-              content: content
-            }
-          }} <- TransactionChain.fetch_transaction(token_address, storage_nodes),
+    # strict because there was a json schema validation before
+    token_address = Base.decode16!(token_ref, case: :mixed)
+
+    storage_nodes =
+      Election.chain_storage_nodes(token_address, P2P.authorized_and_available_nodes())
+
+    # fetch in parallel the data we need
+    tasks = [
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        fetch_previous_tx_genesis_address(tx)
+      end),
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        TransactionChain.fetch_genesis_address(token_address, storage_nodes)
+      end),
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        TransactionChain.fetch_transaction(token_address, storage_nodes)
+      end)
+    ]
+
+    # Shut down the tasks that did not reply nor exit
+    results =
+      [tx_genesis_result, ref_genesis_result, ref_tx_result] =
+      Task.yield_many(tasks)
+      |> Enum.map(fn {task, res} ->
+        res || Task.shutdown(task, :brutal_kill)
+      end)
+
+    with 0 <- Enum.count(results, &(&1 == nil)),
+         {:ok, {:ok, genesis_address}} <- tx_genesis_result,
+         {:ok, {:ok, ^genesis_address}} <- ref_genesis_result,
+         {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} <- ref_tx_result,
          {:ok, reference_json_token} <- Jason.decode(content),
          %{"type" => "fungible", "allow_mint" => true} <- reference_json_token do
       :ok
     else
+      i when is_integer(i) ->
+        {:error, "Timeout when fetching the reference token or the genesis address"}
+
+      {:exit, _} ->
+        {:error, "Error when fetching the reference token or the genesis address"}
+
       %{"type" => "non-fungible"} ->
         {:error, "Invalid token transaction - token_reference must be fungible"}
 
       %{"type" => "fungible"} ->
         {:error, "Invalid token transaction - token_reference does not have allow_mint: true"}
 
-      {:ok, _} ->
+      {:ok, {:ok, _}} ->
         {:error,
          "Invalid token transaction - token_reference is not in the same transaction chain"}
 
-      {:error, :transaction_not_exists} ->
+      {:ok, {:error, :transaction_not_exists}} ->
         {:error, "Invalid token transaction - token_reference not found"}
 
-      {:error, :invalid_transaction} ->
+      {:ok, {:error, :invalid_transaction}} ->
         {:error, "Invalid token transaction - token_reference is invalid"}
 
-      {:error, :network_issue} ->
+      {:ok, {:error, :network_issue}} ->
         {:error, "A network issue was raised, please retry later"}
 
       {:error, %Jason.DecodeError{}} ->
@@ -891,11 +915,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     valid? =
       recipients
       |> Enum.map(& &1["to"])
-      |> Enum.map(&Base.decode16(&1, case: :mixed))
-      |> Enum.all?(fn
-        {:ok, address} -> Crypto.valid_address?(address)
-        _ -> false
-      end)
+      |> Enum.map(&Base.decode16!(&1, case: :mixed))
+      |> Enum.all?(&Crypto.valid_address?/1)
 
     if valid? do
       :ok
