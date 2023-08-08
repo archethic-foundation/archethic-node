@@ -24,12 +24,52 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
         functions_keys
       ) do
-    {condition_type, global_variable} =
+    condition_type =
       case condition_name do
-        "transaction" -> {:transaction, "transaction"}
-        "inherit" -> {:inherit, "next"}
-        "oracle" -> {:oracle, "transaction"}
-        _ -> throw({:error, "invalid condition type"})
+        "transaction" -> :transaction
+        "inherit" -> :inherit
+        "oracle" -> :oracle
+        _ -> throw(:unknown_condition)
+      end
+
+    parse1(condition_type, keyword, functions_keys, node)
+  catch
+    :unknown_condition ->
+      {:error, node, "something something"}
+  end
+
+  def parse(
+        node =
+          {{:atom, "condition"}, _,
+           [
+             {{:atom, "transaction"}, _, nil},
+             [
+               {{:atom, "on"}, {{:atom, action_name}, _, args}},
+               {{:atom, "as"}, keyword}
+             ]
+           ]},
+        functions_keys
+      ) do
+    arity =
+      case args do
+        nil -> 0
+        _ -> length(args)
+      end
+
+    parse1({:transaction, action_name, arity}, keyword, functions_keys, node)
+  end
+
+  def parse(node, _) do
+    {:error, node, "unexpected term"}
+  end
+
+  def parse1(condition_type, keyword, functions_keys, node) do
+    global_variable =
+      case condition_type do
+        {:transaction, _, _} -> "transaction"
+        :transaction -> "transaction"
+        :inherit -> "next"
+        :oracle -> "transaction"
       end
 
     # no need to traverse the condition block
@@ -59,10 +99,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
 
     {:error, node, reason} ->
       {:error, node, reason}
-  end
-
-  def parse(node, _) do
-    {:error, node, "unexpected term"}
   end
 
   # ----------------------------------------------------------------------

@@ -174,5 +174,41 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> elem(1)
                |> ConditionInterpreter.parse([])
     end
+
+    test "parse named action 0 arg" do
+      code = ~s"""
+      condition transaction, on: upgrade, as: []
+      """
+
+      assert {:ok, {:transaction, "upgrade", 0}, %Conditions{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
+    test "parse named action 1 arg" do
+      code = ~s"""
+      condition transaction, on: vote(candidate), as: []
+      """
+
+      assert {:ok, {:transaction, "vote", 1}, %Conditions{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
+    test "parse named action n args" do
+      code = ~s"""
+      condition transaction, on: count(x, y), as: []
+      """
+
+      assert {:ok, {:transaction, "count", 2}, %Conditions{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
   end
 end
