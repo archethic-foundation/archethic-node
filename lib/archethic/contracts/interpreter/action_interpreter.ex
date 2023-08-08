@@ -87,6 +87,22 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     :transaction
   end
 
+  defp extract_trigger([
+         {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
+         {{:atom, "on"}, {{:atom, action_name}, _, nil}}
+       ])
+       when is_binary(action_name) do
+    {:transaction, action_name, 0}
+  end
+
+  defp extract_trigger([
+         {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
+         {{:atom, "on"}, {{:atom, action_name}, _, args}}
+       ])
+       when is_list(args) and is_binary(action_name) do
+    {:transaction, action_name, length(args)}
+  end
+
   defp extract_trigger([{{:atom, "triggered_by"}, {{:atom, "oracle"}, _, nil}}]) do
     :oracle
   end

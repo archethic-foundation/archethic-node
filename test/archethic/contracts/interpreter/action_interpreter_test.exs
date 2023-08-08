@@ -514,6 +514,46 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                # mark as existing
                |> ActionInterpreter.parse([{"hello", 0, :private}])
     end
+
+    test "should be able to use named action without argument" do
+      code = ~S"""
+      actions triggered_by: transaction, on: upgrade do
+        Contract.set_code transaction.content
+      end
+      """
+
+      assert {:ok, {:transaction, "upgrade", 0}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse([])
+    end
+
+    test "should be able to use named action with arguments" do
+      code = ~S"""
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content "..."
+      end
+      """
+
+      assert {:ok, {:transaction, "vote", 1}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse([])
+
+      code = ~S"""
+      actions triggered_by: transaction, on: count(x, y) do
+        Contract.set_content "..."
+      end
+      """
+
+      assert {:ok, {:transaction, "count", 2}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse([])
+    end
   end
 
   # ----------------------------------------------
