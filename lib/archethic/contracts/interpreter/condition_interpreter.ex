@@ -50,13 +50,13 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
            ]},
         functions_keys
       ) do
-    arity =
+    args =
       case args do
-        nil -> 0
-        _ -> length(args)
+        nil -> []
+        _ -> Enum.map(args, fn {{:atom, arg_name}, _, nil} -> arg_name end)
       end
 
-    parse1({:transaction, action_name, arity}, keyword, functions_keys, node)
+    parse1({:transaction, action_name, args}, keyword, functions_keys, node)
   end
 
   def parse(node, _) do

@@ -180,7 +180,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction, on: upgrade, as: []
       """
 
-      assert {:ok, {:transaction, "upgrade", 0}, %Conditions{}} =
+      assert {:ok, {:transaction, "upgrade", []}, %Conditions{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -192,7 +192,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction, on: vote(candidate), as: []
       """
 
-      assert {:ok, {:transaction, "vote", 1}, %Conditions{}} =
+      assert {:ok, {:transaction, "vote", ["candidate"]}, %Conditions{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -204,7 +204,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction, on: count(x, y), as: []
       """
 
-      assert {:ok, {:transaction, "count", 2}, %Conditions{}} =
+      assert {:ok, {:transaction, "count", ["x", "y"]}, %Conditions{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
