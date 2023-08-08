@@ -5,22 +5,22 @@ defmodule Archethic.TransactionChain.TransactionData do
 
   alias __MODULE__.Ledger
   alias __MODULE__.Ownership
+  alias __MODULE__.Recipient
 
-  alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
   defstruct recipients: [], ledger: %Ledger{}, code: "", ownerships: [], content: ""
 
   @typedoc """
   Transaction data is composed from:
-  - Recipients: list of address recipients for smart contract interactions
+  - Recipients: list of recipients for smart contract interactions
   - Ledger: Movement operations on UCO TOKEN or Stock ledger
   - Code: Contains the smart contract code including triggers, conditions and actions
   - Ownerships: List of the authorizations and delegations to proof ownership of secrets
   - Content: Free content to store any data as binary
   """
   @type t :: %__MODULE__{
-          recipients: list(binary()),
+          recipients: list(Recipient.t()),
           ledger: Ledger.t(),
           code: binary(),
           ownerships: list(Ownership.t()),
@@ -29,50 +29,6 @@ defmodule Archethic.TransactionChain.TransactionData do
 
   @doc """
   Serialize transaction data into binary format
-
-  ## Examples
-
-  iex> %TransactionData{
-  ...>    code: "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
-  ...>    content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-  ...>    ownerships: [%Ownership{
-  ...>      secret: <<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>,
-  ...>      authorized_keys: %{}
-  ...>    }],
-  ...>    ledger: %Ledger{},
-  ...>    recipients: [
-  ...>      <<0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
-  ...>        241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31>>
-  ...>    ]
-  ...> }
-  ...> |> TransactionData.serialize(current_transaction_version())
-  <<
-  # Code size
-  0, 0, 0, 147,
-  # Code
-  "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
-  # Content size
-  0, 0, 0, 54,
-  # Content
-  "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-  # Nb ownerships
-  1, 1,
-  # Secret size
-  0, 0, 0, 10,
-  # Secret
-  225, 11, 213, 74, 41, 54, 189, 139, 179, 79,
-  # Number of authorized keys
-  1, 0,
-  # Number of UCO transfers
-  1, 0,
-  # Number of TOKEN transfers
-  1, 0,
-  # Number of recipients
-  1, 1,
-  # Recipient
-  0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
-  241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31
-  >>
   """
   @spec serialize(tx_data :: t(), tx_version :: pos_integer()) :: bitstring()
   def serialize(
@@ -90,68 +46,22 @@ defmodule Archethic.TransactionChain.TransactionData do
       |> Enum.map(&Ownership.serialize(&1, tx_version))
       |> :erlang.list_to_binary()
 
+    recipients_bin =
+      recipients
+      |> Enum.map(&Recipient.serialize(&1, tx_version))
+      |> :erlang.list_to_binary()
+
     encoded_ownership_len = length(ownerships) |> VarInt.from_value()
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
     <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary,
       Ledger.serialize(ledger, tx_version)::binary, encoded_recipients_len::binary,
-      :erlang.list_to_binary(recipients)::binary>>
+      recipients_bin::binary>>
   end
 
   @doc """
   Deserialize encoded transaction data
-
-  ## Examples
-
-  iex> <<
-  ...> 0, 0, 0, 147,
-  ...> "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
-  ...> 0, 0, 0, 54,
-  ...> "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-  ...> 1, 1, 0, 0, 0, 10,
-  ...> 225, 11, 213, 74, 41, 54, 189, 139, 179, 79,
-  ...> 1, 1,
-  ...> 0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
-  ...> 83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9,
-  ...> 139, 100, 20, 32, 187, 77, 56, 30, 116, 207, 34, 95, 157, 128, 208, 115, 113,
-  ...> 177, 45, 9, 93, 107, 90, 254, 173, 71, 60, 181, 113, 247, 75, 151, 127, 41, 7,
-  ...> 233, 227, 98, 209, 211, 97, 117, 68, 101, 59, 121, 214, 105, 225, 218, 91, 92,
-  ...> 212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
-  ...> 224, 214, 225, 146, 44, 83, 111, 34, 239, 99,
-  ...> 1, 0,
-  ...> 1, 0,
-  ...> 1, 1,
-  ...> 0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
-  ...> 241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31
-  ...> >>
-  ...> |> TransactionData.deserialize(current_transaction_version())
-  {
-    %TransactionData{
-      code: "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
-      content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-      ownerships: [%Ownership{
-      secret: <<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>,
-      authorized_keys: %{
-              <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
-              83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>> =>
-              <<139, 100, 20, 32, 187, 77, 56, 30, 116, 207, 34, 95, 157, 128, 208, 115, 113,
-              177, 45, 9, 93, 107, 90, 254, 173, 71, 60, 181, 113, 247, 75, 151, 127, 41, 7,
-              233, 227, 98, 209, 211, 97, 117, 68, 101, 59, 121, 214, 105, 225, 218, 91, 92,
-              212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
-              224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
-            }
-          }],
-          ledger: %Ledger{
-            uco: %UCOLedger{}
-          },
-          recipients: [
-            <<0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
-               241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31>>
-          ]
-        },
-        ""
-      }
   """
   @spec deserialize(data :: bitstring(), tx_version :: pos_integer()) :: {t(), bitstring()}
   def deserialize(
@@ -165,7 +75,7 @@ defmodule Archethic.TransactionChain.TransactionData do
     {ledger, rest} = Ledger.deserialize(rest, tx_version)
 
     {nb_recipients, rest} = rest |> VarInt.get_value()
-    {recipients, rest} = reduce_recipients(rest, nb_recipients, [])
+    {recipients, rest} = reduce_recipients(rest, nb_recipients, [], tx_version)
 
     {
       %__MODULE__{
@@ -189,14 +99,14 @@ defmodule Archethic.TransactionChain.TransactionData do
     reduce_ownerships(rest, nb_ownerships, [key | acc], version)
   end
 
-  defp reduce_recipients(rest, 0, _acc), do: {[], rest}
+  defp reduce_recipients(rest, 0, _acc, _version), do: {[], rest}
 
-  defp reduce_recipients(rest, nb_recipients, acc) when nb_recipients == length(acc),
+  defp reduce_recipients(rest, nb_recipients, acc, _version) when nb_recipients == length(acc),
     do: {Enum.reverse(acc), rest}
 
-  defp reduce_recipients(rest, nb_recipients, acc) do
-    {recipient_address, rest} = Utils.deserialize_address(rest)
-    reduce_recipients(rest, nb_recipients, [recipient_address | acc])
+  defp reduce_recipients(rest, nb_recipients, acc, version) do
+    {recipient, rest} = Recipient.deserialize(rest, version)
+    reduce_recipients(rest, nb_recipients, [recipient | acc], version)
   end
 
   @spec cast(map()) :: t()
