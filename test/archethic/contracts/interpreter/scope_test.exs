@@ -397,6 +397,41 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
              } == Process.get(:scope)
     end
 
+    test "should not overwrite protected global variable" do
+      scope = %{
+        "context_list" => ["current_context"],
+        :im_protected => 123,
+        "current_context" => %{
+          "scope_hierarchy" => ["first_scope", "second_scope"],
+          "first_scope" => %{
+            "my_var" => 24,
+            "second_scope" => %{
+              "another_var" => 99
+            }
+          }
+        }
+      }
+
+      Process.put(:scope, scope)
+
+      Scope.write_cascade("im_protected", 42)
+
+      assert %{
+               "context_list" => ["current_context"],
+               :im_protected => 123,
+               "current_context" => %{
+                 "scope_hierarchy" => ["first_scope", "second_scope"],
+                 "first_scope" => %{
+                   "my_var" => 24,
+                   "second_scope" => %{
+                     "another_var" => 99,
+                     "im_protected" => 42
+                   }
+                 }
+               }
+             } == Process.get(:scope)
+    end
+
     test "should correctly overwrite variable in closest parent scope among multiple parent scopes" do
       scope = %{
         "context_list" => ["current_context"],
@@ -515,6 +550,22 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
       Process.put(:scope, scope)
 
       assert "global_value" == Scope.read("global_var")
+    end
+
+    test "should not be able to read protected global variables" do
+      scope = %{
+        "context_list" => ["current_context"],
+        :time_now => 123,
+        "global_var" => "global_value",
+        "current_context" => %{
+          "scope_hierarchy" => ["only_scope"],
+          "only_scope" => %{}
+        }
+      }
+
+      Process.put(:scope, scope)
+
+      assert nil == Scope.read("time_now")
     end
 
     test "should return nil if variable not found even in the global scope" do

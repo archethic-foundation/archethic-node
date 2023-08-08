@@ -10,7 +10,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Time do
   """
   @spec now() :: integer()
   def now() do
-    Scope.read_global(["_time_now"])
+    Scope.read_global([:time_now])
   end
 
   @spec check_types(atom(), list()) :: boolean()

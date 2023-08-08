@@ -184,7 +184,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   @doc """
   Read the global variable (or prop) at path
   """
-  @spec read_global(list(String.t())) :: any()
+  @spec read_global(list(String.t() | atom())) :: any()
   def read_global(path) do
     get_in(
       Process.get(:scope),
@@ -235,7 +235,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   end
 
   defp get_function(function_name, args) do
-    get_in(Process.get(:scope), ["functions", {function_name, length(args)}])
+    get_in(Process.get(:scope), [:functions, {function_name, length(args)}])
   end
 
   @doc """

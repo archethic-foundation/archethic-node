@@ -923,6 +923,44 @@ defmodule Archethic.Contracts.InterpreterTest do
                  oracle_tx
                )
     end
+
+    test "Should not be able to overwrite protected gloabal variables" do
+      code = """
+        @version 1
+        condition transaction: []
+        actions triggered_by: transaction do
+          time_now = "fast forward"
+          Contract.set_content Time.now()
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: content
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 :transaction,
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx
+               )
+
+      assert content != "fast forward"
+    end
   end
 
   describe "sanitize_code/1" do

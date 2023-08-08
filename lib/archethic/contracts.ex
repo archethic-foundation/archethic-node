@@ -104,7 +104,7 @@ defmodule Archethic.Contracts do
 
     %{
       "contract" => contract_constant,
-      "_time_now" => DateTime.utc_now() |> DateTime.to_unix()
+      :time_now => DateTime.utc_now() |> DateTime.to_unix()
     }
   end
 
@@ -324,8 +324,8 @@ defmodule Archethic.Contracts do
     %{
       "previous" => contract_constant,
       "next" => Constants.from_transaction(transaction),
-      "_time_now" => DateTime.to_unix(datetime),
-      "functions" => functions
+      :time_now => DateTime.to_unix(datetime),
+      :functions => functions
     }
   end
 
@@ -341,8 +341,8 @@ defmodule Archethic.Contracts do
     %{
       "transaction" => Constants.from_transaction(transaction),
       "contract" => contract_constant,
-      "_time_now" => DateTime.to_unix(datetime),
-      "functions" => functions
+      :time_now => DateTime.to_unix(datetime),
+      :functions => functions
     }
   end
 end
