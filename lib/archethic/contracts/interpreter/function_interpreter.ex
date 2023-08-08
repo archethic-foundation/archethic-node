@@ -4,7 +4,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.Interpreter.CommonInterpreter
-  alias Knigge
+
   require Logger
 
   @doc """
@@ -49,7 +49,8 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @doc """
   Execute function code and returns the result
   """
-  @spec execute(ast :: any(), constants :: map()) :: result :: any()
+  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
+          result :: any()
   def execute(ast, constants, args_names \\ [], args_ast \\ []) do
     Scope.execute(ast, constants, args_names, args_ast)
   end
