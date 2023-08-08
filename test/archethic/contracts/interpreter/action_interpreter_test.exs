@@ -522,7 +522,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, {:transaction, "upgrade", 0}, _} =
+      assert {:ok, {:transaction, "upgrade", []}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -536,7 +536,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, {:transaction, "vote", 1}, _} =
+      assert {:ok, {:transaction, "vote", ["candidate"]}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -548,7 +548,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, {:transaction, "count", 2}, _} =
+      assert {:ok, {:transaction, "count", ["x", "y"]}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)

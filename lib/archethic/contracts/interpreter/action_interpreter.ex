@@ -89,18 +89,15 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
   defp extract_trigger([
          {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
-         {{:atom, "on"}, {{:atom, action_name}, _, nil}}
-       ])
-       when is_binary(action_name) do
-    {:transaction, action_name, 0}
-  end
-
-  defp extract_trigger([
-         {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
          {{:atom, "on"}, {{:atom, action_name}, _, args}}
-       ])
-       when is_list(args) and is_binary(action_name) do
-    {:transaction, action_name, length(args)}
+       ]) do
+    args =
+      case args do
+        nil -> []
+        _ -> Enum.map(args, fn {{:atom, arg_name}, _, nil} -> arg_name end)
+      end
+
+    {:transaction, action_name, args}
   end
 
   defp extract_trigger([{{:atom, "triggered_by"}, {{:atom, "oracle"}, _, nil}}]) do
