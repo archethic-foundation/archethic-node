@@ -164,8 +164,8 @@ defmodule Archethic.Contracts.Interpreter do
                 Constants.from_transaction(trigger_tx)
             end,
           "contract" => contract_constants,
-          "_time_now" => timestamp_now,
-          "functions" => functions
+          :time_now => timestamp_now,
+          :functions => functions
         }
 
         result =

@@ -58,19 +58,19 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     # also, constants should already contains the global variables:
     #   - "contract": current contract transaction
     #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
-    #   - "_time_now": the time returned by Time.now()
+    #   - :time_now: the time returned by Time.now()
     constants =
       constants
       |> Constants.map_transactions(&Constants.stringify_transaction/1)
       |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
-      |> Map.put("next_transaction", initial_next_tx)
-      |> Map.put("next_transaction_changed", false)
+      |> Map.put(:next_transaction, initial_next_tx)
+      |> Map.put(:next_transaction_changed, false)
 
     Scope.execute(ast, constants)
 
     # return a next transaction only if it has been modified
-    if Scope.read_global(["next_transaction_changed"]) do
-      Scope.read_global(["next_transaction"])
+    if Scope.read_global([:next_transaction_changed]) do
+      Scope.read_global([:next_transaction])
     else
       nil
     end
@@ -212,12 +212,12 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     new_node =
       quote do
         # mark the next_tx as dirty
-        Scope.update_global(["next_transaction_changed"], fn _ -> true end)
+        Scope.update_global([:next_transaction_changed], fn _ -> true end)
 
         # call the function with the next_transaction as the 1st argument
         # and update it in the scope
         Scope.update_global(
-          ["next_transaction"],
+          [:next_transaction],
           &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
         )
       end
