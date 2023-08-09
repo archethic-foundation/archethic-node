@@ -1018,6 +1018,19 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
 
       assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
     end
+
+    test "should be able to use named action arguments from the block" do
+      code = ~s"""
+      actions triggered_by: transaction, on: vote(candidate) do
+        if candidate == "Mr. T" do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} =
+               sanitize_parse_execute(code, %{"candidate" => "Mr. T"})
+    end
   end
 
   describe "BigInt" do

@@ -10,6 +10,7 @@ defmodule Archethic.Contracts.Contract.Context do
 
   alias Archethic.Crypto
   alias Archethic.Utils
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   @enforce_keys [:status, :trigger, :timestamp]
   defstruct [
@@ -24,8 +25,9 @@ defmodule Archethic.Contracts.Contract.Context do
   Think of trigger as an "instance" of a trigger_type
   """
   @type trigger ::
-          {:transaction, Crypto.prepended_hash()}
-          | {:oracle, Crypto.prepended_hash()}
+          {:oracle, Crypto.prepended_hash()}
+          | {:transaction, Crypto.prepended_hash()}
+          | {:transaction, Crypto.prepended_hash(), Recipient.t()}
           | {:datetime, DateTime.t()}
           | {:interval, String.t(), DateTime.t()}
 
@@ -84,6 +86,13 @@ defmodule Archethic.Contracts.Contract.Context do
     <<3::8, cron_size::16, cron::binary, DateTime.to_unix(datetime)::64>>
   end
 
+  defp serialize_trigger({:transaction, address, recipient}) do
+    # FIXME: tx_version
+    tx_version = 1
+    recipient_bin = Recipient.serialize(recipient, tx_version)
+    <<4::8, address::binary, recipient_bin::binary>>
+  end
+
   ##
   defp deserialize_trigger(<<0::8, rest::binary>>) do
     {tx_address, rest} = Utils.deserialize_address(rest)
@@ -103,5 +112,15 @@ defmodule Archethic.Contracts.Contract.Context do
     <<cron::binary-size(cron_size), timestamp::64, rest::binary>> = rest
 
     {{:interval, cron, DateTime.from_unix!(timestamp)}, rest}
+  end
+
+  defp deserialize_trigger(<<4::8, rest::binary>>) do
+    # FIXME: tx_version
+    tx_version = 1
+
+    {tx_address, rest} = Utils.deserialize_address(rest)
+    {recipient, rest} = Recipient.deserialize(rest, tx_version)
+
+    {{:transaction, tx_address, recipient}, rest}
   end
 end
