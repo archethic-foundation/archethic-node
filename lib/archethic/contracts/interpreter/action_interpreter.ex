@@ -8,7 +8,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
-  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
 
   # # Module `Contract` is handled differently
@@ -149,14 +148,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # autorize the use of Contract module
-  defp prewalk(
-         node = {:__aliases__, _, [atom: "Contract"]},
-         acc
-       ) do
-    {node, acc}
-  end
-
   # # autorize the use of modules whitelisted
   # defp prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
   #      when module_name in @modules_whitelisted,
@@ -177,62 +168,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # handle the Contract module
-  # here we have 2 things to do:
-  #   - feed the `next_transaction` as the 1st function parameter
-  #   - update the `next_transaction` in scope
-  defp postwalk(
-         node =
-           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, function_name}]}, _, args},
-         acc
-       ) do
-    absolute_module_atom = Archethic.Contracts.Interpreter.Library.Contract
-
-    # check function exists
-    unless Library.function_exists?(absolute_module_atom, function_name) do
-      throw({:error, node, "unknown function"})
-    end
-
-    # check function is available with given arity
-    # (we add 1 to arity because we add the contract as 1st argument implicitely)
-    unless Library.function_exists?(absolute_module_atom, function_name, length(args) + 1) do
-      throw({:error, node, "invalid function arity"})
-    end
-
-    function_atom = String.to_existing_atom(function_name)
-
-    # check the type of the args, and allow custom function call as args
-    unless absolute_module_atom.check_types(function_atom, args) do
-      throw({:error, node, "invalid function arguments"})
-    end
-
-    new_node =
-      quote do
-        # mark the next_tx as dirty
-        Scope.update_global([:next_transaction_changed], fn _ -> true end)
-
-        # call the function with the next_transaction as the 1st argument
-        # and update it in the scope
-        Scope.update_global(
-          [:next_transaction],
-          &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
-        )
-      end
-
-    {new_node, acc}
-  end
-
-  # # handle modules whitelisted (but not Contract)
-  # defp postwalk(
-  #        node =
-  #          {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, _function_name}]}, _,
-  #           _args},
-  #        acc
-  #      )
-  #      when module_name in @modules_whitelisted do
-  #   {CommonInterpreter.module_call(node, common: false), acc}
-  # end
-
   # --------------- catch all -------------------
   defp postwalk(node, acc) do
     CommonInterpreter.postwalk(node, acc)

@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.Library.Contract do
+defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   @moduledoc """
   We are delegating to the legacy transaction statements.
   This is fine as long as we don't need to change anything.

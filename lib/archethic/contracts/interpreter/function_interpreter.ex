@@ -1,5 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @moduledoc false
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Scope
@@ -97,49 +98,30 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # Ban access to Contract module
-  defp prewalk(
-         node =
-           {{:., _meta, [{:__aliases__, _, [atom: "Contract"]}, {:atom, function_name}]}, _, _},
-         acc,
-         _visibility
-       ) do
-    absolute_module_atom =
-      Code.ensure_loaded!(
-        String.to_existing_atom("Elixir.Archethic.Contracts.Interpreter.Library.Contract")
-      )
-
-    if absolute_module_atom.tagged_with?(String.to_atom(function_name), :write_contract) do
-      throw({:error, node, "Write contract functions are not allowed in custom functions"})
-    end
-
-    CommonInterpreter.prewalk(node, acc)
-  end
-
   defp prewalk(
          node =
            {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, _},
          acc,
-         true
+         is_internal?
        ) do
-    absolute_module_atom =
-      Code.ensure_loaded!(
-        String.to_existing_atom(
-          "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
-        )
-      )
-
-    absolute_module_atom =
-      try do
-        %Knigge.Options{default: module} = Knigge.options!(absolute_module_atom)
-        module
-      rescue
-        _ ->
-          absolute_module_atom
+    {_absolute_module_atom, module_impl} =
+      case Library.get_module(module_name) do
+        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
+        {:error, message} -> throw({:error, node, message})
       end
 
-    if absolute_module_atom.tagged_with?(String.to_atom(function_name), :io) do
-      throw({:error, node, "IO function calls not allowed in public functions"})
+    function_atom = String.to_existing_atom(function_name)
+
+    if is_internal? do
+      if module_impl.tagged_with?(function_atom, :io),
+        do: throw({:error, node, "IO function calls not allowed in public functions"})
+
+      if module_impl.tagged_with?(function_atom, :write_contract),
+        do: throw({:error, node, "Write contract functions are not allowed in custom functions"})
+    else
+      if module_impl.tagged_with?(function_atom, :write_contract) do
+        throw({:error, node, "Write contract functions are not allowed in custom functions"})
+      end
     end
 
     CommonInterpreter.prewalk(node, acc)

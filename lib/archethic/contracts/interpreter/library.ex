@@ -32,13 +32,35 @@ defmodule Archethic.Contracts.Interpreter.Library do
   end
 
   @doc """
-  Returns the list of common modules available.
-
-  This function is also used to create the atoms of the modules
+  Gets a module and its imlpementation when there is one
   """
-  def list_common_modules() do
-    [:Map, :List, :Regex, :Json, :Time, :Chain, :Crypto, :Token, :String, :Code, :Http]
-    |> Enum.map(&Atom.to_string/1)
+  @spec get_module(binary()) :: {:ok, module(), module()} | {:error, binary()}
+  def get_module(module_name) do
+    try do
+      case Code.ensure_loaded(
+             String.to_existing_atom(
+               "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
+             )
+           ) do
+        {:module, module_atom} ->
+          module_atom_impl =
+            try do
+              %Knigge.Options{default: module} = Knigge.options!(module_atom)
+              module
+            rescue
+              _ ->
+                module_atom
+            end
+
+          {:ok, module_atom, module_atom_impl}
+
+        _ ->
+          {:error, "Module #{module_name} not found"}
+      end
+    rescue
+      _ ->
+        {:error, "Module #{module_name} not found"}
+    end
   end
 
   # ----------------------------------------

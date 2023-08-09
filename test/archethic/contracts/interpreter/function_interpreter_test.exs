@@ -107,6 +107,20 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> FunctionInterpreter.parse([])
     end
 
+    test "should return an error if module is unknown" do
+      code = ~S"""
+      export fun test_public do
+        Hello.world()
+      end
+      """
+
+      assert {:error, _, "Module Hello not found"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse([])
+    end
+
     test "should be able to use IO functions in private function" do
       code = ~S"""
       fun test_private do

@@ -8,7 +8,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter
 
-  @modules_whitelisted Library.list_common_modules()
   @condition_fields Conditions.__struct__()
                     |> Map.keys()
                     |> Enum.reject(&(&1 == :__struct__))
@@ -125,6 +124,27 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
+
+  defp prewalk(
+         _subject,
+         node =
+           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, _},
+         acc
+       ) do
+    {_absolute_module_atom, module_impl} =
+      case Library.get_module(module_name) do
+        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
+        {:error, message} -> throw({:error, node, message})
+      end
+
+    function_atom = String.to_existing_atom(function_name)
+
+    if module_impl.tagged_with?(function_atom, :write_contract),
+      do: throw({:error, node, "Write contract functions are not allowed in condition block"})
+
+    CommonInterpreter.prewalk(node, acc)
+  end
+
   defp prewalk(_subject, node, acc) do
     CommonInterpreter.prewalk(node, acc)
   end
@@ -182,15 +202,15 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
          node =
            {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
          acc
-       )
-       when module_name in @modules_whitelisted do
+       ) do
     # if function exist with arity => node
     arity = length(args)
 
-    absolute_module_atom =
-      String.to_existing_atom(
-        "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
-      )
+    {absolute_module_atom, _} =
+      case Library.get_module(module_name) do
+        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
+        {:error, message} -> throw({:error, node, message})
+      end
 
     new_node =
       cond do
