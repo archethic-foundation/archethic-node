@@ -31,6 +31,7 @@ defmodule Archethic do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   require Logger
 
@@ -418,11 +419,12 @@ defmodule Archethic do
   @spec execute_contract(
           Contract.trigger_type(),
           Contract.t(),
-          nil | Transaction.t()
+          nil | Transaction.t(),
+          nil | Recipient.t()
         ) ::
           {:ok, nil | Transaction.t()}
           | {:error, :contract_failure | :invalid_triggers_execution}
-  defdelegate execute_contract(trigger_type, contract, maybe_trigger_tx),
+  defdelegate execute_contract(trigger_type, contract, maybe_trigger_tx, maybe_recipient),
     to: Contracts,
     as: :execute_trigger
 

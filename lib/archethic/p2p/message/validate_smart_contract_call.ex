@@ -188,7 +188,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   defp maybe_execute_trigger(contract = %Contract{triggers: triggers}, transaction, opts) do
     if Map.has_key?(triggers, :transaction) do
-      case Contracts.execute_trigger(:transaction, contract, transaction, opts) do
+      case Contracts.execute_trigger(:transaction, contract, transaction, nil, opts) do
         {:ok, _} ->
           :ok
 

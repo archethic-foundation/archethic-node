@@ -16,6 +16,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.Utils
 
@@ -121,6 +122,7 @@ defmodule Archethic.Contracts.Interpreter do
           Contract.trigger_type(),
           Contract.t(),
           nil | Transaction.t(),
+          nil | Recipient.t(),
           execute_opts()
         ) ::
           {:ok, nil | Transaction.t()}
@@ -134,6 +136,7 @@ defmodule Archethic.Contracts.Interpreter do
           functions: functions
         },
         maybe_trigger_tx,
+        maybe_recipient,
         opts \\ []
       ) do
     case triggers[trigger_type] do
@@ -153,20 +156,24 @@ defmodule Archethic.Contracts.Interpreter do
           end
           |> DateTime.to_unix()
 
-        constants = %{
-          "transaction" =>
-            case maybe_trigger_tx do
-              nil ->
-                nil
+        named_action_constants = get_named_action_constants(trigger_type, maybe_recipient)
 
-              trigger_tx ->
-                # :oracle & :transaction
-                Constants.from_transaction(trigger_tx)
-            end,
-          "contract" => contract_constants,
-          :time_now => timestamp_now,
-          :functions => functions
-        }
+        constants =
+          %{
+            "transaction" =>
+              case maybe_trigger_tx do
+                nil ->
+                  nil
+
+                trigger_tx ->
+                  # :oracle & :transaction
+                  Constants.from_transaction(trigger_tx)
+              end,
+            "contract" => contract_constants,
+            :_time_now => timestamp_now,
+            :functions => functions
+          }
+          |> Map.merge(named_action_constants)
 
         result =
           case version do
@@ -387,6 +394,12 @@ defmodule Archethic.Contracts.Interpreter do
 
   defp parse_ast(ast, _, _), do: {:error, ast, "unexpected term"}
 
+  defp time_now({:transaction, _, _}, %Transaction{
+         validation_stamp: %ValidationStamp{timestamp: timestamp}
+       }) do
+    timestamp
+  end
+
   defp time_now(:transaction, %Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
        }) do
@@ -441,4 +454,17 @@ defmodule Archethic.Contracts.Interpreter do
         {:ok, contract}
     end
   end
+
+  defp get_named_action_constants(
+         {:transaction, _action, args_names},
+         %Recipient{
+           args: args_values
+         }
+       ) do
+    args_names
+    |> Enum.zip(args_values)
+    |> Enum.into(%{})
+  end
+
+  defp get_named_action_constants(_trigger_type, _recipient), do: %{}
 end

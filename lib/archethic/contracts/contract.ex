@@ -12,6 +12,7 @@ defmodule Archethic.Contracts.Contract do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   defstruct triggers: %{},
             functions: %{},
@@ -21,7 +22,12 @@ defmodule Archethic.Contracts.Contract do
             next_transaction: %Transaction{data: %TransactionData{}}
 
   @type trigger_type() ::
-          {:datetime, DateTime.t()} | {:interval, String.t()} | :transaction | :oracle
+          :oracle
+          | :transaction
+          | {:transaction, String.t(), list(String.t())}
+          | {:datetime, DateTime.t()}
+          | {:interval, String.t()}
+
   @type condition() :: :transaction | :inherit | :oracle
   @type origin_family :: SharedSecrets.origin_family()
 
@@ -118,5 +124,24 @@ defmodule Archethic.Contracts.Contract do
       :functions,
       &Map.put(&1, {function_name, length(args)}, %{args: args, ast: ast, visibility: visibility})
     )
+  end
+
+  @doc """
+  Return the args names for this recipient or nil
+  """
+  @spec get_args_names_for_recipient(t(), Recipient.t()) :: nil | list(String.t())
+  def get_args_names_for_recipient(
+        %__MODULE__{triggers: triggers},
+        %Recipient{
+          action: action,
+          args: args_values
+        }
+      ) do
+    arity = length(args_values)
+
+    Enum.find_value(Map.keys(triggers), fn
+      {:transaction, ^action, args_names} when length(args_names) == arity -> args_names
+      _ -> false
+    end)
   end
 end

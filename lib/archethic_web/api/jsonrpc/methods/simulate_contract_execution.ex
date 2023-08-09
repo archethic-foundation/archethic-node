@@ -81,7 +81,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
          {:ok, contract} <- Archethic.parse_contract(contract_tx),
          :ok <-
            Archethic.validate_contract_condition(:transaction, contract, trigger_tx, timestamp),
-         {:ok, next_tx} <- Archethic.execute_contract(:transaction, contract, trigger_tx) do
+         {:ok, next_tx} <- Archethic.execute_contract(:transaction, contract, trigger_tx, nil) do
       Archethic.validate_contract_condition(:inherit, contract, next_tx, timestamp)
     end
   end

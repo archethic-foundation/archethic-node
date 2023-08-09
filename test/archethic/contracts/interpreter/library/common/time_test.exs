@@ -39,6 +39,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           {:datetime, datetime},
           Contract.from_transaction!(contract_tx),
           nil,
+          nil,
           time_now: datetime
         )
 

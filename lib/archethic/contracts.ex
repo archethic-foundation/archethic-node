@@ -19,6 +19,7 @@ defmodule Archethic.Contracts do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   require Logger
 
@@ -47,13 +48,20 @@ defmodule Archethic.Contracts do
           Contract.trigger_type(),
           Contract.t(),
           nil | Transaction.t(),
+          nil | Recipient.t(),
           Keyword.t()
         ) ::
           {:ok, nil | Transaction.t()}
           | {:error, :contract_failure | :invalid_triggers_execution}
-  defdelegate execute_trigger(trigger_type, contract, maybe_trigger_tx, opts \\ []),
-    to: Interpreter,
-    as: :execute_trigger
+  defdelegate execute_trigger(
+                trigger_type,
+                contract,
+                maybe_trigger_tx,
+                maybe_recipient,
+                opts \\ []
+              ),
+              to: Interpreter,
+              as: :execute_trigger
 
   @doc """
   Execute contract's function
@@ -151,6 +159,7 @@ defmodule Archethic.Contracts do
              trigger_to_trigger_type(trigger),
              contract,
              maybe_trigger_tx,
+             trigger_to_recipient(trigger),
              trigger_to_execute_opts(trigger)
            ) do
         {:ok, %Transaction{type: expected_type, data: expected_data}} ->
@@ -174,10 +183,21 @@ defmodule Archethic.Contracts do
       false
   end
 
-  defp trigger_to_trigger_type({:transaction, _}), do: :transaction
-  defp trigger_to_trigger_type({:oracle, _}), do: :oracle
-  defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
-  defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
+  defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
+  defp trigger_to_recipient(_), do: nil
+
+  defp trigger_to_trigger_type({:transaction, _}, _contract), do: :transaction
+  defp trigger_to_trigger_type({:oracle, _}, _contract), do: :oracle
+  defp trigger_to_trigger_type({:datetime, datetime}, _contract), do: {:datetime, datetime}
+  defp trigger_to_trigger_type({:interval, cron, _datetime}, _contract), do: {:interval, cron}
+
+  defp trigger_to_trigger_type(
+         {:transaction, _, recipient = %Recipient{action: action}},
+         contract
+       ) do
+    args_names = Contract.get_args_names_for_recipient(contract, recipient)
+    {:transaction, action, args_names}
+  end
 
   # In the case of a trigger interval,
   # because of the delay between execution and validation,

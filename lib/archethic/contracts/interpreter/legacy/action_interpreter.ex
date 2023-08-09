@@ -1,6 +1,6 @@
 defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
   @moduledoc false
-
+  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
@@ -14,8 +14,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
 
   @transaction_statements_functions_names TransactionStatements.__info__(:functions)
                                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
-
-  @type trigger :: :transaction | {:interval, String.t()} | {:datetime, DateTime.t()} | :oracle
 
   @doc ~S"""
   Parse an action block and return the trigger's type associated with the code to execute
@@ -71,7 +69,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
       {:error, "unexpected term - System - L2"}
 
   """
-  @spec parse(any()) :: {:ok, trigger(), Macro.t()} | {:error, String.t()}
+  @spec parse(any()) :: {:ok, Contract.trigger_type(), Macro.t()} | {:error, String.t()}
   def parse(ast) do
     case Macro.traverse(
            ast,
