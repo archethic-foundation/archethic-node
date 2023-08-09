@@ -42,13 +42,13 @@ defmodule TagTest do
     end
 
     test "should return false if existing function is not tagged with corresponding tag" do
-      assert !ModuleExample.tagged_with?(:print, :not_there)
-      assert !ModuleExample.tagged_with?(:im_io, :me_neither)
+      refute ModuleExample.tagged_with?(:print, :not_there)
+      refute ModuleExample.tagged_with?(:im_io, :me_neither)
     end
 
     test "should return false if unexisting function " do
-      assert !ModuleExample.tagged_with?(:do_not_exist, :log)
-      assert !ModuleExample.tagged_with?(:not_a_function, :io)
+      refute ModuleExample.tagged_with?(:do_not_exist, :log)
+      refute ModuleExample.tagged_with?(:not_a_function, :io)
     end
   end
 end
