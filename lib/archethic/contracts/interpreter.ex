@@ -159,7 +159,8 @@ defmodule Archethic.Contracts.Interpreter do
         named_action_constants = get_named_action_constants(trigger_type, maybe_recipient)
 
         constants =
-          %{
+          named_action_constants
+          |> Map.merge(%{
             "transaction" =>
               case maybe_trigger_tx do
                 nil ->
