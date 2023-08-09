@@ -251,6 +251,35 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
     end
+
+    test "should return an human readable error 'condition transaction, on: xxx' block is missing" do
+      assert {:error, "missing 'condition transaction, on: upgrade()' block"} =
+               """
+               @version 1
+               actions triggered_by: transaction, on: upgrade() do
+                Contract.set_code transaction.content
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "missing 'condition transaction, on: vote(x, y)' block"} =
+               """
+               @version 1
+               actions triggered_by: transaction, on: vote(x, y) do
+                Contract.set_code transaction.content
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "missing 'condition transaction, on: vote(x, y)' block"} =
+               """
+               @version 1
+               actions triggered_by: transaction, on: vote(x,y) do
+                Contract.set_code transaction.content
+               end
+               """
+               |> Interpreter.parse()
+    end
   end
 
   describe "parse code v0" do

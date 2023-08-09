@@ -444,15 +444,47 @@ defmodule Archethic.Contracts.Interpreter do
   defp check_contract_blocks(
          {:ok, contract = %Contract{triggers: triggers, conditions: conditions}}
        ) do
-    cond do
-      Map.has_key?(triggers, :transaction) and !Map.has_key?(conditions, :transaction) ->
-        {:error, "missing 'condition transaction' block"}
-
-      Map.has_key?(triggers, :oracle) and !Map.has_key?(conditions, :oracle) ->
-        {:error, "missing 'condition oracle' block"}
-
-      true ->
+    case do_check_contract_blocks(Map.keys(triggers), Map.keys(conditions)) do
+      :ok ->
         {:ok, contract}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp do_check_contract_blocks([], _conditions), do: :ok
+
+  defp do_check_contract_blocks([:oracle | rest], conditions) do
+    if :oracle in conditions do
+      do_check_contract_blocks(rest, conditions)
+    else
+      {:error, "missing 'condition oracle' block"}
+    end
+  end
+
+  defp do_check_contract_blocks([:transaction | rest], conditions) do
+    if :transaction in conditions do
+      do_check_contract_blocks(rest, conditions)
+    else
+      {:error, "missing 'condition transaction' block"}
+    end
+  end
+
+  defp do_check_contract_blocks([{:interval, _} | rest], conditions) do
+    do_check_contract_blocks(rest, conditions)
+  end
+
+  defp do_check_contract_blocks([{:datetime, _} | rest], conditions) do
+    do_check_contract_blocks(rest, conditions)
+  end
+
+  defp do_check_contract_blocks([{:transaction, action, args_names} | rest], conditions) do
+    if {:transaction, action, args_names} in conditions do
+      do_check_contract_blocks(rest, conditions)
+    else
+      {:error,
+       "missing 'condition transaction, on: #{action}(#{Enum.join(args_names, ", ")})' block"}
     end
   end
 
