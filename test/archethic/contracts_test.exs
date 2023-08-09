@@ -9,6 +9,7 @@ defmodule Archethic.ContractsTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
@@ -18,7 +19,7 @@ defmodule Archethic.ContractsTest do
 
   doctest Contracts
 
-  describe "valid_condition?/4 (inherit)" do
+  describe "valid_condition?/5 (inherit)" do
     test "should return false when the inherit constraints literal values are not respected" do
       code = """
       condition inherit: [
@@ -63,6 +64,7 @@ defmodule Archethic.ContractsTest do
                :inherit,
                Contract.from_transaction!(contract_tx),
                next_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -100,6 +102,7 @@ defmodule Archethic.ContractsTest do
                :inherit,
                Contract.from_transaction!(contract_tx),
                next_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -154,6 +157,7 @@ defmodule Archethic.ContractsTest do
                :inherit,
                Contract.from_transaction!(contract_tx),
                next_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -186,6 +190,7 @@ defmodule Archethic.ContractsTest do
                :inherit,
                Contract.from_transaction!(contract_tx),
                next_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -486,7 +491,7 @@ defmodule Archethic.ContractsTest do
     end
   end
 
-  describe "valid_condition?/4 (transaction)" do
+  describe "valid_condition?/5 (transaction)" do
     test "should return true if condition is empty" do
       code = """
         @version 1
@@ -515,6 +520,7 @@ defmodule Archethic.ContractsTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -549,6 +555,7 @@ defmodule Archethic.ContractsTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -583,6 +590,7 @@ defmodule Archethic.ContractsTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -617,6 +625,7 @@ defmodule Archethic.ContractsTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -654,6 +663,7 @@ defmodule Archethic.ContractsTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                incoming_tx,
+               nil,
                DateTime.utc_now()
              )
 
@@ -691,6 +701,7 @@ defmodule Archethic.ContractsTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                incoming_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -730,6 +741,7 @@ defmodule Archethic.ContractsTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                incoming_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -764,6 +776,7 @@ defmodule Archethic.ContractsTest do
                :oracle,
                Contract.from_transaction!(contract_tx),
                oracle_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -799,6 +812,7 @@ defmodule Archethic.ContractsTest do
                :oracle,
                Contract.from_transaction!(contract_tx),
                oracle_tx,
+               nil,
                DateTime.utc_now()
              )
     end
@@ -834,6 +848,126 @@ defmodule Archethic.ContractsTest do
                :oracle,
                Contract.from_transaction!(contract_tx),
                oracle_tx,
+               nil,
+               DateTime.utc_now()
+             )
+    end
+  end
+
+  describe "valid_condition?/5 (transaction named action)" do
+    test "should return true if condition is empty" do
+      code = """
+        @version 1
+        condition transaction, on: vote(candidate), as: []
+
+        actions triggered_by: transaction, on: vote(candidate) do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = %Transaction{
+        address: random_address(),
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        type: :transfer,
+        address: random_address(),
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert Contracts.valid_condition?(
+               {:transaction, "vote", ["candidate"]},
+               Contract.from_transaction!(contract_tx),
+               trigger_tx,
+               %Recipient{
+                 address: contract_tx.address,
+                 action: "vote",
+                 args: ["Juliette"]
+               },
+               DateTime.utc_now()
+             )
+    end
+
+    test "should return true if condition is true" do
+      code = """
+      @version 1
+      condition transaction, on: vote(candidate), as: [
+        content: "fabulous chimpanzee"
+      ]
+
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content "hello"
+      end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: random_address(),
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        address: random_address(),
+        type: :data,
+        data: %TransactionData{content: "fabulous chimpanzee"},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert Contracts.valid_condition?(
+               {:transaction, "vote", ["candidate"]},
+               Contract.from_transaction!(contract_tx),
+               trigger_tx,
+               %Recipient{
+                 address: contract_tx.address,
+                 action: "vote",
+                 args: ["Jules"]
+               },
+               DateTime.utc_now()
+             )
+    end
+
+    test "should return false if condition is false" do
+      code = """
+      @version 1
+      condition transaction, on: vote(candidate), as: [
+        content: "immaterial mynah bird"
+      ]
+
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content "hello"
+      end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: random_address(),
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        address: random_address(),
+        type: :data,
+        data: %TransactionData{content: "cylindrical reindeer"},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      refute Contracts.valid_condition?(
+               {:transaction, "vote", ["candidate"]},
+               Contract.from_transaction!(contract_tx),
+               trigger_tx,
+               %Recipient{
+                 address: contract_tx.address,
+                 action: "vote",
+                 args: ["Jules"]
+               },
                DateTime.utc_now()
              )
     end

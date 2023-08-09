@@ -878,6 +878,7 @@ defmodule Archethic.Mining.ValidationContext do
       :inherit,
       Contract.from_transaction!(prev_tx),
       next_tx,
+      nil,
       validation_time
     )
   end

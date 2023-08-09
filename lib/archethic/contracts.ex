@@ -210,15 +210,17 @@ defmodule Archethic.Contracts do
   The transaction and datetime depends on the condition.
   """
   @spec valid_condition?(
-          :oracle | :transaction | :inherit,
+          :oracle | :transaction | :inherit | {:transaction, String.t(), list(String.t())},
           Contract.t(),
           Transaction.t(),
+          nil | Recipient.t(),
           DateTime.t()
         ) :: boolean()
   def valid_condition?(
         condition_type,
         contract = %Contract{version: version, conditions: conditions},
         transaction = %Transaction{},
+        maybe_recipient,
         datetime
       ) do
     case Map.get(conditions, condition_type) do
@@ -226,13 +228,34 @@ defmodule Archethic.Contracts do
         true
 
       condition ->
-        constants = get_condition_constants(condition_type, contract, transaction, datetime)
-        Interpreter.valid_conditions?(version, condition, constants)
+        named_action_constants = get_named_action_constants(condition_type, maybe_recipient)
+
+        condition_constants =
+          get_condition_constants(condition_type, contract, transaction, datetime)
+
+        Interpreter.valid_conditions?(
+          version,
+          condition,
+          Map.merge(named_action_constants, condition_constants)
+        )
     end
   rescue
     _ ->
       false
   end
+
+  defp get_named_action_constants(
+         {:transaction, _action, args_names},
+         %Recipient{
+           args: args_values
+         }
+       ) do
+    args_names
+    |> Enum.zip(args_values)
+    |> Enum.into(%{})
+  end
+
+  defp get_named_action_constants(_trigger_type, _recipient), do: %{}
 
   defp validate_trigger({:datetime, datetime}, validation_datetime, _contract_address) do
     if within_drift_tolerance?(validation_datetime, datetime) do

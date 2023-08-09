@@ -402,7 +402,7 @@ defmodule Archethic do
              | :invalid_transaction_constraints
              | :invalid_oracle_constraints}
   def validate_contract_condition(condition_type, contract, tx, timestamp) do
-    if Contracts.valid_condition?(condition_type, contract, tx, timestamp) do
+    if Contracts.valid_condition?(condition_type, contract, tx, nil, timestamp) do
       :ok
     else
       case condition_type do

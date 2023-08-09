@@ -83,6 +83,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
+               nil,
                datetime
              )
     end
@@ -123,6 +124,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                :transaction,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
+               nil,
                datetime
              )
     end
@@ -162,6 +164,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                :inherit,
                Contract.from_transaction!(contract_tx),
                next_tx,
+               nil,
                datetime
              )
     end
@@ -200,6 +203,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
                :inherit,
                Contract.from_transaction!(contract_tx),
                next_tx,
+               nil,
                datetime
              )
     end
