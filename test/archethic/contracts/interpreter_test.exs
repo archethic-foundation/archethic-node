@@ -966,7 +966,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
 
-    test "Should not be able to overwrite protected gloabal variables" do
+    test "Should not be able to overwrite protected global variables" do
       code = """
         @version 1
         condition transaction: []
@@ -1002,6 +1002,82 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
 
       assert content != "fast forward"
+    end
+
+    test "should be able to use a named action arguments in the action & condition blocks" do
+      code = """
+        @version 1
+        condition transaction, on: add(x, y), as: []
+        actions triggered_by: transaction, on: add(x, y) do
+          Contract.set_content x + y
+        end
+      """
+
+      address = random_address()
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: address,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        type: :data,
+        data: %TransactionData{
+          recipients: [
+            %Recipient{address: address, action: "add", args: [1, 2]}
+          ]
+        },
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
+               Interpreter.execute_trigger(
+                 {:transaction, "add", ["x", "y"]},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 List.first(trigger_tx.data.recipients)
+               )
+    end
+
+    test "should be able to have different spacing in condition & actions named action" do
+      code = """
+        @version 1
+        condition transaction, on: add(x,      y), as: []
+        actions triggered_by: transaction, on: add(x,y) do
+          Contract.set_content x + y
+        end
+      """
+
+      address = random_address()
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: address,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        type: :data,
+        data: %TransactionData{
+          recipients: [
+            %Recipient{address: address, action: "add", args: [1, 2]}
+          ]
+        },
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
+               Interpreter.execute_trigger(
+                 {:transaction, "add", ["x", "y"]},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 List.first(trigger_tx.data.recipients)
+               )
     end
   end
 
