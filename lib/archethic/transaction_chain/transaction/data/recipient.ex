@@ -11,12 +11,19 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   defstruct [:address, :action, :args]
 
   @type t ::
-          Crypto.preprended_hash()
+          Crypto.prepended_hash()
           | %__MODULE__{
               address: Crypto.prepended_hash(),
               action: String.t(),
               args: list(any())
             }
+
+  @doc """
+  Return the recipient's address
+  """
+  @spec get_address(t()) :: binary()
+  def get_address(address) when is_binary(address), do: address
+  def get_address(%__MODULE__{address: address}), do: address
 
   @doc """
   Serialize a recipient
