@@ -136,22 +136,19 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                @version 1
 
-               fun hello() do
+               export fun hello() do
                   "hello world"
                end
 
                condition transaction: []
                actions triggered_by: transaction do
-                 hello_world()
+                 hey()
                end
 
                fun hey() do
                   hello()
                end
 
-               fun hello_world() do
-                  hey()
-               end
 
                """
                |> Interpreter.parse()
@@ -705,49 +702,6 @@ defmodule Archethic.Contracts.InterpreterTest do
               %Transaction{
                 data: %TransactionData{
                   content: "10"
-                }
-              }} =
-               Interpreter.execute_trigger(
-                 :transaction,
-                 Contract.from_transaction!(contract_tx),
-                 incoming_tx
-               )
-    end
-
-    test "recursivity with custom functions should work" do
-      code = """
-        @version 1
-        condition transaction: []
-        actions triggered_by: transaction do
-          Contract.set_content integer_sum(10)
-        end
-
-        export fun integer_sum(current_val) do
-          return_value = 0
-          if current_val != 0 do
-            return_value = current_val + integer_sum(current_val - 1)
-          end
-          return_value
-        end
-      """
-
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
-
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
-
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "55"
                 }
               }} =
                Interpreter.execute_trigger(

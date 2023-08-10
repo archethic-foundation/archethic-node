@@ -74,14 +74,68 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
       end
       """
 
-      assert {:error, _, "Contract is not allowed in function"} =
+      assert {:error, _, "Write contract functions are not allowed in custom functions"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse([])
+
+      code = ~S"""
+      export fun test_public do
+        Contract.set_content "hello"
+      end
+      """
+
+      assert {:error, _, "Write contract functions are not allowed in custom functions"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> FunctionInterpreter.parse([])
     end
 
-    test "should be able to parse when there is whitelisted module" do
+    test "should not be able to use IO functions in public function" do
+      code = ~S"""
+      export fun test_public do
+        Chain.get_genesis_address("hello")
+      end
+      """
+
+      assert {:error, _, "IO function calls not allowed in public functions"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse([])
+    end
+
+    test "should return an error if module is unknown" do
+      code = ~S"""
+      export fun test_public do
+        Hello.world()
+      end
+      """
+
+      assert {:error, _, "Module Hello not found"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse([])
+    end
+
+    test "should be able to use IO functions in private function" do
+      code = ~S"""
+      fun test_private do
+        Chain.get_genesis_address("hello")
+      end
+      """
+
+      assert {:ok, _, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse([])
+    end
+
+    test "should be able to parse public function when a module's function is not IO" do
       code = ~S"""
       fun test do
        Json.to_string "[1,2,3]"
@@ -89,6 +143,18 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
       """
 
       assert {:ok, "test", [], _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> FunctionInterpreter.parse([])
+
+      code = ~S"""
+      export fun test_public do
+        Chain.get_burn_address()
+      end
+      """
+
+      assert {:ok, _, _, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -109,7 +175,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> FunctionInterpreter.parse([])
     end
 
-    test "should be able to call declared function" do
+    test "should be able to call declared public function from private function" do
       code = ~S"""
       fun test do
        hello()
@@ -121,7 +187,37 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0}])
+               |> FunctionInterpreter.parse([{"hello", 0, :public}])
+    end
+
+    test "should not be able to call declared private function from private function" do
+      code = ~S"""
+      fun test do
+       hello()
+      end
+      """
+
+      assert {:error, _, "not allowed to call private function from a private function"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark function as declared
+               |> FunctionInterpreter.parse([{"hello", 0, :private}])
+    end
+
+    test "should not be able to call declared function from public function" do
+      code = ~S"""
+      export fun im_public() do
+       hello()
+      end
+      """
+
+      assert {:error, _, "not allowed to call function from public function"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark function as declared
+               |> FunctionInterpreter.parse([{"hello", 0, :public}])
     end
   end
 
@@ -150,7 +246,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
         |> Interpreter.sanitize_code()
         |> elem(1)
         # pass allowed function
-        |> FunctionInterpreter.parse([{"hello", 0}])
+        |> FunctionInterpreter.parse([{"hello", 0, :public}])
 
       function_constant = %{:functions => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
 

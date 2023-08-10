@@ -2,7 +2,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Time do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.Scope
+
+  use Tag
 
   @doc """
   Returns the Unix timestamp of the trigger (it is approximately the same as current time).

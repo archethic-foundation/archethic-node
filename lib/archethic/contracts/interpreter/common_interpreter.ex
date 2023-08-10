@@ -10,8 +10,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
 
-  @modules_whitelisted Library.list_common_modules()
-
   # ----------------------------------------------------------------------
   #                                _ _
   #   _ __  _ __ _____      ____ _| | | __
@@ -96,9 +94,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
 
   # whitelisted modules
-  def prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
-      when module_name in @modules_whitelisted,
-      do: {node, acc}
+  def prewalk(node = {:__aliases__, _, [atom: _module_name]}, acc),
+    do: {node, acc}
 
   # internal modules (Process/Scope/Kernel)
   def prewalk(node = {:__aliases__, _, [atom]}, acc) when is_atom(atom), do: {node, acc}
@@ -273,8 +270,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   # we need to return user's last expression and not the result of Scope.leave_scope()
   def postwalk(
         _node = {:__block__, meta, expressions},
-        acc,
-        _
+        acc
       ) do
     {last_expression, expressions} = List.pop_at(expressions, -1)
 
@@ -291,20 +287,17 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   # common modules call
   def postwalk(
         node =
-          {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, _function_name}]}, _,
+          {{:., _meta, [{:__aliases__, _, [atom: _module_name]}, {:atom, _function_name}]}, _,
            _args},
-        acc,
-        _
-      )
-      when module_name in @modules_whitelisted do
+        acc
+      ) do
     {module_call(node), acc}
   end
 
   # variable are read from scope
   def postwalk(
         _node = {{:atom, var_name}, _, nil},
-        acc,
-        _
+        acc
       ) do
     new_node =
       quote do
@@ -322,8 +315,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
              {:%{}, _, [{var_name, list}]},
              [do: block]
            ]},
-        acc,
-        _
+        acc
       ) do
     # FIXME: here acc is already the parent acc, it is not the acc of the do block
     # FIXME: this means that our `var_name` will live in the parent scope
@@ -343,23 +335,29 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {new_node, acc}
   end
 
-  def postwalk(node = {{:atom, function_name}, _, args}, acc, function_keys) when is_list(args) do
-    if Enum.member?(function_keys, {function_name, length(args)}) do
-      new_node =
-        quote do
-          Scope.execute_function_ast(unquote(function_name), unquote(args))
-        end
+  def postwalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
+      when is_list(args) do
+    arity = length(args)
 
-      {new_node, acc}
-    else
-      reason = "The function #{function_name}/#{Integer.to_string(length(args))} does not exist"
+    case Enum.find(functions, fn
+           {^function_name, ^arity, _} -> true
+           _ -> false
+         end) do
+      nil ->
+        throw({:error, node, "The function #{function_name}/#{arity} does not exist"})
 
-      throw({:error, node, reason})
+      {_, _, _} ->
+        new_node =
+          quote do
+            Scope.execute_function_ast(unquote(function_name), unquote(args))
+          end
+
+        {new_node, acc}
     end
   end
 
   # BigInt mathematics to avoid floating point issues
-  def postwalk(_node = {ast, meta, [lhs, rhs]}, acc, _) when ast in [:*, :/, :+, :-] do
+  def postwalk(_node = {ast, meta, [lhs, rhs]}, acc) when ast in [:*, :/, :+, :-] do
     new_node =
       quote line: Keyword.fetch!(meta, :line) do
         AST.decimal_arithmetic(unquote(ast), unquote(lhs), unquote(rhs))
@@ -369,21 +367,18 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # whitelist rest
-  def postwalk(node, acc, _), do: {node, acc}
+  def postwalk(node, acc), do: {node, acc}
 
   def module_call(
         node =
-          {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
-        opts \\ []
-      ) do
-    absolute_module_name =
-      if Keyword.get(opts, :common, true) do
-        "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
-      else
-        "Elixir.Archethic.Contracts.Interpreter.Library.#{module_name}"
+          {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args}
+      )
+      when is_binary(module_name) do
+    {absolute_module_atom, _} =
+      case Library.get_module(module_name) do
+        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
+        {:error, message} -> throw({:error, node, message})
       end
-
-    absolute_module_atom = Code.ensure_loaded!(String.to_existing_atom(absolute_module_name))
 
     # check function exists
     unless Library.function_exists?(absolute_module_atom, function_name) do
@@ -391,7 +386,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     end
 
     # check function is available with given arity
-    unless Library.function_exists?(absolute_module_atom, function_name, length(args)) do
+    unless Library.function_exists?(absolute_module_atom, function_name, length(args)) or
+             Library.function_exists?(absolute_module_atom, function_name, length(args) + 1) do
       throw({:error, node, "invalid function arity"})
     end
 
@@ -403,9 +399,26 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       throw({:error, node, "invalid function arguments"})
     end
 
-    meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
+    new_node =
+      if module_name == "Contract" do
+        quote do
+          # mark the next_tx as dirty
+          Scope.update_global([:next_transaction_changed], fn _ -> true end)
 
-    {{:., meta, [{:__aliases__, meta_with_alias, [module_atom]}, function_atom]}, meta, args}
+          # call the function with the next_transaction as the 1st argument
+          # and update it in the scope
+          Scope.update_global(
+            [:next_transaction],
+            &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
+          )
+        end
+      else
+        meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
+
+        {{:., meta, [{:__aliases__, meta_with_alias, [module_atom]}, function_atom]}, meta, args}
+      end
+
+    new_node
   end
 
   # ----------------------------------------------------------------------

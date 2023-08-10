@@ -102,6 +102,20 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end
 
+    test "should not parse :write_contract functions" do
+      code = ~s"""
+      condition transaction: [
+        uco_transfers: Contract.set_content "content"
+      ]
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
     test "parse custom functions" do
       code = ~s"""
       condition transaction: [
@@ -114,7 +128,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as existing
-               |> ConditionInterpreter.parse([{"get_uco_transfers", 0}])
+               |> ConditionInterpreter.parse([{"get_uco_transfers", 0, :public}])
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end

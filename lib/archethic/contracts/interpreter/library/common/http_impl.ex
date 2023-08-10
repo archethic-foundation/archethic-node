@@ -7,14 +7,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   other processes, we use it from inside a Task.
   """
 
+  alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Http
   alias Archethic.TaskSupervisor
+
+  use Tag
 
   @behaviour Http
   @threshold 256 * 1024
   @timeout Application.compile_env(:archethic, [__MODULE__, :timeout], 2_000)
 
+  @tag [:io]
   @impl Http
   def fetch(uri) do
     task =
@@ -45,6 +49,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     end
   end
 
+  @tag [:io]
   @impl Http
   def fetch_many(uris) do
     uris_count = length(uris)

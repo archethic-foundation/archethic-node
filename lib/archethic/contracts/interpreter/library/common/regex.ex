@@ -2,8 +2,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Regex do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Tag
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Legacy
+
+  use Tag
 
   @spec match?(binary(), binary()) :: boolean()
   defdelegate match?(text, pattern),

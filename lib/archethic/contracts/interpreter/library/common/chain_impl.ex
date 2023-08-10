@@ -5,16 +5,19 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
   alias Archethic.Contracts.Interpreter.Library.Common.Chain
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
   alias Archethic.Contracts.ContractConstants, as: Constants
-
+  alias Archethic.Tag
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   @behaviour Chain
+  use Tag
 
+  @tag [:io]
   @impl Chain
   defdelegate get_genesis_address(address),
     to: Legacy.Library,
     as: :get_genesis_address
 
+  @tag [:io]
   @impl Chain
   def get_first_transaction_address(address) do
     try do
@@ -24,6 +27,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
     end
   end
 
+  @tag [:io]
   @impl Chain
   def get_genesis_public_key(public_key) do
     try do
@@ -33,6 +37,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
     end
   end
 
+  @tag [:io]
   @impl Chain
   def get_transaction(address) do
     address

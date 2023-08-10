@@ -2,8 +2,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Code do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Tag
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
+
+  use Tag
 
   @spec is_same?(binary(), binary()) :: boolean()
   def is_same?(first_code, second_code) do
