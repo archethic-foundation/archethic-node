@@ -34,7 +34,13 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
 
     # no need to traverse the condition block
     # we'll traverse every block individually
-    {:%{}, _, proplist} = AST.keyword_to_map(keyword)
+    proplist =
+      if keyword == [] or AST.is_keyword_list?(keyword) do
+        {:%{}, _, proplist} = AST.keyword_to_map(keyword)
+        proplist
+      else
+        throw({:error, node, "invalid condition block"})
+      end
 
     conditions =
       Enum.reduce(proplist, %Conditions{}, fn {key, value}, acc ->

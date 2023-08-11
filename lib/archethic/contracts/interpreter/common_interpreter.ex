@@ -73,6 +73,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node, acc) when is_list(node) do
     if AST.is_keyword_list?(node) do
       new_node = AST.keyword_to_map(node)
+
       {new_node, acc}
     else
       {node, acc}
