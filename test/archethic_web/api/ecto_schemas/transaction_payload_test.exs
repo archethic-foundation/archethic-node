@@ -525,7 +525,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                changeset |> get_errors |> get_in([:data, :ownerships])
     end
 
-    test "should return an error ownerships are more than 256." do
+    test "should return an error ownerships are more than 255." do
       {:ok,
        changeset = %Ecto.Changeset{
          valid?: false
@@ -541,7 +541,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
             "ownerships" =>
-              1..257
+              1..256
               |> Enum.map(fn _ ->
                 %{
                   "authorizedKeys" =>
@@ -559,10 +559,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
         })
 
       {msg, _} = changeset.errors[:ownerships]
-      assert "ownerships can not be more that 256" == msg
+      assert "ownerships can not be more that 255" == msg
     end
 
-    test "should return an error authorized keys in a ownership can't be more than 256" do
+    test "should return an error authorized keys in a ownership can't be more than 255" do
       {:ok,
        changeset = %Ecto.Changeset{
          valid?: false
@@ -594,7 +594,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           }
         })
 
-      assert [%{authorizedKeys: ["maximum number of authorized keys can be 256"]}] =
+      assert [%{authorizedKeys: ["maximum number of authorized keys can be 255"]}] =
                changeset |> get_errors |> get_in([:data, :ownerships])
     end
 
@@ -604,7 +604,28 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
          valid?: false
        }} =
         TransactionPayload.changeset(%{
-          "version" => 1,
+          "version" => 2,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "recipients" => [1]
+          }
+        })
+
+      assert ["invalid recipient format"] =
+               changeset |> get_errors() |> get_in([:data, :recipients])
+
+      changeset =
+        %Ecto.Changeset{
+          valid?: false
+        } =
+        TransactionPayload.changeset(%{
+          "version" => 2,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
@@ -626,6 +647,112 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
          valid?: false
        }} =
         TransactionPayload.changeset(%{
+          "version" => 2,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "recipients" => [%{"address" => Base.encode16(:crypto.strong_rand_bytes(32))}]
+          }
+        })
+
+      assert ["invalid hash"] = changeset |> get_errors() |> get_in([:data, :recipients])
+
+      {:ok, changeset} =
+        {:ok,
+         %Ecto.Changeset{
+           valid?: false
+         }} =
+        TransactionPayload.changeset(%{
+          "version" => 2,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "recipients" => [
+              %{
+                "address" => "not an hexadecimal",
+                "action" => "upgrade",
+                "args" => []
+              }
+            ]
+          }
+        })
+
+      assert ["must be hexadecimal"] = changeset |> get_errors() |> get_in([:data, :recipients])
+
+      {:ok, changeset} =
+        {:ok,
+         %Ecto.Changeset{
+           valid?: false
+         }} =
+        TransactionPayload.changeset(%{
+          "version" => 2,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "recipients" => [
+              %{
+                "address" => "not an hexadecimal",
+                "args" => []
+              }
+            ]
+          }
+        })
+
+      assert ["invalid recipient format"] =
+               changeset |> get_errors() |> get_in([:data, :recipients])
+    end
+
+    test "should accept recipients both named & unnamed" do
+      assert {:ok, %Ecto.Changeset{valid?: true}} =
+               TransactionPayload.changeset(%{
+                 "version" => 1,
+                 "address" =>
+                   Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                 "type" => "transfer",
+                 "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+                 "previousPublicKey" =>
+                   Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                 "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+                 "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+                 "data" => %{
+                   "recipients" => [
+                     %{
+                       "address" =>
+                         Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                     },
+                     %{
+                       "address" =>
+                         Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                       "action" => "something",
+                       "args" => []
+                     }
+                   ]
+                 }
+               })
+    end
+
+    test "should return an error if the recipients are more that 255" do
+      {:ok, changeset} =
+        {:ok,
+         %Ecto.Changeset{
+           valid?: false
+         }} =
+        TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
@@ -635,39 +762,20 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "recipients" => [Base.encode16(:crypto.strong_rand_bytes(32))]
+            "recipients" =>
+              1..256
+              |> Enum.map(fn _ ->
+                %{
+                  "address" =>
+                    Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                }
+              end)
           }
         })
 
-      assert ["invalid hash"] = changeset |> get_errors() |> get_in([:data, :recipients])
+      assert ["maximum number of recipients can be 255"] =
+               changeset |> get_errors() |> get_in([:data, :recipients])
     end
-  end
-
-  test "should return an error if the recipients are more that 256" do
-    {:ok,
-     changeset = %Ecto.Changeset{
-       valid?: false
-     }} =
-      TransactionPayload.changeset(%{
-        "version" => 1,
-        "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-        "type" => "transfer",
-        "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-        "previousPublicKey" =>
-          Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-        "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
-        "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
-        "data" => %{
-          "recipients" =>
-            1..257
-            |> Enum.map(fn _ ->
-              Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
-            end)
-        }
-      })
-
-    assert ["maximum number of recipients can be 256"] =
-             changeset |> get_errors() |> get_in([:data, :recipients])
   end
 
   test "to_map/1 should return a map of the changeset" do
@@ -676,6 +784,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     previous_signature = :crypto.strong_rand_bytes(64)
     origin_signature = :crypto.strong_rand_bytes(64)
     recipient = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    recipient2_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     uco_to = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     aes_key = :crypto.strong_rand_bytes(32)
     secret = Crypto.aes_encrypt("hello", aes_key)
@@ -691,7 +800,14 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
              previous_signature: previous_signature,
              origin_signature: origin_signature,
              data: %{
-               recipients: [recipient],
+               recipients: [
+                 %{address: recipient, action: nil, args: nil},
+                 %{
+                   address: recipient2_address,
+                   action: "something",
+                   args: [1, 2, 3]
+                 }
+               ],
                ledger: %{
                  uco: %{
                    transfers: [
@@ -735,7 +851,14 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                      ]
                    }
                  ],
-                 "recipients" => [Base.encode16(recipient)]
+                 "recipients" => [
+                   %{"address" => Base.encode16(recipient)},
+                   %{
+                     "address" => Base.encode16(recipient2_address),
+                     "action" => "something",
+                     "args" => [1, 2, 3]
+                   }
+                 ]
                }
              })
              |> elem(1)
