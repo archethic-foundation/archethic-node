@@ -47,9 +47,12 @@ defmodule Archethic.Contracts.Loader do
         tx = %Transaction{
           address: address,
           type: type,
-          data: %TransactionData{code: code},
+          data: %TransactionData{
+            code: code,
+            recipients: recipients
+          },
           validation_stamp: %ValidationStamp{
-            recipients: recipients,
+            recipients: resolved_recipients,
             timestamp: timestamp,
             protocol_version: protocol_version
           }
@@ -81,7 +84,9 @@ defmodule Archethic.Contracts.Loader do
     end
 
     # For each recipients, load the transaction in lookup and execute the contract
-    Enum.each(recipients, fn contract_address ->
+    recipients
+    |> Enum.zip(resolved_recipients)
+    |> Enum.each(fn {recipient, contract_address} ->
       TransactionLookup.add_contract_transaction(
         contract_address,
         address,
@@ -97,7 +102,7 @@ defmodule Archethic.Contracts.Loader do
           transaction_type: type
         )
 
-        Worker.execute(contract_address, tx)
+        Worker.execute(contract_address, tx, recipient)
       end
 
       Logger.info("Transaction towards contract ingested",

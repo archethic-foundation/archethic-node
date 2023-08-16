@@ -13,6 +13,8 @@ defmodule Archethic.Contracts.WorkerTest do
   alias TransactionData.{Ledger, Ownership, UCOLedger, UCOLedger.Transfer, TokenLedger}
   alias TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
+  alias Archethic.TransactionChain.TransactionData.Recipient
+
   import ArchethicCase
   import Mox
 
@@ -222,7 +224,9 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(contract_address, %Transaction{address: "@Alice2"})
+      Worker.execute(contract_address, %Transaction{address: "@Alice2"}, %Recipient{
+        address: contract_address
+      })
 
       refute_receive {:transaction_sent, _}
     end
@@ -256,11 +260,17 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(contract_address, %Transaction{
-        address: @bob_address,
-        data: %TransactionData{},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      })
+      Worker.execute(
+        contract_address,
+        %Transaction{
+          address: @bob_address,
+          data: %TransactionData{},
+          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        },
+        %Recipient{
+          address: contract_address
+        }
+      )
 
       receive do
         {:transaction_sent, tx} ->
@@ -313,11 +323,17 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(contract_address, %Transaction{
-        address: @bob_address,
-        data: %TransactionData{content: "Mr.X"},
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      })
+      Worker.execute(
+        contract_address,
+        %Transaction{
+          address: @bob_address,
+          data: %TransactionData{content: "Mr.X"},
+          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        },
+        %Recipient{
+          address: contract_address
+        }
+      )
 
       receive do
         {:transaction_sent, tx} ->
@@ -467,21 +483,25 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(contract_address, %Transaction{
-        address: @bob_address,
-        type: :transfer,
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{to: contract_address, amount: 100_000_000}
-              ]
-            }
+      Worker.execute(
+        contract_address,
+        %Transaction{
+          address: @bob_address,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{to: contract_address, amount: 100_000_000}
+                ]
+              }
+            },
+            recipients: [%Recipient{address: contract_address}]
           },
-          recipients: [contract_address]
+          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
         },
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      })
+        %Recipient{address: contract_address}
+      )
 
       receive do
         {:transaction_sent,
@@ -504,6 +524,62 @@ defmodule Archethic.Contracts.WorkerTest do
           assert contract_address == token_address
           assert 0 == token_id
           assert @bob_address == to
+      after
+        3_000 ->
+          raise "Timeout"
+      end
+    end
+
+    test "named action", %{
+      constants: constants = %{"address" => contract_address}
+    } do
+      code = """
+      @version 1
+
+      condition transaction, on: vote(candidate), as: []
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content(candidate)
+      end
+      """
+
+      {:ok, contract} = Interpreter.parse(code)
+
+      contract = %{
+        contract
+        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
+      }
+
+      {:ok, _pid} = Worker.start_link(contract)
+
+      Worker.execute(
+        contract_address,
+        %Transaction{
+          address: @bob_address,
+          type: :data,
+          data: %TransactionData{
+            recipients: [
+              %Recipient{
+                address: contract_address,
+                action: "vote",
+                args: ["Ms. Smith"]
+              }
+            ]
+          },
+          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+        },
+        %Recipient{
+          address: contract_address,
+          action: "vote",
+          args: ["Ms. Smith"]
+        }
+      )
+
+      receive do
+        {:transaction_sent, %Transaction{data: %TransactionData{content: content}}} ->
+          assert content == "Ms. Smith"
+
+        _ ->
+          assert false
       after
         3_000 ->
           raise "Timeout"
@@ -545,21 +621,27 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, worker_pid} = Worker.start_link(contract)
 
-      Worker.execute(contract_address, %Transaction{
-        address: @bob_address,
-        type: :transfer,
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{to: contract_address, amount: 100_000_000}
-              ]
-            }
+      Worker.execute(
+        contract_address,
+        %Transaction{
+          address: @bob_address,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{to: contract_address, amount: 100_000_000}
+                ]
+              }
+            },
+            recipients: [%Recipient{address: contract_address}]
           },
-          recipients: [contract_address]
+          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
         },
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      })
+        %Recipient{
+          address: contract_address
+        }
+      )
 
       Process.sleep(100)
 

@@ -24,6 +24,7 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ownership
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
@@ -45,14 +46,18 @@ defmodule Archethic.Contracts.Worker do
   end
 
   @doc """
-  Execute a transaction in the context of the contract.
+  Execute a transaction in the context of the contract with a given recipient.
 
   If the condition are respected a new transaction will be initiated
   """
-  @spec execute(binary(), Transaction.t()) ::
+  @spec execute(binary(), Transaction.t(), Recipient.t()) ::
           :ok | {:error, :no_transaction_trigger} | {:error, :condition_not_respected}
-  def execute(address, tx = %Transaction{}) do
-    GenServer.cast(via_tuple(address), {:execute, tx})
+  def execute(resolved_address, tx = %Transaction{}, recipient = %Recipient{}) do
+    if Recipient.is_named_action?(recipient) do
+      GenServer.cast(via_tuple(resolved_address), {:execute_named_action, tx, recipient})
+    else
+      GenServer.cast(via_tuple(resolved_address), {:execute_unnamed_action, tx})
+    end
   end
 
   def init(contract = %Contract{}) do
@@ -80,7 +85,10 @@ defmodule Archethic.Contracts.Worker do
 
   # TRIGGER: TRANSACTION
   def handle_cast(
-        {:execute, trigger_tx = %Transaction{address: trigger_tx_address}},
+        {
+          :execute_unnamed_action,
+          trigger_tx = %Transaction{address: trigger_tx_address}
+        },
         state = %{contract: contract}
       ) do
     contract_tx =
@@ -96,13 +104,61 @@ defmodule Archethic.Contracts.Worker do
            Contracts.execute_trigger(
              :transaction,
              contract,
-             trigger_tx
+             trigger_tx,
+             nil
            ),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <-
            handle_new_transaction(
              {:transaction, trigger_tx_address},
+             next_tx,
+             trigger_datetime
+           ) do
+      Logger.debug("Contract execution success", meta)
+    else
+      {:ok, nil} ->
+        Logger.debug("Contract execution success but there is no new transaction", meta)
+
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
+
+    {:noreply, state}
+  end
+
+  # TRIGGER: TRANSACTION NAMED ACTION
+  def handle_cast(
+        {
+          :execute_named_action,
+          trigger_tx = %Transaction{address: trigger_tx_address},
+          recipient = %Recipient{}
+        },
+        state = %{contract: contract}
+      ) do
+    contract_tx =
+      %Transaction{address: contract_address} =
+      Constants.to_transaction(contract.constants.contract)
+
+    trigger_datetime = DateTime.utc_now()
+    meta = log_metadata(contract_address, trigger_tx)
+    Logger.debug("Contract execution started (trigger=transaction+namedaction)", meta)
+
+    trigger = Contract.get_trigger_for_recipient(contract, recipient)
+
+    with true <- enough_funds?(contract_address),
+         {:ok, next_tx = %Transaction{}} <-
+           Contracts.execute_trigger(
+             trigger,
+             contract,
+             trigger_tx,
+             recipient
+           ),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
+         :ok <- ensure_enough_funds(next_tx, contract_address),
+         :ok <-
+           handle_new_transaction(
+             {:transaction, trigger_tx_address, recipient},
              next_tx,
              trigger_datetime
            ) do
@@ -133,7 +189,7 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- enough_funds?(contract_address),
          {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(trigger_type, contract, nil),
+           Contracts.execute_trigger(trigger_type, contract, nil, nil),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <- handle_new_transaction(trigger_type, next_tx, trigger_datetime) do
@@ -166,7 +222,7 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- enough_funds?(contract_address),
          {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(trigger_type, contract, nil),
+           Contracts.execute_trigger(trigger_type, contract, nil, nil),
          {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
          :ok <- ensure_enough_funds(next_tx, contract_address),
          :ok <-
@@ -200,13 +256,13 @@ defmodule Archethic.Contracts.Worker do
     trigger_datetime = DateTime.utc_now()
     {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
 
-    if Contracts.valid_condition?(:oracle, contract, oracle_tx, trigger_datetime) do
+    if Contracts.valid_condition?(:oracle, contract, oracle_tx, nil, trigger_datetime) do
       meta = log_metadata(contract_address, oracle_tx)
       Logger.debug("Contract execution started (trigger=oracle)", meta)
 
       with true <- enough_funds?(contract_address),
            {:ok, next_tx = %Transaction{}} <-
-             Contracts.execute_trigger(:oracle, contract, oracle_tx),
+             Contracts.execute_trigger(:oracle, contract, oracle_tx, nil),
            {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
            :ok <- ensure_enough_funds(next_tx, contract_address),
            :ok <-
