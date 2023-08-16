@@ -106,7 +106,7 @@ defmodule Archethic.Election do
       ...> )
       [
         %Node{last_public_key: "node6", geo_patch: "ECA"},
-        %Node{last_public_key: "node5", geo_patch: "F10"},
+        %Node{last_public_key: "node2", geo_patch: "DEF"},
         %Node{last_public_key: "node3", geo_patch: "AA0"}
       ]
   """
