@@ -129,7 +129,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
     binary_encoding = :erlang.list_to_binary(encoding)
     tx_size = byte_size(binary_encoding)
-    <<tx_size::32, 1::32, binary_encoding::binary>>
+    <<tx_size::32, tx_version::32, binary_encoding::binary>>
   end
 
   def decode(_version, "type", <<type::8>>, acc),

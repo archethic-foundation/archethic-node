@@ -16,7 +16,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
   doctest TransactionData
 
   describe "serialize/deserialize" do
-    test "should work" do
+    test "should work tx_version 1" do
       data = %TransactionData{
         code: "@version 1\ncondition inherit: []",
         content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
@@ -56,8 +56,59 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
           }
         },
         recipients: [
-          random_address(),
-          random_address(),
+          %Recipient{address: random_address()},
+          %Recipient{address: random_address()}
+        ]
+      }
+
+      assert {^data, <<>>} =
+               data
+               |> TransactionData.serialize(1)
+               |> TransactionData.deserialize(1)
+    end
+
+    test "should work tx_version 2" do
+      data = %TransactionData{
+        code: "@version 1\ncondition inherit: []",
+        content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
+        ownerships: [
+          %Ownership{
+            secret: :crypto.strong_rand_bytes(24),
+            authorized_keys: %{}
+          }
+        ],
+        ledger: %Ledger{
+          uco: %UCOLedger{
+            transfers: [
+              %UCOLedger.Transfer{
+                amount: 1_000,
+                to: random_address()
+              },
+              %UCOLedger.Transfer{
+                amount: 1_000_000,
+                to: random_address()
+              }
+            ]
+          },
+          token: %TokenLedger{
+            transfers: [
+              %TokenLedger.Transfer{
+                token_address: random_address(),
+                amount: 1_000,
+                to: random_address()
+              },
+              %TokenLedger.Transfer{
+                token_address: random_address(),
+                token_id: 1,
+                amount: 1_000_000,
+                to: random_address()
+              }
+            ]
+          }
+        },
+        recipients: [
+          %Recipient{address: random_address()},
+          %Recipient{address: random_address()},
           %Recipient{
             address: random_address(),
             action: "pet",
@@ -68,8 +119,8 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
 
       assert {^data, <<>>} =
                data
-               |> TransactionData.serialize(1)
-               |> TransactionData.deserialize(1)
+               |> TransactionData.serialize(2)
+               |> TransactionData.deserialize(2)
     end
 
     property "symmetric serialization/deserialization of transaction data" do

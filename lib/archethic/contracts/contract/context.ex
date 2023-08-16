@@ -10,6 +10,7 @@ defmodule Archethic.Contracts.Contract.Context do
 
   alias Archethic.Crypto
   alias Archethic.Utils
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   @enforce_keys [:status, :trigger, :timestamp]
@@ -87,8 +88,7 @@ defmodule Archethic.Contracts.Contract.Context do
   end
 
   defp serialize_trigger({:transaction, address, recipient}) do
-    # FIXME: tx_version
-    tx_version = 1
+    tx_version = Transaction.version()
     recipient_bin = Recipient.serialize(recipient, tx_version)
     <<4::8, address::binary, recipient_bin::binary>>
   end
@@ -115,8 +115,7 @@ defmodule Archethic.Contracts.Contract.Context do
   end
 
   defp deserialize_trigger(<<4::8, rest::binary>>) do
-    # FIXME: tx_version
-    tx_version = 1
+    tx_version = Transaction.version()
 
     {tx_address, rest} = Utils.deserialize_address(rest)
     {recipient, rest} = Recipient.deserialize(rest, tx_version)

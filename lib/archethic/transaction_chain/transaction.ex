@@ -18,7 +18,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias Archethic.Utils
 
-  @version 1
+  @version 2
 
   defstruct [
     :address,
@@ -327,6 +327,7 @@ defmodule Archethic.TransactionChain.Transaction do
   @spec extract_for_previous_signature(t()) :: t()
   def extract_for_previous_signature(tx = %__MODULE__{}) do
     %__MODULE__{
+      version: tx.version,
       address: tx.address,
       type: tx.type,
       data: tx.data
@@ -340,6 +341,7 @@ defmodule Archethic.TransactionChain.Transaction do
   @spec extract_for_origin_signature(t()) :: t()
   def extract_for_origin_signature(tx = %__MODULE__{}) do
     %__MODULE__{
+      version: tx.version,
       address: tx.address,
       type: tx.type,
       data: tx.data,
@@ -848,7 +850,7 @@ defmodule Archethic.TransactionChain.Transaction do
             timestamp: ~U[2022-02-15 21:15:50.000Z],
             protocol_version: 2
           },
-          version: 1
+          version: 2
         },
         ""
       }

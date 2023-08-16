@@ -205,7 +205,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
             previous_signature: nil,
             type: nil,
             validation_stamp: nil,
-            version: 1
+            version: 2
           },
           triggers: %{
             :oracle => {
