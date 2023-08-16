@@ -8,6 +8,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.P2P.Message.ValidateSmartContractCall
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TaskSupervisor
 
@@ -17,7 +18,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   This function requests storage nodes of the contract address to execute the transaction validation and return assertion about the execution
   """
   @spec valid_contract_calls?(
-          contracts_addresses :: list(binary()),
+          recipients :: list(Recipient.t()),
           transaction :: Transaction.t(),
           validation_time :: DateTime.t()
         ) :: boolean()
@@ -37,8 +38,12 @@ defmodule Archethic.Mining.SmartContractValidation do
     |> Enum.count() == length(recipients)
   end
 
-  defp request_contract_validation?(recipient, transaction = %Transaction{}, validation_time) do
-    storage_nodes = Election.chain_storage_nodes(recipient, P2P.authorized_and_available_nodes())
+  defp request_contract_validation?(
+         recipient = %Recipient{address: address},
+         transaction = %Transaction{},
+         validation_time
+       ) do
+    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     # We are strict on the results to achieve atomic commitment
     conflicts_resolver = fn results ->
@@ -52,7 +57,7 @@ defmodule Archethic.Mining.SmartContractValidation do
     case P2P.quorum_read(
            storage_nodes,
            %ValidateSmartContractCall{
-             contract_address: recipient,
+             recipient: recipient,
              transaction: transaction,
              inputs_before: validation_time
            },
