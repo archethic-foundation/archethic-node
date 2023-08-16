@@ -9,8 +9,8 @@ defmodule Archethic.Contracts.ContractTest do
   use ArchethicCase
   import ArchethicCase
 
-  describe "get_args_names_for_recipient/2" do
-    test "should return args names" do
+  describe "get_trigger_for_recipient/2" do
+    test "should return trigger" do
       contract_tx = %Transaction{
         type: :contract,
         address: random_address(),
@@ -25,8 +25,8 @@ defmodule Archethic.Contracts.ContractTest do
         }
       }
 
-      assert ["candidate"] =
-               Contract.get_args_names_for_recipient(
+      assert {:transaction, "vote", ["candidate"]} =
+               Contract.get_trigger_for_recipient(
                  Contract.from_transaction!(contract_tx),
                  %Recipient{
                    address: contract_tx.address,
@@ -49,12 +49,12 @@ defmodule Archethic.Contracts.ContractTest do
       }
 
       assert nil ==
-               Contract.get_args_names_for_recipient(
+               Contract.get_trigger_for_recipient(
                  Contract.from_transaction!(contract_tx),
                  %Recipient{
                    address: contract_tx.address,
                    action: "vote",
-                   args: ["Julio"]
+                   args: ["Esteban"]
                  }
                )
     end
@@ -75,12 +75,36 @@ defmodule Archethic.Contracts.ContractTest do
       }
 
       assert nil ==
-               Contract.get_args_names_for_recipient(
+               Contract.get_trigger_for_recipient(
                  Contract.from_transaction!(contract_tx),
                  %Recipient{
                    address: contract_tx.address,
                    action: "vote",
                    args: ["Dr. Pepper", "Dr. Dre"]
+                 }
+               )
+    end
+
+    test "should return :transaction when no action nor args" do
+      contract_tx = %Transaction{
+        type: :contract,
+        address: random_address(),
+        data: %TransactionData{
+          code: """
+          @version 1
+          condition transaction, on: vote(candidate), as: []
+          actions triggered_by: transaction, on: vote(candidate) do
+            Contract.set_content candidate
+          end
+          """
+        }
+      }
+
+      assert :transaction ==
+               Contract.get_trigger_for_recipient(
+                 Contract.from_transaction!(contract_tx),
+                 %Recipient{
+                   address: contract_tx.address
                  }
                )
     end

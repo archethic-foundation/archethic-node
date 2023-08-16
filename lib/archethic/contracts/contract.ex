@@ -129,8 +129,12 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Return the args names for this recipient or nil
   """
-  @spec get_args_names_for_recipient(t(), Recipient.t()) :: nil | list(String.t())
-  def get_args_names_for_recipient(
+  @spec get_trigger_for_recipient(t(), Recipient.t()) ::
+          nil | {:transaction, String.t(), list(String.t())} | :transaction
+  def get_trigger_for_recipient(_contract, %Recipient{action: nil, args: nil}),
+    do: :transaction
+
+  def get_trigger_for_recipient(
         %__MODULE__{triggers: triggers},
         %Recipient{
           action: action,
@@ -139,8 +143,8 @@ defmodule Archethic.Contracts.Contract do
       ) do
     arity = length(args_values)
 
-    Enum.find_value(Map.keys(triggers), fn
-      {:transaction, ^action, args_names} when length(args_names) == arity -> args_names
+    Enum.find(Map.keys(triggers), fn
+      {:transaction, ^action, args_names} when length(args_names) == arity -> true
       _ -> false
     end)
   end

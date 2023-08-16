@@ -192,11 +192,10 @@ defmodule Archethic.Contracts do
   defp trigger_to_trigger_type({:interval, cron, _datetime}, _contract), do: {:interval, cron}
 
   defp trigger_to_trigger_type(
-         {:transaction, _, recipient = %Recipient{action: action}},
+         {:transaction, _, recipient = %Recipient{}},
          contract
        ) do
-    args_names = Contract.get_args_names_for_recipient(contract, recipient)
-    {:transaction, action, args_names}
+    Contract.get_trigger_for_recipient(contract, recipient)
   end
 
   # In the case of a trigger interval,
