@@ -215,6 +215,7 @@ defmodule Archethic.Contracts do
           nil | Recipient.t(),
           DateTime.t()
         ) :: boolean()
+
   def valid_condition?(
         condition_type,
         contract = %Contract{version: version, conditions: conditions},
@@ -224,7 +225,8 @@ defmodule Archethic.Contracts do
       ) do
     case Map.get(conditions, condition_type) do
       nil ->
-        true
+        # only inherit condition are optional
+        condition_type == :inherit
 
       condition ->
         named_action_constants = get_named_action_constants(condition_type, maybe_recipient)

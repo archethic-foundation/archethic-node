@@ -951,7 +951,8 @@ defmodule Archethic.Contracts.InterpreterTest do
         type: :data,
         data: %TransactionData{
           recipients: [
-            %Recipient{address: address, action: "vote", args: ["Dr. Who?"]}
+            %Recipient{address: address, action: "vote", args: ["Dr. Who?"]},
+            %Recipient{address: random_address()}
           ]
         },
         validation_stamp: ValidationStamp.generate_dummy()
