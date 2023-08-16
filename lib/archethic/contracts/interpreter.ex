@@ -171,10 +171,9 @@ defmodule Archethic.Contracts.Interpreter do
                   Constants.from_transaction(trigger_tx)
               end,
             "contract" => contract_constants,
-            :_time_now => timestamp_now,
+            :time_now => timestamp_now,
             :functions => functions
-          }
-          |> Map.merge(named_action_constants)
+          })
 
         result =
           case version do

@@ -219,21 +219,6 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                # mark function as declared
                |> FunctionInterpreter.parse([{"hello", 0, :public}])
     end
-
-    test "should not be able to call declared function from public function" do
-      code = ~S"""
-      export fun im_public() do
-       hello()
-      end
-      """
-
-      assert {:error, _, "not allowed to call function from public function"} =
-               code
-               |> Interpreter.sanitize_code()
-               |> elem(1)
-               # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0, :public}])
-    end
   end
 
   describe "execute/2" do

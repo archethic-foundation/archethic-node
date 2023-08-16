@@ -392,7 +392,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       throw({:error, node, "invalid function arity"})
     end
 
-    module_atom = String.to_existing_atom(module_name)
     function_atom = String.to_existing_atom(function_name)
 
     # check the type of the args
@@ -416,7 +415,8 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       else
         meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
 
-        {{:., meta, [{:__aliases__, meta_with_alias, [module_atom]}, function_atom]}, meta, args}
+        {{:., meta, [{:__aliases__, meta_with_alias, [absolute_module_atom]}, function_atom]},
+         meta, args}
       end
 
     new_node

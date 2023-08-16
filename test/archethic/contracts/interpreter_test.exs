@@ -971,7 +971,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         @version 1
         condition transaction: []
         actions triggered_by: transaction do
-          time_now = "fast forward"
+          time_now = 2_000_000_000
           Contract.set_content Time.now()
         end
       """
@@ -989,6 +989,8 @@ defmodule Archethic.Contracts.InterpreterTest do
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
       assert {:ok,
               %Transaction{
                 data: %TransactionData{
@@ -998,10 +1000,12 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :transaction,
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil,
+                 time_now: now
                )
 
-      assert content != "fast forward"
+      assert String.to_integer(content) == DateTime.to_unix(now)
     end
 
     test "should be able to use a named action arguments in the action & condition blocks" do
