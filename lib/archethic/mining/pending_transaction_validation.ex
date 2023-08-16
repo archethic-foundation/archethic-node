@@ -852,15 +852,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     ]
 
     # Shut down the tasks that did not reply nor exit
-    results =
-      [tx_genesis_result, ref_genesis_result, ref_tx_result] =
+    [tx_genesis_result, ref_genesis_result, ref_tx_result] =
       Task.yield_many(tasks)
       |> Enum.map(fn {task, res} ->
         res || Task.shutdown(task, :brutal_kill)
       end)
 
-    with 0 <- Enum.count(results, &(&1 == nil)),
-         {:ok, {:ok, genesis_address}} <- tx_genesis_result,
+    with {:ok, {:ok, genesis_address}} <- tx_genesis_result,
          {:ok, {:ok, ^genesis_address}} <- ref_genesis_result,
          {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} <- ref_tx_result,
          {:ok, reference_json_token} <- Jason.decode(content),
@@ -898,25 +896,23 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp verify_token_recipients(json_token) do
-    case json_token["recipients"] || [] do
-      [] ->
-        :ok
-
-      recipients ->
-        with :ok <- validate_token_recipients_amounts(recipients, json_token),
-             :ok <- validate_token_recipients_total(recipients, json_token) do
-          validate_token_recipients_addresses(recipients)
-        end
+  defp verify_token_recipients(json_token = %{"recipients" => recipients})
+       when is_list(recipients) do
+    with :ok <- validate_token_recipients_amounts(recipients, json_token),
+         :ok <- validate_token_recipients_total(recipients, json_token) do
+      validate_token_recipients_addresses(recipients)
     end
   end
 
+  defp verify_token_recipients(_), do: :ok
+
   defp validate_token_recipients_addresses(recipients) do
     valid? =
-      recipients
-      |> Enum.map(& &1["to"])
-      |> Enum.map(&Base.decode16!(&1, case: :mixed))
-      |> Enum.all?(&Crypto.valid_address?/1)
+      Enum.all?(recipients, fn %{"to" => address_hex} ->
+        address_hex
+        |> Base.decode16!(case: :mixed)
+        |> Crypto.valid_address?()
+      end)
 
     if valid? do
       :ok
@@ -925,13 +921,13 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp validate_token_recipients_total(recipients, json_token) do
+  defp validate_token_recipients_total(recipients, %{"supply" => supply}) do
     total =
-      recipients
-      |> Enum.map(& &1["amount"])
-      |> Enum.sum()
+      Enum.reduce(recipients, 0, fn %{"amount" => amount}, acc ->
+        acc + amount
+      end)
 
-    if total <= json_token["supply"] do
+    if total <= supply do
       :ok
     else
       {:error, "Invalid token transaction - sum of recipients' amounts is bigger than supply"}

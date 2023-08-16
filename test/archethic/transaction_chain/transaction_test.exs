@@ -325,7 +325,8 @@ defmodule Archethic.TransactionChain.TransactionTest do
             "symbol": "MNFT",
             "recipients": [{
               "to": "#{recipient1_hex}",
-              "amount": 100000000
+              "amount": 100000000,
+              "token_id": 1
             }]
           }
           """

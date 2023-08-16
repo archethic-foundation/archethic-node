@@ -108,7 +108,7 @@ defmodule Archethic.Replication.TransactionValidator do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx) do
       if chain_node? do
-        check_inputs(tx, inputs)
+        validate_inputs(tx, inputs)
       else
         :ok
       end
@@ -310,18 +310,18 @@ defmodule Archethic.Replication.TransactionValidator do
     {:error, error}
   end
 
-  defp check_inputs(
+  defp validate_inputs(
          tx = %Transaction{address: address},
          inputs
        ) do
     if address == Bootstrap.genesis_address() do
       :ok
     else
-      do_check_inputs(tx, inputs)
+      do_validate_inputs(tx, inputs)
     end
   end
 
-  defp do_check_inputs(
+  defp do_validate_inputs(
          tx = %Transaction{
            type: type,
            address: address,
@@ -336,34 +336,36 @@ defmodule Archethic.Replication.TransactionValidator do
          },
          inputs
        ) do
-    %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
-      %LedgerOperations{
-        fee: fee,
-        transaction_movements: transaction_movements,
-        tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-      }
-      |> LedgerOperations.consume_inputs(
-        address,
-        inputs,
-        timestamp
-      )
-      |> elem(1)
+    case LedgerOperations.consume_inputs(
+           %LedgerOperations{
+             fee: fee,
+             transaction_movements: transaction_movements,
+             tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
+           },
+           address,
+           inputs,
+           timestamp
+         ) do
+      {false, _} ->
+        {:error, :insufficient_funds}
 
-    same? =
-      Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
-        Enum.any?(expected_unspent_outputs, &(&1.from == from and &1.amount >= amount))
-      end)
+      {true, %LedgerOperations{unspent_outputs: expected_unspent_outputs}} ->
+        same? =
+          Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
+            Enum.any?(expected_unspent_outputs, &(&1.from == from and &1.amount >= amount))
+          end)
 
-    if same? do
-      :ok
-    else
-      Logger.error(
-        "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
+        if same? do
+          :ok
+        else
+          Logger.error(
+            "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
 
-      {:error, :invalid_unspent_outputs}
+          {:error, :invalid_unspent_outputs}
+        end
     end
   end
 end
