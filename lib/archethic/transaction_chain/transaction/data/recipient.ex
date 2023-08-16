@@ -2,38 +2,42 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   @moduledoc """
   Represents a call to a Smart Contract
 
-  When the call is to a named action, the recipient is this struct
-  When the call is not to a named action, the recipient is a binary (the contract address)
+  Action & Args are nil for a :transaction trigger and are filled for a {:transaction, action, args} trigger
   """
   alias Archethic.Crypto
   alias Archethic.Utils
 
   defstruct [:address, :action, :args]
 
-  @type t ::
-          Crypto.prepended_hash()
-          | %__MODULE__{
-              address: Crypto.prepended_hash(),
-              action: String.t(),
-              args: list(any())
-            }
+  @unnamed_action 0
+  @named_action 1
+
+  @type t :: %__MODULE__{
+          address: Crypto.prepended_hash(),
+          action: String.t(),
+          args: list(any())
+        }
 
   @doc """
-  Return the recipient's address
+  Return wether this is a named action call or not
   """
-  @spec get_address(t()) :: binary()
-  def get_address(address) when is_binary(address), do: address
-  def get_address(%__MODULE__{address: address}), do: address
+  @spec is_named_action?(t()) :: boolean()
+  def is_named_action?(%__MODULE__{action: nil, args: nil}), do: false
+  def is_named_action?(%__MODULE__{}), do: true
 
   @doc """
   Serialize a recipient
   """
   @spec serialize(t(), pos_integer()) :: binary()
-  def serialize(address, _tx_version) when is_binary(address) do
-    <<0::8, address::binary>>
+  def serialize(%__MODULE__{address: address}, 1) do
+    <<address::binary>>
   end
 
-  def serialize(%__MODULE__{address: address, action: action, args: args}, _tx_version) do
+  def serialize(%__MODULE__{address: address, action: nil, args: nil}, 2) do
+    <<@unnamed_action::8, address::binary>>
+  end
+
+  def serialize(%__MODULE__{address: address, action: action, args: args}, 2) do
     # 255 chars should be enough
     action_bytes = byte_size(action)
     true = 255 >= action_bytes
@@ -41,7 +45,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     serialized_args = :erlang.term_to_binary(args, [:compressed])
     args_bytes = byte_size(serialized_args) |> Utils.VarInt.from_value()
 
-    <<1::8, address::binary, action_bytes::8, action::binary, args_bytes::binary,
+    <<@named_action::8, address::binary, action_bytes::8, action::binary, args_bytes::binary,
       serialized_args::binary>>
   end
 
@@ -49,11 +53,21 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   Deserialize a recipient
   """
   @spec deserialize(binary(), pos_integer()) :: {t(), binary()}
-  def deserialize(<<0::8, rest::binary>>, _tx_version) do
-    Utils.deserialize_address(rest)
+  def deserialize(rest, 1) do
+    {address, rest} = Utils.deserialize_address(rest)
+    {%__MODULE__{address: address}, rest}
   end
 
-  def deserialize(<<1::8, rest::binary>>, _tx_version) do
+  def deserialize(<<@unnamed_action::8, rest::binary>>, 2) do
+    {address, rest} = Utils.deserialize_address(rest)
+
+    {
+      %__MODULE__{address: address},
+      rest
+    }
+  end
+
+  def deserialize(<<@named_action::8, rest::binary>>, 2) do
     {address, <<action_bytes::8, rest::binary>>} = Utils.deserialize_address(rest)
     <<action::binary-size(action_bytes), rest::binary>> = rest
 
@@ -67,6 +81,30 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
         args: Plug.Crypto.non_executable_binary_to_term(args, [:safe])
       },
       rest
+    }
+  end
+
+  @doc false
+  @spec cast(map()) :: t()
+  def cast(%{
+        address: secret,
+        action: authorized_keys,
+        args: args
+      }) do
+    %__MODULE__{
+      address: secret,
+      action: authorized_keys,
+      args: args
+    }
+  end
+
+  @doc false
+  @spec to_map(t()) :: map()
+  def to_map(%__MODULE__{address: address, action: action, args: args}) do
+    %{
+      address: address,
+      action: action,
+      args: args
     }
   end
 end

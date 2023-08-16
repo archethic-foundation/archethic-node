@@ -48,6 +48,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
     # because the Interpreter requires a validated transaction
     trigger_tx = %Transaction{tx | validation_stamp: ValidationStamp.generate_dummy()}
 
+    # for now the Simulate Contract Execution does not work with named action
+    recipients = Enum.map(recipients, & &1.address)
+
     results =
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,

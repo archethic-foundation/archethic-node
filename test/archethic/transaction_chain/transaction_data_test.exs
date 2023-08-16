@@ -81,7 +81,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
                 StreamData.list_of(StreamData.binary(length: 32), min_length: 1),
               transfers <-
                 StreamData.map_of(StreamData.binary(length: 32), StreamData.positive_integer()),
-              recipients <- list_of(StreamData.binary(length: 32))
+              recipients_data <- list_of(StreamData.binary(length: 32))
             ) do
         authorized_public_keys =
           Enum.map(authorized_key_seeds, fn seed ->
@@ -89,7 +89,8 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
             pub
           end)
 
-        recipients_addresses = Enum.map(recipients, &<<0::8, 0::8, &1::binary>>)
+        recipients =
+          Enum.map(recipients_data, fn r -> %Recipient{address: <<0::8, 0::8, r::binary>>} end)
 
         transfers =
           Enum.map(transfers, fn {to, amount} ->
@@ -112,7 +113,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
                 transfers: transfers
               }
             },
-            recipients: recipients_addresses
+            recipients: recipients
           }
           |> TransactionData.serialize(current_transaction_version())
           |> TransactionData.deserialize(current_transaction_version())
@@ -126,7 +127,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
                  &(&1 in authorized_public_keys)
                )
 
-        assert tx_data.recipients == recipients_addresses
+        assert tx_data.recipients == recipients
         assert tx_data.ledger.uco.transfers == transfers
       end
     end

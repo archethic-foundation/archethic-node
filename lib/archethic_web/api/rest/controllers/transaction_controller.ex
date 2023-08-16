@@ -155,6 +155,9 @@ defmodule ArchethicWeb.API.REST.TransactionController do
             %Transaction{tx | validation_stamp: ValidationStamp.generate_dummy()}
           end)
 
+        # for now the Simulate Contract Execution does not work with named action
+        recipients = Enum.map(recipients, & &1.address)
+
         results =
           Task.Supervisor.async_stream_nolink(
             Archethic.TaskSupervisor,

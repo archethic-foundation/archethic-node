@@ -87,12 +87,8 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
          address: address,
          data: %TransactionData{recipients: recipients}
        }) do
-    case recipients do
-      [] ->
-        :ok
-
-      _ ->
-        Enum.each(recipients, &PendingLedger.add_signature(&1, address))
-    end
+    recipients
+    |> Enum.map(& &1.address)
+    |> Enum.each(&PendingLedger.add_signature(&1, address))
   end
 end

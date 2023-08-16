@@ -784,11 +784,13 @@ defmodule Archethic.TransactionChain do
       ) do
     burning_address = LedgerOperations.burning_address()
 
+    recipient_addresses = Enum.map(recipients, & &1.address)
+
     addresses =
       tx
       |> Transaction.get_movements()
       |> Enum.map(&{&1.to, &1.type})
-      |> Enum.concat(recipients)
+      |> Enum.concat(recipient_addresses)
 
     authorized_nodes = P2P.authorized_and_available_nodes()
 

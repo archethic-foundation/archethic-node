@@ -116,7 +116,7 @@ defmodule Archethic.TransactionChain.TransactionData do
       code: Map.get(data, :code, ""),
       ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.cast(),
       ownerships: Map.get(data, :ownerships, []) |> Enum.map(&Ownership.cast/1),
-      recipients: Map.get(data, :recipients, [])
+      recipients: Map.get(data, :recipients, []) |> Enum.map(&Recipient.cast/1)
     }
   end
 
@@ -143,7 +143,7 @@ defmodule Archethic.TransactionChain.TransactionData do
       code: code,
       ledger: Ledger.to_map(ledger),
       ownerships: Enum.map(ownerships, &Ownership.to_map/1),
-      recipients: recipients
+      recipients: Enum.map(recipients, &Recipient.to_map/1)
     }
   end
 end

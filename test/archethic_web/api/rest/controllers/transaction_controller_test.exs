@@ -155,7 +155,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
           "content" => "7465737420636f6e74656e74",
-          "recipients" => [old_contract_address_hex]
+          "recipients" => [%{"address" => old_contract_address_hex}]
         },
         "originSignature" =>
           "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
@@ -220,7 +220,9 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "data" => %{
           "code" => code,
           "content" => "0000",
-          "recipients" => ["00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"]
+          "recipients" => [
+            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+          ]
         },
         "originSignature" =>
           "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
@@ -276,7 +278,9 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           "code" => code,
           ## Next line is the invalid part
           "content" => "hola",
-          "recipients" => ["00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"]
+          "recipients" => [
+            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+          ]
         },
         "originSignature" =>
           "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
@@ -330,7 +334,9 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
           "code" => code,
-          "recipients" => ["00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"]
+          "recipients" => [
+            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+          ]
         },
         "originSignature" =>
           "3045022024f8d254671af93f8b9c11b5a2781a4a7535d2e89bad69d6b1f142f8f4bcf489022100c364e10f5f846b2534a7ace4aeaa1b6c8cb674f842b9f8bc78225dfa61cabec6",
@@ -369,7 +375,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "data" => %{
           "code" => code,
           "recipients" => [
-            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"
+            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
           ]
         },
         "originSignature" =>
@@ -451,8 +457,10 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           "code" => code,
           "content" => "0000",
           "recipients" => [
-            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
-            "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"
+            %{
+              "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66"
+            },
+            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
           ]
         },
         "originSignature" =>

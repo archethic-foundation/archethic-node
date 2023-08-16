@@ -613,7 +613,9 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "recipients" => ["hello"]
+            "recipients" => [
+              %{"address" => "hello"}
+            ]
           }
         })
 

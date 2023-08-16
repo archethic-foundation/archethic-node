@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
@@ -211,8 +212,11 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
       iex> TransactionStatements.add_recipient(%Transaction{data: %TransactionData{}}, "00007A0D6CDD2746F18DDE227EDB77443FBCE774263C409C8074B80E91BBFD39FA8F")
       %Transaction{
         data: %TransactionData{
-          recipients: [<<0, 0, 122, 13, 108, 221, 39, 70, 241, 141, 222, 34, 126, 219, 119, 68, 63,  188, 231, 116,
-          38, 60, 64, 156, 128, 116, 184, 14, 145, 187, 253, 57, 250,  143>>]
+          recipients: [
+            %Recipient{
+              address: <<0, 0, 122, 13, 108, 221, 39, 70, 241, 141, 222, 34, 126, 219, 119, 68, 63,  188, 231, 116, 38, 60, 64, 156, 128, 116, 184, 14, 145, 187, 253, 57, 250,  143>>
+            }
+          ]
         }
       }
   """
@@ -220,11 +224,12 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
   def add_recipient(tx = %Transaction{}, recipient_address)
       when is_binary(recipient_address) do
     recipient_address = UtilsInterpreter.get_address(recipient_address, :add_recipient)
+    recipient = %Recipient{address: recipient_address}
 
     update_in(
       tx,
       [Access.key(:data), Access.key(:recipients)],
-      &[recipient_address | &1]
+      &[recipient | &1]
     )
   end
 
@@ -235,10 +240,13 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
 
     iex> address1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     iex> address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    iex> TransactionStatements.add_recipients(%Transaction{data: %TransactionData{recipients: [address1]}}, [address2])
+    iex> TransactionStatements.add_recipients(%Transaction{data: %TransactionData{recipients: []}}, [address1, address2])
     %Transaction{
       data: %TransactionData{
-        recipients: [address2, address1]
+        recipients: [
+          %Recipient{address: address2},
+          %Recipient{address: address1}
+        ]
       }
     }
   """

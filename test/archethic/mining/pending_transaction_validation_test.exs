@@ -1,5 +1,6 @@
 defmodule Archethic.Mining.PendingTransactionValidationTest do
   use ArchethicCase, async: false
+  import ArchethicCase
 
   alias Archethic.Crypto
 
@@ -23,6 +24,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.TokenLedger
@@ -172,7 +174,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         Transaction.new(
           :code_approval,
           %TransactionData{
-            recipients: ["@CodeProposal1"]
+            recipients: [%Recipient{address: "@CodeProposal1"}]
           },
           "approval_seed",
           0
@@ -1536,7 +1538,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
   end
 
   describe "Keychain Acesss Transaction" do
-    test "should reject tx with more than one ownership" do
+    test "should reject invalid transaction" do
       tx_seed = :crypto.strong_rand_bytes(32)
 
       tx =
@@ -1613,7 +1615,32 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         Transaction.new(
           :keychain_access,
           %TransactionData{
-            recipients: ["sendtoSAM"],
+            recipients: [%Recipient{address: "sendtoSAM"}],
+            content: "",
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
+            ]
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "Invalid Keychain Access transaction"} =
+               PendingTransactionValidation.validate(tx)
+
+      tx =
+        Transaction.new(
+          :keychain_access,
+          %TransactionData{
+            recipients: [
+              %Recipient{
+                address: random_address(),
+                action: "do_something",
+                args: []
+              }
+            ],
             content: "",
             ownerships: [
               Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [

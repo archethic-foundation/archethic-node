@@ -8,6 +8,7 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   import Mox
 
@@ -80,7 +81,7 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
                  address: "@CodeApproval1",
                  previous_public_key: "CodeApproval0",
                  data: %TransactionData{
-                   recipients: ["@CodeProp1"]
+                   recipients: [%Recipient{address: "@CodeProp1"}]
                  },
                  type: :code_approval,
                  validation_stamp: %ValidationStamp{
@@ -129,7 +130,7 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
             address: "@CodeApproval1",
             previous_public_key: "CodeApproval0",
             data: %TransactionData{
-              recipients: ["@CodeProp1"]
+              recipients: [%Recipient{address: "@CodeProp1"}]
             },
             type: :code_approval,
             validation_stamp: %ValidationStamp{

@@ -67,6 +67,7 @@ defmodule Archethic.Mining.ValidationContext do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.Utils
 
@@ -736,7 +737,10 @@ defmodule Archethic.Mining.ValidationContext do
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
         ledger_operations: ledger_operations,
-        recipients: resolved_recipients(recipients, resolved_addresses),
+        recipients:
+          recipients
+          |> resolved_recipients(resolved_addresses)
+          |> Enum.map(& &1.address),
         error:
           get_validation_error(
             prev_tx,
@@ -1183,10 +1187,12 @@ defmodule Archethic.Mining.ValidationContext do
            resolved_addresses: resolved_addresses
          }
        ) do
-    Enum.all?(
-      resolved_recipients(recipients, resolved_addresses),
-      &(&1 in stamp_recipients)
-    )
+    recipients_addresses =
+      recipients
+      |> resolved_recipients(resolved_addresses)
+      |> Enum.map(& &1.address)
+
+    Enum.all?(recipients_addresses, &(&1 in stamp_recipients))
   end
 
   defp valid_stamp_transaction_movements?(
@@ -1417,12 +1423,24 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   defp resolved_recipients(recipients, resolved_addresses) do
-    Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
-      if to in recipients do
-        [resolved | acc]
-      else
-        acc
+    Enum.reduce(recipients, [], fn r = %Recipient{address: address}, acc ->
+      case get_resolved_address_for_address(resolved_addresses, address) do
+        nil ->
+          acc
+
+        resolved ->
+          [%Recipient{r | address: resolved} | acc]
       end
     end)
+  end
+
+  defp get_resolved_address_for_address(resolved_addresses, address) do
+    case Enum.find(resolved_addresses, fn {to, _resolved} -> to == address end) do
+      nil ->
+        nil
+
+      {_to, resolved} ->
+        resolved
+    end
   end
 end

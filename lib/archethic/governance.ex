@@ -16,6 +16,7 @@ defmodule Archethic.Governance do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TaskSupervisor
   alias Archethic.Utils
@@ -108,7 +109,7 @@ defmodule Archethic.Governance do
   def load_transaction(%Transaction{
         type: :code_approval,
         data: %TransactionData{
-          recipients: [prop_address]
+          recipients: [%Recipient{address: prop_address}]
         }
       }) do
     storage_nodes =
