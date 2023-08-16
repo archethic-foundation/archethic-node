@@ -1,6 +1,8 @@
 defmodule Archethic.Mining.FeeTest do
   use ArchethicCase
 
+  import ArchethicCase
+
   alias Archethic.Mining.Fee
 
   alias Archethic.P2P
@@ -83,6 +85,117 @@ defmodule Archethic.Mining.FeeTest do
                        ]
                      }
                    }
+                 },
+                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 previous_signature: :crypto.strong_rand_bytes(32),
+                 origin_signature: :crypto.strong_rand_bytes(32)
+               }
+               |> Fee.calculate(2.0, DateTime.utc_now())
+    end
+
+    test "should take token unique recipients into account (token creation)" do
+      address1 = random_address()
+      # 0.21 UCO for 4 recipients (3 unique in content + 1 in ledger) + 1 token at $2.0
+      assert 21_016_950 ==
+               %Transaction{
+                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 type: :token,
+                 data: %TransactionData{
+                   content: """
+                   {
+                    "aeip": [2, 8, 19],
+                    "supply": 300000000,
+                    "type": "fungible",
+                    "name": "My token",
+                    "symbol": "MTK",
+                    "properties": {},
+                    "recipients": [
+                      {
+                        "to": "#{Base.encode16(address1)}",
+                        "amount": 100000000
+                      },
+                      {
+                        "to": "#{Base.encode16(address1)}",
+                        "amount": 100000000
+                      },
+                      {
+                        "to": "#{Base.encode16(random_address())}",
+                        "amount": 100000000
+                      },
+                      {
+                        "to": "#{Base.encode16(random_address())}",
+                        "amount": 100000000
+                      }
+                    ]
+                   }
+                   """,
+                   ledger: %Ledger{
+                     uco: %UCOLedger{
+                       transfers: [
+                         %Transfer{
+                           amount: 100_000_000,
+                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                         }
+                       ]
+                     }
+                   }
+                 },
+                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 previous_signature: :crypto.strong_rand_bytes(32),
+                 origin_signature: :crypto.strong_rand_bytes(32)
+               }
+               |> Fee.calculate(2.0, DateTime.utc_now())
+    end
+
+    test "should take token unique recipients into account (token resupply)" do
+      # 0.11 UCO for 2 recipients + 1 token at $2.0
+      assert 11_010_100 ==
+               %Transaction{
+                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 type: :token,
+                 data: %TransactionData{
+                   content: """
+                   {
+                    "aeip": [8, 18],
+                    "supply": 1000,
+                    "token_reference": "0000C13373C96538B468CCDAB8F95FDC3744EBFA2CD36A81C3791B2A205705D9C3A2",
+                    "recipients": [
+                      {
+                        "to": "#{Base.encode16(random_address())}",
+                        "amount": 100000000
+                      },
+                      {
+                        "to": "#{Base.encode16(random_address())}",
+                        "amount": 100000000
+                      }
+                    ]
+                   }
+                   """
+                 },
+                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 previous_signature: :crypto.strong_rand_bytes(32),
+                 origin_signature: :crypto.strong_rand_bytes(32)
+               }
+               |> Fee.calculate(2.0, DateTime.utc_now())
+    end
+
+    test "should pay additional fee for tokens without recipient" do
+      # 0.01 UCO for 0 transfer + 1 token at $2.0
+      assert 1_003_524 ==
+               %Transaction{
+                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                 type: :token,
+                 data: %TransactionData{
+                   content: """
+                   {
+                    "aeip": [2, 8, 19],
+                    "supply": 300000000,
+                    "type": "fungible",
+                    "name": "My token",
+                    "symbol": "MTK",
+                    "properties": {}
+                   }
+                   """
                  },
                  previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  previous_signature: :crypto.strong_rand_bytes(32),

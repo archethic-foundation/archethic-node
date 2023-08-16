@@ -15,6 +15,17 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   @unit_uco 100_000_000
+  @token_creation_schema :archethic
+                         |> Application.app_dir("priv/json-schemas/token-core.json")
+                         |> File.read!()
+                         |> Jason.decode!()
+                         |> ExJsonSchema.Schema.resolve()
+
+  @token_resupply_schema :archethic
+                         |> Application.app_dir("priv/json-schemas/token-resupply.json")
+                         |> File.read!()
+                         |> Jason.decode!()
+                         |> ExJsonSchema.Schema.resolve()
 
   @doc """
   Determine the fee to paid for the given transaction
@@ -97,16 +108,22 @@ defmodule Archethic.Mining.Fee do
     |> byte_size()
   end
 
-  defp get_number_recipients(%Transaction{
-         data: %TransactionData{
-           ledger: %Ledger{
-             uco: %UCOLedger{transfers: uco_transfers},
-             token: %TokenLedger{transfers: token_transfers}
+  defp get_number_recipients(
+         tx = %Transaction{
+           data: %TransactionData{
+             ledger: %Ledger{
+               uco: %UCOLedger{transfers: uco_transfers},
+               token: %TokenLedger{transfers: token_transfers}
+             }
            }
          }
-       }) do
-    (uco_transfers ++ token_transfers)
-    |> Enum.uniq_by(& &1.to)
+       ) do
+    uco_transfers_addresses = uco_transfers |> Enum.map(& &1.to)
+    token_transfers_addresses = token_transfers |> Enum.map(& &1.to)
+    token_recipients_addresses = get_token_recipients(tx) |> Enum.map(& &1["to"])
+
+    (uco_transfers_addresses ++ token_transfers_addresses ++ token_recipients_addresses)
+    |> Enum.uniq()
     |> length()
   end
 
@@ -134,4 +151,31 @@ defmodule Archethic.Mining.Fee do
   defp cost_per_recipients(nb_recipients, uco_price_in_usd) do
     nb_recipients * (0.1 / uco_price_in_usd)
   end
+
+  defp get_token_recipients(%Transaction{
+         type: :token,
+         data: %TransactionData{content: content}
+       }) do
+    case Jason.decode(content) do
+      {:ok, json} ->
+        cond do
+          ExJsonSchema.Validator.valid?(@token_creation_schema, json) ->
+            get_token_recipients_from_json(json)
+
+          ExJsonSchema.Validator.valid?(@token_resupply_schema, json) ->
+            get_token_recipients_from_json(json)
+
+          true ->
+            []
+        end
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  defp get_token_recipients(_tx), do: []
+
+  defp get_token_recipients_from_json(%{"recipients" => recipients}), do: recipients
+  defp get_token_recipients_from_json(_json), do: []
 end
