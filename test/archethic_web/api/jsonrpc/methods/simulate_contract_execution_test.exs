@@ -13,6 +13,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TransactionFactory
 
@@ -114,7 +115,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
-          recipients: [old_contract_address],
+          recipients: [
+            %Recipient{address: old_contract_address}
+          ],
           content: "test content"
         )
 
@@ -163,7 +166,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [contract_address]
+          recipients: [%Recipient{address: contract_address}]
         )
 
       assert {:ok,
@@ -211,7 +214,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [contract_address]
+          recipients: [%Recipient{address: contract_address}]
         )
 
       assert {:ok,
@@ -251,7 +254,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [contract_address]
+          recipients: [%Recipient{address: contract_address}]
         )
 
       assert {:ok,
@@ -301,7 +304,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [contract_address]
+          recipients: [%Recipient{address: contract_address}]
         )
 
       assert {:ok,
@@ -378,7 +381,10 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
           content: "test",
-          recipients: [contract_address1, contract_address2]
+          recipients: [
+            %Recipient{address: contract_address1},
+            %Recipient{address: contract_address2}
+          ]
         )
 
       assert {:ok,
