@@ -13,61 +13,103 @@ defmodule Archethic.Contracts.Interpreter.Library do
   end
 
   @doc """
-  Checks if a function exists in given module
+  Validate a module function call with arity
   """
-  @spec function_exists?(module(), binary()) :: boolean()
-  def function_exists?(module, functionName) do
-    functionName in Enum.map(get_module_functions_as_string(module), &elem(&1, 0))
-  end
-
-  @doc """
-  Checks if a function with given arity exists in given module
-  """
-  @spec function_exists?(module(), binary(), integer) :: boolean()
-  def function_exists?(module, functionName, arity) do
-    arity in :proplists.get_all_values(
-      functionName,
-      get_module_functions_as_string(module)
-    )
-  end
-
-  @doc """
-  Gets a module and its imlpementation when there is one
-  """
-  @spec get_module(binary()) :: {:ok, module(), module()} | {:error, binary()}
-  def get_module(module_name) do
-    try do
-      case Code.ensure_loaded(
-             String.to_existing_atom(
-               "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
-             )
-           ) do
-        {:module, module_atom} ->
-          module_atom_impl =
-            try do
-              %Knigge.Options{default: module} = Knigge.options!(module_atom)
-              module
-            rescue
-              _ ->
-                module_atom
-            end
-
-          {:ok, module_atom, module_atom_impl}
-
-        _ ->
-          {:error, "Module #{module_name} not found"}
-      end
-    rescue
-      _ ->
-        {:error, "Module #{module_name} not found"}
+  @spec validate_module_call(
+          module_name :: binary(),
+          function_name :: binary(),
+          arity :: non_neg_integer()
+        ) ::
+          :ok
+          | {:error, :module_not_exists | :function_not_exists | :invalid_function_arity,
+             error_message :: binary()}
+  def validate_module_call(module_name, function_name, arity) do
+    with {:ok, module} <- get_module(module_name),
+         module_functions = get_module_functions_as_string(module),
+         {:ok, matched_functions} <- validate_function_exists(module_functions, function_name),
+         :ok <- validate_function_arity(matched_functions, arity) do
+      :ok
+    else
+      {:error, reason} ->
+        error_message = get_error_message(reason, module_name, function_name, arity)
+        {:error, reason, error_message}
     end
   end
 
-  # ----------------------------------------
+  @doc """
+  Return a module fomr a given module_name.
+  Raise a no match error of module doesn't exist
+  """
+  @spec get_module!(module_name :: binary()) :: module()
+  def get_module!(module_name) do
+    {:ok, module} = get_module(module_name)
+    module
+  end
+
+  @doc """
+  Return true if function is tagged with a specific tag, false otherwise
+  Raise an error if module or function does not exist
+  """
+  @spec function_tagged_with?(module_name :: binary(), function_name :: binary(), tag :: atom()) ::
+          boolean()
+  def function_tagged_with?(module_name, function_name, tag) do
+    module_impl = get_module_impl!(module_name)
+    function = String.to_existing_atom(function_name)
+    module_impl.tagged_with?(function, tag)
+  rescue
+    _ -> false
+  end
+
+  defp get_module(module_name) do
+    module =
+      "Elixir.Archethic.Contracts.Interpreter.Library.Common.#{module_name}"
+      |> String.to_existing_atom()
+      |> Code.ensure_loaded!()
+
+    {:ok, module}
+  rescue
+    _ -> {:error, :module_not_exists}
+  end
+
+  defp get_module_impl!(module_name) do
+    module = get_module!(module_name)
+
+    try do
+      %Knigge.Options{default: module_impl} = Knigge.options!(module)
+      module_impl
+    rescue
+      _ -> module
+    end
+  end
+
   defp get_module_functions_as_string(module) do
     module.__info__(:functions)
     |> Enum.map(fn {name, arity} ->
       {Atom.to_string(name), arity}
     end)
   end
+
+  defp validate_function_exists(module_functions, function_name) do
+    case Enum.filter(module_functions, &(elem(&1, 0) == function_name)) do
+      [] -> {:error, :function_not_exists}
+      functions -> {:ok, functions}
+    end
+  end
+
+  defp validate_function_arity(functions, arity) do
+    if Enum.any?(functions, &(elem(&1, 1) == arity)) do
+      :ok
+    else
+      {:error, :invalid_function_arity}
+    end
+  end
+
+  defp get_error_message(:module_not_exists, module_name, _, _),
+    do: "Module #{module_name} does not exists"
+
+  defp get_error_message(:function_not_exists, module_name, function_name, _),
+    do: "Function #{module_name}.#{function_name} does not exists"
+
+  defp get_error_message(:invalid_function_arity, module_name, function_name, arity),
+    do: "Function #{module_name}.#{function_name} does not exists with #{arity} arguments"
 end
