@@ -166,29 +166,31 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   #  |_|
   # ----------------------------------------------------------------------
 
+  # Here we check arity and arity + 1 since we can automatically fill the first parameter
+  # with the subject of the condition
   defp prewalk(
          _subject,
          node =
-           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, _},
+           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _,
+            args},
          acc
        ) do
-    {_absolute_module_atom, module_impl} =
-      case Library.get_module(module_name) do
-        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
-        {:error, message} -> throw({:error, node, message})
-      end
+    arity = length(args)
 
-    function_atom = String.to_existing_atom(function_name)
-
-    if module_impl.tagged_with?(function_atom, :write_contract),
+    if Library.function_tagged_with?(module_name, function_name, :write_contract),
       do: throw({:error, node, "Write contract functions are not allowed in condition block"})
 
-    CommonInterpreter.prewalk(node, acc)
+    with {:error, :invalid_function_arity, _} <-
+           Library.validate_module_call(module_name, function_name, arity),
+         :ok <- Library.validate_module_call(module_name, function_name, arity + 1) do
+      {node, acc}
+    else
+      {:error, _reason, message} -> throw({:error, node, message})
+      :ok -> {node, acc}
+    end
   end
 
-  defp prewalk(_subject, node, acc) do
-    CommonInterpreter.prewalk(node, acc)
-  end
+  defp prewalk(_subject, node, acc), do: CommonInterpreter.prewalk(node, acc)
 
   # ----------------------------------------------------------------------
   #                   _                 _ _
@@ -244,46 +246,24 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
            {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
          acc
        ) do
-    # if function exist with arity => node
-    arity = length(args)
+    # Module and function has already been verified do we get search for the good arity
+    case Library.validate_module_call(module_name, function_name, length(args)) do
+      :ok ->
+        CommonInterpreter.postwalk(node, acc)
 
-    {absolute_module_atom, _} =
-      case Library.get_module(module_name) do
-        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
-        {:error, message} -> throw({:error, node, message})
-      end
+      {:error, :invalid_function_arity, _} ->
+        ast =
+          quote do
+            Scope.read_global(unquote(subject))
+          end
 
-    new_node =
-      cond do
-        # check function is available with given arity
-        Library.function_exists?(absolute_module_atom, function_name, arity) ->
-          {new_node, _} = CommonInterpreter.postwalk(node, acc)
-          new_node
+        # add it as first function argument
+        node_with_key_appended =
+          {{:., meta, [{:__aliases__, meta, [atom: module_name]}, {:atom, function_name}]}, meta,
+           [ast | args]}
 
-        # if function exist with arity+1 => prepend the key to args
-        Library.function_exists?(absolute_module_atom, function_name, arity + 1) ->
-          ast =
-            quote do
-              Scope.read_global(unquote(subject))
-            end
-
-          # add it as first function argument
-          node_with_key_appended =
-            {{:., meta, [{:__aliases__, meta, [atom: module_name]}, {:atom, function_name}]},
-             meta, [ast | args]}
-
-          {new_node, _} = CommonInterpreter.postwalk(node_with_key_appended, acc)
-          new_node
-
-        # check function exists
-        Library.function_exists?(absolute_module_atom, function_name) ->
-          throw({:error, node, "invalid arity for function #{module_name}.#{function_name}"})
-
-        true ->
-          throw({:error, node, "unknown function:  #{module_name}.#{function_name}"})
-      end
-
-    {new_node, acc}
+        CommonInterpreter.postwalk(node_with_key_appended, acc)
+    end
   end
 
   defp postwalk(_subject, node, acc) do

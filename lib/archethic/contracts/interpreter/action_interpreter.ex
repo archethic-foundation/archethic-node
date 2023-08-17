@@ -9,6 +9,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
 
   # # Module `Contract` is handled differently
@@ -162,10 +163,26 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
+
+  # module call
   defp prewalk(
-         node,
+         node =
+           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _,
+            args},
          acc
        ) do
+    arity =
+      if Library.function_tagged_with?(module_name, function_name, :write_contract),
+        do: length(args) + 1,
+        else: length(args)
+
+    case Library.validate_module_call(module_name, function_name, arity) do
+      :ok -> {node, acc}
+      {:error, _reason, message} -> throw({:error, node, message})
+    end
+  end
+
+  defp prewalk(node, acc) do
     CommonInterpreter.prewalk(node, acc)
   end
 
@@ -177,9 +194,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  defp postwalk(node, acc) do
-    CommonInterpreter.postwalk(node, acc)
-  end
+
+  defp postwalk(node, acc), do: CommonInterpreter.postwalk(node, acc)
 
   # keep only the transaction fields we are interested in
   # these are all the fields that are copied from `prev_tx` to `next_tx`

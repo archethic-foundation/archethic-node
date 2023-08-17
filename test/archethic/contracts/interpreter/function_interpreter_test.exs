@@ -114,7 +114,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
       end
       """
 
-      assert {:error, _, "Module Hello not found"} =
+      assert {:error, _, "Module Hello does not exists"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)

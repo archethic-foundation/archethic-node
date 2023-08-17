@@ -90,13 +90,11 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {{:atom, var_name}, _, nil}, acc) when is_binary(var_name), do: {node, acc}
   def prewalk(node = {:atom, var_name}, acc) when is_binary(var_name), do: {node, acc}
 
-  # module call
-  def prewalk(node = {{:., _, [{:__aliases__, _, _}, _]}, _, _}, acc), do: {node, acc}
-  def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
-
-  # whitelisted modules
-  def prewalk(node = {:__aliases__, _, [atom: _module_name]}, acc),
+  def prewalk(node = {{:., _, [{:__aliases__, _, [atom]}, _]}, _, _}, acc) when is_atom(atom),
     do: {node, acc}
+
+  def prewalk(node = {:., _, [{:__aliases__, _, _}, _]}, acc), do: {node, acc}
+  def prewalk(node = {:__aliases__, _, [atom: _module_name]}, acc), do: {node, acc}
 
   # internal modules (Process/Scope/Kernel)
   def prewalk(node = {:__aliases__, _, [atom]}, acc) when is_atom(atom), do: {node, acc}
@@ -285,14 +283,41 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {{:__block__, meta, expressions ++ new_expressions}, acc}
   end
 
-  # common modules call
+  # Module function call
   def postwalk(
         node =
-          {{:., _meta, [{:__aliases__, _, [atom: _module_name]}, {:atom, _function_name}]}, _,
-           _args},
+          {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
         acc
       ) do
-    {module_call(node), acc}
+    # Module and function has already been verified
+    module = Library.get_module!(module_name)
+    function = String.to_existing_atom(function_name)
+
+    # check the type of the args
+    unless module.check_types(function, args) do
+      throw({:error, node, "invalid function arguments"})
+    end
+
+    new_node =
+      if Library.function_tagged_with?(module_name, function_name, :write_contract) do
+        quote do
+          # mark the next_tx as dirty
+          Scope.update_global([:next_transaction_changed], fn _ -> true end)
+
+          # call the function with the next_transaction as the 1st argument
+          # and update it in the scope
+          Scope.update_global(
+            [:next_transaction],
+            &apply(unquote(module), unquote(function), [&1 | unquote(args)])
+          )
+        end
+      else
+        meta_with_alias = Keyword.put(meta, :alias, module)
+
+        {{:., meta, [{:__aliases__, meta_with_alias, [module]}, function]}, meta, args}
+      end
+
+    {new_node, acc}
   end
 
   # variable are read from scope
@@ -369,65 +394,4 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   # whitelist rest
   def postwalk(node, acc), do: {node, acc}
-
-  def module_call(
-        node =
-          {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args}
-      )
-      when is_binary(module_name) do
-    {absolute_module_atom, _} =
-      case Library.get_module(module_name) do
-        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
-        {:error, message} -> throw({:error, node, message})
-      end
-
-    # check function exists
-    unless Library.function_exists?(absolute_module_atom, function_name) do
-      throw({:error, node, "unknown function"})
-    end
-
-    # check function is available with given arity
-    unless Library.function_exists?(absolute_module_atom, function_name, length(args)) or
-             Library.function_exists?(absolute_module_atom, function_name, length(args) + 1) do
-      throw({:error, node, "invalid function arity"})
-    end
-
-    function_atom = String.to_existing_atom(function_name)
-
-    # check the type of the args
-    unless absolute_module_atom.check_types(function_atom, args) do
-      throw({:error, node, "invalid function arguments"})
-    end
-
-    new_node =
-      if module_name == "Contract" do
-        quote do
-          # mark the next_tx as dirty
-          Scope.update_global([:next_transaction_changed], fn _ -> true end)
-
-          # call the function with the next_transaction as the 1st argument
-          # and update it in the scope
-          Scope.update_global(
-            [:next_transaction],
-            &apply(unquote(absolute_module_atom), unquote(function_atom), [&1 | unquote(args)])
-          )
-        end
-      else
-        meta_with_alias = Keyword.put(meta, :alias, absolute_module_atom)
-
-        {{:., meta, [{:__aliases__, meta_with_alias, [absolute_module_atom]}, function_atom]},
-         meta, args}
-      end
-
-    new_node
-  end
-
-  # ----------------------------------------------------------------------
-  #              _            _
-  #   _ __  _ __(___   ____ _| |_ ___
-  #  | '_ \| '__| \ \ / / _` | __/ _ \
-  #  | |_) | |  | |\ V | (_| | ||  __/
-  #  | .__/|_|  |_| \_/ \__,_|\__\___|
-  #  |_|
-  # ----------------------------------------------------------------------
 end

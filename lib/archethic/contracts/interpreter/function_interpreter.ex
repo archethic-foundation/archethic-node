@@ -97,33 +97,27 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
+
+  # Blacklist write_contract and IO function
   defp prewalk(
          node =
-           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, _},
+           {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _,
+            args},
          acc,
-         is_internal?
+         public?
        ) do
-    {_absolute_module_atom, module_impl} =
-      case Library.get_module(module_name) do
-        {:ok, module_atom, module_atom_impl} -> {module_atom, module_atom_impl}
-        {:error, message} -> throw({:error, node, message})
-      end
+    if Library.function_tagged_with?(module_name, function_name, :write_contract),
+      do: throw({:error, node, "Write contract functions are not allowed in custom functions"})
 
-    function_atom = String.to_existing_atom(function_name)
+    if public? and Library.function_tagged_with?(module_name, function_name, :io),
+      do: throw({:error, node, "IO function calls not allowed in public functions"})
 
-    if is_internal? do
-      if module_impl.tagged_with?(function_atom, :io),
-        do: throw({:error, node, "IO function calls not allowed in public functions"})
-
-      if module_impl.tagged_with?(function_atom, :write_contract),
-        do: throw({:error, node, "Write contract functions are not allowed in custom functions"})
-    else
-      if module_impl.tagged_with?(function_atom, :write_contract) do
-        throw({:error, node, "Write contract functions are not allowed in custom functions"})
-      end
+    case Library.validate_module_call(module_name, function_name, length(args)) do
+      :ok -> :ok
+      {:error, _reason, message} -> throw({:error, node, message})
     end
 
-    CommonInterpreter.prewalk(node, acc)
+    {node, acc}
   end
 
   defp prewalk(node = {{:atom, function_name}, _, args}, _acc, true)
