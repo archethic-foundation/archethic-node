@@ -8,6 +8,7 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Library
+  alias Archethic.Contracts.Interpreter.FunctionKeys
   alias Archethic.Contracts.Interpreter.Scope
 
   # ----------------------------------------------------------------------
@@ -252,7 +253,16 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # function call, should be placed after "for" prewalk
-  def prewalk(node = {{:atom, _}, _, args}, acc) when is_list(args), do: {node, acc}
+  def prewalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
+      when is_list(args) do
+    arity = length(args)
+
+    if FunctionKeys.exist?(functions, function_name, arity) do
+      {node, acc}
+    else
+      throw({:error, node, "The function #{function_name}/#{arity} does not exist"})
+    end
+  end
 
   # blacklist rest
   def prewalk(node, _acc), do: throw({:error, node, "unexpected term"})
@@ -361,25 +371,13 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {new_node, acc}
   end
 
-  def postwalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
-      when is_list(args) do
-    arity = length(args)
+  def postwalk({{:atom, function_name}, _, args}, acc) when is_list(args) do
+    new_node =
+      quote do
+        Scope.execute_function_ast(unquote(function_name), unquote(args))
+      end
 
-    case Enum.find(functions, fn
-           {^function_name, ^arity, _} -> true
-           _ -> false
-         end) do
-      nil ->
-        throw({:error, node, "The function #{function_name}/#{arity} does not exist"})
-
-      {_, _, _} ->
-        new_node =
-          quote do
-            Scope.execute_function_ast(unquote(function_name), unquote(args))
-          end
-
-        {new_node, acc}
-    end
+    {new_node, acc}
   end
 
   # BigInt mathematics to avoid floating point issues

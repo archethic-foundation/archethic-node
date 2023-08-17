@@ -4,8 +4,9 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
   use ArchethicCase
   use ExUnitProperties
 
-  alias Archethic.Contracts.Interpreter.FunctionInterpreter
   alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.FunctionKeys
+  alias Archethic.Contracts.Interpreter.FunctionInterpreter
 
   # ----------------------------------------------
   # parse/2
@@ -172,7 +173,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> FunctionInterpreter.parse([])
+               |> FunctionInterpreter.parse(%{})
     end
 
     test "should be able to call declared public function from private function" do
@@ -187,7 +188,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0, :public}])
+               |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
     end
 
     test "should not be able to call declared private function from private function" do
@@ -202,7 +203,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse([{"hello", 0, :private}])
+               |> FunctionInterpreter.parse(FunctionKeys.add_private(%{}, "hello", 0))
     end
 
     test "should not be able to call declared function from public function" do
@@ -246,7 +247,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
         |> Interpreter.sanitize_code()
         |> elem(1)
         # pass allowed function
-        |> FunctionInterpreter.parse([{"hello", 0, :public}])
+        |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
 
       function_constant = %{:functions => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
 

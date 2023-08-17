@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionKeys
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -488,7 +489,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
-               |> ActionInterpreter.parse([])
+               |> ActionInterpreter.parse(%{})
     end
 
     test "should be able to use existing function" do
@@ -504,7 +505,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark as existing
-               |> ActionInterpreter.parse([{"hello", 0, :public}])
+               |> ActionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
 
       # private function
       assert {:ok, _, _} =
@@ -512,7 +513,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark as existing
-               |> ActionInterpreter.parse([{"hello", 0, :private}])
+               |> ActionInterpreter.parse(FunctionKeys.add_private(%{}, "hello", 0))
     end
 
     test "should be able to use named action without argument" do

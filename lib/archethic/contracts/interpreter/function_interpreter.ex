@@ -1,16 +1,18 @@
 defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @moduledoc false
-  alias Archethic.Contracts.Interpreter.Library
-  alias Archethic.Contracts.Interpreter
+
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.Interpreter.CommonInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionKeys
+  alias Archethic.Contracts.Interpreter.Library
+  alias Archethic.Contracts.Interpreter.Scope
+
   require Logger
 
   @doc """
   Parse the given node and return the function name it's args as strings and the AST block.
   """
-  @spec parse(ast :: any(), function_keys :: list(Interpreter.function_key())) ::
+  @spec parse(ast :: any(), function_keys :: FunctionKeys.t()) ::
           {:ok, function_name :: binary(), args :: list(), function_ast :: any()}
           | {:error, node :: any(), reason :: binary()}
   def parse({{:atom, "fun"}, _, [{{:atom, function_name}, _, args}, [do: block]]}, functions_keys) do
@@ -128,15 +130,11 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
        when is_list(args) and function_name != "for" do
     arity = length(args)
 
-    case Enum.find(functions, fn
-           {^function_name, ^arity, _} -> true
-           _ -> false
-         end) do
-      {_, _, :private} ->
-        throw({:error, node, "not allowed to call private function from a private function"})
-
-      _ ->
-        CommonInterpreter.prewalk(node, acc)
+    if FunctionKeys.exist?(functions, function_name, arity) and
+         FunctionKeys.private?(functions, function_name, arity) do
+      throw({:error, node, "not allowed to call private function from a private function"})
+    else
+      CommonInterpreter.prewalk(node, acc)
     end
   end
 

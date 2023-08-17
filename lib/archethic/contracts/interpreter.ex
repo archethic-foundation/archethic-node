@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
   alias __MODULE__.FunctionInterpreter
+  alias __MODULE__.FunctionKeys
 
   alias __MODULE__.ConditionValidator
 
@@ -22,7 +23,6 @@ defmodule Archethic.Contracts.Interpreter do
 
   @type version() :: integer()
   @type execute_opts :: [time_now: DateTime.t()]
-  @type function_key() :: {String.t(), integer()}
 
   @doc """
   Dispatch through the correct interpreter.
@@ -434,20 +434,30 @@ defmodule Archethic.Contracts.Interpreter do
     Utils.get_current_time_for_interval(interval)
   end
 
-  defp get_function_keys([{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest]) do
-    [{function_name, length(args), :private} | get_function_keys(rest)]
+  defp get_function_keys(blocks, function_keys \\ FunctionKeys.new())
+
+  defp get_function_keys(
+         [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest],
+         function_keys
+       ) do
+    new_keys = FunctionKeys.add_private(function_keys, function_name, length(args))
+    get_function_keys(rest, new_keys)
   end
 
-  defp get_function_keys([
-         {{:atom, "export"}, _,
-          [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
-         | rest
-       ]) do
-    [{function_name, length(args), :public} | get_function_keys(rest)]
+  defp get_function_keys(
+         [
+           {{:atom, "export"}, _,
+            [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
+           | rest
+         ],
+         function_keys
+       ) do
+    new_keys = FunctionKeys.add_public(function_keys, function_name, length(args))
+    get_function_keys(rest, new_keys)
   end
 
-  defp get_function_keys([_ | rest]), do: get_function_keys(rest)
-  defp get_function_keys([]), do: []
+  defp get_function_keys([_ | rest], function_keys), do: get_function_keys(rest, function_keys)
+  defp get_function_keys([], function_keys), do: function_keys
 
   # -----------------------------------------
   # contract validation
