@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionKeys
 
   doctest ConditionInterpreter
 
@@ -128,7 +129,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as existing
-               |> ConditionInterpreter.parse([{"get_uco_transfers", 0, :public}])
+               |> ConditionInterpreter.parse(FunctionKeys.add_public(%{}, "get_uco_transfers", 0))
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end

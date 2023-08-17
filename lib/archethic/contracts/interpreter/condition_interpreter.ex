@@ -2,12 +2,12 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   @moduledoc false
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Interpreter.CommonInterpreter
-  alias Archethic.Contracts.Interpreter.Library
-  alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
-  alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.CommonInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionKeys
+  alias Archethic.Contracts.Interpreter.Library
+  alias Archethic.Contracts.Interpreter.Scope
 
   @condition_fields ConditionsSubjects.__struct__()
                     |> Map.keys()
@@ -17,7 +17,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
-  @spec parse(any(), list(Interpreter.function_key())) ::
+  @spec parse(any(), FunctionKeys.t()) ::
           {:ok, Contract.condition_type(), ConditionsSubjects.t()} | {:error, any(), String.t()}
   def parse(
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
@@ -140,7 +140,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
         AST.wrap_in_block(ast),
         acc,
         fn node, acc ->
-          prewalk(subject, node, acc)
+          prewalk(node, acc)
         end,
         fn node, acc ->
           postwalk(subject, node, acc)
@@ -148,13 +148,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       )
 
     new_ast
-  end
-
-  defp function_exists?(functions, function_name, arity) do
-    Enum.find(functions, fn
-      {^function_name, ^arity, _} -> true
-      _ -> false
-    end) != nil
   end
 
   # ----------------------------------------------------------------------
@@ -169,7 +162,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   # Here we check arity and arity + 1 since we can automatically fill the first parameter
   # with the subject of the condition
   defp prewalk(
-         _subject,
          node =
            {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _,
             args},
@@ -190,7 +182,18 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     end
   end
 
-  defp prewalk(_subject, node, acc), do: CommonInterpreter.prewalk(node, acc)
+  defp prewalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
+       when is_list(args) and function_name != "for" do
+    args_arity = length(args)
+
+    cond do
+      FunctionKeys.exist?(functions, function_name, args_arity) -> {node, acc}
+      FunctionKeys.exist?(functions, function_name, args_arity + 1) -> {node, acc}
+      true -> CommonInterpreter.prewalk(node, acc)
+    end
+  end
+
+  defp prewalk(node, acc), do: CommonInterpreter.prewalk(node, acc)
 
   # ----------------------------------------------------------------------
   #                   _                 _ _
@@ -212,12 +215,12 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
 
     new_node =
       cond do
-        function_exists?(functions, function_name, arity) ->
+        FunctionKeys.exist?(functions, function_name, arity) ->
           {new_node, _} = CommonInterpreter.postwalk(node, acc)
           new_node
 
         # if function exist with arity+1 => prepend the key to args
-        function_exists?(functions, function_name, arity + 1) ->
+        FunctionKeys.exist?(functions, function_name, arity + 1) ->
           ast =
             quote do
               Scope.read_global(unquote(subject))
@@ -228,11 +231,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
 
           {new_node, _} = CommonInterpreter.postwalk(node_subject_appened, acc)
           new_node
-
-        true ->
-          reason = "The function #{function_name}/#{Integer.to_string(arity)} does not exist"
-
-          throw({:error, node, reason})
       end
 
     {new_node, acc}

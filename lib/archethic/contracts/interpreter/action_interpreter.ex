@@ -6,9 +6,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConstants, as: Constants
-  alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionKeys
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
 
@@ -18,7 +18,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
-  @spec parse(any(), list(Interpreter.function_key())) ::
+  @spec parse(any(), FunctionKeys.t()) ::
           {:ok, Contract.trigger_type(), Macro.t()} | {:error, any(), String.t()}
   def parse({{:atom, "actions"}, _, [keyword, [do: block]]}, functions_keys) do
     trigger_type = extract_trigger(keyword)
