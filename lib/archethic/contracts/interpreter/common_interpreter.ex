@@ -177,15 +177,14 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   end
 
   # Dot access nested (x.y.z)
-  def prewalk({{:., _, [first_arg = {{:., _, _}, _, _}, {:atom, key_name}]}, _, []}, acc) do
-    {nested, new_acc} = prewalk(first_arg, acc)
-
+  # or Module.function().z
+  def prewalk({{:., _, [first_arg, {:atom, key_name}]}, _, []}, acc) do
     new_node =
       quote do
-        get_in(unquote(nested), [unquote(key_name)])
+        Map.get(unquote(first_arg), unquote(key_name))
       end
 
-    {new_node, new_acc}
+    {new_node, acc}
   end
 
   # Map access non-nested (x[y])
@@ -204,17 +203,15 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
   # Map access nested (x[y][z])
   def prewalk(
-        _node = {{:., _, [Access, :get]}, _, [first_arg = {{:., _, _}, _, _}, accessor]},
+        _node = {{:., _, [Access, :get]}, _, [first_arg, accessor]},
         acc
       ) do
-    {nested, new_acc} = prewalk(first_arg, acc)
-
     new_node =
       quote do
-        get_in(unquote(nested), [unquote(accessor)])
+        Map.get(unquote(first_arg), unquote(accessor))
       end
 
-    {new_node, new_acc}
+    {new_node, acc}
   end
 
   # for var in list

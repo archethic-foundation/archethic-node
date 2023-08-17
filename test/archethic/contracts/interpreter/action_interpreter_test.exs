@@ -883,6 +883,16 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
 
       code = ~S"""
       actions triggered_by: transaction do
+        a = [b: [c: [d: [e: [f: [g: [h: "hello"]]]]]]]
+
+        Contract.set_content a.b.c["d"].e.f.g.h
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+
+      code = ~S"""
+      actions triggered_by: transaction do
 
         if true do
           a = [b: [c: [d: [e: [f: [g: [h: "hello"]]]]]]]

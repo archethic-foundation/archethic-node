@@ -108,6 +108,36 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> FunctionInterpreter.parse([])
     end
 
+    test "should not be able to use IO functions in public function with dot access" do
+      code = ~S"""
+      export fun test do
+       Chain.get_transaction("hello").content
+      end
+      """
+
+      assert {:error, _, "IO function calls not allowed in public functions"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark function as declared
+               |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
+    end
+
+    test "should not be able to use IO functions in public function with dynamic access" do
+      code = ~S"""
+      export fun test do
+       Chain.get_transaction("hello")["content"]
+      end
+      """
+
+      assert {:error, _, "IO function calls not allowed in public functions"} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark function as declared
+               |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
+    end
+
     test "should return an error if module is unknown" do
       code = ~S"""
       export fun test_public do
