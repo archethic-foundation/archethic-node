@@ -36,7 +36,7 @@ defmodule Archethic.TransactionChain.TransactionData.RecipientTest do
       recipient = %Recipient{
         address: random_address(),
         action: "vote_for",
-        args: [1, 2, [3, 4], %{"foo" => "bar"}, "hello", random_address()]
+        args: [1, 2, [3, 4], %{"foo" => "bar"}, "hello", Base.encode16(random_address())]
       }
 
       assert {^recipient, <<>>} = recipient |> Recipient.serialize(2) |> Recipient.deserialize(2)

@@ -42,7 +42,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     action_bytes = byte_size(action)
     true = 255 >= action_bytes
 
-    serialized_args = :erlang.term_to_binary(args, [:compressed])
+    serialized_args = Jason.encode!(args)
     args_bytes = byte_size(serialized_args) |> Utils.VarInt.from_value()
 
     <<@named_action::8, address::binary, action_bytes::8, action::binary, args_bytes::binary,
@@ -78,7 +78,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
       %__MODULE__{
         address: address,
         action: action,
-        args: Plug.Crypto.non_executable_binary_to_term(args, [:safe])
+        args: Jason.decode!(args)
       },
       rest
     }
