@@ -1,6 +1,20 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
+    "$defs": {
+        "address": {
+            "oneOf": [
+                {
+                    "type": "string",
+                    "pattern": "^0[0-2]0[025][0-9a-fA-F]{64}$"
+                },
+                {
+                    "type": "string",
+                    "pattern": "^0[0-2]0[134][0-9a-fA-F]{128}$"
+                }
+            ]
+        }
+    },
     "properties": {
         "supply": {
             "type": "integer",
@@ -16,8 +30,34 @@
             }
         },
         "token_reference": {
-            "type": "string",
+            "$ref": "#/$defs/address",
             "description": "Address of the fungible token to resupply"
+        },
+        "recipients": {
+            "type": "array",
+            "description": "Token recipients (AEIP-19)",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "to",
+                    "amount"
+                ],
+                "properties": {
+                    "token_id": {
+                        "type": "integer",
+                        "description": "The index of the token in a collection"
+                    },
+                    "to": {
+                        "$ref": "#/$defs/address",
+                        "description": "The recipient's address"
+                    },
+                    "amount": {
+                        "type": "integer",
+                        "description": "Amount of tokens to sent to this recipient (100 000 000 for 1 token if decimals=8)"
+                    }
+                }
+            }
         }
     },
     "required": [

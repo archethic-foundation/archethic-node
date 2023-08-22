@@ -720,14 +720,13 @@ defmodule Archethic.Mining.ValidationContext do
         context = %__MODULE__{
           transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
           previous_transaction: prev_tx,
-          unspent_outputs: unspent_outputs,
           valid_pending_transaction?: valid_pending_transaction?,
           validation_time: validation_time,
           resolved_addresses: resolved_addresses,
           contract_context: contract_context
         }
       ) do
-    ledger_operations = get_ledger_operations(context)
+    {sufficient_funds?, ledger_operations} = get_ledger_operations(context)
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
@@ -744,8 +743,7 @@ defmodule Archethic.Mining.ValidationContext do
           get_validation_error(
             prev_tx,
             tx,
-            ledger_operations,
-            unspent_outputs,
+            sufficient_funds?,
             valid_pending_transaction?,
             resolved_recipients,
             validation_time,
@@ -799,9 +797,9 @@ defmodule Archethic.Mining.ValidationContext do
 
     %LedgerOperations{
       fee: fee,
-      transaction_movements: resolved_movements
+      transaction_movements: resolved_movements,
+      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, validation_time)
     }
-    |> LedgerOperations.from_transaction(tx, validation_time)
     |> LedgerOperations.consume_inputs(
       tx.address,
       unspent_outputs,
@@ -812,18 +810,16 @@ defmodule Archethic.Mining.ValidationContext do
   @spec get_validation_error(
           previous_transaction :: nil | Transaction.t(),
           pending_transaction :: Transaction.t(),
-          ledger_operations :: LedgerOperations.t(),
-          unspent_outputs :: list(UnspentOutput.t()),
-          valid_pending_transaction :: boolean(),
-          resolved_addresses :: list({binary(), binary()}),
+          sufficient_funds? :: boolean(),
+          valid_pending_transaction? :: boolean(),
+          resolved_recipients :: list(Recipient.t()),
           validation_time :: DateTime.t(),
           contract_context :: nil | Contract.Context.t()
         ) :: nil | ValidationStamp.error()
   defp get_validation_error(
          prev_tx,
          tx,
-         ledger_operations,
-         unspent_outputs,
+         sufficient_funds?,
          valid_pending_transaction?,
          resolved_recipients,
          validation_time,
@@ -832,6 +828,9 @@ defmodule Archethic.Mining.ValidationContext do
     cond do
       not valid_pending_transaction? ->
         :invalid_pending_transaction
+
+      not sufficient_funds? ->
+        :insufficient_funds
 
       not valid_inherit_condition?(prev_tx, tx, validation_time) ->
         :invalid_inherit_constraints
@@ -844,9 +843,6 @@ defmodule Archethic.Mining.ValidationContext do
 
       not valid_contract_recipients?(tx, resolved_recipients, validation_time) ->
         :invalid_recipients_execution
-
-      not sufficient_funds?(ledger_operations, unspent_outputs) ->
-        :insufficient_funds
 
       true ->
         nil
@@ -863,9 +859,6 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp valid_contract_recipients?(tx, resolved_recipients, validation_time),
     do: SmartContractValidation.valid_contract_calls?(resolved_recipients, tx, validation_time)
-
-  defp sufficient_funds?(ledger_ops, inputs),
-    do: LedgerOperations.sufficient_funds?(ledger_ops, inputs)
 
   ####################
   defp valid_inherit_condition?(
@@ -1153,7 +1146,6 @@ defmodule Archethic.Mining.ValidationContext do
            transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
            previous_transaction: prev_tx,
            valid_pending_transaction?: valid_pending_transaction?,
-           unspent_outputs: unspent_outputs,
            resolved_addresses: resolved_addresses,
            validation_time: validation_time,
            contract_context: contract_context
@@ -1162,13 +1154,13 @@ defmodule Archethic.Mining.ValidationContext do
     validated_context = %{context | transaction: %{tx | validation_stamp: stamp}}
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
+    {sufficient_funds?, _} = get_ledger_operations(validated_context)
 
     expected_error =
       get_validation_error(
         prev_tx,
         tx,
-        get_ledger_operations(validated_context),
-        unspent_outputs,
+        sufficient_funds?,
         valid_pending_transaction?,
         resolved_recipients,
         validation_time,
@@ -1236,10 +1228,15 @@ defmodule Archethic.Mining.ValidationContext do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
       %LedgerOperations{
         fee: fee,
-        transaction_movements: Transaction.get_movements(tx)
+        transaction_movements: Transaction.get_movements(tx),
+        tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       }
-      |> LedgerOperations.from_transaction(tx, timestamp)
-      |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs, timestamp)
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        previous_unspent_outputs,
+        timestamp
+      )
+      |> elem(1)
 
     expected_unspent_outputs == next_unspent_outputs
   end

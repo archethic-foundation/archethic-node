@@ -26,6 +26,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.NodeRenewal
 
+  alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -55,11 +56,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
               |> Jason.decode!()
               |> ExJsonSchema.Schema.resolve()
 
-  @token_schema :archethic
-                |> Application.app_dir("priv/json-schemas/token-core.json")
-                |> File.read!()
-                |> Jason.decode!()
-                |> ExJsonSchema.Schema.resolve()
+  @token_creation_schema :archethic
+                         |> Application.app_dir("priv/json-schemas/token-core.json")
+                         |> File.read!()
+                         |> Jason.decode!()
+                         |> ExJsonSchema.Schema.resolve()
 
   @token_resupply_schema :archethic
                          |> Application.app_dir("priv/json-schemas/token-resupply.json")
@@ -769,22 +770,28 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp verify_token_transaction(tx = %Transaction{data: %TransactionData{content: content}}) do
-    case Jason.decode(content) do
-      {:error, _} ->
+    with {:ok, json_token} <- Jason.decode(content),
+         :ok <- verify_token_creation(tx, json_token) do
+      verify_token_recipients(json_token)
+    else
+      {:error, %Jason.DecodeError{}} ->
         {:error, "Invalid token transaction - invalid JSON"}
 
-      {:ok, json_token} ->
-        case {ExJsonSchema.Validator.validate(@token_schema, json_token),
-              ExJsonSchema.Validator.validate(@token_resupply_schema, json_token)} do
-          {:ok, _} ->
-            verify_token_creation(json_token)
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
-          {_, :ok} ->
-            verify_token_resupply(tx, json_token)
+  defp verify_token_creation(tx, json_token) do
+    cond do
+      ExJsonSchema.Validator.valid?(@token_creation_schema, json_token) ->
+        verify_token_creation(json_token)
 
-          _ ->
-            {:error, "Invalid token transaction - neither a token creation nor a token resupply"}
-        end
+      ExJsonSchema.Validator.valid?(@token_resupply_schema, json_token) ->
+        verify_token_resupply(tx, json_token)
+
+      true ->
+        {:error, "Invalid token transaction - neither a token creation nor a token resupply"}
     end
   end
 
@@ -826,51 +833,132 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp verify_token_resupply(tx, %{"token_reference" => token_ref}) do
-    with {:ok, token_address} <- Base.decode16(token_ref, case: :mixed),
-         # verify same chain
-         {:ok, genesis_address} <- fetch_previous_tx_genesis_address(tx),
-         storage_nodes <-
-           Election.chain_storage_nodes(token_address, P2P.authorized_and_available_nodes()),
-         {:ok, ^genesis_address} <-
-           TransactionChain.fetch_genesis_address(token_address, storage_nodes),
-         # verify token_reference
-         {:ok,
-          %Transaction{
-            data: %TransactionData{
-              content: content
-            }
-          }} <- TransactionChain.fetch_transaction(token_address, storage_nodes),
+    # strict because there was a json schema validation before
+    token_address = Base.decode16!(token_ref, case: :mixed)
+
+    storage_nodes =
+      Election.chain_storage_nodes(token_address, P2P.authorized_and_available_nodes())
+
+    # fetch in parallel the data we need
+    tasks = [
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        fetch_previous_tx_genesis_address(tx)
+      end),
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        TransactionChain.fetch_genesis_address(token_address, storage_nodes)
+      end),
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        TransactionChain.fetch_transaction(token_address, storage_nodes)
+      end)
+    ]
+
+    # Shut down the tasks that did not reply nor exit
+    [tx_genesis_result, ref_genesis_result, ref_tx_result] =
+      Task.yield_many(tasks)
+      |> Enum.map(fn {task, res} ->
+        res || Task.shutdown(task, :brutal_kill)
+      end)
+
+    with {:ok, {:ok, genesis_address}} <- tx_genesis_result,
+         {:ok, {:ok, ^genesis_address}} <- ref_genesis_result,
+         {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} <- ref_tx_result,
          {:ok, reference_json_token} <- Jason.decode(content),
          %{"type" => "fungible", "allow_mint" => true} <- reference_json_token do
       :ok
     else
+      nil ->
+        {:error, "Timeout when fetching the reference token or the genesis address"}
+
+      {:exit, _} ->
+        {:error, "Error when fetching the reference token or the genesis address"}
+
       %{"type" => "non-fungible"} ->
         {:error, "Invalid token transaction - token_reference must be fungible"}
 
       %{"type" => "fungible"} ->
         {:error, "Invalid token transaction - token_reference does not have allow_mint: true"}
 
-      {:ok, _} ->
+      {:ok, {:ok, _}} ->
         {:error,
          "Invalid token transaction - token_reference is not in the same transaction chain"}
 
-      {:error, :transaction_not_exists} ->
+      {:ok, {:error, :transaction_not_exists}} ->
         {:error, "Invalid token transaction - token_reference not found"}
 
-      {:error, :invalid_transaction} ->
+      {:ok, {:error, :invalid_transaction}} ->
         {:error, "Invalid token transaction - token_reference is invalid"}
 
-      {:error, :network_issue} ->
+      {:ok, {:error, :network_issue}} ->
         {:error, "A network issue was raised, please retry later"}
 
       {:error, %Jason.DecodeError{}} ->
         {:error,
          "Invalid token transaction - token_reference exists but does not contain a valid JSON"}
-
-      :error ->
-        {:error, "Invalid token transaction - token_reference is not an hexadecimal"}
     end
   end
+
+  defp verify_token_recipients(json_token = %{"recipients" => recipients, "supply" => supply})
+       when is_list(recipients) do
+    # resupply token transactions do not have a type, but is applied only to fungible tokens
+    fungible? = Map.get(json_token, "type", "fungible") == "fungible"
+
+    %{res: res} =
+      Enum.reduce_while(
+        recipients,
+        %{sum: 0, token_ids: MapSet.new(), res: :ok},
+        fn recipient = %{"amount" => amount}, acc = %{sum: sum, token_ids: token_ids} ->
+          with :ok <- validate_token_recipient_amount(amount, fungible?),
+               :ok <- validate_token_recipient_total(amount, sum, supply),
+               :ok <- validate_token_recipient_token_id(recipient, fungible?, token_ids) do
+            token_id = Map.get(recipient, "token_id", 0)
+
+            new_acc =
+              acc
+              |> Map.update!(:sum, &(&1 + amount))
+              |> Map.update!(:token_ids, &MapSet.put(&1, token_id))
+
+            {:cont, new_acc}
+          else
+            error -> {:halt, Map.put(acc, :res, error)}
+          end
+        end
+      )
+
+    res
+  end
+
+  defp verify_token_recipients(_), do: :ok
+
+  defp validate_token_recipient_amount(_, true), do: :ok
+  defp validate_token_recipient_amount(amount, false) when amount == @unit_uco, do: :ok
+
+  defp validate_token_recipient_amount(_, false),
+    do: {:error, "Invalid token transaction - invalid amount in recipients"}
+
+  defp validate_token_recipient_total(amount, sum, supply) when sum + amount <= supply, do: :ok
+
+  defp validate_token_recipient_total(_, _, _),
+    do: {:error, "Invalid token transaction - sum of recipients' amounts is bigger than supply"}
+
+  defp validate_token_recipient_token_id(%{"token_id" => _}, true, _),
+    do:
+      {:error,
+       "Invalid token transaction - recipient with token_id is now allowed on fungible token"}
+
+  defp validate_token_recipient_token_id(_recipient, true, _), do: :ok
+
+  defp validate_token_recipient_token_id(%{"token_id" => token_id}, false, token_ids) do
+    if MapSet.member?(token_ids, token_id) do
+      {:error,
+       "Invalid token transaction - recipient must have unique token_id for non fungible token"}
+    else
+      :ok
+    end
+  end
+
+  defp validate_token_recipient_token_id(_, false, _),
+    do:
+      {:error, "Invalid token transaction - recipient must have token_id for non fungible token"}
 
   defp valid_collection_id?(collection) do
     # If an id is specified in an item of the collection,
