@@ -2,7 +2,7 @@ defmodule Archethic.TransactionChain.TransactionTest do
   @moduledoc false
   use ArchethicCase, async: false
 
-  import ArchethicCase, only: [current_transaction_version: 0, current_protocol_version: 0]
+  import ArchethicCase
 
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
@@ -82,8 +82,8 @@ defmodule Archethic.TransactionChain.TransactionTest do
       tx = TransactionFactory.create_valid_transaction()
 
       keys = [
-        [create_random_key(), Crypto.first_node_public_key()],
-        [create_random_key(), create_random_key()]
+        [random_public_key(), Crypto.first_node_public_key()],
+        [random_public_key(), random_public_key()]
       ]
 
       assert Transaction.valid_stamps_signature?(tx, keys)
@@ -117,5 +117,298 @@ defmodule Archethic.TransactionChain.TransactionTest do
     end
   end
 
-  defp create_random_key(), do: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+  describe "get_movements/1 ledgers" do
+    test "should return the ledgers" do
+      assert [
+               %TransactionMovement{
+                 to: "@Alice1",
+                 amount: 10,
+                 type: :UCO
+               },
+               %TransactionMovement{
+                 to: "@Alice1",
+                 amount: 3,
+                 type: {:token, "@BobToken", 0}
+               }
+             ] =
+               Transaction.get_movements(%Transaction{
+                 data: %TransactionData{
+                   ledger: %Ledger{
+                     uco: %UCOLedger{
+                       transfers: [
+                         %UCOLedger.Transfer{to: "@Alice1", amount: 10}
+                       ]
+                     },
+                     token: %TokenLedger{
+                       transfers: [
+                         %TokenLedger.Transfer{
+                           to: "@Alice1",
+                           amount: 3,
+                           token_address: "@BobToken",
+                           token_id: 0
+                         }
+                       ]
+                     }
+                   }
+                 }
+               })
+    end
+  end
+
+  describe "get_movements/1 token resupply transaction" do
+    test "should return the movements for a fungible token" do
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
+      recipient2 = random_address()
+      recipient2_hex = recipient2 |> Base.encode16()
+      token = random_address()
+      token_hex = token |> Base.encode16()
+
+      assert [
+               %TransactionMovement{
+                 to: ^recipient1,
+                 amount: 1_000,
+                 type: {:token, ^token, 0}
+               },
+               %TransactionMovement{
+                 to: ^recipient2,
+                 amount: 2_000,
+                 type: {:token, ^token, 0}
+               }
+             ] =
+               Transaction.get_movements(
+                 TransactionFactory.create_valid_transaction([],
+                   type: :token,
+                   content: """
+                   {
+                     "token_reference": "#{token_hex}",
+                     "supply": 1000000,
+                     "recipients": [{
+                       "to": "#{recipient1_hex}",
+                       "amount": 1000
+                     },
+                     {
+                      "to": "#{recipient2_hex}",
+                      "amount": 2000
+                     }]
+                   }
+                   """
+                 )
+               )
+    end
+
+    test "should return an empty list if no recipients" do
+      token = random_address()
+      token_hex = token |> Base.encode16()
+
+      assert [] =
+               Transaction.get_movements(
+                 TransactionFactory.create_valid_transaction([],
+                   type: :token,
+                   content: """
+                   {
+                     "token_reference": "#{token_hex}",
+                     "supply": 1000000
+                   }
+                   """
+                 )
+               )
+    end
+
+    test "should return an empty list if invalid transaction" do
+      token = random_address()
+      token_hex = token |> Base.encode16()
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
+
+      assert [] =
+               Transaction.get_movements(
+                 TransactionFactory.create_valid_transaction([],
+                   type: :token,
+                   content: """
+                   {
+                    "token_reference": "#{token_hex}"
+                   }
+                   """
+                 )
+               )
+
+      assert [] =
+               Transaction.get_movements(
+                 TransactionFactory.create_valid_transaction([],
+                   type: :token,
+                   content: """
+                   {
+                    "token_reference": "not an hexadecimal",
+                    "supply": 100000000,
+                    "recipients": [{
+                      "to": "#{recipient1_hex}",
+                      "amount": 1000
+                    }]
+                   }
+                   """
+                 )
+               )
+
+      assert [] =
+               Transaction.get_movements(
+                 TransactionFactory.create_valid_transaction([],
+                   type: :token,
+                   content: """
+                   {
+                     "supply": 1000000
+                   }
+                   """
+                 )
+               )
+    end
+  end
+
+  describe "get_movements/1 token creation transaction" do
+    test "should return the movements for a fungible token" do
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
+      recipient2 = random_address()
+      recipient2_hex = recipient2 |> Base.encode16()
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          content: """
+          {
+           "aeip": [2, 8, 19],
+           "supply": 300000000,
+           "type": "fungible",
+           "name": "My token",
+           "symbol": "MTK",
+           "properties": {},
+           "recipients": [{
+              "to": "#{recipient1_hex}",
+              "amount": 1000
+            },
+            {
+             "to": "#{recipient2_hex}",
+             "amount": 2000
+            }]
+          }
+          """
+        )
+
+      tx_address = tx.address
+
+      assert [
+               %TransactionMovement{
+                 to: ^recipient1,
+                 amount: 1_000,
+                 type: {:token, ^tx_address, 0}
+               },
+               %TransactionMovement{
+                 to: ^recipient2,
+                 amount: 2_000,
+                 type: {:token, ^tx_address, 0}
+               }
+             ] = Transaction.get_movements(tx)
+    end
+
+    test "should return the movements for a non-fungible token" do
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          content: """
+          {
+            "supply": 100000000,
+            "type": "non-fungible",
+            "name": "My NFT",
+            "symbol": "MNFT",
+            "recipients": [{
+              "to": "#{recipient1_hex}",
+              "amount": 100000000,
+              "token_id": 1
+            }]
+          }
+          """
+        )
+
+      tx_address = tx.address
+
+      assert [
+               %TransactionMovement{
+                 to: ^recipient1,
+                 amount: 100_000_000,
+                 type: {:token, ^tx_address, 1}
+               }
+             ] = Transaction.get_movements(tx)
+    end
+
+    test "should return the movements for a non-fungible token (collection)" do
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          content: """
+          {
+            "supply": 300000000,
+            "name": "My NFT",
+            "type": "non-fungible",
+            "symbol": "MNFT",
+            "properties": {
+               "description": "this property is for all NFT"
+            },
+            "collection": [
+               { "image": "link of the 1st NFT image" },
+               { "image": "link of the 2nd NFT image" },
+               {
+                  "image": "link of the 3rd NFT image",
+                  "other_property": "other value"
+               }
+            ],
+            "recipients": [{
+              "to": "#{recipient1_hex}",
+              "amount": 100000000,
+              "token_id": 3
+            }]
+          }
+          """
+        )
+
+      tx_address = tx.address
+
+      assert [
+               %TransactionMovement{
+                 to: ^recipient1,
+                 amount: 100_000_000,
+                 type: {:token, ^tx_address, 3}
+               }
+             ] = Transaction.get_movements(tx)
+    end
+
+    test "should return an empty list when trying to send a fraction of a non-fungible" do
+      recipient1 = random_address()
+      recipient1_hex = recipient1 |> Base.encode16()
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          content: """
+          {
+            "supply": 100000000,
+            "type": "non-fungible",
+            "name": "My NFT",
+            "symbol": "MNFT",
+            "recipients": [{
+              "to": "#{recipient1_hex}",
+              "amount": 1
+            }]
+          }
+          """
+        )
+
+      assert [] = Transaction.get_movements(tx)
+    end
+  end
 end

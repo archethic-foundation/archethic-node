@@ -1,10 +1,24 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "address": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^0[0-2]0[025][0-9a-fA-F]{64}$"
+        },
+        {
+          "type": "string",
+          "pattern": "^0[0-2]0[134][0-9a-fA-F]{128}$"
+        }
+      ]
+    }
+  },
   "type": "object",
   "properties": {
     "supply": {
       "type": "integer",
-      "description": "Number of tokens to create",
+      "description": "Number of tokens to create (100 000 000 for 1 token if decimals=8)",
       "exclusiveMinimum": 0,
       "maximum": 1.84467440737095e19
     },
@@ -37,6 +51,33 @@
     "allow_mint": {
       "type": "boolean",
       "description": "This token can be resupplied later or not (AEIP-18)"
+    },
+    "recipients": {
+      "type": "array",
+      "description": "Token recipients (AEIP-19)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "to",
+          "amount"
+        ],
+        "properties": {
+          "token_id": {
+            "type": "integer",
+            "description": "The index of the token in a collection"
+          },
+          "to": {
+            "$ref": "#/$defs/address",
+            "description": "Recipient address"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Amount of tokens to sent to this recipient (100 000 000 for 1 token if decimals=8)"
+          }
+        }
+      }
     },
     "properties": {
       "description": "List of the global token properties",

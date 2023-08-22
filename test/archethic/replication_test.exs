@@ -271,6 +271,7 @@ defmodule Archethic.ReplicationTest do
         fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
+      |> elem(1)
 
     validation_stamp =
       %ValidationStamp{

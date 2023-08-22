@@ -64,6 +64,7 @@ defmodule Archethic.TransactionFactory do
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> elem(1)
 
     validation_stamp =
       %ValidationStamp{
@@ -103,6 +104,7 @@ defmodule Archethic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> elem(1)
 
     validation_stamp =
       %ValidationStamp{
@@ -137,6 +139,7 @@ defmodule Archethic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> elem(1)
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -172,6 +175,7 @@ defmodule Archethic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07, timestamp)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> elem(1)
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -201,6 +205,7 @@ defmodule Archethic.TransactionFactory do
         fee: 1_000_000_000
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> elem(1)
 
     validation_stamp =
       %ValidationStamp{
@@ -235,6 +240,7 @@ defmodule Archethic.TransactionFactory do
         ]
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> elem(1)
 
     validation_stamp =
       %ValidationStamp{
@@ -284,6 +290,7 @@ defmodule Archethic.TransactionFactory do
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> elem(1)
 
     validation_stamp =
       %ValidationStamp{
