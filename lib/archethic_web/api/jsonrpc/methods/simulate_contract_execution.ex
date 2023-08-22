@@ -22,8 +22,8 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   """
   @spec validate_params(param :: map()) ::
           {:ok, params :: Transaction.t()} | {:error, reasons :: list()}
-  def validate_params(params) do
-    case TransactionPayload.changeset(params) do
+  def validate_params(%{"transaction" => transaction_params}) do
+    case TransactionPayload.changeset(transaction_params) do
       changeset = %{valid?: true} ->
         tx = changeset |> TransactionPayload.to_map() |> Transaction.cast()
         {:ok, tx}
@@ -34,6 +34,8 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
         {:error, reasons}
     end
   end
+
+  def validate_params(_), do: {:error, %{transaction: ["is required"]}}
 
   @doc """
   Execute the function to send a new tranaction in the network

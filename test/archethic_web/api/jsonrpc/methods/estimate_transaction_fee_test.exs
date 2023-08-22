@@ -30,6 +30,15 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.EstimateTransactionFeeTest do
   end
 
   describe "validate_params" do
+    test "should send error when transaction key is missing" do
+      assert {:error,
+              %{
+                transaction: [
+                  "is required"
+                ]
+              }} = EstimateTransactionFee.validate_params(%{})
+    end
+
     test "should send bad_request response for invalid transaction body" do
       assert {:error,
               %{
@@ -54,7 +63,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.EstimateTransactionFeeTest do
                 version: [
                   "can't be blank"
                 ]
-              }} = EstimateTransactionFee.validate_params(%{})
+              }} = EstimateTransactionFee.validate_params(%{"transaction" => %{}})
     end
   end
 
