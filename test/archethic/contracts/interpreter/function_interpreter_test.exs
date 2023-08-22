@@ -120,7 +120,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
+               |> FunctionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_public("hello", 0)
+               )
     end
 
     test "should not be able to use IO functions in public function with dynamic access" do
@@ -135,7 +138,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
+               |> FunctionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_public("hello", 0)
+               )
     end
 
     test "should return an error if module is unknown" do
@@ -218,7 +224,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
+               |> FunctionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_public("hello", 0)
+               )
     end
 
     test "should not be able to call declared private function from private function" do
@@ -233,7 +242,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as declared
-               |> FunctionInterpreter.parse(FunctionKeys.add_private(%{}, "hello", 0))
+               |> FunctionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_private("hello", 0)
+               )
     end
 
     test "should not be able to call declared function from public function" do
@@ -277,7 +289,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
         |> Interpreter.sanitize_code()
         |> elem(1)
         # pass allowed function
-        |> FunctionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
+        |> FunctionInterpreter.parse(
+          FunctionKeys.new()
+          |> FunctionKeys.add_public("hello", 0)
+        )
 
       function_constant = %{:functions => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
 

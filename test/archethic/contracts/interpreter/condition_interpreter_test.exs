@@ -129,7 +129,10 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark function as existing
-               |> ConditionInterpreter.parse(FunctionKeys.add_public(%{}, "get_uco_transfers", 0))
+               |> ConditionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_public("get_uco_transfers", 0)
+               )
 
       assert is_tuple(ast) && :ok == Macro.validate(ast)
     end
