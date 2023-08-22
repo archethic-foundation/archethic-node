@@ -82,6 +82,7 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
             args: nil
           }
 
+        # legacy, transaction version 1
         address_hex when is_binary(address_hex) ->
           %{
             address:

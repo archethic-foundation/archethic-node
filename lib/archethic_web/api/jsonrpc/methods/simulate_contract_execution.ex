@@ -5,8 +5,11 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
 
   alias Archethic.TaskSupervisor
 
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias ArchethicWeb.API.JsonRPC.Method
@@ -48,9 +51,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
     # because the Interpreter requires a validated transaction
     trigger_tx = %Transaction{tx | validation_stamp: ValidationStamp.generate_dummy()}
 
-    # for now the Simulate Contract Execution does not work with named action
-    recipients = Enum.map(recipients, & &1.address)
-
     results =
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,
@@ -77,25 +77,26 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   end
 
   defp fetch_recipient_tx_and_simulate(
-         recipient_address,
+         recipient = %Recipient{address: recipient_address},
          trigger_tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}
        ) do
-    with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
-         {:ok, contract} <- Archethic.parse_contract(contract_tx),
-         :ok <-
-           Archethic.validate_contract_condition(:transaction, contract, trigger_tx, timestamp),
-         {:ok, next_tx} <- Archethic.execute_contract(:transaction, contract, trigger_tx, nil) do
-      Archethic.validate_contract_condition(:inherit, contract, next_tx, timestamp)
+    with {:ok, contract_tx} <-
+           Archethic.get_last_transaction(recipient_address),
+         {:ok, contract} <- Contracts.from_transaction(contract_tx),
+         trigger <- Contract.get_trigger_for_recipient(contract, recipient),
+         :ok <- validate_contract_condition(trigger, contract, trigger_tx, recipient, timestamp),
+         {:ok, next_tx} <- Contracts.execute_trigger(trigger, contract, trigger_tx, recipient) do
+      validate_contract_condition(:inherit, contract, next_tx, nil, timestamp)
     end
   end
 
-  defp create_valid_response(recipient) do
-    %{"recipient_address" => Base.encode16(recipient), "valid" => true}
+  defp create_valid_response(%Recipient{address: recipient_address}) do
+    %{"recipient_address" => Base.encode16(recipient_address), "valid" => true}
   end
 
-  defp create_error_response(recipient, reason) do
+  defp create_error_response(%Recipient{address: recipient_address}, reason) do
     %{
-      "recipient_address" => Base.encode16(recipient),
+      "recipient_address" => Base.encode16(recipient_address),
       "valid" => false,
       "error" => format_reason(reason) |> Error.get_error()
     }
@@ -135,4 +136,16 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
     do: {:custom_error, :parsing_contract, "Error while parsing contract", reason}
 
   defp format_reason(_), do: {:internal_error, "Unknown error"}
+
+  defp validate_contract_condition(condition_type, contract, tx, recipient, timestamp) do
+    if Contracts.valid_condition?(condition_type, contract, tx, recipient, timestamp) do
+      :ok
+    else
+      case condition_type do
+        :inherit -> {:error, :invalid_inherit_constraints}
+        :transaction -> {:error, :invalid_transaction_constraints}
+        {:transaction, _, _} -> {:error, :invalid_transaction_constraints}
+      end
+    end
+  end
 end

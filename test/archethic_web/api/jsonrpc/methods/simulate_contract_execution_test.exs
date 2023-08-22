@@ -20,6 +20,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
   alias Archethic.SelfRepair.NetworkView
 
   import Mox
+  import ArchethicCase
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -91,9 +92,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       end
       """
 
-      old_contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      old_contract_address = random_address()
       old_contract_address_hex = Base.encode16(old_contract_address)
-      last_contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      last_contract_address = random_address()
 
       contract_tx = %Transaction{
         address: last_contract_address,
@@ -125,6 +126,180 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
                SimulateContractExecution.execute(trigger_tx)
     end
 
+    test "should validate a named action recipient" do
+      code = """
+      @version 1
+
+      condition transaction, on: vote(candidate), as: []
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content(candidate)
+      end
+      """
+
+      old_contract_address = random_address()
+      old_contract_address_hex = Base.encode16(old_contract_address)
+      last_contract_address = random_address()
+
+      contract_tx = %Transaction{
+        address: last_contract_address,
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^last_contract_address}, _ ->
+          {:ok, contract_tx}
+
+        _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
+          {:ok, %LastTransactionAddress{address: last_contract_address}}
+      end)
+
+      trigger_tx =
+        TransactionFactory.create_non_valided_transaction(
+          recipients: [
+            %Recipient{address: old_contract_address, action: "vote", args: ["Jonas"]}
+          ],
+          content: "test content"
+        )
+
+      assert {:ok, [%{"valid" => true, "recipient_address" => ^old_contract_address_hex}]} =
+               SimulateContractExecution.execute(trigger_tx)
+    end
+
+    test "should not validate a named action recipient that doesn't exist (wrong action)" do
+      code = """
+      @version 1
+
+      condition transaction, on: vote(candidate), as: []
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content(candidate)
+      end
+      """
+
+      old_contract_address = random_address()
+      old_contract_address_hex = Base.encode16(old_contract_address)
+      last_contract_address = random_address()
+
+      contract_tx = %Transaction{
+        address: last_contract_address,
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^last_contract_address}, _ ->
+          {:ok, contract_tx}
+
+        _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
+          {:ok, %LastTransactionAddress{address: last_contract_address}}
+      end)
+
+      trigger_tx =
+        TransactionFactory.create_non_valided_transaction(
+          recipients: [
+            %Recipient{address: old_contract_address, action: "non_existing_action", args: [1, 2]}
+          ],
+          content: "test content"
+        )
+
+      assert {:ok, [%{"valid" => false, "recipient_address" => ^old_contract_address_hex}]} =
+               SimulateContractExecution.execute(trigger_tx)
+    end
+
+    test "should not validate a named action recipient that doesn't exist (wrong arity)" do
+      code = """
+      @version 1
+
+      condition transaction, on: vote(candidate), as: []
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content(candidate)
+      end
+      """
+
+      old_contract_address = random_address()
+      old_contract_address_hex = Base.encode16(old_contract_address)
+      last_contract_address = random_address()
+
+      contract_tx = %Transaction{
+        address: last_contract_address,
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^last_contract_address}, _ ->
+          {:ok, contract_tx}
+
+        _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
+          {:ok, %LastTransactionAddress{address: last_contract_address}}
+      end)
+
+      trigger_tx =
+        TransactionFactory.create_non_valided_transaction(
+          recipients: [
+            %Recipient{address: old_contract_address, action: "vote", args: ["Jose", "Monica"]}
+          ],
+          content: "test content"
+        )
+
+      assert {:ok, [%{"valid" => false, "recipient_address" => ^old_contract_address_hex}]} =
+               SimulateContractExecution.execute(trigger_tx)
+    end
+
+    test "should not validate a named action recipient with invalid condition" do
+      code = """
+      @version 1
+
+      condition transaction, on: vote(candidate), as: [
+        content: transaction.content == "some content"
+      ]
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content(candidate)
+      end
+      """
+
+      old_contract_address = random_address()
+      old_contract_address_hex = Base.encode16(old_contract_address)
+      last_contract_address = random_address()
+
+      contract_tx = %Transaction{
+        address: last_contract_address,
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^last_contract_address}, _ ->
+          {:ok, contract_tx}
+
+        _, %GetLastTransactionAddress{address: ^old_contract_address}, _ ->
+          {:ok, %LastTransactionAddress{address: last_contract_address}}
+      end)
+
+      trigger_tx =
+        TransactionFactory.create_non_valided_transaction(
+          recipients: [
+            %Recipient{address: old_contract_address, action: "vote", args: ["Lance"]}
+          ],
+          content: "test content"
+        )
+
+      assert {:ok, [%{"valid" => false, "recipient_address" => ^old_contract_address_hex}]} =
+               SimulateContractExecution.execute(trigger_tx)
+    end
+
     test "should indicate faillure when asked to validate an invalid contract" do
       code = """
       @version 1
@@ -141,7 +316,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       end
       """
 
-      contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
 
       contract_tx = %Transaction{
@@ -190,7 +365,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       end
       """
 
-      contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
 
       contract_tx = %Transaction{
@@ -230,7 +405,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     test "Assert empty contract are not simulated and return negative answer" do
       code = ""
 
-      contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
 
       contract_tx = %Transaction{
@@ -280,7 +455,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       end
       """
 
-      contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
 
       contract_tx = %Transaction{
@@ -342,7 +517,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       end
       """
 
-      contract_address1 = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      contract_address1 = random_address()
       contract_address_hex1 = Base.encode16(contract_address1)
 
       contract_tx1 = %Transaction{
@@ -354,7 +529,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
         version: 1
       }
 
-      contract_address2 = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+      contract_address2 = random_address()
       contract_address_hex2 = Base.encode16(contract_address2)
 
       contract_tx2 = %Transaction{
