@@ -341,7 +341,7 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp parse_contract(1, ast) do
-    functions_keys = get_function_keys(ast)
+    functions_keys = parse_functions_keys(ast)
 
     case parse_ast_block(ast, %Contract{}, functions_keys) do
       {:ok, contract} ->
@@ -434,17 +434,17 @@ defmodule Archethic.Contracts.Interpreter do
     Utils.get_current_time_for_interval(interval)
   end
 
-  defp get_function_keys(blocks, function_keys \\ FunctionKeys.new())
+  defp parse_functions_keys(blocks, function_keys \\ FunctionKeys.new())
 
-  defp get_function_keys(
+  defp parse_functions_keys(
          [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | rest],
          function_keys
        ) do
     new_keys = FunctionKeys.add_private(function_keys, function_name, length(args))
-    get_function_keys(rest, new_keys)
+    parse_functions_keys(rest, new_keys)
   end
 
-  defp get_function_keys(
+  defp parse_functions_keys(
          [
            {{:atom, "export"}, _,
             [{{:atom, "fun"}, _, [{{:atom, function_name}, _, args} | _]} | _]}
@@ -453,11 +453,13 @@ defmodule Archethic.Contracts.Interpreter do
          function_keys
        ) do
     new_keys = FunctionKeys.add_public(function_keys, function_name, length(args))
-    get_function_keys(rest, new_keys)
+    parse_functions_keys(rest, new_keys)
   end
 
-  defp get_function_keys([_ | rest], function_keys), do: get_function_keys(rest, function_keys)
-  defp get_function_keys([], function_keys), do: function_keys
+  defp parse_functions_keys([_ | rest], function_keys),
+    do: parse_functions_keys(rest, function_keys)
+
+  defp parse_functions_keys([], function_keys), do: function_keys
 
   # -----------------------------------------
   # contract validation

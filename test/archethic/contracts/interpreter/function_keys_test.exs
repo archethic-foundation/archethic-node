@@ -7,7 +7,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionKeysTest do
 
   test "add_public/3 and add_private/3 should add function in map" do
     function_keys =
-      %{}
+      FunctionKeys.new()
       |> FunctionKeys.add_private("private_function", 0)
       |> FunctionKeys.add_public("public_function", 1)
       |> FunctionKeys.add_private("private_function", 1)

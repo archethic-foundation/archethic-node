@@ -505,7 +505,10 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark as existing
-               |> ActionInterpreter.parse(FunctionKeys.add_public(%{}, "hello", 0))
+               |> ActionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_public("hello", 0)
+               )
 
       # private function
       assert {:ok, _, _} =
@@ -513,7 +516,10 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                # mark as existing
-               |> ActionInterpreter.parse(FunctionKeys.add_private(%{}, "hello", 0))
+               |> ActionInterpreter.parse(
+                 FunctionKeys.new()
+                 |> FunctionKeys.add_private("hello", 0)
+               )
     end
 
     test "should be able to use named action without argument" do
