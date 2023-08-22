@@ -39,6 +39,15 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
   end
 
   describe "validate_params" do
+    test "should send error when transaction key is missing" do
+      assert {:error,
+              %{
+                transaction: [
+                  "is required"
+                ]
+              }} = SimulateContractExecution.validate_params(%{})
+    end
+
     test "should send bad_request response for invalid transaction body" do
       assert {:error,
               %{
@@ -63,7 +72,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
                 version: [
                   "can't be blank"
                 ]
-              }} = SimulateContractExecution.validate_params(%{})
+              }} = SimulateContractExecution.validate_params(%{"transaction" => %{}})
     end
   end
 

@@ -88,7 +88,7 @@ defmodule ArchethicWeb.API.JsonRPCControllerTest do
   defp valid_rpc_request(opts \\ []) do
     id = Keyword.get(opts, :id, 1)
     method = Keyword.get(opts, :method, "send_transaction")
-    params = Keyword.get(opts, :params, valid_tx_param())
+    params = Keyword.get(opts, :params, %{"transaction" => valid_tx_param()})
 
     %{
       "jsonrpc" => "2.0",
