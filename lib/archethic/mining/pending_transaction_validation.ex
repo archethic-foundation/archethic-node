@@ -865,7 +865,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          %{"type" => "fungible", "allow_mint" => true} <- reference_json_token do
       :ok
     else
-      i when is_integer(i) ->
+      nil ->
         {:error, "Timeout when fetching the reference token or the genesis address"}
 
       {:exit, _} ->
@@ -896,63 +896,68 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     end
   end
 
-  defp verify_token_recipients(json_token = %{"recipients" => recipients})
+  defp verify_token_recipients(json_token = %{"recipients" => recipients, "supply" => supply})
        when is_list(recipients) do
-    with :ok <- validate_token_recipients_amounts(recipients, json_token),
-         :ok <- validate_token_recipients_total(recipients, json_token) do
-      validate_token_recipients_addresses(recipients)
-    end
+    # resupply token transactions do not have a type, but is applied only to fungible tokens
+    fungible? = Map.get(json_token, "type", "fungible") == "fungible"
+
+    %{res: res} =
+      Enum.reduce_while(
+        recipients,
+        %{sum: 0, token_ids: MapSet.new(), res: :ok},
+        fn recipient = %{"amount" => amount}, acc = %{sum: sum, token_ids: token_ids} ->
+          with :ok <- validate_token_recipient_amount(amount, fungible?),
+               :ok <- validate_token_recipient_total(amount, sum, supply),
+               :ok <- validate_token_recipient_token_id(recipient, fungible?, token_ids) do
+            token_id = Map.get(recipient, "token_id", 0)
+
+            new_acc =
+              acc
+              |> Map.update!(:sum, &(&1 + amount))
+              |> Map.update!(:token_ids, &MapSet.put(&1, token_id))
+
+            {:cont, new_acc}
+          else
+            error -> {:halt, Map.put(acc, :res, error)}
+          end
+        end
+      )
+
+    res
   end
 
   defp verify_token_recipients(_), do: :ok
 
-  defp validate_token_recipients_addresses(recipients) do
-    valid? =
-      Enum.all?(recipients, fn %{"to" => address_hex} ->
-        address_hex
-        |> Base.decode16!(case: :mixed)
-        |> Crypto.valid_address?()
-      end)
+  defp validate_token_recipient_amount(_, true), do: :ok
+  defp validate_token_recipient_amount(amount, false) when amount == @unit_uco, do: :ok
 
-    if valid? do
-      :ok
+  defp validate_token_recipient_amount(_, false),
+    do: {:error, "Invalid token transaction - invalid amount in recipients"}
+
+  defp validate_token_recipient_total(amount, sum, supply) when sum + amount <= supply, do: :ok
+
+  defp validate_token_recipient_total(_, _, _),
+    do: {:error, "Invalid token transaction - sum of recipients' amounts is bigger than supply"}
+
+  defp validate_token_recipient_token_id(%{"token_id" => _}, true, _),
+    do:
+      {:error,
+       "Invalid token transaction - recipient with token_id is now allowed on fungible token"}
+
+  defp validate_token_recipient_token_id(_recipient, true, _), do: :ok
+
+  defp validate_token_recipient_token_id(%{"token_id" => token_id}, false, token_ids) do
+    if MapSet.member?(token_ids, token_id) do
+      {:error,
+       "Invalid token transaction - recipient must have unique token_id for non fungible token"}
     else
-      {:error, "Invalid token transaction - invalid recipients addresses"}
+      :ok
     end
   end
 
-  defp validate_token_recipients_total(recipients, %{"supply" => supply}) do
-    total =
-      Enum.reduce(recipients, 0, fn %{"amount" => amount}, acc ->
-        acc + amount
-      end)
-
-    if total <= supply do
-      :ok
-    else
-      {:error, "Invalid token transaction - sum of recipients' amounts is bigger than supply"}
-    end
-  end
-
-  defp validate_token_recipients_amounts(recipients, json_token) do
-    # resupply token transactions do not have a type, but is applied only to fungible tokens
-    fungible? = (json_token["type"] || "fungible") == "fungible"
-
-    valid? =
-      Enum.all?(recipients, fn %{"amount" => amount} ->
-        if fungible? do
-          amount > 0
-        else
-          amount == 1 * @unit_uco
-        end
-      end)
-
-    if valid? do
-      :ok
-    else
-      {:error, "Invalid token transaction - invalid amount in recipients"}
-    end
-  end
+  defp validate_token_recipient_token_id(_, false, _),
+    do:
+      {:error, "Invalid token transaction - recipient must have token_id for non fungible token"}
 
   defp valid_collection_id?(collection) do
     # If an id is specified in an item of the collection,

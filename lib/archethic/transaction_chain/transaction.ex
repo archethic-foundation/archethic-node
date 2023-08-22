@@ -970,11 +970,13 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   defp get_movements_from_token_creation(tx_address, %{"recipients" => recipients, "type" => type}) do
-    Enum.map(recipients, fn r = %{"to" => address_hex, "amount" => amount} ->
-      token_id = r["token_id"] || 0
+    fungible? = type == "fungible"
+
+    Enum.map(recipients, fn recipient = %{"to" => address_hex, "amount" => amount} ->
+      token_id = Map.get(recipient, "token_id", 0)
       address = Base.decode16!(address_hex, case: :mixed)
 
-      if type == "non-fungible" and amount != @unit_uco do
+      if not fungible? and amount != @unit_uco do
         nil
       else
         %TransactionMovement{
