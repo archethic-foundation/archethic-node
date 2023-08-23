@@ -314,35 +314,10 @@ defmodule Archethic.Contracts do
 
   defp validate_trigger(
          {:transaction, address, _recipient},
-         _validation_datetime,
+         validation_datetime,
          contract_address
        ) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    case TransactionChain.fetch_transaction(address, storage_nodes) do
-      {:ok,
-       tx = %Transaction{
-         type: trigger_type,
-         address: trigger_address,
-         validation_stamp: %ValidationStamp{recipients: trigger_resolved_recipients}
-       }} ->
-        # check that trigger transaction did indeed call this contract
-        if contract_address in trigger_resolved_recipients do
-          {:ok, tx}
-        else
-          Logger.error("Contract was wrongly triggered by transaction",
-            transaction_address: Base.encode16(trigger_address),
-            transaction_type: trigger_type,
-            contract: Base.encode16(contract_address)
-          )
-
-          :invalid_triggers_execution
-        end
-
-      {:error, _} ->
-        # todo: it might too strict to say that it's invalid in some cases (timeout)
-        :invalid_triggers_execution
-    end
+    validate_trigger({:transaction, address}, validation_datetime, contract_address)
   end
 
   defp validate_trigger({:oracle, address}, _validation_datetime, _contract_address) do

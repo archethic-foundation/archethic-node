@@ -210,5 +210,15 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> elem(1)
                |> ConditionInterpreter.parse([])
     end
+
+    test "should not parse action > 255 byte" do
+      code = ~s"""
+      condition transaction, on: abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv(x, y), as: []
+      """
+
+      assert {:error, {_, "atom length must be less" <> _, _}} =
+               code
+               |> Interpreter.sanitize_code()
+    end
   end
 end

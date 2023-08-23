@@ -554,6 +554,18 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> elem(1)
                |> ActionInterpreter.parse([])
     end
+
+    test "should not parse action > 255 byte" do
+      code = ~s"""
+      actions triggered_by: transaction, on: abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv(x, y) do
+        Contract.set_content "..."
+      end
+      """
+
+      assert {:error, {_, "atom length must be less" <> _, _}} =
+               code
+               |> Interpreter.sanitize_code()
+    end
   end
 
   # ----------------------------------------------

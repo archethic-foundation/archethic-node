@@ -146,26 +146,6 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
     end
   end
 
-  defp prewalk(node = {{:atom, function_name}, _, args}, _acc, true)
-       when is_list(args) and function_name != "for",
-       do: throw({:error, node, "not allowed to call function from public function"})
-
-  defp prewalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions}, false)
-       when is_list(args) and function_name != "for" do
-    arity = length(args)
-
-    case Enum.find(functions, fn
-           {^function_name, ^arity, _} -> true
-           _ -> false
-         end) do
-      {_, _, :private} ->
-        throw({:error, node, "not allowed to call private function from a private function"})
-
-      _ ->
-        CommonInterpreter.prewalk(node, acc)
-    end
-  end
-
   defp prewalk(
          node,
          acc,

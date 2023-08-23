@@ -21,44 +21,44 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   @doc """
   Return wether this is a named action call or not
   """
-  @spec is_named_action?(t()) :: boolean()
+  @spec is_named_action?(recipient :: t()) :: boolean()
   def is_named_action?(%__MODULE__{action: nil, args: nil}), do: false
   def is_named_action?(%__MODULE__{}), do: true
 
   @doc """
   Serialize a recipient
   """
-  @spec serialize(t(), pos_integer()) :: binary()
-  def serialize(%__MODULE__{address: address}, 1) do
+  @spec serialize(recipient :: t(), version :: pos_integer()) :: bitstring()
+  def serialize(%__MODULE__{address: address}, _version = 1) do
     <<address::binary>>
   end
 
-  def serialize(%__MODULE__{address: address, action: nil, args: nil}, 2) do
-    <<@unnamed_action::8, address::binary>>
+  def serialize(%__MODULE__{address: address, action: nil, args: nil}, _version = 2) do
+    <<@unnamed_action::1, address::binary>>
   end
 
-  def serialize(%__MODULE__{address: address, action: action, args: args}, 2) do
-    # 255 chars should be enough
+  def serialize(%__MODULE__{address: address, action: action, args: args}, _version = 2) do
+    # action is stored on 8 bytes which means 255 characters
+    # we force that in the interpreters (action & condition)
     action_bytes = byte_size(action)
-    true = 255 >= action_bytes
 
     serialized_args = Jason.encode!(args)
     args_bytes = byte_size(serialized_args) |> Utils.VarInt.from_value()
 
-    <<@named_action::8, address::binary, action_bytes::8, action::binary, args_bytes::binary,
+    <<@named_action::1, address::binary, action_bytes::8, action::binary, args_bytes::binary,
       serialized_args::binary>>
   end
 
   @doc """
   Deserialize a recipient
   """
-  @spec deserialize(binary(), pos_integer()) :: {t(), binary()}
-  def deserialize(rest, 1) do
+  @spec deserialize(rest :: bitstring(), version :: pos_integer()) :: {t(), bitstring()}
+  def deserialize(rest, _version = 1) do
     {address, rest} = Utils.deserialize_address(rest)
     {%__MODULE__{address: address}, rest}
   end
 
-  def deserialize(<<@unnamed_action::8, rest::binary>>, 2) do
+  def deserialize(<<@unnamed_action::1, rest::bitstring>>, _version = 2) do
     {address, rest} = Utils.deserialize_address(rest)
 
     {
@@ -67,12 +67,12 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     }
   end
 
-  def deserialize(<<@named_action::8, rest::binary>>, 2) do
-    {address, <<action_bytes::8, rest::binary>>} = Utils.deserialize_address(rest)
-    <<action::binary-size(action_bytes), rest::binary>> = rest
+  def deserialize(<<@named_action::1, rest::bitstring>>, _version = 2) do
+    {address, <<action_bytes::8, rest::bitstring>>} = Utils.deserialize_address(rest)
+    <<action::binary-size(action_bytes), rest::bitstring>> = rest
 
     {args_bytes, rest} = Utils.VarInt.get_value(rest)
-    <<args::binary-size(args_bytes), rest::binary>> = rest
+    <<args::binary-size(args_bytes), rest::bitstring>> = rest
 
     {
       %__MODULE__{
@@ -85,7 +85,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   end
 
   @doc false
-  @spec cast(map()) :: t()
+  @spec cast(map :: map()) :: t()
   def cast(%{
         address: secret,
         action: authorized_keys,
@@ -99,7 +99,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   end
 
   @doc false
-  @spec to_map(t()) :: map()
+  @spec to_map(recipient :: t()) :: map()
   def to_map(%__MODULE__{address: address, action: action, args: args}) do
     %{
       address: address,

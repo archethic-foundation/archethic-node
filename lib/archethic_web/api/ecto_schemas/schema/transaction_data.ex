@@ -54,7 +54,13 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
   defp maybe_cast_recipients(params = %{"recipients" => recipients}) do
     recipients =
       Enum.map(recipients, fn
-        %{"address" => address_hex, "action" => action, "args" => args} ->
+        recipient = %{"address" => address_hex} ->
+          action = Map.get(recipient, "action")
+          args = Map.get(recipient, "args")
+
+          if action == "", do: throw(:invalid_format)
+          if action == nil && args != nil, do: throw(:invalid_format)
+
           %{
             address:
               case decode_address(address_hex) do
@@ -66,20 +72,6 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
               end,
             action: action,
             args: args
-          }
-
-        m = %{"address" => address_hex} when map_size(m) == 1 ->
-          %{
-            address:
-              case decode_address(address_hex) do
-                {:ok, address} ->
-                  address
-
-                {:error, reason} ->
-                  throw(reason)
-              end,
-            action: nil,
-            args: nil
           }
 
         # legacy, transaction version 1
@@ -103,6 +95,9 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
     FunctionClauseError ->
       {:error, "invalid recipient format"}
   catch
+    :invalid_format ->
+      {:error, "invalid recipient format"}
+
     :invalid_address ->
       {:error, "invalid hash"}
 

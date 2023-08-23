@@ -24,18 +24,19 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
         functions_keys
       ) do
-    condition_type =
-      case condition_name do
-        "transaction" -> :transaction
-        "inherit" -> :inherit
-        "oracle" -> :oracle
-        _ -> throw(:unknown_condition)
-      end
+    case condition_name do
+      "transaction" ->
+        do_parse(:transaction, keyword, functions_keys, node)
 
-    parse1(condition_type, keyword, functions_keys, node)
-  catch
-    :unknown_condition ->
-      {:error, node, "something something"}
+      "inherit" ->
+        do_parse(:inherit, keyword, functions_keys, node)
+
+      "oracle" ->
+        do_parse(:oracle, keyword, functions_keys, node)
+
+      _ ->
+        {:error, node, "invalid condition type"}
+    end
   end
 
   def parse(
@@ -56,14 +57,22 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
         _ -> Enum.map(args, fn {{:atom, arg_name}, _, nil} -> arg_name end)
       end
 
-    parse1({:transaction, action_name, args}, keyword, functions_keys, node)
+    do_parse({:transaction, action_name, args}, keyword, functions_keys, node)
   end
 
   def parse(node, _) do
     {:error, node, "unexpected term"}
   end
 
-  def parse1(condition_type, keyword, functions_keys, node) do
+  # ----------------------------------------------------------------------
+  #              _            _
+  #   _ __  _ __(___   ____ _| |_ ___
+  #  | '_ \| '__| \ \ / / _` | __/ _ \
+  #  | |_) | |  | |\ V | (_| | ||  __/
+  #  | .__/|_|  |_| \_/ \__,_|\__\___|
+  #  |_|
+  # ----------------------------------------------------------------------
+  defp do_parse(condition_type, keyword, functions_keys, node) do
     global_variable =
       case condition_type do
         {:transaction, _, _} -> "transaction"
@@ -101,14 +110,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       {:error, node, reason}
   end
 
-  # ----------------------------------------------------------------------
-  #              _            _
-  #   _ __  _ __(___   ____ _| |_ ___
-  #  | '_ \| '__| \ \ / / _` | __/ _ \
-  #  | |_) | |  | |\ V | (_| | ||  __/
-  #  | .__/|_|  |_| \_/ \__,_|\__\___|
-  #  |_|
-  # ----------------------------------------------------------------------
   defp to_boolean_expression(_subject, bool, _) when is_boolean(bool) do
     bool
   end

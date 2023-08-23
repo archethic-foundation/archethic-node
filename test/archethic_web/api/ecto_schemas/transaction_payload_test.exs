@@ -706,7 +706,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "data" => %{
             "recipients" => [
               %{
-                "address" => "not an hexadecimal",
+                "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                 "args" => []
               }
             ]
