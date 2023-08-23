@@ -80,7 +80,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
         )
 
       assert Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                trigger_tx,
                nil,
@@ -121,7 +121,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
         )
 
       refute Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                trigger_tx,
                nil,

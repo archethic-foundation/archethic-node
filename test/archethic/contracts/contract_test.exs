@@ -100,7 +100,7 @@ defmodule Archethic.Contracts.ContractTest do
         }
       }
 
-      assert :transaction ==
+      assert {:transaction, nil, nil} ==
                Contract.get_trigger_for_recipient(
                  Contract.from_transaction!(contract_tx),
                  %Recipient{

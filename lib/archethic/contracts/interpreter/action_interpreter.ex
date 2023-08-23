@@ -84,7 +84,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  |_|
   # ----------------------------------------------------------------------
   defp extract_trigger([{{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}}]) do
-    :transaction
+    {:transaction, nil, nil}
   end
 
   defp extract_trigger([

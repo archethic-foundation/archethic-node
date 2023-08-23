@@ -545,7 +545,8 @@ defmodule Archethic.Replication do
   """
   @spec ingest_transaction(Transaction.t(), boolean(), boolean()) :: :ok
   def ingest_transaction(tx = %Transaction{}, io_transaction?, self_repair?) do
-    TransactionChain.load_transaction(tx)
+    # There's currently no need for multisig so TransactionChain.load_transaction(tx) is useless
+    # TransactionChain.load_transaction(tx)
     Crypto.load_transaction(tx)
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)

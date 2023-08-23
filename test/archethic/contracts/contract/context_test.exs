@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Contract.ContextTest do
   import ArchethicCase
 
   alias Archethic.Contracts.Contract.Context
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   describe "serialization" do
     test "trigger=datetime" do
@@ -47,7 +48,29 @@ defmodule Archethic.Contracts.Contract.ContextTest do
 
       ctx = %Context{
         status: :tx_output,
-        trigger: {:transaction, random_address()},
+        trigger:
+          {:transaction, random_address(),
+           %Recipient{
+             address: random_address()
+           }},
+        timestamp: now |> DateTime.truncate(:millisecond)
+      }
+
+      assert {^ctx, <<>>} = ctx |> Context.serialize() |> Context.deserialize()
+    end
+
+    test "trigger=transaction (named action)" do
+      now = DateTime.utc_now()
+
+      ctx = %Context{
+        status: :tx_output,
+        trigger:
+          {:transaction, random_address(),
+           %Recipient{
+             address: random_address(),
+             action: "add",
+             args: [1, 2, 3, 4, 5]
+           }},
         timestamp: now |> DateTime.truncate(:millisecond)
       }
 

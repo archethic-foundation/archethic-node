@@ -35,7 +35,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
       ...>      ]}
       ...>   ]
       ...> ]})
-      { :ok, :transaction, { :__block__, [], [ { :=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}] }, {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]} ] }}
+      { :ok, {:transaction, nil, nil}, { :__block__, [], [ { :=, [line: 2], [{:scope, [line: 2], nil}, {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["next_transaction"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Legacy.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 2], [{:&, [line: 2], [1]}, [{"to", "0000D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC"}, {"amount", 2000000000}]]}]}]}] }, {{:., [], [{:__aliases__, [alias: false], [:Function]}, :identity]}, [], [{:scope, [], nil}]} ] }}
 
       Usage with trigger accepting parameters
 
@@ -268,7 +268,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
 
     case trigger_type do
       "transaction" ->
-        {node, {:ok, :transaction, actions}}
+        {node, {:ok, {:transaction, nil, nil}, actions}}
 
       "datetime" ->
         [{{:atom, "at"}, timestamp}] = opts

@@ -186,7 +186,6 @@ defmodule Archethic.Contracts do
   defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
   defp trigger_to_recipient(_), do: nil
 
-  defp trigger_to_trigger_type({:transaction, _}, _contract), do: :transaction
   defp trigger_to_trigger_type({:oracle, _}, _contract), do: :oracle
   defp trigger_to_trigger_type({:datetime, datetime}, _contract), do: {:datetime, datetime}
   defp trigger_to_trigger_type({:interval, cron, _datetime}, _contract), do: {:interval, cron}
@@ -209,7 +208,7 @@ defmodule Archethic.Contracts do
   The transaction and datetime depends on the condition.
   """
   @spec valid_condition?(
-          :oracle | :transaction | :inherit | {:transaction, String.t(), list(String.t())},
+          Contract.condition_type(),
           Contract.t(),
           Transaction.t(),
           nil | Recipient.t(),
@@ -229,7 +228,8 @@ defmodule Archethic.Contracts do
         condition_type == :inherit
 
       condition ->
-        named_action_constants = get_named_action_constants(condition_type, maybe_recipient)
+        named_action_constants =
+          Interpreter.get_named_action_constants(condition_type, maybe_recipient)
 
         condition_constants =
           get_condition_constants(condition_type, contract, transaction, datetime)
@@ -244,19 +244,6 @@ defmodule Archethic.Contracts do
     _ ->
       false
   end
-
-  defp get_named_action_constants(
-         {:transaction, _action, args_names},
-         %Recipient{
-           args: args_values
-         }
-       ) do
-    args_names
-    |> Enum.zip(args_values)
-    |> Enum.into(%{})
-  end
-
-  defp get_named_action_constants(_trigger_type, _recipient), do: %{}
 
   defp validate_trigger({:datetime, datetime}, validation_datetime, _contract_address) do
     if within_drift_tolerance?(validation_datetime, datetime) do
@@ -283,7 +270,11 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_trigger({:transaction, address}, _validation_datetime, contract_address) do
+  defp validate_trigger(
+         {:transaction, address, _recipient},
+         _validation_datetime,
+         contract_address
+       ) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_transaction(address, storage_nodes) do
@@ -310,14 +301,6 @@ defmodule Archethic.Contracts do
         # todo: it might too strict to say that it's invalid in some cases (timeout)
         :invalid_triggers_execution
     end
-  end
-
-  defp validate_trigger(
-         {:transaction, address, _recipient},
-         validation_datetime,
-         contract_address
-       ) do
-    validate_trigger({:transaction, address}, validation_datetime, contract_address)
   end
 
   defp validate_trigger({:oracle, address}, _validation_datetime, _contract_address) do

@@ -18,7 +18,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
   @exported_library_functions Library.__info__(:functions)
 
-  @type condition_type :: :transaction | :inherit | :oracle
+  @type condition_type :: {:transaction, nil, nil} | :inherit | :oracle
 
   require Logger
 
@@ -35,7 +35,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
       ...>    ]}
       ...>  ]
       ...> ]})
-      {:ok, :transaction, %Conditions{
+      {:ok, {:transaction, nil, nil}, %Conditions{
         content: {:==, [], [
           {:get_in, [], [
             {:scope, [], nil},
@@ -67,7 +67,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
       ...>  ]
       ...> ]})
       {
-        :ok, :transaction, %Conditions{
+        :ok, {:transaction, nil, nil}, %Conditions{
           content:  {:==, [line: 2], [
              {:get_in, [line: 2], [
                {:scope, [line: 2], nil},
@@ -103,7 +103,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
       ...>     }
       ...>   ]}
       ...> ]})
-      {:ok, :transaction, %Conditions{
+      {:ok, {:transaction, nil, nil}, %Conditions{
           content: {:==, [], [{:get_in, [], [{:scope, [], nil}, ["transaction", "content"]]}, "hello"]},
           uco_transfers:  {:==, [], [
             {:get_in, [], [{:scope, [], nil},
@@ -304,7 +304,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
     acc =
       case condition_name do
-        "transaction" -> {:ok, :transaction, conditions}
+        "transaction" -> {:ok, {:transaction, nil, nil}, conditions}
         "inherit" -> {:ok, :inherit, conditions}
         "oracle" -> {:ok, :oracle, conditions}
       end
@@ -320,7 +320,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
     acc =
       case condition_name do
-        "transaction" -> {:ok, :transaction, conditions}
+        "transaction" -> {:ok, {:transaction, nil, nil}, conditions}
         "inherit" -> {:ok, :inherit, conditions}
         "oracle" -> {:ok, :oracle, conditions}
       end
@@ -343,7 +343,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
     acc =
       case condition_name do
-        "transaction" -> {:ok, :transaction, conditions}
+        "transaction" -> {:ok, {:transaction, nil, nil}, conditions}
         "inherit" -> {:ok, :inherit, conditions}
         "oracle" -> {:ok, :oracle, conditions}
       end

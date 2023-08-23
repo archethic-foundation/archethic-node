@@ -184,7 +184,8 @@ defmodule Archethic.Contracts.Interpreter do
         {:ok, result}
     end
   rescue
-    _ ->
+    err ->
+      Logger.error(Exception.format(:error, err, __STACKTRACE__))
       # it's ok to loose the error because it's user-code
       {:error, :contract_failure}
   end
@@ -276,6 +277,31 @@ defmodule Archethic.Contracts.Interpreter do
   def format_error_reason(_node, reason) do
     do_format_error_reason(reason, "", [])
   end
+
+  @doc """
+  Return a map with the constants to be used for the named action arguments.
+
+  ## Examples
+
+      iex> Interpreter.get_named_action_constants({:transaction, "vote", ["candidate"]}, %Recipient{args: ["Williams"]})
+      %{"candidate" => "Williams"}
+
+      iex> Interpreter.get_named_action_constants({:transaction, nil, nil}, %Recipient{})
+      %{}
+  """
+  def get_named_action_constants(
+        {:transaction, _action, args_names},
+        %Recipient{
+          args: args_values
+        }
+      )
+      when is_list(args_names) do
+    args_names
+    |> Enum.zip(args_values)
+    |> Enum.into(%{})
+  end
+
+  def get_named_action_constants(_trigger_type, _recipient), do: %{}
 
   # ------------------------------------------------------------
   #              _            _
@@ -400,12 +426,6 @@ defmodule Archethic.Contracts.Interpreter do
     timestamp
   end
 
-  defp time_now(:transaction, %Transaction{
-         validation_stamp: %ValidationStamp{timestamp: timestamp}
-       }) do
-    timestamp
-  end
-
   defp time_now(:oracle, %Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
        }) do
@@ -462,14 +482,6 @@ defmodule Archethic.Contracts.Interpreter do
     end
   end
 
-  defp do_check_contract_blocks([:transaction | rest], conditions) do
-    if :transaction in conditions do
-      do_check_contract_blocks(rest, conditions)
-    else
-      {:error, "missing 'condition transaction' block"}
-    end
-  end
-
   defp do_check_contract_blocks([{:interval, _} | rest], conditions) do
     do_check_contract_blocks(rest, conditions)
   end
@@ -482,21 +494,12 @@ defmodule Archethic.Contracts.Interpreter do
     if {:transaction, action, args_names} in conditions do
       do_check_contract_blocks(rest, conditions)
     else
-      {:error,
-       "missing 'condition transaction, on: #{action}(#{Enum.join(args_names, ", ")})' block"}
+      if action == nil && args_names == nil do
+        {:error, "missing 'condition transaction' block"}
+      else
+        {:error,
+         "missing 'condition transaction, on: #{action}(#{Enum.join(args_names, ", ")})' block"}
+      end
     end
   end
-
-  defp get_named_action_constants(
-         {:transaction, _action, args_names},
-         %Recipient{
-           args: args_values
-         }
-       ) do
-    args_names
-    |> Enum.zip(args_values)
-    |> Enum.into(%{})
-  end
-
-  defp get_named_action_constants(_trigger_type, _recipient), do: %{}
 end

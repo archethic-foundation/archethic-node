@@ -53,11 +53,7 @@ defmodule Archethic.Contracts.Worker do
   @spec execute(binary(), Transaction.t(), Recipient.t()) ::
           :ok | {:error, :no_transaction_trigger} | {:error, :condition_not_respected}
   def execute(resolved_address, tx = %Transaction{}, recipient = %Recipient{}) do
-    if Recipient.is_named_action?(recipient) do
-      GenServer.cast(via_tuple(resolved_address), {:execute_named_action, tx, recipient})
-    else
-      GenServer.cast(via_tuple(resolved_address), {:execute_unnamed_action, tx})
-    end
+    GenServer.cast(via_tuple(resolved_address), {:execute, tx, recipient})
   end
 
   def init(contract = %Contract{}) do
@@ -86,51 +82,7 @@ defmodule Archethic.Contracts.Worker do
   # TRIGGER: TRANSACTION
   def handle_cast(
         {
-          :execute_unnamed_action,
-          trigger_tx = %Transaction{address: trigger_tx_address}
-        },
-        state = %{contract: contract}
-      ) do
-    contract_tx =
-      %Transaction{address: contract_address} =
-      Constants.to_transaction(contract.constants.contract)
-
-    trigger_datetime = DateTime.utc_now()
-    meta = log_metadata(contract_address, trigger_tx)
-    Logger.debug("Contract execution started (trigger=transaction)", meta)
-
-    with true <- enough_funds?(contract_address),
-         {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(
-             :transaction,
-             contract,
-             trigger_tx,
-             nil
-           ),
-         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_address),
-         :ok <-
-           handle_new_transaction(
-             {:transaction, trigger_tx_address},
-             next_tx,
-             trigger_datetime
-           ) do
-      Logger.debug("Contract execution success", meta)
-    else
-      {:ok, nil} ->
-        Logger.debug("Contract execution success but there is no new transaction", meta)
-
-      _ ->
-        Logger.debug("Contract execution failed", meta)
-    end
-
-    {:noreply, state}
-  end
-
-  # TRIGGER: TRANSACTION NAMED ACTION
-  def handle_cast(
-        {
-          :execute_named_action,
+          :execute,
           trigger_tx = %Transaction{address: trigger_tx_address},
           recipient = %Recipient{}
         },
@@ -142,7 +94,7 @@ defmodule Archethic.Contracts.Worker do
 
     trigger_datetime = DateTime.utc_now()
     meta = log_metadata(contract_address, trigger_tx)
-    Logger.debug("Contract execution started (trigger=transaction+namedaction)", meta)
+    Logger.debug("Contract execution started (trigger=transaction)", meta)
 
     trigger = Contract.get_trigger_for_recipient(contract, recipient)
 

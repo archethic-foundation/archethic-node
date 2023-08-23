@@ -1,6 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   @moduledoc false
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
@@ -13,20 +14,18 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
                     |> Enum.reject(&(&1 == :__struct__))
                     |> Enum.map(&Atom.to_string/1)
 
-  @type condition_type :: :transaction | :inherit | :oracle
-
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
   @spec parse(any(), list(Interpreter.function_key())) ::
-          {:ok, condition_type(), Conditions.t()} | {:error, any(), String.t()}
+          {:ok, Contract.condition_type(), Conditions.t()} | {:error, any(), String.t()}
   def parse(
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
         functions_keys
       ) do
     case condition_name do
       "transaction" ->
-        do_parse(:transaction, keyword, functions_keys, node)
+        do_parse({:transaction, nil, nil}, keyword, functions_keys, node)
 
       "inherit" ->
         do_parse(:inherit, keyword, functions_keys, node)
@@ -76,7 +75,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     global_variable =
       case condition_type do
         {:transaction, _, _} -> "transaction"
-        :transaction -> "transaction"
         :inherit -> "next"
         :oracle -> "transaction"
       end

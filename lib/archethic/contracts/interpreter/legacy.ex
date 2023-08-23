@@ -51,6 +51,48 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
         :ok,
         %Archethic.Contracts.Contract{
           conditions: %{
+            {:transaction, nil, nil} => %Archethic.Contracts.ContractConditions{
+              address: nil,
+              authorized_keys: nil,
+              code: nil,
+              content: {
+                :==,
+                [line: 3],
+                [
+                  true,
+                  {
+                    {
+                      :.,
+                      [line: 3],
+                      [
+                        {
+                          :__aliases__,
+                          [alias: Archethic.Contracts.Interpreter.Legacy.Library],
+                          [:Library]
+                        },
+                        :regex_match?
+                      ]
+                    },
+                    [line: 3],
+                    [
+                      {
+                        :get_in,
+                        [line: 3],
+                        [{:scope, [line: 3], nil}, ["transaction", "content"]]
+                      },
+                      "^Mr.Y|Mr.X{1}$"
+                    ]
+                  }
+                ]
+              },
+              origin_family: :biometric,
+              previous_public_key: nil,
+              secrets: nil,
+              timestamp: nil,
+              token_transfers: nil,
+              type: nil,
+              uco_transfers: nil
+            },
             inherit: %Archethic.Contracts.ContractConditions{
               address: nil,
               authorized_keys: nil,
@@ -128,48 +170,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                 ]
               },
               origin_family: :all,
-              previous_public_key: nil,
-              secrets: nil,
-              timestamp: nil,
-              token_transfers: nil,
-              type: nil,
-              uco_transfers: nil
-            },
-            transaction: %Archethic.Contracts.ContractConditions{
-              address: nil,
-              authorized_keys: nil,
-              code: nil,
-              content: {
-                :==,
-                [line: 3],
-                [
-                  true,
-                  {
-                    {
-                      :.,
-                      [line: 3],
-                      [
-                        {
-                          :__aliases__,
-                          [alias: Archethic.Contracts.Interpreter.Legacy.Library],
-                          [:Library]
-                        },
-                        :regex_match?
-                      ]
-                    },
-                    [line: 3],
-                    [
-                      {
-                        :get_in,
-                        [line: 3],
-                        [{:scope, [line: 3], nil}, ["transaction", "content"]]
-                      },
-                      "^Mr.Y|Mr.X{1}$"
-                    ]
-                  }
-                ]
-              },
-              origin_family: :biometric,
               previous_public_key: nil,
               secrets: nil,
               timestamp: nil,

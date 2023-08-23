@@ -143,7 +143,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
     else
       case condition_type do
         :inherit -> {:error, :invalid_inherit_constraints}
-        :transaction -> {:error, :invalid_transaction_constraints}
         {:transaction, _, _} -> {:error, :invalid_transaction_constraints}
       end
     end

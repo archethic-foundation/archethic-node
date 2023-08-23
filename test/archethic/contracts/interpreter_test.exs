@@ -342,7 +342,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -378,7 +378,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -419,7 +419,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -455,7 +455,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:error, _} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -494,7 +494,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:error, _} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -534,7 +534,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, _} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -577,7 +577,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -619,7 +619,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -664,7 +664,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -705,7 +705,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -746,7 +746,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -779,7 +779,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, nil} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -813,7 +813,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert match?(
                {:error, :contract_failure},
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -839,7 +839,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert match?(
                {:error, :contract_failure},
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil
@@ -999,7 +999,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil,

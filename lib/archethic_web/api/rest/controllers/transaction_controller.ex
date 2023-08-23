@@ -1,5 +1,7 @@
 defmodule ArchethicWeb.API.REST.TransactionController do
-  @moduledoc false
+  @moduledoc """
+  DEPRECATED. WILL BE REPLACED BY JSONRPC API
+  """
 
   use ArchethicWeb.API, :controller
 
@@ -231,7 +233,8 @@ defmodule ArchethicWeb.API.REST.TransactionController do
   defp fetch_recipient_tx_and_simulate(recipient_address, trigger_tx) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         {:ok, _} <- Contracts.execute_trigger(:transaction, contract, trigger_tx, nil) do
+         {:ok, _} <-
+           Contracts.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil) do
       :ok
     else
       # search_transaction errors

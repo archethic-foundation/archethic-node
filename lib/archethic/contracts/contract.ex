@@ -23,12 +23,17 @@ defmodule Archethic.Contracts.Contract do
 
   @type trigger_type() ::
           :oracle
-          | :transaction
+          | {:transaction, nil, nil}
           | {:transaction, String.t(), list(String.t())}
           | {:datetime, DateTime.t()}
           | {:interval, String.t()}
 
-  @type condition() :: :transaction | :inherit | :oracle
+  @type condition_type() ::
+          :oracle
+          | :inherit
+          | {:transaction, nil, nil}
+          | {:transaction, String.t(), list(String.t())}
+
   @type origin_family :: SharedSecrets.origin_family()
 
   @type t() :: %__MODULE__{
@@ -93,13 +98,13 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Add a condition to the contract
   """
-  @spec add_condition(map(), condition(), Conditions.t()) :: t()
+  @spec add_condition(map(), condition_type(), Conditions.t()) :: t()
   def add_condition(
         contract = %__MODULE__{},
-        condition_name,
+        condition_type,
         conditions = %Conditions{}
       ) do
-    Map.update!(contract, :conditions, &Map.put(&1, condition_name, conditions))
+    Map.update!(contract, :conditions, &Map.put(&1, condition_type, conditions))
   end
 
   @doc """
@@ -130,9 +135,9 @@ defmodule Archethic.Contracts.Contract do
   Return the args names for this recipient or nil
   """
   @spec get_trigger_for_recipient(t(), Recipient.t()) ::
-          nil | {:transaction, String.t(), list(String.t())} | :transaction
+          nil | {:transaction, String.t(), list(String.t())} | {:transaction, nil, nil}
   def get_trigger_for_recipient(_contract, %Recipient{action: nil, args: nil}),
-    do: :transaction
+    do: {:transaction, nil, nil}
 
   def get_trigger_for_recipient(
         %__MODULE__{triggers: triggers},

@@ -517,7 +517,7 @@ defmodule Archethic.ContractsTest do
       }
 
       assert Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                trigger_tx,
                nil,
@@ -552,7 +552,7 @@ defmodule Archethic.ContractsTest do
       }
 
       assert Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                trigger_tx,
                nil,
@@ -587,7 +587,7 @@ defmodule Archethic.ContractsTest do
       }
 
       refute Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                trigger_tx,
                nil,
@@ -622,7 +622,7 @@ defmodule Archethic.ContractsTest do
       }
 
       refute Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                trigger_tx,
                nil,
@@ -660,7 +660,7 @@ defmodule Archethic.ContractsTest do
       }
 
       assert Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                incoming_tx,
                nil,
@@ -698,7 +698,7 @@ defmodule Archethic.ContractsTest do
       }
 
       refute Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                incoming_tx,
                nil,
@@ -738,7 +738,7 @@ defmodule Archethic.ContractsTest do
       }
 
       assert Contracts.valid_condition?(
-               :transaction,
+               {:transaction, nil, nil},
                Contract.from_transaction!(contract_tx),
                incoming_tx,
                nil,
