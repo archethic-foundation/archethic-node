@@ -21,17 +21,19 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   Validate parameter to match the expected JSON pattern
   """
   @spec validate_params(param :: map()) ::
-          {:ok, params :: Transaction.t()} | {:error, reasons :: list()}
+          {:ok, params :: Transaction.t()} | {:error, reasons :: map()}
   def validate_params(%{"transaction" => transaction_params}) do
     case TransactionPayload.changeset(transaction_params) do
-      changeset = %{valid?: true} ->
+      {:ok, changeset = %{valid?: true}} ->
         tx = changeset |> TransactionPayload.to_map() |> Transaction.cast()
         {:ok, tx}
 
-      changeset ->
+      {:ok, changeset} ->
         reasons = Ecto.Changeset.traverse_errors(changeset, &WebUtils.translate_error/1)
-
         {:error, reasons}
+
+      :error ->
+        {:error, %{transaction: ["must be an object"]}}
     end
   end
 

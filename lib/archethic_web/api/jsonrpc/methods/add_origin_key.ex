@@ -24,7 +24,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.AddOriginKey do
   Validate parameter to match the expected JSON pattern
   """
   @spec validate_params(param :: map()) ::
-          {:ok, params :: map()} | {:error, reasons :: list()}
+          {:ok, params :: map()} | {:error, reasons :: map()}
   def validate_params(params) do
     case OriginPublicKeyPayload.changeset(params) do
       %{valid?: true, changes: changes} ->

@@ -8,31 +8,39 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
   alias Ecto.Changeset
 
   describe "changeset/1" do
+    test "should return errors if params is not a map" do
+      assert :error = TransactionPayload.changeset(nil)
+      assert :error = TransactionPayload.changeset(1)
+      assert :error = TransactionPayload.changeset("1")
+    end
+
     test "should return errors if there are missing fields in the transaction schema" do
-      assert %Ecto.Changeset{
-               valid?: false,
-               errors: [
-                 data: {"can't be blank", [validation: :required]},
-                 version: {"can't be blank", [validation: :required]},
-                 address: {"can't be blank", [validation: :required]},
-                 type: {"can't be blank", [validation: :required]},
-                 previousPublicKey: {"can't be blank", [validation: :required]},
-                 previousSignature: {"can't be blank", [validation: :required]},
-                 originSignature: {"can't be blank", [validation: :required]}
-               ]
-             } = TransactionPayload.changeset(%{})
+      assert {:ok,
+              %Ecto.Changeset{
+                valid?: false,
+                errors: [
+                  data: {"can't be blank", [validation: :required]},
+                  version: {"can't be blank", [validation: :required]},
+                  address: {"can't be blank", [validation: :required]},
+                  type: {"can't be blank", [validation: :required]},
+                  previousPublicKey: {"can't be blank", [validation: :required]},
+                  previousSignature: {"can't be blank", [validation: :required]},
+                  originSignature: {"can't be blank", [validation: :required]}
+                ]
+              }} = TransactionPayload.changeset(%{})
     end
 
     test "should return errors if the crypto primitives are invalid" do
-      assert %Ecto.Changeset{
-               valid?: false,
-               errors: [
-                 address: {"must be hexadecimal", _},
-                 previousPublicKey: {"must be hexadecimal", _},
-                 previousSignature: {"must be hexadecimal", _},
-                 originSignature: {"must be hexadecimal", _}
-               ]
-             } =
+      assert {:ok,
+              %Ecto.Changeset{
+                valid?: false,
+                errors: [
+                  address: {"must be hexadecimal", _},
+                  previousPublicKey: {"must be hexadecimal", _},
+                  previousSignature: {"must be hexadecimal", _},
+                  originSignature: {"must be hexadecimal", _}
+                ]
+              }} =
                TransactionPayload.changeset(%{
                  "version" => 1,
                  "address" => "abc",
@@ -58,10 +66,11 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the content is not in hex" do
-      %Ecto.Changeset{
-        valid?: false,
-        changes: %{data: %{errors: errors}}
-      } =
+      {:ok,
+       %Ecto.Changeset{
+         valid?: false,
+         changes: %{data: %{errors: errors}}
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -80,10 +89,11 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     test "should return an error if the content size is greater than content max size" do
       content = Base.encode16(:crypto.strong_rand_bytes(4 * 1024 * 1024))
 
-      %Ecto.Changeset{
-        valid?: false,
-        changes: %{data: %{errors: errors}}
-      } =
+      {:ok,
+       %Ecto.Changeset{
+         valid?: false,
+         changes: %{data: %{errors: errors}}
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -101,10 +111,11 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the code is not a string" do
-      %Ecto.Changeset{
-        valid?: false,
-        changes: %{data: %{errors: errors}}
-      } =
+      {:ok,
+       %Ecto.Changeset{
+         valid?: false,
+         changes: %{data: %{errors: errors}}
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -121,10 +132,11 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the code length is more than 24KB" do
-      %Ecto.Changeset{
-        valid?: false,
-        changes: %{data: %{errors: errors}}
-      } =
+      {:ok,
+       %Ecto.Changeset{
+         valid?: false,
+         changes: %{data: %{errors: errors}}
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -142,10 +154,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the uco ledger transfer address is invalid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -167,10 +179,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the uco ledger transfer amount is invalid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -199,10 +211,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the uco ledger transfers are more than 256" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -234,10 +246,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the token ledger transfer address is invalid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -269,10 +281,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the token ledger transfer amount is invalid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -309,10 +321,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the token ledger transfer token address is invalid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -343,10 +355,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the token ledger transfers are more than 256" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -381,10 +393,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the encrypted secret is not an hexadecimal" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -406,10 +418,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the public key in the authorized keys is not valid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -444,10 +456,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                }
              ] = changeset |> get_errors |> get_in([:data, :ownerships])
 
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -481,10 +493,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the encrypted key in the authorized keys is not valid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -514,10 +526,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error ownerships are more than 256." do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -551,10 +563,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error authorized keys in a ownership can't be more than 256" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -587,10 +599,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
     end
 
     test "should return an error if the recipients are invalid" do
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -607,10 +619,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
 
       assert ["must be hexadecimal"] = changeset |> get_errors() |> get_in([:data, :recipients])
 
-      changeset =
-        %Ecto.Changeset{
-          valid?: false
-        } =
+      {:ok,
+       changeset = %Ecto.Changeset{
+         valid?: false
+       }} =
         TransactionPayload.changeset(%{
           "version" => 1,
           "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -630,10 +642,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
   end
 
   test "should return an error if the recipients are more that 256" do
-    changeset =
-      %Ecto.Changeset{
-        valid?: false
-      } =
+    {:ok,
+     changeset = %Ecto.Changeset{
+       valid?: false
+     }} =
       TransactionPayload.changeset(%{
         "version" => 1,
         "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
@@ -724,6 +736,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                  "recipients" => [Base.encode16(recipient)]
                }
              })
+             |> elem(1)
              |> TransactionPayload.to_map()
   end
 
