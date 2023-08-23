@@ -43,7 +43,10 @@ defmodule ArchethicWeb.API.TransactionPayload do
     ])
     |> cast_embed(:data, required: true)
     |> validate_data()
+    |> then(&{:ok, &1})
   end
+
+  def changeset(_params), do: :error
 
   def to_map(changes, acc \\ %{})
 

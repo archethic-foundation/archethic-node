@@ -9,7 +9,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
 
   @behaviour Method
 
-  @spec validate_params(params :: map()) :: {:ok, params :: map()} | {:error, reasons :: list()}
+  @spec validate_params(params :: map()) :: {:ok, params :: map()} | {:error, reasons :: map()}
   def validate_params(params) do
     case FunctionCallPayload.changeset(params) do
       %{valid?: true, changes: changed_params} ->

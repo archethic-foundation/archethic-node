@@ -4,7 +4,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method do
   """
 
   @callback validate_params(params :: map() | list()) ::
-              {:ok, params :: any()} | {:error, reasons :: list()}
+              {:ok, params :: any()} | {:error, reasons :: map()}
 
   @callback execute(params :: any()) ::
               {:ok, result :: map() | list() | any()}

@@ -18,7 +18,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
 
   def new(conn, params = %{}) do
     case TransactionPayload.changeset(params) do
-      changeset = %{valid?: true} ->
+      {:ok, changeset = %{valid?: true}} ->
         tx =
           changeset
           |> TransactionPayload.to_map()
@@ -38,7 +38,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
             conn |> put_status(504) |> json(%{status: "error - networking error"})
         end
 
-      changeset ->
+      {:ok, changeset} ->
         Logger.debug(
           "Invalid transaction #{inspect(Ecto.Changeset.traverse_errors(changeset, &ArchethicWeb.WebUtils.translate_error/1))}"
         )
@@ -99,7 +99,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
 
   def transaction_fee(conn, tx) do
     case TransactionPayload.changeset(tx) do
-      changeset = %{valid?: true} ->
+      {:ok, changeset = %{valid?: true}} ->
         timestamp = DateTime.utc_now()
 
         previous_price =
@@ -126,7 +126,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
           }
         })
 
-      changeset ->
+      {:ok, changeset} ->
         conn
         |> put_status(:bad_request)
         |> put_view(ErrorView)
@@ -143,7 +143,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
         params = %{}
       ) do
     case TransactionPayload.changeset(params) do
-      changeset = %{valid?: true} ->
+      {:ok, changeset = %{valid?: true}} ->
         trigger_tx =
           %Transaction{data: %TransactionData{recipients: recipients}} =
           changeset
@@ -208,7 +208,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
             |> json(results)
         end
 
-      changeset ->
+      {:ok, changeset} ->
         error_details =
           Ecto.Changeset.traverse_errors(
             changeset,
