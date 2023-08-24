@@ -49,7 +49,7 @@ defmodule Archethic.TransactionChain.TransactionData do
     recipients_bin =
       recipients
       |> Enum.map(&Recipient.serialize(&1, tx_version))
-      |> Enum.reduce(<<>>, &<<&2::bitstring, &1::bitstring>>)
+      |> :erlang.list_to_binary()
 
     encoded_ownership_len = length(ownerships) |> VarInt.from_value()
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
@@ -57,7 +57,7 @@ defmodule Archethic.TransactionChain.TransactionData do
     <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary,
       Ledger.serialize(ledger, tx_version)::binary, encoded_recipients_len::binary,
-      recipients_bin::bitstring>>
+      recipients_bin::binary>>
   end
 
   @doc """

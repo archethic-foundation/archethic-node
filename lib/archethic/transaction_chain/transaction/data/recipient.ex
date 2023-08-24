@@ -34,7 +34,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   end
 
   def serialize(%__MODULE__{address: address, action: nil, args: nil}, _version = 2) do
-    <<@unnamed_action::1, address::binary>>
+    <<@unnamed_action::8, address::binary>>
   end
 
   def serialize(%__MODULE__{address: address, action: action, args: args}, _version = 2) do
@@ -45,7 +45,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     serialized_args = Jason.encode!(args)
     args_bytes = byte_size(serialized_args) |> Utils.VarInt.from_value()
 
-    <<@named_action::1, address::binary, action_bytes::8, action::binary, args_bytes::binary,
+    <<@named_action::8, address::binary, action_bytes::8, action::binary, args_bytes::binary,
       serialized_args::binary>>
   end
 
@@ -58,7 +58,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     {%__MODULE__{address: address}, rest}
   end
 
-  def deserialize(<<@unnamed_action::1, rest::bitstring>>, _version = 2) do
+  def deserialize(<<@unnamed_action::8, rest::bitstring>>, _version = 2) do
     {address, rest} = Utils.deserialize_address(rest)
 
     {
@@ -67,7 +67,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     }
   end
 
-  def deserialize(<<@named_action::1, rest::bitstring>>, _version = 2) do
+  def deserialize(<<@named_action::8, rest::bitstring>>, _version = 2) do
     {address, <<action_bytes::8, rest::bitstring>>} = Utils.deserialize_address(rest)
     <<action::binary-size(action_bytes), rest::bitstring>> = rest
 

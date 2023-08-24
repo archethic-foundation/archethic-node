@@ -33,7 +33,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     tx_version = Transaction.version()
     recipient_bin = Recipient.serialize(recipient, tx_version)
 
-    <<recipient_bin::bitstring, Transaction.serialize(tx)::bitstring,
+    <<recipient_bin::binary, Transaction.serialize(tx)::bitstring,
       DateTime.to_unix(time, :millisecond)::64>>
   end
 
