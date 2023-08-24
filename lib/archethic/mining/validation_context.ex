@@ -729,6 +729,8 @@ defmodule Archethic.Mining.ValidationContext do
       ) do
     ledger_operations = get_ledger_operations(context)
 
+    resolved_recipients = resolved_recipients(recipients, resolved_addresses)
+
     validation_stamp =
       %ValidationStamp{
         protocol_version: Mining.protocol_version(),
@@ -737,10 +739,7 @@ defmodule Archethic.Mining.ValidationContext do
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
         ledger_operations: ledger_operations,
-        recipients:
-          recipients
-          |> resolved_recipients(resolved_addresses)
-          |> Enum.map(& &1.address),
+        recipients: resolved_recipients |> Enum.map(& &1.address),
         error:
           get_validation_error(
             prev_tx,
@@ -748,7 +747,7 @@ defmodule Archethic.Mining.ValidationContext do
             ledger_operations,
             unspent_outputs,
             valid_pending_transaction?,
-            resolved_addresses,
+            resolved_recipients,
             validation_time,
             contract_context
           )
@@ -826,7 +825,7 @@ defmodule Archethic.Mining.ValidationContext do
          ledger_operations,
          unspent_outputs,
          valid_pending_transaction?,
-         resolved_addresses,
+         resolved_recipients,
          validation_time,
          contract_context
        ) do
@@ -840,10 +839,13 @@ defmodule Archethic.Mining.ValidationContext do
       not valid_contract_execution?(prev_tx, tx, contract_context) ->
         :invalid_contract_execution
 
-      not valid_contract_recipients?(tx, resolved_addresses, validation_time) ->
+      not valid_contract_recipients_distinct?(resolved_recipients) ->
+        :recipients_not_distinct
+
+      not valid_contract_recipients?(tx, resolved_recipients, validation_time) ->
         :invalid_recipients_execution
 
-      has_insufficient_funds?(ledger_operations, unspent_outputs) ->
+      not sufficient_funds?(ledger_operations, unspent_outputs) ->
         :insufficient_funds
 
       true ->
@@ -851,25 +853,19 @@ defmodule Archethic.Mining.ValidationContext do
     end
   end
 
-  defp valid_contract_recipients?(
-         %Transaction{data: %TransactionData{recipients: []}},
-         _resolved_addresses,
-         _validation_time
-       ),
-       do: true
+  def valid_contract_recipients_distinct?(resolved_recipients) do
+    resolved_recipients_addresses = Enum.map(resolved_recipients, & &1.address)
 
-  defp valid_contract_recipients?(
-         tx = %Transaction{data: %TransactionData{recipients: recipients}},
-         resolved_addresses,
-         validation_time
-       ) do
-    resolved_recipients(recipients, resolved_addresses)
-    |> SmartContractValidation.valid_contract_calls?(tx, validation_time)
+    resolved_recipients_addresses == Enum.uniq(resolved_recipients_addresses)
   end
 
-  defp has_insufficient_funds?(ledger_ops, inputs) do
-    not LedgerOperations.sufficient_funds?(ledger_ops, inputs)
-  end
+  defp valid_contract_recipients?(_tx, [], _validation_time), do: true
+
+  defp valid_contract_recipients?(tx, resolved_recipients, validation_time),
+    do: SmartContractValidation.valid_contract_calls?(resolved_recipients, tx, validation_time)
+
+  defp sufficient_funds?(ledger_ops, inputs),
+    do: LedgerOperations.sufficient_funds?(ledger_ops, inputs)
 
   ####################
   defp valid_inherit_condition?(
@@ -1154,7 +1150,7 @@ defmodule Archethic.Mining.ValidationContext do
   defp valid_stamp_error?(
          stamp = %ValidationStamp{error: error},
          context = %__MODULE__{
-           transaction: tx,
+           transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
            previous_transaction: prev_tx,
            valid_pending_transaction?: valid_pending_transaction?,
            unspent_outputs: unspent_outputs,
@@ -1165,6 +1161,8 @@ defmodule Archethic.Mining.ValidationContext do
        ) do
     validated_context = %{context | transaction: %{tx | validation_stamp: stamp}}
 
+    resolved_recipients = resolved_recipients(recipients, resolved_addresses)
+
     expected_error =
       get_validation_error(
         prev_tx,
@@ -1172,7 +1170,7 @@ defmodule Archethic.Mining.ValidationContext do
         get_ledger_operations(validated_context),
         unspent_outputs,
         valid_pending_transaction?,
-        resolved_addresses,
+        resolved_recipients,
         validation_time,
         contract_context
       )
