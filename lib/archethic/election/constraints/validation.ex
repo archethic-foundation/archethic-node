@@ -98,7 +98,7 @@ defmodule Archethic.Election.ValidationConstraints do
           validation_number
       end
     else
-      min_nb_nodes
+      default_nb_nodes
     end
   end
 
