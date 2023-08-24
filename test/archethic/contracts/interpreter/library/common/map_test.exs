@@ -137,4 +137,20 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       assert %Transaction{data: %TransactionData{content: "[1,2]"}} = sanitize_parse_execute(code)
     end
   end
+
+  # ----------------------------------------
+  describe "delete/2" do
+    test "should work" do
+      code = ~s"""
+      actions triggered_by: transaction do
+        numbers = [one: 1, two: 2]
+        values = Map.delete(numbers, "one")
+        Contract.set_content Json.to_string(values)
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "{\"two\":2}"}} =
+               sanitize_parse_execute(code)
+    end
+  end
 end
