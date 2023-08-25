@@ -655,6 +655,46 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
       assert ["maximum number of recipients can be 255"] =
                changeset |> get_errors() |> get_in([:data, :recipients])
     end
+
+    test "should return error if transaction V1 contains named action recipient" do
+      map = %{
+        "version" => 1,
+        "address" => Base.encode16(random_address()),
+        "type" => "transfer",
+        "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+        "previousPublicKey" => Base.encode16(random_address()),
+        "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "data" => %{
+          "recipients" => [
+            %{
+              "address" => Base.encode16(random_address()),
+              "action" => "something",
+              "args" => []
+            }
+          ]
+        }
+      }
+
+      assert {:ok, %Ecto.Changeset{valid?: false}} = TransactionPayload.changeset(map)
+    end
+
+    test "should return error if transaction V2 contains list of addresses as recipient" do
+      map = %{
+        "version" => 2,
+        "address" => Base.encode16(random_address()),
+        "type" => "transfer",
+        "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+        "previousPublicKey" => Base.encode16(random_address()),
+        "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "data" => %{
+          "recipients" => [Base.encode16(random_address())]
+        }
+      }
+
+      assert {:ok, %Ecto.Changeset{valid?: false}} = TransactionPayload.changeset(map)
+    end
   end
 
   test "to_map/1 should return a map of the changeset" do

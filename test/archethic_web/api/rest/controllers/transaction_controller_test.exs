@@ -1,5 +1,6 @@
 defmodule ArchethicWeb.API.REST.TransactionControllerTest do
   use ArchethicCase
+  import ArchethicCase
   use ArchethicWeb.ConnCase
 
   alias Archethic.OracleChain
@@ -63,7 +64,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           "previousSignature" =>
             "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
           "type" => "transfer",
-          "version" => 1
+          "version" => current_transaction_version()
         })
 
       assert %{
@@ -139,7 +140,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           code: code,
           content: "hello"
         },
-        version: 1
+        version: current_transaction_version()
       }
 
       MockClient
@@ -164,7 +165,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => 1
+        "version" => current_transaction_version()
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -207,7 +208,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           code: code,
           content: "hello"
         },
-        version: 1
+        version: current_transaction_version()
       }
 
       MockClient
@@ -231,7 +232,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => 1
+        "version" => current_transaction_version()
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -264,7 +265,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           code: code,
           content: "hello"
         },
-        version: 1
+        version: current_transaction_version()
       }
 
       MockClient
@@ -289,7 +290,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => 1
+        "version" => current_transaction_version()
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -322,7 +323,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         data: %TransactionData{
           code: code
         },
-        version: 1
+        version: current_transaction_version()
       }
 
       MockClient
@@ -345,7 +346,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => 1
+        "version" => current_transaction_version()
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -362,7 +363,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         data: %TransactionData{
           code: code
         },
-        version: 1
+        version: current_transaction_version()
       }
 
       MockClient
@@ -385,7 +386,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => 1
+        "version" => current_transaction_version()
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -416,7 +417,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           code: code,
           content: "hello"
         },
-        version: 1
+        version: current_transaction_version()
       }
 
       previous_tx2 = %Transaction{
@@ -426,7 +427,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           code: code,
           content: "hello"
         },
-        version: 1
+        version: current_transaction_version()
       }
 
       MockClient
@@ -470,7 +471,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => 1
+        "version" => current_transaction_version()
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
@@ -505,7 +506,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
         "previousSignature" =>
           "9b209dd92c6caffbb5c39d12263f05baebc9fe3c36cb0f4dde04c96f1237b75a3a2973405c6d9d5e65d8a970a37bafea57b919febad46b0cceb04a7ffa4b6b00",
         "type" => "transfer",
-        "version" => 1
+        "version" => current_transaction_version()
       }
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
