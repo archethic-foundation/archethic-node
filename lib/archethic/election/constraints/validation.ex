@@ -17,6 +17,8 @@ defmodule Archethic.Election.ValidationConstraints do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
+  alias Archethic.Utils
+
   @typedoc """
   Each validation constraints represent a function which will be executed during the election algorithms:
   - min_geo_patch: Require number of distinct geographic patch for the elected validation nodes.
@@ -66,30 +68,41 @@ defmodule Archethic.Election.ValidationConstraints do
           non_neg_integer()
   def validation_number(
         %Transaction{
-          data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}
+          data: %TransactionData{ledger: %Ledger{uco: uco_ledger}}
         },
         nb_authorized_nodes
       )
       when is_integer(nb_authorized_nodes) do
-    total_transfers = Enum.reduce(transfers, 0.0, &(&2 + &1.amount))
+    min_nb_nodes = min_validation_nodes(nb_authorized_nodes)
+    default_nb_nodes = overbook_validation_nodes(min_nb_nodes)
+
+    total_transfers = UCOLedger.total_amount(uco_ledger)
 
     if total_transfers > 0 do
-      validation_number =
-        @default_min_validations +
-          (:math.log10(total_transfers / 100_000_000) |> trunc())
+      additional_validations =
+        total_transfers
+        |> Utils.from_bigint()
+        |> :math.log10()
+        |> trunc()
+
+      validation_number = default_nb_nodes + additional_validations
 
       cond do
         validation_number > nb_authorized_nodes ->
           nb_authorized_nodes
 
-        validation_number < @default_min_validations ->
-          min_validation_nodes(nb_authorized_nodes)
+        validation_number < default_nb_nodes ->
+          min_nb_nodes
 
         true ->
           validation_number
       end
     else
-      min_validation_nodes(nb_authorized_nodes)
+      min_nb_nodes
     end
+  end
+
+  defp overbook_validation_nodes(min_validation_nodes) do
+    ceil(min_validation_nodes * 1.5)
   end
 end
