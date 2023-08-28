@@ -49,6 +49,7 @@ Requirements:
 - Elixir 1.14
 - GMP (https://gmplib.org/)
 - MiniUPnP used for port forwarding & IP lookup (https://miniupnp.tuxfamily.org/)
+- Npm for static assets (https://nodejs.org/en/download)
 
 Platforms supported:
 
