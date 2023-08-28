@@ -491,7 +491,16 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   defp do_check_contract_blocks([{:transaction, action, args_names} | rest], conditions) do
-    if {:transaction, action, args_names} in conditions do
+    arity = if is_list(args_names), do: length(args_names), else: 0
+
+    condition_exists? =
+      Enum.any?(conditions, fn
+        {:transaction, ^action, ^args_names} -> true
+        {:transaction, ^action, args} when length(args) == arity -> true
+        _ -> false
+      end)
+
+    if condition_exists? do
       do_check_contract_blocks(rest, conditions)
     else
       if action == nil && args_names == nil do
