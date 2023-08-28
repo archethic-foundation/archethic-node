@@ -143,7 +143,8 @@ defmodule Archethic.TransactionChain.TransactionData do
       code: code,
       ledger: Ledger.to_map(ledger),
       ownerships: Enum.map(ownerships, &Ownership.to_map/1),
-      recipients: Enum.map(recipients, &Recipient.to_map/1)
+      recipients: Enum.map(recipients, &Recipient.to_address/1),
+      action_recipients: Enum.map(recipients, &Recipient.to_map/1)
     }
   end
 end

@@ -93,11 +93,9 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   @doc false
   @spec to_map(recipient :: t()) :: map()
-  def to_map(%__MODULE__{address: address, action: action, args: args}) do
-    %{
-      address: address,
-      action: action,
-      args: args
-    }
-  end
+  def to_map(%__MODULE__{address: address, action: action, args: args}),
+    do: %{address: address, action: action, args: args}
+
+  @spec to_address(recipient :: t()) :: list(binary())
+  def to_address(%{address: address}), do: address
 end

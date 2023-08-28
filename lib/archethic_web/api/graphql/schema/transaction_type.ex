@@ -58,7 +58,8 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     field(:code, :string)
     field(:content, :content)
     field(:ownerships, list_of(:ownership))
-    field(:recipients, list_of(:recipient))
+    field(:recipients, list_of(:address))
+    field(:action_recipients, list_of(:recipient))
   end
 
   @desc "[Ledger] represents the ledger operations to perform"
