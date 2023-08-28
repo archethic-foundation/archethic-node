@@ -9,6 +9,7 @@ defmodule Archethic.Election do
   alias __MODULE__.Constraints
   alias __MODULE__.StorageConstraints
   alias __MODULE__.ValidationConstraints
+  alias __MODULE__.HypergeometricDistribution
 
   alias Archethic.P2P.Node
 
@@ -94,118 +95,57 @@ defmodule Archethic.Election do
       ...>       %Node{last_public_key: "node5", geo_patch: "F10"},
       ...>       %Node{last_public_key: "node6", geo_patch: "ECA"}
       ...>     ],
-      ...>     [
-      ...>       %Node{last_public_key: "node10", geo_patch: "AAA"},
-      ...>       %Node{last_public_key: "node11", geo_patch: "DEF"},
-      ...>       %Node{last_public_key: "node13", geo_patch: "AA0"},
-      ...>       %Node{last_public_key: "node4", geo_patch: "3AC"},
-      ...>       %Node{last_public_key: "node8", geo_patch: "F10"},
-      ...>       %Node{last_public_key: "node9", geo_patch: "ECA"}
-      ...>     ],
-      ...>     %ValidationConstraints{ validation_number: fn _, 6 -> 3 end, min_geo_patch: fn -> 2 end }
+      ...>     %ValidationConstraints{ validation_number: fn _, 6 -> 3 end, min_geo_patch: fn -> 3 end }
       ...> )
       [
         %Node{last_public_key: "node6", geo_patch: "ECA"},
-        %Node{last_public_key: "node5", geo_patch: "F10"},
-        %Node{last_public_key: "node3", geo_patch: "AA0"}
-      ]
-
-      # Should discard nodes from the given list still keeping the right order
-
-      iex> %Transaction{
-      ...>   address:
-      ...>     <<0, 120, 195, 32, 77, 84, 215, 196, 116, 215, 56, 141, 40, 54, 226, 48, 66, 254, 119,
-      ...>       11, 73, 77, 243, 125, 62, 94, 133, 67, 9, 253, 45, 134, 89>>,
-      ...>   type: :transfer,
-      ...>   data: %TransactionData{},
-      ...>   previous_public_key:
-      ...>     <<0, 239, 240, 90, 182, 66, 190, 68, 20, 250, 131, 83, 190, 29, 184, 177, 52, 166, 207,
-      ...>       80, 193, 110, 57, 6, 199, 152, 184, 24, 178, 179, 11, 164, 150>>,
-      ...>   previous_signature:
-      ...>     <<200, 70, 0, 25, 105, 111, 15, 161, 146, 188, 100, 234, 147, 62, 127, 8, 152, 60, 66,
-      ...>       169, 113, 255, 51, 112, 59, 200, 61, 63, 128, 228, 111, 104, 47, 15, 81, 185, 179, 36,
-      ...>       59, 86, 171, 7, 138, 199, 203, 252, 50, 87, 160, 107, 119, 131, 121, 11, 239, 169, 99,
-      ...>       203, 76, 159, 158, 243, 133, 133>>,
-      ...>   origin_signature:
-      ...>     <<162, 223, 100, 72, 17, 56, 99, 212, 78, 132, 166, 81, 127, 91, 214, 143, 221, 32, 106,
-      ...>       189, 247, 64, 183, 27, 55, 142, 254, 72, 47, 215, 34, 108, 233, 55, 35, 94, 49, 165,
-      ...>       180, 248, 229, 160, 229, 220, 191, 35, 80, 127, 213, 240, 195, 185, 165, 89, 172, 97,
-      ...>       170, 217, 57, 254, 125, 127, 62, 169>>
-      ...> }
-      ...> |> Election.validation_nodes(
-      ...>     "daily_nonce_proof",
-      ...>     [
-      ...>       %Node{last_public_key: "node1", geo_patch: "AAA"},
-      ...>       %Node{last_public_key: "node2", geo_patch: "DEF"},
-      ...>       %Node{last_public_key: "node3", geo_patch: "AA0"},
-      ...>       %Node{last_public_key: "node4", geo_patch: "3AC"},
-      ...>       %Node{last_public_key: "node5", geo_patch: "F10"},
-      ...>       %Node{last_public_key: "node6", geo_patch: "ECA"},
-      ...>       %Node{last_public_key: "node7", geo_patch: "DAA"}
-      ...>     ],
-      ...>     [
-      ...>       %Node{last_public_key: "node10", geo_patch: "AAA"},
-      ...>       %Node{last_public_key: "node11", geo_patch: "DEF"},
-      ...>       %Node{last_public_key: "node13", geo_patch: "AA0"},
-      ...>       %Node{last_public_key: "node4", geo_patch: "3AC"},
-      ...>       %Node{last_public_key: "node8", geo_patch: "F10"},
-      ...>       %Node{last_public_key: "node9", geo_patch: "ECA"}
-      ...>     ],
-      ...>     %ValidationConstraints{ validation_number: fn _, 7 -> 3 end, min_geo_patch: fn -> 2 end },
-      ...>     [
-      ...>       %Node{last_public_key: "node1", geo_patch: "AAA"},
-      ...>       %Node{last_public_key: "node2", geo_patch: "DEF"},
-      ...>       %Node{last_public_key: "node3", geo_patch: "AA0"}
-      ...>     ]
-      ...> )
-      [
-        %Node{last_public_key: "node6", geo_patch: "ECA"},
-        %Node{last_public_key: "node5", geo_patch: "F10"},
-        %Node{last_public_key: "node7", geo_patch: "DAA"},
+        %Node{last_public_key: "node4", geo_patch: "3AC"},
+        %Node{last_public_key: "node5", geo_patch: "F10"}
       ]
   """
   @spec validation_nodes(
           pending_transaction :: Transaction.t(),
           sorting_seed :: binary(),
           authorized_nodes :: list(Node.t()),
-          storage_nodes :: list(Node.t()),
           constraints :: ValidationConstraints.t(),
-          discarded_nodes :: list(Node.t())
+          iteration :: pos_integer()
         ) :: list(Node.t())
   def validation_nodes(
         tx = %Transaction{},
         sorting_seed,
         authorized_nodes,
-        storage_nodes,
         %ValidationConstraints{
           validation_number: validation_number_fun,
           min_geo_patch: min_geo_patch_fun
         } \\ ValidationConstraints.new(),
-        discarded_nodes \\ []
+        iteration \\ 1
       )
-      when is_binary(sorting_seed) and is_list(authorized_nodes) and is_list(storage_nodes) and
-             is_list(discarded_nodes) do
+      when is_binary(sorting_seed) and is_list(authorized_nodes) and is_number(iteration) and
+             iteration > 0 and iteration <= 3 do
     start = System.monotonic_time()
 
+    nb_authorized_nodes = length(authorized_nodes)
+
     # Evaluate validation constraints
-    # Ensure there is never more validation nodes than storage nodes
     nb_validations =
-      min(length(storage_nodes), validation_number_fun.(tx, length(authorized_nodes)))
+      min(
+        hypergeometric_distribution(nb_authorized_nodes),
+        validation_number_fun.(tx, nb_authorized_nodes)
+      )
 
     min_geo_patch = min_geo_patch_fun.()
 
+    sorted_nodes = sort_validation_nodes(authorized_nodes, tx, sorting_seed)
+
     nodes =
       if length(authorized_nodes) <= nb_validations do
-        authorized_nodes
+        sorted_nodes
       else
         do_validation_node_election(
-          authorized_nodes,
-          tx,
-          sorting_seed,
+          sorted_nodes,
           nb_validations,
           min_geo_patch,
-          storage_nodes,
-          discarded_nodes
+          iteration
         )
       end
 
@@ -221,58 +161,42 @@ defmodule Archethic.Election do
   end
 
   defp do_validation_node_election(
-         authorized_nodes,
-         tx,
-         sorting_seed,
+         sorted_nodes,
          nb_validations,
          min_geo_patch,
-         storage_nodes,
-         discarded_nodes
+         iteration
        ) do
-    sorted_nodes = sort_validation_nodes(authorized_nodes, tx, sorting_seed)
-
     Enum.reduce_while(
       sorted_nodes,
       %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
-      fn node = %Node{geo_patch: geo_patch, last_public_key: last_public_key}, acc ->
-        if validation_constraints_satisfied?(
-             nb_validations,
-             min_geo_patch,
-             acc.nb_nodes,
-             acc.zones
-           ) do
+      fn node = %Node{geo_patch: geo_patch}, acc ->
+        # Check if the conditions are satisfied
+        if MapSet.size(acc.zones) >= min_geo_patch and acc.nb_nodes >= nb_validations do
           {:halt, acc}
         else
           # Discard node in the first place if it's already a storage node or
           # if another node already present in the geo zone to ensure geo distribution of validations
-          # or if the node is discarded for example due to on non-availability
-          # Then if required, the node may be elected during a refining operation to ensure the require number of validations
 
-          cond do
-            Utils.key_in_node_list?(discarded_nodes, last_public_key) ->
-              {:cont, acc}
+          # Depending on the election iteration, we extend the geo patch acceptance aria
+          # to include more nodes in the same geo  in case of unavailability
+          {zone, _} = String.split_at(geo_patch, iteration)
 
-            Utils.key_in_node_list?(storage_nodes, last_public_key) ->
-              {:cont, acc}
+          if MapSet.member?(acc.zones, zone) do
+            {:cont, acc}
+          else
+            new_acc =
+              acc
+              |> Map.update!(:nb_nodes, &(&1 + 1))
+              |> Map.update!(:nodes, &[node | &1])
+              |> Map.update!(:zones, &MapSet.put(&1, zone))
 
-            MapSet.member?(acc.zones, String.first(geo_patch)) ->
-              {:cont, acc}
-
-            true ->
-              new_acc =
-                acc
-                |> Map.update!(:nb_nodes, &(&1 + 1))
-                |> Map.update!(:nodes, &[node | &1])
-                |> Map.update!(:zones, &MapSet.put(&1, String.first(geo_patch)))
-
-              {:cont, new_acc}
+            {:cont, new_acc}
           end
         end
       end
     )
     |> Map.get(:nodes)
     |> Enum.reverse()
-    |> refine_necessary_nodes(sorted_nodes, nb_validations, discarded_nodes)
   end
 
   @doc """
@@ -291,20 +215,6 @@ defmodule Archethic.Election do
       |> Crypto.hash()
 
     sort_validation_nodes_by_key_rotation(node_list, sorting_seed, tx_hash)
-  end
-
-  defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
-    MapSet.size(zones) >= min_geo_patch and nb_nodes >= nb_validations
-  end
-
-  defp refine_necessary_nodes(selected_nodes, authorized_nodes, nb_validations, discarded_nodes) do
-    remaining_nodes = (authorized_nodes -- selected_nodes) -- discarded_nodes
-
-    if length(selected_nodes) < nb_validations do
-      selected_nodes ++ Enum.take(remaining_nodes, nb_validations - length(selected_nodes))
-    else
-      selected_nodes
-    end
   end
 
   @doc """
@@ -791,4 +701,12 @@ defmodule Archethic.Election do
       get_storage_constraints()
     )
   end
+
+  @doc """
+  Execute the hypergeometric distribution simulation
+  """
+  @spec hypergeometric_distribution(pos_integer()) :: pos_integer()
+  defdelegate hypergeometric_distribution(nb_nodes),
+    to: HypergeometricDistribution,
+    as: :run_simulation
 end

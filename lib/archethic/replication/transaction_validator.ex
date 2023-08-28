@@ -211,10 +211,17 @@ defmodule Archethic.Replication.TransactionValidator do
               &DB.get_last_chain_public_key(&1.node_public_key, tx_timestamp)
             )
 
-          validation_keys = [coordinator_key | cross_validation_keys]
+          validation_keys = [coordinator_key | cross_validation_keys] |> Enum.uniq()
+
+          sorted_validation_keys =
+            validation_keys
+            |> P2P.get_nodes_info()
+            |> Election.sort_validation_nodes(tx, proof_of_election)
+            |> Enum.map(& &1.last_public_key)
 
           valid_signature? = Transaction.valid_cross_signatures?(tx, validation_keys)
-          valid_election? = Mining.valid_election?(validation_keys, sorted_nodes)
+
+          valid_election? = Mining.valid_election?(tx, sorted_validation_keys, sorted_nodes)
 
           # we need to ensure that the coordinator node is not the same than the cross validation nodes on a distributed workflow
           valid_uniq_keys? =

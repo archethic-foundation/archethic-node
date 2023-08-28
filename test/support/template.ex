@@ -175,11 +175,11 @@ defmodule ArchethicCase do
 
     MockCrypto.NodeKeystore.Origin
     |> stub(:sign_with_origin_key, fn data ->
-      {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {_, pv} = Crypto.derive_keypair("seed", 0)
       Crypto.sign(data, pv)
     end)
     |> stub(:origin_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {pub, _} = Crypto.derive_keypair("seed", 0)
       pub
     end)
     |> stub(:retrieve_node_seed, fn ->

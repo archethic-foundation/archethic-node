@@ -180,7 +180,7 @@ defmodule Archethic.P2P.Message.StartMining do
         sorting_seed
       )
 
-    if Mining.valid_election?(validation_nodes, sorted_nodes) do
+    if Mining.valid_election?(tx, validation_nodes, sorted_nodes) do
       :ok
     else
       {:error, :invalid_validation_nodes_election}

@@ -72,9 +72,11 @@ defmodule Archethic.Mining do
   @doc """
   Elect validation nodes for a transaction
   """
-  @spec get_validation_nodes(Transaction.t()) :: list(Node.t())
-  def get_validation_nodes(tx = %Transaction{address: tx_address}) do
-    current_date = DateTime.utc_now()
+  @spec get_validation_nodes(Transaction.t(), DateTime.t()) :: list(Node.t())
+  def get_validation_nodes(
+        tx = %Transaction{address: tx_address},
+        current_date = %DateTime{} \\ DateTime.utc_now()
+      ) do
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
     node_list = P2P.authorized_and_available_nodes(current_date)
@@ -104,21 +106,8 @@ defmodule Archethic.Mining do
          storage_nodes,
          validation_constraints,
          min_validations,
-         rejected_nodes \\ []
+         iteration \\ 1
        )
-
-  defp do_get_validation_nodes(
-         _tx,
-         _sorting_seed,
-         node_list,
-         _storage_nodes,
-         _validation_constraints,
-         _min_validations,
-         rejected_nodes
-       )
-       when length(node_list) == length(rejected_nodes) do
-    throw("Network issue - not more available validation nodes")
-  end
 
   defp do_get_validation_nodes(
          tx,
@@ -127,22 +116,21 @@ defmodule Archethic.Mining do
          storage_nodes,
          validation_constraints = %ValidationConstraints{},
          min_validations,
-         rejected_nodes
+         iteration
        ) do
     validation_nodes =
       Election.validation_nodes(
         tx,
         sorting_seed,
         node_list,
-        storage_nodes,
         validation_constraints,
-        rejected_nodes
+        iteration
       )
 
     %{available_nodes: available_nodes, unavailable_nodes: unavailable_nodes} =
       Enum.reduce(
         validation_nodes,
-        %{available_nodes: [], unavailable_nodes: rejected_nodes},
+        %{available_nodes: [], unavailable_nodes: []},
         fn node, acc ->
           if P2P.node_connected?(node) do
             Map.update!(acc, :available_nodes, &[node | &1])
@@ -152,19 +140,25 @@ defmodule Archethic.Mining do
         end
       )
 
-    nb_availables = length(available_nodes)
+    best_candidates = available_nodes -- storage_nodes
+    nb_best_candidates = length(best_candidates)
 
-    if nb_availables >= min_validations do
-      validation_nodes
+    if nb_best_candidates >= min_validations do
+      Enum.reverse(best_candidates)
     else
-      remaining_nodes = (node_list -- available_nodes) -- unavailable_nodes
+      # We don't have enough validation from the available validation nodes (best candidates: storage nodes reduced)
+      # If we still have some authorized nodes, we try to lower the geographical constraints to take more nodes
+      # Otherwise we take the available nodes (including the ones acting as the storage nodes)
+
+      remaining_nodes = (node_list -- best_candidates) -- unavailable_nodes
 
       nb_remaining_available_nodes =
         remaining_nodes
         |> Enum.filter(&P2P.node_connected?/1)
         |> Enum.count()
 
-      if nb_availables < min_validations and nb_remaining_available_nodes == 0 do
+      if (nb_best_candidates < min_validations and nb_remaining_available_nodes == 0) or
+           iteration == 3 do
         Enum.reverse(available_nodes)
       else
         do_get_validation_nodes(
@@ -174,7 +168,7 @@ defmodule Archethic.Mining do
           storage_nodes,
           validation_constraints,
           min_validations,
-          unavailable_nodes
+          iteration + 1
         )
       end
     end
@@ -190,15 +184,144 @@ defmodule Archethic.Mining do
   By using the sorted list of nodes, the check will be faster in most of cases, as the first nodes will be located at the head of the list
   """
   @spec valid_election?(
+          transaction :: Transaction.t(),
           validation_node_public_keys :: list(Crypto.key()),
           sorted_nodes :: list(Node.t())
         ) :: boolean()
-  def valid_election?(validation_node_public_keys, sorted_nodes)
+  def valid_election?(tx = %Transaction{}, validation_node_public_keys, sorted_nodes)
       when is_list(validation_node_public_keys) and is_list(sorted_nodes) do
-    Enum.all?(
-      validation_node_public_keys,
-      &Utils.key_in_node_list?(sorted_nodes, &1)
-    )
+    if Enum.all?(
+         validation_node_public_keys,
+         &Utils.key_in_node_list?(sorted_nodes, &1)
+       ) do
+      nb_nodes = length(sorted_nodes)
+
+      %ValidationConstraints{
+        min_validation_nodes: min_validation_nodes_fun,
+        validation_number: validation_number_fun,
+        min_geo_patch: min_geo_patch_fun
+      } = Election.get_validation_constraints()
+
+      nb_validations =
+        min(
+          Election.hypergeometric_distribution(nb_nodes),
+          validation_number_fun.(tx, nb_nodes)
+        )
+
+      patches =
+        sorted_nodes
+        |> Enum.map(& &1.geo_patch)
+        |> MapSet.new()
+
+      # We need to check if the number of patch is sufficient, this case might happens when all the nodes requested are in the same geo patch (ex: dev mode)
+      if MapSet.size(patches) > 1 do
+        min_geo_patch = min_geo_patch_fun.()
+
+        node_list = P2P.get_nodes_info(validation_node_public_keys)
+        min_nb_nodes = min_validation_nodes_fun.(nb_nodes)
+
+        validation_range = Range.new(min_nb_nodes, nb_validations)
+
+        valid_constraints_iterations?(node_list, validation_range, min_geo_patch, %{
+          zones: MapSet.new(),
+          nb_nodes: 0,
+          node_list: node_list
+        }) and ensure_order?(sorted_nodes, validation_node_public_keys)
+      else
+        ensure_order?(sorted_nodes, validation_node_public_keys)
+      end
+    end
+  end
+
+  # Ensure the nodes are sorted in the right order even if some jumps are present due to the unavailability of nodes
+  defp ensure_order?(sorted_nodes, validation_node_public_keys) do
+    sorted_nodes_numbered =
+      sorted_nodes
+      |> Enum.map(& &1.last_public_key)
+      |> Enum.with_index()
+      |> Enum.into(Map.new())
+
+    acc =
+      Enum.reduce_while(validation_node_public_keys, %{prev_index: -1}, fn node_public_key, acc ->
+        index = Map.get(sorted_nodes_numbered, node_public_key)
+
+        case acc do
+          %{prev_index: -1} ->
+            {:cont, Map.put(acc, :prev_index, index)}
+
+          %{prev_index: prev_index} when index <= prev_index ->
+            {:halt, %{invalid?: true}}
+
+          %{prev_index: prev_index} when index > prev_index ->
+            {:cont, Map.put(acc, :prev_index, index)}
+        end
+      end)
+
+    not Map.get(acc, :invalid?, false)
+  end
+
+  defp valid_constraints_iterations?(
+         node_list,
+         validation_range,
+         min_geo_patch,
+         acc,
+         iteration \\ 1
+       )
+
+  defp valid_constraints_iterations?(
+         [%Node{geo_patch: geo_patch} | r],
+         validation_range,
+         min_geo_patch,
+         acc = %{zones: zones},
+         iteration
+       ) do
+    {zone, _} = String.split_at(geo_patch, iteration)
+
+    if MapSet.member?(zones, zone) do
+      valid_constraints_iterations?(r, validation_range, min_geo_patch, acc, iteration)
+    else
+      new_acc =
+        acc
+        |> Map.update!(:nb_nodes, &(&1 + 1))
+        |> Map.update!(:zones, &MapSet.put(&1, zone))
+
+      valid_constraints_iterations?(r, validation_range, min_geo_patch, new_acc, iteration)
+    end
+  end
+
+  defp valid_constraints_iterations?(
+         _node_list,
+         _validation_range,
+         _min_geo_patch,
+         _acc,
+         _iterations = 4
+       ),
+       do: false
+
+  defp valid_constraints_iterations?(
+         [],
+         validation_range,
+         min_geo_patch,
+         acc = %{zones: zones, nb_nodes: nb_nodes, node_list: node_list},
+         iteration
+       ) do
+    # Check if the constraints are satisified
+    if MapSet.size(zones) >= min_geo_patch and nb_nodes in validation_range do
+      true
+    else
+      new_acc =
+        acc
+        |> Map.put(:zones, MapSet.new())
+        |> Map.put(:nb_nodes, 0)
+
+      valid_constraints_iterations?(
+        node_list,
+        validation_range,
+        min_geo_patch,
+        new_acc,
+        iteration + 1
+      )
+    end
   end
 
   @doc """
