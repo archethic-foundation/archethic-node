@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Scope
   alias Archethic.Contracts.Interpreter.CommonInterpreter
-
   require Logger
 
   @doc """

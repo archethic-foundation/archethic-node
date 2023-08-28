@@ -48,7 +48,9 @@ defmodule Archethic.Contracts.LoaderTest do
 
       assert %{
                contract: %Contract{
-                 triggers: %{transaction: _},
+                 triggers: %{
+                   {:transaction, nil, nil} => _
+                 },
                  constants: %ContractConstants{contract: %{"address" => ^contract_address}}
                }
              } = :sys.get_state(pid)
@@ -166,7 +168,9 @@ defmodule Archethic.Contracts.LoaderTest do
 
     assert %{
              contract: %Contract{
-               triggers: %{transaction: _},
+               triggers: %{
+                 {:transaction, nil, nil} => _
+               },
                constants: %ContractConstants{contract: %{"address" => ^contract_address}}
              }
            } = :sys.get_state(pid)

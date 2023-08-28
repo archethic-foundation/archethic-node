@@ -5,8 +5,6 @@ defmodule Archethic do
 
   alias Archethic.Account
   alias Archethic.BeaconChain
-  alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.Mining
@@ -377,71 +375,6 @@ defmodule Archethic do
         error
     end
   end
-
-  @doc """
-  Parse the given transaction and return a contract if successful
-  """
-  @spec parse_contract(Transaction.t()) :: {:ok, Contract.t()} | {:error, String.t()}
-  defdelegate parse_contract(contract_tx),
-    to: Contracts,
-    as: :from_transaction
-
-  @doc """
-  Verify if the condition of a contract is respected
-  """
-  @spec validate_contract_condition(
-          condition_type :: :oracle | :transaction | :inherit,
-          contract :: Contract.t(),
-          tx :: Transaction.t(),
-          timestamp :: DateTime.t()
-        ) ::
-          :ok
-          | {:error,
-             :invalid_inherit_constraints
-             | :invalid_transaction_constraints
-             | :invalid_oracle_constraints}
-  def validate_contract_condition(condition_type, contract, tx, timestamp) do
-    if Contracts.valid_condition?(condition_type, contract, tx, timestamp) do
-      :ok
-    else
-      case condition_type do
-        :inherit -> {:error, :invalid_inherit_constraints}
-        :transaction -> {:error, :invalid_transaction_constraints}
-        :oracle -> {:error, :invalid_oracle_constraints}
-      end
-    end
-  end
-
-  @doc """
-  Execute the contract trigger.
-  """
-  @spec execute_contract(
-          Contract.trigger_type(),
-          Contract.t(),
-          nil | Transaction.t()
-        ) ::
-          {:ok, nil | Transaction.t()}
-          | {:error, :contract_failure | :invalid_triggers_execution}
-  defdelegate execute_contract(trigger_type, contract, maybe_trigger_tx),
-    to: Contracts,
-    as: :execute_trigger
-
-  @doc """
-  Execute the function.
-  """
-  @spec execute_function(
-          Contract.t(),
-          :string,
-          list()
-        ) ::
-          result ::
-          any()
-          | {:error, :function_failure}
-          | {:error, :function_does_not_exist}
-          | {:error, :function_is_private}
-  defdelegate execute_function(contract, function_name, args),
-    to: Contracts,
-    as: :execute_function
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes

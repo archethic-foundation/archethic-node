@@ -16,6 +16,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.Utils
 
@@ -121,6 +122,7 @@ defmodule Archethic.Contracts.Interpreter do
           Contract.trigger_type(),
           Contract.t(),
           nil | Transaction.t(),
+          nil | Recipient.t(),
           execute_opts()
         ) ::
           {:ok, nil | Transaction.t()}
@@ -134,6 +136,7 @@ defmodule Archethic.Contracts.Interpreter do
           functions: functions
         },
         maybe_trigger_tx,
+        maybe_recipient,
         opts \\ []
       ) do
     case triggers[trigger_type] do
@@ -153,20 +156,24 @@ defmodule Archethic.Contracts.Interpreter do
           end
           |> DateTime.to_unix()
 
-        constants = %{
-          "transaction" =>
-            case maybe_trigger_tx do
-              nil ->
-                nil
+        named_action_constants = get_named_action_constants(trigger_type, maybe_recipient)
 
-              trigger_tx ->
-                # :oracle & :transaction
-                Constants.from_transaction(trigger_tx)
-            end,
-          "contract" => contract_constants,
-          :time_now => timestamp_now,
-          :functions => functions
-        }
+        constants =
+          named_action_constants
+          |> Map.merge(%{
+            "transaction" =>
+              case maybe_trigger_tx do
+                nil ->
+                  nil
+
+                trigger_tx ->
+                  # :oracle & :transaction
+                  Constants.from_transaction(trigger_tx)
+              end,
+            "contract" => contract_constants,
+            :time_now => timestamp_now,
+            :functions => functions
+          })
 
         result =
           case version do
@@ -177,7 +184,8 @@ defmodule Archethic.Contracts.Interpreter do
         {:ok, result}
     end
   rescue
-    _ ->
+    err ->
+      Logger.error(Exception.format(:error, err, __STACKTRACE__))
       # it's ok to loose the error because it's user-code
       {:error, :contract_failure}
   end
@@ -269,6 +277,31 @@ defmodule Archethic.Contracts.Interpreter do
   def format_error_reason(_node, reason) do
     do_format_error_reason(reason, "", [])
   end
+
+  @doc """
+  Return a map with the constants to be used for the named action arguments.
+
+  ## Examples
+
+      iex> Interpreter.get_named_action_constants({:transaction, "vote", ["candidate"]}, %Recipient{args: ["Williams"]})
+      %{"candidate" => "Williams"}
+
+      iex> Interpreter.get_named_action_constants({:transaction, nil, nil}, %Recipient{})
+      %{}
+  """
+  def get_named_action_constants(
+        {:transaction, _action, args_names},
+        %Recipient{
+          args: args_values
+        }
+      )
+      when is_list(args_names) do
+    args_names
+    |> Enum.zip(args_values)
+    |> Enum.into(%{})
+  end
+
+  def get_named_action_constants(_trigger_type, _recipient), do: %{}
 
   # ------------------------------------------------------------
   #              _            _
@@ -387,7 +420,7 @@ defmodule Archethic.Contracts.Interpreter do
 
   defp parse_ast(ast, _, _), do: {:error, ast, "unexpected term"}
 
-  defp time_now(:transaction, %Transaction{
+  defp time_now({:transaction, _, _}, %Transaction{
          validation_stamp: %ValidationStamp{timestamp: timestamp}
        }) do
     timestamp
@@ -430,15 +463,52 @@ defmodule Archethic.Contracts.Interpreter do
   defp check_contract_blocks(
          {:ok, contract = %Contract{triggers: triggers, conditions: conditions}}
        ) do
-    cond do
-      Map.has_key?(triggers, :transaction) and !Map.has_key?(conditions, :transaction) ->
-        {:error, "missing 'condition transaction' block"}
-
-      Map.has_key?(triggers, :oracle) and !Map.has_key?(conditions, :oracle) ->
-        {:error, "missing 'condition oracle' block"}
-
-      true ->
+    case do_check_contract_blocks(Map.keys(triggers), Map.keys(conditions)) do
+      :ok ->
         {:ok, contract}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp do_check_contract_blocks([], _conditions), do: :ok
+
+  defp do_check_contract_blocks([:oracle | rest], conditions) do
+    if :oracle in conditions do
+      do_check_contract_blocks(rest, conditions)
+    else
+      {:error, "missing 'condition oracle' block"}
+    end
+  end
+
+  defp do_check_contract_blocks([{:interval, _} | rest], conditions) do
+    do_check_contract_blocks(rest, conditions)
+  end
+
+  defp do_check_contract_blocks([{:datetime, _} | rest], conditions) do
+    do_check_contract_blocks(rest, conditions)
+  end
+
+  defp do_check_contract_blocks([{:transaction, action, args_names} | rest], conditions) do
+    arity = if is_list(args_names), do: length(args_names), else: 0
+
+    condition_exists? =
+      Enum.any?(conditions, fn
+        {:transaction, ^action, ^args_names} -> true
+        {:transaction, ^action, args} when length(args) == arity -> true
+        _ -> false
+      end)
+
+    if condition_exists? do
+      do_check_contract_blocks(rest, conditions)
+    else
+      if action == nil && args_names == nil do
+        {:error, "missing 'condition transaction' block"}
+      else
+        {:error,
+         "missing 'condition transaction, on: #{action}(#{Enum.join(args_names, ", ")})' block"}
+      end
     end
   end
 end

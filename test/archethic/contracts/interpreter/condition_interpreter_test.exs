@@ -37,7 +37,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction: [      ]
       """
 
-      assert {:ok, :transaction, %Conditions{}} =
+      assert {:ok, {:transaction, nil, nil}, %Conditions{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -77,7 +77,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, :transaction, %Conditions{content: ast}} =
+      assert {:ok, {:transaction, nil, nil}, %Conditions{content: ast}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -93,7 +93,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, :transaction, %Conditions{uco_transfers: ast}} =
+      assert {:ok, {:transaction, nil, nil}, %Conditions{uco_transfers: ast}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -123,7 +123,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, :transaction, %Conditions{uco_transfers: ast}} =
+      assert {:ok, {:transaction, nil, nil}, %Conditions{uco_transfers: ast}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -140,7 +140,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, :transaction, %Conditions{content: true}} =
+      assert {:ok, {:transaction, nil, nil}, %Conditions{content: true}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -154,7 +154,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, :transaction, %Conditions{content: false}} =
+      assert {:ok, {:transaction, nil, nil}, %Conditions{content: false}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -168,11 +168,57 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, :transaction, %Conditions{content: {:__block__, _, _}}} =
+      assert {:ok, {:transaction, nil, nil}, %Conditions{content: {:__block__, _, _}}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> ConditionInterpreter.parse([])
+    end
+
+    test "parse named action 0 arg" do
+      code = ~s"""
+      condition transaction, on: upgrade, as: []
+      """
+
+      assert {:ok, {:transaction, "upgrade", []}, %Conditions{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
+    test "parse named action 1 arg" do
+      code = ~s"""
+      condition transaction, on: vote(candidate), as: []
+      """
+
+      assert {:ok, {:transaction, "vote", ["candidate"]}, %Conditions{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
+    test "parse named action n args" do
+      code = ~s"""
+      condition transaction, on: count(x, y), as: []
+      """
+
+      assert {:ok, {:transaction, "count", ["x", "y"]}, %Conditions{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
+    test "should not parse action > 255 byte" do
+      code = ~s"""
+      condition transaction, on: abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv(x, y), as: []
+      """
+
+      assert {:error, {_, "atom length must be less" <> _, _}} =
+               code
+               |> Interpreter.sanitize_code()
     end
   end
 end

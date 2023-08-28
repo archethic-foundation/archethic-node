@@ -19,6 +19,7 @@ defmodule Archethic.Contracts do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   require Logger
 
@@ -47,13 +48,20 @@ defmodule Archethic.Contracts do
           Contract.trigger_type(),
           Contract.t(),
           nil | Transaction.t(),
+          nil | Recipient.t(),
           Keyword.t()
         ) ::
           {:ok, nil | Transaction.t()}
           | {:error, :contract_failure | :invalid_triggers_execution}
-  defdelegate execute_trigger(trigger_type, contract, maybe_trigger_tx, opts \\ []),
-    to: Interpreter,
-    as: :execute_trigger
+  defdelegate execute_trigger(
+                trigger_type,
+                contract,
+                maybe_trigger_tx,
+                maybe_recipient,
+                opts \\ []
+              ),
+              to: Interpreter,
+              as: :execute_trigger
 
   @doc """
   Execute contract's function
@@ -148,9 +156,10 @@ defmodule Archethic.Contracts do
     with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
          {:ok, contract} <- from_transaction(prev_tx) do
       case execute_trigger(
-             trigger_to_trigger_type(trigger),
+             trigger_to_trigger_type(trigger, contract),
              contract,
              maybe_trigger_tx,
+             trigger_to_recipient(trigger),
              trigger_to_execute_opts(trigger)
            ) do
         {:ok, %Transaction{type: expected_type, data: expected_data}} ->
@@ -174,10 +183,19 @@ defmodule Archethic.Contracts do
       false
   end
 
-  defp trigger_to_trigger_type({:transaction, _}), do: :transaction
-  defp trigger_to_trigger_type({:oracle, _}), do: :oracle
-  defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
-  defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
+  defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
+  defp trigger_to_recipient(_), do: nil
+
+  defp trigger_to_trigger_type({:oracle, _}, _contract), do: :oracle
+  defp trigger_to_trigger_type({:datetime, datetime}, _contract), do: {:datetime, datetime}
+  defp trigger_to_trigger_type({:interval, cron, _datetime}, _contract), do: {:interval, cron}
+
+  defp trigger_to_trigger_type(
+         {:transaction, _, recipient = %Recipient{}},
+         contract
+       ) do
+    Contract.get_trigger_for_recipient(contract, recipient)
+  end
 
   # In the case of a trigger interval,
   # because of the delay between execution and validation,
@@ -190,24 +208,37 @@ defmodule Archethic.Contracts do
   The transaction and datetime depends on the condition.
   """
   @spec valid_condition?(
-          :oracle | :transaction | :inherit,
+          Contract.condition_type(),
           Contract.t(),
           Transaction.t(),
+          nil | Recipient.t(),
           DateTime.t()
         ) :: boolean()
+
   def valid_condition?(
         condition_type,
         contract = %Contract{version: version, conditions: conditions},
         transaction = %Transaction{},
+        maybe_recipient,
         datetime
       ) do
     case Map.get(conditions, condition_type) do
       nil ->
-        true
+        # only inherit condition are optional
+        condition_type == :inherit
 
       condition ->
-        constants = get_condition_constants(condition_type, contract, transaction, datetime)
-        Interpreter.valid_conditions?(version, condition, constants)
+        named_action_constants =
+          Interpreter.get_named_action_constants(condition_type, maybe_recipient)
+
+        condition_constants =
+          get_condition_constants(condition_type, contract, transaction, datetime)
+
+        Interpreter.valid_conditions?(
+          version,
+          condition,
+          Map.merge(named_action_constants, condition_constants)
+        )
     end
   rescue
     _ ->
@@ -239,7 +270,11 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp validate_trigger({:transaction, address}, _validation_datetime, contract_address) do
+  defp validate_trigger(
+         {:transaction, address, _recipient},
+         _validation_datetime,
+         contract_address
+       ) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     case TransactionChain.fetch_transaction(address, storage_nodes) do

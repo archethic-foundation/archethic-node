@@ -21,7 +21,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
   test "should parse a contract with some standard functions" do
     assert {
              :ok,
-             :transaction,
+             {:transaction, nil, nil},
              {
                :__block__,
                [],
@@ -457,7 +457,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
 
   describe "blacklist" do
     test "should parse when arguments are allowed" do
-      assert {:ok, :transaction, _ast} =
+      assert {:ok, {:transaction, nil, nil}, _ast} =
                ~S"""
                actions triggered_by: transaction do
                  add_uco_transfer to: "ABC123", amount: 64
@@ -471,7 +471,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
     end
 
     test "should parse when arguments are variables" do
-      assert {:ok, :transaction, _ast} =
+      assert {:ok, {:transaction, nil, nil}, _ast} =
                ~S"""
                actions triggered_by: transaction do
                  address = "ABC123"
@@ -486,7 +486,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
     end
 
     test "should parse when arguments are fields" do
-      assert {:ok, :transaction, _ast} =
+      assert {:ok, {:transaction, nil, nil}, _ast} =
                ~S"""
                actions triggered_by: transaction do
                  add_uco_transfer to: transaction.address, amount: 64
@@ -500,7 +500,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
     end
 
     test "should parse when arguments are functions" do
-      assert {:ok, :transaction, _ast} =
+      assert {:ok, {:transaction, nil, nil}, _ast} =
                ~S"""
                actions triggered_by: transaction do
                  add_uco_transfer to: regex_extract("@addr", ".*"), amount: 64
@@ -514,7 +514,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
     end
 
     test "should parse when arguments are string interpolation" do
-      assert {:ok, :transaction, _ast} =
+      assert {:ok, {:transaction, nil, nil}, _ast} =
                ~S"""
                actions triggered_by: transaction do
                  name = "sophia"
@@ -529,7 +529,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreterTest do
     end
 
     test "should parse when building a keyword list" do
-      assert {:ok, :transaction, _ast} =
+      assert {:ok, {:transaction, nil, nil}, _ast} =
                ~S"""
                actions triggered_by: transaction do
                  uco_transfer = [to: "ABC123", amount: 33]

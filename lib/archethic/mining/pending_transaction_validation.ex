@@ -30,6 +30,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
@@ -466,7 +467,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          tx = %Transaction{
            type: :code_approval,
            data: %TransactionData{
-             recipients: [proposal_address]
+             recipients: [%Recipient{address: proposal_address}]
            }
          },
          _

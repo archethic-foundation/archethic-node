@@ -10,6 +10,8 @@ defmodule Archethic.Contracts.Contract.Context do
 
   alias Archethic.Crypto
   alias Archethic.Utils
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   @enforce_keys [:status, :trigger, :timestamp]
   defstruct [
@@ -24,8 +26,8 @@ defmodule Archethic.Contracts.Contract.Context do
   Think of trigger as an "instance" of a trigger_type
   """
   @type trigger ::
-          {:transaction, Crypto.prepended_hash()}
-          | {:oracle, Crypto.prepended_hash()}
+          {:oracle, Crypto.prepended_hash()}
+          | {:transaction, Crypto.prepended_hash(), Recipient.t()}
           | {:datetime, DateTime.t()}
           | {:interval, String.t(), DateTime.t()}
 
@@ -42,12 +44,12 @@ defmodule Archethic.Contracts.Contract.Context do
         timestamp: timestamp
       }) do
     <<serialize_status(status)::8, DateTime.to_unix(timestamp, :millisecond)::64,
-      serialize_trigger(trigger)::binary>>
+      serialize_trigger(trigger)::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<rest::bitstring>>) do
-    {status, <<timestamp::64, rest::binary>>} = deserialize_status(rest)
+    {status, <<timestamp::64, rest::bitstring>>} = deserialize_status(rest)
 
     {trigger, rest} = deserialize_trigger(rest)
 
@@ -62,15 +64,11 @@ defmodule Archethic.Contracts.Contract.Context do
   defp serialize_status(:tx_output), do: 1
   defp serialize_status(:failure), do: 2
 
-  defp deserialize_status(<<0::8, rest::binary>>), do: {:no_output, rest}
-  defp deserialize_status(<<1::8, rest::binary>>), do: {:tx_output, rest}
-  defp deserialize_status(<<2::8, rest::binary>>), do: {:failure, rest}
+  defp deserialize_status(<<0::8, rest::bitstring>>), do: {:no_output, rest}
+  defp deserialize_status(<<1::8, rest::bitstring>>), do: {:tx_output, rest}
+  defp deserialize_status(<<2::8, rest::bitstring>>), do: {:failure, rest}
 
   ##
-  defp serialize_trigger({:transaction, address}) do
-    <<0::8, address::binary>>
-  end
-
   defp serialize_trigger({:oracle, address}) do
     <<1::8, address::binary>>
   end
@@ -84,24 +82,34 @@ defmodule Archethic.Contracts.Contract.Context do
     <<3::8, cron_size::16, cron::binary, DateTime.to_unix(datetime)::64>>
   end
 
-  ##
-  defp deserialize_trigger(<<0::8, rest::binary>>) do
-    {tx_address, rest} = Utils.deserialize_address(rest)
-    {{:transaction, tx_address}, rest}
+  defp serialize_trigger({:transaction, address, recipient}) do
+    tx_version = Transaction.version()
+    recipient_bin = Recipient.serialize(recipient, tx_version)
+    <<4::8, address::binary, recipient_bin::bitstring>>
   end
 
-  defp deserialize_trigger(<<1::8, rest::binary>>) do
+  ##
+  defp deserialize_trigger(<<1::8, rest::bitstring>>) do
     {tx_address, rest} = Utils.deserialize_address(rest)
     {{:oracle, tx_address}, rest}
   end
 
-  defp deserialize_trigger(<<2::8, timestamp::64, rest::binary>>) do
+  defp deserialize_trigger(<<2::8, timestamp::64, rest::bitstring>>) do
     {{:datetime, DateTime.from_unix!(timestamp)}, rest}
   end
 
-  defp deserialize_trigger(<<3::8, cron_size::16, rest::binary>>) do
-    <<cron::binary-size(cron_size), timestamp::64, rest::binary>> = rest
+  defp deserialize_trigger(<<3::8, cron_size::16, rest::bitstring>>) do
+    <<cron::binary-size(cron_size), timestamp::64, rest::bitstring>> = rest
 
     {{:interval, cron, DateTime.from_unix!(timestamp)}, rest}
+  end
+
+  defp deserialize_trigger(<<4::8, rest::bitstring>>) do
+    tx_version = Transaction.version()
+
+    {tx_address, rest} = Utils.deserialize_address(rest)
+    {recipient, rest} = Recipient.deserialize(rest, tx_version)
+
+    {{:transaction, tx_address, recipient}, rest}
   end
 end

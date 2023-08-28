@@ -84,7 +84,20 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  |_|
   # ----------------------------------------------------------------------
   defp extract_trigger([{{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}}]) do
-    :transaction
+    {:transaction, nil, nil}
+  end
+
+  defp extract_trigger([
+         {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
+         {{:atom, "on"}, {{:atom, action_name}, _, args}}
+       ]) do
+    args =
+      case args do
+        nil -> []
+        _ -> Enum.map(args, fn {{:atom, arg_name}, _, nil} -> arg_name end)
+      end
+
+    {:transaction, action_name, args}
   end
 
   defp extract_trigger([{{:atom, "triggered_by"}, {{:atom, "oracle"}, _, nil}}]) do
@@ -148,11 +161,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/|_|  \___| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # # autorize the use of modules whitelisted
-  # defp prewalk(node = {:__aliases__, _, [atom: module_name]}, acc)
-  #      when module_name in @modules_whitelisted,
-  #      do: {node, acc}
-
   defp prewalk(
          node,
          acc
@@ -168,7 +176,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   #  | .__/ \___/|___/\__| \_/\_/ \__,_|_|_|\_\
   #  |_|
   # ----------------------------------------------------------------------
-  # --------------- catch all -------------------
   defp postwalk(node, acc) do
     CommonInterpreter.postwalk(node, acc)
   end

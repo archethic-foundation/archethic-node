@@ -59,6 +59,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     field(:content, :content)
     field(:ownerships, list_of(:ownership))
     field(:recipients, list_of(:address))
+    field(:action_recipients, list_of(:recipient))
   end
 
   @desc "[Ledger] represents the ledger operations to perform"
@@ -105,6 +106,18 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
         {:ok, formatted_authorized_keys}
       end)
     end
+  end
+
+  @desc "[Recipient] represents a Smart Contract call"
+  object :recipient do
+    field(:address, :hex)
+    field(:action, :string)
+    field(:args, :recipient_args)
+  end
+
+  @desc "[Recipient Args] represents the args of a named action call"
+  scalar :recipient_args do
+    serialize(& &1)
   end
 
   @desc """

@@ -8,10 +8,40 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   doctest ValidateSmartContractCall
 
   import Mox
+  import ArchethicCase
+
+  describe "serialize/deserialize" do
+    test "should work with unnamed action" do
+      msg = %ValidateSmartContractCall{
+        recipient: %Recipient{address: random_address()},
+        transaction: Archethic.TransactionFactory.create_valid_transaction(),
+        inputs_before: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      assert {^msg, <<>>} =
+               msg
+               |> ValidateSmartContractCall.serialize()
+               |> ValidateSmartContractCall.deserialize()
+    end
+
+    test "should work with named action" do
+      msg = %ValidateSmartContractCall{
+        recipient: %Recipient{address: random_address(), action: "do_it", args: []},
+        transaction: Archethic.TransactionFactory.create_valid_transaction(),
+        inputs_before: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      assert {^msg, <<>>} =
+               msg
+               |> ValidateSmartContractCall.serialize()
+               |> ValidateSmartContractCall.deserialize()
+    end
+  end
 
   describe "process/2" do
     setup do
@@ -58,14 +88,51 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       assert %SmartContractCallValidation{valid?: true} =
                %ValidateSmartContractCall{
-                 contract_address: "@SC1",
+                 recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
 
-    test "should validate smart contract that does not have a transaction trigger" do
+    test "should validate smart contract call with named action and return valid message" do
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{
+             code: ~s"""
+             @version 1
+
+             condition transaction, on: upgrade(), as: []
+             actions triggered_by: transaction, on: upgrade() do
+               Contract.set_code transaction.content
+             end
+             """
+           }
+         }}
+      end)
+
+      incoming_tx = %Transaction{
+        data: %TransactionData{
+          content: "hola"
+        }
+      }
+
+      assert %SmartContractCallValidation{valid?: true} =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{
+                   address: "@SC1",
+                   action: "upgrade",
+                   args: []
+                 },
+                 transaction: incoming_tx,
+                 inputs_before: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should NOT validate smart contract that does not have a transaction trigger" do
       MockDB
       |> expect(:get_transaction, fn "@SC1", _, _ ->
         {:ok,
@@ -88,9 +155,9 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
         }
       }
 
-      assert %SmartContractCallValidation{valid?: true} =
+      assert %SmartContractCallValidation{valid?: false} =
                %ValidateSmartContractCall{
-                 contract_address: "@SC1",
+                 recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
@@ -126,7 +193,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       assert %SmartContractCallValidation{valid?: false} =
                %ValidateSmartContractCall{
-                 contract_address: "@SC1",
+                 recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }

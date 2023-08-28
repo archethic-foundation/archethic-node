@@ -1,5 +1,6 @@
 defmodule Archethic.Mining.ValidationContextTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Crypto
 
@@ -23,6 +24,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   doctest ValidationContext
 
@@ -47,6 +49,37 @@ defmodule Archethic.Mining.ValidationContextTest do
         |> ValidationContext.create_validation_stamp()
 
       assert validation_context.validation_stamp.error == :insufficient_funds
+    end
+
+    test "should get error when the recipients are not distinct/unique" do
+      contract_address1 = random_address()
+      contract_address2 = random_address()
+      latest_contract_address = random_address()
+
+      validation_context =
+        %ValidationContext{
+          create_context()
+          | unspent_outputs: [],
+            resolved_addresses: [
+              {contract_address1, latest_contract_address},
+              {contract_address2, latest_contract_address}
+            ],
+            transaction:
+              Transaction.new(
+                :transfer,
+                %TransactionData{
+                  recipients: [
+                    %Recipient{address: contract_address1},
+                    %Recipient{address: contract_address2}
+                  ]
+                },
+                "seed",
+                0
+              )
+        }
+        |> ValidationContext.create_validation_stamp()
+
+      assert validation_context.validation_stamp.error == :recipients_not_distinct
     end
 
     test "should get inconsistency when the validation stamp signature is invalid" do

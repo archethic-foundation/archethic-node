@@ -43,7 +43,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -58,7 +58,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -159,7 +159,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -173,7 +173,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -187,7 +187,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -202,7 +202,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -259,7 +259,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -275,7 +275,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -340,7 +340,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -354,7 +354,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -370,7 +370,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -387,7 +387,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -404,7 +404,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -420,7 +420,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -436,7 +436,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -456,7 +456,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -470,7 +470,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {:ok, :transaction, _} =
+      assert {:ok, {:transaction, nil, nil}, _} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -513,6 +513,58 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
                |> elem(1)
                # mark as existing
                |> ActionInterpreter.parse([{"hello", 0, :private}])
+    end
+
+    test "should be able to use named action without argument" do
+      code = ~S"""
+      actions triggered_by: transaction, on: upgrade do
+        Contract.set_code transaction.content
+      end
+      """
+
+      assert {:ok, {:transaction, "upgrade", []}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse([])
+    end
+
+    test "should be able to use named action with arguments" do
+      code = ~S"""
+      actions triggered_by: transaction, on: vote(candidate) do
+        Contract.set_content "..."
+      end
+      """
+
+      assert {:ok, {:transaction, "vote", ["candidate"]}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse([])
+
+      code = ~S"""
+      actions triggered_by: transaction, on: count(x, y) do
+        Contract.set_content "..."
+      end
+      """
+
+      assert {:ok, {:transaction, "count", ["x", "y"]}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ActionInterpreter.parse([])
+    end
+
+    test "should not parse action > 255 byte" do
+      code = ~s"""
+      actions triggered_by: transaction, on: abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv(x, y) do
+        Contract.set_content "..."
+      end
+      """
+
+      assert {:error, {_, "atom length must be less" <> _, _}} =
+               code
+               |> Interpreter.sanitize_code()
     end
   end
 
@@ -977,6 +1029,19 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       """
 
       assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+    end
+
+    test "should be able to use named action arguments from the block" do
+      code = ~s"""
+      actions triggered_by: transaction, on: vote(candidate) do
+        if candidate == "Mr. T" do
+          Contract.set_content "ok"
+        end
+      end
+      """
+
+      assert %Transaction{data: %TransactionData{content: "ok"}} =
+               sanitize_parse_execute(code, %{"candidate" => "Mr. T"})
     end
   end
 

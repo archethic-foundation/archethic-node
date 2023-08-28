@@ -74,6 +74,7 @@ defmodule Archethic.Replication.TransactionValidator do
          :inherit,
          Contract.from_transaction!(prev_tx),
          next_tx,
+         nil,
          validation_time
        ) do
       :ok

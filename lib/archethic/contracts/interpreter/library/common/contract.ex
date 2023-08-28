@@ -7,8 +7,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   @behaviour Archethic.Contracts.Interpreter.Library
 
   alias Archethic.Contracts.Interpreter.Library
+  alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
   alias Archethic.Utils
   alias Archethic.Tag
@@ -40,14 +42,45 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
     to: TransactionStatements
 
   @tag [:write_contract]
-  @spec add_recipient(Transaction.t(), binary()) :: Transaction.t()
-  defdelegate add_recipient(next_tx, args),
-    to: TransactionStatements
+  @spec add_recipient(Transaction.t(), binary() | map()) :: Transaction.t()
+  def add_recipient(next_tx = %Transaction{}, address) when is_binary(address) do
+    add_recipient(next_tx, %{
+      "address" => address,
+      "action" => nil,
+      "args" => nil
+    })
+  end
+
+  def add_recipient(next_tx = %Transaction{}, %{
+        "address" => recipient_address,
+        "action" => action,
+        "args" => args
+      })
+      when is_binary(recipient_address) and
+             (is_binary(action) or is_nil(action)) and
+             (is_list(args) or is_nil(args)) do
+    recipient_address = UtilsInterpreter.get_address(recipient_address, :add_recipient)
+
+    recipient = %Recipient{
+      address: recipient_address,
+      action: action,
+      args: args
+    }
+
+    update_in(
+      next_tx,
+      [Access.key(:data), Access.key(:recipients)],
+      &[recipient | &1]
+    )
+  end
+
+  def add_recipient(_, _), do: raise("invalid recipient")
 
   @tag [:write_contract]
   @spec add_recipients(Transaction.t(), list(binary())) :: Transaction.t()
-  defdelegate add_recipients(next_tx, args),
-    to: TransactionStatements
+  def add_recipients(next_tx = %Transaction{}, args) when is_list(args) do
+    Enum.reduce(args, next_tx, &add_recipient(&2, &1))
+  end
 
   @tag [:write_contract]
   @spec add_uco_transfer(Transaction.t(), map()) :: Transaction.t()
@@ -119,7 +152,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   end
 
   def check_types(:add_recipient, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    AST.is_binary?(first) || AST.is_map?(first) || AST.is_variable_or_function_call?(first)
   end
 
   def check_types(:add_recipients, [first]) do

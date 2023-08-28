@@ -1,6 +1,7 @@
 defmodule Archethic.Contracts.InterpreterTest do
   @moduledoc false
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter
@@ -9,6 +10,7 @@ defmodule Archethic.Contracts.InterpreterTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   doctest Interpreter
 
@@ -249,6 +251,35 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
     end
+
+    test "should return an human readable error 'condition transaction, on: xxx' block is missing" do
+      assert {:error, "missing 'condition transaction, on: upgrade()' block"} =
+               """
+               @version 1
+               actions triggered_by: transaction, on: upgrade() do
+                Contract.set_code transaction.content
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "missing 'condition transaction, on: vote(x, y)' block"} =
+               """
+               @version 1
+               actions triggered_by: transaction, on: vote(x, y) do
+                Contract.set_code transaction.content
+               end
+               """
+               |> Interpreter.parse()
+
+      assert {:error, "missing 'condition transaction, on: vote(x, y)' block"} =
+               """
+               @version 1
+               actions triggered_by: transaction, on: vote(x,y) do
+                Contract.set_code transaction.content
+               end
+               """
+               |> Interpreter.parse()
+    end
   end
 
   describe "parse code v0" do
@@ -286,7 +317,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
   end
 
-  describe "execute_trigger/4" do
+  describe "execute_trigger/5" do
     test "should return a transaction if the contract is correct and there was a Contract.* call" do
       code = """
         @version 1
@@ -311,9 +342,10 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
 
       code = """
@@ -346,9 +378,10 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -386,9 +419,10 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -421,9 +455,10 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:error, _} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
 
       code = """
@@ -459,9 +494,10 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:error, _} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -498,9 +534,10 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, _} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -540,9 +577,10 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -581,9 +619,10 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -625,9 +664,10 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -665,9 +705,10 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -705,9 +746,10 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -737,9 +779,10 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       assert {:ok, nil} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
     end
 
@@ -770,9 +813,10 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert match?(
                {:error, :contract_failure},
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
              )
 
@@ -795,9 +839,10 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert match?(
                {:error, :contract_failure},
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil
                )
              )
     end
@@ -821,6 +866,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:datetime, ~U[2023-03-16 16:29:00Z]},
                  Contract.from_transaction!(contract_tx),
+                 nil,
                  nil
                )
     end
@@ -844,6 +890,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:interval, "* * * * *"},
                  Contract.from_transaction!(contract_tx),
+                 nil,
                  nil
                )
     end
@@ -874,16 +921,58 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
-                 oracle_tx
+                 oracle_tx,
+                 nil
                )
     end
 
-    test "Should not be able to overwrite protected gloabal variables" do
+    test "should be able to use a named action argument in the action & condition blocks" do
+      code = """
+        @version 1
+        condition transaction, on: vote(candidate), as: [
+          content: candidate == "Dr. Who?"
+        ]
+        actions triggered_by: transaction, on: vote(candidate) do
+          Contract.set_content candidate
+        end
+      """
+
+      address = random_address()
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: address,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        type: :data,
+        data: %TransactionData{
+          recipients: [
+            %Recipient{address: address, action: "vote", args: ["Dr. Who?"]},
+            %Recipient{address: random_address()}
+          ]
+        },
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, %Transaction{data: %TransactionData{content: "Dr. Who?"}}} =
+               Interpreter.execute_trigger(
+                 {:transaction, "vote", ["candidate"]},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 List.first(trigger_tx.data.recipients)
+               )
+    end
+
+    test "Should not be able to overwrite protected global variables" do
       code = """
         @version 1
         condition transaction: []
         actions triggered_by: transaction do
-          time_now = "fast forward"
+          time_now = 2_000_000_000
           Contract.set_content Time.now()
         end
       """
@@ -901,6 +990,8 @@ defmodule Archethic.Contracts.InterpreterTest do
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
       assert {:ok,
               %Transaction{
                 data: %TransactionData{
@@ -908,12 +999,90 @@ defmodule Archethic.Contracts.InterpreterTest do
                 }
               }} =
                Interpreter.execute_trigger(
-                 :transaction,
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx
+                 incoming_tx,
+                 nil,
+                 time_now: now
                )
 
-      assert content != "fast forward"
+      assert String.to_integer(content) == DateTime.to_unix(now)
+    end
+
+    test "should be able to use a named action arguments in the action & condition blocks" do
+      code = """
+        @version 1
+        condition transaction, on: add(x, y), as: []
+        actions triggered_by: transaction, on: add(x, y) do
+          Contract.set_content x + y
+        end
+      """
+
+      address = random_address()
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: address,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        type: :data,
+        data: %TransactionData{
+          recipients: [
+            %Recipient{address: address, action: "add", args: [1, 2]}
+          ]
+        },
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
+               Interpreter.execute_trigger(
+                 {:transaction, "add", ["x", "y"]},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 List.first(trigger_tx.data.recipients)
+               )
+    end
+
+    test "should be able to have different spacing in condition & actions named action" do
+      code = """
+        @version 1
+        condition transaction, on: add(x,      y), as: []
+        actions triggered_by: transaction, on: add(x,y) do
+          Contract.set_content x + y
+        end
+      """
+
+      address = random_address()
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: address,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      trigger_tx = %Transaction{
+        type: :data,
+        data: %TransactionData{
+          recipients: [
+            %Recipient{address: address, action: "add", args: [1, 2]}
+          ]
+        },
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
+               Interpreter.execute_trigger(
+                 {:transaction, "add", ["x", "y"]},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 List.first(trigger_tx.data.recipients)
+               )
     end
   end
 

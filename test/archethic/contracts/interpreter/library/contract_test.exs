@@ -11,6 +11,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
@@ -308,7 +309,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
   # ----------------------------------------
   describe "add_recipient/2" do
-    test "should work with keyword" do
+    test "should work with a base16 address" do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       code = ~s"""
@@ -319,7 +320,30 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
       assert %Transaction{
                data: %TransactionData{
-                 recipients: [^address]
+                 recipients: [%Recipient{address: ^address}]
+               }
+             } = sanitize_parse_execute(code)
+    end
+
+    test "should work with a recipient struct" do
+      address = random_address()
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        recipient = [address: "#{Base.encode16(address)}", action: "vote", args: ["Mr. Zero"]]
+        Contract.add_recipient(recipient)
+      end
+      """
+
+      assert %Transaction{
+               data: %TransactionData{
+                 recipients: [
+                   %Recipient{
+                     address: ^address,
+                     action: "vote",
+                     args: ["Mr. Zero"]
+                   }
+                 ]
                }
              } = sanitize_parse_execute(code)
     end
@@ -337,7 +361,10 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
       assert %Transaction{
                data: %TransactionData{
-                 recipients: [^address2, ^address]
+                 recipients: [
+                   %Recipient{address: ^address2},
+                   %Recipient{address: ^address}
+                 ]
                }
              } = sanitize_parse_execute(code)
     end
@@ -354,9 +381,24 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
       assert %Transaction{
                data: %TransactionData{
-                 recipients: [^address]
+                 recipients: [%Recipient{address: ^address}]
                }
              } = sanitize_parse_execute(code)
+    end
+
+    test "should fail when recipient is invalid" do
+      address = random_address()
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        recipient = [address: "#{Base.encode16(address)}", args: ["Mr. Zero"]]
+        Contract.add_recipient(recipient)
+      end
+      """
+
+      assert_raise(RuntimeError, fn ->
+        sanitize_parse_execute(code)
+      end)
     end
   end
 
@@ -522,7 +564,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
   # ----------------------------------------
   describe "add_recipients/2" do
-    test "should work" do
+    test "should work with binaries" do
       address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -535,7 +577,38 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
       assert %Transaction{
                data: %TransactionData{
-                 recipients: [^address2, ^address]
+                 recipients: [
+                   %Recipient{address: ^address2},
+                   %Recipient{address: ^address}
+                 ]
+               }
+             } = sanitize_parse_execute(code)
+    end
+
+    test "should work with mix of structs & binaries" do
+      address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      code = ~s"""
+      actions triggered_by: transaction do
+        recipients = [
+          [address: "#{Base.encode16(address)}", action: "vote", args: ["Mr. Zero"]],
+          "#{Base.encode16(address2)}"
+        ]
+        Contract.add_recipients(recipients)
+      end
+      """
+
+      assert %Transaction{
+               data: %TransactionData{
+                 recipients: [
+                   %Recipient{address: ^address2},
+                   %Recipient{
+                     address: ^address,
+                     action: "vote",
+                     args: ["Mr. Zero"]
+                   }
+                 ]
                }
              } = sanitize_parse_execute(code)
     end

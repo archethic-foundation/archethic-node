@@ -1,8 +1,11 @@
 defmodule ArchethicWeb.API.REST.TransactionController do
-  @moduledoc false
+  @moduledoc """
+  DEPRECATED. WILL BE REPLACED BY JSONRPC API
+  """
 
   use ArchethicWeb.API, :controller
 
+  alias Archethic.Contracts
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -155,6 +158,9 @@ defmodule ArchethicWeb.API.REST.TransactionController do
             %Transaction{tx | validation_stamp: ValidationStamp.generate_dummy()}
           end)
 
+        # for now the Simulate Contract Execution does not work with named action
+        recipients = Enum.map(recipients, & &1.address)
+
         results =
           Task.Supervisor.async_stream_nolink(
             Archethic.TaskSupervisor,
@@ -226,8 +232,9 @@ defmodule ArchethicWeb.API.REST.TransactionController do
 
   defp fetch_recipient_tx_and_simulate(recipient_address, trigger_tx) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
-         {:ok, contract} <- Archethic.parse_contract(contract_tx),
-         {:ok, _} <- Archethic.execute_contract(:transaction, contract, trigger_tx) do
+         {:ok, contract} <- Contracts.from_transaction(contract_tx),
+         {:ok, _} <-
+           Contracts.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil) do
       :ok
     else
       # search_transaction errors

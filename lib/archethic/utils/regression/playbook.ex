@@ -9,6 +9,7 @@ defmodule Archethic.Utils.Regression.Playbook do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
@@ -384,7 +385,22 @@ defmodule Archethic.Utils.Regression.Playbook do
         },
         "code" => code,
         "content" => Base.encode16(content),
-        "recipients" => Enum.map(recipients, &Base.encode16(&1)),
+        "recipients" =>
+          case version do
+            1 ->
+              Enum.map(recipients, fn address ->
+                %{"address" => Base.encode16(address)}
+              end)
+
+            2 ->
+              Enum.map(recipients, fn %Recipient{address: address, action: action, args: args} ->
+                %{
+                  "address" => Base.encode16(address),
+                  "action" => action,
+                  "args" => args
+                }
+              end)
+          end,
         "ownerships" =>
           Enum.map(ownerships, fn %Ownership{
                                     secret: secret,

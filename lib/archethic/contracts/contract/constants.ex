@@ -63,7 +63,7 @@ defmodule Archethic.Contracts.ContractConstants do
         Enum.flat_map(ownerships, &Ownership.list_authorized_public_keys(&1)),
       "secrets" => Enum.map(ownerships, & &1.secret),
       "previous_public_key" => previous_public_key,
-      "recipients" => recipients,
+      "recipients" => Enum.map(recipients, & &1.address),
       "uco_transfers" =>
         Enum.reduce(uco_transfers, %{}, fn %UCOTransfer{to: to, amount: amount}, acc ->
           Map.update(acc, to, amount, &(&1 + amount))

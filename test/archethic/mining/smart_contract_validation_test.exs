@@ -7,6 +7,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
   alias Archethic.P2P.Message.ValidateSmartContractCall
   alias Archethic.P2P.Node
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   import Mox
 
@@ -16,7 +17,10 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       |> stub(
         :send_message,
         fn
-          _, %ValidateSmartContractCall{contract_address: "@SC1"}, _ ->
+          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
+            {:ok, %SmartContractCallValidation{valid?: true}}
+
+          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
             {:ok, %SmartContractCallValidation{valid?: true}}
         end
       )
@@ -35,7 +39,14 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node)
 
       assert SmartContractValidation.valid_contract_calls?(
-               ["@SC1"],
+               [
+                 %Recipient{address: "@SC1"},
+                 %Recipient{
+                   address: "@SC2",
+                   action: "do_something",
+                   args: [1, 2, 3]
+                 }
+               ],
                %Transaction{},
                DateTime.utc_now()
              )
@@ -46,8 +57,11 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       |> stub(
         :send_message,
         fn
-          _, %ValidateSmartContractCall{contract_address: "@SC1"}, _ ->
+          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
             {:ok, %SmartContractCallValidation{valid?: false}}
+
+          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
+            {:ok, %SmartContractCallValidation{valid?: true}}
         end
       )
 
@@ -65,7 +79,14 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node)
 
       refute SmartContractValidation.valid_contract_calls?(
-               ["@SC1"],
+               [
+                 %Recipient{address: "@SC1"},
+                 %Recipient{
+                   address: "@SC2",
+                   action: "do_something",
+                   args: [1, 2, 3]
+                 }
+               ],
                %Transaction{},
                DateTime.utc_now()
              )
@@ -76,10 +97,14 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       |> stub(
         :send_message,
         fn
-          %Node{port: 1234}, %ValidateSmartContractCall{contract_address: "@SC1"}, _ ->
+          %Node{port: 1234},
+          %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
+          _ ->
             {:ok, %SmartContractCallValidation{valid?: false}}
 
-          %Node{port: 1235}, %ValidateSmartContractCall{contract_address: "@SC1"}, _ ->
+          %Node{port: 1235},
+          %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
+          _ ->
             {:ok, %SmartContractCallValidation{valid?: true}}
         end
       )
@@ -110,7 +135,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node2)
 
       refute SmartContractValidation.valid_contract_calls?(
-               ["@SC1"],
+               [%Recipient{address: "@SC1"}],
                %Transaction{},
                DateTime.utc_now()
              )
@@ -121,10 +146,10 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       |> stub(
         :send_message,
         fn
-          _, %ValidateSmartContractCall{contract_address: "@SC1"}, _ ->
+          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
             {:ok, %SmartContractCallValidation{valid?: false}}
 
-          _, %ValidateSmartContractCall{contract_address: "@SC2"}, _ ->
+          _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
             {:ok, %SmartContractCallValidation{valid?: true}}
         end
       )
@@ -155,7 +180,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node2)
 
       refute SmartContractValidation.valid_contract_calls?(
-               ["@SC1", "@SC2"],
+               [%Recipient{address: "@SC1"}, %Recipient{address: "@SC2"}],
                %Transaction{},
                DateTime.utc_now()
              )

@@ -5,6 +5,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -59,6 +60,11 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> Enum.map(&Ownership.serialize(&1, tx_version))
       |> :erlang.list_to_binary()
 
+    recipients_encoding =
+      recipients
+      |> Enum.map(&Recipient.serialize(&1, tx_version))
+      |> :erlang.list_to_binary()
+
     transaction_movements_encoding =
       transaction_movements
       |> Enum.map(&TransactionMovement.serialize(&1, protocol_version))
@@ -101,8 +107,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"data.ledger.uco", UCOLedger.serialize(uco_ledger, tx_version)},
         {"data.ledger.token", TokenLedger.serialize(token_ledger, tx_version)},
         {"data.ownerships", <<encoded_ownerships_len::binary, ownerships_encoding::binary>>},
-        {"data.recipients",
-         <<encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary>>},
+        {"data.recipients", <<encoded_recipients_len::binary, recipients_encoding::binary>>},
         {"previous_public_key", previous_public_key},
         {"previous_signature", previous_signature},
         {"origin_signature", origin_signature},
@@ -129,7 +134,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
     binary_encoding = :erlang.list_to_binary(encoding)
     tx_size = byte_size(binary_encoding)
-    <<tx_size::32, 1::32, binary_encoding::binary>>
+    <<tx_size::32, tx_version::32, binary_encoding::binary>>
   end
 
   def decode(_version, "type", <<type::8>>, acc),
@@ -161,9 +166,9 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
   def decode(_version, "data.recipients", <<1::8, 0::8>>, acc), do: acc
 
-  def decode(_version, "data.recipients", <<rest::binary>>, acc) do
+  def decode(tx_version, "data.recipients", <<rest::binary>>, acc) do
     {nb, rest} = VarInt.get_value(rest)
-    {recipients, _} = Utils.deserialize_addresses(rest, nb, [])
+    recipients = deserialize_recipients(rest, nb, [], tx_version)
     put_in(acc, [Access.key(:data, %{}), :recipients], recipients)
   end
 
@@ -261,6 +266,16 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   defp deserialize_ownerships(rest, nb, acc, tx_version) do
     {ownership, rest} = Ownership.deserialize(rest, tx_version)
     deserialize_ownerships(rest, nb, [ownership | acc], tx_version)
+  end
+
+  defp deserialize_recipients(_rest, 0, _acc, _version), do: []
+
+  defp deserialize_recipients(_rest, nb, acc, _version) when length(acc) == nb,
+    do: Enum.reverse(acc)
+
+  defp deserialize_recipients(rest, nb, acc, version) do
+    {recipient, rest} = Recipient.deserialize(rest, version)
+    deserialize_recipients(rest, nb, [recipient | acc], version)
   end
 
   defp deserialize_unspent_outputs(_, 0, _, _), do: []

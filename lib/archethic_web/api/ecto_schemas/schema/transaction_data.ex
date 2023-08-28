@@ -8,15 +8,15 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
 
   alias ArchethicWeb.API.Schema.Ledger
   alias ArchethicWeb.API.Schema.Ownership
-  alias ArchethicWeb.API.Types.AddressList
   alias ArchethicWeb.API.Types.Hex
+  alias ArchethicWeb.API.Types.RecipientList
 
   embedded_schema do
     field(:code, :string)
     field(:content, Hex)
     embeds_one(:ledger, Ledger)
     embeds_many(:ownerships, Ownership)
-    field(:recipients, AddressList)
+    field(:recipients, RecipientList)
   end
 
   def changeset(changeset = %__MODULE__{}, params) do
@@ -34,7 +34,10 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
       message: "code size can't be more than #{Integer.to_string(@code_max_size)} bytes",
       count: :bytes
     )
-    |> validate_length(:ownerships, max: 256, message: "ownerships can not be more that 256")
-    |> validate_length(:recipients, max: 256, message: "maximum number of recipients can be 256")
+    |> validate_length(:ownerships, max: 255, message: "ownerships can not be more that 255")
+    |> validate_length(:recipients,
+      max: 255,
+      message: "maximum number of recipients can be 255"
+    )
   end
 end

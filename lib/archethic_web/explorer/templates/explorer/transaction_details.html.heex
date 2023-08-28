@@ -260,16 +260,25 @@
                                         <% end %>
                                     </div>
                                     <div x-show="data_section=='recipients' ">
-                                        <p class="heading">Recipients addresses</p>
+                                        <p class="heading">Contract's recipients</p>
                                         <%= if Enum.count(@transaction.data.recipients) == 0 do %>
-                                            N/A
+                                            None
                                         <% end %>
-                                        <%= for address <- @transaction.data.recipients do %>
+                                        <%= for recipient <- @transaction.data.recipients do %>
                                             <div class="box">
                                                 <div class="columns">
                                                     <div class="column">
-                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(address)) do%>
-                                                        <span class="text_wrap"><%= Base.encode16(address) %></span>
+                                                        <p class="heading">Address</p>
+                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(recipient.address)) do%>
+                                                        <span class="text_wrap"><%= Base.encode16(recipient.address) %></span>
+                                                        <% end %>
+                                                        <p class="heading mt-4">Action</p>
+                                                        <span class="text_wrap"><%= recipient.action || "N/A" %></span>
+                                                        <p class="heading mt-4">Action arguments (JSON)</p>
+                                                        <%= if recipient.args != nil do %>
+                                                            <%= raw(Jason.encode!(recipient.args, pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"])) %>
+                                                        <% else %>
+                                                            <span class="text_wrap">N/A</span>
                                                         <% end %>
                                                     </div>
                                                 </div>

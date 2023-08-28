@@ -42,7 +42,7 @@ defmodule ArchethicWeb.API.TransactionPayload do
       :originSignature
     ])
     |> cast_embed(:data, required: true)
-    |> validate_data()
+    |> validate_data(params)
     |> then(&{:ok, &1})
   end
 
@@ -73,25 +73,47 @@ defmodule ArchethicWeb.API.TransactionPayload do
   def to_map(value, _), do: value
 
   defp format_change(:authorizedKeys, authorized_keys) do
-    Enum.reduce(authorized_keys, %{}, fn %Ecto.Changeset{
-                                           changes: %{
-                                             publicKey: public_key,
-                                             encryptedSecretKey: encrypted_secret_key
-                                           }
-                                         },
-                                         acc ->
-      Map.put(acc, public_key, encrypted_secret_key)
-    end)
+    Enum.reduce(
+      authorized_keys,
+      %{},
+      fn %Ecto.Changeset{
+           changes: %{publicKey: public_key, encryptedSecretKey: encrypted_secret_key}
+         },
+         acc ->
+        Map.put(acc, public_key, encrypted_secret_key)
+      end
+    )
   end
 
   defp format_change(_, value), do: value
 
-  defp validate_data(changeset = %Ecto.Changeset{}) do
+  defp validate_data(changeset = %Ecto.Changeset{}, params) do
     validate_change(changeset, :data, fn _, data_changeset ->
       case data_changeset.valid? do
-        true -> []
+        true -> validate_recipient_format(changeset, params)
         false -> data_changeset.errors
       end
     end)
+  end
+
+  defp validate_recipient_format(changeset, params) do
+    version = get_field(changeset, :version)
+    recipients = get_in(params, ["data", "recipients"])
+
+    if not is_nil(version) and not is_nil(recipients) do
+      case version do
+        1 ->
+          if Enum.any?(recipients, &is_map/1),
+            do: [recipents: "Transaction V1 cannot use named action recipients"],
+            else: []
+
+        _ ->
+          if Enum.any?(recipients, &is_binary/1),
+            do: [recipents: "From V2, transaction must use named action recipients"],
+            else: []
+      end
+    else
+      []
+    end
   end
 end

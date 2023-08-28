@@ -1,6 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   @moduledoc false
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
@@ -13,23 +14,69 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
                     |> Enum.reject(&(&1 == :__struct__))
                     |> Enum.map(&Atom.to_string/1)
 
-  @type condition_type :: :transaction | :inherit | :oracle
-
   @doc """
   Parse the given node and return the trigger and the actions block.
   """
   @spec parse(any(), list(Interpreter.function_key())) ::
-          {:ok, condition_type(), Conditions.t()} | {:error, any(), String.t()}
+          {:ok, Contract.condition_type(), Conditions.t()} | {:error, any(), String.t()}
   def parse(
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
         functions_keys
       ) do
-    {condition_type, global_variable} =
-      case condition_name do
-        "transaction" -> {:transaction, "transaction"}
-        "inherit" -> {:inherit, "next"}
-        "oracle" -> {:oracle, "transaction"}
-        _ -> throw({:error, "invalid condition type"})
+    case condition_name do
+      "transaction" ->
+        do_parse({:transaction, nil, nil}, keyword, functions_keys, node)
+
+      "inherit" ->
+        do_parse(:inherit, keyword, functions_keys, node)
+
+      "oracle" ->
+        do_parse(:oracle, keyword, functions_keys, node)
+
+      _ ->
+        {:error, node, "invalid condition type"}
+    end
+  end
+
+  def parse(
+        node =
+          {{:atom, "condition"}, _,
+           [
+             {{:atom, "transaction"}, _, nil},
+             [
+               {{:atom, "on"}, {{:atom, action_name}, _, args}},
+               {{:atom, "as"}, keyword}
+             ]
+           ]},
+        functions_keys
+      ) do
+    args =
+      case args do
+        nil -> []
+        _ -> Enum.map(args, fn {{:atom, arg_name}, _, nil} -> arg_name end)
+      end
+
+    do_parse({:transaction, action_name, args}, keyword, functions_keys, node)
+  end
+
+  def parse(node, _) do
+    {:error, node, "unexpected term"}
+  end
+
+  # ----------------------------------------------------------------------
+  #              _            _
+  #   _ __  _ __(___   ____ _| |_ ___
+  #  | '_ \| '__| \ \ / / _` | __/ _ \
+  #  | |_) | |  | |\ V | (_| | ||  __/
+  #  | .__/|_|  |_| \_/ \__,_|\__\___|
+  #  |_|
+  # ----------------------------------------------------------------------
+  defp do_parse(condition_type, keyword, functions_keys, node) do
+    global_variable =
+      case condition_type do
+        {:transaction, _, _} -> "transaction"
+        :inherit -> "next"
+        :oracle -> "transaction"
       end
 
     # no need to traverse the condition block
@@ -61,18 +108,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       {:error, node, reason}
   end
 
-  def parse(node, _) do
-    {:error, node, "unexpected term"}
-  end
-
-  # ----------------------------------------------------------------------
-  #              _            _
-  #   _ __  _ __(___   ____ _| |_ ___
-  #  | '_ \| '__| \ \ / / _` | __/ _ \
-  #  | |_) | |  | |\ V | (_| | ||  __/
-  #  | .__/|_|  |_| \_/ \__,_|\__\___|
-  #  |_|
-  # ----------------------------------------------------------------------
   defp to_boolean_expression(_subject, bool, _) when is_boolean(bool) do
     bool
   end

@@ -69,7 +69,8 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
   defp handle_pending_transaction(tx = %Transaction{address: address}) do
     %Contract{conditions: conditions} = Contract.from_transaction!(tx)
 
-    case Map.get(conditions, :transaction) do
+    # TODO: handle {:transaction, action, args_names}
+    case Map.get(conditions, {:transaction, nil, nil}) do
       nil ->
         :ok
 
@@ -87,12 +88,8 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
          address: address,
          data: %TransactionData{recipients: recipients}
        }) do
-    case recipients do
-      [] ->
-        :ok
-
-      _ ->
-        Enum.each(recipients, &PendingLedger.add_signature(&1, address))
-    end
+    recipients
+    |> Enum.map(& &1.address)
+    |> Enum.each(&PendingLedger.add_signature(&1, address))
   end
 end
