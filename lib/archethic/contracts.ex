@@ -75,6 +75,7 @@ defmodule Archethic.Contracts do
           | {:error, :function_failure}
           | {:error, :function_does_not_exist}
           | {:error, :function_is_private}
+          | {:error, :timeout}
 
   def execute_function(contract, function_name, args) do
     with {:ok, function} <- get_function_from_contract(contract, function_name, args),
@@ -83,6 +84,15 @@ defmodule Archethic.Contracts do
       {:ok, result}
     end
   rescue
+    e in Interpreter.Error ->
+      case e.message do
+        "timeout" ->
+          {:error, :timeout}
+
+        _ ->
+          {:error, :function_failure}
+      end
+
     _ ->
       {:error, :function_failure}
   end

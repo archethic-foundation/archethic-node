@@ -286,5 +286,29 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       assert 12.0 == FunctionInterpreter.execute(ast_fun, %{}, ["var1", "var2"], [4, 8])
     end
+
+    test "should raise if execution is too long" do
+      fun = ~S"""
+      export fun meaning_of_life(x) do
+        42
+      end
+      """
+
+      {:ok, _, _, ast_fun} =
+        fun
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        |> FunctionInterpreter.parse([])
+
+      ast_with_sleep =
+        quote do
+          Process.sleep(5_000)
+          unquote(ast_fun)
+        end
+
+      assert_raise(FunctionInterpreter.Error, "timeout", fn ->
+        FunctionInterpreter.execute(ast_with_sleep, %{}, [], [])
+      end)
+    end
   end
 end

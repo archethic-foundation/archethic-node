@@ -4,7 +4,7 @@ defmodule ArchethicWeb.API.JsonRPC.Error do
   """
 
   @doc """
-  Return the complete error as 
+  Return the complete error as
   ```elixir
     %{"code" => code, "message" => message, "data" => data}
   ```
@@ -44,4 +44,5 @@ defmodule ArchethicWeb.API.JsonRPC.Error do
   defp get_custom_code(:function_failure), do: 250
   defp get_custom_code(:function_is_private), do: 251
   defp get_custom_code(:function_does_not_exist), do: 252
+  defp get_custom_code(:timeout), do: 253
 end
