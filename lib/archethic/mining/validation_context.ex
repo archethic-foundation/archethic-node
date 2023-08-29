@@ -726,13 +726,14 @@ defmodule Archethic.Mining.ValidationContext do
           contract_context: contract_context
         }
       ) do
-    {sufficient_funds?, ledger_operations} = get_ledger_operations(context)
+    protocol_version = Mining.protocol_version()
+    {sufficient_funds?, ledger_operations} = get_ledger_operations(context, protocol_version)
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
     validation_stamp =
       %ValidationStamp{
-        protocol_version: Mining.protocol_version(),
+        protocol_version: protocol_version,
         timestamp: validation_time,
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
@@ -755,12 +756,15 @@ defmodule Archethic.Mining.ValidationContext do
     %{context | validation_stamp: validation_stamp}
   end
 
-  defp get_ledger_operations(%__MODULE__{
-         transaction: tx,
-         unspent_outputs: unspent_outputs,
-         validation_time: validation_time,
-         resolved_addresses: resolved_addresses
-       }) do
+  defp get_ledger_operations(
+         %__MODULE__{
+           transaction: tx,
+           unspent_outputs: unspent_outputs,
+           validation_time: validation_time,
+           resolved_addresses: resolved_addresses
+         },
+         protocol_version
+       ) do
     previous_usd_price =
       validation_time
       |> OracleChain.get_last_scheduling_date()
@@ -777,7 +781,8 @@ defmodule Archethic.Mining.ValidationContext do
       Fee.calculate(
         tx,
         previous_usd_price,
-        validation_time
+        validation_time,
+        protocol_version
       )
 
     resolved_movements =
@@ -1124,7 +1129,11 @@ defmodule Archethic.Mining.ValidationContext do
        do: poe == Election.validation_nodes_election_seed_sorting(tx, timestamp)
 
   defp valid_stamp_fee?(
-         %ValidationStamp{timestamp: timestamp, ledger_operations: %LedgerOperations{fee: fee}},
+         %ValidationStamp{
+           protocol_version: protocol_version,
+           timestamp: timestamp,
+           ledger_operations: %LedgerOperations{fee: fee}
+         },
          %__MODULE__{transaction: tx}
        ) do
     previous_usd_price =
@@ -1136,12 +1145,13 @@ defmodule Archethic.Mining.ValidationContext do
     Fee.calculate(
       tx,
       previous_usd_price,
-      timestamp
+      timestamp,
+      protocol_version
     ) == fee
   end
 
   defp valid_stamp_error?(
-         stamp = %ValidationStamp{error: error},
+         stamp = %ValidationStamp{error: error, protocol_version: protocol_version},
          context = %__MODULE__{
            transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
            previous_transaction: prev_tx,
@@ -1154,7 +1164,7 @@ defmodule Archethic.Mining.ValidationContext do
     validated_context = %{context | transaction: %{tx | validation_stamp: stamp}}
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
-    {sufficient_funds?, _} = get_ledger_operations(validated_context)
+    {sufficient_funds?, _} = get_ledger_operations(validated_context, protocol_version)
 
     expected_error =
       get_validation_error(
