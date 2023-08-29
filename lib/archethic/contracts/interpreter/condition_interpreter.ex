@@ -5,11 +5,11 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
-  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter
 
-  @condition_fields Conditions.__struct__()
+  @condition_fields ConditionsSubjects.__struct__()
                     |> Map.keys()
                     |> Enum.reject(&(&1 == :__struct__))
                     |> Enum.map(&Atom.to_string/1)
@@ -18,7 +18,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   Parse the given node and return the trigger and the actions block.
   """
   @spec parse(any(), list(Interpreter.function_key())) ::
-          {:ok, Contract.condition_type(), Conditions.t()} | {:error, any(), String.t()}
+          {:ok, Contract.condition_type(), ConditionsSubjects.t()} | {:error, any(), String.t()}
   def parse(
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
         functions_keys
@@ -90,7 +90,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       end
 
     conditions =
-      Enum.reduce(proplist, %Conditions{}, fn {key, value}, acc ->
+      Enum.reduce(proplist, %ConditionsSubjects{}, fn {key, value}, acc ->
         if key not in @condition_fields do
           throw({:error, node, "invalid condition field: #{key}"})
         end

@@ -1,7 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
   use ArchethicCase
 
-  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter
   alias Archethic.Contracts.Interpreter
 
@@ -18,7 +18,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
   # seed for replacement address 7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3
   test "should parse map based inherit constraints" do
     assert {:ok, :inherit,
-            %Conditions{
+            %ConditionsSubjects{
               uco_transfers:
                 {:==, _,
                  [
@@ -46,7 +46,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
 
   test "should parse multiline inherit constraints" do
     assert {:ok, :inherit,
-            %Conditions{
+            %ConditionsSubjects{
               uco_transfers:
                 {:==, _,
                  [
@@ -76,7 +76,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
 
   test "should flatten comparison operators" do
     assert {:ok, :inherit,
-            %Conditions{
+            %ConditionsSubjects{
               content:
                 {:>=, [line: 2],
                  [
@@ -103,7 +103,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
   end
 
   test "should accept conditional code within condition" do
-    assert {:ok, :inherit, %Conditions{}} =
+    assert {:ok, :inherit, %ConditionsSubjects{}} =
              ~S"""
              condition inherit: [
                content: if type == transfer do
@@ -120,7 +120,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
   end
 
   test "should accept different type of transaction keyword references" do
-    assert {:ok, :inherit, %Conditions{}} =
+    assert {:ok, :inherit, %ConditionsSubjects{}} =
              ~S"""
               condition inherit: [
                content: if next.type == transfer do

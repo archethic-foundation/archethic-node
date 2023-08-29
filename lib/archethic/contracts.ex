@@ -5,6 +5,7 @@ defmodule Archethic.Contracts do
   """
 
   alias __MODULE__.Contract
+  alias __MODULE__.ContractConditions, as: Conditions
   alias __MODULE__.ContractConstants, as: Constants
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
@@ -156,7 +157,7 @@ defmodule Archethic.Contracts do
     with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
          {:ok, contract} <- from_transaction(prev_tx) do
       case execute_trigger(
-             trigger_to_trigger_type(trigger, contract),
+             trigger_to_trigger_type(trigger),
              contract,
              maybe_trigger_tx,
              trigger_to_recipient(trigger),
@@ -186,15 +187,12 @@ defmodule Archethic.Contracts do
   defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
   defp trigger_to_recipient(_), do: nil
 
-  defp trigger_to_trigger_type({:oracle, _}, _contract), do: :oracle
-  defp trigger_to_trigger_type({:datetime, datetime}, _contract), do: {:datetime, datetime}
-  defp trigger_to_trigger_type({:interval, cron, _datetime}, _contract), do: {:interval, cron}
+  defp trigger_to_trigger_type({:oracle, _}), do: :oracle
+  defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
+  defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
 
-  defp trigger_to_trigger_type(
-         {:transaction, _, recipient = %Recipient{}},
-         contract
-       ) do
-    Contract.get_trigger_for_recipient(contract, recipient)
+  defp trigger_to_trigger_type({:transaction, _, recipient = %Recipient{}}) do
+    Contract.get_trigger_for_recipient(recipient)
   end
 
   # In the case of a trigger interval,
@@ -216,27 +214,26 @@ defmodule Archethic.Contracts do
         ) :: boolean()
 
   def valid_condition?(
-        condition_type,
+        condition_key,
         contract = %Contract{version: version, conditions: conditions},
         transaction = %Transaction{},
         maybe_recipient,
         datetime
       ) do
-    case Map.get(conditions, condition_type) do
+    case Map.get(conditions, condition_key) do
       nil ->
         # only inherit condition are optional
-        condition_type == :inherit
+        condition_key == :inherit
 
-      condition ->
-        named_action_constants =
-          Interpreter.get_named_action_constants(condition_type, maybe_recipient)
+      %Conditions{args: args, subjects: subjects} ->
+        named_action_constants = Interpreter.get_named_action_constants(args, maybe_recipient)
 
         condition_constants =
-          get_condition_constants(condition_type, contract, transaction, datetime)
+          get_condition_constants(condition_key, contract, transaction, datetime)
 
         Interpreter.valid_conditions?(
           version,
-          condition,
+          subjects,
           Map.merge(named_action_constants, condition_constants)
         )
     end

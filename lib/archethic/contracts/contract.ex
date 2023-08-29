@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Contract do
   """
 
   alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.Contracts.Interpreter
@@ -34,17 +35,28 @@ defmodule Archethic.Contracts.Contract do
           | {:transaction, nil, nil}
           | {:transaction, String.t(), list(String.t())}
 
+  @type trigger_key() ::
+          :oracle
+          | {:transaction, nil, nil}
+          | {:transaction, String.t(), non_neg_integer()}
+          | {:datetime, DateTime.t()}
+          | {:interval, String.t()}
+
+  @type condition_key() ::
+          :oracle
+          | :inherit
+          | {:transaction, nil, nil}
+          | {:transaction, String.t(), non_neg_integer()}
+
   @type origin_family :: SharedSecrets.origin_family()
 
   @type t() :: %__MODULE__{
           triggers: %{
-            trigger_type() => Macro.t()
+            trigger_key() => %{args: list(binary()), ast: Macro.t()}
           },
           version: integer(),
           conditions: %{
-            transaction: Conditions.t(),
-            inherit: Conditions.t(),
-            oracle: Conditions.t()
+            condition_key() => Conditions.t()
           },
           constants: Constants.t(),
           next_transaction: Transaction.t()
@@ -86,26 +98,39 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Add a trigger to the contract
   """
-  @spec add_trigger(map(), trigger_type(), Macro.t()) :: t()
-  def add_trigger(
-        contract = %__MODULE__{},
-        type,
-        actions
-      ) do
-    Map.update!(contract, :triggers, &Map.put(&1, type, actions))
+  @spec add_trigger(t(), trigger_type(), any()) :: t()
+  def add_trigger(contract, type, actions) do
+    trigger_key = get_key(type)
+    actions = get_actions(type, actions)
+
+    Map.update!(contract, :triggers, &Map.put(&1, trigger_key, actions))
   end
 
   @doc """
   Add a condition to the contract
   """
-  @spec add_condition(map(), condition_type(), Conditions.t()) :: t()
-  def add_condition(
-        contract = %__MODULE__{},
-        condition_type,
-        conditions = %Conditions{}
-      ) do
-    Map.update!(contract, :conditions, &Map.put(&1, condition_type, conditions))
+  @spec add_condition(map(), condition_type(), ConditionsSubjects.t()) :: t()
+  def add_condition(contract, condition_type, conditions) do
+    condition_key = get_key(condition_type)
+    conditions = get_conditions(condition_type, conditions)
+
+    Map.update!(contract, :conditions, &Map.put(&1, condition_key, conditions))
   end
+
+  defp get_key({:transaction, action, args}) when is_list(args),
+    do: {:transaction, action, length(args)}
+
+  defp get_key(key), do: key
+
+  defp get_conditions({:transaction, _action, args}, conditions) when is_list(args),
+    do: %Conditions{args: args, subjects: conditions}
+
+  defp get_conditions(_, conditions), do: %Conditions{subjects: conditions}
+
+  defp get_actions({:transaction, _action, args}, ast) when is_list(args),
+    do: %{args: args, ast: ast}
+
+  defp get_actions(_, conditions), do: %{args: [], ast: conditions}
 
   @doc """
   Add a public or private function to the contract
@@ -134,23 +159,9 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Return the args names for this recipient or nil
   """
-  @spec get_trigger_for_recipient(t(), Recipient.t()) ::
-          nil | {:transaction, String.t(), list(String.t())} | {:transaction, nil, nil}
-  def get_trigger_for_recipient(_contract, %Recipient{action: nil, args: nil}),
-    do: {:transaction, nil, nil}
+  @spec get_trigger_for_recipient(Recipient.t()) :: nil | trigger_key()
+  def get_trigger_for_recipient(%Recipient{action: nil, args: nil}), do: {:transaction, nil, nil}
 
-  def get_trigger_for_recipient(
-        %__MODULE__{triggers: triggers},
-        %Recipient{
-          action: action,
-          args: args_values
-        }
-      ) do
-    arity = length(args_values)
-
-    Enum.find(Map.keys(triggers), fn
-      {:transaction, ^action, args_names} when length(args_names) == arity -> true
-      _ -> false
-    end)
-  end
+  def get_trigger_for_recipient(%Recipient{action: action, args: args_values}),
+    do: {:transaction, action, length(args_values)}
 end

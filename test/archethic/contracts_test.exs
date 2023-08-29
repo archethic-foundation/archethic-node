@@ -860,7 +860,7 @@ defmodule Archethic.ContractsTest do
         @version 1
         condition transaction, on: vote(candidate), as: []
 
-        actions triggered_by: transaction, on: vote(candidate) do
+        actions triggered_by: transaction, on: vote(person) do
           Contract.set_content "hello"
         end
       """
@@ -879,15 +879,14 @@ defmodule Archethic.ContractsTest do
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Juliette"]}
+      condition_key = Contract.get_trigger_for_recipient(recipient)
+
       assert Contracts.valid_condition?(
-               {:transaction, "vote", ["candidate"]},
+               condition_key,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
-               %Recipient{
-                 address: contract_tx.address,
-                 action: "vote",
-                 args: ["Juliette"]
-               },
+               recipient,
                DateTime.utc_now()
              )
     end
@@ -919,15 +918,14 @@ defmodule Archethic.ContractsTest do
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
+      condition_key = Contract.get_trigger_for_recipient(recipient)
+
       assert Contracts.valid_condition?(
-               {:transaction, "vote", ["candidate"]},
+               condition_key,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
-               %Recipient{
-                 address: contract_tx.address,
-                 action: "vote",
-                 args: ["Jules"]
-               },
+               recipient,
                DateTime.utc_now()
              )
     end
@@ -959,15 +957,14 @@ defmodule Archethic.ContractsTest do
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
+      condition_key = Contract.get_trigger_for_recipient(recipient)
+
       refute Contracts.valid_condition?(
-               {:transaction, "vote", ["candidate"]},
+               condition_key,
                Contract.from_transaction!(contract_tx),
                trigger_tx,
-               %Recipient{
-                 address: contract_tx.address,
-                 action: "vote",
-                 args: ["Jules"]
-               },
+               recipient,
                DateTime.utc_now()
              )
     end

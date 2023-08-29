@@ -11,7 +11,7 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.ConditionValidator
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.TransactionChain.Transaction
@@ -105,7 +105,7 @@ defmodule Archethic.Contracts.Interpreter do
   @doc """
   Return true if the given conditions are valid on the given constants
   """
-  @spec valid_conditions?(version(), Conditions.t(), map()) :: bool()
+  @spec valid_conditions?(version(), ConditionsSubjects.t(), map()) :: bool()
   def valid_conditions?(0, conditions, constants) do
     Legacy.valid_conditions?(conditions, constants)
   end
@@ -119,7 +119,7 @@ defmodule Archethic.Contracts.Interpreter do
   /!\ The transaction returned is not complete, only the `type` and `data` are filled-in.
   """
   @spec execute_trigger(
-          Contract.trigger_type(),
+          Contract.trigger_key(),
           Contract.t(),
           nil | Transaction.t(),
           nil | Recipient.t(),
@@ -128,7 +128,7 @@ defmodule Archethic.Contracts.Interpreter do
           {:ok, nil | Transaction.t()}
           | {:error, :contract_failure | :invalid_triggers_execution}
   def execute_trigger(
-        trigger_type,
+        trigger_key,
         %Contract{
           version: version,
           triggers: triggers,
@@ -139,37 +139,39 @@ defmodule Archethic.Contracts.Interpreter do
         maybe_recipient,
         opts \\ []
       ) do
-    case triggers[trigger_type] do
+    case Map.get(triggers, trigger_key) do
       nil ->
         {:error, :invalid_triggers_execution}
 
-      trigger_code ->
+      %{args: args, ast: trigger_code} ->
         timestamp_now =
           case Keyword.get(opts, :time_now) do
             nil ->
               # you must use the :time_now opts during the validation workflow
               # because there is no validation_stamp yet
-              time_now(trigger_type, maybe_trigger_tx)
+              time_now(trigger_key, maybe_trigger_tx)
 
             time_now ->
               time_now
           end
           |> DateTime.to_unix()
 
-        named_action_constants = get_named_action_constants(trigger_type, maybe_recipient)
+        named_action_constants = get_named_action_constants(args, maybe_recipient)
+
+        transaction_constant =
+          case maybe_trigger_tx do
+            nil ->
+              nil
+
+            trigger_tx ->
+              # :oracle & :transaction
+              Constants.from_transaction(trigger_tx)
+          end
 
         constants =
           named_action_constants
           |> Map.merge(%{
-            "transaction" =>
-              case maybe_trigger_tx do
-                nil ->
-                  nil
-
-                trigger_tx ->
-                  # :oracle & :transaction
-                  Constants.from_transaction(trigger_tx)
-              end,
+            "transaction" => transaction_constant,
             "contract" => contract_constants,
             :time_now => timestamp_now,
             :functions => functions
@@ -283,25 +285,17 @@ defmodule Archethic.Contracts.Interpreter do
 
   ## Examples
 
-      iex> Interpreter.get_named_action_constants({:transaction, "vote", ["candidate"]}, %Recipient{args: ["Williams"]})
+      iex> Interpreter.get_named_action_constants(["candidate"], %Recipient{args: ["Williams"]})
       %{"candidate" => "Williams"}
 
-      iex> Interpreter.get_named_action_constants({:transaction, nil, nil}, %Recipient{})
+      iex> Interpreter.get_named_action_constants([], %Recipient{})
       %{}
   """
-  def get_named_action_constants(
-        {:transaction, _action, args_names},
-        %Recipient{
-          args: args_values
-        }
-      )
-      when is_list(args_names) do
-    args_names
-    |> Enum.zip(args_values)
-    |> Enum.into(%{})
-  end
+  def get_named_action_constants([], _recipient), do: %{}
 
-  def get_named_action_constants(_trigger_type, _recipient), do: %{}
+  def get_named_action_constants(args_names, %Recipient{args: args_values})
+      when is_list(args_names),
+      do: args_names |> Enum.zip(args_values) |> Enum.into(%{})
 
   # ------------------------------------------------------------
   #              _            _
@@ -490,24 +484,14 @@ defmodule Archethic.Contracts.Interpreter do
     do_check_contract_blocks(rest, conditions)
   end
 
-  defp do_check_contract_blocks([{:transaction, action, args_names} | rest], conditions) do
-    arity = if is_list(args_names), do: length(args_names), else: 0
-
-    condition_exists? =
-      Enum.any?(conditions, fn
-        {:transaction, ^action, ^args_names} -> true
-        {:transaction, ^action, args} when length(args) == arity -> true
-        _ -> false
-      end)
-
-    if condition_exists? do
+  defp do_check_contract_blocks([trigger_key = {:transaction, action, arity} | rest], conditions) do
+    if trigger_key in conditions do
       do_check_contract_blocks(rest, conditions)
     else
-      if action == nil && args_names == nil do
+      if action == nil do
         {:error, "missing 'condition transaction' block"}
       else
-        {:error,
-         "missing 'condition transaction, on: #{action}(#{Enum.join(args_names, ", ")})' block"}
+        {:error, "missing 'condition transaction, on: #{action}/#{arity}' block"}
       end
     end
   end
