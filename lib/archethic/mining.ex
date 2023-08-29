@@ -27,7 +27,7 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @protocol_version 1
+  @protocol_version 2
 
   def protocol_version, do: @protocol_version
 
@@ -245,6 +245,13 @@ defmodule Archethic.Mining do
   @doc """
   Get the transaction fee
   """
-  @spec get_transaction_fee(Transaction.t(), float(), DateTime.t()) :: non_neg_integer()
-  defdelegate get_transaction_fee(tx, uco_price_in_usd, timestamp), to: Fee, as: :calculate
+  @spec get_transaction_fee(
+          transaction :: Transaction.t(),
+          uco_price_in_usd :: float(),
+          timestamp :: DateTime.t(),
+          protocol_version :: pos_integer()
+        ) :: non_neg_integer()
+  def get_transaction_fee(tx, uco_price_in_usd, timestamp, proto_version \\ protocol_version()) do
+    Fee.calculate(tx, uco_price_in_usd, timestamp, proto_version)
+  end
 end

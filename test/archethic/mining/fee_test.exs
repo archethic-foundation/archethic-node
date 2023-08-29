@@ -14,40 +14,22 @@ defmodule Archethic.Mining.FeeTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
-  describe "calculate/2 with 50 storage nodes" do
+  alias Archethic.TransactionFactory
+
+  alias Archethic.Utils
+
+  use ExUnitProperties
+
+  describe "calculate/2" do
     setup do
       add_nodes(50)
       :ok
     end
 
     test "should return a fee less than amount to send for a single transfer" do
-      # 0.05014249 UCO for 1 UCO at $0.2
-      assert 5_014_249 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: trunc(100_000_000),
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(0.2, DateTime.utc_now())
-    end
+      amount = 100_000_000
 
-    test "should increase fee when the amount increases for single transfer " do
-      # 0.00501425 UCO for 1 UCO
-      assert 501_425 ==
+      assert tx_fee =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -56,7 +38,7 @@ defmodule Archethic.Mining.FeeTest do
                      uco: %UCOLedger{
                        transfers: [
                          %Transfer{
-                           amount: 100_000_000,
+                           amount: amount,
                            to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
                          }
                        ]
@@ -67,318 +49,590 @@ defmodule Archethic.Mining.FeeTest do
                  previous_signature: :crypto.strong_rand_bytes(32),
                  origin_signature: :crypto.strong_rand_bytes(32)
                }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+               |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
 
-      # 0.00501425 UCO for 60 UCO
-      assert 501_425 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: 6_000_000_000,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+      assert tx_fee < amount
     end
 
     test "should take token unique recipients into account (token creation)" do
       address1 = random_address()
-      # 0.21 UCO for 4 recipients (3 unique in content + 1 in ledger) + 1 token at $2.0
-      assert 21_016_950 ==
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :token,
-                 data: %TransactionData{
-                   content: """
-                   {
-                    "aeip": [2, 8, 19],
-                    "supply": 300000000,
-                    "type": "fungible",
-                    "name": "My token",
-                    "symbol": "MTK",
-                    "properties": {},
-                    "recipients": [
-                      {
-                        "to": "#{Base.encode16(address1)}",
-                        "amount": 100000000
-                      },
-                      {
-                        "to": "#{Base.encode16(address1)}",
-                        "amount": 100000000
-                      },
-                      {
-                        "to": "#{Base.encode16(random_address())}",
-                        "amount": 100000000
-                      },
-                      {
-                        "to": "#{Base.encode16(random_address())}",
-                        "amount": 100000000
-                      }
-                    ]
-                   }
-                   """,
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: 100_000_000,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+
+      tx_distinct_recipients = %Transaction{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        type: :token,
+        data: %TransactionData{
+          content: """
+          {
+           "aeip": [2, 8, 19],
+           "supply": 300000000,
+           "type": "fungible",
+           "name": "My token",
+           "symbol": "MTK",
+           "properties": {},
+           "recipients": [
+             {
+               "to": "#{Base.encode16(address1)}",
+               "amount": 100000000
+             },
+             {
+               "to": "#{Base.encode16(address1)}",
+               "amount": 100000000
+             },
+             {
+               "to": "#{Base.encode16(random_address())}",
+               "amount": 100000000
+             },
+             {
+               "to": "#{Base.encode16(random_address())}",
+               "amount": 100000000
+             }
+           ]
+          }
+          """,
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %Transfer{
+                  amount: 100_000_000,
+                  to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                }
+              ]
+            }
+          }
+        },
+        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_signature: :crypto.strong_rand_bytes(32),
+        origin_signature: :crypto.strong_rand_bytes(32)
+      }
+
+      fee_tx_distinct_recipients =
+        Fee.calculate(
+          tx_distinct_recipients,
+          2.0,
+          DateTime.utc_now(),
+          ArchethicCase.current_protocol_version()
+        )
+
+      tx_uniq_recipients = %Transaction{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        type: :token,
+        data: %TransactionData{
+          content: """
+          {
+           "aeip": [2, 8, 19],
+           "supply": 300000000,
+           "type": "fungible",
+           "name": "My token",
+           "symbol": "MTK",
+           "properties": {},
+           "recipients": [
+             {
+               "to": "#{Base.encode16(address1)}",
+               "amount": 100000000
+             },
+             {
+               "to": "#{Base.encode16(random_address())}",
+               "amount": 100000000
+             },
+             {
+              "to": "#{Base.encode16(random_address())}",
+              "amount": 100000000
+            }
+           ]
+          }
+          """,
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %Transfer{
+                  amount: 100_000_000,
+                  to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                }
+              ]
+            }
+          }
+        },
+        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_signature: :crypto.strong_rand_bytes(32),
+        origin_signature: :crypto.strong_rand_bytes(32)
+      }
+
+      fee_tx_uniq_recipients =
+        Fee.calculate(
+          tx_uniq_recipients,
+          2.0,
+          DateTime.utc_now(),
+          ArchethicCase.current_protocol_version()
+        )
+
+      tx_uniq_recipients_size =
+        tx_uniq_recipients.data
+        |> TransactionData.serialize(tx_uniq_recipients.version)
+        |> byte_size()
+
+      tx_distinct_recipients_size =
+        tx_distinct_recipients.data
+        |> TransactionData.serialize(tx_distinct_recipients.version)
+        |> byte_size()
+
+      nb_storage_nodes = 50
+
+      diff_bytes = tx_distinct_recipients_size - tx_uniq_recipients_size
+      price_per_byte = 1.0e-8 / 2.0
+      price_per_storage_node = price_per_byte * diff_bytes
+      diff_fee = price_per_storage_node * nb_storage_nodes
+
+      assert fee_tx_distinct_recipients - fee_tx_uniq_recipients == diff_fee * 100_000_000
     end
 
     test "should take token unique recipients into account (token resupply)" do
-      # 0.11 UCO for 2 recipients + 1 token at $2.0
-      assert 11_010_100 ==
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :token,
-                 data: %TransactionData{
-                   content: """
-                   {
-                    "aeip": [8, 18],
-                    "supply": 1000,
-                    "token_reference": "0000C13373C96538B468CCDAB8F95FDC3744EBFA2CD36A81C3791B2A205705D9C3A2",
-                    "recipients": [
-                      {
-                        "to": "#{Base.encode16(random_address())}",
-                        "amount": 100000000
-                      },
-                      {
-                        "to": "#{Base.encode16(random_address())}",
-                        "amount": 100000000
-                      }
-                    ]
-                   }
-                   """
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+      addr1 = random_address()
+
+      tx_uniq_recipients = %Transaction{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        type: :token,
+        data: %TransactionData{
+          content: """
+          {
+           "aeip": [8, 18],
+           "supply": 1000,
+           "token_reference": "0000C13373C96538B468CCDAB8F95FDC3744EBFA2CD36A81C3791B2A205705D9C3A2",
+           "recipients": [
+             {
+               "to": "#{Base.encode16(addr1)}",
+               "amount": 100000000
+             }
+           ]
+          }
+          """
+        },
+        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_signature: :crypto.strong_rand_bytes(32),
+        origin_signature: :crypto.strong_rand_bytes(32)
+      }
+
+      fee_tx_uniq_recipients =
+        Fee.calculate(
+          tx_uniq_recipients,
+          2.0,
+          DateTime.utc_now(),
+          ArchethicCase.current_protocol_version()
+        )
+
+      addr1 = random_address()
+
+      tx_distinct_recipients = %Transaction{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        type: :token,
+        data: %TransactionData{
+          content: """
+          {
+           "aeip": [8, 18],
+           "supply": 1000,
+           "token_reference": "0000C13373C96538B468CCDAB8F95FDC3744EBFA2CD36A81C3791B2A205705D9C3A2",
+           "recipients": [
+             {
+               "to": "#{Base.encode16(addr1)}",
+               "amount": 100000000
+             },
+             {
+               "to": "#{Base.encode16(addr1)}",
+               "amount": 100000000
+             }
+           ]
+          }
+          """
+        },
+        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_signature: :crypto.strong_rand_bytes(32),
+        origin_signature: :crypto.strong_rand_bytes(32)
+      }
+
+      fee_tx_distinct_recipients =
+        Fee.calculate(
+          tx_distinct_recipients,
+          2.0,
+          DateTime.utc_now(),
+          ArchethicCase.current_protocol_version()
+        )
+
+      tx_uniq_recipients_size =
+        tx_uniq_recipients.data
+        |> TransactionData.serialize(tx_uniq_recipients.version)
+        |> byte_size()
+
+      tx_distinct_recipients_size =
+        tx_distinct_recipients.data
+        |> TransactionData.serialize(tx_distinct_recipients.version)
+        |> byte_size()
+
+      nb_storage_nodes = 50
+
+      diff_bytes = tx_distinct_recipients_size - tx_uniq_recipients_size
+      price_per_byte = 1.0e-8 / 2.0
+      price_per_storage_node = price_per_byte * diff_bytes
+      diff_fee = price_per_storage_node * nb_storage_nodes
+
+      assert fee_tx_distinct_recipients - fee_tx_uniq_recipients == diff_fee * 100_000_000
     end
 
     test "should pay additional fee for tokens without recipient" do
-      # 0.01 UCO for 0 transfer + 1 token at $2.0
-      assert 1_003_524 ==
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :token,
-                 data: %TransactionData{
-                   content: """
-                   {
-                    "aeip": [2, 8, 19],
-                    "supply": 300000000,
-                    "type": "fungible",
-                    "name": "My token",
-                    "symbol": "MTK",
-                    "properties": {}
-                   }
-                   """
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+      tx = %Transaction{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        type: :token,
+        data: %TransactionData{
+          content: """
+          {
+           "aeip": [2, 8, 19],
+           "supply": 300000000,
+           "type": "fungible",
+           "name": "My token",
+           "symbol": "MTK",
+           "properties": {}
+          }
+          """
+        },
+        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_signature: :crypto.strong_rand_bytes(32),
+        origin_signature: :crypto.strong_rand_bytes(32)
+      }
+
+      fee = Fee.calculate(tx, 2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      nb_bytes =
+        tx.data
+        |> TransactionData.serialize(tx.version)
+        |> byte_size()
+
+      nb_storage_nodes = 50
+      price_per_byte = 1.0e-8 / 2.0
+      price_per_storage_node = price_per_byte * nb_bytes
+      storage_cost = price_per_storage_node * nb_storage_nodes
+
+      min_fee = 0.01 / 2.0
+      additional_fee = min_fee
+
+      assert Utils.to_bigint(min_fee + storage_cost + additional_fee) == fee
     end
 
     test "should decrease the fee when the amount stays the same but the price of UCO increases" do
-      # 0.00501425 UCO for 1 UCO at $ 2.0
-      assert 501_425 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: 100_000_000,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+      fee1 =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{
+                    amount: 100_000_000,
+                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                  }
+                ]
+              }
+            }
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
 
-      # 0.00100285 UCO for 1 UCO at $10.0
-      assert 100_285 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: 100_000_000,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(10.0, DateTime.utc_now())
-    end
+      fee2 =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{
+                    amount: 100_000_000,
+                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                  }
+                ]
+              }
+            }
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(10.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
 
-    test "sending multiple transfers should cost more than sending a single big transfer" do
-      # 0.05014249 UCO for 1_000 UCO
-      assert 5_014_249 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: 100_000_000_000,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(0.2, DateTime.utc_now())
-
-      # 500.1525425 UCO for 1000 transfer of 1 UCO
-      assert 50_015_254_250 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers:
-                         Enum.map(1..1000, fn _ ->
-                           %Transfer{
-                             amount: 100_000_000,
-                             to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                           }
-                         end)
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(0.2, DateTime.utc_now())
+      assert fee2 < fee1
     end
 
     test "should increase the fee when the transaction size increases" do
-      # 0.05254000 UCO to store 1KB
-      assert 5_254_000 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   content: :crypto.strong_rand_bytes(1_000)
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(0.2, DateTime.utc_now())
+      fee_tx_small =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            content: :crypto.strong_rand_bytes(1_000)
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
 
-      # 25.05004 UCO to store 10MB
-      assert 2_505_004_000 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   content: :crypto.strong_rand_bytes(10 * 1_000_000)
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(0.2, DateTime.utc_now())
+      fee_tx_big =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            content: :crypto.strong_rand_bytes(10 * 1_000_000)
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      assert fee_tx_big > fee_tx_small
     end
 
     test "should cost more with more replication nodes" do
-      # 50 nodes: 0.00501425 UCO
-      assert 501_425 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: 100_000_000,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+      tx_fee_50_nodes =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{
+                    amount: 100_000_000,
+                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                  }
+                ]
+              }
+            }
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
 
       add_nodes(100)
 
-      # 150 nodes: 0.00504275 UCO
-      assert 504_275 =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: 100_000_000,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(2.0, DateTime.utc_now())
+      tx_fee_100_nodes =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{
+                    amount: 100_000_000,
+                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                  }
+                ]
+              }
+            }
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      assert tx_fee_50_nodes < tx_fee_100_nodes
+    end
+
+    test "should cost more sending multiple transfers than sending a single big transfer" do
+      single_tx_fee =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{
+                    amount: 100_000_000_000,
+                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                  }
+                ]
+              }
+            }
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      batched_tx_fee =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :transfer,
+          data: %TransactionData{
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers:
+                  Enum.map(1..1000, fn _ ->
+                    %Transfer{
+                      amount: 100_000_000,
+                      to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+                    }
+                  end)
+              }
+            }
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      assert batched_tx_fee > single_tx_fee
+    end
+
+    test "should cost more when a token is created with multiple UTXO to create (collection)" do
+      fee1 =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :token,
+          data: %TransactionData{
+            content:
+              Jason.encode!(%{
+                type: "non-fungible",
+                collection: [
+                  %{image: "link"},
+                  %{image: "link"},
+                  %{image: "link"}
+                ]
+              })
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      fee2 =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :token,
+          data: %TransactionData{
+            content:
+              Jason.encode!(%{
+                type: "non-fungible",
+                collection: [
+                  %{image: "link"},
+                  %{image: "link"},
+                  %{image: "link"},
+                  %{image: "link"},
+                  %{image: "link"},
+                  %{image: "link"}
+                ]
+              })
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      assert fee2 > fee1
+    end
+
+    test "should cost more when a token is created with recipients" do
+      fee1 =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :token,
+          data: %TransactionData{
+            content:
+              Jason.encode!(%{
+                type: "fungible"
+              })
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      fee2 =
+        %Transaction{
+          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          type: :token,
+          data: %TransactionData{
+            content:
+              Jason.encode!(%{
+                type: "fungible",
+                recipients: [
+                  %{to: "", amount: 1},
+                  %{to: "", amount: 1},
+                  %{to: "", amount: 1}
+                ]
+              })
+          },
+          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          previous_signature: :crypto.strong_rand_bytes(32),
+          origin_signature: :crypto.strong_rand_bytes(32)
+        }
+        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      assert fee2 > fee1
+    end
+
+    property "should cost more with multiple recipients but being more efficient than multiple transactions" do
+      check all(nb_recipients <- StreamData.integer(1..255)) do
+        batch_tx =
+          TransactionFactory.create_valid_transaction([],
+            type: :transfer,
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers:
+                  Enum.map(1..nb_recipients, fn _ ->
+                    %Transfer{
+                      to: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                      amount: 100_000_000
+                    }
+                  end)
+              }
+            }
+          )
+
+        batch_tx_fee =
+          Fee.calculate(
+            batch_tx,
+            2.0,
+            DateTime.utc_now(),
+            ArchethicCase.current_protocol_version()
+          )
+
+        single_tx =
+          TransactionFactory.create_valid_transaction([],
+            type: :transfer,
+            ledger: %Ledger{
+              uco: %UCOLedger{
+                transfers: [
+                  %Transfer{
+                    to: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                    amount: 100_000_000
+                  }
+                ]
+              }
+            }
+          )
+
+        single_tx_fee =
+          Fee.calculate(
+            single_tx,
+            2.0,
+            DateTime.utc_now(),
+            ArchethicCase.current_protocol_version()
+          )
+
+        assert batch_tx_fee < single_tx_fee * nb_recipients
+      end
     end
   end
 

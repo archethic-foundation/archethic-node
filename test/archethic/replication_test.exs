@@ -268,7 +268,7 @@ defmodule Archethic.ReplicationTest do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07, timestamp)
+        fee: Fee.calculate(tx, 0.07, timestamp, ArchethicCase.current_protocol_version())
       }
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
       |> elem(1)

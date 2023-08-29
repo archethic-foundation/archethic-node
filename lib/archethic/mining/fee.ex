@@ -37,10 +37,11 @@ defmodule Archethic.Mining.Fee do
   @spec calculate(
           transaction :: Transaction.t(),
           uco_usd_price :: float(),
-          timestamp :: DateTime.t()
+          timestamp :: DateTime.t(),
+          protocol_version :: pos_integer()
         ) :: non_neg_integer()
-  def calculate(%Transaction{type: :keychain}, _, _), do: 0
-  def calculate(%Transaction{type: :keychain_access}, _, _), do: 0
+  def calculate(%Transaction{type: :keychain}, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _, _, _), do: 0
 
   def calculate(
         tx = %Transaction{
@@ -48,7 +49,8 @@ defmodule Archethic.Mining.Fee do
           type: type
         },
         uco_price_in_usd,
-        timestamp
+        timestamp,
+        protocol_version
       ) do
     cond do
       address == Bootstrap.genesis_address() ->
@@ -71,7 +73,7 @@ defmodule Archethic.Mining.Fee do
             nb_storage_nodes
           )
 
-        replication_cost = cost_per_recipients(nb_recipients, uco_price_in_usd)
+        replication_cost = cost_per_recipients(nb_recipients, uco_price_in_usd, protocol_version)
 
         fee =
           minimum_fee(uco_price_in_usd) + storage_cost + replication_cost +
@@ -143,15 +145,6 @@ defmodule Archethic.Mining.Fee do
     price_per_storage_node * nb_storage_nodes
   end
 
-  # Send transaction to a single recipient does not include an additional cost
-  defp cost_per_recipients(1, _), do: 0
-
-  # Send transaction to multiple recipients (for bulk transfers) will generate an additional cost
-  # As more storage pools are required to send the transaction
-  defp cost_per_recipients(nb_recipients, uco_price_in_usd) do
-    nb_recipients * (0.1 / uco_price_in_usd)
-  end
-
   defp get_token_recipients(%Transaction{
          type: :token,
          data: %TransactionData{content: content}
@@ -178,4 +171,24 @@ defmodule Archethic.Mining.Fee do
 
   defp get_token_recipients_from_json(%{"recipients" => recipients}), do: recipients
   defp get_token_recipients_from_json(_json), do: []
+
+  # Send transaction to a single recipient does not include an additional cost
+  defp cost_per_recipients(1, _, 1), do: 0
+
+  # Send transaction to multiple recipients (for bulk transfers) will generate an additional cost
+  # As more storage pools are required to send the transaction
+  defp cost_per_recipients(nb_recipients, uco_price_in_usd, 1) do
+    nb_recipients * (0.1 / uco_price_in_usd)
+  end
+
+  defp cost_per_recipients(nb_recipients, uco_price_in_usd, _protocol_version)
+       when nb_recipients > 0 do
+    base_fee = minimum_fee(uco_price_in_usd)
+    # To ensure with a simple tx, the price doesn't beyond $0.01
+    # We can assume the recipient cost to replicate transaction to be something about 1/3 of the load for a given transaction
+    # And we apply a logarithmic progression, as the cost of replication might be reduced by the overlap of storage node election
+    (:math.log10(nb_recipients) + 0.3) * base_fee
+  end
+
+  defp cost_per_recipients(_, _, _protocol_version), do: 0
 end
