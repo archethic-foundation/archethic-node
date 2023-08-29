@@ -1,7 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   @moduledoc false
 
-  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Legacy.Library
@@ -9,7 +9,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
   alias Archethic.SharedSecrets
 
-  @condition_fields Conditions.__struct__()
+  @condition_fields ConditionsSubjects.__struct__()
                     |> Map.keys()
                     |> Enum.reject(&(&1 == :__struct__))
                     |> Enum.map(&Atom.to_string/1)
@@ -35,7 +35,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
       ...>    ]}
       ...>  ]
       ...> ]})
-      {:ok, {:transaction, nil, nil}, %Conditions{
+      {:ok, {:transaction, nil, nil}, %ConditionsSubjects{
         content: {:==, [], [
           {:get_in, [], [
             {:scope, [], nil},
@@ -67,7 +67,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
       ...>  ]
       ...> ]})
       {
-        :ok, {:transaction, nil, nil}, %Conditions{
+        :ok, {:transaction, nil, nil}, %ConditionsSubjects{
           content:  {:==, [line: 2], [
              {:get_in, [line: 2], [
                {:scope, [line: 2], nil},
@@ -103,7 +103,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
       ...>     }
       ...>   ]}
       ...> ]})
-      {:ok, {:transaction, nil, nil}, %Conditions{
+      {:ok, {:transaction, nil, nil}, %ConditionsSubjects{
           content: {:==, [], [{:get_in, [], [{:scope, [], nil}, ["transaction", "content"]]}, "hello"]},
           uco_transfers:  {:==, [], [
             {:get_in, [], [{:scope, [], nil},
@@ -131,7 +131,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
 
   """
   @spec parse(any()) ::
-          {:ok, condition_type(), Conditions.t()} | {:error, reason :: String.t()}
+          {:ok, condition_type(), ConditionsSubjects.t()} | {:error, reason :: String.t()}
   def parse(ast) do
     case Macro.traverse(
            ast,
@@ -400,7 +400,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   end
 
   defp aggregate_conditions(conditions, subject_scope) do
-    Enum.reduce(conditions, %Conditions{}, fn {subject, condition}, acc ->
+    Enum.reduce(conditions, %ConditionsSubjects{}, fn {subject, condition}, acc ->
       condition = do_aggregate_condition(condition, subject_scope, subject)
       Map.put(acc, String.to_existing_atom(subject), condition)
     end)
@@ -485,8 +485,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   @doc """
   Determines if the conditions of a contract are valid from the given constants
   """
-  @spec valid_conditions?(Conditions.t(), map()) :: boolean()
-  def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
+  @spec valid_conditions?(ConditionsSubjects.t(), map()) :: boolean()
+  def valid_conditions?(conditions = %ConditionsSubjects{}, constants = %{}) do
     constants =
       constants
       |> Constants.map_transactions(&Constants.stringify_transaction/1)

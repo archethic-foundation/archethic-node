@@ -11,7 +11,8 @@ defmodule Archethic.Mining.ProofOfWork do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConditions
+  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
 
   alias Archethic.Crypto
 
@@ -118,7 +119,10 @@ defmodule Archethic.Mining.ProofOfWork do
   def list_origin_public_keys_candidates(tx = %Transaction{data: %TransactionData{code: code}})
       when code != "" do
     case Contracts.parse(code) do
-      {:ok, %Contract{conditions: %{inherit: %ContractConditions{origin_family: family}}}}
+      {:ok,
+       %Contract{
+         conditions: %{inherit: %Conditions{subjects: %ConditionsSubjects{origin_family: family}}}
+       }}
       when family != :all ->
         SharedSecrets.list_origin_public_keys(family)
 

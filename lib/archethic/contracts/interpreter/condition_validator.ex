@@ -4,7 +4,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   The difference is where the scope is stored (process dict VS global variable)
 
   """
-  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Scope
@@ -14,8 +14,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   @doc """
   Determines if the conditions of a contract are valid from the given constants
   """
-  @spec valid_conditions?(Conditions.t(), map()) :: boolean()
-  def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
+  @spec valid_conditions?(ConditionsSubjects.t(), map()) :: boolean()
+  def valid_conditions?(conditions, constants = %{}) do
     # Apply some transformations to the transactions
     # We do it here because the Constants module is still used by InterpreterLegacy
     constants =

@@ -96,7 +96,7 @@ defmodule Archethic.Contracts.Worker do
     meta = log_metadata(contract_address, trigger_tx)
     Logger.debug("Contract execution started (trigger=transaction)", meta)
 
-    trigger = Contract.get_trigger_for_recipient(contract, recipient)
+    trigger = Contract.get_trigger_for_recipient(recipient)
 
     with true <- enough_funds?(contract_address),
          {:ok, next_tx = %Transaction{}} <-

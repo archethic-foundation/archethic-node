@@ -1,7 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
   use ArchethicCase
 
-  alias Archethic.Contracts.ContractConditions, as: Conditions
+  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
 
@@ -13,7 +13,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition inherit: [      ]
       """
 
-      assert {:ok, :inherit, %Conditions{}} =
+      assert {:ok, :inherit, %ConditionsSubjects{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -25,7 +25,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition oracle: [      ]
       """
 
-      assert {:ok, :oracle, %Conditions{}} =
+      assert {:ok, :oracle, %ConditionsSubjects{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -37,7 +37,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction: [      ]
       """
 
-      assert {:ok, {:transaction, nil, nil}, %Conditions{}} =
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -77,7 +77,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, {:transaction, nil, nil}, %Conditions{content: ast}} =
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{content: ast}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -93,7 +93,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, {:transaction, nil, nil}, %Conditions{uco_transfers: ast}} =
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{uco_transfers: ast}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -123,7 +123,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, {:transaction, nil, nil}, %Conditions{uco_transfers: ast}} =
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{uco_transfers: ast}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -140,7 +140,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, {:transaction, nil, nil}, %Conditions{content: true}} =
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{content: true}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -154,7 +154,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, {:transaction, nil, nil}, %Conditions{content: false}} =
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{content: false}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -168,7 +168,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       ]
       """
 
-      assert {:ok, {:transaction, nil, nil}, %Conditions{content: {:__block__, _, _}}} =
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{content: {:__block__, _, _}}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -180,7 +180,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction, on: upgrade, as: []
       """
 
-      assert {:ok, {:transaction, "upgrade", []}, %Conditions{}} =
+      assert {:ok, {:transaction, "upgrade", []}, %ConditionsSubjects{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -192,7 +192,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction, on: vote(candidate), as: []
       """
 
-      assert {:ok, {:transaction, "vote", ["candidate"]}, %Conditions{}} =
+      assert {:ok, {:transaction, "vote", ["candidate"]}, %ConditionsSubjects{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -204,7 +204,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
       condition transaction, on: count(x, y), as: []
       """
 
-      assert {:ok, {:transaction, "count", ["x", "y"]}, %Conditions{}} =
+      assert {:ok, {:transaction, "count", ["x", "y"]}, %ConditionsSubjects{}} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)

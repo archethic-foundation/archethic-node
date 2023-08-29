@@ -253,7 +253,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error 'condition transaction, on: xxx' block is missing" do
-      assert {:error, "missing 'condition transaction, on: upgrade()' block"} =
+      assert {:error, "missing 'condition transaction, on: upgrade/0' block"} =
                """
                @version 1
                actions triggered_by: transaction, on: upgrade() do
@@ -262,7 +262,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
 
-      assert {:error, "missing 'condition transaction, on: vote(x, y)' block"} =
+      assert {:error, "missing 'condition transaction, on: vote/2' block"} =
                """
                @version 1
                actions triggered_by: transaction, on: vote(x, y) do
@@ -271,7 +271,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
 
-      assert {:error, "missing 'condition transaction, on: vote(x, y)' block"} =
+      assert {:error, "missing 'condition transaction, on: vote/2' block"} =
                """
                @version 1
                actions triggered_by: transaction, on: vote(x,y) do
@@ -947,20 +947,21 @@ defmodule Archethic.Contracts.InterpreterTest do
         }
       }
 
+      recipient = %Recipient{address: address, action: "vote", args: ["Dr. Who?"]}
+
       trigger_tx = %Transaction{
         type: :data,
         data: %TransactionData{
-          recipients: [
-            %Recipient{address: address, action: "vote", args: ["Dr. Who?"]},
-            %Recipient{address: random_address()}
-          ]
+          recipients: [recipient, %Recipient{address: random_address()}]
         },
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      trigger_key = Contract.get_trigger_for_recipient(recipient)
+
       assert {:ok, %Transaction{data: %TransactionData{content: "Dr. Who?"}}} =
                Interpreter.execute_trigger(
-                 {:transaction, "vote", ["candidate"]},
+                 trigger_key,
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
@@ -1028,19 +1029,21 @@ defmodule Archethic.Contracts.InterpreterTest do
         }
       }
 
+      recipient = %Recipient{address: address, action: "add", args: [1, 2]}
+
       trigger_tx = %Transaction{
         type: :data,
         data: %TransactionData{
-          recipients: [
-            %Recipient{address: address, action: "add", args: [1, 2]}
-          ]
+          recipients: [recipient]
         },
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      trigger_key = Contract.get_trigger_for_recipient(recipient)
+
       assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
                Interpreter.execute_trigger(
-                 {:transaction, "add", ["x", "y"]},
+                 trigger_key,
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
@@ -1066,19 +1069,21 @@ defmodule Archethic.Contracts.InterpreterTest do
         }
       }
 
+      recipient = %Recipient{address: address, action: "add", args: [1, 2]}
+
       trigger_tx = %Transaction{
         type: :data,
         data: %TransactionData{
-          recipients: [
-            %Recipient{address: address, action: "add", args: [1, 2]}
-          ]
+          recipients: [recipient]
         },
         validation_stamp: ValidationStamp.generate_dummy()
       }
 
+      trigger_key = Contract.get_trigger_for_recipient(recipient)
+
       assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
                Interpreter.execute_trigger(
-                 {:transaction, "add", ["x", "y"]},
+                 trigger_key,
                  Contract.from_transaction!(contract_tx),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
