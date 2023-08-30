@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "to": {
+      "$ref": "file://schemas/base/address.json",
+      "description": "Address of the recipient"
+    },
+    "amount": {
+      "type": "integer",
+      "description": "Amount of UCO to send in BigInt",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "to",
+    "amount"
+  ],
+  "additionalProperties": false
+}
