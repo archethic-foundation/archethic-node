@@ -1157,4 +1157,16 @@ defmodule Archethic.Utils do
         :not_found
     end
   end
+
+  @doc """
+  Resolver function used by ExJsonSchema to resolve local path
+  """
+  @spec local_schema_resolver!(path :: binary()) :: map()
+  def local_schema_resolver!("file://" <> path) do
+    Application.app_dir(:archethic, "priv/json-schemas/#{path}")
+    |> File.read!()
+    |> Jason.decode!()
+  end
+
+  def local_schema_resolver!(_), do: raise("Invalid URI for $ref")
 end
