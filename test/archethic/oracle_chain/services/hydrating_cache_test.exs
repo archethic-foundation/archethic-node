@@ -130,19 +130,31 @@ defmodule ArchethicCache.OracleChain.Services.HydratingCacheTest do
   test "should kill the task if hydrating function takes longer than timeout" do
     {:ok, pid} =
       HydratingCache.start_link(
-        mfa: {Process, :sleep, [100]},
-        refresh_interval: 100,
-        hydrating_function_timeout: 10,
+        mfa: {Process, :sleep, [200]},
+        refresh_interval: 200,
+        hydrating_function_timeout: 100,
         ttl: :infinity
       )
 
     :erlang.trace(pid, true, [:receive])
+
+    state_begin = :sys.get_state(pid)
+
+    Process.sleep(100)
+
     assert_receive {:trace, ^pid, :receive, :hydrate}
     assert_receive {:trace, ^pid, :receive, {:kill_hydrating_task, _}}
 
+    # check task has been killed but not genserver
     refute Process.alive?(:sys.get_state(pid).hydrating_task.pid)
     assert Process.alive?(pid)
 
+    # genserver still able to reply
     assert :error = HydratingCache.get(pid)
+
+    Process.sleep(200)
+
+    # make sure a new timer has been started
+    assert :sys.get_state(pid).hydrating_timer != state_begin.hydrating_timer
   end
 end
