@@ -24,10 +24,6 @@ defmodule Archethic.Contracts.Interpreter do
   @type execute_opts :: [time_now: DateTime.t()]
   @type function_key() :: {String.t(), integer()}
 
-  defmodule Error do
-    defexception [:message]
-  end
-
   @doc """
   Dispatch through the correct interpreter.
   This return a filled contract structure or an human-readable error.

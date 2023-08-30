@@ -54,24 +54,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
           result :: any()
   def execute(ast, constants, args_names \\ [], args_ast \\ []) do
-    task =
-      Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-        Scope.execute(ast, constants, args_names, args_ast)
-      end)
-
-    # 500ms to execute or raise
-    case Task.yield(task, 500) || Task.shutdown(task) do
-      nil ->
-        raise Interpreter.Error, message: "timeout"
-
-      {:ok, reply} ->
-        reply
-
-      {:exit, reason} ->
-        # error from the code (ex: 1 + "abc")
-        # reraise because it is rescued by the caller
-        raise reason
-    end
+    Scope.execute(ast, constants, args_names, args_ast)
   end
 
   # ----------------------------------------------------------------------
