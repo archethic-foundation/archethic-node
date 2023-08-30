@@ -195,6 +195,8 @@ config :ex_cldr,
   default_backend: Archethic.Cldr,
   json_library: Jason
 
+config :ex_json_schema, :remote_schema_resolver, {Archethic.Utils, :local_schema_resolver!}
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config("#{Mix.env()}.exs")
