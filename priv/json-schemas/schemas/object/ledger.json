@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "uco": {
+      "type": "object",
+      "properties": {
+        "transfers": {
+          "$ref": "file://schemas/list/uco_transfers.json",
+          "description": "UCO transfers"
+        }
+      },
+      "additionalProperties": false
+    },
+    "token": {
+      "type": "object",
+      "properties": {
+        "transfers": {
+          "$ref": "file://schemas/list/token_transfers.json",
+          "description": "Token transfers"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Transaction's smart contract code",
+      "maxLength": 24576
+    },
+    "content": {
+      "type": "string",
+      "description": "Transaction's content",
+      "maxLength": 3145728
+    },
+    "recipients": {
+      "$ref": "file://schemas/list/recipients.json",
+      "description": "Transaction's recipients to call smart contract"
+    },
+    "ledger": {
+      "$ref": "file://schemas/object/ledger.json",
+      "description": "Transaction's transfers"
+    },
+    "ownerships": {
+      "$ref": "file://schemas/list/ownerships.json",
+      "description": "Transaction's ownerships"
+    }
+  },
+  "additionalProperties": false
+}

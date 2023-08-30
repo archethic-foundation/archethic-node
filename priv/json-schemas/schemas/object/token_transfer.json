@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "to": {
+      "$ref": "file://schemas/base/address.json",
+      "description": "Address of the recipient"
+    },
+    "amount": {
+      "type": "integer",
+      "description": "Amount of token to send in BigInt",
+      "minimum": 1
+    },
+    "tokenAddress": {
+      "$ref": "file://schemas/base/address.json",
+      "description": "Address of the token to send"
+    },
+    "tokenId": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Token ID to send (0 for fungible)"
+    }
+  },
+  "required": [
+    "to",
+    "amount",
+    "tokenAddress",
+    "tokenId"
+  ],
+  "additionalProperties": false
+}

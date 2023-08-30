@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "oneOf": [
+      {
+        "$ref": "file://schemas/base/address.json"
+      },
+      {
+        "$ref": "file://schemas/object/recipient.json"
+      }
+    ]
+  },
+  "maxItems": 255
+}

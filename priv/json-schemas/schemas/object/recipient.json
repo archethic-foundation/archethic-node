@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "address": {
+      "$ref": "file://schemas/base/address.json",
+      "description": "Address of the targeted contract"
+    },
+    "action": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Action to trigger",
+      "minLength": 1
+    },
+    "args": {
+      "description": "Arguments for the action"
+    }
+  },
+  "if": {
+    "properties": {
+      "action": {
+        "const": "null"
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "args": {
+        "type": "null"
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "args": {
+        "type": "array",
+        "items": {
+          "type": [
+            "array",
+            "string",
+            "number",
+            "integer",
+            "object",
+            "null",
+            "boolean"
+          ]
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

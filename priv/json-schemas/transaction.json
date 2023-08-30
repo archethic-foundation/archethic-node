@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2,
+      "description": "Transaction's version"
+    },
+    "address": {
+      "$ref": "file://schemas/base/address.json",
+      "description": "Transaction's address"
+    },
+    "type": {
+      "enum": [
+        "keychain_access",
+        "keychain",
+        "transfer",
+        "hosting",
+        "token",
+        "data",
+        "contract",
+        "code_proposal",
+        "code_approval"
+      ],
+      "description": "Transaction's type"
+    },
+    "previousPublicKey": {
+      "$ref": "file://schemas/base/public_key.json",
+      "description": "Transaction's previous public key"
+    },
+    "previousSignature": {
+      "$ref": "file://schemas/base/hexadecimal.json",
+      "description": "Transaction's previous signature"
+    },
+    "originSignature": {
+      "$ref": "file://schemas/base/hexadecimal.json",
+      "description": "Transaction's origin signature"
+    },
+    "data": {
+      "$ref": "file://schemas/object/transaction_data.json",
+      "description": "Transaction's data"
+    }
+  },
+  "required": [
+    "version",
+    "address",
+    "type",
+    "previousPublicKey",
+    "previousSignature",
+    "originSignature",
+    "data"
+  ],
+  "additionalProperties": false
+}

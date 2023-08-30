@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "secret": {
+      "$ref": "file://schemas/base/hexadecimal.json",
+      "description": "Encrypted secret"
+    },
+    "authorizedKeys": {
+      "$ref": "file://schemas/list/authorized_keys.json",
+      "description": "Authorized keys allowed to decrypt the secret"
+    }
+  },
+  "required": [
+    "secret",
+    "authorizedKeys"
+  ],
+  "additionalProperties": false
+}
