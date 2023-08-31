@@ -21,6 +21,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   @tag [:io]
   @impl Http
   def fetch(uri) do
+    if check_too_many_calls() do
+      raise Library.Error, message: "Http module got called more than once"
+    end
+
     task =
       Task.Supervisor.async_nolink(
         TaskSupervisor,
@@ -52,6 +56,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   @tag [:io]
   @impl Http
   def fetch_many(uris) do
+    if check_too_many_calls() do
+      raise Library.Error, message: "Http module got called more than once"
+    end
+
     uris_count = length(uris)
 
     if uris_count > 5 do
@@ -174,6 +182,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
           {:error, _, reason, _} ->
             {:error, reason}
         end
+    end
+  end
+
+  defp check_too_many_calls() do
+    case Process.get(:smart_contract_http_fetch_called) do
+      true ->
+        true
+
+      nil ->
+        Process.put(:smart_contract_http_fetch_called, true)
+        false
     end
   end
 end
