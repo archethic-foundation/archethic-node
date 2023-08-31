@@ -88,8 +88,11 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   @spec cast(recipient :: binary() | map()) :: t()
   def cast(recipient) when is_binary(recipient), do: %__MODULE__{address: recipient}
 
-  def cast(%{address: address, action: action, args: args}),
-    do: %__MODULE__{address: address, action: action, args: args}
+  def cast(recipient = %{address: address}) do
+    action = Map.get(recipient, :action)
+    args = Map.get(recipient, :args)
+    %__MODULE__{address: address, action: action, args: args}
+  end
 
   @doc false
   @spec to_map(recipient :: t()) :: map()
