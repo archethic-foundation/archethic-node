@@ -106,7 +106,7 @@ defmodule ArchethicWeb.API.JsonRPCControllerTest do
       "address" => "0000a9f3bc500d0ed7d923e983eafc080113633456f53c400814e1d4f34c5fa67220",
       "type" => type,
       "data" => %{
-        "content" => "73616c7574",
+        "content" => "hello",
         "code" => "",
         "ownerships" => [],
         "ledger" => %{

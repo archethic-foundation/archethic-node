@@ -31,38 +31,15 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.EstimateTransactionFeeTest do
 
   describe "validate_params" do
     test "should send error when transaction key is missing" do
-      assert {:error,
-              %{
-                transaction: [
-                  "is required"
-                ]
-              }} = EstimateTransactionFee.validate_params(%{})
+      assert {:error, %{"transaction" => "Is required"}} =
+               EstimateTransactionFee.validate_params(%{})
     end
 
     test "should send bad_request response for invalid transaction body" do
       assert {:error,
               %{
-                address: [
-                  "can't be blank"
-                ],
-                data: [
-                  "can't be blank"
-                ],
-                originSignature: [
-                  "can't be blank"
-                ],
-                previousPublicKey: [
-                  "can't be blank"
-                ],
-                previousSignature: [
-                  "can't be blank"
-                ],
-                type: [
-                  "can't be blank"
-                ],
-                version: [
-                  "can't be blank"
-                ]
+                "#" =>
+                  "Required properties version, address, type, previousPublicKey, previousSignature, originSignature, data were not present."
               }} = EstimateTransactionFee.validate_params(%{"transaction" => %{}})
     end
   end
