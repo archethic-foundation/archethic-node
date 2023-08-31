@@ -583,7 +583,7 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     property "should cost more with multiple recipients but being more efficient than multiple transactions" do
-      check all(nb_recipients <- StreamData.integer(1..255)) do
+      check all(nb_recipients <- StreamData.integer(2..255)) do
         batch_tx =
           TransactionFactory.create_valid_transaction([],
             type: :transfer,
