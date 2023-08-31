@@ -197,7 +197,7 @@ defmodule Archethic.Utils do
       #   }
       # }
 
-      # iex> %{ "a" => "hello", "b.c" => "hi" } |> Utils.atomize_keys(true)
+      # iex> %{ "a" => "hello", "b.c" => "hi" } |> Utils.atomize_keys(nest_dot?: true)
       # %{
       #   a: "hello",
       #   b: %{
@@ -225,7 +225,7 @@ defmodule Archethic.Utils do
       ...>    221, 48, 165, 205, 196, 124, 240, 132, 54, 75, 237, 2, 33, 0, 141, 28, 71,
       ...>    218, 224, 201>>
       ...> }
-      ...> |> Utils.atomize_keys(true)
+      ...> |> Utils.atomize_keys(nest_dot?: true)
       %{
         address: <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228, 251,
                     55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
@@ -248,44 +248,65 @@ defmodule Archethic.Utils do
         }
       }
 
-      # iex> %{ "a.b.c" => "hello" } |> Utils.atomize_keys(false)
+      # iex> %{ "a.b.c" => "hello" } |> Utils.atomize_keys()
       # %{ "a.b.c": "hello"}
-  """
-  @spec atomize_keys(map(), nest_dot? :: boolean()) :: map()
-  def atomize_keys(map, nest_dot? \\ false)
 
-  def atomize_keys(struct = %{__struct__: _}, _nest_dot?) do
+      # iex> %{ "argumentNames" => %{"firstName" => "toto"} } |> Utils.atomize_keys(to_snake_case?: true)
+      # %{ :argument_names: %{firs_name: "toto"}}
+  """
+  @spec atomize_keys(map :: map(), opts :: Keyword.t()) :: map()
+  def atomize_keys(map, opts \\ []) do
+    nest_dot? = Keyword.get(opts, :nest_dot?, false)
+    to_snake_case? = Keyword.get(opts, :to_snake_case?, false)
+
+    atomize_keys(map, nest_dot?, to_snake_case?)
+  end
+
+  def atomize_keys(struct = %{__struct__: _}, _, _) do
     struct
   end
 
-  def atomize_keys(map = %{}, nest_dot?) do
+  def atomize_keys(map = %{}, nest_dot?, to_snake_case?) do
     map
     |> Enum.reduce(%{}, fn
       {k, v}, acc when is_binary(k) ->
         if String.valid?(k) do
           if nest_dot? and String.contains?(k, ".") do
-            put_in(acc, nested_path(String.split(k, ".")), atomize_keys(v, nest_dot?))
+            path =
+              String.split(k, ".")
+              |> Enum.map(fn k ->
+                if to_snake_case?, do: Macro.underscore(k), else: k
+              end)
+
+            put_in(
+              acc,
+              nested_path(path),
+              atomize_keys(v, nest_dot?, to_snake_case?)
+            )
           else
-            Map.put(acc, String.to_existing_atom(k), atomize_keys(v, nest_dot?))
+            k = if to_snake_case?, do: Macro.underscore(k), else: k
+            Map.put(acc, String.to_existing_atom(k), atomize_keys(v, nest_dot?, to_snake_case?))
           end
         else
-          Map.put(acc, k, atomize_keys(v, nest_dot?))
+          Map.put(acc, k, atomize_keys(v, nest_dot?, to_snake_case?))
         end
 
       {k, v}, acc ->
-        Map.put(acc, k, atomize_keys(v, nest_dot?))
+        Map.put(acc, k, atomize_keys(v, nest_dot?, to_snake_case?))
     end)
   end
 
   # Walk the list and atomize the keys of
   # of any map members
-  def atomize_keys([head | []], _), do: [atomize_keys(head)]
+  def atomize_keys([head | []], nest_dot?, to_snake_case?),
+    do: [atomize_keys(head, nest_dot?, to_snake_case?)]
 
-  def atomize_keys([head | rest], _) do
-    [atomize_keys(head)] ++ atomize_keys(rest)
+  def atomize_keys([head | rest], nest_dot?, to_snake_case?) do
+    [atomize_keys(head, nest_dot?, to_snake_case?)] ++
+      atomize_keys(rest, nest_dot?, to_snake_case?)
   end
 
-  def atomize_keys(not_a_map, _) do
+  def atomize_keys(not_a_map, _, _) do
     not_a_map
   end
 
