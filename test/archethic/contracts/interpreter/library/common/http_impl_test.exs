@@ -60,6 +60,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
     test "should raise if the endpoint is too slow" do
       assert_raise Library.Error, fn -> HttpImpl.fetch("https://127.0.0.1:8081/very-slow") end
     end
+
+    test "should raise if it's called more than once in the same process" do
+      assert %{"status" => 200, "body" => "hello"} = HttpImpl.fetch("https://127.0.0.1:8081")
+      assert_raise Library.Error, fn -> HttpImpl.fetch("https://127.0.0.1:8081") end
+    end
   end
 
   describe "fetch_many/1" do
@@ -123,6 +128,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
           "https://127.0.0.1:8081/data?kbytes=200"
         ])
       end
+    end
+
+    test "should raise if it's called more than once in the same process" do
+      assert [%{"status" => 200, "body" => "hello"}] =
+               HttpImpl.fetch_many(["https://127.0.0.1:8081"])
+
+      assert_raise Library.Error, fn -> HttpImpl.fetch_many(["https://127.0.0.1:8081"]) end
     end
   end
 end
