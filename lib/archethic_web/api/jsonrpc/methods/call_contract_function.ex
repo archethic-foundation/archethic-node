@@ -57,6 +57,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   defp format_reason(:function_failure, function),
     do: {:error, :function_failure, "There was an error while executing the function", function}
 
+  defp format_reason(:timeout, function),
+    do: {:error, :timeout, "Public function call timed-out", function}
+
   defp format_reason(:function_is_private, function),
     do: {:error, :function_is_private, "The function you are trying to call is private", function}
 

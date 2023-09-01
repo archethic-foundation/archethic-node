@@ -76,16 +76,29 @@ defmodule Archethic.Contracts do
           | {:error, :function_failure}
           | {:error, :function_does_not_exist}
           | {:error, :function_is_private}
+          | {:error, :timeout}
 
   def execute_function(contract, function_name, args) do
     with {:ok, function} <- get_function_from_contract(contract, function_name, args),
          constants <- get_function_constants_from_contract(contract) do
-      result = Interpreter.execute_function(function, constants, args)
-      {:ok, result}
+      task =
+        Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+          Interpreter.execute_function(function, constants, args)
+        end)
+
+      # 500ms to execute or raise
+      case Task.yield(task, 500) || Task.shutdown(task) do
+        {:ok, reply} ->
+          {:ok, reply}
+
+        nil ->
+          {:error, :timeout}
+
+        {:exit, _reason} ->
+          # error from the code (ex: 1 + "abc")
+          {:error, :function_failure}
+      end
     end
-  rescue
-    _ ->
-      {:error, :function_failure}
   end
 
   defp get_function_from_contract(%{functions: functions}, function_name, args) do

@@ -49,7 +49,9 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   end
 
   @doc """
-  Execute function code and returns the result
+  Execute public function code and returns the result
+
+  Raise on SC's errors and timeout
   """
   @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
           result :: any()

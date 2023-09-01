@@ -969,4 +969,41 @@ defmodule Archethic.ContractsTest do
              )
     end
   end
+
+  describe "execute_function/3" do
+    test "should return an error if the function takes too much time" do
+      code = ~S"""
+      @version 1
+      export fun meaning_of_life() do
+        42
+      end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        address: random_address(),
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      contract = Contract.from_transaction!(contract_tx)
+
+      # add a sleep to the AST
+      contract_with_sleep =
+        update_in(
+          contract,
+          [Access.key!(:functions), Access.key!({"meaning_of_life", 0}), Access.key!(:ast)],
+          fn ast_fun ->
+            quote do
+              Process.sleep(5_000)
+              unquote(ast_fun)
+            end
+          end
+        )
+
+      assert {:error, :timeout} =
+               Contracts.execute_function(contract_with_sleep, "meaning_of_life", [])
+    end
+  end
 end
