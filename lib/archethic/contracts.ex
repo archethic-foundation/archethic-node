@@ -69,7 +69,7 @@ defmodule Archethic.Contracts do
   """
   @spec execute_function(
           Contract.t(),
-          :string,
+          String.t(),
           list()
         ) ::
           {:ok, result :: any()}
