@@ -8,7 +8,9 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
+  alias Archethic.TaskSupervisor
   alias Archethic.Utils
+
   require Logger
 
   defmodule State do
@@ -78,7 +80,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
         }
       ) do
     hydrating_task =
-      Task.async(fn ->
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
         try do
           {:ok, apply(m, f, a)}
         rescue
@@ -93,8 +95,9 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
     {:noreply, %State{state | hydrating_task: hydrating_task}}
   end
 
-  def handle_info({:kill_hydrating_task, task}, state) do
-    Task.shutdown(task, :brutal_kill)
+  def handle_info({:kill_hydrating_task, %Task{pid: pid}}, state) do
+    # Task.shutdown will not send DOWN msg
+    Process.exit(pid, :kill)
 
     {:noreply, state}
   end
@@ -103,7 +106,6 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
         {ref, result},
         state = %State{
           mfa: {m, f, a},
-          refresh_interval: refresh_interval,
           ttl_timer: ttl_timer,
           ttl: ttl,
           hydrating_task: %Task{ref: ref_task}
@@ -123,15 +125,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
         nil
       end
 
-    # start a new hydrate timer
-    hydrating_timer = Process.send_after(self(), :hydrate, next_tick_in_seconds(refresh_interval))
-
-    new_state = %{
-      state
-      | ttl_timer: ttl_timer,
-        hydrating_task: nil,
-        hydrating_timer: hydrating_timer
-    }
+    new_state = %{state | ttl_timer: ttl_timer}
 
     case result do
       {:ok, value} ->
@@ -143,7 +137,16 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
     end
   end
 
-  def handle_info({:DOWN, _ref, :process, _, _}, state), do: {:noreply, state}
+  def handle_info(
+        {:DOWN, _ref, :process, _, _},
+        state = %State{refresh_interval: refresh_interval}
+      ) do
+    # we always receive a DOWN on success/error/timeout
+    # so this is the best place to cleanup & start a new timer
+    hydrating_timer = Process.send_after(self(), :hydrate, next_tick_in_seconds(refresh_interval))
+
+    {:noreply, %{state | hydrating_task: nil, hydrating_timer: hydrating_timer}}
+  end
 
   def handle_info(:discard_value, state) do
     {:noreply, %State{state | value: nil, ttl_timer: nil}}
