@@ -17,6 +17,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
       File.rm_rf!(Application.app_dir(:archethic, "data_test"))
     end)
 
+    ArchethicCache.LRU.start_link(:chain_index_cache, 10_000)
     %{db_path: db_path}
   end
 
