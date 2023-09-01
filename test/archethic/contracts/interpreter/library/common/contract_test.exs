@@ -7,7 +7,14 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   use ArchethicCase
   import ArchethicCase
 
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Contract
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.LastTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -18,6 +25,10 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+
+  alias Archethic.TransactionFactory
+
+  import Mox
 
   doctest Contract
 
@@ -648,6 +659,85 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                  ]
                }
              } = sanitize_parse_execute(code)
+    end
+  end
+
+  describe "call_function/3" do
+    setup do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: :crypto.strong_rand_bytes(32),
+        last_public_key: :crypto.strong_rand_bytes(32),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      code = """
+      @version 1
+
+      export fun add(x, y) do
+        x + y
+      end
+      """
+
+      contract_tx = TransactionFactory.create_valid_transaction([], code: code)
+
+      %{contract_tx: contract_tx}
+    end
+
+    test "should call a contract function and return it's value", %{contract_tx: contract_tx} do
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
+        {:ok, %LastTransactionAddress{address: contract_tx.address}}
+      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ ->
+        {:ok, contract_tx}
+      end)
+
+      assert 3 == contract_tx.address |> Base.encode16() |> Contract.call_function("add", [1, 2])
+    end
+
+    test "should raise an error if parameters are invalid", %{contract_tx: contract_tx} do
+      assert_raise(RuntimeError, fn ->
+        Contract.call_function(:invalid, "add", [1, 2])
+      end)
+
+      assert_raise(Library.Error, fn ->
+        contract_tx.address |> Base.encode16() |> Contract.call_function(:invalid, [1, 2])
+      end)
+
+      assert_raise(Library.Error, fn ->
+        contract_tx.address |> Base.encode16() |> Contract.call_function("add", :invalid)
+      end)
+    end
+
+    test "should raise an error on network issue", %{contract_tx: contract_tx} do
+      assert_raise(Library.Error, fn ->
+        contract_tx.address |> Base.encode16() |> Contract.call_function("add", [1, 2])
+      end)
+    end
+
+    test "should raise an error if function does not exists", %{contract_tx: contract_tx} do
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: contract_tx.address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, contract_tx}
+      end)
+
+      assert_raise(Library.Error, fn ->
+        contract_tx.address |> Base.encode16() |> Contract.call_function("add", [1, 2, 3])
+      end)
+
+      assert_raise(Library.Error, fn ->
+        contract_tx.address |> Base.encode16() |> Contract.call_function("not_exists", [1, 2])
+      end)
     end
   end
 end

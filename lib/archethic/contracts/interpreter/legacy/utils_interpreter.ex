@@ -550,7 +550,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter do
   are binary encode terms, and so are true binary.To differentiate between the two,
   we check if the string is printable.
   """
-  def get_address(address, context) do
+  def get_address(address, context) when is_binary(address) do
     address =
       if String.printable?(address) do
         case Base.decode16(address, case: :mixed) do
@@ -569,6 +569,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter do
       _ -> raise "Invalid address in #{inspect(context)}"
     end
   end
+
+  def get_address(_address, context), do: raise("Invalid address in #{inspect(context)}")
 
   def get_public_key(public_key, context) do
     public_key =
