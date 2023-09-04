@@ -68,7 +68,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
              code: ~s"""
              @version 1
 
-             condition transaction: [
+             condition triggered_by: transaction, as: [
                content: transaction.timestamp < 5000000000
              ]
 
@@ -104,7 +104,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
              code: ~s"""
              @version 1
 
-             condition transaction, on: upgrade(), as: []
+             condition triggered_by: transaction, on: upgrade(), as: []
              actions triggered_by: transaction, on: upgrade() do
                Contract.set_code transaction.content
              end
@@ -173,7 +173,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
              code: ~s"""
              @version 1
 
-             condition transaction: [
+             condition triggered_by: transaction, as: [
                content: "hola"
              ]
 

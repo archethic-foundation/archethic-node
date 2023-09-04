@@ -10,7 +10,7 @@ defmodule Archethic.ContractFactory do
       content: true
     ]
 
-    condition transaction: [
+    condition triggered_by: transaction, as: [
       uco_transfers: Map.size() > 0
     ]
 

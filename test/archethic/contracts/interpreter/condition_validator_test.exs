@@ -16,8 +16,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
   describe "valid_conditions?/2" do
     test "should return true if the transaction's conditions are valid" do
-      code = ~s"""
-      condition transaction: [
+      code = ~s"""iggered_by: transaction, as: [
         type: "transfer"
       ]
       """
@@ -60,7 +59,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
     test "should return true if the oracle's conditions are valid" do
       code = ~s"""
-      condition oracle: [
+      condition triggered_by: oracle, as: [
         content: "Hello"
       ]
       """
@@ -178,7 +177,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       token_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       code = ~s"""
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         uco_transfers: (
           transaction.uco_transfers["#{Base.encode16(address)}"] == 1
         ),
@@ -238,7 +237,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       }
 
       code = ~s"""
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         uco_transfers: Map.size() > 0
       ]
       """
@@ -253,7 +252,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              })
 
       code = ~s"""
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         uco_transfers: Map.size() == 1
       ]
       """
@@ -268,7 +267,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              })
 
       code = ~s"""
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         uco_transfers: Map.size() == 2
       ]
       """
@@ -283,7 +282,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              })
 
       code = ~s"""
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         uco_transfers: Map.size() < 10
       ]
       """

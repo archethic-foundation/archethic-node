@@ -31,6 +31,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> ConditionInterpreter.parse([])
+
+      code = ~s"""
+      condition triggered_by: oracle, as: [      ]
+      """
+
+      assert {:ok, :oracle, %ConditionsSubjects{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
     end
 
     test "parse a condition transaction" do
@@ -43,11 +53,31 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> Interpreter.sanitize_code()
                |> elem(1)
                |> ConditionInterpreter.parse([])
+
+      code = ~s"""
+      condition triggered_by: transaction, as: [      ]
+      """
+
+      assert {:ok, {:transaction, nil, nil}, %ConditionsSubjects{}} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
     end
 
     test "does not parse anything else" do
       code = ~s"""
       condition foo: [      ]
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+
+      code = ~s"""
+      condition triggered_by: foo, as: [      ]
       """
 
       assert {:error, _, _} =
@@ -73,7 +103,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse strict value" do
       code = ~s"""
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "Hello"
       ]
       """
@@ -89,7 +119,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse library functions" do
       code = ~s"""
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         uco_transfers: Map.size() > 0
       ]
       """
@@ -105,7 +135,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "should not parse :write_contract functions" do
       code = ~s"""
-      condition transaction: [
+       condition triggered_by: transaction, as: [
         uco_transfers: Contract.set_content "content"
       ]
       """
@@ -119,7 +149,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse custom functions" do
       code = ~s"""
-      condition transaction: [
+       condition triggered_by: transaction, as: [
         uco_transfers: get_uco_transfers() > 0
       ]
       """
@@ -139,7 +169,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse true" do
       code = ~s"""
-      condition transaction: [
+       condition triggered_by: transaction, as: [
         content: true
       ]
       """
@@ -153,7 +183,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse false" do
       code = ~s"""
-      condition transaction: [
+       condition triggered_by: transaction, as: [
         content: false
       ]
       """
@@ -167,7 +197,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse AST" do
       code = ~s"""
-      condition transaction: [
+       condition triggered_by: transaction, as: [
         content: if true do "Hello" else "World" end
       ]
       """
@@ -181,7 +211,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse named action 0 arg" do
       code = ~s"""
-      condition transaction, on: upgrade, as: []
+      condition triggered_by: transaction, on: upgrade, as: []
       """
 
       assert {:ok, {:transaction, "upgrade", []}, %ConditionsSubjects{}} =
@@ -193,7 +223,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse named action 1 arg" do
       code = ~s"""
-      condition transaction, on: vote(candidate), as: []
+      condition triggered_by: transaction, on: vote(candidate), as: []
       """
 
       assert {:ok, {:transaction, "vote", ["candidate"]}, %ConditionsSubjects{}} =
@@ -205,7 +235,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "parse named action n args" do
       code = ~s"""
-      condition transaction, on: count(x, y), as: []
+      condition triggered_by: transaction, on: count(x, y), as: []
       """
 
       assert {:ok, {:transaction, "count", ["x", "y"]}, %ConditionsSubjects{}} =
@@ -217,7 +247,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
 
     test "should not parse action > 255 byte" do
       code = ~s"""
-      condition transaction, on: abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv(x, y), as: []
+      condition triggered_by: transaction, on: abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv(x, y), as: []
       """
 
       assert {:error, {_, "atom length must be less" <> _, _}} =

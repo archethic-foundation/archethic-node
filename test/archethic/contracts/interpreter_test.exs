@@ -53,7 +53,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                condition inherit: [
                 content: true
                ]
-               condition transaction: [
+               condition triggered_by: transaction, as: [
                 uco_transfers: List.size() > 0
                ]
 
@@ -73,7 +73,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                condition inherit: [
                 content: true
                ]
-               condition transaction: [
+               condition triggered_by: transaction, as: [
                 uco_transfers: List.size() > 0
                ]
                actions triggered_by: transaction do
@@ -87,7 +87,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:error, "invalid function arguments - List.empty?(12) - L4"} =
                """
                @version 1
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  x = List.empty?(12)
                end
@@ -104,7 +104,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                   "hello world"
                end
 
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  x = hello_world()
                  x
@@ -123,7 +123,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                  a + t
                end
 
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  x = sum(5,6)
                  x
@@ -142,7 +142,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                   "hello world"
                end
 
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  hey()
                end
@@ -165,7 +165,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                   "hello world"
                end
 
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  x = hello_world()
                  x
@@ -184,7 +184,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                   "hello world"
                end
 
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  x = hello_world(1)
                  x
@@ -199,7 +199,7 @@ defmodule Archethic.Contracts.InterpreterTest do
               "Function List.empty? does not exists with 2 arguments - List.empty?([1], \"foobar\") - L4"} =
                """
                @version 1
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  x = List.empty?([1], "foobar")
                end
@@ -212,7 +212,7 @@ defmodule Archethic.Contracts.InterpreterTest do
               "Function List.non_existing does not exists - List.non_existing([1, 2, 3]) - L4"} =
                """
                @version 1
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by: transaction do
                  x = List.non_existing([1,2,3])
                end
@@ -224,7 +224,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:error, "Parse error: invalid language syntax"} =
                """
                @version 1
-               condition transaction: []
+               condition triggered_by: transaction, as: []
                actions triggered_by:transaction do
                 x = "missing space above"
                end
@@ -233,7 +233,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error 'condition transaction' block is missing" do
-      assert {:error, "missing 'condition transaction' block"} =
+      assert {:error, "missing 'condition triggered_by: transaction' block"} =
                """
                @version 1
                actions triggered_by: transaction do
@@ -244,7 +244,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error 'condition oracle' block is missing" do
-      assert {:error, "missing 'condition oracle' block"} =
+      assert {:error, "missing 'condition triggered_by: oracle' block"} =
                """
                @version 1
                actions triggered_by: oracle do
@@ -254,8 +254,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                |> Interpreter.parse()
     end
 
-    test "should return an human readable error 'condition transaction, on: xxx' block is missing" do
-      assert {:error, "missing 'condition transaction, on: upgrade/0' block"} =
+    test "should return an human readable error 'condition triggered_by: transaction, on: xxx' block is missing" do
+      assert {:error, "missing 'condition triggered_by: transaction, on: upgrade/0' block"} =
                """
                @version 1
                actions triggered_by: transaction, on: upgrade() do
@@ -264,7 +264,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
 
-      assert {:error, "missing 'condition transaction, on: vote/2' block"} =
+      assert {:error, "missing 'condition triggered_by: transaction, on: vote/2' block"} =
                """
                @version 1
                actions triggered_by: transaction, on: vote(x, y) do
@@ -273,7 +273,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                """
                |> Interpreter.parse()
 
-      assert {:error, "missing 'condition transaction, on: vote/2' block"} =
+      assert {:error, "missing 'condition triggered_by: transaction, on: vote/2' block"} =
                """
                @version 1
                actions triggered_by: transaction, on: vote(x,y) do
@@ -323,7 +323,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return a transaction if the contract is correct and there was a Contract.* call" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           Contract.set_content "hello"
         end
@@ -353,7 +353,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       code = """
         @version 1
 
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           Contract.set_content "hello"
         end
@@ -395,7 +395,7 @@ defmodule Archethic.Contracts.InterpreterTest do
          "hello world"
       end
 
-      condition transaction: []
+        condition triggered_by: transaction, as: []
       actions triggered_by: transaction do
         Contract.set_content hello_world()
       end
@@ -431,7 +431,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should not be able to use out of scope variables" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           my_var = "toto"
           Contract.set_content my_func()
@@ -465,7 +465,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           temp = func1()
           Contract.set_content func2()
@@ -506,7 +506,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should be able to use variables from scope in functions" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           Contract.set_content my_func()
         end
@@ -546,7 +546,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should be able to use variables as args for custom functions" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           salary = 1000
           tax = 0.7
@@ -589,7 +589,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should be able to use module function calls as args for custom functions" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           Contract.set_content counter(String.to_number(contract.content))
         end
@@ -631,7 +631,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should be able to use custom function calls as args for custom functions" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           Contract.set_content counter(other_function())
         end
@@ -676,7 +676,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should be able to use string interpolation as arg for custom functions" do
       code = ~S"""
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           name = "Toto"
           Contract.set_content hello("my name is #{name}")
@@ -717,7 +717,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should be able to calculate arg before passing it to custom functions" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           name = "Toto"
           Contract.set_content sum_a_b(1 + 5, 4)
@@ -758,7 +758,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return nil when the contract is correct but no Contract.* call" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           if false do
             Contract.set_content "hello"
@@ -791,7 +791,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return contract_failure if contract code crash" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
 
         actions triggered_by: transaction do
           x = 10 / 0
@@ -824,7 +824,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
 
         actions triggered_by: transaction do
           Contract.add_uco_transfer amount: -1, to: "0000BFEF73346D20771614449D6BE9C705BF314067A0CF0ACBBF5E617EF5C978D0A1"
@@ -900,7 +900,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to simulate a trigger: oracle" do
       code = """
         @version 1
-        condition oracle: []
+        condition triggered_by: oracle, as: []
         actions triggered_by: oracle do
           Contract.set_content "hello"
         end
@@ -931,7 +931,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to use a named action argument in the action & condition blocks" do
       code = """
         @version 1
-        condition transaction, on: vote(candidate), as: [
+        condition triggered_by: transaction, on: vote(candidate), as: [
           content: candidate == "Dr. Who?"
         ]
         actions triggered_by: transaction, on: vote(candidate) do
@@ -973,7 +973,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "Should not be able to overwrite protected global variables" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
           time_now = 2_000_000_000
           Contract.set_content Time.now()
@@ -1015,7 +1015,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to use a named action arguments in the action & condition blocks" do
       code = """
         @version 1
-        condition transaction, on: add(x, y), as: []
+        condition triggered_by: transaction, on: add(x, y), as: []
         actions triggered_by: transaction, on: add(x, y) do
           Contract.set_content x + y
         end
@@ -1055,7 +1055,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should be able to have different spacing in condition & actions named action" do
       code = """
         @version 1
-        condition transaction, on: add(x,      y), as: []
+        condition triggered_by: transaction, on: add(x,      y), as: []
         actions triggered_by: transaction, on: add(x,y) do
           Contract.set_content x + y
         end
@@ -1097,7 +1097,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should transform atom into tuple {:atom, \"value\"}" do
       code = """
       @version 1
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         address: "0xabc123def456"
       ]
       """
@@ -1109,7 +1109,12 @@ defmodule Archethic.Contracts.InterpreterTest do
                 [
                   {_, _, [{{:atom, "version"}, _, _}]},
                   {{:atom, "condition"}, _,
-                   [[{{:atom, "transaction"}, [{{:atom, "address"}, "0xabc123def456"}]}]]}
+                   [
+                     [
+                       {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
+                       {{:atom, "as"}, [{{:atom, "address"}, "0xabc123def456"}]}
+                     ]
+                   ]}
                 ]},
                ast
              )
@@ -1118,7 +1123,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should transform 0x hex in uppercase string" do
       code = """
       @version 1
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         address: 0xabc123def456
       ]
       """
@@ -1130,7 +1135,12 @@ defmodule Archethic.Contracts.InterpreterTest do
                 [
                   {_, _, [{{:atom, "version"}, _, _}]},
                   {{:atom, "condition"}, _,
-                   [[{{:atom, "transaction"}, [{{:atom, "address"}, "ABC123DEF456"}]}]]}
+                   [
+                     [
+                       {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
+                       {{:atom, "as"}, [{{:atom, "address"}, "ABC123DEF456"}]}
+                     ]
+                   ]}
                 ]},
                ast
              )
@@ -1139,7 +1149,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     test "should return an error when 0x format is not hexadecimal" do
       code = """
       @version 1
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         address: 0xnothexa
       ]
       """
