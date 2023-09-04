@@ -88,8 +88,6 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     |> Transaction.cast()
   end
 
-  defp remove_recipient_args(params = %{"version" => 1}), do: {[], params}
-
   defp remove_recipient_args(params) do
     get_and_update_in(params, ["data", "recipients"], fn
       nil ->
@@ -113,6 +111,9 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
       |> Enum.map(fn
         {recipient = %{args: _}, original_recipient} ->
           Map.put(recipient, :args, Map.fetch!(original_recipient, "args"))
+
+        {recipient, _} when is_binary(recipient) ->
+          Base.decode16!(recipient, case: :mixed)
 
         {recipient, _} ->
           recipient
