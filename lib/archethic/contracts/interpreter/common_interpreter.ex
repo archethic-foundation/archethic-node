@@ -313,10 +313,9 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
 
           # call the function with the next_transaction as the 1st argument
           # and update it in the scope
-          Scope.update_global(
-            [:next_transaction],
-            &apply(unquote(module), unquote(function), [&1 | unquote(args)])
-          )
+          Scope.update_global([:next_transaction], fn tx ->
+            apply(unquote(module), unquote(function), [tx | unquote(args)])
+          end)
         end
       else
         meta_with_alias = Keyword.put(meta, :alias, module)
