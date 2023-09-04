@@ -157,6 +157,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   object :ledger_operations do
     field(:transaction_movements, list_of(:transaction_movement))
     field(:unspent_outputs, list_of(:unspent_output))
+    field(:consumed_inputs, list_of(:unspent_output))
     field(:fee, :integer)
   end
 
