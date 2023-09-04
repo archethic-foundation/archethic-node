@@ -411,4 +411,78 @@ defmodule Archethic.TransactionChain.TransactionTest do
       assert [] = Transaction.get_movements(tx)
     end
   end
+
+  describe "symmetric serialization" do
+    test "should support latest version" do
+      tx = %Transaction{
+        address:
+          <<0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42, 196, 25, 37, 237, 215,
+            122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217, 180, 32>>,
+        cross_validation_stamps: [],
+        data: %Archethic.TransactionChain.TransactionData{
+          code: "",
+          content:
+            <<0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238, 143, 251, 13, 151, 68, 48, 247, 25, 179,
+              245, 118, 171, 203, 76, 243, 214, 84, 147, 214, 174, 206, 214, 92, 218, 100, 225,
+              114, 163, 26, 223, 186, 0, 0, 1, 126, 255, 61, 177, 215, 1, 0, 1, 0, 234, 193, 62,
+              27, 61, 132, 121, 178, 119, 20, 124, 88, 206, 36, 125, 163, 108, 229, 219, 181, 143,
+              253, 246, 237, 238, 21, 79, 9, 230, 172, 0, 95, 0, 0, 0, 0, 0>>,
+          ledger: %Archethic.TransactionChain.TransactionData.Ledger{
+            token: %Archethic.TransactionChain.TransactionData.TokenLedger{transfers: []},
+            uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}
+          },
+          ownerships: [],
+          recipients: []
+        },
+        origin_signature:
+          <<163, 184, 57, 242, 100, 203, 42, 179, 241, 235, 35, 167, 197, 56, 228, 120, 110, 122,
+            64, 31, 230, 231, 110, 247, 119, 139, 211, 85, 134, 192, 125, 6, 190, 51, 118, 60,
+            239, 190, 15, 138, 6, 137, 87, 32, 13, 241, 26, 186, 1, 113, 112, 58, 24, 242, 140,
+            245, 201, 66, 132, 213, 105, 229, 14, 2>>,
+        previous_public_key:
+          <<0, 0, 84, 200, 174, 114, 81, 219, 237, 219, 237, 222, 27, 55, 149, 8, 235, 248, 37,
+            69, 1, 8, 128, 139, 184, 80, 114, 82, 40, 61, 25, 169, 26, 69>>,
+        previous_signature:
+          <<83, 137, 109, 48, 131, 81, 37, 65, 81, 210, 9, 87, 246, 107, 10, 101, 24, 218, 230,
+            38, 212, 35, 242, 216, 223, 83, 224, 11, 168, 158, 5, 198, 202, 48, 233, 171, 107,
+            127, 70, 206, 98, 145, 93, 119, 98, 58, 79, 206, 161, 21, 251, 218, 6, 44, 55, 133,
+            13, 122, 125, 219, 122, 131, 73, 6>>,
+        type: :oracle,
+        validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
+          ledger_operations:
+            %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
+              fee: 0,
+              transaction_movements: [],
+              unspent_outputs: [],
+              consumed_inputs: []
+            },
+          proof_of_election:
+            <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0>>,
+          proof_of_integrity:
+            <<0, 188, 101, 205, 214, 203, 136, 90, 130, 68, 147, 79, 76, 46, 139, 19, 189, 123,
+              142, 29, 113, 208, 111, 136, 227, 252, 213, 180, 80, 70, 158, 27, 148>>,
+          proof_of_work:
+            <<0, 0, 29, 150, 125, 113, 178, 225, 53, 200, 66, 6, 221, 209, 8, 181, 146, 90, 44,
+              217, 156, 142, 188, 90, 181, 216, 253, 46, 201, 64, 12, 227, 201, 138>>,
+          recipients: [],
+          signature:
+            <<187, 93, 5, 6, 190, 102, 244, 88, 141, 142, 7, 138, 178, 77, 128, 21, 95, 29, 222,
+              145, 211, 18, 48, 16, 185, 69, 209, 146, 56, 26, 106, 191, 101, 56, 15, 99, 52, 179,
+              212, 169, 7, 30, 131, 39, 100, 115, 73, 176, 212, 121, 236, 91, 94, 118, 108, 9,
+              228, 44, 237, 157, 90, 243, 90, 6>>,
+          timestamp: ~U[2022-02-15 21:15:50.000Z],
+          protocol_version: current_protocol_version()
+        },
+        version: current_transaction_version()
+      }
+
+      assert tx ==
+               tx
+               |> Transaction.serialize()
+               |> Transaction.deserialize()
+               |> elem(0)
+    end
+  end
 end
