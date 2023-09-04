@@ -16,7 +16,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
   describe "valid_conditions?/2" do
     test "should return true if the transaction's conditions are valid" do
-      code = ~s"""iggered_by: transaction, as: [
+      code = ~s"""
+      condition triggered_by: transaction, as: [
         type: "transfer"
       ]
       """
