@@ -310,6 +310,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    type: :UCO,
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
                  }
+               ],
+               consumed_inputs: [
+                 %UnspentOutput{
+                   from: "@Bob3",
+                   amount: 2_000_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-09 08:39:10.463Z]
+                 }
                ]
              } =
                LedgerOperations.consume_inputs(
@@ -348,6 +356,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    type: :UCO,
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
                  }
+               ],
+               consumed_inputs: [
+                 %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
+                 %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
+                 %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO}
                ]
              } =
                %LedgerOperations{
@@ -392,6 +405,20 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    amount: 200_000_000,
                    type: {:token, "@CharlieToken", 0},
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
+                 }
+               ],
+               consumed_inputs: [
+                 %UnspentOutput{
+                   from: "@Charlie1",
+                   amount: 200_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-09 08:39:10.463Z]
+                 },
+                 %UnspentOutput{
+                   from: "@Bob3",
+                   amount: 1_200_000_000,
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ~U[2022-10-09 08:39:10.463Z]
                  }
                ]
              } =
@@ -445,9 +472,24 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  },
                  %UnspentOutput{
                    from: "@Alice2",
+                   # TODO: active after part 2 of AEIP-21
+                   #  amount: 200_000_000,
                    amount: 900_000_000,
                    type: {:token, "@CharlieToken", 0},
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
+                 }
+               ],
+               consumed_inputs: [
+                 %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
+                 %UnspentOutput{
+                   from: "@Hugo5",
+                   amount: 700_000_000,
+                   type: {:token, "@CharlieToken", 0}
+                 },
+                 %UnspentOutput{
+                   from: "@Bob3",
+                   amount: 500_000_000,
+                   type: {:token, "@CharlieToken", 0}
                  }
                ]
              } =
@@ -503,16 +545,32 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    type: :UCO,
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
                  },
+                 # TODO to remove after part 2 of AEIP2
                  %UnspentOutput{
                    from: "@CharlieToken",
                    amount: 100_000_000,
                    type: {:token, "@CharlieToken", 1},
                    timestamp: ~U[2022-10-09 08:39:10.463Z]
                  },
+                 # TODO to remove after part 2 of AEIP2
                  %UnspentOutput{
                    from: "@CharlieToken",
                    amount: 100_000_000,
                    type: {:token, "@CharlieToken", 3},
+                   timestamp: ~U[2022-10-09 08:39:10.463Z]
+                 }
+               ],
+               consumed_inputs: [
+                 %UnspentOutput{
+                   from: "@Charlie1",
+                   amount: 200_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-09 08:39:10.463Z]
+                 },
+                 %UnspentOutput{
+                   from: "@CharlieToken",
+                   amount: 100_000_000,
+                   type: {:token, "@CharlieToken", 2},
                    timestamp: ~U[2022-10-09 08:39:10.463Z]
                  }
                ]
@@ -631,13 +689,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                )
 
       assert [
-               # I don't like utxo of amount=0
-               %UnspentOutput{
-                 from: "@Alice",
-                 amount: 0,
-                 type: :UCO,
-                 timestamp: ^now
-               },
                %UnspentOutput{
                  from: "@Alice",
                  amount: 50_000_000,
@@ -645,6 +696,21 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  timestamp: ^now
                }
              ] = ops_result.unspent_outputs
+
+      assert [
+               %UnspentOutput{
+                 from: "@Charlie1",
+                 amount: 1_000,
+                 type: :UCO,
+                 timestamp: ~U[2022-10-09 08:39:10.463Z]
+               },
+               %UnspentOutput{
+                 from: "@Bob",
+                 amount: 100_000_000,
+                 type: {:token, "@Token", 0},
+                 timestamp: ~U[2022-10-09 08:39:10.463Z]
+               }
+             ] = ops_result.consumed_inputs
     end
 
     test "should be able to pay with the minted non-fungible tokens" do
@@ -684,15 +750,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  now
                )
 
+      assert [] = ops_result.unspent_outputs
+
       assert [
-               # I don't like utxo of amount=0
                %UnspentOutput{
-                 from: "@Alice",
-                 amount: 0,
+                 from: "@Charlie1",
+                 amount: 1_000,
                  type: :UCO,
-                 timestamp: ^now
+                 timestamp: ~U[2022-10-09 08:39:10.463Z]
+               },
+               %UnspentOutput{
+                 from: "@Bob",
+                 amount: 100_000_000,
+                 type: {:token, "@Token", 1},
+                 timestamp: ~U[2022-10-09 08:39:10.463Z]
                }
-             ] = ops_result.unspent_outputs
+             ] = ops_result.consumed_inputs
     end
 
     test "should be able to pay with the minted non-fungible tokens (collection)" do
@@ -739,13 +812,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                )
 
       assert [
-               # I don't like utxo of amount=0
-               %UnspentOutput{
-                 from: "@Alice",
-                 amount: 0,
-                 type: :UCO,
-                 timestamp: ^now
-               },
                %UnspentOutput{
                  from: "@Bob",
                  amount: 100_000_000,
@@ -753,6 +819,21 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                }
              ] = ops_result.unspent_outputs
+
+      assert [
+               %UnspentOutput{
+                 from: "@Charlie1",
+                 amount: 1_000,
+                 type: :UCO,
+                 timestamp: ~U[2022-10-09 08:39:10.463Z]
+               },
+               %UnspentOutput{
+                 from: "@Bob",
+                 amount: 100_000_000,
+                 type: {:token, "@Token", 2},
+                 timestamp: ~U[2022-10-09 08:39:10.463Z]
+               }
+             ] = ops_result.consumed_inputs
     end
 
     test "should not be able to pay with the same non-fungible token twice" do
