@@ -81,6 +81,11 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
       |> :erlang.list_to_binary()
 
+    consumed_inputs_encoding =
+      consumed_inputs
+      |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
+      |> :erlang.list_to_binary()
+
     cross_validation_stamps_encoding =
       cross_validation_stamps
       |> Enum.map(&CrossValidationStamp.serialize/1)
