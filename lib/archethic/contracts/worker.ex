@@ -62,6 +62,22 @@ defmodule Archethic.Contracts.Worker do
     {:ok, %{contract: contract}, {:continue, :start_schedulers}}
   end
 
+  def code_change(
+        _,
+        state = %{contract: %Contract{constants: %Constants{contract: constants}}},
+        _
+      ) do
+    # because the worker maintain a parsed contract in memory
+    # it's possible that the parsing changed with the new release
+    # so we reparse the contract here
+    contract =
+      constants
+      |> Constants.to_transaction()
+      |> Contract.from_transaction!()
+
+    {:ok, %{state | contract: contract}}
+  end
+
   def handle_continue(:start_schedulers, state = %{contract: %Contract{triggers: triggers}}) do
     triggers_type = Map.keys(triggers)
 
