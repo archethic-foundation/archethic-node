@@ -106,6 +106,8 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     end)
   end
 
+  defp put_original_recipients_args(params, []), do: params
+
   defp put_original_recipients_args(params, original_recipients) do
     update_in(params, [:data, :recipients], fn recipients ->
       recipients
