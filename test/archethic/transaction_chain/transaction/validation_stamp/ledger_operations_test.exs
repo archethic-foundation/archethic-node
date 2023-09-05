@@ -360,7 +360,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                consumed_inputs: [
                  %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
                  %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
-                 %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO}
+                 %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO},
+                 # To remove after the phase2 of AEIP 21
+                 %UnspentOutput{from: "@Hugo", amount: 800_000_000, type: :UCO}
                ]
              } =
                %LedgerOperations{
@@ -490,6 +492,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    from: "@Bob3",
                    amount: 500_000_000,
                    type: {:token, "@CharlieToken", 0}
+                 },
+                 # Necessary for the consolidation of tokens before AEIP 21 Phase 2
+                 %UnspentOutput{
+                   amount: 700_000_000,
+                   from: "@Tom1",
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: nil,
+                   reward?: false
                  }
                ]
              } =
@@ -877,6 +887,86 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  ],
                  now
                )
+    end
+
+    test "should add consumed inputs after input consolidation" do
+      assert {true, ops} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{},
+                 "@Alice2",
+                 [
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 300_000_000,
+                     type: {:token, "@Token1", 0},
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   },
+                   %UnspentOutput{
+                     from: "@Tom5",
+                     amount: 300_000_000,
+                     type: {:token, "@Token1", 0},
+                     timestamp: ~U[2022-10-20 08:00:20.463Z]
+                   }
+                 ],
+                 DateTime.utc_now()
+               )
+
+      assert %LedgerOperations{
+               unspent_outputs: [
+                 %UnspentOutput{
+                   from: "@Alice2",
+                   amount: 600_000_000,
+                   type: {:token, "@Token1", 0}
+                 }
+               ],
+               consumed_inputs: [
+                 %UnspentOutput{from: "@Charlie1"},
+                 %UnspentOutput{from: "@Tom5"}
+               ]
+             } = ops
+
+      assert {true, ops} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{
+                   transaction_movements: [
+                     %TransactionMovement{
+                       to: "@Bob3",
+                       amount: 100_000_000,
+                       type: {:token, "@Token1", 0}
+                     }
+                   ]
+                 },
+                 "@Alice2",
+                 [
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 300_000_000,
+                     type: {:token, "@Token1", 0},
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   },
+                   %UnspentOutput{
+                     from: "@Tom5",
+                     amount: 300_000_000,
+                     type: {:token, "@Token1", 0},
+                     timestamp: ~U[2022-10-20 08:00:20.463Z]
+                   }
+                 ],
+                 DateTime.utc_now()
+               )
+
+      assert %LedgerOperations{
+               unspent_outputs: [
+                 %UnspentOutput{
+                   from: "@Alice2",
+                   amount: 500_000_000,
+                   type: {:token, "@Token1", 0}
+                 }
+               ],
+               consumed_inputs: [
+                 %UnspentOutput{from: "@Charlie1"},
+                 %UnspentOutput{from: "@Tom5"}
+               ]
+             } = ops
     end
   end
 

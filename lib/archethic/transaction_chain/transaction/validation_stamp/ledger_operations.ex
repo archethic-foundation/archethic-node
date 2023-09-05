@@ -270,7 +270,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       {true, %LedgerOperations{
         transaction_movements: [%TransactionMovement{to: "@Bob3", amount: 100000000, type: :UCO}],
         unspent_outputs: [%UnspentOutput{amount: 500000000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]}],
-        consumed_inputs: [%UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}]
+        consumed_inputs: [%UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}, %UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO}]
       } }
   """
   @spec consume_inputs(
@@ -344,11 +344,28 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ]
         |> Enum.filter(&(&1.amount > 0))
 
+      # To remove after the unspent output will not be consolidated for all the assets in  the phase 2 of the AEIP-21
+      consolidated_utxos =
+        Enum.filter(inputs, fn
+          %UnspentOutput{type: {:token, token_address, token_id}, from: from} ->
+            Map.has_key?(tokens_received, {token_address, token_id}) and
+              !Enum.any?(consumed_token_utxos, &(&1.from == from))
+
+          %UnspentOutput{type: :UCO, from: from} ->
+            !Enum.any?(consumed_uco_utxos, &(&1.from == from))
+
+          _ ->
+            false
+        end)
+
       {true,
        ops
        |> Map.put(:unspent_outputs, new_unspent_outputs)
        |> Map.put(:tokens_to_mint, [])
-       |> Map.put(:consumed_inputs, consumed_uco_utxos ++ consumed_token_utxos)}
+       |> Map.put(
+         :consumed_inputs,
+         consumed_uco_utxos ++ consumed_token_utxos ++ consolidated_utxos
+       )}
     else
       {false, ops}
     end
