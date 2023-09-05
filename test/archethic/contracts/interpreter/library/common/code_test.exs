@@ -9,7 +9,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CodeTest do
       code = ~S"""
       @version 1
 
-      condition transaction: []
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
         Contract.set_content "Should work"
@@ -23,7 +23,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CodeTest do
       first_code = ~S"""
       @version 1
 
-      condition transaction: []
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
         Contract.set_content "Hello there"
@@ -33,7 +33,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CodeTest do
       second_code = ~S"""
       @version 1
 
-      condition transaction: []
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
         Contract.set_content "When moon ?"
@@ -47,7 +47,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CodeTest do
       first_code = ~S"""
       @version 1
 
-      condition transaction: []
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
         Contract.set_content "Yolo"
@@ -55,11 +55,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CodeTest do
       """
 
       second_code = ~S"""
-          
+
 
       @version 1
 
-      condition transaction: []
+      condition triggered_by: transaction, as: []
       actions triggered_by: transaction do Contract.set_content "Yolo" end
 
       """
@@ -74,7 +74,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CodeTest do
       code = ~S"""
       @version 1
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "No you're not"
       ]
 

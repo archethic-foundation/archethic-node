@@ -56,7 +56,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
   describe "execute" do
     test "should indicate faillure when failling parsing of contracts" do
       code = """
-      condition transaction: [
+      @version 1
+      condition triggered_by: transaction, as: [
         content: "test"
       ]
 
@@ -99,12 +100,11 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      export fun get_content() do 
+      export fun get_content() do
         contract.content
       end
 
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content get_content()
@@ -146,7 +146,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      export fun sum(list_of_number) do 
+      export fun sum(list_of_number) do
         sum = 0
         for number in list_of_number do
           sum = sum + number
@@ -154,8 +154,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         sum
       end
 
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content "toto"
@@ -198,16 +197,15 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      export fun bob() do 
+      export fun bob() do
         "hello bob"
       end
 
-      export fun hello() do 
+      export fun hello() do
         bob()
       end
 
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content hello()
@@ -250,15 +248,14 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      fun bob() do 
+      fun bob() do
         "hello bob"
       end
-      export fun hello() do 
+      export fun hello() do
         bob()
       end
 
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content hello()
@@ -301,8 +298,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content "hello"
@@ -345,11 +341,10 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      export fun hello(a, b) do 
+      export fun hello(a, b) do
         a + b
       end
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content "hello"
@@ -392,11 +387,10 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      export fun hello(a, b) do 
+      export fun hello(a, b) do
         a + b
       end
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content "hello"
@@ -438,11 +432,10 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       code = """
       @version 1
 
-      fun hello(a, b) do 
+      fun hello(a, b) do
         a + b
       end
-      condition transaction: [
-      ]
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
           Contract.set_content "hello"

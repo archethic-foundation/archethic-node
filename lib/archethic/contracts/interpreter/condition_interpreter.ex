@@ -20,6 +20,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   @spec parse(any(), FunctionKeys.t()) ::
           {:ok, Contract.condition_type(), ConditionsSubjects.t()} | {:error, any(), String.t()}
   def parse(
+        # legacy syntax: condition transaction: []
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
         functions_keys
       ) do
@@ -42,8 +43,31 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
         node =
           {{:atom, "condition"}, _,
            [
-             {{:atom, "transaction"}, _, nil},
              [
+               {{:atom, "triggered_by"}, {{:atom, triggered_by}, _, nil}},
+               {{:atom, "as"}, keyword}
+             ]
+           ]},
+        functions_keys
+      ) do
+    case triggered_by do
+      "oracle" ->
+        do_parse(:oracle, keyword, functions_keys, node)
+
+      "transaction" ->
+        do_parse({:transaction, nil, nil}, keyword, functions_keys, node)
+
+      _ ->
+        {:error, node, "unknown condition type"}
+    end
+  end
+
+  def parse(
+        node =
+          {{:atom, "condition"}, _,
+           [
+             [
+               {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
                {{:atom, "on"}, {{:atom, action_name}, _, args}},
                {{:atom, "as"}, keyword}
              ]

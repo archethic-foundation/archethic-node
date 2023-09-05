@@ -536,7 +536,7 @@ defmodule Archethic.Contracts.WorkerTest do
       code = """
       @version 1
 
-      condition transaction, on: vote(candidate), as: []
+      condition triggered_by: transaction, on: vote(candidate), as: []
       actions triggered_by: transaction, on: vote(candidate) do
         Contract.set_content(candidate)
       end
@@ -605,7 +605,7 @@ defmodule Archethic.Contracts.WorkerTest do
 
       code = """
       @version 1
-      condition transaction: []
+      condition triggered_by: transaction, as: []
       actions triggered_by: transaction do
         n = 10 / 0
         Contract.set_content n

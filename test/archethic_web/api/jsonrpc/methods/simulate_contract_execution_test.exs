@@ -60,7 +60,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code = """
       @version 1
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "test content"
       ]
 
@@ -107,7 +107,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code = """
       @version 1
 
-      condition transaction, on: vote(candidate), as: []
+      condition triggered_by: transaction, on: vote(candidate), as: []
       actions triggered_by: transaction, on: vote(candidate) do
         Contract.set_content(candidate)
       end
@@ -150,7 +150,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code = """
       @version 1
 
-      condition transaction, on: vote(candidate), as: []
+      condition triggered_by: transaction, on: vote(candidate), as: []
       actions triggered_by: transaction, on: vote(candidate) do
         Contract.set_content(candidate)
       end
@@ -193,7 +193,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code = """
       @version 1
 
-      condition transaction, on: vote(candidate), as: []
+      condition triggered_by: transaction, on: vote(candidate), as: []
       actions triggered_by: transaction, on: vote(candidate) do
         Contract.set_content(candidate)
       end
@@ -236,7 +236,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code = """
       @version 1
 
-      condition transaction, on: vote(candidate), as: [
+      condition triggered_by: transaction, on: vote(candidate), as: [
         content: transaction.content == "some content"
       ]
       actions triggered_by: transaction, on: vote(candidate) do
@@ -284,7 +284,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
         content: false
       ]
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "test"
       ]
 
@@ -333,7 +333,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
     test "should indicate faillure when failling parsing of contracts" do
       code = """
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "test"
       ]
 
@@ -423,7 +423,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code = """
       @version 1
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "test"
       ]
 
@@ -473,7 +473,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code1 = """
       @version 1
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "test"
       ]
 
@@ -485,7 +485,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
       code2 = """
       @version 1
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         content: "test"
       ]
 

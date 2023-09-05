@@ -484,7 +484,7 @@ defmodule Archethic.Contracts.Interpreter do
     if :oracle in conditions do
       do_check_contract_blocks(rest, conditions)
     else
-      {:error, "missing 'condition oracle' block"}
+      {:error, "missing 'condition triggered_by: oracle' block"}
     end
   end
 
@@ -501,9 +501,9 @@ defmodule Archethic.Contracts.Interpreter do
       do_check_contract_blocks(rest, conditions)
     else
       if action == nil do
-        {:error, "missing 'condition transaction' block"}
+        {:error, "missing 'condition triggered_by: transaction' block"}
       else
-        {:error, "missing 'condition transaction, on: #{action}/#{arity}' block"}
+        {:error, "missing 'condition triggered_by: transaction, on: #{action}/#{arity}' block"}
       end
     end
   end

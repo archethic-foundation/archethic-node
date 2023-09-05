@@ -495,7 +495,7 @@ defmodule Archethic.ContractsTest do
     test "should return true if condition is empty" do
       code = """
         @version 1
-        condition transaction: []
+        condition triggered_by: transaction, as: []
 
         actions triggered_by: transaction do
           Contract.set_content "hello"
@@ -528,7 +528,7 @@ defmodule Archethic.ContractsTest do
     test "should return true if condition is true" do
       code = """
         @version 1
-        condition transaction: [
+        condition triggered_by: transaction, as: [
           type: "transfer"
         ]
 
@@ -563,7 +563,7 @@ defmodule Archethic.ContractsTest do
     test "should return false if condition is falsy" do
       code = """
         @version 1
-        condition transaction: [
+        condition triggered_by: transaction, as: [
           type: "data"
         ]
 
@@ -598,7 +598,7 @@ defmodule Archethic.ContractsTest do
     test "should return false if condition execution raise an error" do
       code = """
         @version 1
-        condition transaction: [
+        condition triggered_by: transaction, as: [
           type: 1 + "one"
         ]
 
@@ -638,7 +638,7 @@ defmodule Archethic.ContractsTest do
          true
       end
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
           content: check_content()
       ]
       actions triggered_by: transaction do
@@ -674,7 +674,7 @@ defmodule Archethic.ContractsTest do
          false
       end
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
           content: check_content()
       ]
       actions triggered_by: transaction do
@@ -714,7 +714,7 @@ defmodule Archethic.ContractsTest do
          content == "tresor"
       end
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
           content: check_content()
       ]
       actions triggered_by: transaction do
@@ -751,7 +751,7 @@ defmodule Archethic.ContractsTest do
     test "should return true if condition is empty" do
       code = """
         @version 1
-        condition oracle: []
+        condition triggered_by: oracle, as: []
 
         actions triggered_by: oracle do
           Contract.set_content "hello"
@@ -784,7 +784,7 @@ defmodule Archethic.ContractsTest do
     test "should return true if condition is true" do
       code = """
         @version 1
-        condition oracle: [
+        condition triggered_by: oracle, as: [
           content: "{}"
         ]
 
@@ -820,7 +820,7 @@ defmodule Archethic.ContractsTest do
     test "should return false if condition is falsy" do
       code = """
         @version 1
-        condition oracle: [
+        condition triggered_by: oracle, as: [
           content: "{}"
         ]
 
@@ -858,7 +858,7 @@ defmodule Archethic.ContractsTest do
     test "should return true if condition is empty" do
       code = """
         @version 1
-        condition transaction, on: vote(candidate), as: []
+        condition triggered_by: transaction, on: vote(candidate), as: []
 
         actions triggered_by: transaction, on: vote(person) do
           Contract.set_content "hello"
@@ -894,7 +894,7 @@ defmodule Archethic.ContractsTest do
     test "should return true if condition is true" do
       code = """
       @version 1
-      condition transaction, on: vote(candidate), as: [
+      condition triggered_by: transaction, on: vote(candidate), as: [
         content: "fabulous chimpanzee"
       ]
 
@@ -933,7 +933,7 @@ defmodule Archethic.ContractsTest do
     test "should return false if condition is false" do
       code = """
       @version 1
-      condition transaction, on: vote(candidate), as: [
+      condition triggered_by: transaction, on: vote(candidate), as: [
         content: "immaterial mynah bird"
       ]
 

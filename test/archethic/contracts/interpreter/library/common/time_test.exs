@@ -58,7 +58,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
         content: true
       ]
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         timestamp: Time.now() == #{timestamp}
       ]
 
@@ -99,7 +99,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
         content: true
       ]
 
-      condition transaction: [
+      condition triggered_by: transaction, as: [
         timestamp: Time.now() < #{timestamp}
       ]
 
