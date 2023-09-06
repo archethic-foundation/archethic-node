@@ -287,12 +287,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ]
         |> Enum.filter(&(&1.amount > 0))
 
-      new_unspent_outputs = if encoded_state == nil do
-        new_unspent_outputs
-      else
-        state_utxo = %UnspentOutput{type: :state, encoded_payload: encoded_state}
-        [state_utxo | new_unspent_outputs]
-      end
+      new_unspent_outputs =
+        if encoded_state == nil do
+          new_unspent_outputs
+        else
+          state_utxo = %UnspentOutput{type: :state, encoded_payload: encoded_state}
+          [state_utxo | new_unspent_outputs]
+        end
 
       {true,
        ops
@@ -419,17 +420,19 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     encoded_transaction_movements_len = transaction_movements |> length() |> VarInt.from_value()
     encoded_unspent_outputs_len = unspent_outputs |> length() |> VarInt.from_value()
 
-    consumed_inputs_bin = if protocol_version < 3 do
-      <<>>
-    else
-      encoded_consumed_inputs_len = consumed_inputs |> length() |> VarInt.from_value()
-      bin_consumed_inputs =
-        consumed_inputs
-        |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
-        |> :erlang.list_to_binary()
+    consumed_inputs_bin =
+      if protocol_version < 3 do
+        <<>>
+      else
+        encoded_consumed_inputs_len = consumed_inputs |> length() |> VarInt.from_value()
+
+        bin_consumed_inputs =
+          consumed_inputs
+          |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
+          |> :erlang.list_to_binary()
 
         <<encoded_consumed_inputs_len::binary, bin_consumed_inputs::bitstring>>
-    end
+      end
 
     <<fee::64, encoded_transaction_movements_len::binary, bin_transaction_movements::binary,
       encoded_unspent_outputs_len::binary, bin_unspent_outputs::bitstring,

@@ -4,9 +4,12 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTables.GenesisInputLedger
   alias Archethic.Account.MemTablesLoader
 
   alias Archethic.Crypto
+
+  alias Archethic.Election
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
@@ -21,7 +24,10 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
+  alias Archethic.TransactionChain.TransactionInput
+
   import Mox
+  import Mock
 
   doctest Archethic.Account.MemTablesLoader
 
@@ -94,6 +100,168 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   end
 
   describe "load_transaction/1" do
+    test "should load genesis inputs as io storage nodes but not for chain" do
+      tx = %Transaction{
+        address: "@Alice2",
+        validation_stamp: %ValidationStamp{
+          timestamp: ~U[2023-09-10 05:00:00Z],
+          ledger_operations: %LedgerOperations{
+            transaction_movements: [
+              %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}
+            ],
+            unspent_outputs: [
+              %UnspentOutput{
+                from: "@Alice2",
+                amount: 300_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-10 05:00:00Z]
+              }
+            ],
+            consumed_inputs: [
+              %UnspentOutput{from: "@Alice1", amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: "@Bob2", amount: 200_000_000, type: :UCO}
+            ]
+          }
+        },
+        previous_public_key: "Alice1"
+      }
+
+      MockDB
+      |> stub(:get_genesis_address, fn
+        "@Bob3" -> "@Bob0"
+        _ -> "@Alice0"
+      end)
+
+      with_mock(Election,
+        chain_storage_nodes: fn
+          "@Bob0", _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
+          _, _ -> []
+        end
+      ) do
+        MemTablesLoader.load_transaction(tx, io_transaction?: true)
+
+        assert [
+                 %TransactionInput{from: "@Alice2", amount: 100_000_000, type: :UCO}
+               ] = GenesisInputLedger.get_unspent_inputs("@Bob0")
+
+        assert [] = GenesisInputLedger.get_unspent_inputs("@Alice0")
+      end
+    end
+
+    test "should load genesis inputs as io storage nodes but for chain" do
+      tx = %Transaction{
+        address: "@Alice2",
+        validation_stamp: %ValidationStamp{
+          timestamp: ~U[2023-09-10 05:00:00Z],
+          ledger_operations: %LedgerOperations{
+            transaction_movements: [
+              %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}
+            ],
+            unspent_outputs: [
+              %UnspentOutput{
+                from: "@Alice2",
+                amount: 300_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-10 05:00:00Z]
+              }
+            ],
+            consumed_inputs: [
+              %UnspentOutput{from: "@Alice1", amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: "@Bob2", amount: 200_000_000, type: :UCO}
+            ]
+          }
+        },
+        previous_public_key: "Alice1"
+      }
+
+      MockDB
+      |> stub(:get_genesis_address, fn
+        "@Bob3" -> "@Bob0"
+        _ -> "@Alice0"
+      end)
+      |> stub(:chain_size, fn
+        "@Alice0" -> 1
+        _ -> 0
+      end)
+
+      with_mock(Election,
+        chain_storage_nodes: fn
+          "@Alice0", _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
+          _, _ -> []
+        end
+      ) do
+        MemTablesLoader.load_transaction(tx, io_transaction?: true)
+
+        assert [
+                 %TransactionInput{
+                   from: "@Alice2",
+                   type: :UCO,
+                   timestamp: ~U[2023-09-10 05:00:00Z],
+                   amount: 300_000_000
+                 }
+               ] = GenesisInputLedger.get_unspent_inputs("@Alice0")
+
+        assert [] = GenesisInputLedger.get_unspent_inputs("@Bob0")
+      end
+    end
+
+    test "should load genesis inputs as chain storage nodes" do
+      tx = %Transaction{
+        address: "@Alice2",
+        validation_stamp: %ValidationStamp{
+          timestamp: ~U[2023-09-10 05:00:00Z],
+          ledger_operations: %LedgerOperations{
+            transaction_movements: [
+              %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}
+            ],
+            unspent_outputs: [
+              %UnspentOutput{
+                from: "@Alice2",
+                amount: 300_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-10 05:00:00Z]
+              }
+            ],
+            consumed_inputs: [
+              %UnspentOutput{from: "@Alice1", amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: "@Bob2", amount: 200_000_000, type: :UCO}
+            ]
+          }
+        },
+        previous_public_key: "Alice1"
+      }
+
+      MockDB
+      |> stub(:get_genesis_address, fn
+        "@Bob3" -> "@Bob0"
+        _ -> "@Alice0"
+      end)
+      |> stub(:chain_size, fn
+        "@Alice0" -> 1
+        _ -> 0
+      end)
+
+      with_mock(Election,
+        chain_storage_nodes: fn
+          "@Alice0", _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
+          "@Bob0", _ -> []
+        end
+      ) do
+        MemTablesLoader.load_transaction(tx, io_transaction?: false)
+
+        assert [] = GenesisInputLedger.get_unspent_inputs("@Bob0")
+
+        assert [
+                 %TransactionInput{
+                   from: "@Alice2",
+                   type: :UCO,
+                   timestamp: ~U[2023-09-10 05:00:00Z],
+                   amount: 300_000_000
+                 }
+               ] = GenesisInputLedger.get_unspent_inputs("@Alice0")
+      end
+    end
+
     test "should distribute unspent outputs" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -109,7 +277,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
       assert :ok =
-               MemTablesLoader.load_transaction(create_transaction(timestamp, "@Charlie3"), false)
+               MemTablesLoader.load_transaction(create_transaction(timestamp, "@Charlie3"),
+                 io_transaction?: false
+               )
 
       assert [
                %VersionedUnspentOutput{
@@ -292,7 +462,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
       assert :ok =
                create_reward_transaction(timestamp, validation_time)
-               |> MemTablesLoader.load_transaction(false)
+               |> MemTablesLoader.load_transaction()
 
       # uco ledger
       assert [
