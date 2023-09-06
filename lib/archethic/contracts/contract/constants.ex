@@ -12,6 +12,7 @@ defmodule Archethic.Contracts.ContractConstants do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
@@ -161,7 +162,10 @@ defmodule Archethic.Contracts.ContractConstants do
 
             %Ownership{secret: secret, authorized_keys: authorized_keys}
           end),
-        recipients: Map.get(constants, "recipients", []),
+        recipients:
+          constants
+          |> Map.get("recipients", [])
+          |> Enum.map(fn address -> %Recipient{address: address} end),
         ledger: %Ledger{
           uco: %UCOLedger{
             transfers:
