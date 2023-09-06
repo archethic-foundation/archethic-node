@@ -12,9 +12,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
   alias Archethic.Contracts.Interpreter.Legacy.TransactionStatements
   alias Archethic.Contracts.Interpreter.Library
 
+  alias Archethic.Crypto
+
   alias Archethic.Tag
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.Utils
@@ -152,6 +156,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
     end
   end
 
+  @tag [:write_contract]
+  @spec clear_ownerships(next_tx :: Transaction.t()) :: Transaction.t()
+  def clear_ownerships(next_tx = %Transaction{data: %TransactionData{ownerships: ownerships}}) do
+    # Keep contract seed
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+    ownership_seed =
+      Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
+
+    put_in(next_tx, [Access.key!(:data), Access.key!(:ownerships)], [ownership_seed])
+  end
+
   # We do not need to check the transaction argument because _we_ are feeding it (after this step)
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:set_type, [first]) do
@@ -207,6 +223,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Contract do
       (AST.is_binary?(second) || AST.is_variable_or_function_call?(second)) and
       (AST.is_list?(third) || AST.is_variable_or_function_call?(third))
   end
+
+  def check_types(:clear_ownerships, []), do: true
 
   def check_types(_, _), do: false
 end
