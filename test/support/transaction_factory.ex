@@ -46,6 +46,7 @@ defmodule Archethic.TransactionFactory do
     content = Keyword.get(opts, :content, "")
     code = Keyword.get(opts, :code, "")
     ledger = Keyword.get(opts, :ledger, %Ledger{})
+    ownerships = Keyword.get(opts, :ownerships, [])
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
@@ -53,7 +54,7 @@ defmodule Archethic.TransactionFactory do
     tx =
       Transaction.new(
         type,
-        %TransactionData{content: content, code: code, ledger: ledger},
+        %TransactionData{content: content, code: code, ledger: ledger, ownerships: ownerships},
         seed,
         index
       )

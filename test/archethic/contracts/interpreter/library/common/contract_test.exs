@@ -10,6 +10,8 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Contract
 
+  alias Archethic.Crypto
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetTransaction
@@ -18,11 +20,11 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
-  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
@@ -738,6 +740,29 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       assert_raise(Library.Error, fn ->
         contract_tx.address |> Base.encode16() |> Contract.call_function("not_exists", [1, 2])
       end)
+    end
+  end
+
+  describe "clear_ownerships/0" do
+    test "should remove ownerships except contract seed" do
+      storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+      ownership_seed = %Ownership{
+        secret: "seed",
+        authorized_keys: %{storage_nonce_public_key => "encoded_key"}
+      }
+
+      other_ownership = %Ownership{
+        secret: "something",
+        authorized_keys: %{random_public_key() => "encoded_key"}
+      }
+
+      ownerships = [ownership_seed, other_ownership]
+
+      contract_tx = TransactionFactory.create_valid_transaction([], ownerships: ownerships)
+
+      assert %Transaction{data: %TransactionData{ownerships: [^ownership_seed]}} =
+               Contract.clear_ownerships(contract_tx)
     end
   end
 end
