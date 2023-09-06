@@ -3,7 +3,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   Helper functions to deal with scopes
   """
 
-  defp init(global_variables) do
+  def init(global_variables) do
     global_variables = Map.put(global_variables, "context_list", [])
 
     Process.put(
@@ -97,14 +97,10 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   @doc """
   Execute ast after creating specific context for it and return execution's result
   """
-  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
+  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_values :: list()) ::
           result :: any()
-  def execute(ast, constants, args_names \\ [], args_ast \\ []) do
+  def execute(ast, constants, args_names \\ [], args_values \\ []) do
     init(constants)
-
-    evaluated_ast =
-      args_ast
-      |> Enum.map(&(Code.eval_quoted(&1) |> elem(0)))
 
     create_context()
 
@@ -112,7 +108,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
       create()
 
       args_names
-      |> Enum.zip(evaluated_ast)
+      |> Enum.zip(args_values)
       |> Enum.each(fn {arg_name, arg_value} ->
         write_at(arg_name, arg_value)
       end)
@@ -242,19 +238,16 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   Execute a function AST
   """
   @spec execute_function_ast(String.t(), list(any())) :: any()
-  def execute_function_ast(function_name, args) do
-    # evaluate args before entering new scope context
-    evaluated_args = Enum.map(args, &(Code.eval_quoted(&1) |> elem(0)))
-
-    %{ast: ast, args: args_names} = get_function(function_name, args)
+  def execute_function_ast(function_name, args_values) do
+    %{ast: ast, args: args_names} = get_function(function_name, args_values)
 
     create_context()
     create()
 
     args_names
-    |> Enum.zip(evaluated_args)
-    |> Enum.each(fn {arg_name, evaluated_arg} ->
-      write_at(arg_name, evaluated_arg)
+    |> Enum.zip(args_values)
+    |> Enum.each(fn {arg_name, arg_value} ->
+      write_at(arg_name, arg_value)
     end)
 
     result =
