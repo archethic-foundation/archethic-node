@@ -7,7 +7,7 @@ defmodule ArchethicCase do
   alias Archethic.{Crypto, Crypto.ECDSA, Mining, Utils, SharedSecrets, TransactionChain}
   alias Archethic.{Account, Election.Constraints}
 
-  alias Account.MemTables.{TokenLedger, UCOLedger}
+  alias Account.MemTables.{TokenLedger, UCOLedger, GenesisInputLedger}
   alias SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
   alias TransactionChain.{Transaction, MemTables.KOLedger, MemTables.PendingLedger}
 
@@ -212,7 +212,7 @@ defmodule ArchethicCase do
     start_supervised!(NetworkLookup)
     start_supervised!(OracleMemTable)
     start_supervised!(TransactionSubscriber)
-
+    start_supervised!(GenesisInputLedger)
     :ok
   end
 

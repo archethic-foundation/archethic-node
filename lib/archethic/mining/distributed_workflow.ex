@@ -198,6 +198,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     chain_storage_nodes = Election.chain_storage_nodes(tx.address, authorized_nodes)
 
+    previous_address = Transaction.previous_address(tx)
+    previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
+
+    {:ok, genesis_address} =
+      TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+
+    genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
+
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
@@ -212,7 +220,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
         P2P.list_nodes()
       else
         resolved_addresses
-        |> Map.values()
+        |> Enum.map(fn {_origin, resolved} -> resolved end)
+        |> Enum.flat_map(fn address ->
+          {:ok, genesis_address} =
+            TransactionChain.fetch_genesis_address(address, previous_storage_nodes)
+
+          [genesis_address, address]
+        end)
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
@@ -226,7 +240,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         cross_validation_nodes: cross_validation_nodes,
         chain_storage_nodes: chain_storage_nodes,
         beacon_storage_nodes: beacon_storage_nodes,
-        io_storage_nodes: io_storage_nodes,
+        io_storage_nodes: P2P.distinct_nodes(io_storage_nodes ++ genesis_storage_nodes),
         validation_time: validation_time,
         resolved_addresses: resolved_addresses,
         contract_context: contract_context

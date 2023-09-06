@@ -106,10 +106,12 @@ defmodule Archethic.Replication do
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   defdelegate get_transaction_in_commit_pool(address), to: TransactionPool, as: :pop_transaction
 
+  @type sync_options :: [self_repair?: boolean()]
+
   @doc """
   Replicate and store the transaction chain from the transaction cached in the pool
   """
-  @spec sync_transaction_chain(Transaction.t(), list(Node.t())) :: :ok
+  @spec sync_transaction_chain(Transaction.t(), list(Node.t()), opts :: sync_options()) :: :ok
   def sync_transaction_chain(
         tx = %Transaction{
           address: address,
@@ -117,12 +119,14 @@ defmodule Archethic.Replication do
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
         download_nodes \\ P2P.authorized_and_available_nodes(),
-        self_repair? \\ false
+        opts \\ []
       ) do
     start_time = System.monotonic_time()
 
     # Stream the insertion of the chain
     first_node_key = Crypto.first_node_public_key()
+
+    ingest_opts = Keyword.put(opts, :io_transaction?, false)
 
     tx
     |> stream_previous_chain(download_nodes)
@@ -141,13 +145,13 @@ defmodule Archethic.Replication do
             |> Election.chain_storage_nodes(download_nodes)
             |> Utils.key_in_node_list?(first_node_key)
 
-      if ingest?, do: ingest_transaction(tx, false, self_repair?)
+      if ingest?, do: ingest_transaction(tx, ingest_opts)
     end)
     |> Stream.run()
 
     TransactionChain.write_transaction(tx)
 
-    :ok = ingest_transaction(tx, false, self_repair?)
+    :ok = ingest_transaction(tx, ingest_opts)
 
     Logger.info("Replication finished",
       transaction_address: Base.encode16(address),
@@ -200,9 +204,10 @@ defmodule Archethic.Replication do
 
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
   """
-  @spec validate_and_store_transaction(Transaction.t()) ::
+  @spec validate_and_store_transaction(Transaction.t(), opts :: sync_options()) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_and_store_transaction(tx = %Transaction{address: address, type: type}) do
+  def validate_and_store_transaction(tx = %Transaction{address: address, type: type}, opts \\ [])
+      when is_list(opts) do
     if TransactionChain.transaction_exists?(address, :io) do
       Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
@@ -220,7 +225,7 @@ defmodule Archethic.Replication do
 
       case TransactionValidator.validate(tx) do
         :ok ->
-          synchronize_io_transaction(tx)
+          synchronize_io_transaction(tx, opts)
 
           :telemetry.execute(
             [:archethic, :replication, :validation],
@@ -248,17 +253,18 @@ defmodule Archethic.Replication do
   @doc """
   Synchronize an io transaction into DB an memory table
   """
-  @spec synchronize_io_transaction(Transaction.t(), boolean()) :: :ok
+  @spec synchronize_io_transaction(Transaction.t(), opts :: sync_options()) :: :ok
   def synchronize_io_transaction(
         tx = %Transaction{
           address: address,
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        self_repair? \\ false
-      ) do
+        opts \\ []
+      )
+      when is_list(opts) do
     :ok = TransactionChain.write_transaction(tx, :io)
-    ingest_transaction(tx, true, self_repair?)
+    ingest_transaction(tx, Keyword.put(opts, :io_transaction?, true))
 
     Logger.info("Replication finished",
       transaction_address: Base.encode16(address),
@@ -526,6 +532,11 @@ defmodule Archethic.Replication do
     abs(storage_weight - validation_weight)
   end
 
+  @type ingest_options :: [
+          io_transaction?: boolean(),
+          self_repair?: boolean()
+        ]
+
   @doc """
   Ingest the transaction into system delaying the network to several handlers.
 
@@ -538,14 +549,17 @@ defmodule Archethic.Replication do
   - Transactions with smart contract deploy instances of them or can put in pending state waiting approval signatures
   - Code approval transactions may trigger the TestNets deployments or hot-reloads
   """
-  @spec ingest_transaction(Transaction.t(), boolean(), boolean()) :: :ok
-  def ingest_transaction(tx = %Transaction{}, io_transaction?, self_repair?) do
-    # There's currently no need for multisig so TransactionChain.load_transaction(tx) is useless
+  @spec ingest_transaction(Transaction.t(), opts :: ingest_options()) :: :ok
+  def ingest_transaction(tx = %Transaction{}, opts \\ []) when is_list(opts) do
+    io_transaction? = Keyword.get(opts, :io_transaction?, false)
+    self_repair? = Keyword.get(opts, :self_repair?, false)
+
+    # There's currently no usage of the pending mem tables for transactions, so we comment it for now
     # TransactionChain.load_transaction(tx)
     Crypto.load_transaction(tx)
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
-    Account.load_transaction(tx, io_transaction?)
+    Account.load_transaction(tx, io_transaction?: io_transaction?)
 
     Contracts.load_transaction(tx,
       execute_contract?: not self_repair?,

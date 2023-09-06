@@ -4,11 +4,16 @@ defmodule Archethic.Account.MemTablesLoader do
   use GenServer
   @vsn 1
 
+  alias Archethic.Account.MemTables.GenesisInputLedger
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTables.StateLedger
 
   alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -21,6 +26,8 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
+  alias Archethic.Utils
+
   require Logger
 
   alias Archethic.Reward
@@ -32,7 +39,7 @@ defmodule Archethic.Account.MemTablesLoader do
     validation_stamp: [
       :timestamp,
       :protocol_version,
-      ledger_operations: [:fee, :unspent_outputs, :transaction_movements]
+      ledger_operations: [:fee, :unspent_outputs, :transaction_movements, :consumed_inputs]
     ]
   ]
 
@@ -41,7 +48,8 @@ defmodule Archethic.Account.MemTablesLoader do
     :oracle_summary,
     :node_shared_secrets,
     :origin,
-    :on_chain_wallet
+    :keychain,
+    :keychain_access
   ]
 
   @spec start_link(args :: list()) :: GenServer.on_start()
@@ -51,24 +59,33 @@ defmodule Archethic.Account.MemTablesLoader do
 
   @spec init(args :: list()) :: {:ok, []}
   def init(_args) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
     TransactionChain.list_io_transactions(@query_fields)
-    |> Stream.each(&load_transaction(&1, true))
+    |> Stream.each(
+      &load_transaction(&1, io_transaction?: true, authorized_nodes: authorized_nodes)
+    )
     |> Stream.run()
 
     TransactionChain.list_all(@query_fields)
     |> Stream.reject(&(&1.type in @excluded_types))
-    |> Stream.each(&load_transaction(&1, false))
+    |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
+    |> Stream.each(
+      &load_transaction(&1, io_transaction?: false, authorized_nodes: authorized_nodes)
+    )
     |> Stream.run()
 
     {:ok, []}
   end
 
+  @type load_options :: [io_transaction?: boolean(), authorized_nodes: list(Node.t())]
+
   @doc """
   Load the transaction into the memory tables
   """
-  @spec load_transaction(Transaction.t(), boolean()) :: :ok
+  @spec load_transaction(Transaction.t(), load_options()) :: :ok
   def load_transaction(
-        %Transaction{
+        tx = %Transaction{
           address: address,
           type: tx_type,
           previous_public_key: previous_public_key,
@@ -77,18 +94,46 @@ defmodule Archethic.Account.MemTablesLoader do
             protocol_version: protocol_version,
             ledger_operations: %LedgerOperations{
               unspent_outputs: unspent_outputs,
-              transaction_movements: transaction_movements
+              transaction_movements: transaction_movements,
+              consumed_inputs: consumed_inputs
             }
           }
         },
-        io_transaction?
-      ) do
+        opts \\ []
+      )
+      when is_list(opts) do
+    io_transaction? = Keyword.get(opts, :io_transaction?, false)
+    authorized_nodes = Keyword.get(opts, :authorized_nodes, P2P.authorized_and_available_nodes())
+
     unless io_transaction? do
       previous_address = Crypto.derive_address(previous_public_key)
 
       UCOLedger.spend_all_unspent_outputs(previous_address)
       TokenLedger.spend_all_unspent_outputs(previous_address)
       StateLedger.spend_all_unspent_outputs(previous_address)
+    end
+
+    Enum.each(transaction_movements, fn mvt = %TransactionMovement{to: to} ->
+      genesis_address = TransactionChain.get_genesis_address(to)
+
+      # We need to determine whether the node is responsible of the transaction movements destination genesis pool
+      if genesis_node?(genesis_address, authorized_nodes) do
+        GenesisInputLedger.add_chain_input(mvt, address, timestamp, genesis_address)
+      end
+    end)
+
+    genesis_address =
+      tx
+      |> Transaction.previous_address()
+      |> TransactionChain.get_genesis_address()
+
+    # We need to determine whether the node is responsible of the chain genesis pool as the transaction have been received as an I/O transaction.
+    chain_transaction? =
+      (not io_transaction? or TransactionChain.get_size(genesis_address) > 0) and
+        genesis_node?(genesis_address, authorized_nodes)
+
+    if chain_transaction? and length(consumed_inputs) > 0 do
+      GenesisInputLedger.update_chain_inputs(tx, genesis_address)
     end
 
     :ok =
@@ -106,6 +151,11 @@ defmodule Archethic.Account.MemTablesLoader do
       transaction_address: Base.encode16(address),
       transaction_type: tx_type
     )
+  end
+
+  defp genesis_node?(genesis_address, nodes) do
+    genesis_nodes = Election.chain_storage_nodes(genesis_address, nodes)
+    Utils.key_in_node_list?(genesis_nodes, Crypto.first_node_public_key())
   end
 
   defp set_unspent_outputs(address, unspent_outputs, protocol_version) do

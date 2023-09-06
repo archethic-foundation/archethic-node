@@ -4,6 +4,7 @@ defmodule Archethic.Account do
   alias __MODULE__.MemTables.TokenLedger
   alias __MODULE__.MemTables.UCOLedger
   alias __MODULE__.MemTables.StateLedger
+  alias __MODULE__.MemTables.GenesisInputLedger
   alias __MODULE__.MemTablesLoader
 
   alias Archethic.Crypto
@@ -73,6 +74,12 @@ defmodule Archethic.Account do
   @doc """
   Load the transaction into the Account context filling the memory tables for ledgers
   """
-  @spec load_transaction(Transaction.t(), boolean()) :: :ok
+  @spec load_transaction(Transaction.t(), opts :: MemTablesLoader.load_options()) :: :ok
   defdelegate load_transaction(transaction, io_transaction?), to: MemTablesLoader
+
+  @doc """
+  Returns the list of all the inputs which have not been consumed for the given chain's address
+  """
+  @spec get_genesis_unspent_inputs(binary()) :: list(TransactionInput.t())
+  defdelegate get_genesis_unspent_inputs(address), to: GenesisInputLedger, as: :get_unspent_inputs
 end
