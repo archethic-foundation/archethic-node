@@ -5,7 +5,9 @@ defmodule Archethic.Contracts.ContractConstantsTest do
 
   alias Archethic.TransactionFactory
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UcoTransfer
   alias Archethic.TransactionChain.TransactionData.TokenLedger
@@ -108,11 +110,24 @@ defmodule Archethic.Contracts.ContractConstantsTest do
   end
 
   test "to_transaction/1 should return a transaction" do
-    tx = TransactionFactory.create_valid_transaction()
+    recipient1 = random_address()
+
+    tx =
+      TransactionFactory.create_valid_transaction(
+        [],
+        recipients: [
+          %Recipient{address: recipient1}
+        ]
+      )
 
     # from_transaction/1 is a destructive function, we can't check
     # that result is equal to tx
-    assert %Transaction{type: :transfer} =
+    assert %Transaction{
+             type: :transfer,
+             data: %TransactionData{
+               recipients: [%Recipient{address: ^recipient1}]
+             }
+           } =
              tx
              |> ContractConstants.from_transaction()
              |> ContractConstants.to_transaction()
