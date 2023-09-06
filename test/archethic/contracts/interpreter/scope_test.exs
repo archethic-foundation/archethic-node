@@ -1,7 +1,10 @@
 defmodule Archethic.Contracts.Interpreter.ScopeTest do
   use ArchethicCase
 
+  alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Scope
+  alias Archethic.Contracts.Interpreter.FunctionInterpreter
+  alias Archethic.Contracts.Interpreter.FunctionKeys
 
   doctest Scope
 
@@ -668,6 +671,54 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
         end
 
       assert Scope.execute(ast, %{"my_var" => 9}) == 10
+    end
+  end
+
+  describe "execute/4" do
+    test "should execute ast that uses arguments (for functions, arguments become variables)" do
+      ast =
+        quote do
+          Scope.read("a") + Scope.read("b")
+        end
+
+      assert Scope.execute(ast, %{}, ["a", "b"], [1, 2]) == 3
+
+      ast =
+        quote do
+          Scope.read("contract")["address"]
+        end
+
+      assert Scope.execute(ast, %{}, ["contract"], [%{"address" => "0000ABCD..."}]) ==
+               "0000ABCD..."
+    end
+  end
+
+  describe "execute_function_ast/2" do
+    test "should execute a function" do
+      function_keys =
+        FunctionKeys.new()
+        |> FunctionKeys.add_private("do_something", 2)
+
+      {:ok, code} =
+        Interpreter.sanitize_code("""
+        fun do_something(count, point) do
+          count + point.x + point.y
+        end
+        """)
+
+      {:ok, function_name, args_names, ast} = FunctionInterpreter.parse(code, function_keys)
+
+      Scope.init(%{
+        functions: %{
+          {function_name, length(args_names)} => %{
+            args: args_names,
+            ast: ast,
+            visibility: :private
+          }
+        }
+      })
+
+      assert Scope.execute_function_ast(function_name, [1, %{"x" => 2, "y" => 3}]) == 6
     end
   end
 end
