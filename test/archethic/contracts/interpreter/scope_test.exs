@@ -708,15 +708,20 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
 
       {:ok, function_name, args_names, ast} = FunctionInterpreter.parse(code, function_keys)
 
-      Scope.init(%{
-        functions: %{
-          {function_name, length(args_names)} => %{
-            args: args_names,
-            ast: ast,
-            visibility: :private
+      # equivalent to Scope.init/1
+      Process.put(
+        :scope,
+        %{
+          "context_list" => [],
+          functions: %{
+            {function_name, length(args_names)} => %{
+              args: args_names,
+              ast: ast,
+              visibility: :private
+            }
           }
         }
-      })
+      )
 
       assert Scope.execute_function_ast(function_name, [1, %{"x" => 2, "y" => 3}]) == 6
     end
