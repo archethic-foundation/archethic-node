@@ -3,7 +3,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   Helper functions to deal with scopes
   """
 
-  def init(global_variables) do
+  defp init(global_variables) do
     global_variables = Map.put(global_variables, "context_list", [])
 
     Process.put(
