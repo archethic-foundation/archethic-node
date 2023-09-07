@@ -186,8 +186,7 @@ defmodule Archethic.Contracts.Interpreter do
         {:ok, result}
     end
   rescue
-    err ->
-      Logger.error(Exception.format(:error, err, __STACKTRACE__))
+    _ ->
       # it's ok to loose the error because it's user-code
       {:error, :contract_failure}
   end

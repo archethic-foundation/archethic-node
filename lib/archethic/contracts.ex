@@ -83,20 +83,25 @@ defmodule Archethic.Contracts do
          constants <- get_function_constants_from_contract(contract) do
       task =
         Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-          Interpreter.execute_function(function, constants, args)
+          try do
+            Interpreter.execute_function(function, constants, args)
+          rescue
+            _ ->
+              # error from the code (ex: 1 + "abc")
+              {:error, :function_failure}
+          end
         end)
 
       # 500ms to execute or raise
       case Task.yield(task, 500) || Task.shutdown(task) do
+        {:ok, {:error, reason}} ->
+          {:error, reason}
+
         {:ok, reply} ->
           {:ok, reply}
 
         nil ->
           {:error, :timeout}
-
-        {:exit, _reason} ->
-          # error from the code (ex: 1 + "abc")
-          {:error, :function_failure}
       end
     end
   end
