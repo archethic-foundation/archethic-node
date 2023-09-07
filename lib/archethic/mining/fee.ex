@@ -28,6 +28,14 @@ defmodule Archethic.Mining.Fee do
                          |> ExJsonSchema.Schema.resolve()
 
   @doc """
+  Return the minimum UCO amount to pay the minimum fee (equivalent of 1 cts)
+  """
+  @spec minimum_fee(uco_price_in_usd :: float()) :: float()
+  def minimum_fee(uco_price_in_usd) do
+    0.01 / uco_price_in_usd
+  end
+
+  @doc """
   Determine the fee to paid for the given transaction
 
   The fee will differ according to the transaction type and complexity
@@ -133,10 +141,6 @@ defmodule Archethic.Mining.Fee do
     address
     |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes(timestamp))
     |> length()
-  end
-
-  defp minimum_fee(uco_price_in_usd) do
-    0.01 / uco_price_in_usd
   end
 
   defp fee_for_storage(uco_price_in_usd, nb_bytes, nb_storage_nodes) do
