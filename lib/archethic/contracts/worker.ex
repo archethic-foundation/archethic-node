@@ -12,7 +12,7 @@ defmodule Archethic.Contracts.Worker do
 
   alias Archethic.Election
 
-  alias Archethic.Mining
+  alias Archethic.Mining.Fee
 
   alias Archethic.OracleChain
 
@@ -26,8 +26,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.Ownership
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
@@ -80,79 +78,17 @@ defmodule Archethic.Contracts.Worker do
   end
 
   # TRIGGER: TRANSACTION
-  def handle_cast(
-        {
-          :execute,
-          trigger_tx = %Transaction{address: trigger_tx_address},
-          recipient = %Recipient{}
-        },
-        state = %{contract: contract}
-      ) do
-    contract_tx =
-      %Transaction{address: contract_address} =
-      Constants.to_transaction(contract.constants.contract)
-
-    trigger_datetime = DateTime.utc_now()
-    meta = log_metadata(contract_address, trigger_tx)
-    Logger.debug("Contract execution started (trigger=transaction)", meta)
-
+  def handle_cast({:execute, trigger_tx, recipient = %Recipient{}}, state = %{contract: contract}) do
     trigger = Contract.get_trigger_for_recipient(recipient)
 
-    with true <- enough_funds?(contract_address),
-         {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(
-             trigger,
-             contract,
-             trigger_tx,
-             recipient
-           ),
-         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_address),
-         :ok <-
-           handle_new_transaction(
-             {:transaction, trigger_tx_address, recipient},
-             next_tx,
-             trigger_datetime
-           ) do
-      Logger.debug("Contract execution success", meta)
-    else
-      {:ok, nil} ->
-        Logger.debug("Contract execution success but there is no new transaction", meta)
-
-      _ ->
-        Logger.debug("Contract execution failed", meta)
-    end
+    execute_contract(contract, trigger, trigger_tx, recipient)
 
     {:noreply, state}
   end
 
   # TRIGGER: DATETIME
-  def handle_info(
-        {:trigger, trigger_type = {:datetime, _}},
-        state = %{contract: contract}
-      ) do
-    contract_tx =
-      %Transaction{address: contract_address} =
-      Constants.to_transaction(contract.constants.contract)
-
-    trigger_datetime = DateTime.utc_now()
-    meta = log_metadata(contract_address)
-    Logger.debug("Contract execution started (trigger=datetime)", meta)
-
-    with true <- enough_funds?(contract_address),
-         {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(trigger_type, contract, nil, nil),
-         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_address),
-         :ok <- handle_new_transaction(trigger_type, next_tx, trigger_datetime) do
-      Logger.debug("Contract execution success", meta)
-    else
-      {:ok, nil} ->
-        Logger.debug("Contract execution success but there is no new transaction", meta)
-
-      _ ->
-        Logger.debug("Contract execution failed", meta)
-    end
+  def handle_info({:trigger, trigger_type = {:datetime, _}}, state = %{contract: contract}) do
+    execute_contract(contract, trigger_type, nil, nil)
 
     {:noreply, Map.update!(state, :timers, &Map.delete(&1, trigger_type))}
   end
@@ -162,35 +98,7 @@ defmodule Archethic.Contracts.Worker do
         {:trigger, trigger_type = {:interval, interval}},
         state = %{contract: contract = %Contract{triggers: triggers}}
       ) do
-    contract_tx =
-      %Transaction{address: contract_address} =
-      Constants.to_transaction(contract.constants.contract)
-
-    trigger_datetime = DateTime.utc_now()
-    meta = log_metadata(contract_address)
-    Logger.debug("Contract execution started (trigger=interval)", meta)
-
-    interval_datetime = Utils.get_current_time_for_interval(interval)
-
-    with true <- enough_funds?(contract_address),
-         {:ok, next_tx = %Transaction{}} <-
-           Contracts.execute_trigger(trigger_type, contract, nil, nil),
-         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-         :ok <- ensure_enough_funds(next_tx, contract_address),
-         :ok <-
-           handle_new_transaction(
-             {:interval, interval, interval_datetime},
-             next_tx,
-             trigger_datetime
-           ) do
-      Logger.debug("Contract execution success", meta)
-    else
-      {:ok, nil} ->
-        Logger.debug("Contract execution success but there is no new transaction", meta)
-
-      _ ->
-        Logger.debug("Contract execution failed", meta)
-    end
+    execute_contract(contract, trigger_type, nil, nil)
 
     interval_timer = schedule_trigger({:interval, interval}, Map.keys(triggers))
     {:noreply, put_in(state, [:timers, :interval], interval_timer)}
@@ -201,32 +109,11 @@ defmodule Archethic.Contracts.Worker do
         {:new_transaction, tx_address, :oracle, _timestamp},
         state = %{contract: contract}
       ) do
-    contract_tx =
-      %Transaction{address: contract_address} =
-      Constants.to_transaction(contract.constants.contract)
-
     trigger_datetime = DateTime.utc_now()
     {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
 
     if Contracts.valid_condition?(:oracle, contract, oracle_tx, nil, trigger_datetime) do
-      meta = log_metadata(contract_address, oracle_tx)
-      Logger.debug("Contract execution started (trigger=oracle)", meta)
-
-      with true <- enough_funds?(contract_address),
-           {:ok, next_tx = %Transaction{}} <-
-             Contracts.execute_trigger(:oracle, contract, oracle_tx, nil),
-           {:ok, next_tx} <- chain_transaction(next_tx, contract_tx),
-           :ok <- ensure_enough_funds(next_tx, contract_address),
-           :ok <-
-             handle_new_transaction({:oracle, tx_address}, next_tx, trigger_datetime) do
-        Logger.debug("Contract execution success", meta)
-      else
-        {:ok, nil} ->
-          Logger.debug("Contract execution success but there is no new transaction", meta)
-
-        _ ->
-          Logger.debug("Contract execution failed", meta)
-      end
+      execute_contract(contract, :oracle, oracle_tx, nil)
     end
 
     {:noreply, state}
@@ -241,13 +128,73 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
+  defp execute_contract(contract, trigger, maybe_trigger_tx, maybe_recipient) do
+    contract_tx =
+      %Transaction{address: contract_address} =
+      Constants.to_transaction(contract.constants.contract)
+
+    meta = log_metadata(contract_address, maybe_trigger_tx)
+    Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
+
+    with true <- has_minimum_fees?(contract_address),
+         {:ok, next_tx} when not is_nil(next_tx) <-
+           Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
+         {:ok, next_tx} <- sign_transaction(next_tx, contract_tx),
+         contract_context <-
+           get_contract_context(trigger, maybe_trigger_tx, maybe_recipient),
+         :ok <- send_transaction(contract_context, next_tx) do
+      Logger.debug("Contract execution success", meta)
+    else
+      {:ok, nil} ->
+        Logger.debug("Contract execution success but there is no new transaction", meta)
+
+      {:error, reason} ->
+        Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
+
+      _ ->
+        Logger.debug("Contract execution failed", meta)
+    end
+  end
+
+  defp get_contract_context(:oracle, %Transaction{address: address}, _) do
+    %Contract.Context{
+      status: :tx_output,
+      trigger: {:oracle, address},
+      timestamp: DateTime.utc_now()
+    }
+  end
+
+  defp get_contract_context({:interval, interval}, _, _) do
+    interval_datetime = Utils.get_current_time_for_interval(interval)
+
+    %Contract.Context{
+      status: :tx_output,
+      trigger: {:interval, interval, interval_datetime},
+      timestamp: DateTime.utc_now()
+    }
+  end
+
+  defp get_contract_context(trigger = {:datetime, _}, _, _) do
+    %Contract.Context{
+      status: :tx_output,
+      trigger: trigger,
+      timestamp: DateTime.utc_now()
+    }
+  end
+
+  defp get_contract_context({:transaction, _, _}, %Transaction{address: address}, recipient) do
+    # In a next issue, we'll have different status such as :no_output and :failure
+    %Contract.Context{
+      status: :tx_output,
+      trigger: {:transaction, address, recipient},
+      timestamp: DateTime.utc_now()
+    }
+  end
+
   defp schedule_trigger(trigger = {:interval, interval}, triggers_type) do
     now = DateTime.utc_now()
 
-    next_tick =
-      interval
-      |> CronParser.parse!(@extended_mode?)
-      |> Utils.next_date(now)
+    next_tick = interval |> CronParser.parse!(@extended_mode?) |> Utils.next_date(now)
 
     # do not allow an interval trigger if there is a datetime trigger at same time
     # because one of them would get a "transaction is already mining"
@@ -257,18 +204,12 @@ defmodule Archethic.Contracts.Worker do
           "Contract scheduler skips next tick for trigger=interval because there is a trigger=datetime at the same time that takes precedence"
         )
 
-        interval
-        |> CronParser.parse!(@extended_mode?)
-        |> Utils.next_date(next_tick)
+        interval |> CronParser.parse!(@extended_mode?) |> Utils.next_date(next_tick)
       else
         next_tick
       end
 
-    Process.send_after(
-      self(),
-      {:trigger, trigger},
-      DateTime.diff(next_tick, now, :millisecond)
-    )
+    Process.send_after(self(), {:trigger, trigger}, DateTime.diff(next_tick, now, :millisecond))
   end
 
   defp schedule_trigger(trigger = {:datetime, datetime = %DateTime{}}, _triggers_type) do
@@ -285,19 +226,8 @@ defmodule Archethic.Contracts.Worker do
 
   defp schedule_trigger(_trigger_type, _triggers_type), do: :ok
 
-  defp handle_new_transaction(
-         trigger,
-         next_transaction = %Transaction{},
-         trigger_datetime
-       ) do
+  defp send_transaction(contract_context, next_transaction) do
     validation_nodes = get_validation_nodes(next_transaction)
-
-    # In a next issue, we'll have different status such as :no_output and :failure
-    contract_context = %Contract.Context{
-      status: :tx_output,
-      trigger: trigger,
-      timestamp: trigger_datetime
-    }
 
     # The first storage node of the contract initiate the sending of the new transaction
     if trigger_node?(validation_nodes) do
@@ -326,35 +256,28 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp trigger_node?(validation_nodes, count \\ 0) do
-    %Node{first_public_key: key} =
-      validation_nodes
-      |> Enum.at(count)
-
+    %Node{first_public_key: key} = validation_nodes |> Enum.at(count)
     key == Crypto.first_node_public_key()
   end
 
-  defp chain_transaction(
-         _next_tx = %Transaction{
-           type: new_type,
-           data: new_data
-         },
-         prev_tx = %Transaction{
-           address: address,
-           previous_public_key: previous_public_key
-         }
+  defp sign_transaction(
+         _next_tx = %Transaction{type: new_type, data: new_data},
+         prev_tx = %Transaction{address: address, previous_public_key: previous_public_key}
        ) do
     case get_transaction_seed(prev_tx) do
       {:ok, transaction_seed} ->
         length = TransactionChain.get_size(address)
 
-        {:ok,
-         Transaction.new(
-           new_type,
-           new_data,
-           transaction_seed,
-           length,
-           Crypto.get_public_key_curve(previous_public_key)
-         )}
+        signed_tx =
+          Transaction.new(
+            new_type,
+            new_data,
+            transaction_seed,
+            length,
+            Crypto.get_public_key_curve(previous_public_key)
+          )
+
+        {:ok, signed_tx}
 
       _ ->
         Logger.info("Cannot decrypt the transaction seed", contract: Base.encode16(address))
@@ -362,9 +285,7 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  defp get_transaction_seed(%Transaction{
-         data: %TransactionData{ownerships: ownerships}
-       }) do
+  defp get_transaction_seed(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
     %Ownership{secret: secret, authorized_keys: authorized_keys} =
@@ -381,71 +302,25 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  defp enough_funds?(contract_address) do
+  defp has_minimum_fees?(contract_address) do
+    minimum_fees =
+      DateTime.utc_now()
+      |> OracleChain.get_uco_price()
+      |> Keyword.get(:usd)
+      |> Fee.minimum_fee()
+
     case Account.get_balance(contract_address) do
-      %{uco: uco_balance} when uco_balance > 0 ->
+      %{uco: uco_balance} when uco_balance >= minimum_fees ->
         true
 
       _ ->
-        Logger.debug("Not enough funds to interpret the smart contract for a trigger interval",
+        Logger.debug("Not enough funds to pay the minimum fee",
           contract: Base.encode16(contract_address)
         )
 
         false
     end
   end
-
-  defp ensure_enough_funds(next_transaction, contract_address) do
-    %{uco: uco_to_transfer, token: token_to_transfer} =
-      next_transaction
-      |> Transaction.get_movements()
-      |> Enum.reduce(%{uco: 0, token: %{}}, fn
-        %TransactionMovement{type: :UCO, amount: amount}, acc ->
-          Map.update!(acc, :uco, &(&1 + amount))
-
-        %TransactionMovement{type: {:token, token_address, token_id}, amount: amount}, acc ->
-          Map.update!(acc, :token, &Map.put(&1, {token_address, token_id}, amount))
-      end)
-
-    %{uco: uco_balance, token: token_balances} = Account.get_balance(contract_address)
-
-    timestamp = DateTime.utc_now()
-
-    uco_usd_price =
-      timestamp
-      |> OracleChain.get_uco_price()
-      |> Keyword.get(:usd)
-
-    tx_fee =
-      Mining.get_transaction_fee(
-        next_transaction,
-        uco_usd_price,
-        timestamp
-      )
-
-    with true <- uco_balance > uco_to_transfer + tx_fee,
-         true <-
-           Enum.all?(token_to_transfer, fn {{t_token_address, t_token_id}, t_amount} ->
-             {{_token_address, _token_id}, balance} =
-               Enum.find(token_balances, fn {{f_token_address, f_token_id}, _f_amount} ->
-                 f_token_address == t_token_address and f_token_id == t_token_id
-               end)
-
-             balance >= t_amount
-           end) do
-      :ok
-    else
-      false ->
-        Logger.debug(
-          "Not enough funds to submit the transaction - expected %{ UCO: #{uco_to_transfer + tx_fee},  token: #{inspect(token_to_transfer)}} - got: %{ UCO: #{uco_balance}, token: #{inspect(token_balances)}}",
-          contract: Base.encode16(contract_address)
-        )
-
-        {:error, :not_enough_funds}
-    end
-  end
-
-  defp log_metadata(contract_address), do: log_metadata(contract_address, nil)
 
   defp log_metadata(contract_address, nil) do
     [contract: Base.encode16(contract_address)]
