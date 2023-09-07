@@ -4,7 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   """
 
   defp init(global_variables) do
-    global_variables = Map.put(global_variables, "context_list", [])
+    global_variables = Map.put(global_variables, :context_list, [])
 
     Process.put(
       :scope,
@@ -26,7 +26,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     new_scope =
       Process.get(:scope)
       |> put_in([current_context] ++ current_scope_hierarchy ++ [ref], %{})
-      |> update_in([current_context, "scope_hierarchy"], &(&1 ++ [ref]))
+      |> update_in([current_context, :scope_hierarchy], &(&1 ++ [ref]))
 
     Process.put(
       :scope,
@@ -44,14 +44,14 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     context_ref = new_ref()
 
     new_context = %{
-      "scope_hierarchy" => []
+      scope_hierarchy: []
     }
 
     # add context to scope and update context list
     new_scope =
       Process.get(:scope)
       |> Map.put(context_ref, new_context)
-      |> Map.update!("context_list", &[context_ref | &1])
+      |> Map.update!(:context_list, &[context_ref | &1])
 
     Process.put(:scope, new_scope)
 
@@ -68,7 +68,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
 
     new_scope =
       Process.get(:scope)
-      |> update_in([current_context, "scope_hierarchy"], &List.delete_at(&1, -1))
+      |> update_in([current_context, :scope_hierarchy], &List.delete_at(&1, -1))
       |> pop_in([current_context] ++ current_scope_hierarchy)
       |> elem(1)
 
@@ -87,7 +87,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     new_scope =
       Process.get(:scope)
       |> Map.delete(current_context)
-      |> Map.update!("context_list", fn [_first | rest] -> rest end)
+      |> Map.update!(:context_list, fn [_first | rest] -> rest end)
 
     Process.put(:scope, new_scope)
 
@@ -218,12 +218,12 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   end
 
   defp get_current_context() do
-    get_in(Process.get(:scope), ["context_list"])
+    get_in(Process.get(:scope), [:context_list])
     |> List.first()
   end
 
   defp get_context_scope_hierarchy(context) do
-    get_in(Process.get(:scope), [context, "scope_hierarchy"])
+    get_in(Process.get(:scope), [context, :scope_hierarchy])
   end
 
   defp new_ref() do
