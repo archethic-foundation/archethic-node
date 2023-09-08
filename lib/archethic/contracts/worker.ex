@@ -22,9 +22,7 @@ defmodule Archethic.Contracts.Worker do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
-  alias Archethic.TransactionChain.TransactionData.Ownership
 
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
@@ -128,7 +126,7 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp execute_contract(
-         contract = %Contract{transaction: contract_tx = %Transaction{address: contract_address}},
+         contract = %Contract{transaction: %Transaction{address: contract_address}},
          trigger,
          maybe_trigger_tx,
          maybe_recipient
@@ -139,7 +137,8 @@ defmodule Archethic.Contracts.Worker do
     with true <- has_minimum_fees?(contract_address),
          {:ok, next_tx} when not is_nil(next_tx) <-
            Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
-         {:ok, next_tx} <- sign_transaction(next_tx, contract_tx),
+         index = TransactionChain.get_size(contract_address),
+         {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
          contract_context <-
            get_contract_context(trigger, maybe_trigger_tx, maybe_recipient),
          :ok <- send_transaction(contract_context, next_tx) do
@@ -258,48 +257,6 @@ defmodule Archethic.Contracts.Worker do
   defp trigger_node?(validation_nodes, count \\ 0) do
     %Node{first_public_key: key} = validation_nodes |> Enum.at(count)
     key == Crypto.first_node_public_key()
-  end
-
-  defp sign_transaction(
-         _next_tx = %Transaction{type: new_type, data: new_data},
-         prev_tx = %Transaction{address: address, previous_public_key: previous_public_key}
-       ) do
-    case get_transaction_seed(prev_tx) do
-      {:ok, transaction_seed} ->
-        length = TransactionChain.get_size(address)
-
-        signed_tx =
-          Transaction.new(
-            new_type,
-            new_data,
-            transaction_seed,
-            length,
-            Crypto.get_public_key_curve(previous_public_key)
-          )
-
-        {:ok, signed_tx}
-
-      _ ->
-        Logger.info("Cannot decrypt the transaction seed", contract: Base.encode16(address))
-        :error
-    end
-  end
-
-  defp get_transaction_seed(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
-    storage_nonce_public_key = Crypto.storage_nonce_public_key()
-
-    %Ownership{secret: secret, authorized_keys: authorized_keys} =
-      Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
-
-    encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
-
-    case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
-      {:ok, aes_key} ->
-        Crypto.aes_decrypt(secret, aes_key)
-
-      {:error, :decryption_failed} ->
-        {:error, :decryption_failed}
-    end
   end
 
   defp has_minimum_fees?(contract_address) do
