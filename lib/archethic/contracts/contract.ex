@@ -19,8 +19,7 @@ defmodule Archethic.Contracts.Contract do
             functions: %{},
             version: 0,
             conditions: %{},
-            constants: %Constants{},
-            next_transaction: %Transaction{data: %TransactionData{}}
+            constants: %Constants{}
 
   @type trigger_type() ::
           :oracle
@@ -58,8 +57,7 @@ defmodule Archethic.Contracts.Contract do
           conditions: %{
             condition_key() => Conditions.t()
           },
-          constants: Constants.t(),
-          next_transaction: Transaction.t()
+          constants: Constants.t()
         }
 
   @doc """
