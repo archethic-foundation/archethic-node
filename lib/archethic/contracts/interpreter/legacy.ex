@@ -599,11 +599,12 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   defp chain_ownerships(
          acc = %{
            next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
-           previous_transaction: %Transaction{
-             data: %TransactionData{ownerships: previous_ownerships}
-           }
+           previous_transaction: prev_tx
          }
        ) do
+    %Transaction{data: %TransactionData{ownerships: previous_ownerships}} =
+      Contract.remove_seed_ownership!(prev_tx)
+
     put_in(
       acc,
       [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],

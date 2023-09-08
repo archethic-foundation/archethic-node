@@ -46,11 +46,11 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   """
   @spec execute(ast :: any(), constants :: map(), previous_contract_tx :: Transaction.t()) ::
           Transaction.t() | nil
-  def execute(ast, constants, previous_contract_tx) do
+  def execute(ast, constants, %Transaction{data: %TransactionData{code: code}}) do
     :ok = Macro.validate(ast)
 
     # initiate a transaction that will be used by the "Contract" module
-    initial_next_tx = truncate_transaction(previous_contract_tx)
+    initial_next_tx = %Transaction{type: :contract, data: %TransactionData{code: code}}
 
     # Apply some transformations to the transactions
     # We do it here because the Constants module is still used by InterpreterLegacy
@@ -194,21 +194,4 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   # ----------------------------------------------------------------------
 
   defp postwalk(node, acc), do: CommonInterpreter.postwalk(node, acc)
-
-  # keep only the transaction fields we are interested in
-  # these are all the fields that are copied from `prev_tx` to `next_tx`
-  defp truncate_transaction(%Transaction{
-         data: %TransactionData{
-           code: code,
-           ownerships: ownerships
-         }
-       }) do
-    %Transaction{
-      type: :contract,
-      data: %TransactionData{
-        code: code,
-        ownerships: ownerships
-      }
-    }
-  end
 end
