@@ -44,15 +44,13 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   Execute actions code and returns either the next transaction or nil
   The "contract" constant is mandatory.
   """
-  @spec execute(any(), map()) :: Transaction.t() | nil
-  def execute(ast, constants = %{"contract" => contract_constant}) do
+  @spec execute(ast :: any(), constants :: map(), previous_contract_tx :: Transaction.t()) ::
+          Transaction.t() | nil
+  def execute(ast, constants, previous_contract_tx) do
     :ok = Macro.validate(ast)
 
-    # reconstruct the contract transaction
-    contract_tx = Constants.to_transaction(contract_constant)
-
     # initiate a transaction that will be used by the "Contract" module
-    initial_next_tx = truncate_transaction(contract_tx)
+    initial_next_tx = truncate_transaction(previous_contract_tx)
 
     # Apply some transformations to the transactions
     # We do it here because the Constants module is still used by InterpreterLegacy

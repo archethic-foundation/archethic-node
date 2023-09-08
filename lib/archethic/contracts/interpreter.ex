@@ -130,9 +130,9 @@ defmodule Archethic.Contracts.Interpreter do
   def execute_trigger(
         trigger_key,
         %Contract{
+          transaction: contract_tx,
           version: version,
           triggers: triggers,
-          constants: %Constants{contract: contract_constants},
           functions: functions
         },
         maybe_trigger_tx,
@@ -146,13 +146,10 @@ defmodule Archethic.Contracts.Interpreter do
       %{args: args, ast: trigger_code} ->
         timestamp_now =
           case Keyword.get(opts, :time_now) do
-            nil ->
-              # you must use the :time_now opts during the validation workflow
-              # because there is no validation_stamp yet
-              time_now(trigger_key, maybe_trigger_tx)
-
-            time_now ->
-              time_now
+            # you must use the :time_now opts during the validation workflow
+            # because there is no validation_stamp yet
+            nil -> time_now(trigger_key, maybe_trigger_tx)
+            time_now -> time_now
           end
           |> DateTime.to_unix()
 
@@ -160,13 +157,12 @@ defmodule Archethic.Contracts.Interpreter do
 
         transaction_constant =
           case maybe_trigger_tx do
-            nil ->
-              nil
-
-            trigger_tx ->
-              # :oracle & :transaction
-              Constants.from_transaction(trigger_tx)
+            nil -> nil
+            # :oracle & :transaction
+            trigger_tx -> Constants.from_transaction(trigger_tx)
           end
+
+        contract_constants = Constants.from_transaction(contract_tx)
 
         constants =
           named_action_constants
@@ -179,8 +175,8 @@ defmodule Archethic.Contracts.Interpreter do
 
         result =
           case version do
-            0 -> Legacy.execute_trigger(trigger_code, constants)
-            _ -> ActionInterpreter.execute(trigger_code, constants)
+            0 -> Legacy.execute_trigger(trigger_code, constants, contract_tx)
+            _ -> ActionInterpreter.execute(trigger_code, constants, contract_tx)
           end
 
         {:ok, result}

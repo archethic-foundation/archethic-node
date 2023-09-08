@@ -7,7 +7,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   alias __MODULE__.ConditionInterpreter
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
 
@@ -510,19 +509,17 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   Execute the trigger/action code.
   May return a new transaction or nil
   """
-  @spec execute_trigger(Macro.t(), map()) :: Transaction.t() | nil
-  def execute_trigger(ast, constants) do
+  @spec execute_trigger(
+          ast :: Macro.t(),
+          constants :: map(),
+          previous_contract_tx :: Transaction.t()
+        ) :: Transaction.t() | nil
+  def execute_trigger(ast, constants, previous_contract_tx) do
     case ActionInterpreter.execute(ast, constants) do
-      nil ->
-        # contract did not produce a next_tx
-        nil
-
-      next_tx_to_prepare ->
-        # contract produce a next_tx but we need to feed previous values to it
-        chain_transaction(
-          Constants.to_transaction(constants["contract"]),
-          next_tx_to_prepare
-        )
+      # contract did not produce a next_tx
+      nil -> nil
+      # contract produce a next_tx but we need to feed previous values to it
+      next_tx_to_prepare -> chain_transaction(previous_contract_tx, next_tx_to_prepare)
     end
   end
 

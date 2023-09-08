@@ -84,21 +84,11 @@ defmodule Archethic.ContractFactory do
     create_valid_contract_tx(code, opts)
   end
 
-  def append_contract_constant(constants, code, content \\ "") do
+  def append_contract_constant(constants, contract_tx) do
     if Map.has_key?(constants, "contract") do
       constants
     else
-      Map.put(
-        constants,
-        "contract",
-        Constants.from_transaction(
-          TransactionFactory.create_valid_transaction([],
-            type: :contract,
-            code: code,
-            content: content
-          )
-        )
-      )
+      Map.put(constants, "contract", Constants.from_transaction(contract_tx))
     end
   end
 end

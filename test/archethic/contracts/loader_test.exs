@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.LoaderTest do
   alias Archethic.ContractSupervisor
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConstants
   alias Archethic.Contracts.Loader
   alias Archethic.Contracts.Worker
 
@@ -43,14 +42,8 @@ defmodule Archethic.Contracts.LoaderTest do
                &match?({_, ^pid, :worker, [Worker]}, &1)
              )
 
-      assert %{
-               contract: %Contract{
-                 triggers: %{
-                   {:transaction, nil, nil} => _
-                 },
-                 constants: %ContractConstants{contract: %{"address" => ^contract_address}}
-               }
-             } = :sys.get_state(pid)
+      assert %{contract: %Contract{transaction: ^tx, triggers: %{{:transaction, nil, nil} => _}}} =
+               :sys.get_state(pid)
     end
 
     test "should stop a previous contract for the same chain" do
@@ -118,13 +111,7 @@ defmodule Archethic.Contracts.LoaderTest do
              &match?({_, ^pid, :worker, [Worker]}, &1)
            )
 
-    assert %{
-             contract: %Contract{
-               triggers: %{
-                 {:transaction, nil, nil} => _
-               },
-               constants: %ContractConstants{contract: %{"address" => ^contract_address}}
-             }
-           } = :sys.get_state(pid)
+    assert %{contract: %Contract{transaction: ^tx, triggers: %{{:transaction, nil, nil} => _}}} =
+             :sys.get_state(pid)
   end
 end
