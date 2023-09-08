@@ -1,6 +1,8 @@
 defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @moduledoc false
 
+  alias Archethic.Contracts.ContractConstants, as: Constants
+
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.FunctionKeys
@@ -56,6 +58,11 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
           result :: any()
   def execute(ast, constants, args_names \\ [], args_ast \\ []) do
+    constants =
+      constants
+      |> Constants.map_transactions(&Constants.stringify_transaction/1)
+      |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
+
     Scope.execute(ast, constants, args_names, args_ast)
   end
 

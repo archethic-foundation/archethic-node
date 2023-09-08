@@ -432,7 +432,9 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                        ^pub_key1 => _
                      },
                      secret: "ENCODED_SECRET1"
-                   }
+                   },
+                   # Contract seed
+                   %Ownership{}
                  ]
                }
              } = sanitize_parse_execute(code)
@@ -463,7 +465,9 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                        ^pub_key1 => _
                      },
                      secret: "ENCODED_SECRET1"
-                   }
+                   },
+                   # Contract seed
+                   %Ownership{}
                  ]
                }
              } = sanitize_parse_execute(code)
@@ -487,7 +491,9 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                        ^pub_key1 => _
                      },
                      secret: "ENCODED_SECRET1"
-                   }
+                   },
+                   # Contract seed
+                   %Ownership{}
                  ]
                }
              } = sanitize_parse_execute(code)
@@ -655,7 +661,9 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
                        ^pub_key1 => _
                      },
                      secret: "ENCODED_SECRET1"
-                   }
+                   },
+                   # Contract seed
+                   %Ownership{}
                  ]
                }
              } = sanitize_parse_execute(code)

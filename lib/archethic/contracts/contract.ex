@@ -9,8 +9,6 @@ defmodule Archethic.Contracts.Contract do
 
   alias Archethic.Contracts.Interpreter
 
-  alias Archethic.SharedSecrets
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -19,7 +17,8 @@ defmodule Archethic.Contracts.Contract do
             functions: %{},
             version: 0,
             conditions: %{},
-            constants: %Constants{}
+            constants: %Constants{},
+            transaction: %Transaction{}
 
   @type trigger_type() ::
           :oracle
@@ -47,31 +46,21 @@ defmodule Archethic.Contracts.Contract do
           | {:transaction, nil, nil}
           | {:transaction, String.t(), non_neg_integer()}
 
-  @type origin_family :: SharedSecrets.origin_family()
-
   @type t() :: %__MODULE__{
-          triggers: %{
-            trigger_key() => %{args: list(binary()), ast: Macro.t()}
-          },
+          triggers: %{trigger_key() => %{args: list(binary()), ast: Macro.t()}},
           version: integer(),
-          conditions: %{
-            condition_key() => Conditions.t()
-          },
-          constants: Constants.t()
+          conditions: %{condition_key() => Conditions.t()},
+          constants: Constants.t(),
+          transaction: Transaction.t()
         }
 
   @doc """
   Create a contract from a transaction. Same `from_transaction/1` but throws if the contract's code is invalid
   """
   @spec from_transaction!(Transaction.t()) :: t()
-  def from_transaction!(tx = %Transaction{data: %TransactionData{code: code}})
-      when is_binary(code) and code != "" do
-    {:ok, contract} = Interpreter.parse(code)
-
-    %__MODULE__{
-      contract
-      | constants: %Constants{contract: Constants.from_transaction(tx)}
-    }
+  def from_transaction!(tx) do
+    {:ok, contract} = from_transaction(tx)
+    contract
   end
 
   @doc """
@@ -80,16 +69,8 @@ defmodule Archethic.Contracts.Contract do
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
   def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
     case Interpreter.parse(code) do
-      {:ok, contract} ->
-        contract_with_constants = %__MODULE__{
-          contract
-          | constants: %Constants{contract: Constants.from_transaction(tx)}
-        }
-
-        {:ok, contract_with_constants}
-
-      {:error, _} = e ->
-        e
+      {:ok, contract} -> {:ok, contract |> Map.put(:transaction, tx)}
+      {:error, reason} -> {:error, reason}
     end
   end
 

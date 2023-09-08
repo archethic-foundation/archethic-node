@@ -263,9 +263,12 @@ defmodule ArchethicCase do
   def sanitize_parse_execute(code, constants \\ %{}, functions \\ []) do
     with {:ok, sanitized_code} <- Interpreter.sanitize_code(code),
          {:ok, _, action_ast} <- ActionInterpreter.parse(sanitized_code, functions) do
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
       ActionInterpreter.execute(
         action_ast,
-        constants |> ContractFactory.append_contract_constant(code)
+        constants |> ContractFactory.append_contract_constant(contract_tx),
+        contract_tx
       )
     end
   end

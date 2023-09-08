@@ -6,7 +6,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.ContractRegistry
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.Crypto
 
@@ -39,8 +38,8 @@ defmodule Archethic.Contracts.Worker do
   use GenServer
   @vsn Mix.Project.config()[:version]
 
-  def start_link(contract = %Contract{constants: %Constants{contract: constants}}) do
-    GenServer.start_link(__MODULE__, contract, name: via_tuple(Map.get(constants, "address")))
+  def start_link(contract = %Contract{transaction: %Transaction{address: address}}) do
+    GenServer.start_link(__MODULE__, contract, name: via_tuple(address))
   end
 
   @doc """
@@ -128,11 +127,12 @@ defmodule Archethic.Contracts.Worker do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  defp execute_contract(contract, trigger, maybe_trigger_tx, maybe_recipient) do
-    contract_tx =
-      %Transaction{address: contract_address} =
-      Constants.to_transaction(contract.constants.contract)
-
+  defp execute_contract(
+         contract = %Contract{transaction: contract_tx = %Transaction{address: contract_address}},
+         trigger,
+         maybe_trigger_tx,
+         maybe_recipient
+       ) do
     meta = log_metadata(contract_address, maybe_trigger_tx)
     Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 

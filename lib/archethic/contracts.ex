@@ -78,26 +78,34 @@ defmodule Archethic.Contracts do
           | {:error, :function_is_private}
           | {:error, :timeout}
 
-  def execute_function(contract, function_name, args) do
-    with {:ok, function} <- get_function_from_contract(contract, function_name, args),
-         constants <- get_function_constants_from_contract(contract) do
-      task =
-        Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-          Interpreter.execute_function(function, constants, args)
-        end)
+  def execute_function(contract = %Contract{transaction: contract_tx}, function_name, args) do
+    case get_function_from_contract(contract, function_name, args) do
+      {:ok, function} ->
+        constants = %{
+          "contract" => Constants.from_transaction(contract_tx),
+          :time_now => DateTime.utc_now() |> DateTime.to_unix()
+        }
 
-      # 500ms to execute or raise
-      case Task.yield(task, 500) || Task.shutdown(task) do
-        {:ok, reply} ->
-          {:ok, reply}
+        task =
+          Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+            Interpreter.execute_function(function, constants, args)
+          end)
 
-        nil ->
-          {:error, :timeout}
+        # 500ms to execute or raise
+        case Task.yield(task, 500) || Task.shutdown(task) do
+          {:ok, reply} ->
+            {:ok, reply}
 
-        {:exit, _reason} ->
-          # error from the code (ex: 1 + "abc")
-          {:error, :function_failure}
-      end
+          nil ->
+            {:error, :timeout}
+
+          {:exit, _reason} ->
+            # error from the code (ex: 1 + "abc")
+            {:error, :function_failure}
+        end
+
+      error ->
+        error
     end
   end
 
@@ -108,26 +116,10 @@ defmodule Archethic.Contracts do
 
       function ->
         case function do
-          %{visibility: :public} ->
-            {:ok, function}
-
-          %{visibility: :private} ->
-            {:error, :function_is_private}
+          %{visibility: :public} -> {:ok, function}
+          %{visibility: :private} -> {:error, :function_is_private}
         end
     end
-  end
-
-  defp get_function_constants_from_contract(%{
-         constants: %Constants{contract: contract_constant}
-       }) do
-    contract_constant
-    |> Constants.map_transactions(&Constants.stringify_transaction/1)
-    |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
-
-    %{
-      "contract" => contract_constant,
-      :time_now => DateTime.utc_now() |> DateTime.to_unix()
-    }
   end
 
   @doc """
@@ -161,11 +153,7 @@ defmodule Archethic.Contracts do
   def valid_execution?(
         prev_tx = %Transaction{address: previous_address},
         _next_tx = %Transaction{type: next_tx_type, data: next_tx_data},
-        %Contract.Context{
-          trigger: trigger,
-          timestamp: timestamp,
-          status: status
-        }
+        %Contract.Context{trigger: trigger, timestamp: timestamp, status: status}
       ) do
     with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
          {:ok, contract} <- from_transaction(prev_tx) do
@@ -359,15 +347,12 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          :inherit,
-         %Contract{
-           constants: %Constants{contract: contract_constant},
-           functions: functions
-         },
+         %Contract{transaction: contract_tx, functions: functions},
          transaction,
          datetime
        ) do
     %{
-      "previous" => contract_constant,
+      "previous" => Constants.from_transaction(contract_tx),
       "next" => Constants.from_transaction(transaction),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
@@ -376,16 +361,13 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          _,
-         %Contract{
-           constants: %Constants{contract: contract_constant},
-           functions: functions
-         },
+         %Contract{transaction: contract_tx, functions: functions},
          transaction,
          datetime
        ) do
     %{
       "transaction" => Constants.from_transaction(transaction),
-      "contract" => contract_constant,
+      "contract" => Constants.from_transaction(contract_tx),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
     }
