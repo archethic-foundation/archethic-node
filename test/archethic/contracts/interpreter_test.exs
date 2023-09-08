@@ -656,6 +656,41 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
 
+    test "should return the proper line in case of error" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, as: []
+        actions triggered_by: transaction do
+          div_by_zero()
+        end
+
+        export fun div_by_zero() do
+          1 / 0
+        end
+      """
+
+      contract_tx = %Transaction{
+        type: :contract,
+        data: %TransactionData{
+          code: code
+        }
+      }
+
+      incoming_tx = %Transaction{
+        type: :transfer,
+        data: %TransactionData{},
+        validation_stamp: ValidationStamp.generate_dummy()
+      }
+
+      assert {:error, "division_by_zero - L8"} =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil
+               )
+    end
+
     test "should return nil when the contract is correct but no Contract.* call" do
       code = """
         @version 1
@@ -680,7 +715,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
 
-    test "should return contract_failure if contract code crash" do
+    test "should return an error if contract code crash" do
       code = """
         @version 1
         condition triggered_by: transaction, as: []
@@ -696,7 +731,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert match?(
-               {:error, :contract_failure},
+               {:error, "division_by_zero - L5"},
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -717,7 +752,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       assert match?(
-               {:error, :contract_failure},
+               {:error, "Contract used add_uco_transfer with an invalid amount - L5"},
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),

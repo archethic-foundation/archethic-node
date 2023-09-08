@@ -248,22 +248,6 @@ defmodule ArchethicWeb.API.REST.TransactionController do
         {:error, "Network issue, please try again later."}
 
       # execute_contract errors
-      {:error, :contract_failure} ->
-        {:error, "Contract execution produced an error."}
-
-      {:error, :invalid_triggers_execution} ->
-        {:error, "Contract does not have a `actions triggered_by: transaction` block."}
-
-      {:error, :invalid_transaction_constraints} ->
-        {:error,
-         "Contract refused incoming transaction. Check the `condition transaction` block."}
-
-      {:error, :invalid_oracle_constraints} ->
-        {:error, "Contract refused incoming transaction. Check the `condition oracle` block."}
-
-      {:error, :invalid_inherit_constraints} ->
-        {:error, "Contract refused outcoming transaction. Check the `condition inherit` block."}
-
       # parse_contract errors
       {:error, reason} when is_binary(reason) ->
         {:error, reason}
