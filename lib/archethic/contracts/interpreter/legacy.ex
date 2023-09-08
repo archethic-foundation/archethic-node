@@ -186,10 +186,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
               }
             }
           },
-          constants: %Archethic.Contracts.ContractConstants{
-            contract: nil,
-            transaction: nil
-          },
           functions: %{},
           triggers: %{
             :oracle => %{
