@@ -3,13 +3,6 @@ defmodule Archethic.Contracts.ContractConstants do
   Represents the smart contract constants and bindings
   """
 
-  defstruct [:contract, :transaction]
-
-  @type t :: %__MODULE__{
-          contract: map() | nil,
-          transaction: map() | nil
-        }
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger

@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Contract do
 
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
-  alias Archethic.Contracts.ContractConstants, as: Constants
 
   alias Archethic.Contracts.Interpreter
 
@@ -17,7 +16,6 @@ defmodule Archethic.Contracts.Contract do
             functions: %{},
             version: 0,
             conditions: %{},
-            constants: %Constants{},
             transaction: %Transaction{}
 
   @type trigger_type() ::
@@ -50,7 +48,6 @@ defmodule Archethic.Contracts.Contract do
           triggers: %{trigger_key() => %{args: list(binary()), ast: Macro.t()}},
           version: integer(),
           conditions: %{condition_key() => Conditions.t()},
-          constants: Constants.t(),
           transaction: Transaction.t()
         }
 
