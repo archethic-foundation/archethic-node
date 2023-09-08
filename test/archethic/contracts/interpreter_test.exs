@@ -8,9 +8,10 @@ defmodule Archethic.Contracts.InterpreterTest do
   alias Archethic.ContractFactory
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
+
+  alias Archethic.TransactionFactory
 
   doctest Interpreter
 
@@ -329,18 +330,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
@@ -360,18 +352,9 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok,
               %Transaction{
@@ -401,18 +384,9 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok,
               %Transaction{
@@ -442,18 +416,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:error, _} =
                Interpreter.execute_trigger(
@@ -481,18 +446,9 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:error, _} =
                Interpreter.execute_trigger(
@@ -521,18 +477,9 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok, _} =
                Interpreter.execute_trigger(
@@ -559,18 +506,9 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok,
               %Transaction{
@@ -600,19 +538,9 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code,
-          content: "4"
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code, content: "4")
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok,
               %Transaction{
@@ -646,18 +574,9 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok,
               %Transaction{
@@ -687,18 +606,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok,
               %Transaction{
@@ -728,18 +638,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok,
               %Transaction{
@@ -766,18 +667,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:ok, nil} =
                Interpreter.execute_trigger(
@@ -799,18 +691,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert match?(
                {:error, :contract_failure},
@@ -831,12 +714,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       assert match?(
                {:error, :contract_failure},
@@ -857,12 +735,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
@@ -881,12 +754,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
@@ -906,18 +774,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      oracle_tx = %Transaction{
-        type: :oracle,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle)
 
       assert {:ok, %Transaction{}} =
                Interpreter.execute_trigger(
@@ -939,25 +798,13 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      address = random_address()
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: address,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Dr. Who?"]}
+      recipients = [recipient, %Recipient{address: random_address()}]
 
-      recipient = %Recipient{address: address, action: "vote", args: ["Dr. Who?"]}
-
-      trigger_tx = %Transaction{
-        type: :data,
-        data: %TransactionData{
-          recipients: [recipient, %Recipient{address: random_address()}]
-        },
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      trigger_tx =
+        TransactionFactory.create_valid_transaction([], type: :data, recipients: recipients)
 
       trigger_key = Contract.get_trigger_for_recipient(recipient)
 
@@ -980,18 +827,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -1021,25 +859,12 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      address = random_address()
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: address,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      recipient = %Recipient{address: contract_tx.address, action: "add", args: [1, 2]}
 
-      recipient = %Recipient{address: address, action: "add", args: [1, 2]}
-
-      trigger_tx = %Transaction{
-        type: :data,
-        data: %TransactionData{
-          recipients: [recipient]
-        },
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      trigger_tx =
+        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
 
       trigger_key = Contract.get_trigger_for_recipient(recipient)
 
@@ -1061,25 +886,12 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      address = random_address()
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      contract_tx = %Transaction{
-        type: :contract,
-        address: address,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      recipient = %Recipient{address: contract_tx.address, action: "add", args: [1, 2]}
 
-      recipient = %Recipient{address: address, action: "add", args: [1, 2]}
-
-      trigger_tx = %Transaction{
-        type: :data,
-        data: %TransactionData{
-          recipients: [recipient]
-        },
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      trigger_tx =
+        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
 
       trigger_key = Contract.get_trigger_for_recipient(recipient)
 

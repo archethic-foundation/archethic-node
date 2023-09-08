@@ -12,12 +12,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
   alias Archethic.P2P.Message.LastTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.TransactionFactory
 
   alias Archethic.SelfRepair.NetworkView
+
+  alias Archethic.ContractFactory
 
   import Mox
   import ArchethicCase
@@ -57,30 +58,28 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
   describe "execute" do
     test "should validate the latest contract from the chain" do
-      code = """
-      @version 1
+      contract_tx =
+        %Transaction{address: last_contract_address} =
+        """
+        condition inherit: [
+          type: transfer,
+          content: true,
+          uco_transfers: true
+        ]
 
-      condition triggered_by: transaction, as: [
-        content: "test content"
-      ]
+        condition transaction: [
+          content: "test content"
+        ]
 
-      actions triggered_by: transaction do
-        Contract.add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
-      end
-      """
+        actions triggered_by: transaction do
+          set_type transfer
+          add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
       old_contract_address = random_address()
       old_contract_address_hex = Base.encode16(old_contract_address)
-      last_contract_address = random_address()
-
-      contract_tx = %Transaction{
-        address: last_contract_address,
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        },
-        version: 1
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -93,9 +92,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
-          recipients: [
-            %Recipient{address: old_contract_address}
-          ],
+          recipients: [%Recipient{address: old_contract_address}],
           content: "test content"
         )
 
@@ -104,26 +101,20 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should validate a named action recipient" do
-      code = """
-      @version 1
+      contract_tx =
+        %Transaction{address: last_contract_address} =
+        """
+        @version 1
 
-      condition triggered_by: transaction, on: vote(candidate), as: []
-      actions triggered_by: transaction, on: vote(candidate) do
-        Contract.set_content(candidate)
-      end
-      """
+        condition triggered_by: transaction, on: vote(candidate), as: []
+        actions triggered_by: transaction, on: vote(candidate) do
+          Contract.set_content(candidate)
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
       old_contract_address = random_address()
       old_contract_address_hex = Base.encode16(old_contract_address)
-      last_contract_address = random_address()
-
-      contract_tx = %Transaction{
-        address: last_contract_address,
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -136,9 +127,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
-          recipients: [
-            %Recipient{address: old_contract_address, action: "vote", args: ["Jonas"]}
-          ],
+          recipients: [%Recipient{address: old_contract_address, action: "vote", args: ["Jonas"]}],
           content: "test content"
         )
 
@@ -147,26 +136,20 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should not validate a named action recipient that doesn't exist (wrong action)" do
-      code = """
-      @version 1
+      contract_tx =
+        %Transaction{address: last_contract_address} =
+        """
+        @version 1
 
-      condition triggered_by: transaction, on: vote(candidate), as: []
-      actions triggered_by: transaction, on: vote(candidate) do
-        Contract.set_content(candidate)
-      end
-      """
+        condition triggered_by: transaction, on: vote(candidate), as: []
+        actions triggered_by: transaction, on: vote(candidate) do
+          Contract.set_content(candidate)
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
       old_contract_address = random_address()
       old_contract_address_hex = Base.encode16(old_contract_address)
-      last_contract_address = random_address()
-
-      contract_tx = %Transaction{
-        address: last_contract_address,
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -190,26 +173,20 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should not validate a named action recipient that doesn't exist (wrong arity)" do
-      code = """
-      @version 1
+      contract_tx =
+        %Transaction{address: last_contract_address} =
+        """
+        @version 1
 
-      condition triggered_by: transaction, on: vote(candidate), as: []
-      actions triggered_by: transaction, on: vote(candidate) do
-        Contract.set_content(candidate)
-      end
-      """
+        condition triggered_by: transaction, on: vote(candidate), as: []
+        actions triggered_by: transaction, on: vote(candidate) do
+          Contract.set_content(candidate)
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
       old_contract_address = random_address()
       old_contract_address_hex = Base.encode16(old_contract_address)
-      last_contract_address = random_address()
-
-      contract_tx = %Transaction{
-        address: last_contract_address,
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -233,28 +210,22 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should not validate a named action recipient with invalid condition" do
-      code = """
-      @version 1
+      contract_tx =
+        %Transaction{address: last_contract_address} =
+        """
+        @version 1
 
-      condition triggered_by: transaction, on: vote(candidate), as: [
-        content: transaction.content == "some content"
-      ]
-      actions triggered_by: transaction, on: vote(candidate) do
-        Contract.set_content(candidate)
-      end
-      """
+        condition triggered_by: transaction, on: vote(candidate), as: [
+          content: transaction.content == "some content"
+        ]
+        actions triggered_by: transaction, on: vote(candidate) do
+          Contract.set_content(candidate)
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
       old_contract_address = random_address()
       old_contract_address_hex = Base.encode16(old_contract_address)
-      last_contract_address = random_address()
-
-      contract_tx = %Transaction{
-        address: last_contract_address,
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -267,9 +238,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
 
       trigger_tx =
         TransactionFactory.create_non_valided_transaction(
-          recipients: [
-            %Recipient{address: old_contract_address, action: "vote", args: ["Lance"]}
-          ],
+          recipients: [%Recipient{address: old_contract_address, action: "vote", args: ["Lance"]}],
           content: "test content"
         )
 
@@ -278,33 +247,25 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should indicate faillure when asked to validate an invalid contract" do
-      code = """
-      @version 1
-      condition inherit: [
-        content: false
-      ]
+      contract_tx =
+        %Transaction{address: contract_address} =
+        """
+        @version 1
+        condition inherit: [
+          content: false
+        ]
 
-      condition triggered_by: transaction, as: [
-        content: "test"
-      ]
+        condition triggered_by: transaction, as: [
+          content: "test"
+        ]
 
-      actions triggered_by: transaction do
-        Contract.set_content("should not pass")
-      end
-      """
+        actions triggered_by: transaction do
+          Contract.set_content("should not pass")
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx(content: "hello")
 
-      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
-
-      contract_tx = %Transaction{
-        address: contract_address,
-        type: :contract,
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        },
-        version: 1
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -332,27 +293,20 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should indicate faillure when failling parsing of contracts" do
-      code = """
-      condition triggered_by: transaction, as: [
-        content: "test"
-      ]
+      contract_tx =
+        %Transaction{address: contract_address} =
+        """
+        condition triggered_by: transaction, as: [
+          content: "test"
+        ]
 
-      actions triggered_by: transaction do
-        Contract.not_exists
-      end
-      """
+        actions triggered_by: transaction do
+          Contract.not_exists
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
-      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
-
-      contract_tx = %Transaction{
-        address: contract_address,
-        type: :transfer,
-        data: %TransactionData{
-          code: code
-        },
-        version: 1
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -380,19 +334,10 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "Assert empty contract are not simulated and return negative answer" do
-      code = ""
+      contract_tx =
+        %Transaction{address: contract_address} = ContractFactory.create_valid_contract_tx("")
 
-      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
-
-      contract_tx = %Transaction{
-        address: contract_address,
-        type: :transfer,
-        data: %TransactionData{
-          code: code
-        },
-        version: 1
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -420,29 +365,22 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should return error answer when asked to validate a crashing contract" do
-      code = """
-      @version 1
+      contract_tx =
+        %Transaction{address: contract_address} =
+        """
+        @version 1
 
-      condition triggered_by: transaction, as: [
-        content: "test"
-      ]
+        condition triggered_by: transaction, as: [
+          content: "test"
+        ]
 
-      actions triggered_by: transaction do
-        Contract.set_content 10 / 0
-      end
-      """
+        actions triggered_by: transaction do
+          Contract.set_content 10 / 0
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
-      contract_address = random_address()
       contract_address_hex = Base.encode16(contract_address)
-
-      contract_tx = %Transaction{
-        address: contract_address,
-        type: :transfer,
-        data: %TransactionData{
-          code: code
-        },
-        version: 1
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -470,53 +408,38 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.SimulateContractExecutionTest do
     end
 
     test "should return multiple response if there is multiple recipients" do
-      code1 = """
-      @version 1
+      contract_tx1 =
+        %Transaction{address: contract_address1} =
+        """
+        @version 1
 
-      condition triggered_by: transaction, as: [
-        content: "test"
-      ]
+        condition triggered_by: transaction, as: [
+          content: "test"
+        ]
 
-      actions triggered_by: transaction do
-        Contract.set_content 10 / 0
-      end
-      """
+        actions triggered_by: transaction do
+          Contract.set_content 10 / 0
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx(seed: "seed1")
 
-      code2 = """
-      @version 1
+      contract_tx2 =
+        %Transaction{address: contract_address2} =
+        """
+        @version 1
 
-      condition triggered_by: transaction, as: [
-        content: "test"
-      ]
+        condition triggered_by: transaction, as: [
+          content: "test"
+        ]
 
-      actions triggered_by: transaction do
-        Contract.set_content "ok"
-      end
-      """
+        actions triggered_by: transaction do
+          Contract.set_content "ok"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx(seed: "seed2")
 
-      contract_address1 = random_address()
       contract_address_hex1 = Base.encode16(contract_address1)
-
-      contract_tx1 = %Transaction{
-        address: contract_address1,
-        type: :transfer,
-        data: %TransactionData{
-          code: code1
-        },
-        version: 1
-      }
-
-      contract_address2 = random_address()
       contract_address_hex2 = Base.encode16(contract_address2)
-
-      contract_tx2 = %Transaction{
-        address: contract_address2,
-        type: :transfer,
-        data: %TransactionData{
-          code: code2
-        },
-        version: 1
-      }
 
       MockClient
       |> stub(:send_message, fn

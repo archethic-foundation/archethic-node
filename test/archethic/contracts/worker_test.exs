@@ -1,17 +1,33 @@
 defmodule Archethic.Contracts.WorkerTest do
   use ArchethicCase
 
-  alias Archethic.{Account, Contracts, ContractRegistry, Crypto, P2P}
-  alias Archethic.{P2P.Node, PubSub, TransactionChain}
+  alias Archethic.Account
+  alias Archethic.ContractRegistry
+  alias Archethic.Crypto
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.PubSub
 
-  alias Contracts.{Contract, Interpreter, Worker, ContractConstants}
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Worker
 
-  alias P2P.Message.{Ok, StartMining}
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.StartMining
 
-  alias TransactionChain.{Transaction, TransactionData, Transaction.ValidationStamp}
-  alias ValidationStamp.{LedgerOperations.UnspentOutput, LedgerOperations.VersionedUnspentOutput}
-  alias TransactionData.{Ledger, Ownership, UCOLedger, UCOLedger.Transfer, TokenLedger}
-  alias TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+
+  alias Archethic.ContractFactory
 
   alias Archethic.TransactionChain.TransactionData.Recipient
 
@@ -48,38 +64,13 @@ defmodule Archethic.Contracts.WorkerTest do
         {:ok, %Ok{}}
     end)
 
-    aes_key = :crypto.strong_rand_bytes(32)
+    MockDB
+    |> stub(:chain_size, fn _ -> 1 end)
+
     transaction_seed = :crypto.strong_rand_bytes(32)
 
-    {pub, _} = Crypto.derive_keypair(transaction_seed, 1)
-    next_address = Crypto.derive_address(pub)
-
-    secret = Crypto.aes_encrypt(transaction_seed, aes_key)
-    storage_nonce_public_key = Crypto.storage_nonce_public_key()
-
-    contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
-
-    constants =
-      %Transaction{
-        address: contract_address,
-        data: %TransactionData{
-          content: "",
-          ownerships: [
-            %Ownership{
-              secret: secret,
-              authorized_keys: %{
-                storage_nonce_public_key => Crypto.ec_encrypt(aes_key, storage_nonce_public_key)
-              }
-            }
-          ]
-        },
-        previous_public_key:
-          transaction_seed
-          |> Crypto.derive_keypair(0)
-          |> elem(0),
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      }
-      |> ContractConstants.from_transaction()
+    {first_pub, _} = Crypto.derive_keypair(transaction_seed, 1)
+    contract_address = Crypto.derive_address(first_pub)
 
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
@@ -95,6 +86,9 @@ defmodule Archethic.Contracts.WorkerTest do
         protocol_version: 1
       }
     )
+
+    {next_pub, _} = Crypto.derive_keypair(transaction_seed, 2)
+    next_address = Crypto.derive_address(next_pub)
 
     to = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -115,14 +109,28 @@ defmodule Archethic.Contracts.WorkerTest do
       }
     }
 
-    {:ok, %{constants: constants, expected_tx: expected_tx, to: to}}
+    {:ok,
+     %{
+       seed: transaction_seed,
+       contract_address: contract_address,
+       expected_tx: expected_tx,
+       to: to
+     }}
   end
 
   describe "start_link/1" do
     test "should spawn a process accessible by its address", %{
-      constants: constants = %{"address" => contract_address}
+      seed: seed,
+      contract_address: contract_address
     } do
-      contract = %Contract{constants: %ContractConstants{contract: constants}}
+      code = """
+      @version 1
+      condition transaction: []
+      """
+
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+
       {:ok, pid} = Worker.start_link(contract)
       assert Process.alive?(pid)
       %{contract: ^contract} = :sys.get_state(pid)
@@ -131,7 +139,7 @@ defmodule Archethic.Contracts.WorkerTest do
     end
 
     test "should schedule a timer for a an datetime trigger", %{
-      constants: constants,
+      seed: seed,
       expected_tx: expected_tx,
       to: to
     } do
@@ -148,12 +156,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -168,7 +172,7 @@ defmodule Archethic.Contracts.WorkerTest do
     end
 
     test "should schedule a timer for a an interval trigger", %{
-      constants: constants,
+      seed: seed,
       expected_tx: expected_tx,
       to: to
     } do
@@ -185,12 +189,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -216,11 +216,16 @@ defmodule Archethic.Contracts.WorkerTest do
 
   describe "execute/2" do
     test "should not execute when no transaction trigger has been defined", %{
-      constants: constants = %{"address" => contract_address}
+      seed: seed,
+      contract_address: contract_address
     } do
-      contract = %Contract{
-        constants: %ContractConstants{contract: constants}
-      }
+      code = """
+      @version 1
+      condition transaction: []
+      """
+
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -232,7 +237,8 @@ defmodule Archethic.Contracts.WorkerTest do
     end
 
     test "should execute a transaction trigger code using an incoming transaction", %{
-      constants: constants = %{"address" => contract_address},
+      seed: seed,
+      contract_address: contract_address,
       expected_tx: expected_tx,
       to: to
     } do
@@ -251,12 +257,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -284,7 +286,8 @@ defmodule Archethic.Contracts.WorkerTest do
     end
 
     test "should return a different code if set in the smart contract code", %{
-      constants: constants = %{"address" => contract_address},
+      seed: seed,
+      contract_address: contract_address,
       expected_tx: expected_tx,
       to: to
     } do
@@ -314,12 +317,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -356,9 +355,7 @@ defmodule Archethic.Contracts.WorkerTest do
       end
     end
 
-    test "should execute actions based on an oracle trigger", %{
-      constants: constants = %{"address" => _contract_address}
-    } do
+    test "should execute actions based on an oracle trigger", %{seed: seed} do
       code = ~S"""
       condition oracle: [
         content: json_path_extract("$.uco.eur") > 0.20
@@ -405,12 +402,8 @@ defmodule Archethic.Contracts.WorkerTest do
         end
       )
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, pid} = Worker.start_link(contract)
       allow(MockDB, self(), pid)
@@ -427,9 +420,7 @@ defmodule Archethic.Contracts.WorkerTest do
       end
     end
 
-    test "ICO crowdsale", %{
-      constants: constants = %{"address" => contract_address}
-    } do
+    test "ICO crowdsale", %{seed: seed, contract_address: contract_address} do
       # the contract need uco to be executed
       Archethic.Account.MemTables.TokenLedger.add_unspent_output(
         contract_address,
@@ -474,12 +465,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -530,9 +517,7 @@ defmodule Archethic.Contracts.WorkerTest do
       end
     end
 
-    test "named action", %{
-      constants: constants = %{"address" => contract_address}
-    } do
+    test "named action", %{seed: seed, contract_address: contract_address} do
       code = """
       @version 1
 
@@ -542,12 +527,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -587,7 +568,8 @@ defmodule Archethic.Contracts.WorkerTest do
     end
 
     test "should not crash the worker if contract code crashes", %{
-      constants: constants = %{"address" => contract_address}
+      seed: seed,
+      contract_address: contract_address
     } do
       # the contract need uco to be executed
       Archethic.Account.MemTables.TokenLedger.add_unspent_output(
@@ -612,12 +594,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      {:ok, contract} = Interpreter.parse(code)
-
-      contract = %{
-        contract
-        | constants: %ContractConstants{contract: Map.put(constants, "code", code)}
-      }
+      contract =
+        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, worker_pid} = Worker.start_link(contract)
 

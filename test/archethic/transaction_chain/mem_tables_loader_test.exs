@@ -1,5 +1,5 @@
 defmodule Archethic.TransactionChain.MemTablesLoaderTest do
-  use ExUnit.Case
+  use ArchethicCase
 
   alias Archethic.Crypto
 
@@ -10,15 +10,9 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
+  alias Archethic.ContractFactory
+
   import Mox
-
-  setup :set_mox_global
-  setup :verify_on_exit!
-
-  setup do
-    start_supervised!(PendingLedger)
-    :ok
-  end
 
   describe "load_transaction/1" do
     test "should track pending transaction when a code proposal transaction is loaded" do
@@ -34,33 +28,29 @@ defmodule Archethic.TransactionChain.MemTablesLoaderTest do
                }
                |> MemTablesLoader.load_transaction()
 
-      assert ["@CodeProp1"] = PendingLedger.get_signatures("@CodeProp1")
+      assert ["@CodeProp1"] == PendingLedger.get_signatures("@CodeProp1")
     end
 
     test "should track pending transaction when a smart contract requires conditions is loaded" do
-      assert :ok =
-               %Transaction{
-                 address: "@Contract2",
-                 previous_public_key: "Contract1",
-                 data: %TransactionData{
-                   code: """
-                   condition inherit: []
+      code = """
+      condition inherit: []
 
-                   condition transaction: [
-                     content: regex_match?(\"hello\")
-                   ]
+      condition transaction: [
+       content: regex_match?(\"hello\")
+      ]
 
-                   actions triggered_by: transaction do end
-                   """
-                 },
-                 type: :transfer,
-                 validation_stamp: %ValidationStamp{
-                   timestamp: DateTime.utc_now()
-                 }
-               }
-               |> MemTablesLoader.load_transaction()
+      actions triggered_by: transaction do end
+      """
 
-      assert ["@Contract2"] = PendingLedger.get_signatures("@Contract2")
+      seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        %Transaction{address: address} =
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+
+      assert :ok == MemTablesLoader.load_transaction(tx)
+
+      assert [address] == PendingLedger.get_signatures(address)
     end
 
     test "should track recipients to add signature to pending transaction" do

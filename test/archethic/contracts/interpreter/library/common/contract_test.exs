@@ -26,7 +26,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias Archethic.TransactionFactory
+  alias Archethic.ContractFactory
 
   import Mox
 
@@ -684,7 +684,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       end
       """
 
-      contract_tx = TransactionFactory.create_valid_transaction([], code: code)
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       %{contract_tx: contract_tx}
     end

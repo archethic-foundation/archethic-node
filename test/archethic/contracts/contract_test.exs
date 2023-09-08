@@ -1,11 +1,10 @@
 defmodule Archethic.Contracts.ContractTest do
-  @moduledoc false
-
-  alias Archethic.Contracts.Contract
-  alias Archethic.TransactionChain.TransactionData.Recipient
-
   use ArchethicCase
   import ArchethicCase
+
+  alias Archethic.Contracts.Contract
+
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   describe "get_trigger_for_recipient/2" do
     test "should return trigger" do
