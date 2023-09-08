@@ -8,9 +8,14 @@ defmodule Archethic.Contracts.Contract do
 
   alias Archethic.Contracts.Interpreter
 
+  alias Archethic.Crypto
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
+
+  require Logger
 
   defstruct triggers: %{},
             functions: %{},
@@ -140,4 +145,53 @@ defmodule Archethic.Contracts.Contract do
 
   def get_trigger_for_recipient(%Recipient{action: action, args: args_values}),
     do: {:transaction, action, length(args_values)}
+
+  @doc """
+  Sign a next transaction in the contract chain
+  """
+  @spec sign_next_transaction(
+          contract :: t(),
+          next_tx :: Transaction.t(),
+          index :: non_neg_integer()
+        ) :: {:ok, Transaction.t()} | {:error, :decryption_failed}
+  def sign_next_transaction(
+        %__MODULE__{
+          transaction:
+            prev_tx = %Transaction{previous_public_key: previous_public_key, address: address}
+        },
+        %Transaction{type: next_type, data: next_data},
+        index
+      ) do
+    case get_contract_seed(prev_tx) do
+      {:ok, contract_seed} ->
+        signed_tx =
+          Transaction.new(
+            next_type,
+            next_data,
+            contract_seed,
+            index,
+            Crypto.get_public_key_curve(previous_public_key)
+          )
+
+        {:ok, signed_tx}
+
+      error ->
+        Logger.debug("Cannot decrypt the transaction seed", contract: Base.encode16(address))
+        error
+    end
+  end
+
+  defp get_contract_seed(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+    %Ownership{secret: secret, authorized_keys: authorized_keys} =
+      Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
+
+    encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
+
+    case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
+      {:ok, aes_key} -> Crypto.aes_decrypt(secret, aes_key)
+      {:error, :decryption_failed} -> {:error, :decryption_failed}
+    end
+  end
 end
