@@ -3,8 +3,10 @@ defmodule Archethic.Contracts.ContractConstantsTest do
 
   import ArchethicCase
 
-  alias Archethic.TransactionFactory
+  alias Archethic.Contracts.ContractConstants
+
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UcoTransfer
   alias Archethic.TransactionChain.TransactionData.TokenLedger
@@ -13,8 +15,10 @@ defmodule Archethic.Contracts.ContractConstantsTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias Archethic.Contracts.ContractConstants
   alias Archethic.Utils
+
+  alias Archethic.ContractFactory
+  alias Archethic.TransactionFactory
 
   describe "from_transaction/1" do
     test "should return a map" do
@@ -103,6 +107,30 @@ defmodule Archethic.Contracts.ContractConstantsTest do
       assert ^token_input_amount = token_transfers_at_address["amount"]
       assert ^token_address = token_transfers_at_address["token_address"]
       assert 1 = token_transfers_at_address["token_id"]
+    end
+  end
+
+  describe "from_contract/1" do
+    test "should remove the contract seed ownership" do
+      code = """
+      @version 1
+      actions triggered_by: datetime, at: 1676332800 do
+        Contract.set_content "ok"
+      end
+      """
+
+      ownerships = [
+        %Ownership{
+          secret: "secret",
+          authorized_keys: %{random_public_key() => :crypto.strong_rand_bytes(32)}
+        }
+      ]
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code, ownerships: ownerships)
+
+      assert length(contract_tx.data.ownerships) == 2
+
+      assert %{"secrets" => ["secret"]} = ContractConstants.from_contract(contract_tx)
     end
   end
 end

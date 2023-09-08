@@ -80,7 +80,7 @@ defmodule Archethic.Contracts do
     case get_function_from_contract(contract, function_name, args) do
       {:ok, function} ->
         constants = %{
-          "contract" => Constants.from_transaction(contract_tx),
+          "contract" => Constants.from_contract(contract_tx),
           :time_now => DateTime.utc_now() |> DateTime.to_unix()
         }
 
@@ -150,7 +150,7 @@ defmodule Archethic.Contracts do
 
   def valid_execution?(
         prev_tx = %Transaction{address: previous_address},
-        _next_tx = %Transaction{type: next_tx_type, data: next_tx_data},
+        next_tx,
         %Contract.Context{trigger: trigger, timestamp: timestamp, status: status}
       ) do
     with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
@@ -163,6 +163,9 @@ defmodule Archethic.Contracts do
              trigger_to_execute_opts(trigger)
            ) do
         {:ok, %Transaction{type: expected_type, data: expected_data}} ->
+          %Transaction{type: next_tx_type, data: next_tx_data} =
+            Contract.remove_seed_ownership!(next_tx)
+
           status == :tx_output &&
             next_tx_type == expected_type &&
             next_tx_data == expected_data
@@ -350,8 +353,8 @@ defmodule Archethic.Contracts do
          datetime
        ) do
     %{
-      "previous" => Constants.from_transaction(contract_tx),
-      "next" => Constants.from_transaction(transaction),
+      "previous" => Constants.from_contract(contract_tx),
+      "next" => Constants.from_contract(transaction),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
     }
@@ -365,7 +368,7 @@ defmodule Archethic.Contracts do
        ) do
     %{
       "transaction" => Constants.from_transaction(transaction),
-      "contract" => Constants.from_transaction(contract_tx),
+      "contract" => Constants.from_contract(contract_tx),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
     }

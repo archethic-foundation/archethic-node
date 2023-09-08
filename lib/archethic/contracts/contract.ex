@@ -194,4 +194,33 @@ defmodule Archethic.Contracts.Contract do
       {:error, :decryption_failed} -> {:error, :decryption_failed}
     end
   end
+
+  @doc """
+  Remove the seed ownership of a contract transaction
+  """
+  @spec remove_seed_ownership(tx :: Transaction.t()) :: Transaction.t()
+  def remove_seed_ownership(tx) do
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+    update_in(tx, [Access.key!(:data), Access.key!(:ownerships)], fn ownerships ->
+      case Enum.find_index(
+             ownerships,
+             &Ownership.authorized_public_key?(&1, storage_nonce_public_key)
+           ) do
+        nil -> ownerships
+        index -> List.delete_at(ownerships, index)
+      end
+    end)
+  end
+
+  @doc """
+  Same as remove_seed_ownership but raise if no ownership matches contract seed
+  """
+  @spec remove_seed_ownership!(tx :: Transaction.t()) :: Transaction.t()
+  def remove_seed_ownership!(tx) do
+    case remove_seed_ownership(tx) do
+      ^tx -> raise "Contract does not have seed ownership"
+      tx -> tx
+    end
+  end
 end

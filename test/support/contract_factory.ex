@@ -53,33 +53,31 @@ defmodule Archethic.ContractFactory do
 
   def create_valid_contract_tx(code, opts \\ []) do
     seed = Keyword.get(opts, :seed, "seed")
-    ownerships = Keyword.get(opts, :ownerships, nil)
+    ownerships = Keyword.get(opts, :ownerships, [])
 
-    ownerships =
-      if ownerships do
-        ownerships
-      else
-        aes_key = :crypto.strong_rand_bytes(32)
-        secret = Crypto.aes_encrypt(seed, aes_key)
-        storage_nonce_pub_key = Crypto.storage_nonce_public_key()
-        encrypted_key = Crypto.ec_encrypt(aes_key, storage_nonce_pub_key)
+    aes_key = :crypto.strong_rand_bytes(32)
+    secret = Crypto.aes_encrypt(seed, aes_key)
+    storage_nonce_pub_key = Crypto.storage_nonce_public_key()
+    encrypted_key = Crypto.ec_encrypt(aes_key, storage_nonce_pub_key)
 
-        [%Ownership{secret: secret, authorized_keys: %{storage_nonce_pub_key => encrypted_key}}]
-      end
+    contract_seed_ownership = %Ownership{
+      secret: secret,
+      authorized_keys: %{storage_nonce_pub_key => encrypted_key}
+    }
 
     opts =
       Keyword.update(opts, :type, :contract, & &1)
-      |> Keyword.put(:ownerships, ownerships)
+      |> Keyword.put(:ownerships, [contract_seed_ownership | ownerships])
       |> Keyword.put(:code, code)
 
     TransactionFactory.create_valid_transaction([], opts)
   end
 
   def create_next_contract_tx(
-        %Transaction{data: %TransactionData{ownerships: ownerships, code: code}},
+        %Transaction{data: %TransactionData{code: code}},
         opts \\ []
       ) do
-    opts = Keyword.update(opts, :ownerships, ownerships, & &1) |> Keyword.update(:index, 1, & &1)
+    opts = opts |> Keyword.update(:index, 1, & &1)
 
     create_valid_contract_tx(code, opts)
   end
@@ -88,7 +86,7 @@ defmodule Archethic.ContractFactory do
     if Map.has_key?(constants, "contract") do
       constants
     else
-      Map.put(constants, "contract", Constants.from_transaction(contract_tx))
+      Map.put(constants, "contract", Constants.from_contract(contract_tx))
     end
   end
 end

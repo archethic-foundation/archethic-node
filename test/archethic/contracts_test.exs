@@ -132,6 +132,7 @@ defmodule Archethic.ContractsTest do
 
     test "should return true when the inherit constraint match and when no trigger is specified" do
       code = """
+      @version 1
       condition inherit: [
         content: "hello"
       ]
@@ -209,6 +210,28 @@ defmodule Archethic.ContractsTest do
       @version 1
       actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
         Contract.set_content "wake up"
+      end
+      """
+
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
+
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
+
+      contract_context = %Contract.Context{
+        trigger: {:datetime, now},
+        status: :tx_output,
+        timestamp: now
+      }
+
+      assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
+    end
+
+    test "should work with contract version 0" do
+      now = %DateTime{DateTime.utc_now() | second: 0, microsecond: {0, 0}}
+
+      code = """
+      actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
+        set_content "wake up"
       end
       """
 
