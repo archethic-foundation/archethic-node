@@ -13,7 +13,9 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.LastTransactionAddress
-  alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.ContractFactory
+
   import Mox
 
   setup do
@@ -110,38 +112,29 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
 
   describe "simulate_contract_execution/2" do
     test "should validate the latest contract from the chain", %{conn: conn} do
-      code = """
-      condition inherit: [
-        type: transfer,
-        content: true,
-        uco_transfers: true
-      ]
+      contract_tx =
+        %Transaction{address: last_contract_address} =
+        """
+        condition inherit: [
+          type: transfer,
+          content: true,
+          uco_transfers: true
+        ]
 
-      condition transaction: [
-        content: "test content"
-      ]
+        condition transaction: [
+          content: "test content"
+        ]
 
-      actions triggered_by: transaction do
-        set_type transfer
-        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
-      end
-      """
+        actions triggered_by: transaction do
+          set_type transfer
+          add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx(content: "hello")
 
       # test
       old_contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
       old_contract_address_hex = Base.encode16(old_contract_address)
-      last_contract_address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
-      last_contract_address_hex = Base.encode16(last_contract_address)
-
-      contract_tx = %Transaction{
-        address: last_contract_address_hex,
-        type: :transfer,
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        },
-        version: current_transaction_version()
-      }
 
       MockClient
       |> stub(:send_message, fn
@@ -172,44 +165,32 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
 
       assert(
         match?(
-          [
-            %{
-              "valid" => true,
-              "recipient_address" => ^old_contract_address_hex
-            }
-          ],
+          [%{"valid" => true, "recipient_address" => ^old_contract_address_hex}],
           json_response(conn, 200)
         )
       )
     end
 
     test "should indicate faillure when asked to validate an invalid contract", %{conn: conn} do
-      code = """
-      condition inherit: [
-        type: transfer,
-        content: false,
-        uco_transfers: true
-      ]
+      previous_tx =
+        %Transaction{address: contract_address} =
+        """
+        condition inherit: [
+          type: transfer,
+          content: false,
+          uco_transfers: true
+        ]
 
-      condition transaction: [
-        uco_transfers: size() > 0
-      ]
+        condition transaction: [
+          uco_transfers: size() > 0
+        ]
 
-      actions triggered_by: transaction do
-        set_type transfer
-        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
-      end
-      """
-
-      previous_tx = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
-        type: :transfer,
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        },
-        version: current_transaction_version()
-      }
+        actions triggered_by: transaction do
+          set_type transfer
+          add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx(content: "hello")
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
@@ -219,10 +200,9 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
       new_tx = %{
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
-          "code" => code,
           "content" => "0000",
           "recipients" => [
-            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+            %{"address" => Base.encode16(contract_address)}
           ]
         },
         "originSignature" =>
@@ -241,32 +221,25 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
     end
 
     test "should indicate when body fails changeset validation", %{conn: conn} do
-      code = """
-      condition inherit: [
-        type: transfer,
-        content: "hello",
-        uco_transfers: true
-      ]
+      previous_tx =
+        %Transaction{address: contract_address} =
+        """
+        condition inherit: [
+          type: transfer,
+          content: false,
+          uco_transfers: true
+        ]
 
-      condition transaction: [
-        uco_transfers: size() > 0
-      ]
+        condition transaction: [
+          uco_transfers: size() > 0
+        ]
 
-      actions triggered_by: transaction do
-        set_type transfer
-        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
-      end
-      """
-
-      previous_tx = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
-        type: :transfer,
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        },
-        version: current_transaction_version()
-      }
+        actions triggered_by: transaction do
+          set_type transfer
+          add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx(content: "hello")
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
@@ -276,11 +249,10 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
       new_tx = %{
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
-          "code" => code,
           ## Next line is the invalid part
           "content" => "hola",
           "recipients" => [
-            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+            %{"address" => Base.encode16(contract_address)}
           ]
         },
         "originSignature" =>
@@ -300,31 +272,25 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
 
     test "should indicate faillure when failling parsing of contracts", %{conn: conn} do
       ## SC is missing the "inherit" keyword
-      code = """
-      condition : [
-        type: transfer,
-        content: true,
-        uco_transfers: true
-      ]
+      previous_tx =
+        %Transaction{address: contract_address} =
+        """
+        condition : [
+          type: transfer,
+          content: true,
+          uco_transfers: true
+        ]
 
-      condition transaction: [
-        uco_transfers: size() > 0
-      ]
+        condition transaction: [
+          uco_transfers: size() > 0
+        ]
 
-      actions triggered_by: transaction do
-        set_type transfer
-        add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
-      end
-      """
-
-      previous_tx = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
-        type: :transfer,
-        data: %TransactionData{
-          code: code
-        },
-        version: current_transaction_version()
-      }
+        actions triggered_by: transaction do
+          set_type transfer
+          add_uco_transfer to: "000030831178cd6a49fe446778455a7a980729a293bfa16b0a1d2743935db210da76", amount: 1337
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
@@ -334,9 +300,8 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
       new_tx = %{
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
-          "code" => code,
           "recipients" => [
-            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+            %{"address" => Base.encode16(contract_address)}
           ]
         },
         "originSignature" =>
@@ -355,16 +320,8 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
     end
 
     test "Assert empty contract are not simulated and return negative answer", %{conn: conn} do
-      code = ""
-
-      previous_tx = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
-        type: :transfer,
-        data: %TransactionData{
-          code: code
-        },
-        version: current_transaction_version()
-      }
+      previous_tx =
+        %Transaction{address: contract_address} = ContractFactory.create_valid_contract_tx("")
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{address: _}, _ ->
@@ -374,9 +331,8 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
       new_tx = %{
         "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
         "data" => %{
-          "code" => code,
           "recipients" => [
-            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+            %{"address" => Base.encode16(contract_address)}
           ]
         },
         "originSignature" =>
@@ -393,9 +349,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
       assert(match?([%{"valid" => false}], json_response(conn, 200)))
     end
 
-    test "should return error answer when asked to validate a crashing contract", %{
-      conn: conn
-    } do
+    test "should return error answer when asked to validate a crashing contract", %{conn: conn} do
       code = """
       condition inherit: [
         content: true
@@ -410,46 +364,18 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
       end
       """
 
-      previous_tx1 = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
-        type: :transfer,
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        },
-        version: current_transaction_version()
-      }
+      previous_tx1 =
+        %Transaction{address: contract_address1} =
+        ContractFactory.create_valid_contract_tx(code, content: "hello", seed: "seed1")
 
-      previous_tx2 = %Transaction{
-        address: "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66",
-        type: :transfer,
-        data: %TransactionData{
-          code: code,
-          content: "hello"
-        },
-        version: current_transaction_version()
-      }
+      previous_tx2 =
+        %Transaction{address: contract_address2} =
+        ContractFactory.create_valid_contract_tx(code, content: "hello", seed: "seed2")
 
       MockClient
-      |> stub(:send_message, fn
-        ## These decoded addresses are matching the ones in the code above
-        _,
-        %GetTransaction{
-          address:
-            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
-              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 103>>
-        },
-        _ ->
-          {:ok, previous_tx1}
-
-        _,
-        %GetTransaction{
-          address:
-            <<0, 0, 158, 5, 158, 129, 113, 100, 59, 149, 146, 132, 254, 84, 41, 9, 243, 179, 33,
-              152, 184, 252, 37, 179, 229, 4, 71, 88, 155, 132, 52, 28, 29, 102>>
-        },
-        _ ->
-          {:ok, previous_tx2}
+      |> expect(:send_message, 2, fn
+        _, %GetTransaction{address: ^contract_address1}, _ -> {:ok, previous_tx1}
+        _, %GetTransaction{address: ^contract_address2}, _ -> {:ok, previous_tx2}
       end)
 
       new_tx = %{
@@ -458,10 +384,8 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
           "code" => code,
           "content" => "0000",
           "recipients" => [
-            %{
-              "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d66"
-            },
-            %{"address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67"}
+            %{"address" => Base.encode16(contract_address1)},
+            %{"address" => Base.encode16(contract_address2)}
           ]
         },
         "originSignature" =>
@@ -476,19 +400,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
 
       conn = post(conn, "/api/transaction/contract/simulator", new_tx)
 
-      assert(
-        match?(
-          [
-            %{
-              "valid" => false
-            },
-            %{
-              "valid" => false
-            }
-          ],
-          json_response(conn, 200)
-        )
-      )
+      assert(match?([%{"valid" => false}, %{"valid" => false}], json_response(conn, 200)))
     end
 
     test "should return an error if there is no recipients", %{conn: conn} do
@@ -513,12 +425,7 @@ defmodule ArchethicWeb.API.REST.TransactionControllerTest do
 
       assert(
         match?(
-          [
-            %{
-              "valid" => false,
-              "reason" => "There are no recipients in the transaction"
-            }
-          ],
+          [%{"valid" => false, "reason" => "There are no recipients in the transaction"}],
           json_response(conn, 200)
         )
       )

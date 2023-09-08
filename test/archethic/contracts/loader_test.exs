@@ -1,42 +1,39 @@
 defmodule Archethic.Contracts.LoaderTest do
   use ArchethicCase
 
-  alias Archethic.{Crypto, ContractRegistry, Contracts, TransactionChain, ContractSupervisor}
-  alias Contracts.{Contract, ContractConstants, Loader, Worker}
-  alias TransactionChain.{Transaction, TransactionData, Transaction.ValidationStamp}
+  alias Archethic.ContractRegistry
+  alias Archethic.ContractSupervisor
+
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractConstants
+  alias Archethic.Contracts.Loader
+  alias Archethic.Contracts.Worker
+
+  alias Archethic.TransactionChain.Transaction
+
+  alias Archethic.ContractFactory
 
   import Mox
 
   describe "load_transaction/1" do
     test "should create a supervised worker for the given transaction with contract code" do
-      {pub0, _} = Crypto.derive_keypair("contract1_seed", 0)
-      {pub1, _} = Crypto.derive_keypair("contract1_seed", 1)
+      code = """
+      condition transaction: [
+        content: "hello"
+      ]
 
-      contract_address = Crypto.derive_address(pub1)
+      condition inherit: [
+        content: "hi"
+      ]
 
-      tx = %Transaction{
-        address: contract_address,
-        data: %TransactionData{
-          code: """
-          condition transaction: [
-            content: "hello"
-          ]
+      actions triggered_by: transaction do
+        set_content "hi"
+      end
+      """
 
-          condition inherit: [
-            content: "hi"
-          ]
-
-          actions triggered_by: transaction do
-            set_content "hi"
-          end
-          """
-        },
-        previous_public_key: pub0,
-        validation_stamp: %ValidationStamp{
-          recipients: [],
-          timestamp: DateTime.utc_now()
-        }
-      }
+      tx =
+        %Transaction{address: contract_address} =
+        ContractFactory.create_valid_contract_tx(code, seed: "contract1_seed")
 
       assert :ok = Loader.load_transaction(tx, execute_contract?: false, io_transaction?: false)
       [{pid, _}] = Registry.lookup(ContractRegistry, contract_address)
@@ -57,57 +54,23 @@ defmodule Archethic.Contracts.LoaderTest do
     end
 
     test "should stop a previous contract for the same chain" do
-      {pub0, _} = Crypto.derive_keypair("contract2_seed", 0)
-      {pub1, _} = Crypto.derive_keypair("contract2_seed", 1)
-      {pub2, _} = Crypto.derive_keypair("contract2_seed", 2)
+      code = """
+      condition transaction: [
+        content: "hello"
+      ]
 
-      tx1 = %Transaction{
-        address: Crypto.derive_address(pub1),
-        data: %TransactionData{
-          code: """
-          condition transaction: [
-            content: "hello"
-          ]
+      condition inherit: [
+        content: "hi"
+      ]
 
-          condition inherit: [
-            content: "hi"
-          ]
+      actions triggered_by: transaction do
+        set_content "hi"
+      end
+      """
 
-          actions triggered_by: transaction do
-            set_content "hi"
-          end
-          """
-        },
-        previous_public_key: pub0,
-        validation_stamp: %ValidationStamp{
-          recipients: [],
-          timestamp: DateTime.utc_now()
-        }
-      }
+      tx1 = ContractFactory.create_valid_contract_tx(code, seed: "contract2_seed")
 
-      tx2 = %Transaction{
-        address: Crypto.derive_address(pub2),
-        data: %TransactionData{
-          code: """
-          condition transaction: [
-            content: "hello"
-          ]
-
-          condition inherit: [
-            content: "hi"
-          ]
-
-          actions triggered_by: transaction do
-            set_content "hi2"
-          end
-          """
-        },
-        previous_public_key: pub1,
-        validation_stamp: %ValidationStamp{
-          recipients: [],
-          timestamp: DateTime.utc_now()
-        }
-      }
+      tx2 = ContractFactory.create_next_contract_tx(tx1, seed: "contract2_seed")
 
       assert :ok = Loader.load_transaction(tx1, execute_contract?: false, io_transaction?: false)
       [{pid1, _}] = Registry.lookup(ContractRegistry, tx1.address)
@@ -125,34 +88,23 @@ defmodule Archethic.Contracts.LoaderTest do
   end
 
   test "start_link/1 should load smart contract from DB" do
-    {pub0, _} = Crypto.derive_keypair("contract3_seed", 0)
-    {pub1, _} = Crypto.derive_keypair("contract3_seed", 1)
+    code = """
+    condition transaction: [
+      content: "hello"
+    ]
 
-    contract_address = Crypto.derive_address(pub1)
+    condition inherit: [
+      content: "hi"
+    ]
 
-    tx = %Transaction{
-      address: contract_address,
-      data: %TransactionData{
-        code: """
-        condition transaction: [
-          content: "hello"
-        ]
+    actions triggered_by: transaction do
+      set_content "hi"
+    end
+    """
 
-        condition inherit: [
-          content: "hi"
-        ]
-
-        actions triggered_by: transaction do
-          set_content "hi"
-        end
-        """
-      },
-      previous_public_key: pub0,
-      validation_stamp: %ValidationStamp{
-        recipients: [],
-        timestamp: DateTime.utc_now()
-      }
-    }
+    tx =
+      %Transaction{address: contract_address} =
+      ContractFactory.create_valid_contract_tx(code, seed: "contract3_seed")
 
     MockDB
     |> stub(:list_io_transactions, fn _ -> [] end)

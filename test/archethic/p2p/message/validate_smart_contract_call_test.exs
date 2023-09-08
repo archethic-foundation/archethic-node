@@ -10,6 +10,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
+  alias Archethic.ContractFactory
+
   doctest ValidateSmartContractCall
 
   import Mox
@@ -60,25 +62,22 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
     end
 
     test "should validate smart contract call and return valid message" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction, as: [
+          content: transaction.timestamp < 5000000000
+        ]
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             code: ~s"""
-             @version 1
-
-             condition triggered_by: transaction, as: [
-               content: transaction.timestamp < 5000000000
-             ]
-
-             actions triggered_by: transaction do
-               Contract.set_content "hello"
-             end
-             """
-           }
-         }}
-      end)
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
 
       incoming_tx = %Transaction{
         data: %TransactionData{
@@ -96,36 +95,25 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
     end
 
     test "should validate smart contract call with named action and return valid message" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction, on: upgrade(), as: []
+        actions triggered_by: transaction, on: upgrade() do
+          Contract.set_code transaction.content
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             code: ~s"""
-             @version 1
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
 
-             condition triggered_by: transaction, on: upgrade(), as: []
-             actions triggered_by: transaction, on: upgrade() do
-               Contract.set_code transaction.content
-             end
-             """
-           }
-         }}
-      end)
-
-      incoming_tx = %Transaction{
-        data: %TransactionData{
-          content: "hola"
-        }
-      }
+      incoming_tx = %Transaction{data: %TransactionData{content: "hola"}}
 
       assert %SmartContractCallValidation{valid?: true} =
                %ValidateSmartContractCall{
-                 recipient: %Recipient{
-                   address: "@SC1",
-                   action: "upgrade",
-                   args: []
-                 },
+                 recipient: %Recipient{address: "@SC1", action: "upgrade", args: []},
                  transaction: incoming_tx,
                  inputs_before: DateTime.utc_now()
                }
@@ -133,27 +121,20 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
     end
 
     test "should NOT validate smart contract that does not have a transaction trigger" do
+      tx =
+        ~s"""
+        @version 1
+
+        actions triggered_by: datetime, at: 1687874880 do
+          Contract.set_content 42
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             code: ~s"""
-             @version 1
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
 
-             actions triggered_by: datetime, at: 1687874880 do
-               Contract.set_content 42
-             end
-             """
-           }
-         }}
-      end)
-
-      incoming_tx = %Transaction{
-        data: %TransactionData{
-          content: "hola"
-        }
-      }
+      incoming_tx = %Transaction{data: %TransactionData{content: "hola"}}
 
       assert %SmartContractCallValidation{valid?: false} =
                %ValidateSmartContractCall{
@@ -165,31 +146,24 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
     end
 
     test "should validate smart contract call and return invalid message" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction, as: [
+          content: "hola"
+        ]
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
       MockDB
-      |> expect(:get_transaction, fn "@SC1", _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             code: ~s"""
-             @version 1
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
 
-             condition triggered_by: transaction, as: [
-               content: "hola"
-             ]
-
-             actions triggered_by: transaction do
-               Contract.set_content "hello"
-             end
-             """
-           }
-         }}
-      end)
-
-      incoming_tx = %Transaction{
-        data: %TransactionData{
-          content: "hi"
-        }
-      }
+      incoming_tx = %Transaction{data: %TransactionData{content: "hi"}}
 
       assert %SmartContractCallValidation{valid?: false} =
                %ValidateSmartContractCall{

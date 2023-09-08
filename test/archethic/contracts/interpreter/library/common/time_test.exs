@@ -9,6 +9,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.ContractFactory
+
   doctest Time
 
   describe "now/0" do
@@ -28,11 +30,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
       end
       """
 
-      contract_tx =
-        TransactionFactory.create_valid_transaction([],
-          type: :contract,
-          code: code
-        )
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       {:ok, tx} =
         Contracts.execute_trigger(
@@ -67,11 +65,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
       end
       """
 
-      contract_tx =
-        TransactionFactory.create_valid_transaction([],
-          type: :contract,
-          code: code
-        )
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       trigger_tx =
         TransactionFactory.create_valid_transaction([],
@@ -108,11 +102,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
       end
       """
 
-      contract_tx =
-        TransactionFactory.create_valid_transaction([],
-          type: :contract,
-          code: code
-        )
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       trigger_tx =
         TransactionFactory.create_valid_transaction([],
@@ -146,16 +136,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
       end
       """
 
-      contract_tx =
-        TransactionFactory.create_valid_transaction([],
-          type: :contract,
-          code: code
-        )
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       next_tx =
-        TransactionFactory.create_valid_transaction([],
-          type: :contract,
-          code: code,
+        ContractFactory.create_next_contract_tx(contract_tx,
           content: "konnichiwa",
           timestamp: datetime
         )
@@ -185,19 +169,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
       end
       """
 
-      contract_tx =
-        TransactionFactory.create_valid_transaction([],
-          type: :contract,
-          code: code
-        )
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
       next_tx =
-        TransactionFactory.create_valid_transaction([],
-          type: :contract,
-          code: code,
-          content: "ciao",
-          timestamp: datetime
-        )
+        ContractFactory.create_next_contract_tx(contract_tx, content: "ciao", timestamp: datetime)
 
       refute Contracts.valid_condition?(
                :inherit,
