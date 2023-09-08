@@ -192,30 +192,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
             transaction: nil
           },
           functions: %{},
-          next_transaction: %Archethic.TransactionChain.Transaction{
-            address: nil,
-            cross_validation_stamps: [],
-            data: %Archethic.TransactionChain.TransactionData{
-              code: "",
-              content: "",
-              ledger: %Archethic.TransactionChain.TransactionData.Ledger{
-                token: %Archethic.TransactionChain.TransactionData.TokenLedger{
-                  transfers: []
-                },
-                uco: %Archethic.TransactionChain.TransactionData.UCOLedger{
-                  transfers: []
-                }
-              },
-              ownerships: [],
-              recipients: []
-            },
-            origin_signature: nil,
-            previous_public_key: nil,
-            previous_signature: nil,
-            type: nil,
-            validation_stamp: nil,
-            version: 2
-          },
           triggers: %{
             :oracle => %{
               args: [],
