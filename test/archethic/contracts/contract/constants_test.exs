@@ -32,23 +32,30 @@ defmodule Archethic.Contracts.ContractConstantsTest do
     end
 
     test "should return both uco transfer & movements" do
-      token_address = random_address()
-
       uco_movement_address = random_address()
-      uco_movement_amount = Utils.to_bigint(2)
+      uco_movement_address_hex = Base.encode16(uco_movement_address)
+      uco_movement_amount = 2
+
       token_movement_address = random_address()
-      token_movement_amount = Utils.to_bigint(7)
+      token_movement_address_hex = Base.encode16(token_movement_address)
+      token_movement_amount = 7
+
       uco_input_address = random_address()
-      uco_input_amount = Utils.to_bigint(5)
+      uco_input_address_hex = Base.encode16(uco_input_address)
+      uco_input_amount = 5
+
+      token_address = random_address()
+      token_address_hex = Base.encode16(token_address)
       token_input_address = random_address()
-      token_input_amount = Utils.to_bigint(8)
+      token_input_address_hex = Base.encode16(token_input_address)
+      token_input_amount = 8
 
       ledger = %Ledger{
         uco: %UCOLedger{
           transfers: [
             %UcoTransfer{
               to: uco_input_address,
-              amount: uco_input_amount
+              amount: Utils.to_bigint(uco_input_amount)
             }
           ]
         },
@@ -56,7 +63,7 @@ defmodule Archethic.Contracts.ContractConstantsTest do
           transfers: [
             %TokenTransfer{
               to: token_input_address,
-              amount: token_input_amount,
+              amount: Utils.to_bigint(token_input_amount),
               token_address: token_address,
               token_id: 1
             }
@@ -69,12 +76,12 @@ defmodule Archethic.Contracts.ContractConstantsTest do
         transaction_movements: [
           %TransactionMovement{
             to: uco_movement_address,
-            amount: uco_movement_amount,
+            amount: Utils.to_bigint(uco_movement_amount),
             type: :UCO
           },
           %TransactionMovement{
             to: token_movement_address,
-            amount: token_movement_amount,
+            amount: Utils.to_bigint(token_movement_amount),
             type: {:token, token_address, 2}
           }
         ]
@@ -95,18 +102,18 @@ defmodule Archethic.Contracts.ContractConstantsTest do
                "token_transfers" => token_transfers
              } = constant
 
-      assert ^uco_movement_amount = uco_movements[uco_movement_address]
-      assert ^uco_input_amount = uco_transfers[uco_input_address]
+      assert uco_movement_amount == uco_movements[uco_movement_address_hex]
+      assert uco_input_amount == uco_transfers[uco_input_address_hex]
 
-      [token_movement_at_address] = token_movements[token_movement_address]
-      assert ^token_movement_amount = token_movement_at_address["amount"]
-      assert ^token_address = token_movement_at_address["token_address"]
-      assert 2 = token_movement_at_address["token_id"]
+      [token_movement_at_address] = token_movements[token_movement_address_hex]
+      assert token_movement_amount == token_movement_at_address["amount"]
+      assert token_address_hex == token_movement_at_address["token_address"]
+      assert 2 == token_movement_at_address["token_id"]
 
-      [token_transfers_at_address] = token_transfers[token_input_address]
-      assert ^token_input_amount = token_transfers_at_address["amount"]
-      assert ^token_address = token_transfers_at_address["token_address"]
-      assert 1 = token_transfers_at_address["token_id"]
+      [token_transfers_at_address] = token_transfers[token_input_address_hex]
+      assert token_input_amount == token_transfers_at_address["amount"]
+      assert token_address_hex == token_transfers_at_address["token_address"]
+      assert 1 == token_transfers_at_address["token_id"]
     end
   end
 
@@ -119,18 +126,22 @@ defmodule Archethic.Contracts.ContractConstantsTest do
       end
       """
 
-      ownerships = [
-        %Ownership{
-          secret: "secret",
-          authorized_keys: %{random_public_key() => :crypto.strong_rand_bytes(32)}
-        }
-      ]
+      secret = :crypto.strong_rand_bytes(32)
+      public = random_public_key()
+      encrypted_key = :crypto.strong_rand_bytes(32)
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code, ownerships: ownerships)
+      ownership = %Ownership{secret: secret, authorized_keys: %{public => encrypted_key}}
+
+      ownership_hex = %{
+        "secret" => Base.encode16(secret),
+        "authorized_keys" => %{Base.encode16(public) => Base.encode16(encrypted_key)}
+      }
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code, ownerships: [ownership])
 
       assert length(contract_tx.data.ownerships) == 2
 
-      assert %{"ownerships" => ^ownerships} = ContractConstants.from_contract(contract_tx)
+      assert %{"ownerships" => [^ownership_hex]} = ContractConstants.from_contract(contract_tx)
     end
   end
 end

@@ -17,6 +17,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
 
+  alias Archethic.TransactionFactory
+
   doctest ActionInterpreter
 
   # ----------------------------------------------
@@ -1123,34 +1125,26 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      tx = %Transaction{
-        data: %TransactionData{
-          ledger: %Ledger{
-            token: %TokenLedger{
-              transfers: [
-                %TokenTransfer{
-                  to: address2,
-                  amount: Archethic.Utils.to_bigint(3.12345),
-                  token_address: token_address,
-                  token_id: 1
-                }
-              ]
-            },
-            uco: %UCOLedger{
-              transfers: [
-                %UCOTransfer{to: address, amount: Archethic.Utils.to_bigint(2)}
-              ]
+      ledger = %Ledger{
+        token: %TokenLedger{
+          transfers: [
+            %TokenTransfer{
+              to: address2,
+              amount: Archethic.Utils.to_bigint(3.12345),
+              token_address: token_address,
+              token_id: 1
             }
-          }
+          ]
+        },
+        uco: %UCOLedger{
+          transfers: [%UCOTransfer{to: address, amount: Archethic.Utils.to_bigint(2)}]
         }
       }
 
-      # FIXME: keys of transfers are binaries (should be hex), why?
+      tx = TransactionFactory.create_valid_transaction([], ledger: ledger)
 
       assert %Transaction{data: %TransactionData{content: "ok"}} =
-               sanitize_parse_execute(code, %{
-                 "transaction" => Constants.from_transaction(tx)
-               })
+               sanitize_parse_execute(code, %{"transaction" => Constants.from_transaction(tx)})
     end
 
     test "should keep the code by default" do

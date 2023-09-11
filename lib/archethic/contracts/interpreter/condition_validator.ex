@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
 
   """
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
-  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Scope
 
@@ -16,13 +15,6 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   """
   @spec valid_conditions?(ConditionsSubjects.t(), map()) :: boolean()
   def valid_conditions?(conditions, constants = %{}) do
-    # Apply some transformations to the transactions
-    # We do it here because the Constants module is still used by InterpreterLegacy
-    constants =
-      constants
-      |> Constants.map_transactions(&Constants.stringify_transaction/1)
-      |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
-
     conditions
     |> Map.from_struct()
     |> Enum.all?(fn {field, condition} ->

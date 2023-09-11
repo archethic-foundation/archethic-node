@@ -64,7 +64,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.RegexTest do
       actions triggered_by: transaction do
         x = Regex.extract("Michael,twelve", "\\\\d+")
         if x == "" do
-          # FIXME: I can't do set_content("") apparently
           Contract.set_content "no match"
         end
       end

@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.FunctionKeys
@@ -52,16 +51,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
     # initiate a transaction that will be used by the "Contract" module
     initial_next_tx = %Transaction{type: :contract, data: %TransactionData{code: code}}
 
-    # Apply some transformations to the transactions
-    # We do it here because the Constants module is still used by InterpreterLegacy
-    # also, constants should already contains the global variables:
-    #   - "contract": current contract transaction
-    #   - "transaction": the incoming transaction (when trigger=transaction|oracle)
-    #   - :time_now: the time returned by Time.now()
     constants =
       constants
-      |> Constants.map_transactions(&Constants.stringify_transaction/1)
-      |> Constants.map_transactions(&Constants.cast_transaction_amount_to_float/1)
       |> Map.put(:next_transaction, initial_next_tx)
       |> Map.put(:next_transaction_changed, false)
 

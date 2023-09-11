@@ -5,9 +5,6 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts.Contract
   alias Archethic.P2P
   alias Archethic.P2P.Node
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -15,8 +12,6 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.ContractFactory
   alias Archethic.TransactionFactory
-
-  import ArchethicCase
 
   @moduletag capture_log: true
 
@@ -486,11 +481,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert Contracts.valid_condition?(
                {:transaction, nil, nil},
@@ -517,13 +508,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{
-          content: "I'm a content"
-        },
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "I'm a content")
 
       refute Contracts.valid_condition?(
                {:transaction, nil, nil},
@@ -552,13 +537,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{
-          content: "tresor"
-        },
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "tresor")
 
       assert Contracts.valid_condition?(
                {:transaction, nil, nil},
@@ -583,12 +562,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      oracle_tx = %Transaction{
-        type: :oracle,
-        address: random_address(),
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle)
 
       assert Contracts.valid_condition?(
                :oracle,
@@ -613,12 +587,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      oracle_tx = %Transaction{
-        address: random_address(),
-        type: :oracle,
-        data: %TransactionData{content: "{}"},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle, content: "{}")
 
       assert Contracts.valid_condition?(
                :oracle,
@@ -643,12 +612,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      oracle_tx = %Transaction{
-        address: random_address(),
-        type: :oracle,
-        data: %TransactionData{content: ""},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle, content: "")
 
       refute Contracts.valid_condition?(
                :oracle,

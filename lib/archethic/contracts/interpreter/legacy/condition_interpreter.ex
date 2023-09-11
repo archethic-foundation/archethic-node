@@ -2,7 +2,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   @moduledoc false
 
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
-  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Legacy.Library
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
@@ -487,10 +486,6 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter do
   """
   @spec valid_conditions?(ConditionsSubjects.t(), map()) :: boolean()
   def valid_conditions?(conditions = %ConditionsSubjects{}, constants = %{}) do
-    constants =
-      constants
-      |> Constants.map_transactions(&Constants.stringify_transaction/1)
-
     result =
       conditions
       |> Map.from_struct()

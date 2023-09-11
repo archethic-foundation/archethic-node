@@ -81,7 +81,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
          {:ok, contract} <- validate_and_parse_contract_tx(contract_tx),
          trigger <- Contract.get_trigger_for_recipient(recipient),
          :ok <- validate_contract_condition(trigger, contract, trigger_tx, recipient, timestamp),
-         {:ok, next_tx} <- validate_and_execute_trigger(trigger, contract, trigger_tx, recipient) do
+         {:ok, next_tx} <- validate_and_execute_trigger(trigger, contract, trigger_tx, recipient),
+         # Here the index to sign transaction is not accurate has we are in simulation
+         {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, 0) do
       validate_contract_condition(:inherit, contract, next_tx, nil, timestamp)
     end
   end

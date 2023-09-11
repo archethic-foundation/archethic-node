@@ -370,6 +370,36 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
 
+    test "should execute a contract v0 with constants" do
+      code = """
+      condition transaction: []
+      actions triggered_by: transaction do
+        toto = transaction.address
+        set_content toto
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx =
+        %Transaction{address: tx_address} = TransactionFactory.create_valid_transaction([])
+
+      tx_address_hex = Base.encode16(tx_address)
+
+      assert {:ok,
+              %Transaction{
+                data: %TransactionData{
+                  content: ^tx_address_hex
+                }
+              }} =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil
+               )
+    end
+
     test "should be able to use a custom function call as parameter" do
       code = """
       @version 1
