@@ -25,6 +25,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.TransactionFactory
+
   import Mox
 
   doctest Chain
@@ -165,19 +167,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
   describe "get_transaction/1" do
     test "should return the existing transaction" do
-      address = random_address()
+      tx =
+        %Transaction{address: address} =
+        TransactionFactory.create_valid_transaction([], content: "Gloubi-Boulga")
 
       MockClient
       |> expect(:send_message, fn
-        _, %GetTransaction{address: ^address}, _ ->
-          {:ok,
-           %Transaction{
-             address: address,
-             type: :data,
-             data: %TransactionData{
-               content: "Gloubi-Boulga"
-             }
-           }}
+        _, %GetTransaction{address: ^address}, _ -> {:ok, tx}
       end)
 
       code = ~s"""

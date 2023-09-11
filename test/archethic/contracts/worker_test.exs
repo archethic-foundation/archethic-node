@@ -22,19 +22,17 @@ defmodule Archethic.Contracts.WorkerTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   alias Archethic.ContractFactory
-
-  alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionFactory
 
   import ArchethicCase
   import Mox
-
-  @bob_address <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
   def load_send_tx_constraints() do
     setup_before_send_tx()
@@ -262,17 +260,9 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(
-        contract_address,
-        %Transaction{
-          address: @bob_address,
-          data: %TransactionData{},
-          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-        },
-        %Recipient{
-          address: contract_address
-        }
-      )
+      trigger_tx = TransactionFactory.create_valid_transaction([])
+
+      Worker.execute(contract_address, trigger_tx, %Recipient{address: contract_address})
 
       receive do
         {:transaction_sent, tx} ->
@@ -322,17 +312,9 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(
-        contract_address,
-        %Transaction{
-          address: @bob_address,
-          data: %TransactionData{content: "Mr.X"},
-          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-        },
-        %Recipient{
-          address: contract_address
-        }
-      )
+      trigger_tx = TransactionFactory.create_valid_transaction([], content: "Mr.X")
+
+      Worker.execute(contract_address, trigger_tx, %Recipient{address: contract_address})
 
       receive do
         {:transaction_sent, tx} ->
@@ -372,14 +354,12 @@ defmodule Archethic.Contracts.WorkerTest do
       end
       """
 
-      oracle_tx = %Transaction{
-        address: "@Oracle1",
-        type: :oracle,
-        data: %TransactionData{
+      oracle_tx =
+        %Transaction{address: oracle_address} =
+        TransactionFactory.create_valid_transaction([],
+          type: :oracle,
           content: Jason.encode!(%{"uco" => %{"eur" => 0.21}})
-        },
-        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-      }
+        )
 
       nss_last_address = "nss_last_address"
       nss_genesis_address = "nss_genesis_address"
@@ -388,28 +368,24 @@ defmodule Archethic.Contracts.WorkerTest do
       |> stub(:get_last_chain_address, fn ^nss_genesis_address ->
         {nss_last_address, DateTime.utc_now()}
       end)
-      |> stub(
-        :get_transaction,
-        fn
-          "@Oracle1", [], :chain ->
-            {:ok, oracle_tx}
+      |> stub(:get_transaction, fn
+        ^oracle_address, [], :chain ->
+          {:ok, oracle_tx}
 
-          ^nss_last_address, [validation_stamp: [:timestamp]], :chain ->
-            {:ok,
-             %Transaction{
-               validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-             }}
-        end
-      )
+        ^nss_last_address, [validation_stamp: [:timestamp]], :chain ->
+          {:ok,
+           %Transaction{
+             validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+           }}
+      end)
 
       contract =
         ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
 
       {:ok, pid} = Worker.start_link(contract)
       allow(MockDB, self(), pid)
-      # Process.sleep(100)
 
-      PubSub.notify_new_transaction("@Oracle1", :oracle, DateTime.utc_now())
+      PubSub.notify_new_transaction(oracle_address, :oracle, DateTime.utc_now())
 
       receive do
         {:transaction_sent, tx} ->
@@ -470,25 +446,17 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(
-        contract_address,
-        %Transaction{
-          address: @bob_address,
-          type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{to: contract_address, amount: 100_000_000}
-                ]
-              }
-            },
-            recipients: [%Recipient{address: contract_address}]
-          },
-          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-        },
-        %Recipient{address: contract_address}
-      )
+      ledger = %Ledger{
+        uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}
+      }
+
+      recipient = %Recipient{address: contract_address}
+
+      trigger_tx =
+        %Transaction{address: trigger_tx_address} =
+        TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
+
+      Worker.execute(contract_address, trigger_tx, recipient)
 
       receive do
         {:transaction_sent,
@@ -510,7 +478,7 @@ defmodule Archethic.Contracts.WorkerTest do
           assert 100_000_000 * 10_000 == amount
           assert contract_address == token_address
           assert 0 == token_id
-          assert @bob_address == to
+          assert trigger_tx_address == to
       after
         3_000 ->
           raise "Timeout"
@@ -532,28 +500,12 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, _pid} = Worker.start_link(contract)
 
-      Worker.execute(
-        contract_address,
-        %Transaction{
-          address: @bob_address,
-          type: :data,
-          data: %TransactionData{
-            recipients: [
-              %Recipient{
-                address: contract_address,
-                action: "vote",
-                args: ["Ms. Smith"]
-              }
-            ]
-          },
-          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-        },
-        %Recipient{
-          address: contract_address,
-          action: "vote",
-          args: ["Ms. Smith"]
-        }
-      )
+      recipient = %Recipient{address: contract_address, action: "vote", args: ["Ms. Smith"]}
+
+      trigger_tx =
+        TransactionFactory.create_valid_transaction([], type: :data, recipients: [recipient])
+
+      Worker.execute(contract_address, trigger_tx, recipient)
 
       receive do
         {:transaction_sent, %Transaction{data: %TransactionData{content: content}}} ->
@@ -599,27 +551,16 @@ defmodule Archethic.Contracts.WorkerTest do
 
       {:ok, worker_pid} = Worker.start_link(contract)
 
-      Worker.execute(
-        contract_address,
-        %Transaction{
-          address: @bob_address,
-          type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{to: contract_address, amount: 100_000_000}
-                ]
-              }
-            },
-            recipients: [%Recipient{address: contract_address}]
-          },
-          validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
-        },
-        %Recipient{
-          address: contract_address
-        }
-      )
+      ledger = %Ledger{
+        uco: %UCOLedger{transfers: [%Transfer{to: contract_address, amount: 100_000_000}]}
+      }
+
+      recipient = %Recipient{address: contract_address}
+
+      trigger_tx =
+        TransactionFactory.create_valid_transaction([], ledger: ledger, recipients: [recipient])
+
+      Worker.execute(contract_address, trigger_tx, recipient)
 
       Process.sleep(100)
 

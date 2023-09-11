@@ -76,11 +76,15 @@ defmodule Archethic.Contracts do
           | {:error, :function_is_private}
           | {:error, :timeout}
 
-  def execute_function(contract = %Contract{transaction: contract_tx}, function_name, args) do
+  def execute_function(
+        contract = %Contract{transaction: contract_tx, version: contract_version},
+        function_name,
+        args
+      ) do
     case get_function_from_contract(contract, function_name, args) do
       {:ok, function} ->
         constants = %{
-          "contract" => Constants.from_contract(contract_tx),
+          "contract" => Constants.from_contract(contract_tx, contract_version),
           :time_now => DateTime.utc_now() |> DateTime.to_unix()
         }
 
@@ -348,13 +352,13 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          :inherit,
-         %Contract{transaction: contract_tx, functions: functions},
+         %Contract{transaction: contract_tx, functions: functions, version: contract_version},
          transaction,
          datetime
        ) do
     %{
-      "previous" => Constants.from_contract(contract_tx),
-      "next" => Constants.from_contract(transaction),
+      "previous" => Constants.from_contract(contract_tx, contract_version),
+      "next" => Constants.from_contract(transaction, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
     }
@@ -362,13 +366,13 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          _,
-         %Contract{transaction: contract_tx, functions: functions},
+         %Contract{transaction: contract_tx, functions: functions, version: contract_version},
          transaction,
          datetime
        ) do
     %{
-      "transaction" => Constants.from_transaction(transaction),
-      "contract" => Constants.from_contract(contract_tx),
+      "transaction" => Constants.from_transaction(transaction, contract_version),
+      "contract" => Constants.from_contract(contract_tx, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
     }
