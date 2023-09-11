@@ -9,6 +9,8 @@ defmodule Archethic.Contracts.ContractTest do
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   describe "get_trigger_for_recipient/2" do
@@ -62,6 +64,39 @@ defmodule Archethic.Contracts.ContractTest do
         Transaction.extract_for_previous_signature(signed_tx) |> Transaction.serialize()
 
       assert Crypto.verify?(signature, tx_payload, pub)
+    end
+
+    test "should add contract seed ownership in next tx" do
+      trigger_time = 1_676_332_800
+
+      code = """
+      @version 1
+      actions triggered_by: datetime, at: #{trigger_time} do
+        Contract.set_content "ok"
+      end
+      """
+
+      contract_tx =
+        %Transaction{data: %TransactionData{ownerships: ownerships}} =
+        ContractFactory.create_valid_contract_tx(code)
+
+      contract = Contract.from_transaction!(contract_tx)
+
+      storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+      assert {:ok, next_tx = %Transaction{data: %TransactionData{ownerships: []}}} =
+               Contracts.execute_trigger(
+                 {:datetime, DateTime.from_unix!(trigger_time)},
+                 contract,
+                 nil,
+                 nil
+               )
+
+      assert {:ok, %Transaction{data: %TransactionData{ownerships: [new_ownership]}}} =
+               Contract.sign_next_transaction(contract, next_tx, 1)
+
+      assert new_ownership != ownerships
+      assert Ownership.authorized_public_key?(new_ownership, storage_nonce_public_key)
     end
   end
 end

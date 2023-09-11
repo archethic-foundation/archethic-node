@@ -147,6 +147,7 @@ defmodule Archethic.Contracts.Contract do
     do: {:transaction, action, length(args_values)}
 
   @doc """
+  Add seed ownership to transaction (on contract version != 0)
   Sign a next transaction in the contract chain
   """
   @spec sign_next_transaction(
@@ -164,6 +165,9 @@ defmodule Archethic.Contracts.Contract do
       ) do
     case get_contract_seed(prev_tx) do
       {:ok, contract_seed} ->
+        ownership = create_new_seed_ownership(contract_seed)
+        next_data = Map.update(next_data, :ownerships, [ownership], &[ownership | &1])
+
         signed_tx =
           Transaction.new(
             next_type,
@@ -184,15 +188,26 @@ defmodule Archethic.Contracts.Contract do
   defp get_contract_seed(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-    %Ownership{secret: secret, authorized_keys: authorized_keys} =
+    ownership =
+      %Ownership{secret: secret} =
       Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
 
-    encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
+    encrypted_key = Ownership.get_encrypted_key(ownership, storage_nonce_public_key)
 
     case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
       {:ok, aes_key} -> Crypto.aes_decrypt(secret, aes_key)
       {:error, :decryption_failed} -> {:error, :decryption_failed}
     end
+  end
+
+  defp create_new_seed_ownership(seed) do
+    storage_nonce_pub_key = Crypto.storage_nonce_public_key()
+
+    aes_key = :crypto.strong_rand_bytes(32)
+    secret = Crypto.aes_encrypt(seed, aes_key)
+    encrypted_key = Crypto.ec_encrypt(aes_key, storage_nonce_pub_key)
+
+    %Ownership{secret: secret, authorized_keys: %{storage_nonce_pub_key => encrypted_key}}
   end
 
   @doc """
