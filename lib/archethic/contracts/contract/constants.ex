@@ -10,7 +10,6 @@ defmodule Archethic.Contracts.ContractConstants do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
-  alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -57,13 +56,7 @@ defmodule Archethic.Contracts.ContractConstants do
       "type" => Atom.to_string(type),
       "content" => content,
       "code" => code,
-      "authorized_keys" =>
-        ownerships
-        |> Enum.map(& &1.authorized_keys)
-        |> Enum.flat_map(& &1),
-      "authorized_public_keys" =>
-        Enum.flat_map(ownerships, &Ownership.list_authorized_public_keys(&1)),
-      "secrets" => Enum.map(ownerships, & &1.secret),
+      "ownerships" => ownerships,
       "previous_public_key" => previous_public_key,
       "recipients" => Enum.map(recipients, & &1.address),
       "uco_transfers" =>
