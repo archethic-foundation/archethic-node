@@ -6,7 +6,16 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
 
   use ArchethicCase
 
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Crypto
+
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+
+  alias Archethic.ContractFactory
+  alias Archethic.TransactionFactory
 
   doctest Crypto
 
@@ -42,6 +51,47 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
       hex_hash = Base.encode16(hash)
 
       assert Crypto.hash(hex_hash, "keccak256") == expected_hash
+    end
+  end
+
+  describe "sign_with_recovery/1" do
+    test "should retrieve seed from scope and sign hash" do
+      code = ~S"""
+      @version 1
+
+      condition transaction: []
+
+      actions triggered_by: transaction do
+        hash = Crypto.hash(transaction.content, "sha256")
+        sig = Crypto.sign_with_recovery(hash)
+        Contract.set_content Json.to_string(sig)
+      end
+      """
+
+      contract = ContractFactory.create_valid_contract_tx(code) |> Contract.from_transaction!()
+
+      trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be signed !")
+
+      assert {:ok, %Transaction{data: %TransactionData{content: content}}} =
+               Interpreter.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil)
+
+      assert {:ok, sig} = Jason.decode(content)
+
+      assert %{
+               "r" => "BCAA43A2972A94FE42F4989EBB826B3F9BDC841623E22C7E7F8602D06C15B99E",
+               "s" => "1017847D5B93517FA802CC3CA07D66DBABC72D3BAEEFC416D1351345AD007290",
+               "v" => 0
+             } = sig
+    end
+
+    test "should raise an error if contract seed is not set" do
+      hash = :crypto.strong_rand_bytes(32) |> Base.encode16()
+      assert_raise Library.Error, fn -> Crypto.sign_with_recovery(hash) end
+    end
+
+    test "should raise an error if hash is not valid" do
+      hash = "invalid"
+      assert_raise Library.Error, fn -> Crypto.sign_with_recovery(hash) end
     end
   end
 end
