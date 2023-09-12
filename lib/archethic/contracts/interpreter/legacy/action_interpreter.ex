@@ -213,26 +213,10 @@ defmodule Archethic.Contracts.Interpreter.Legacy.ActionInterpreter do
   end
 
   defp prewalk(
-         node = {{:atom, "secret_key"}, secret_key},
-         _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
-       )
-       when not is_tuple(secret_key) and not is_binary(secret_key) do
-    throw({:error, "invalid add_ownership arguments", node})
-  end
-
-  defp prewalk(
-         node = {{:atom, "authorized_public_keys"}, authorized_public_keys},
+         node = {{:atom, "authorized_keys"}, authorized_public_keys},
          _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
        )
        when not is_tuple(authorized_public_keys) and not is_list(authorized_public_keys) do
-    throw({:error, "invalid add_ownership arguments", node})
-  end
-
-  defp prewalk(
-         node = {{:atom, atom}, _},
-         _acc = {:ok, %{scope: {:function, "add_ownership", {:actions, _}}}}
-       )
-       when atom != "secret" and atom != "secret_key" and atom != "authorized_public_keys" do
     throw({:error, "invalid add_ownership arguments", node})
   end
 

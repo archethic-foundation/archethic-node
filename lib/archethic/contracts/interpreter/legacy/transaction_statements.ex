@@ -9,6 +9,8 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
 
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
 
+  alias Archethic.Contracts.Interpreter.Library
+
   @doc """
   Set the transaction type
 
@@ -167,40 +169,50 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
 
   ## Examples
 
-      iex> %Transaction{data: %TransactionData{ownerships: [%Ownership{authorized_keys: authorized_keys}]}} = TransactionStatements.add_ownership(%Transaction{data: %TransactionData{}}, [
-      ...>   {"secret", "mysecret"},
-      ...>   {"secret_key", "62FE599BB217FC608D29E28C3FC4D825EA7989471261E43326FAB1A20A3C71B0"},
-      ...>   {"authorized_public_keys", [
-      ...>     "01000416A31DADE19AB4D9E7F22A4FA934694F265D0F20CB9D86B0B0B8FD28505CB6F9EF4D803AB5D2C49944DB0C24A12373F90A4406DBEF4577A9A59669DCAD10EBB6"
-      ...>   ]}
+      iex> public_key = "000178321F76C48F2885A2EE209B2FB28A9FD2C8F1EBABBB6209F47D24BA10B73ED5" 
+      ...> %Transaction{data: %TransactionData{ownerships: [%Ownership{authorized_keys: authorized_keys}]}} = TransactionStatements.add_ownership(%Transaction{data: %TransactionData{}}, [
+      ...>   {"secret", random_secret()},
+      ...>   {"authorized_keys", %{
+      ...>     public_key => random_encrypted_key(Base.decode16!(public_key))
+      ...>   }}
       ...> ])
       iex> Map.keys(authorized_keys)
       [
-        <<1, 0, 4, 22, 163, 29, 173, 225, 154, 180, 217, 231, 242, 42, 79, 169, 52, 105,
-        79, 38, 93, 15, 32, 203, 157, 134, 176, 176, 184, 253, 40, 80, 92, 182, 249,
-        239, 77, 128, 58, 181, 210, 196, 153, 68, 219, 12, 36, 161, 35, 115, 249, 10,
-        68, 6, 219, 239, 69, 119, 169, 165, 150, 105, 220, 173, 16, 235, 182>>
+        <<0, 1, 120, 50, 31, 118, 196, 143, 40, 133, 162, 238, 32, 155, 47, 178, 138,
+        159, 210, 200, 241, 235, 171, 187, 98, 9, 244, 125, 36, 186, 16, 183, 62,
+        213>>
       ]
   """
   @spec add_ownership(Transaction.t(), list()) :: Transaction.t()
   def add_ownership(tx = %Transaction{}, args) when is_list(args) do
-    %{
-      "secret" => secret,
-      "secret_key" => secret_key,
-      "authorized_public_keys" => authorized_public_keys
-    } = Enum.into(args, %{})
+    %{"secret" => secret, "authorized_keys" => authorized_keys} = Enum.into(args, %{})
 
-    ownership =
-      Ownership.new(
-        UtilsInterpreter.maybe_decode_hex(secret),
-        UtilsInterpreter.maybe_decode_hex(secret_key),
-        Enum.map(authorized_public_keys, &UtilsInterpreter.get_public_key(&1, :add_ownership))
-      )
+    authorized_keys =
+      Enum.map(authorized_keys, fn {pub, key} ->
+        decoded_pub = UtilsInterpreter.get_public_key(pub, :add_ownership)
+        decoded_key = UtilsInterpreter.maybe_decode_hex(key)
+
+        if byte_size(decoded_key) != 80,
+          do: raise(Library.Error, message: "Encrypted key is not valid")
+
+        {decoded_pub, UtilsInterpreter.maybe_decode_hex(key)}
+      end)
+      |> Enum.into(%{})
+
+    secret = UtilsInterpreter.maybe_decode_hex(secret)
+
+    if byte_size(secret) != 32,
+      do: raise(Library.Error, message: "Secret is not valid")
+
+    ownership = %Ownership{
+      secret: secret,
+      authorized_keys: authorized_keys
+    }
 
     update_in(
       tx,
       [Access.key(:data, %{}), Access.key(:ownerships, [])],
-      &[ownership | &1]
+      &(&1 ++ [ownership])
     )
   end
 
@@ -262,32 +274,32 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
 
     iex> {pub_key1, _} = Archethic.Crypto.generate_deterministic_keypair("seed")
     iex> {pub_key2, _} = Archethic.Crypto.generate_deterministic_keypair("seed2")
+    iex> secret1 = random_secret()
+    iex> secret2 = random_secret()
     iex>  %Transaction{
     ...>   data: %TransactionData{
     ...>     ownerships: [
     ...>       %Ownership{
     ...>         authorized_keys: %{
-    ...>           ^pub_key2 => _
+    ...>           ^pub_key1 => _
     ...>         },
-    ...>         secret: "ENCODED_SECRET2"
+    ...>         secret: ^secret1
     ...>       },
     ...>       %Ownership{
     ...>         authorized_keys: %{
-    ...>           ^pub_key1 => _
+    ...>           ^pub_key2 => _
     ...>         },
-    ...>         secret: "ENCODED_SECRET1"
+    ...>         secret: ^secret2
     ...>       }
     ...>     ]
     ...>   }
     ...> } = TransactionStatements.add_ownerships(%Transaction{data: %TransactionData{}}, [[
-    ...>  {"secret", "ENCODED_SECRET1"},
-    ...>  {"secret_key", :crypto.strong_rand_bytes(32)},
-    ...>  {"authorized_public_keys", [pub_key1]}
+    ...>  {"secret", secret1},
+    ...>  {"authorized_keys", %{pub_key1 => random_encrypted_key(pub_key1)}}
     ...> ],
     ...> [
-    ...>  {"secret", "ENCODED_SECRET2"},
-    ...>  {"secret_key", :crypto.strong_rand_bytes(32)},
-    ...>  {"authorized_public_keys", [pub_key2]}
+    ...>  {"secret", secret2},
+    ...>  {"authorized_keys", %{pub_key2 => random_encrypted_key(pub_key2)}}
     ...> ]
     ...> ])
   """

@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
+defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
   @moduledoc """
   Here we test the contract module within the action block. Because there is AST modification (such as keywords to maps)
   in the ActionInterpreter and we want to test the whole thing.
@@ -418,21 +418,20 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
     test "should work with keyword" do
       {pub_key1, _} = Archethic.Crypto.generate_deterministic_keypair("seed")
 
+      secret = random_secret()
+      encrypted_key = random_encrypted_key(pub_key1)
+
       code = ~s"""
       actions triggered_by: transaction do
-        Contract.add_ownership(secret: "ENCODED_SECRET1", authorized_public_keys: ["#{Base.encode16(pub_key1)}"], secret_key: "___")
+        authorized_key = Map.set(Map.new(), 0x#{Base.encode16(pub_key1)}, 0x#{Base.encode16(encrypted_key)})
+        Contract.add_ownership(secret: 0x#{Base.encode16(secret)}, authorized_keys: authorized_key)
       end
       """
 
       assert %Transaction{
                data: %TransactionData{
                  ownerships: [
-                   %Ownership{
-                     authorized_keys: %{
-                       ^pub_key1 => _
-                     },
-                     secret: "ENCODED_SECRET1"
-                   }
+                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key}, secret: ^secret}
                  ]
                }
              } = sanitize_parse_execute(code)
@@ -442,28 +441,26 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       {pub_key1, _} = Archethic.Crypto.generate_deterministic_keypair("seed")
       {pub_key2, _} = Archethic.Crypto.generate_deterministic_keypair("seed2")
 
+      secret1 = random_secret()
+      secret2 = random_secret()
+
+      encrypted_key1 = random_encrypted_key(pub_key1)
+      encrypted_key2 = random_encrypted_key(pub_key2)
+
       code = ~s"""
       actions triggered_by: transaction do
-        Contract.add_ownership(secret: "ENCODED_SECRET1", authorized_public_keys: ["#{Base.encode16(pub_key1)}"], secret_key: "___")
-        Contract.add_ownership(secret: "ENCODED_SECRET2", authorized_public_keys: ["#{Base.encode16(pub_key2)}"], secret_key: "___")
+        authorized_key1 = Map.set(Map.new(), 0x#{Base.encode16(pub_key1)}, 0x#{Base.encode16(encrypted_key1)})
+        authorized_key2 = Map.set(Map.new(), 0x#{Base.encode16(pub_key2)}, 0x#{Base.encode16(encrypted_key2)})
+        Contract.add_ownership(secret: 0x#{Base.encode16(secret1)}, authorized_keys: authorized_key1)
+        Contract.add_ownership(secret: 0x#{Base.encode16(secret2)}, authorized_keys: authorized_key2)
       end
       """
 
       assert %Transaction{
                data: %TransactionData{
                  ownerships: [
-                   %Ownership{
-                     authorized_keys: %{
-                       ^pub_key2 => _
-                     },
-                     secret: "ENCODED_SECRET2"
-                   },
-                   %Ownership{
-                     authorized_keys: %{
-                       ^pub_key1 => _
-                     },
-                     secret: "ENCODED_SECRET1"
-                   }
+                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key1}, secret: ^secret1},
+                   %Ownership{authorized_keys: %{^pub_key2 => ^encrypted_key2}, secret: ^secret2}
                  ]
                }
              } = sanitize_parse_execute(code)
@@ -472,9 +469,13 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
     test "should work with variable" do
       {pub_key1, _} = Archethic.Crypto.generate_deterministic_keypair("seed")
 
+      secret = random_secret()
+      encrypted_key = random_encrypted_key(pub_key1)
+
       code = ~s"""
       actions triggered_by: transaction do
-        ownership = [secret: "ENCODED_SECRET1", authorized_public_keys: ["#{Base.encode16(pub_key1)}"], secret_key: "___"]
+        authorized_key = Map.set(Map.new(), 0x#{Base.encode16(pub_key1)}, 0x#{Base.encode16(encrypted_key)})
+        ownership = [secret: 0x#{Base.encode16(secret)}, authorized_keys: authorized_key]
         Contract.add_ownership(ownership)
       end
       """
@@ -482,12 +483,7 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       assert %Transaction{
                data: %TransactionData{
                  ownerships: [
-                   %Ownership{
-                     authorized_keys: %{
-                       ^pub_key1 => _
-                     },
-                     secret: "ENCODED_SECRET1"
-                   }
+                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key}, secret: ^secret}
                  ]
                }
              } = sanitize_parse_execute(code)
@@ -631,11 +627,20 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       {pub_key1, _} = Archethic.Crypto.generate_deterministic_keypair("seed")
       {pub_key2, _} = Archethic.Crypto.generate_deterministic_keypair("seed2")
 
+      secret1 = random_secret()
+      secret2 = random_secret()
+
+      encrypted_key1 = random_encrypted_key(pub_key1)
+      encrypted_key2 = random_encrypted_key(pub_key2)
+
       code = ~s"""
       actions triggered_by: transaction do
+        authorized_key1 = Map.set(Map.new(), 0x#{Base.encode16(pub_key1)}, 0x#{Base.encode16(encrypted_key1)})
+        authorized_key2 = Map.set(Map.new(), 0x#{Base.encode16(pub_key2)}, 0x#{Base.encode16(encrypted_key2)})
+
         ownerships = [
-          [secret: "ENCODED_SECRET1", authorized_public_keys: ["#{Base.encode16(pub_key1)}"], secret_key: "___"],
-          [secret: "ENCODED_SECRET2", authorized_public_keys: ["#{Base.encode16(pub_key2)}"], secret_key: "___"]
+          [secret: 0x#{Base.encode16(secret1)}, authorized_keys: authorized_key1],
+          [secret: 0x#{Base.encode16(secret2)}, authorized_keys: authorized_key2]
         ]
         Contract.add_ownerships(ownerships)
       end
@@ -644,18 +649,8 @@ defmodule Archethic.Contracts.Interpreter.Library.ContractTest do
       assert %Transaction{
                data: %TransactionData{
                  ownerships: [
-                   %Ownership{
-                     authorized_keys: %{
-                       ^pub_key2 => _
-                     },
-                     secret: "ENCODED_SECRET2"
-                   },
-                   %Ownership{
-                     authorized_keys: %{
-                       ^pub_key1 => _
-                     },
-                     secret: "ENCODED_SECRET1"
-                   }
+                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key1}, secret: ^secret1},
+                   %Ownership{authorized_keys: %{^pub_key2 => ^encrypted_key2}, secret: ^secret2}
                  ]
                }
              } = sanitize_parse_execute(code)
