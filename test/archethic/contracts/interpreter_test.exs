@@ -669,18 +669,9 @@ defmodule Archethic.Contracts.InterpreterTest do
         end
       """
 
-      contract_tx = %Transaction{
-        type: :contract,
-        data: %TransactionData{
-          code: code
-        }
-      }
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      incoming_tx = %Transaction{
-        type: :transfer,
-        data: %TransactionData{},
-        validation_stamp: ValidationStamp.generate_dummy()
-      }
+      incoming_tx = TransactionFactory.create_valid_transaction([])
 
       assert {:error, "division_by_zero - L8"} =
                Interpreter.execute_trigger(
