@@ -185,12 +185,17 @@ defmodule Archethic.Contracts.Contract do
     end
   end
 
-  defp get_contract_seed(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
+  defp get_seed_ownership(
+         %Transaction{data: %TransactionData{ownerships: ownerships}},
+         storage_nonce_public_key
+       ) do
+    Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
+  end
+
+  defp get_contract_seed(tx) do
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-    ownership =
-      %Ownership{secret: secret} =
-      Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
+    ownership = %Ownership{secret: secret} = get_seed_ownership(tx, storage_nonce_public_key)
 
     encrypted_key = Ownership.get_encrypted_key(ownership, storage_nonce_public_key)
 
@@ -236,6 +241,24 @@ defmodule Archethic.Contracts.Contract do
     case remove_seed_ownership(tx) do
       ^tx -> raise "Contract does not have seed ownership"
       tx -> tx
+    end
+  end
+
+  @doc """
+  Return the encrypted seed and encrypted aes key
+  """
+  @spec get_encrypted_seed(contract :: t()) :: {binary(), binary()} | nil
+  def get_encrypted_seed(%__MODULE__{transaction: tx}) do
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+    case get_seed_ownership(tx, storage_nonce_public_key) do
+      %Ownership{secret: secret, authorized_keys: authorized_keys} ->
+        encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
+
+        {secret, encrypted_key}
+
+      nil ->
+        nil
     end
   end
 end

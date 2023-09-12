@@ -129,7 +129,7 @@ defmodule Archethic.Contracts.Interpreter do
           | {:error, String.t()}
   def execute_trigger(
         trigger_key,
-        %Contract{
+        contract = %Contract{
           transaction: contract_tx,
           version: version,
           triggers: triggers,
@@ -170,7 +170,8 @@ defmodule Archethic.Contracts.Interpreter do
             "transaction" => transaction_constant,
             "contract" => contract_constants,
             :time_now => timestamp_now,
-            :functions => functions
+            :functions => functions,
+            :encrypted_seed => Contract.get_encrypted_seed(contract)
           })
 
         result =

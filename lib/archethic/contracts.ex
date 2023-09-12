@@ -85,7 +85,8 @@ defmodule Archethic.Contracts do
       {:ok, function} ->
         constants = %{
           "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
-          :time_now => DateTime.utc_now() |> DateTime.to_unix()
+          :time_now => DateTime.utc_now() |> DateTime.to_unix(),
+          :encrypted_seed => Contract.get_encrypted_seed(contract)
         }
 
         task =
@@ -357,7 +358,11 @@ defmodule Archethic.Contracts do
 
   defp get_condition_constants(
          :inherit,
-         %Contract{transaction: contract_tx, functions: functions, version: contract_version},
+         contract = %Contract{
+           transaction: contract_tx,
+           functions: functions,
+           version: contract_version
+         },
          transaction,
          datetime
        ) do
@@ -365,13 +370,18 @@ defmodule Archethic.Contracts do
       "previous" => Constants.from_contract_transaction(contract_tx, contract_version),
       "next" => Constants.from_contract_transaction(transaction, contract_version),
       :time_now => DateTime.to_unix(datetime),
-      :functions => functions
+      :functions => functions,
+      :encrypted_seed => Contract.get_encrypted_seed(contract)
     }
   end
 
   defp get_condition_constants(
          _,
-         %Contract{transaction: contract_tx, functions: functions, version: contract_version},
+         contract = %Contract{
+           transaction: contract_tx,
+           functions: functions,
+           version: contract_version
+         },
          transaction,
          datetime
        ) do
@@ -379,7 +389,8 @@ defmodule Archethic.Contracts do
       "transaction" => Constants.from_transaction(transaction, contract_version),
       "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
       :time_now => DateTime.to_unix(datetime),
-      :functions => functions
+      :functions => functions,
+      :encrypted_seed => Contract.get_encrypted_seed(contract)
     }
   end
 end
