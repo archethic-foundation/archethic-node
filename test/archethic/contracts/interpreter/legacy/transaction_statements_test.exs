@@ -14,5 +14,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatementsTest do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
+  import ArchethicCase
+
   doctest TransactionStatements
 end

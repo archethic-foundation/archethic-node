@@ -255,6 +255,18 @@ defmodule ArchethicCase do
     <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
   end
 
+  def random_secret() do
+    :rand.uniform(134) |> :crypto.strong_rand_bytes()
+  end
+
+  def random_encrypted_key(_public_key = <<0::8, _rest::binary>>) do
+    :crypto.strong_rand_bytes(80)
+  end
+
+  def random_encrypted_key(_) do
+    :crypto.strong_rand_bytes(113)
+  end
+
   # sugar for readability
   def expect_not(mock, function_name, function) do
     expect(mock, function_name, 0, function)
