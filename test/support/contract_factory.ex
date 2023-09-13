@@ -86,7 +86,7 @@ defmodule Archethic.ContractFactory do
     if Map.has_key?(constants, "contract") do
       constants
     else
-      Map.put(constants, "contract", Constants.from_contract(contract_tx))
+      Map.put(constants, "contract", Constants.from_contract_transaction(contract_tx))
     end
   end
 end

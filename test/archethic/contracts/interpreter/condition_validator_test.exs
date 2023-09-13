@@ -51,8 +51,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
 
@@ -91,8 +91,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
 
@@ -110,8 +110,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
 
@@ -140,8 +140,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
 
       code = ~s"""
@@ -156,8 +156,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
 
@@ -294,8 +294,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
 
       code = ~s"""
@@ -313,8 +313,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
 
@@ -334,8 +334,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
 
       code = ~s"""
@@ -353,8 +353,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
 
       code = ~s"""
@@ -372,8 +372,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
 
@@ -396,8 +396,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
 
@@ -439,8 +439,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
              |> ConditionInterpreter.parse([])
              |> elem(2)
              |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract(previous_tx),
-               "next" => Constants.from_contract(next_tx)
+               "previous" => Constants.from_contract_transaction(previous_tx),
+               "next" => Constants.from_contract_transaction(next_tx)
              })
     end
   end

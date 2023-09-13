@@ -162,7 +162,7 @@ defmodule Archethic.Contracts.Interpreter do
             trigger_tx -> Constants.from_transaction(trigger_tx, version)
           end
 
-        contract_constants = Constants.from_contract(contract_tx, version)
+        contract_constants = Constants.from_contract_transaction(contract_tx, version)
 
         constants =
           named_action_constants
