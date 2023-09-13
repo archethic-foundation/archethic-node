@@ -141,7 +141,8 @@ defmodule Archethic.Contracts.ContractConstantsTest do
 
       assert length(contract_tx.data.ownerships) == 2
 
-      assert %{"ownerships" => [^ownership_hex]} = ContractConstants.from_contract(contract_tx)
+      assert %{"ownerships" => [^ownership_hex]} =
+               ContractConstants.from_contract_transaction(contract_tx)
     end
   end
 end

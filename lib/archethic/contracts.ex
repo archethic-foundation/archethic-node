@@ -84,7 +84,7 @@ defmodule Archethic.Contracts do
     case get_function_from_contract(contract, function_name, args) do
       {:ok, function} ->
         constants = %{
-          "contract" => Constants.from_contract(contract_tx, contract_version),
+          "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
           :time_now => DateTime.utc_now() |> DateTime.to_unix()
         }
 
@@ -357,8 +357,8 @@ defmodule Archethic.Contracts do
          datetime
        ) do
     %{
-      "previous" => Constants.from_contract(contract_tx, contract_version),
-      "next" => Constants.from_contract(transaction, contract_version),
+      "previous" => Constants.from_contract_transaction(contract_tx, contract_version),
+      "next" => Constants.from_contract_transaction(transaction, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
     }
@@ -372,7 +372,7 @@ defmodule Archethic.Contracts do
        ) do
     %{
       "transaction" => Constants.from_transaction(transaction, contract_version),
-      "contract" => Constants.from_contract(contract_tx, contract_version),
+      "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions
     }

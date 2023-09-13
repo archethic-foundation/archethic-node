@@ -23,9 +23,12 @@ defmodule Archethic.Contracts.ContractConstants do
   @doc """
   Same as from_transaction but remove the contract_seed from ownerships
   """
-  @spec from_contract(contract_tx :: Transaction.t(), contract_version :: non_neg_integer()) ::
+  @spec from_contract_transaction(
+          contract_tx :: Transaction.t(),
+          contract_version :: non_neg_integer()
+        ) ::
           map()
-  def from_contract(contract_tx, contract_version \\ 1),
+  def from_contract_transaction(contract_tx, contract_version \\ 1),
     do: contract_tx |> Contract.remove_seed_ownership() |> from_transaction(contract_version)
 
   @doc """
