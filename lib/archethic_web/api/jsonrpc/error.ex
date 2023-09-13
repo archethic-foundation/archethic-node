@@ -37,7 +37,6 @@ defmodule ArchethicWeb.API.JsonRPC.Error do
   # Smart Contract context
   defp get_custom_code(:contract_failure), do: 203
   defp get_custom_code(:no_recipients), do: 204
-  defp get_custom_code(:invalid_triggers_execution), do: 205
   defp get_custom_code(:invalid_transaction_constraints), do: 206
   defp get_custom_code(:invalid_inherit_constraints), do: 207
   defp get_custom_code(:parsing_contract), do: 208

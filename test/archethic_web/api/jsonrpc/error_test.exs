@@ -32,7 +32,6 @@ defmodule ArchethicWeb.API.JsonRPC.ErrorTest do
     test "should return custom error code for smart contract context" do
       assert %{"code" => 203} = Error.get_error({:custom_error, :contract_failure, ""})
       assert %{"code" => 204} = Error.get_error({:custom_error, :no_recipients, ""})
-      assert %{"code" => 205} = Error.get_error({:custom_error, :invalid_triggers_execution, ""})
 
       assert %{"code" => 206} =
                Error.get_error({:custom_error, :invalid_transaction_constraints, ""})

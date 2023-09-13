@@ -78,11 +78,31 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
        ) do
     with {:ok, contract_tx} <-
            Archethic.get_last_transaction(recipient_address),
-         {:ok, contract} <- Contracts.from_transaction(contract_tx),
+         {:ok, contract} <- validate_and_parse_contract_tx(contract_tx),
          trigger <- Contract.get_trigger_for_recipient(recipient),
          :ok <- validate_contract_condition(trigger, contract, trigger_tx, recipient, timestamp),
-         {:ok, next_tx} <- Contracts.execute_trigger(trigger, contract, trigger_tx, recipient) do
+         {:ok, next_tx} <- validate_and_execute_trigger(trigger, contract, trigger_tx, recipient) do
       validate_contract_condition(:inherit, contract, next_tx, nil, timestamp)
+    end
+  end
+
+  defp validate_and_parse_contract_tx(tx) do
+    case Contracts.from_transaction(tx) do
+      {:ok, contract} ->
+        {:ok, contract}
+
+      {:error, reason} ->
+        {:error, {:parsing_error, reason}}
+    end
+  end
+
+  def validate_and_execute_trigger(trigger, contract, trigger_tx, recipient) do
+    case Contracts.execute_trigger(trigger, contract, trigger_tx, recipient) do
+      {:ok, nil_or_next_tex} ->
+        {:ok, nil_or_next_tex}
+
+      {:error, reason} ->
+        {:error, {:execute_error, reason}}
     end
   end
 
@@ -107,14 +127,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   defp format_reason(:network_issue),
     do: {:internal_error, "Cannot fetch contract transaction"}
 
-  defp format_reason(:contract_failure),
-    do: {:custom_error, :contract_failure, "Contract execution encountered an error"}
-
-  defp format_reason(:invalid_triggers_execution),
-    do:
-      {:custom_error, :invalid_triggers_execution,
-       "Contract does not contain a trigger transaction"}
-
   defp format_reason(:invalid_transaction_constraints),
     do:
       {:custom_error, :invalid_transaction_constraints,
@@ -128,8 +140,11 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   defp format_reason(:timeout),
     do: {:internal_error, "Timeout while simulating contract execution"}
 
-  defp format_reason(reason) when is_binary(reason),
+  defp format_reason({:parsing_error, reason}) when is_binary(reason),
     do: {:custom_error, :parsing_contract, "Error while parsing contract", reason}
+
+  defp format_reason({:execute_error, reason}) when is_binary(reason),
+    do: {:custom_error, :contract_failure, "Error while executing contract", reason}
 
   defp format_reason(_), do: {:internal_error, "Unknown error"}
 

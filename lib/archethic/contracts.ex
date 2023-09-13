@@ -51,9 +51,7 @@ defmodule Archethic.Contracts do
           nil | Transaction.t(),
           nil | Recipient.t(),
           Keyword.t()
-        ) ::
-          {:ok, nil | Transaction.t()}
-          | {:error, :contract_failure | :invalid_triggers_execution}
+        ) :: {:ok, nil | Transaction.t()} | {:error, String.t()}
   defdelegate execute_trigger(
                 trigger_type,
                 contract,

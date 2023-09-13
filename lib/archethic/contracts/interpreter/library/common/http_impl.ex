@@ -38,6 +38,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
       {:ok, {:error, :threshold_reached}} ->
         raise Library.Error, message: "Http.fetch/1 response is bigger than threshold"
 
+      {:ok, {:error, :not_https}} ->
+        raise Library.Error, message: "Http.fetch/1 was called with a non https url"
+
       {:ok, {:error, _}} ->
         # Mint.HTTP.connect error
         # Mint.HTTP.stream error
@@ -49,7 +52,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
 
       nil ->
         # Task.shutdown
-        raise Library.Error, message: "Http.fetch/1 timed out for url: #{uri}"
+        raise Library.Error, message: "Http.fetch/1 timed out"
     end
   end
 
@@ -86,6 +89,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
         {{:ok, {:error, :threshold_reached}}, uri}, _ ->
           raise Library.Error,
             message: "Http.fetch_many/1 response is bigger than threshold for url: #{uri}"
+
+        {{:ok, {:error, :not_https}}, uri}, _ ->
+          raise Library.Error,
+            message: "Http.fetch_many/1 was called with a non https url: #{uri}"
 
         {{:ok, {:error, _}}, uri}, _ ->
           # Mint.HTTP.connect error

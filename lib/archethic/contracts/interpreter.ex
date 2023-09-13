@@ -126,7 +126,7 @@ defmodule Archethic.Contracts.Interpreter do
           execute_opts()
         ) ::
           {:ok, nil | Transaction.t()}
-          | {:error, :contract_failure | :invalid_triggers_execution}
+          | {:error, String.t()}
   def execute_trigger(
         trigger_key,
         %Contract{
@@ -141,7 +141,7 @@ defmodule Archethic.Contracts.Interpreter do
       ) do
     case Map.get(triggers, trigger_key) do
       nil ->
-        {:error, :invalid_triggers_execution}
+        {:error, "Trigger not found on the contract"}
 
       %{args: args, ast: trigger_code} ->
         timestamp_now =
@@ -183,9 +183,7 @@ defmodule Archethic.Contracts.Interpreter do
     end
   rescue
     err ->
-      Logger.error(Exception.format(:error, err, __STACKTRACE__))
-      # it's ok to loose the error because it's user-code
-      {:error, :contract_failure}
+      {:error, error_to_string(err, __STACKTRACE__)}
   end
 
   @doc """
@@ -501,6 +499,22 @@ defmodule Archethic.Contracts.Interpreter do
       else
         {:error, "missing 'condition triggered_by: transaction, on: #{action}/#{arity}' block"}
       end
+    end
+  end
+
+  defp error_to_string(err, stacktrace) do
+    case Enum.find_value(stacktrace, fn
+           {_, _, _, [file: 'nofile', line: line]} ->
+             line
+
+           _ ->
+             false
+         end) do
+      line when is_integer(line) ->
+        Exception.message(err) <> " - L#{line}"
+
+      _ ->
+        Exception.message(err)
     end
   end
 end
