@@ -192,28 +192,25 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
         decoded_pub = UtilsInterpreter.get_public_key(pub, :add_ownership)
         decoded_key = UtilsInterpreter.maybe_decode_hex(key)
 
-        if byte_size(decoded_key) != 80,
-          do: raise(Library.Error, message: "Encrypted key is not valid")
-
-        {decoded_pub, UtilsInterpreter.maybe_decode_hex(key)}
+        {decoded_pub, decoded_key}
       end)
       |> Enum.into(%{})
 
     secret = UtilsInterpreter.maybe_decode_hex(secret)
 
-    if byte_size(secret) != 32,
-      do: raise(Library.Error, message: "Secret is not valid")
+    ownership = %Ownership{secret: secret, authorized_keys: authorized_keys}
 
-    ownership = %Ownership{
-      secret: secret,
-      authorized_keys: authorized_keys
-    }
+    case Ownership.validate_format(ownership) do
+      :ok ->
+        update_in(
+          tx,
+          [Access.key(:data, %{}), Access.key(:ownerships, [])],
+          &(&1 ++ [ownership])
+        )
 
-    update_in(
-      tx,
-      [Access.key(:data, %{}), Access.key(:ownerships, [])],
-      &(&1 ++ [ownership])
-    )
+      {:error, reason} ->
+        raise Library.Error, message: Atom.to_string(reason) |> String.replace("_", " ")
+    end
   end
 
   @doc """

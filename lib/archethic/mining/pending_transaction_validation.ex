@@ -173,39 +173,15 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: []}}), do: :ok
 
   defp validate_ownerships(%Transaction{data: %TransactionData{ownerships: ownerships}}) do
-    Enum.reduce_while(ownerships, :ok, fn
-      %Ownership{secret: secret, authorized_keys: authorized_keys}, :ok ->
-        cond do
-          secret == "" ->
-            {:halt, {:error, "Ownership: secret is empty"}}
+    Enum.reduce_while(ownerships, :ok, fn ownership, :ok ->
+      case Ownership.validate_format(ownership) do
+        :ok ->
+          {:cont, :ok}
 
-          authorized_keys == %{} ->
-            {:halt, {:error, "Ownership: authorized keys are empty"}}
-
-          true ->
-            verify_authorized_keys(authorized_keys)
-        end
-    end)
-  end
-
-  @spec verify_authorized_keys(authorized_keys :: map()) ::
-          {:cont, :ok} | {:halt, {:error, any()}}
-  defp verify_authorized_keys(authorized_keys) do
-    # authorized_keys: %{(public_key :: Crypto.key()) => encrypted_key }
-
-    Enum.reduce_while(authorized_keys, {:cont, :ok}, fn
-      {"", _}, _ ->
-        e = {:halt, {:error, "Ownership: public key is empty"}}
-        {:halt, e}
-
-      {_, ""}, _ ->
-        e = {:halt, {:error, "Ownership: encrypted key is empty"}}
-        {:halt, e}
-
-      {public_key, _}, acc ->
-        if Crypto.valid_public_key?(public_key),
-          do: {:cont, acc},
-          else: {:halt, {:halt, {:error, "Ownership: invalid public key"}}}
+        {:error, reason} ->
+          formated_reason = "Ownership: #{Atom.to_string(reason) |> String.replace("_", " ")}"
+          {:halt, {:error, formated_reason}}
+      end
     end)
   end
 

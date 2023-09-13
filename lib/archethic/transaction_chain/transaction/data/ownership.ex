@@ -279,4 +279,82 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       when is_binary(public_key) do
     Map.get(auth_keys, public_key)
   end
+
+  @doc """
+  Verify if the data format in the ownerships is valid (public key and encrypted key)
+
+  ## Examples
+
+      iex> secret = random_secret()
+      ...> {pub, _} = Crypto.derive_keypair(:crypto.strong_rand_bytes(32), 0, :ed25519)
+      ...> authorized_keys = %{pub => random_encrypted_key(pub)}
+      ...> %Ownership{secret: secret,  authorized_keys: authorized_keys}
+      ...> |> Ownership.validate_format()
+      :ok
+
+      iex> secret = random_secret()
+      ...> {pub, _} = Crypto.derive_keypair(:crypto.strong_rand_bytes(32), 0, :secp256k1)
+      ...> authorized_keys = %{pub => random_encrypted_key(pub)}
+      ...> %Ownership{secret: secret,  authorized_keys: authorized_keys}
+      ...> |> Ownership.validate_format()
+      :ok
+
+      iex> secret = ""
+      ...> {pub, _} = Crypto.derive_keypair(:crypto.strong_rand_bytes(32), 0, :ed25519)
+      ...> authorized_keys = %{pub => :crypto.strong_rand_bytes(80)}
+      ...> %Ownership{secret: secret,  authorized_keys: authorized_keys}
+      ...> |> Ownership.validate_format()
+      {:error, :empty_secret}
+
+      iex> secret = random_secret()
+      ...> authorized_keys = %{}
+      ...> %Ownership{secret: secret,  authorized_keys: authorized_keys}
+      ...> |> Ownership.validate_format()
+      {:error, :empty_authorized_keys}
+
+      iex> secret = random_secret()
+      ...> {pub, _} = Crypto.derive_keypair(:crypto.strong_rand_bytes(32), 0, :ed25519)
+      ...> authorized_keys = %{pub => :crypto.strong_rand_bytes(55)}
+      ...> %Ownership{secret: secret,  authorized_keys: authorized_keys}
+      ...> |> Ownership.validate_format()
+      {:error, :invalid_encrypted_key}
+
+      iex> secret = random_secret()
+      ...> authorized_keys = %{:crypto.strong_rand_bytes(20) => :crypto.strong_rand_bytes(80)}
+      ...> %Ownership{secret: secret,  authorized_keys: authorized_keys}
+      ...> |> Ownership.validate_format()
+      {:error, :invalid_public_key}
+  """
+  @spec validate_format(ownership :: t()) ::
+          :ok
+          | {:error,
+             :empty_secret | :empty_authorized_keys | :invalid_public_key | :invalid_encrypted_key}
+  def validate_format(%__MODULE__{secret: ""}), do: {:error, :empty_secret}
+
+  def validate_format(%__MODULE__{authorized_keys: authorized_keys})
+      when map_size(authorized_keys) == 0,
+      do: {:error, :empty_authorized_keys}
+
+  def validate_format(%__MODULE__{authorized_keys: authorized_keys}) do
+    Enum.reduce_while(authorized_keys, :ok, fn {public_key, encrypted_key}, _acc ->
+      with :ok <- validate_public_key(public_key),
+           :ok <- validate_encrypted_key(public_key, encrypted_key) do
+        {:cont, :ok}
+      else
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp validate_public_key(public_key) do
+    if Crypto.valid_public_key?(public_key) do
+      :ok
+    else
+      {:error, :invalid_public_key}
+    end
+  end
+
+  defp validate_encrypted_key(<<0::8, _rest::binary>>, <<_encrypted_key::binary-80>>), do: :ok
+  defp validate_encrypted_key(_public_key, <<_encrypted_key::binary-113>>), do: :ok
+  defp validate_encrypted_key(_, _), do: {:error, :invalid_encrypted_key}
 end

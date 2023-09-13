@@ -1,7 +1,7 @@
 defmodule Archethic.TransactionChain.TransactionData.OwnershipTest do
   use ArchethicCase
+  import ArchethicCase
 
-  import ArchethicCase, only: [current_transaction_version: 0]
   use ExUnitProperties
 
   alias Archethic.Crypto
