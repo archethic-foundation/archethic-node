@@ -2,7 +2,7 @@
   "repository": {},
   "license": "MIT",
   "dependencies": {
-    "alpinejs": "^3.12.0",
+    "alpinejs": "^3.13.0",
     "chokidar": "^3.5.3",
     "diff2html": "^3.4.35",
     "echarts": "^5.4.2",
