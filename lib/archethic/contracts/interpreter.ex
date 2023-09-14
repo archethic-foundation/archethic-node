@@ -232,9 +232,8 @@ defmodule Archethic.Contracts.Interpreter do
     #
     # this code return this:
     # List.empty?(12)
-    args_str = Enum.map_join(args, ", ", &Macro.to_string/1)
 
-    do_format_error_reason(reason, "#{module_name}.#{function_name}(#{args_str})", metadata)
+    do_format_error_reason(reason, "#{module_name}.#{function_name}/#{length(args)}", metadata)
   end
 
   def format_error_reason(ast_node = {_, metadata, _}, reason) do
