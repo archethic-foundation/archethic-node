@@ -93,9 +93,17 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     match_pattern = [{{:"$1", :"$2"}, [{:==, :"$1", subset}], [:"$2"]}]
 
     Stream.resource(
-      fn -> :ets.select(@table_name, match_pattern, 1) end,
+      fn ->
+        # Fix the table to avoid "invalid continuation" error
+        # source: https://www.erlang.org/doc/man/ets#safe_fixtable-2
+        :ets.safe_fixtable(@table_name, true)
+        :ets.select(@table_name, match_pattern, 1)
+      end,
       &do_stream_current_slots/1,
-      fn _ -> :ok end
+      fn _ ->
+        :ets.safe_fixtable(@table_name, false)
+        :ok
+      end
     )
   end
 
