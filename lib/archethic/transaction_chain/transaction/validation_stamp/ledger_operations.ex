@@ -270,13 +270,40 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       {true, %LedgerOperations{
         transaction_movements: [%TransactionMovement{to: "@Bob3", amount: 100000000, type: :UCO}],
         unspent_outputs: [%UnspentOutput{amount: 500000000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]}],
-        consumed_inputs: [%UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}, %UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO}]
+        consumed_inputs: [%UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO}, %UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}]
       } }
+
+      iex> %LedgerOperations{
+      ...>   transaction_movements: [
+      ...>      %TransactionMovement{to: "@Bob3", amount: 50_000_000, type: :UCO},
+      ...>   ]
+      ...> }
+      ...> |> LedgerOperations.consume_inputs("@Alice2", [
+      ...>    %UnspentOutput{from: "@Charlie0", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
+      ...>    %UnspentOutput{from: "@Charlie1", amount: 500_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:02:00Z]},
+      ...>    %UnspentOutput{from: "@Charlie2", amount: 500_000_000, type: {:token, "@token", 0}, timestamp: ~U[2023-09-04 00:03:00Z]},
+      ...>    %UnspentOutput{from: "@Charlie3", amount: 1_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:04:00Z]},
+      ...>    %UnspentOutput{from: "@Charlie4", amount: 3_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:05:00Z]}
+      ...>], ~U[2023-09-04 00:10:00Z])
+      {true, %LedgerOperations{
+        transaction_movements: [%TransactionMovement{to: "@Bob3", amount: 50000000, type: :UCO}],
+        unspent_outputs: [
+          %UnspentOutput{amount: 550000000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]},
+          %UnspentOutput{amount: 4000000, from: "@Alice2", type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:04:00Z]},
+          %UnspentOutput{amount: 500000000, from: "@Charlie2", type: {:token, "@token", 0}, timestamp: ~U[2023-09-04 00:03:00Z]}
+        ],
+        consumed_inputs: [
+          %UnspentOutput{from: "@Charlie0", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
+          %UnspentOutput{from: "@Charlie1", amount: 500_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:02:00Z]},
+          %UnspentOutput{from: "@Charlie3", amount: 1_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:04:00Z]},
+          %UnspentOutput{from: "@Charlie4", amount: 3_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:05:00Z]}
+        ]
+      }}
   """
   @spec consume_inputs(
           ledger_operations :: t(),
           change_address :: binary(),
-          inputs :: list(UnspentOutput.t() | TransactionInput.t()),
+          inputs :: list(UnspentOutput.t()),
           timestamp :: DateTime.t()
         ) ::
           {sufficient_funds? :: boolean(), ledger_operations :: t()}
@@ -294,34 +321,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       %{uco: uco_balance, token: tokens_received} = ledger_balances(inputs)
       %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(ops)
 
-      %{uco: consumed_uco_utxos, token: consumed_token_utxos} =
-        get_inputs_to_consume(inputs, uco_to_spend, tokens_to_spend)
+      consumed_utxos = get_inputs_to_consume(inputs, uco_to_spend, tokens_to_spend)
 
       # TODO: To active on the part 2 of the AEIP-21
-      #
-      # # Contains the list of spent token but with remaining balance to be consolidated
-      # remaining_spend_tokens =
-      #   consumed_token_utxos
-      #   |> Enum.reduce(%{}, fn %UnspentOutput{
-      #                            type: {:token, token_address, token_id},
-      #                            amount: amount
-      #                          },
-      #                          acc ->
-      #     Map.update(acc, {token_address, token_id}, amount, &(&1 + amount))
-      #   end)
-      #   |> Enum.map(fn {{token_address, token_id}, amount} ->
-      #     amount_to_spend = Map.get(tokens_to_spend, {token_address, token_id})
-
-      #     %UnspentOutput{
-      #       from: change_address,
-      #       type: {:token, token_address, token_id},
-      #       amount: amount - trunc_token_amount(token_id, amount_to_spend),
-      #       timestamp: timestamp
-      #     }
-      #   end)
-
-      # unspent_tokens_to_mint = tokens_to_mint -- consumed_token_utxos
-      # unspent_tokens = remaining_spend_tokens ++ unspent_tokens_to_mint
+      # replace token received by tokens in consumed_inputs in function new_token_unspent_outputs
+      # to get only the new real unspent output
 
       unspent_tokens =
         new_token_unspent_outputs(
@@ -344,28 +348,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ]
         |> Enum.filter(&(&1.amount > 0))
 
-      # To remove after the unspent output will not be consolidated for all the assets in  the phase 2 of the AEIP-21
-      consolidated_utxos =
-        Enum.filter(inputs, fn
-          %UnspentOutput{type: {:token, token_address, token_id}, from: from} ->
-            Map.has_key?(tokens_received, {token_address, token_id}) and
-              !Enum.any?(consumed_token_utxos, &(&1.from == from))
-
-          %UnspentOutput{type: :UCO, from: from} ->
-            !Enum.any?(consumed_uco_utxos, &(&1.from == from))
-
-          _ ->
-            false
-        end)
-
       {true,
        ops
        |> Map.put(:unspent_outputs, new_unspent_outputs)
        |> Map.put(:tokens_to_mint, [])
-       |> Map.put(
-         :consumed_inputs,
-         consumed_uco_utxos ++ consumed_token_utxos ++ consolidated_utxos
-       )}
+       |> Map.put(:consumed_inputs, consumed_utxos)}
     else
       {false, ops}
     end
@@ -421,43 +408,29 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defp trunc_token_amount(_token_id, amount), do: trunc(amount / @unit_uco) * @unit_uco
 
   defp get_inputs_to_consume(inputs, uco_to_spend, tokens_to_spend) do
-    %{uco_utxo_spend: uco_utxos, token_utxo_spent: token_utxos} =
-      inputs
-      |> Enum.sort_by(& &1.amount)
-      |> Enum.reduce(
-        %{
-          uco_utxo_spend: [],
-          remaining_uco: uco_to_spend,
-          token_utxo_spent: [],
-          remaining_token: tokens_to_spend
-        },
-        fn
-          utxo = %UnspentOutput{type: :UCO, amount: amount}, acc
-          when acc.remaining_uco > 0 ->
-            acc
-            |> Map.update!(:remaining_uco, &(&1 - amount))
-            |> Map.update!(:uco_utxo_spend, &[utxo | &1])
+    include_uco? = uco_to_spend > 0
 
-          utxo = %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}, acc ->
-            case Map.get(acc.remaining_token, {token_address, token_id}) do
-              nil ->
-                acc
+    inputs
+    # Sanitize data format (UTXO or Input)
+    |> Enum.map(&UnspentOutput.cast/1)
+    # We group by type to count them and determine if we need to consume the inputs
+    |> Enum.group_by(& &1.type)
+    |> Enum.filter(fn
+      {:UCO, inputs} ->
+        include_uco? or consolidate_inputs?(inputs)
 
-              remaining_token when remaining_token > 0 ->
-                acc
-                |> Map.update!(:token_utxo_spent, &[utxo | &1])
-                |> update_in([:remaining_token, {token_address, token_id}], &(&1 - amount))
+      {{:token, token_address, token_id}, inputs} ->
+        token_used?(tokens_to_spend, token_address, token_id) or consolidate_inputs?(inputs)
+    end)
+    |> Enum.flat_map(fn {_type, inputs} -> inputs end)
+  end
 
-              _ ->
-                acc
-            end
+  # The consolidation happens when there are at least more than one UTXO of the same type
+  # This reduces the storage size on both genesis's inputs and further transactions
+  defp consolidate_inputs?(inputs), do: length(inputs) > 1
 
-          _, acc ->
-            acc
-        end
-      )
-
-    %{uco: uco_utxos, token: token_utxos}
+  defp token_used?(tokens_to_spend, token_address, token_id) do
+    Map.has_key?(tokens_to_spend, {token_address, token_id})
   end
 
   @doc """

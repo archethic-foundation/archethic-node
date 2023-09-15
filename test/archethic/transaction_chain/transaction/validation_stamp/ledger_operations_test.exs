@@ -358,10 +358,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ],
                consumed_inputs: [
-                 %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
                  %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
+                 %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
                  %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO},
-                 # To remove after the phase2 of AEIP 21
                  %UnspentOutput{from: "@Hugo", amount: 800_000_000, type: :UCO}
                ]
              } =
@@ -484,16 +483,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                consumed_inputs: [
                  %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
                  %UnspentOutput{
-                   from: "@Hugo5",
-                   amount: 700_000_000,
-                   type: {:token, "@CharlieToken", 0}
-                 },
-                 %UnspentOutput{
                    from: "@Bob3",
                    amount: 500_000_000,
                    type: {:token, "@CharlieToken", 0}
                  },
-                 # Necessary for the consolidation of tokens before AEIP 21 Phase 2
+                 %UnspentOutput{
+                   from: "@Hugo5",
+                   amount: 700_000_000,
+                   type: {:token, "@CharlieToken", 0}
+                 },
                  %UnspentOutput{
                    amount: 700_000_000,
                    from: "@Tom1",
