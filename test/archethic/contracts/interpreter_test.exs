@@ -85,7 +85,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn is called with bad arg" do
-      assert {:error, "invalid function arguments - List.empty?(12) - L4"} =
+      assert {:error, "invalid function arguments - List.empty?/1 - L4"} =
                """
                @version 1
                condition triggered_by: transaction, as: []
@@ -197,7 +197,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
     test "should return an human readable error if lib fn is called with bad arity" do
       assert {:error,
-              "Function List.empty? does not exists with 2 arguments - List.empty?([1], \"foobar\") - L4"} =
+              "Function List.empty? does not exists with 2 arguments - List.empty?/2 - L4"} =
                """
                @version 1
                condition triggered_by: transaction, as: []
@@ -209,8 +209,7 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
 
     test "should return an human readable error if lib fn does not exists" do
-      assert {:error,
-              "Function List.non_existing does not exists - List.non_existing([1, 2, 3]) - L4"} =
+      assert {:error, "Function List.non_existing does not exists - List.non_existing/1 - L4"} =
                """
                @version 1
                condition triggered_by: transaction, as: []

@@ -42,6 +42,9 @@ defmodule ArchethicCache.LRU do
         get_fn = :persistent_term.get(cache_name)
         get_fn.(key, value)
     end
+  rescue
+    _ ->
+      nil
   end
 
   @doc """

@@ -4,7 +4,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   """
 
   defp init(global_variables) do
-    global_variables = Map.put(global_variables, "context_list", [])
+    global_variables = Map.put(global_variables, :context_list, [])
 
     Process.put(
       :scope,
@@ -26,7 +26,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     new_scope =
       Process.get(:scope)
       |> put_in([current_context] ++ current_scope_hierarchy ++ [ref], %{})
-      |> update_in([current_context, "scope_hierarchy"], &(&1 ++ [ref]))
+      |> update_in([current_context, :scope_hierarchy], &(&1 ++ [ref]))
 
     Process.put(
       :scope,
@@ -44,14 +44,14 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     context_ref = new_ref()
 
     new_context = %{
-      "scope_hierarchy" => []
+      scope_hierarchy: []
     }
 
     # add context to scope and update context list
     new_scope =
       Process.get(:scope)
       |> Map.put(context_ref, new_context)
-      |> Map.update!("context_list", &[context_ref | &1])
+      |> Map.update!(:context_list, &[context_ref | &1])
 
     Process.put(:scope, new_scope)
 
@@ -68,7 +68,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
 
     new_scope =
       Process.get(:scope)
-      |> update_in([current_context, "scope_hierarchy"], &List.delete_at(&1, -1))
+      |> update_in([current_context, :scope_hierarchy], &List.delete_at(&1, -1))
       |> pop_in([current_context] ++ current_scope_hierarchy)
       |> elem(1)
 
@@ -87,7 +87,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
     new_scope =
       Process.get(:scope)
       |> Map.delete(current_context)
-      |> Map.update!("context_list", fn [_first | rest] -> rest end)
+      |> Map.update!(:context_list, fn [_first | rest] -> rest end)
 
     Process.put(:scope, new_scope)
 
@@ -97,14 +97,10 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   @doc """
   Execute ast after creating specific context for it and return execution's result
   """
-  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
+  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_values :: list()) ::
           result :: any()
-  def execute(ast, constants, args_names \\ [], args_ast \\ []) do
+  def execute(ast, constants, args_names \\ [], args_values \\ []) do
     init(constants)
-
-    evaluated_ast =
-      args_ast
-      |> Enum.map(&(Code.eval_quoted(&1) |> elem(0)))
 
     create_context()
 
@@ -112,7 +108,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
       create()
 
       args_names
-      |> Enum.zip(evaluated_ast)
+      |> Enum.zip(args_values)
       |> Enum.each(fn {arg_name, arg_value} ->
         write_at(arg_name, arg_value)
       end)
@@ -222,12 +218,12 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   end
 
   defp get_current_context() do
-    get_in(Process.get(:scope), ["context_list"])
+    get_in(Process.get(:scope), [:context_list])
     |> List.first()
   end
 
   defp get_context_scope_hierarchy(context) do
-    get_in(Process.get(:scope), [context, "scope_hierarchy"])
+    get_in(Process.get(:scope), [context, :scope_hierarchy])
   end
 
   defp new_ref() do
@@ -242,19 +238,16 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   Execute a function AST
   """
   @spec execute_function_ast(String.t(), list(any())) :: any()
-  def execute_function_ast(function_name, args) do
-    # evaluate args before entering new scope context
-    evaluated_args = Enum.map(args, &(Code.eval_quoted(&1) |> elem(0)))
-
-    %{ast: ast, args: args_names} = get_function(function_name, args)
+  def execute_function_ast(function_name, args_values) do
+    %{ast: ast, args: args_names} = get_function(function_name, args_values)
 
     create_context()
     create()
 
     args_names
-    |> Enum.zip(evaluated_args)
-    |> Enum.each(fn {arg_name, evaluated_arg} ->
-      write_at(arg_name, evaluated_arg)
+    |> Enum.zip(args_values)
+    |> Enum.each(fn {arg_name, arg_value} ->
+      write_at(arg_name, arg_value)
     end)
 
     result =

@@ -79,9 +79,9 @@ defmodule Archethic.Contracts do
   def execute_function(
         contract = %Contract{transaction: contract_tx, version: contract_version},
         function_name,
-        args
+        args_values
       ) do
-    case get_function_from_contract(contract, function_name, args) do
+    case get_function_from_contract(contract, function_name, args_values) do
       {:ok, function} ->
         constants = %{
           "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
@@ -90,20 +90,25 @@ defmodule Archethic.Contracts do
 
         task =
           Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-            Interpreter.execute_function(function, constants, args)
+            try do
+              Interpreter.execute_function(function, constants, args_values)
+            rescue
+              _ ->
+                # error from the code (ex: 1 + "abc")
+                {:error, :function_failure}
+            end
           end)
 
         # 500ms to execute or raise
         case Task.yield(task, 500) || Task.shutdown(task) do
+          {:ok, {:error, reason}} ->
+            {:error, reason}
+
           {:ok, reply} ->
             {:ok, reply}
 
           nil ->
             {:error, :timeout}
-
-          {:exit, _reason} ->
-            # error from the code (ex: 1 + "abc")
-            {:error, :function_failure}
         end
 
       error ->
@@ -111,8 +116,8 @@ defmodule Archethic.Contracts do
     end
   end
 
-  defp get_function_from_contract(%{functions: functions}, function_name, args) do
-    case Map.get(functions, {function_name, length(args)}) do
+  defp get_function_from_contract(%{functions: functions}, function_name, args_values) do
+    case Map.get(functions, {function_name, length(args_values)}) do
       nil ->
         {:error, :function_does_not_exist}
 

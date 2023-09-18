@@ -190,8 +190,8 @@ defmodule Archethic.Contracts.Interpreter do
   Execute the given public function with the givent constants and arguments
   """
   @spec execute_function(any(), map(), list()) :: result :: any()
-  def execute_function(%{ast: ast, args: args_names}, constants, args) do
-    FunctionInterpreter.execute(ast, constants, args_names, args)
+  def execute_function(%{ast: ast, args: args_names}, constants, args_values) do
+    FunctionInterpreter.execute(ast, constants, args_names, args_values)
   end
 
   @doc """
@@ -227,9 +227,8 @@ defmodule Archethic.Contracts.Interpreter do
     #
     # this code return this:
     # List.empty?(12)
-    args_str = Enum.map_join(args, ", ", &Macro.to_string/1)
 
-    do_format_error_reason(reason, "#{module_name}.#{function_name}(#{args_str})", metadata)
+    do_format_error_reason(reason, "#{module_name}.#{function_name}/#{length(args)}", metadata)
   end
 
   def format_error_reason(ast_node = {_, metadata, _}, reason) do

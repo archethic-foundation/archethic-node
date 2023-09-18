@@ -13,7 +13,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
   Parse the given node and return the function name it's args as strings and the AST block.
   """
   @spec parse(ast :: any(), function_keys :: FunctionKeys.t()) ::
-          {:ok, function_name :: binary(), args :: list(), function_ast :: any()}
+          {:ok, function_name :: binary(), args_names :: list(), function_ast :: any()}
           | {:error, node :: any(), reason :: binary()}
   def parse({{:atom, "fun"}, _, [{{:atom, function_name}, _, args}, [do: block]]}, functions_keys) do
     ast = parse_block(AST.wrap_in_block(block), functions_keys, false)
@@ -53,10 +53,10 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
 
   Raise on SC's errors and timeout
   """
-  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_ast :: list()) ::
+  @spec execute(ast :: any(), constants :: map(), args_names :: list(), args_values :: list()) ::
           result :: any()
-  def execute(ast, constants, args_names \\ [], args_ast \\ []) do
-    Scope.execute(ast, constants, args_names, args_ast)
+  def execute(ast, constants, args_names \\ [], args_values \\ []) do
+    Scope.execute(ast, constants, args_names, args_values)
   end
 
   # ----------------------------------------------------------------------
