@@ -296,7 +296,7 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
 
       function_constant = %{:functions => %{{"hello", 0} => %{args: [], ast: ast_hello}}}
 
-      assert 4.0 = FunctionInterpreter.execute(ast_test, function_constant)
+      assert 4 = FunctionInterpreter.execute(ast_test, function_constant)
     end
 
     test "should be able to execute function with arg" do

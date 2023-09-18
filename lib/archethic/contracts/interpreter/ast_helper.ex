@@ -185,6 +185,23 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
 
   @doc """
   Delegate the arithmetic to the Decimal library
+
+  ## Example
+
+    iex> ASTHelper.decimal_arithmetic(:+, 1, 2)
+    3
+
+    iex> ASTHelper.decimal_arithmetic(:+, 1.0, 2)
+    3.0
+
+    iex> ASTHelper.decimal_arithmetic(:+, 1, 2.2)
+    3.2
+
+    iex> ASTHelper.decimal_arithmetic(:/, 1, 2)
+    0.5
+
+    iex> ASTHelper.decimal_arithmetic(:*, 3, 4)
+    12
   """
   @spec decimal_arithmetic(Macro.t(), number(), number()) :: float()
   def decimal_arithmetic(ast, lhs, rhs) do
@@ -196,13 +213,26 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
         :- -> &Decimal.sub/2
       end
 
-    # the `0.0 + x` is used to cast integers to floats
-    Decimal.to_float(
-      Decimal.round(
-        operation.(Decimal.from_float(0.0 + lhs), Decimal.from_float(0.0 + rhs)),
-        8,
-        :floor
-      )
-    )
+    # If both operand are integer we return an integer if possible
+    # otherwise a float is returned
+
+    if is_integer(lhs) and is_integer(rhs) do
+      lhs = Decimal.new(lhs)
+      rhs = Decimal.new(rhs)
+
+      res = operation.(lhs, rhs) |> decimal_round()
+      if Decimal.integer?(res), do: Decimal.to_integer(res), else: Decimal.to_float(res)
+    else
+      # the `0.0 + x` is used to cast integers to floats
+      lhs = Decimal.from_float(0.0 + lhs)
+      rhs = Decimal.from_float(0.0 + rhs)
+
+      operation.(lhs, rhs) |> decimal_round() |> Decimal.to_float()
+    end
+  end
+
+  defp decimal_round(dec_num) do
+    # Round only if number is not integer, otherwise there is some inconsisties with 0 or -0
+    if Decimal.integer?(dec_num), do: dec_num, else: Decimal.round(dec_num, 8, :floor)
   end
 end
