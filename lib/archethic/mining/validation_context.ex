@@ -1437,6 +1437,7 @@ defmodule Archethic.Mining.ValidationContext do
           [%Recipient{r | address: resolved} | acc]
       end
     end)
+    |> Enum.reverse()
   end
 
   defp get_resolved_address_for_address(resolved_addresses, address) do
