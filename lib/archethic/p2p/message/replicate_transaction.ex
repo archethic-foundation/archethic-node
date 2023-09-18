@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
 
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
+  alias Archethic.DB
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.P2P.Message.ReplicationError
@@ -55,10 +56,13 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
           |> Election.io_storage_nodes(authorized_nodes)
 
         chain_genesis_storage_nodes =
-          tx
-          |> Transaction.previous_address()
-          |> TransactionChain.get_genesis_address()
-          |> Election.chain_storage_nodes(authorized_nodes)
+          case tx |> Transaction.previous_address() |> DB.find_genesis_address() do
+            {:ok, genesis_address} ->
+              Election.chain_storage_nodes(genesis_address, authorized_nodes)
+
+            _ ->
+              []
+          end
 
         node_public_key = Crypto.first_node_public_key()
 
@@ -70,8 +74,14 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         io_genesis_node? =
           transaction_movements
           |> Enum.flat_map(fn %TransactionMovement{to: to} ->
-            genesis_address = TransactionChain.get_genesis_address(to)
-            Election.chain_storage_nodes(genesis_address, authorized_nodes)
+            case DB.find_genesis_address(to) do
+              {:ok, genesis_address} ->
+                Election.chain_storage_nodes(genesis_address, authorized_nodes)
+
+              _ ->
+                # Support when the resolved address is the genesis address
+                Election.chain_storage_nodes(to, authorized_nodes)
+            end
           end)
           |> P2P.distinct_nodes()
           |> Utils.key_in_node_list?(node_public_key)

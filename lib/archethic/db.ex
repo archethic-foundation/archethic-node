@@ -100,4 +100,6 @@ defmodule Archethic.DB do
               list(VersionedTransactionInput.t())
 
   @callback list_first_addresses() :: Enumerable.t() | list(Crypto.prepended_hash())
+
+  @callback find_genesis_address(binary()) :: {:ok, binary()} | {:error, :not_found}
 end

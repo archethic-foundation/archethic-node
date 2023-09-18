@@ -10,6 +10,7 @@ defmodule Archethic.Account do
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
