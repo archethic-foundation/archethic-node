@@ -127,9 +127,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       }
 
       MockDB
-      |> stub(:get_genesis_address, fn
-        "@Bob3" -> "@Bob0"
-        _ -> "@Alice0"
+      |> stub(:find_genesis_address, fn
+        "@Bob3" -> {:ok, "@Bob0"}
+        _ -> {:ok, "@Alice0"}
       end)
 
       with_mock(Election,
@@ -175,9 +175,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       }
 
       MockDB
-      |> stub(:get_genesis_address, fn
-        "@Bob3" -> "@Bob0"
-        _ -> "@Alice0"
+      |> stub(:find_genesis_address, fn
+        "@Bob3" -> {:ok, "@Bob0"}
+        _ -> {:ok, "@Alice0"}
       end)
       |> stub(:chain_size, fn
         "@Alice0" -> 1
@@ -232,9 +232,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       }
 
       MockDB
-      |> stub(:get_genesis_address, fn
-        "@Bob3" -> "@Bob0"
-        _ -> "@Alice0"
+      |> stub(:find_genesis_address, fn
+        "@Bob3" -> {:ok, "@Bob0"}
+        _ -> {:ok, "@Alice0"}
       end)
       |> stub(:chain_size, fn
         "@Alice0" -> 1

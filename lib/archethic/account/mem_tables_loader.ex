@@ -11,6 +11,8 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.Crypto
 
+  alias Archethic.DB
+
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -94,8 +96,7 @@ defmodule Archethic.Account.MemTablesLoader do
             protocol_version: protocol_version,
             ledger_operations: %LedgerOperations{
               unspent_outputs: unspent_outputs,
-              transaction_movements: transaction_movements,
-              consumed_inputs: consumed_inputs
+              transaction_movements: transaction_movements
             }
           }
         },
@@ -113,28 +114,12 @@ defmodule Archethic.Account.MemTablesLoader do
       StateLedger.spend_all_unspent_outputs(previous_address)
     end
 
-    Enum.each(transaction_movements, fn mvt = %TransactionMovement{to: to} ->
-      genesis_address = TransactionChain.get_genesis_address(to)
+    Enum.each(
+      transaction_movements,
+      &ingest_genesis_inputs(&1, address, timestamp, authorized_nodes)
+    )
 
-      # We need to determine whether the node is responsible of the transaction movements destination genesis pool
-      if genesis_node?(genesis_address, authorized_nodes) do
-        GenesisInputLedger.add_chain_input(mvt, address, timestamp, genesis_address)
-      end
-    end)
-
-    genesis_address =
-      tx
-      |> Transaction.previous_address()
-      |> TransactionChain.get_genesis_address()
-
-    # We need to determine whether the node is responsible of the chain genesis pool as the transaction have been received as an I/O transaction.
-    chain_transaction? =
-      (not io_transaction? or TransactionChain.get_size(genesis_address) > 0) and
-        genesis_node?(genesis_address, authorized_nodes)
-
-    if chain_transaction? and length(consumed_inputs) > 0 do
-      GenesisInputLedger.update_chain_inputs(tx, genesis_address)
-    end
+    consume_genesis_inputs(tx, authorized_nodes, io_transaction?)
 
     :ok =
       set_transaction_movements(
@@ -151,6 +136,64 @@ defmodule Archethic.Account.MemTablesLoader do
       transaction_address: Base.encode16(address),
       transaction_type: tx_type
     )
+  end
+
+  defp ingest_genesis_inputs(
+         mvt = %TransactionMovement{to: to},
+         tx_address,
+         tx_timestamp,
+         authorized_nodes
+       ) do
+    # We need to determine whether the node is responsible of the transaction movements destination genesis pool
+    case DB.find_genesis_address(to) do
+      {:ok, genesis_address} ->
+        if genesis_node?(genesis_address, authorized_nodes) do
+          GenesisInputLedger.add_chain_input(mvt, tx_address, tx_timestamp, genesis_address)
+        end
+
+      _ ->
+        # Support when the resolved address is the genesis address
+        if genesis_node?(to, authorized_nodes) do
+          GenesisInputLedger.add_chain_input(mvt, tx_address, tx_timestamp, to)
+        end
+    end
+  end
+
+  def consume_genesis_inputs(
+        tx = %Transaction{
+          address: address,
+          validation_stamp: %ValidationStamp{
+            ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
+          }
+        },
+        authorized_nodes,
+        io_transaction?
+      ) do
+    genesis_lookup =
+      case DB.find_genesis_address(address) do
+        {:ok, genesis_address} ->
+          # This happens when the last transaction is ingested in the system (i.e last's tx chain)
+          {:ok, genesis_address}
+
+        {:error, :not_found} ->
+          # This might happens when the transaction haven't been yet synchronized but the previous transaction is already in the system (i.e genesis's chain)
+          DB.find_genesis_address(Transaction.previous_address(tx))
+      end
+
+    case genesis_lookup do
+      {:ok, genesis_address} ->
+        # We need to determine whether the node is responsible of the chain genesis pool as the transaction have been received as an I/O transaction.
+        chain_transaction? =
+          (not io_transaction? or TransactionChain.get_size(genesis_address) > 0) and
+            genesis_node?(genesis_address, authorized_nodes)
+
+        if chain_transaction? and length(consumed_inputs) > 0 do
+          GenesisInputLedger.update_chain_inputs(tx, genesis_address)
+        end
+
+      _ ->
+        :ignore
+    end
   end
 
   defp genesis_node?(genesis_address, nodes) do
