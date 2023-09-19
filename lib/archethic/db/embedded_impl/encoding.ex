@@ -47,7 +47,8 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
           ledger_operations: %LedgerOperations{
             fee: fee,
             transaction_movements: transaction_movements,
-            unspent_outputs: unspent_outputs
+            unspent_outputs: unspent_outputs,
+            consumed_inputs: consumed_inputs
           },
           recipients: resolved_recipients,
           signature: validation_stamp_sig,
@@ -75,6 +76,11 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
       |> :erlang.list_to_bitstring()
 
+    consumed_inputs_encoding =
+      consumed_inputs
+      |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
+      |> :erlang.list_to_binary()
+
     cross_validation_stamps_encoding =
       cross_validation_stamps
       |> Enum.map(&CrossValidationStamp.serialize/1)
@@ -90,6 +96,11 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
     encoded_unspent_outputs_len =
       unspent_outputs
+      |> length()
+      |> VarInt.from_value()
+
+    encoded_consumed_inputs_len =
+      consumed_inputs
       |> length()
       |> VarInt.from_value()
 
@@ -119,6 +130,8 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
          <<encoded_transaction_movements_len::binary, transaction_movements_encoding::binary>>},
         {"validation_stamp.ledger_operations.unspent_outputs",
          <<encoded_unspent_outputs_len::binary, unspent_outputs_encoding::bitstring>>},
+        {"validation_stamp.ledger_operations.consumed_inputs",
+         <<encoded_consumed_inputs_len::binary, consumed_inputs_encoding::binary>>},
         {"validation_stamp.ledger_operations.fee", <<fee::64>>},
         {"validation_stamp.recipients",
          <<encoded_resolved_recipients_len::binary,
@@ -235,6 +248,22 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     put_in(
       acc,
       [Access.key(:validation_stamp, %{}), Access.key(:ledger_operations, %{}), :unspent_outputs],
+      utxos
+    )
+  end
+
+  def decode(
+        protocol_version,
+        "validation_stamp.ledger_operations.consumed_inputs",
+        <<rest::binary>>,
+        acc
+      ) do
+    {nb, rest} = VarInt.get_value(rest)
+    utxos = deserialize_unspent_outputs(rest, nb, [], protocol_version)
+
+    put_in(
+      acc,
+      [Access.key(:validation_stamp, %{}), Access.key(:ledger_operations, %{}), :consumed_inputs],
       utxos
     )
   end
