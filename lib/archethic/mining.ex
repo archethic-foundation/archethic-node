@@ -29,8 +29,9 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  # protocol version 5->6 the POI changed and is now done with tx.data.recipients.args serialized with :extended mode
-  @protocol_version 6
+  # version 5->6 the POI changed and is now done with tx.data.recipients.args serialized with :extended mode
+  # version 6->7 add Add consumed inputs in tx.validation_stamp.ledger_operations
+  @protocol_version 7
 
   @lock_threshold 0.75
 
