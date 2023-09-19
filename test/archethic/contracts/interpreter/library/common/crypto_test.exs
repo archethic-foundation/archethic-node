@@ -59,7 +59,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
       code = ~S"""
       @version 1
 
-      condition transaction: []
+      condition triggered_by: transaction, as: []
 
       actions triggered_by: transaction do
         hash = Crypto.hash(transaction.content, "sha256")
@@ -92,6 +92,64 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
     test "should raise an error if hash is not valid" do
       hash = "invalid"
       assert_raise Library.Error, fn -> Crypto.sign_with_recovery(hash) end
+    end
+  end
+
+  describe "hmac/3" do
+    test "should create hmac with default key" do
+      code = ~S"""
+      @version 1
+
+      condition triggered_by: transaction, as: []
+
+      actions triggered_by: transaction do
+        Contract.set_content Crypto.hmac(transaction.content)
+      end
+      """
+
+      contract = ContractFactory.create_valid_contract_tx(code) |> Contract.from_transaction!()
+
+      trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be hmacked !")
+
+      assert {:ok, %Transaction{data: %TransactionData{content: content}}} =
+               Interpreter.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil)
+
+      assert "E82E28E72D4C0436AB7443969B82B0F5E9F6B796BC354E42A1B22E70D9EE5BBA" == content
+    end
+
+    test "should create hmac with specified algo" do
+      code = ~S"""
+      @version 1
+
+      condition triggered_by: transaction, as: []
+
+      actions triggered_by: transaction do
+        Contract.set_content Crypto.hmac(transaction.content, "sha512")
+      end
+      """
+
+      contract = ContractFactory.create_valid_contract_tx(code) |> Contract.from_transaction!()
+
+      trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be hmacked !")
+
+      assert {:ok, %Transaction{data: %TransactionData{content: content}}} =
+               Interpreter.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil)
+
+      assert "3A2EF5397A8F062432EE759457169D2E0950A8A5C03FCB320CF0C2C4141159CA13CC2F6E696B07F0176A0069E51E4C35BF55C4665E31241F495F596DA7968172" ==
+               content
+    end
+
+    test "should create hmac with specified key" do
+      assert "50116EBE56205D9CC19043FF705A4341A68125FE4B5DA32F09195929B5A5EEA1" ==
+               Crypto.hmac("I'll be hmacked !", "sha256", "key")
+    end
+
+    test "should raise an error if contract seed is not set" do
+      assert_raise Library.Error, fn -> Crypto.hmac("data") end
+    end
+
+    test "should raise an error if algo is invalid" do
+      assert_raise Library.Error, fn -> Crypto.hmac("data", "invalid", "key") end
     end
   end
 end
