@@ -14,6 +14,7 @@ defmodule Archethic.Utils.Regression.Api do
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
@@ -31,7 +32,7 @@ defmodule Archethic.Utils.Regression.Api do
                              )
                              |> Enum.at(0)
 
-  @faucet_seed Application.compile_env(:archethic, [ArchethicWeb.FaucetController, :seed])
+  @faucet_seed Application.compile_env(:archethic, [ArchethicWeb.Explorer.FaucetController, :seed])
 
   defstruct [
     :host,
@@ -559,7 +560,10 @@ defmodule Archethic.Utils.Regression.Api do
         },
         "code" => code,
         "content" => Base.encode16(content),
-        "recipients" => Enum.map(recipients, &Base.encode16(&1)),
+        "recipients" =>
+          Enum.map(recipients, fn %Recipient{address: address, action: action, args: args} ->
+            %{"address" => Base.encode16(address), "action" => action, "arg" => args}
+          end),
         "ownerships" =>
           Enum.map(ownerships, fn %Ownership{
                                     secret: secret,

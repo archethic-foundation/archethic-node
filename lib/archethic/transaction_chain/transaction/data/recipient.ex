@@ -14,8 +14,8 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
 
   @type t :: %__MODULE__{
           address: Crypto.prepended_hash(),
-          action: String.t(),
-          args: list(any())
+          action: String.t() | nil,
+          args: list(any()) | nil
         }
 
   @doc """

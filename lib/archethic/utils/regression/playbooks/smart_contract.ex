@@ -10,13 +10,13 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.Utils.Regression.Api
   alias Archethic.Utils.WebSocket.Client, as: WSClient
 
   alias __MODULE__.Counter
   alias __MODULE__.Legacy
-  alias __MODULE__.Faucet
   alias __MODULE__.UcoAth
 
   require Logger
@@ -42,8 +42,6 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
     Counter.play(storage_nonce_pubkey, endpoint)
     Logger.info("============== CONTRACT: LEGACY ==============")
     Legacy.play(storage_nonce_pubkey, endpoint)
-    Logger.info("============== CONTRACT: FAUCET ==============")
-    Faucet.play(storage_nonce_pubkey, endpoint)
     Logger.info("============== CONTRACT: UCO ATH ==============")
     UcoAth.play(storage_nonce_pubkey, endpoint)
   end
@@ -103,7 +101,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract do
         :transfer,
         %TransactionData{
           content: Keyword.get(opts, :content, ""),
-          recipients: [contract_address]
+          recipients: [%Recipient{address: contract_address}]
         },
         endpoint
       )
