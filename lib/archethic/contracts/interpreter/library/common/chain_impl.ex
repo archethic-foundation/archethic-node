@@ -13,6 +13,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
+  alias Archethic.Utils
+
   @behaviour Chain
   use Tag
 
@@ -80,6 +82,28 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
         raise Library.Error,
           message:
             "Invalid previous public key in Chain.get_previous_address(), got #{inspect(previous_public_key)}"
+    end
+  end
+
+  @impl Chain
+  @tag [:io]
+  def get_balance(address_hex) do
+    with {:ok, address} <- Base.decode16(address_hex),
+         true <- Crypto.valid_address?(address),
+         {:ok, last_address} <- Archethic.get_last_transaction_address(address),
+         {:ok, %{uco: uco_amount, token: tokens}} <- Archethic.get_balance(last_address) do
+      tokens =
+        Enum.reduce(tokens, %{}, fn {{token_address, token_id}, amount}, acc ->
+          key = %{"token_address" => Base.encode16(token_address), "token_id" => token_id}
+          Map.put(acc, key, Utils.from_bigint(amount))
+        end)
+
+      %{"uco" => Utils.from_bigint(uco_amount), "tokens" => tokens}
+    else
+      _ ->
+        # Can only catch _ otherwise dialyzer is not happy
+        raise Library.Error,
+          message: "Invalid address in Chain.get_balance(), got #{inspect(address_hex)}"
     end
   end
 end
