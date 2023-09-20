@@ -14,13 +14,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.FirstTransactionAddress
+  alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.Message.GetFirstPublicKey
   alias Archethic.P2P.Message.GetFirstTransactionAddress
+  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Node
 
@@ -28,6 +32,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.TransactionFactory
+
+  alias Archethic.Utils
 
   import Mox
 
@@ -245,6 +251,61 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       assert_raise(Library.Error, fn ->
         :crypto.strong_rand_bytes(32) |> Base.encode16() |> Chain.get_previous_address()
+      end)
+    end
+  end
+
+  describe "get_balance/1" do
+    test "should return the balance of the last address of the target chain" do
+      address = random_address()
+      last_address = random_address()
+
+      fungible_token_address = random_address()
+      fungible_token_address_hex = Base.encode16(fungible_token_address)
+      non_fungible_token_address = random_address()
+      non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
+
+      balance = %Balance{
+        uco: Utils.to_bigint(14.35),
+        token: %{
+          {fungible_token_address, 0} => Utils.to_bigint(134.489),
+          {non_fungible_token_address, 2} => Utils.to_bigint(1),
+          {non_fungible_token_address, 6} => Utils.to_bigint(1)
+        }
+      }
+
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->
+        {:ok, %LastTransactionAddress{address: last_address}}
+      end)
+      |> expect(:send_message, fn _, %GetBalance{address: ^last_address}, _ -> {:ok, balance} end)
+
+      assert %{
+               "uco" => 14.35,
+               "tokens" => %{
+                 %{"token_address" => fungible_token_address_hex, "token_id" => 0} => 134.489,
+                 %{"token_address" => non_fungible_token_address_hex, "token_id" => 2} => 1,
+                 %{"token_address" => non_fungible_token_address_hex, "token_id" => 6} => 1
+               }
+             } == address |> Base.encode16() |> Chain.get_balance()
+    end
+
+    test "should raise an error if address is invalid" do
+      assert_raise(Library.Error, fn -> Chain.get_balance("invalid") end)
+
+      assert_raise(Library.Error, fn ->
+        :crypto.strong_rand_bytes(32) |> Base.encode16() |> Chain.get_balance()
+      end)
+    end
+
+    test "should raise an error on network issue" do
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
+        {:error, :network_issue}
+      end)
+
+      assert_raise(Library.Error, fn ->
+        random_address() |> Base.encode16() |> Chain.get_balance()
       end)
     end
   end
