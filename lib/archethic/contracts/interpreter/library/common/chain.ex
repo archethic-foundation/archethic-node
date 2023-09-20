@@ -14,6 +14,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   @callback get_genesis_public_key(binary()) :: Crypto.key() | nil
   @callback get_transaction(binary()) :: map()
   @callback get_burn_address() :: Crypto.prepended_hash()
+  @callback get_previous_address(Crypto.key() | map()) :: Crypto.prepended_hash()
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:get_genesis_address, [first]) do
@@ -33,6 +34,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   end
 
   def check_types(:get_burn_address, []), do: true
+
+  def check_types(:get_previous_address, [first]) do
+    AST.is_map?(first) || AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  end
 
   def check_types(_, _), do: false
 end

@@ -7,6 +7,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   use ArchethicCase
   import ArchethicCase
 
+  alias Archethic.Contracts.ContractConstants
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Chain
 
   alias Archethic.Crypto
@@ -211,6 +213,39 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   describe "get_burn_address/0" do
     test "should return burn address" do
       assert <<0::16, 0::256>> |> Base.encode16() == Chain.get_burn_address()
+    end
+  end
+
+  describe "get_previous_address/1" do
+    test "should return previous address from a previous public key" do
+      seed = :crypto.strong_rand_bytes(32)
+      {pub, _priv} = Crypto.derive_keypair(seed, 0)
+
+      assert pub |> Crypto.derive_address() |> Base.encode16() ==
+               pub |> Base.encode16() |> Chain.get_previous_address()
+    end
+
+    test "should return previous address from a transaction constant" do
+      seed = :crypto.strong_rand_bytes(32)
+      previous_address = Crypto.derive_keypair(seed, 0) |> elem(0) |> Crypto.derive_address()
+
+      transaction_constant =
+        TransactionFactory.create_non_valided_transaction(seed: seed, index: 0)
+        |> ContractConstants.from_transaction()
+
+      assert Base.encode16(previous_address) == Chain.get_previous_address(transaction_constant)
+    end
+
+    test "should raise an error if arg is not string or map" do
+      assert_raise(Library.Error, fn -> Chain.get_previous_address(12) end)
+    end
+
+    test "should raise an error if public key is invalid" do
+      assert_raise(Library.Error, fn -> Chain.get_previous_address("invalid") end)
+
+      assert_raise(Library.Error, fn ->
+        :crypto.strong_rand_bytes(32) |> Base.encode16() |> Chain.get_previous_address()
+      end)
     end
   end
 end
