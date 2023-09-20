@@ -111,6 +111,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
     Utils.from_bigint(uco_amount)
   end
 
+  @impl Chain
+  @tag [:io]
+  def get_token_balance(address_hex, token_address_hex, token_id \\ 0)
+
+  def get_token_balance(address_hex, token_address_hex, token_id) do
+    function = "Chain.get_token_balance"
+    token_address = get_binary_address(token_address_hex, function)
+    %{token: tokens} = address_hex |> get_binary_address(function) |> fetch_balance(function)
+
+    tokens |> Map.get({token_address, token_id}, 0) |> Utils.from_bigint()
+  end
+
   defp get_binary_address(address_hex, function) do
     with {:ok, address} <- Base.decode16(address_hex),
          true <- Crypto.valid_address?(address) do
