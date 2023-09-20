@@ -309,4 +309,21 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       end)
     end
   end
+
+  describe "get_uco_balance/1" do
+    test "should return uco balance" do
+      address = random_address()
+      last_address = random_address()
+
+      balance = %Balance{uco: Utils.to_bigint(14.35), token: %{}}
+
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->
+        {:ok, %LastTransactionAddress{address: last_address}}
+      end)
+      |> expect(:send_message, fn _, %GetBalance{address: ^last_address}, _ -> {:ok, balance} end)
+
+      assert 14.35 == address |> Base.encode16() |> Chain.get_uco_balance()
+    end
+  end
 end

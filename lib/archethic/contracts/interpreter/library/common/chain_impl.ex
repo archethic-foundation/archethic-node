@@ -88,22 +88,47 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
   @impl Chain
   @tag [:io]
   def get_balance(address_hex) do
-    with {:ok, address} <- Base.decode16(address_hex),
-         true <- Crypto.valid_address?(address),
-         {:ok, last_address} <- Archethic.get_last_transaction_address(address),
-         {:ok, %{uco: uco_amount, token: tokens}} <- Archethic.get_balance(last_address) do
-      tokens =
-        Enum.reduce(tokens, %{}, fn {{token_address, token_id}, amount}, acc ->
-          key = %{"token_address" => Base.encode16(token_address), "token_id" => token_id}
-          Map.put(acc, key, Utils.from_bigint(amount))
-        end)
+    function = "Chain.get_balance"
 
-      %{"uco" => Utils.from_bigint(uco_amount), "tokens" => tokens}
+    %{uco: uco_amount, token: tokens} =
+      address_hex |> get_binary_address(function) |> fetch_balance(function)
+
+    tokens =
+      Enum.reduce(tokens, %{}, fn {{token_address, token_id}, amount}, acc ->
+        key = %{"token_address" => Base.encode16(token_address), "token_id" => token_id}
+        Map.put(acc, key, Utils.from_bigint(amount))
+      end)
+
+    %{"uco" => Utils.from_bigint(uco_amount), "tokens" => tokens}
+  end
+
+  @impl Chain
+  @tag [:io]
+  def get_uco_balance(address_hex) do
+    function = "Chain.get_balance"
+    %{uco: uco_amount} = address_hex |> get_binary_address(function) |> fetch_balance(function)
+
+    Utils.from_bigint(uco_amount)
+  end
+
+  defp get_binary_address(address_hex, function) do
+    with {:ok, address} <- Base.decode16(address_hex),
+         true <- Crypto.valid_address?(address) do
+      address
     else
       _ ->
-        # Can only catch _ otherwise dialyzer is not happy
         raise Library.Error,
-          message: "Invalid address in Chain.get_balance(), got #{inspect(address_hex)}"
+          message: "Invalid address in #{function}, got #{inspect(address_hex)}"
+    end
+  end
+
+  defp fetch_balance(address, function) do
+    with {:ok, last_address} <- Archethic.get_last_transaction_address(address),
+         {:ok, balance} <- Archethic.get_balance(last_address) do
+      balance
+    else
+      _ ->
+        raise Library.Error, message: "Network issue in #{function}"
     end
   end
 end
