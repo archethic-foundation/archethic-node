@@ -16,33 +16,42 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   @callback get_burn_address() :: Crypto.prepended_hash()
   @callback get_previous_address(Crypto.key() | map()) :: Crypto.prepended_hash()
   @callback get_balance(Crypto.prepended_hash()) :: map()
+  @callback get_uco_balance(Crypto.prepended_hash()) :: float()
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:get_genesis_address, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    binary_or_variable_or_function?(first)
   end
 
   def check_types(:get_first_transaction_address, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    binary_or_variable_or_function?(first)
   end
 
   def check_types(:get_genesis_public_key, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    binary_or_variable_or_function?(first)
   end
 
   def check_types(:get_transaction, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    binary_or_variable_or_function?(first)
   end
 
   def check_types(:get_burn_address, []), do: true
 
   def check_types(:get_previous_address, [first]) do
-    AST.is_map?(first) || AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    AST.is_map?(first) || binary_or_variable_or_function?(first)
   end
 
   def check_types(:get_balance, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+    binary_or_variable_or_function?(first)
+  end
+
+  def check_types(:get_uco_balance, [first]) do
+    binary_or_variable_or_function?(first)
   end
 
   def check_types(_, _), do: false
+
+  defp binary_or_variable_or_function?(arg) do
+    AST.is_binary?(arg) || AST.is_variable_or_function_call?(arg)
+  end
 end
