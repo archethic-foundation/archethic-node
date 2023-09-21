@@ -20,7 +20,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
 
   @tag [:io]
   @impl Http
-  def fetch(uri) do
+  def request(uri) do
     if check_too_many_calls() do
       raise Library.Error, message: "Http module got called more than once"
     end
@@ -28,7 +28,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     task =
       Task.Supervisor.async_nolink(
         TaskSupervisor,
-        fn -> do_fetch(uri) end
+        fn -> do_request(uri) end
       )
 
     case Task.yield(task, @timeout) || Task.shutdown(task) do
@@ -36,29 +36,29 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
         reply
 
       {:ok, {:error, :threshold_reached}} ->
-        raise Library.Error, message: "Http.fetch/1 response is bigger than threshold"
+        raise Library.Error, message: "Http.request/1 response is bigger than threshold"
 
       {:ok, {:error, :not_https}} ->
-        raise Library.Error, message: "Http.fetch/1 was called with a non https url"
+        raise Library.Error, message: "Http.request/1 was called with a non https url"
 
       {:ok, {:error, _}} ->
         # Mint.HTTP.connect error
         # Mint.HTTP.stream error
-        raise Library.Error, message: "Http.fetch/1 failed"
+        raise Library.Error, message: "Http.request/1 failed"
 
       {:ok, {:error, _, _}} ->
         # Mint.HTTP.request error
-        raise Library.Error, message: "Http.fetch/1 failed"
+        raise Library.Error, message: "Http.request/1 failed"
 
       nil ->
         # Task.shutdown
-        raise Library.Error, message: "Http.fetch/1 timed out"
+        raise Library.Error, message: "Http.request/1 timed out"
     end
   end
 
   @tag [:io]
   @impl Http
-  def fetch_many(uris) do
+  def request_many(uris) do
     if check_too_many_calls() do
       raise Library.Error, message: "Http module got called more than once"
     end
@@ -66,12 +66,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     uris_count = length(uris)
 
     if uris_count > 5 do
-      raise Library.Error, message: "Http.fetch_many/1 was called with too many urls"
+      raise Library.Error, message: "Http.request_many/1 was called with too many urls"
     else
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,
         uris,
-        &do_fetch/1,
+        &do_request/1,
         ordered: true,
         max_concurrency: 5,
         timeout: @timeout,
@@ -84,26 +84,26 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
       |> Enum.reduce({0, []}, fn
         {{:exit, :timeout}, uri}, _ ->
           raise Library.Error,
-            message: "Http.fetch_many/1 timed out for url: #{uri}"
+            message: "Http.request_many/1 timed out for url: #{uri}"
 
         {{:ok, {:error, :threshold_reached}}, uri}, _ ->
           raise Library.Error,
-            message: "Http.fetch_many/1 response is bigger than threshold for url: #{uri}"
+            message: "Http.request_many/1 response is bigger than threshold for url: #{uri}"
 
         {{:ok, {:error, :not_https}}, uri}, _ ->
           raise Library.Error,
-            message: "Http.fetch_many/1 was called with a non https url: #{uri}"
+            message: "Http.request_many/1 was called with a non https url: #{uri}"
 
         {{:ok, {:error, _}}, uri}, _ ->
           # Mint.HTTP.connect error
           # Mint.HTTP.stream error
           raise Library.Error,
-            message: "Http.fetch_many/1 failed for url: #{uri}"
+            message: "Http.request_many/1 failed for url: #{uri}"
 
         {{:ok, {:error, _, _}}, uri}, _ ->
           # Mint.HTTP.request error
           raise Library.Error,
-            message: "Http.fetch_many/1 failed for url: #{uri}"
+            message: "Http.request_many/1 failed for url: #{uri}"
 
         {{:ok, {:ok, map}}, _uri}, {bytes_acc, result_acc} ->
           bytes =
@@ -117,7 +117,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
       |> then(fn {bytes_total, results} ->
         if bytes_total > @threshold do
           raise Library.Error,
-            message: "Http.fetch_many/1 sum of responses is bigger than threshold"
+            message: "Http.request_many/1 sum of responses is bigger than threshold"
         else
           results
         end
@@ -125,7 +125,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     end
   end
 
-  defp do_fetch(url) do
+  defp do_request(url) do
     uri = URI.parse(url)
 
     # we use the transport_opts to be able to test (MIX_ENV=test) with self signed certificates
@@ -193,12 +193,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   end
 
   defp check_too_many_calls() do
-    case Process.get(:smart_contract_http_fetch_called) do
+    case Process.get(:smart_contract_http_request_called) do
       true ->
         true
 
       nil ->
-        Process.put(:smart_contract_http_fetch_called, true)
+        Process.put(:smart_contract_http_request_called, true)
         false
     end
   end
