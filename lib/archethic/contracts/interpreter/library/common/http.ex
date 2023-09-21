@@ -8,14 +8,14 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Http do
 
   use Knigge, otp_app: :archethic, default: HttpImpl, delegate_at_runtime?: true
 
-  @callback fetch(String.t()) :: map()
-  @callback fetch_many(list(String.t())) :: list(map())
+  @callback request(String.t()) :: map()
+  @callback request_many(list(String.t())) :: list(map())
 
-  def check_types(:fetch, [first]) do
+  def check_types(:request, [first]) do
     AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
   end
 
-  def check_types(:fetch_many, [first]) do
+  def check_types(:request_many, [first]) do
     AST.is_list?(first) || AST.is_variable_or_function_call?(first)
   end
 
