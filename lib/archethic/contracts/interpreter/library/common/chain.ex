@@ -2,24 +2,21 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   @moduledoc false
   @behaviour Archethic.Contracts.Interpreter.Library
 
-  alias Archethic.Crypto
-
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.Library.Common.ChainImpl
 
   use Knigge, otp_app: :archethic, default: ChainImpl, delegate_at_runtime?: true
 
-  @callback get_genesis_address(binary()) :: Crypto.prepended_hash()
-  @callback get_first_transaction_address(binary()) :: Crypto.prepended_hash() | nil
-  @callback get_genesis_public_key(binary()) :: Crypto.key() | nil
+  @callback get_genesis_address(binary()) :: binary()
+  @callback get_first_transaction_address(binary()) :: binary() | nil
+  @callback get_genesis_public_key(binary()) :: binary() | nil
   @callback get_transaction(binary()) :: map()
-  @callback get_burn_address() :: Crypto.prepended_hash()
-  @callback get_previous_address(Crypto.key() | map()) :: Crypto.prepended_hash()
-  @callback get_balance(Crypto.prepended_hash()) :: map()
-  @callback get_uco_balance(Crypto.prepended_hash()) :: float()
-  @callback get_token_balance(Crypto.prepended_hash(), Crypto.prepended_hash()) :: float()
-  @callback get_token_balance(Crypto.prepended_hash(), Crypto.prepended_hash(), non_neg_integer()) ::
-              float()
+  @callback get_burn_address() :: binary()
+  @callback get_previous_address(binary() | map()) :: binary()
+  @callback get_balance(binary()) :: map()
+  @callback get_uco_balance(binary()) :: float()
+  @callback get_token_balance(binary(), binary()) :: float()
+  @callback get_token_balance(binary(), binary(), non_neg_integer()) :: float()
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:get_genesis_address, [first]) do
