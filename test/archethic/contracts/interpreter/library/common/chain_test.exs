@@ -365,4 +365,41 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       assert 0 == Chain.get_token_balance(address_hex, non_fungible_token_address_hex, 3)
     end
   end
+
+  describe "get_tokens_balance/2" do
+    test "should return token balance" do
+      address = random_address()
+      address_hex = Base.encode16(address)
+      last_address = random_address()
+
+      fungible_token_address = random_address()
+      fungible_token_address_hex = Base.encode16(fungible_token_address)
+      non_fungible_token_address = random_address()
+      non_fungible_token_address_hex = Base.encode16(non_fungible_token_address)
+
+      balance = %Balance{
+        uco: Utils.to_bigint(14.35),
+        token: %{
+          {fungible_token_address, 0} => Utils.to_bigint(134.489),
+          {non_fungible_token_address, 2} => Utils.to_bigint(1),
+          {non_fungible_token_address, 6} => Utils.to_bigint(1)
+        }
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: ^address}, _ ->
+          {:ok, %LastTransactionAddress{address: last_address}}
+
+        _, %GetBalance{address: ^last_address}, _ ->
+          {:ok, balance}
+      end)
+
+      token_key1 = %{"token_address" => fungible_token_address_hex, "token_id" => 0}
+      token_key2 = %{"token_address" => non_fungible_token_address_hex, "token_id" => 6}
+
+      assert %{token_key1 => 134.489, token_key2 => 1} ==
+               Chain.get_tokens_balance(address_hex, [token_key1, token_key2])
+    end
+  end
 end
