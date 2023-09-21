@@ -17,6 +17,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   @callback get_uco_balance(binary()) :: float()
   @callback get_token_balance(binary(), binary()) :: float()
   @callback get_token_balance(binary(), binary(), non_neg_integer()) :: float()
+  @callback get_tokens_balance(binary(), list()) :: list()
 
   @spec check_types(atom(), list()) :: boolean()
   def check_types(:get_genesis_address, [first]) do
@@ -57,6 +58,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
     check_types(:get_token_balance, [first, second]) && number_or_variable_or_function?(third)
   end
 
+  def check_types(:get_tokens_balance, [first, second]) do
+    binary_or_variable_or_function?(first) && list_or_variable_or_function?(second)
+  end
+
   def check_types(_, _), do: false
 
   defp binary_or_variable_or_function?(arg) do
@@ -65,5 +70,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
 
   defp number_or_variable_or_function?(arg) do
     AST.is_number?(arg) || AST.is_variable_or_function_call?(arg)
+  end
+
+  defp list_or_variable_or_function?(arg) do
+    AST.is_list?(arg) || AST.is_variable_or_function_call?(arg)
   end
 end
