@@ -8,16 +8,38 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Http do
 
   use Knigge, otp_app: :archethic, default: HttpImpl, delegate_at_runtime?: true
 
-  @callback request(String.t()) :: map()
-  @callback request_many(list(String.t())) :: list(map())
+  @callback request(String.t(), String.t()) :: map()
+  @callback request(String.t(), String.t(), map()) :: map()
+  @callback request(String.t(), String.t(), map(), String.t() | nil) :: map()
+  @callback request_many(list(map())) :: list(map())
 
-  def check_types(:request, [first]) do
-    AST.is_binary?(first) || AST.is_variable_or_function_call?(first)
+  def check_types(:request, [first, second]) do
+    binary_or_variable_or_function?(first) && binary_or_variable_or_function?(second)
+  end
+
+  def check_types(:request, [first, second, third]) do
+    check_types(:request, [first, second]) && map_or_variable_or_function?(third)
+  end
+
+  def check_types(:request, [first, second, third, fourth]) do
+    check_types(:request, [first, second, third]) && binary_or_variable_or_function?(fourth)
   end
 
   def check_types(:request_many, [first]) do
-    AST.is_list?(first) || AST.is_variable_or_function_call?(first)
+    list_or_variable_or_function?(first)
   end
 
   def check_types(_, _), do: false
+
+  defp binary_or_variable_or_function?(arg) do
+    AST.is_binary?(arg) || AST.is_variable_or_function_call?(arg)
+  end
+
+  defp list_or_variable_or_function?(arg) do
+    AST.is_list?(arg) || AST.is_variable_or_function_call?(arg)
+  end
+
+  defp map_or_variable_or_function?(arg) do
+    AST.is_map?(arg) || AST.is_variable_or_function_call?(arg)
+  end
 end

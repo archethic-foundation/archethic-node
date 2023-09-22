@@ -5,6 +5,13 @@ defmodule Archethic.MockServer do
   use Plug.Router
 
   plug(:match)
+
+  plug(Plug.Parsers,
+    parsers: [:json],
+    pass: ["application/json"],
+    json_decoder: Jason
+  )
+
   plug(:dispatch)
 
   get "/" do
@@ -20,6 +27,16 @@ defmodule Archethic.MockServer do
     conn = fetch_query_params(conn)
     kbytes = String.to_integer(conn.query_params["kbytes"])
     send_resp(conn, 200, generate_data(kbytes * 1024))
+  end
+
+  post "/api" do
+    response =
+      case conn.body_params do
+        %{"method" => "string", "value" => value} -> value
+        _ -> "error"
+      end
+
+    send_resp(conn, 200, response)
   end
 
   match _ do
