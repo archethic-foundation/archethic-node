@@ -17,6 +17,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   @behaviour Http
   @threshold 256 * 1024
   @timeout Application.compile_env(:archethic, [__MODULE__, :timeout], 2_000)
+  @allow_http? Application.compile_env(:archethic, [__MODULE__, :allow_http?], false)
 
   @tag [:io]
   @impl Http
@@ -149,15 +150,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
         |> Keyword.get(:transport_opts, [])
     ]
 
-    with :ok <- validate_scheme(uri.scheme),
-         {:ok, conn} <- Mint.HTTP.connect(:https, uri.host, uri.port, conn_opts),
+    with {:ok, scheme} <- validate_scheme(uri.scheme),
+         {:ok, conn} <- Mint.HTTP.connect(scheme, uri.host, uri.port, conn_opts),
          {:ok, conn, _} <- Mint.HTTP.request(conn, method, path(uri), headers, request_body),
          {:ok, %{body: response_body, status: status}} <- stream_response(conn) do
       {:ok, %{"status" => status, "body" => response_body}}
     end
   end
 
-  defp validate_scheme("https"), do: :ok
+  defp validate_scheme("https"), do: {:ok, :https}
+
+  defp validate_scheme("http") do
+    if @allow_http? do
+      {:ok, :http}
+    else
+      {:error, :not_https}
+    end
+  end
+
   defp validate_scheme(_), do: {:error, :not_https}
 
   # copied over from Mint
@@ -227,7 +237,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   defp check_too_many_calls() do
     case Process.get(:smart_contract_http_request_called) do
       true -> raise Library.Error, message: "Http module got called more than once"
-      nil -> Process.put(:smart_contract_http_request_called, true)
+      _ -> Process.put(:smart_contract_http_request_called, true)
     end
   end
 end
