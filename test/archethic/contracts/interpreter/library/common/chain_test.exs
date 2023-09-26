@@ -397,9 +397,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       token_key1 = %{"token_address" => fungible_token_address_hex, "token_id" => 0}
       token_key2 = %{"token_address" => non_fungible_token_address_hex, "token_id" => 6}
+      token_key3 = %{"token_address" => non_fungible_token_address_hex, "token_id" => 12}
 
-      assert %{token_key1 => 134.489, token_key2 => 1} ==
-               Chain.get_tokens_balance(address_hex, [token_key1, token_key2])
+      assert %{token_key1 => 134.489, token_key2 => 1, token_key3 => 0} ==
+               Chain.get_tokens_balance(address_hex, [token_key1, token_key2, token_key3])
     end
   end
 end
