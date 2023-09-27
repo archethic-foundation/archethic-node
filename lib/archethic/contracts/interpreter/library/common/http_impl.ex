@@ -18,146 +18,123 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   @threshold 256 * 1024
   @timeout Application.compile_env(:archethic, [__MODULE__, :timeout], 2_000)
   @allow_http? Application.compile_env(:archethic, [__MODULE__, :allow_http?], false)
+  # we use the transport_opts to be able to test (MIX_ENV=test) with self signed certificates
+  @conn_opts [
+    transport_opts:
+      Application.compile_env(:archethic, __MODULE__, []) |> Keyword.get(:transport_opts, [])
+  ]
 
   @tag [:io]
   @impl Http
   def request(uri, method, headers \\ %{}, body \\ nil)
 
-  def request(uri, method, headers, body) do
-    check_too_many_calls()
+  def request(url, method, headers, body) do
+    request = %{"url" => url, "method" => method, "headers" => headers, "body" => body}
 
-    validate_request(uri, method, headers, body)
-    headers = format_headers(headers)
-
-    task =
-      Task.Supervisor.async_nolink(
-        TaskSupervisor,
-        fn -> do_request(uri, method, headers, body) end
-      )
-
-    case Task.yield(task, @timeout) || Task.shutdown(task) do
-      {:ok, {:ok, reply}} ->
-        reply
-
-      {:ok, {:error, :threshold_reached}} ->
-        raise Library.Error, message: "Http.request/1 response is bigger than threshold"
-
-      {:ok, {:error, :not_https}} ->
-        raise Library.Error, message: "Http.request/1 was called with a non https url"
-
-      {:ok, {:error, _}} ->
-        # Mint.HTTP.connect error
-        # Mint.HTTP.stream error
-        raise Library.Error, message: "Http.request/1 failed"
-
-      {:ok, {:error, _, _}} ->
-        # Mint.HTTP.request error
-        raise Library.Error, message: "Http.request/1 failed"
-
-      nil ->
-        # Task.shutdown
-        raise Library.Error, message: "Http.request/1 timed out"
+    with :ok <- validate_multiple_calls(),
+         task <- do_request(request),
+         results <- await_tasks_result([request], [task]),
+         {:ok, result} <- List.first(results) do
+      result
+    else
+      error -> raise Library.Error, message: format_error_message(error)
     end
   end
 
   @tag [:io]
   @impl Http
   def request_many(requests) do
-    check_too_many_calls()
-
-    requests_count = length(requests)
-
-    if requests_count > 5 do
-      raise Library.Error, message: "Http.request_many/1 was called with too many urls"
+    with :ok <- validate_multiple_calls(),
+         :ok <- validate_nb_requests(requests),
+         requests <- set_request_default(requests),
+         tasks <- Enum.map(requests, &do_request/1),
+         results <- await_tasks_result(requests, tasks),
+         {:ok, results} <- validate_results(results) do
+      results
+    else
+      error -> raise Library.Error, message: format_error_message(error)
     end
+  end
 
-    requests =
-      Enum.map(requests, fn request = %{"url" => url, "method" => method} ->
-        headers = Map.get(request, "headers", %{})
-        body = Map.get(request, "body", nil)
+  defp validate_multiple_calls() do
+    case Process.get(:smart_contract_http_request_called) do
+      true ->
+        {:error, :multiple_calls}
 
-        validate_request(url, method, headers, body)
-        headers = format_headers(headers)
+      _ ->
+        Process.put(:smart_contract_http_request_called, true)
+        :ok
+    end
+  end
 
-        %{"url" => url, "method" => method, "headers" => headers, "body" => body}
-      end)
+  defp validate_nb_requests(requests) when length(requests) <= 5, do: :ok
+  defp validate_nb_requests(_), do: {:error, :max_nb_requests}
 
-    Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
-      requests,
-      fn %{"url" => url, "method" => method, "headers" => headers, "body" => body} ->
-        do_request(url, method, headers, body)
-      end,
-      ordered: true,
-      max_concurrency: 5,
-      timeout: @timeout,
-      on_timeout: :kill_task
-    )
-    |> Enum.zip(requests)
-    # count the number of bytes to be able to send a error too large
-    # this is sub optimal because miners might still download threshold N times before returning the error
-    # TODO: improve this
-    |> Enum.reduce({0, []}, fn
-      {{:exit, :timeout}, %{"url" => uri}}, _ ->
-        raise Library.Error,
-          message: "Http.request_many/1 timed out for url: #{uri}"
+  defp set_request_default(requests) do
+    default_request = %{"url" => nil, "method" => "GET", "headers" => %{}, "body" => nil}
+    Enum.map(requests, &Map.merge(default_request, &1))
+  end
 
-      {{:ok, {:error, :threshold_reached}}, %{"url" => uri}}, _ ->
-        raise Library.Error,
-          message: "Http.request_many/1 response is bigger than threshold for url: #{uri}"
-
-      {{:ok, {:error, :not_https}}, %{"url" => uri}}, _ ->
-        raise Library.Error,
-          message: "Http.request_many/1 was called with a non https url: #{uri}"
-
-      {{:ok, {:error, _}}, %{"url" => uri}}, _ ->
-        # Mint.HTTP.connect error
-        # Mint.HTTP.stream error
-        raise Library.Error,
-          message: "Http.request_many/1 failed for url: #{uri}"
-
-      {{:ok, {:error, _, _}}, %{"url" => uri}}, _ ->
-        # Mint.HTTP.request error
-        raise Library.Error,
-          message: "Http.request_many/1 failed for url: #{uri}"
-
-      {{:ok, {:ok, map}}, _uri}, {bytes_acc, result_acc} ->
-        bytes =
-          case map["body"] do
-            nil -> 0
-            body -> byte_size(body)
-          end
-
-        {bytes_acc + bytes, result_acc ++ [map]}
-    end)
-    |> then(fn {bytes_total, results} ->
-      if bytes_total > @threshold do
-        raise Library.Error,
-          message: "Http.request_many/1 sum of responses is bigger than threshold"
+  # -------------- #
+  defp do_request(
+         request = %{
+           "url" => url,
+           "method" => method,
+           "headers" => headers,
+           "body" => request_body
+         }
+       ) do
+    Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+      with :ok <- validate_request(url, method, headers, request_body),
+           headers <- Map.to_list(headers),
+           {:ok, uri} <- URI.new(url),
+           {:ok, scheme} <- validate_scheme(uri.scheme),
+           {:ok, conn} <- Mint.HTTP.connect(scheme, uri.host, uri.port, @conn_opts),
+           {:ok, conn, _} <- Mint.HTTP.request(conn, method, path(uri), headers, request_body),
+           {:ok, %{body: response_body, status: status}} <- stream_response(conn) do
+        {:ok, %{"status" => status, "body" => response_body}}
       else
-        results
+        {:error, reason} -> {:error, reason, request}
+        {:error, _, _} -> {:error, :request_failure, request}
       end
     end)
   end
 
-  defp do_request(url, method, headers, request_body) do
-    uri = URI.parse(url)
-
-    # we use the transport_opts to be able to test (MIX_ENV=test) with self signed certificates
-    conn_opts = [
-      transport_opts:
-        Application.get_env(:archethic, __MODULE__, [])
-        |> Keyword.get(:transport_opts, [])
-    ]
-
-    with {:ok, scheme} <- validate_scheme(uri.scheme),
-         {:ok, conn} <- Mint.HTTP.connect(scheme, uri.host, uri.port, conn_opts),
-         {:ok, conn, _} <- Mint.HTTP.request(conn, method, path(uri), headers, request_body),
-         {:ok, %{body: response_body, status: status}} <- stream_response(conn) do
-      {:ok, %{"status" => status, "body" => response_body}}
+  # -------------- #
+  defp validate_request(url, method, headers, body) do
+    with :ok <- validate_url(url),
+         :ok <- validate_method(method),
+         :ok <- validate_headers(headers) do
+      validate_body(body)
     end
   end
 
+  defp validate_url(url) when is_binary(url) do
+    case URI.new(url) do
+      {:ok, _} -> :ok
+      _ -> {:error, :invalid_url}
+    end
+  end
+
+  defp validate_url(_url), do: {:error, :invalid_url}
+
+  # -------------- #
+  defp validate_method(method) when method in ["GET", "POST", "PUT", "DELETE", "PATCH"], do: :ok
+  defp validate_method(_method), do: {:error, :invalid_method}
+
+  # -------------- #
+  defp validate_headers(headers) when is_map(headers) do
+    if Enum.all?(headers, &valid_header?/1), do: :ok, else: {:error, :invalid_headers}
+  end
+
+  defp valid_header?({key, value}) when is_binary(key) and is_binary(value), do: true
+  defp valid_header?(_), do: false
+
+  # -------------- #
+  defp validate_body(body) when is_binary(body) or is_nil(body), do: :ok
+  defp validate_body(_), do: {:error, :invalid_body}
+
+  # -------------- #
   defp validate_scheme("https"), do: {:ok, :https}
 
   defp validate_scheme("http") do
@@ -216,28 +193,78 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     end
   end
 
-  defp validate_request(url, method, headers, body)
-       when is_binary(url) and is_binary(method) and is_map(headers) and
-              (is_binary(body) or is_nil(body)) do
-    unless match?({:ok, _}, URI.new(url)),
-      do: raise(Library.Error, message: "Http module received invalid url, got #{url}")
+  defp await_tasks_result(requests, tasks) do
+    tasks
+    |> Task.yield_many(@timeout)
+    |> Enum.zip(requests)
+    |> Enum.map(fn {{task, res}, request} ->
+      case res do
+        nil ->
+          Task.shutdown(task, :brutal_kill)
+          {:error, :timeout, request}
 
-    unless method in ["GET", "POST", "PUT", "DELETE", "PATCH"],
-      do: raise(Library.Error, message: "Http module received invalid method, got #{method}")
+        {:exit, _reason} ->
+          {:error, :task_exited, request}
 
-    unless Enum.all?(headers, fn {key, value} -> is_binary(key) and is_binary(value) end),
-      do: raise(Library.Error, message: "Http module was called with invalid headers format")
+        {:ok, res} ->
+          res
+      end
+    end)
   end
 
-  defp validate_request(_, _, _, _),
-    do: raise(Library.Error, message: "Http module received invalid arguments type")
+  defp validate_results(results) do
+    # count the number of bytes to be able to send a error too large
+    # this is sub optimal because miners might still download threshold N times before returning the error
+    # TODO: improve this
+    results
+    |> Enum.reduce_while({:ok, 0, []}, fn
+      {:ok, result}, {:ok, total_bytes, results} ->
+        bytes = result |> Map.get("body", "") |> byte_size()
+        new_total_bytes = total_bytes + bytes
 
-  defp format_headers(headers), do: Map.to_list(headers)
+        if new_total_bytes > @threshold do
+          {:halt, {:error, :threshold_reached, %{}}}
+        else
+          {:cont, {:ok, new_total_bytes, [result | results]}}
+        end
 
-  defp check_too_many_calls() do
-    case Process.get(:smart_contract_http_request_called) do
-      true -> raise Library.Error, message: "Http module got called more than once"
-      _ -> Process.put(:smart_contract_http_request_called, true)
-    end
+      error, _acc ->
+        {:halt, error}
+    end)
+    |> then(fn
+      {:ok, _, results} -> {:ok, Enum.reverse(results)}
+      error -> error
+    end)
   end
+
+  # -------------- #
+  defp format_error_message({:error, :multiple_calls}),
+    do: "Http module got called more than once"
+
+  defp format_error_message({:error, :max_nb_requests}),
+    do: "Http.request_many/1 was called with too many requests"
+
+  defp format_error_message({:error, :invalid_url, %{"url" => url}}),
+    do: "Http module received invalid url, got #{inspect(url)}"
+
+  defp format_error_message({:error, :invalid_method, %{"method" => method}}),
+    do: "Http module received invalid method, got #{inspect(method)}"
+
+  defp format_error_message({:error, :invalid_headers, %{"headers" => headers}}),
+    do: "Http module was called with invalid headers, got #{inspect(headers)}"
+
+  defp format_error_message({:error, :invalid_body, %{"body" => body}}),
+    do: "Http module was called with invalid body, got #{inspect(body)}"
+
+  defp format_error_message({:error, :threshold_reached, _}),
+    do: "Http response is bigger than threshold"
+
+  defp format_error_message({:error, :not_https, %{"url" => url}}),
+    do: "Http request a non https url: #{inspect(url)}"
+
+  defp format_error_message({:error, :timeout, %{"url" => url}}),
+    do: "Http request timed out for url #{inspect(url)}"
+
+  defp format_error_message({:error, _, %{"url" => url}}),
+    do: "Http request failed for url #{inspect(url)}"
 end
