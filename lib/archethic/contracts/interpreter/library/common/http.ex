@@ -8,13 +8,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Http do
 
   use Knigge, otp_app: :archethic, default: HttpImpl, delegate_at_runtime?: true
 
+  @callback request(String.t()) :: map()
   @callback request(String.t(), String.t()) :: map()
   @callback request(String.t(), String.t(), map()) :: map()
   @callback request(String.t(), String.t(), map(), String.t() | nil) :: map()
   @callback request_many(list(map())) :: list(map())
 
+  def check_types(:request, [first]) do
+    binary_or_variable_or_function?(first)
+  end
+
   def check_types(:request, [first, second]) do
-    binary_or_variable_or_function?(first) && binary_or_variable_or_function?(second)
+    check_types(:request, [first]) && binary_or_variable_or_function?(second)
   end
 
   def check_types(:request, [first, second, third]) do
