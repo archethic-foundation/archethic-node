@@ -26,7 +26,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
 
   @tag [:io]
   @impl Http
-  def request(uri, method, headers \\ %{}, body \\ nil)
+  def request(uri, method \\ "GET", headers \\ %{}, body \\ nil)
 
   def request(url, method, headers, body) do
     request = %{"url" => url, "method" => method, "headers" => headers, "body" => body}
