@@ -128,6 +128,9 @@ config :archethic, Archethic.P2P.Listener,
 config :archethic, ArchethicWeb.Explorer.FaucetController, enabled: true
 config :archethic, ArchethicWeb.Explorer.FaucetRateLimiter, enabled: true
 
+config :archethic, Archethic.Contracts.Interpreter.Library.Common.HttpImpl,
+  supported_schemes: ["https", "http"]
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
