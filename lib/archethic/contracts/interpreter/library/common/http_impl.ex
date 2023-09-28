@@ -17,11 +17,15 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   @behaviour Http
   @threshold 256 * 1024
   @timeout Application.compile_env(:archethic, [__MODULE__, :timeout], 2_000)
-  @allow_http? Application.compile_env(:archethic, [__MODULE__, :allow_http?], false)
+  @supported_schemes Application.compile_env(
+                       :archethic,
+                       [__MODULE__, :supported_schemes],
+                       ["https"]
+                     )
   # we use the transport_opts to be able to test (MIX_ENV=test) with self signed certificates
   @conn_opts [
     transport_opts:
-      Application.compile_env(:archethic, __MODULE__, []) |> Keyword.get(:transport_opts, [])
+      :archethic |> Application.compile_env(__MODULE__, []) |> Keyword.get(:transport_opts, [])
   ]
 
   @tag [:io]
@@ -135,17 +139,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   defp validate_body(_), do: {:error, :invalid_body}
 
   # -------------- #
-  defp validate_scheme("https"), do: {:ok, :https}
+  defp validate_scheme(scheme) when scheme in @supported_schemes,
+    do: {:ok, String.to_existing_atom(scheme)}
 
-  defp validate_scheme("http") do
-    if @allow_http? do
-      {:ok, :http}
-    else
-      {:error, :not_https}
-    end
-  end
-
-  defp validate_scheme(_), do: {:error, :not_https}
+  defp validate_scheme(_), do: {:error, :not_supported_scheme}
 
   # copied over from Mint
   defp path(uri) do
@@ -259,8 +256,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
   defp format_error_message({:error, :threshold_reached, _}),
     do: "Http response is bigger than threshold"
 
-  defp format_error_message({:error, :not_https, %{"url" => url}}),
-    do: "Http request a non https url: #{inspect(url)}"
+  defp format_error_message({:error, :not_supported_scheme, %{"url" => url}}),
+    do:
+      "Http request was called with an invalid scheme for #{inspect(url)}, " <>
+        "supported scheme are #{Enum.join(@supported_schemes, ", ")}"
 
   defp format_error_message({:error, :timeout, %{"url" => url}}),
     do: "Http request timed out for url #{inspect(url)}"
