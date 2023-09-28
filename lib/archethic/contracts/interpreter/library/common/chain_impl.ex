@@ -125,6 +125,19 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
 
   @impl Chain
   @tag [:io]
+  def get_tokens_balance(address_hex) do
+    function = "Chain.get_tokens_balance"
+
+    %{token: tokens} = address_hex |> get_binary_address(function) |> fetch_balance(function)
+
+    Enum.reduce(tokens, %{}, fn {{token_address, token_id}, amount}, acc ->
+      key = %{"token_address" => Base.encode16(token_address), "token_id" => token_id}
+      Map.put(acc, key, Utils.from_bigint(amount))
+    end)
+  end
+
+  @impl Chain
+  @tag [:io]
   def get_tokens_balance(address_hex, requested_tokens) do
     function = "Chain.get_tokens_balance"
 

@@ -17,6 +17,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
   @callback get_uco_balance(binary()) :: float()
   @callback get_token_balance(binary(), binary()) :: float()
   @callback get_token_balance(binary(), binary(), non_neg_integer()) :: float()
+  @callback get_tokens_balance(binary()) :: list()
   @callback get_tokens_balance(binary(), list()) :: list()
 
   @spec check_types(atom(), list()) :: boolean()
@@ -58,8 +59,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
     check_types(:get_token_balance, [first, second]) && number_or_variable_or_function?(third)
   end
 
+  def check_types(:get_tokens_balance, [first]) do
+    binary_or_variable_or_function?(first)
+  end
+
   def check_types(:get_tokens_balance, [first, second]) do
-    binary_or_variable_or_function?(first) && list_or_variable_or_function?(second)
+    check_types(:get_tokens_balance, [first]) && list_or_variable_or_function?(second)
   end
 
   def check_types(_, _), do: false
