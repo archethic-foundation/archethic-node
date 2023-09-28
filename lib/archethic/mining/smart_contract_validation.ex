@@ -62,15 +62,10 @@ defmodule Archethic.Mining.SmartContractValidation do
              inputs_before: validation_time
            },
            conflicts_resolver,
-           0,
-           # Only accept valid
-           & &1.valid?
+           0
          ) do
-      {:ok, _} ->
-        true
-
-      _ ->
-        false
+      {:ok, %SmartContractCallValidation{valid?: valid?}} -> valid?
+      _ -> false
     end
   end
 end
