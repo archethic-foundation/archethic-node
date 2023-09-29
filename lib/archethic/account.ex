@@ -10,7 +10,6 @@ defmodule Archethic.Account do
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionInput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -81,6 +80,6 @@ defmodule Archethic.Account do
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
   """
-  @spec get_genesis_unspent_inputs(binary()) :: list(TransactionInput.t())
+  @spec get_genesis_unspent_inputs(binary()) :: list(VersionedTransactionInput.t())
   defdelegate get_genesis_unspent_inputs(address), to: GenesisInputLedger, as: :get_unspent_inputs
 end

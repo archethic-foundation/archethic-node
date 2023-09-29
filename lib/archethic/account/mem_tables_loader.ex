@@ -9,6 +9,9 @@ defmodule Archethic.Account.MemTablesLoader do
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTables.StateLedger
 
+  alias Archethic.Account.GenesisPendingLog
+  alias Archethic.Account.GenesisState
+
   alias Archethic.Crypto
 
   alias Archethic.DB
@@ -28,6 +31,8 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.Utils
 
   require Logger
@@ -59,28 +64,37 @@ defmodule Archethic.Account.MemTablesLoader do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @spec init(args :: list()) :: {:ok, []}
   def init(_args) do
-    authorized_nodes = P2P.authorized_and_available_nodes()
-
     TransactionChain.list_io_transactions(@query_fields)
     |> Stream.each(
-      &load_transaction(&1, io_transaction?: true, authorized_nodes: authorized_nodes)
+      &load_transaction(&1,
+        io_transaction?: true,
+        load_genesis?: false
+      )
     )
     |> Stream.run()
 
     TransactionChain.list_all(@query_fields)
     |> Stream.reject(&(&1.type in @excluded_types))
-    |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
     |> Stream.each(
-      &load_transaction(&1, io_transaction?: false, authorized_nodes: authorized_nodes)
+      &load_transaction(&1,
+        io_transaction?: false,
+        load_genesis?: false
+      )
     )
     |> Stream.run()
 
-    {:ok, []}
+    # After AEIP-21 phase2 all the lines above could be truncated, as the listing will come from the genesis states & logs
+    # Reducing the time of node's startup
+    load_genesis_ledger()
+
+    {:ok, %{}}
   end
 
-  @type load_options :: [io_transaction?: boolean(), authorized_nodes: list(Node.t())]
+  @type load_options :: [
+          io_transaction?: boolean(),
+          load_genesis?: boolean()
+        ]
 
   @doc """
   Load the transaction into the memory tables
@@ -104,7 +118,7 @@ defmodule Archethic.Account.MemTablesLoader do
       )
       when is_list(opts) do
     io_transaction? = Keyword.get(opts, :io_transaction?, false)
-    authorized_nodes = Keyword.get(opts, :authorized_nodes, P2P.authorized_and_available_nodes())
+    load_genesis? = Keyword.get(opts, :load_genesis?, true)
 
     unless io_transaction? do
       previous_address = Crypto.derive_address(previous_public_key)
@@ -113,13 +127,6 @@ defmodule Archethic.Account.MemTablesLoader do
       TokenLedger.spend_all_unspent_outputs(previous_address)
       StateLedger.spend_all_unspent_outputs(previous_address)
     end
-
-    Enum.each(
-      transaction_movements,
-      &ingest_genesis_inputs(&1, address, timestamp, authorized_nodes)
-    )
-
-    consume_genesis_inputs(tx, authorized_nodes, io_transaction?)
 
     :ok =
       set_transaction_movements(
@@ -132,73 +139,14 @@ defmodule Archethic.Account.MemTablesLoader do
 
     :ok = set_unspent_outputs(address, unspent_outputs, protocol_version)
 
+    if load_genesis? do
+      GenServer.call(__MODULE__, {:load_genesis, tx, io_transaction?})
+    end
+
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
       transaction_type: tx_type
     )
-  end
-
-  defp ingest_genesis_inputs(
-         mvt = %TransactionMovement{to: to},
-         tx_address,
-         tx_timestamp,
-         authorized_nodes
-       ) do
-    # We need to determine whether the node is responsible of the transaction movements destination genesis pool
-    case DB.find_genesis_address(to) do
-      {:ok, genesis_address} ->
-        if genesis_node?(genesis_address, authorized_nodes) do
-          GenesisInputLedger.add_chain_input(mvt, tx_address, tx_timestamp, genesis_address)
-        end
-
-      _ ->
-        # Support when the resolved address is the genesis address
-        if genesis_node?(to, authorized_nodes) do
-          GenesisInputLedger.add_chain_input(mvt, tx_address, tx_timestamp, to)
-        end
-    end
-  end
-
-  def consume_genesis_inputs(
-        tx = %Transaction{
-          address: address,
-          validation_stamp: %ValidationStamp{
-            ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
-          }
-        },
-        authorized_nodes,
-        io_transaction?
-      ) do
-    genesis_lookup =
-      case DB.find_genesis_address(address) do
-        {:ok, genesis_address} ->
-          # This happens when the last transaction is ingested in the system (i.e last's tx chain)
-          {:ok, genesis_address}
-
-        {:error, :not_found} ->
-          # This might happens when the transaction haven't been yet synchronized but the previous transaction is already in the system (i.e genesis's chain)
-          DB.find_genesis_address(Transaction.previous_address(tx))
-      end
-
-    case genesis_lookup do
-      {:ok, genesis_address} ->
-        # We need to determine whether the node is responsible of the chain genesis pool as the transaction have been received as an I/O transaction.
-        chain_transaction? =
-          (not io_transaction? or TransactionChain.get_size(genesis_address) > 0) and
-            genesis_node?(genesis_address, authorized_nodes)
-
-        if chain_transaction? and length(consumed_inputs) > 0 do
-          GenesisInputLedger.update_chain_inputs(tx, genesis_address)
-        end
-
-      _ ->
-        :ignore
-    end
-  end
-
-  defp genesis_node?(genesis_address, nodes) do
-    genesis_nodes = Election.chain_storage_nodes(genesis_address, nodes)
-    Utils.key_in_node_list?(genesis_nodes, Crypto.first_node_public_key())
   end
 
   defp set_unspent_outputs(address, unspent_outputs, protocol_version) do
@@ -379,5 +327,144 @@ defmodule Archethic.Account.MemTablesLoader do
 
         Map.put(acc, {to, token_address, token_id}, new_utxo)
     end
+  end
+
+  defp load_genesis_ledger do
+    File.mkdir_p!(GenesisPendingLog.base_path())
+    File.mkdir_p!(GenesisState.base_path())
+
+    Utils.mut_dir("genesis/*{state,pending}/*")
+    |> Path.wildcard()
+    |> Task.async_stream(fn file ->
+      genesis_address = file |> Path.basename() |> Base.decode16!()
+
+      if String.match?(file, ~r/^genesis\/state.*$/) do
+        load_genesis_state(genesis_address)
+      end
+
+      if String.match?(file, ~r/^genesis\/pending.*$/) do
+        load_genesis_log(genesis_address)
+      end
+    end)
+    |> Stream.run()
+  end
+
+  defp load_genesis_state(genesis_address) do
+    inputs = GenesisState.fetch(genesis_address)
+    GenesisInputLedger.load_inputs(genesis_address, inputs)
+  end
+
+  defp load_genesis_log(genesis_address) do
+    genesis_address
+    |> GenesisPendingLog.stream()
+    |> Enum.each(fn input ->
+      GenesisInputLedger.add_chain_input(genesis_address, input)
+    end)
+  end
+
+  def handle_call(
+        {:load_genesis,
+         tx = %Transaction{
+           address: address,
+           validation_stamp: %ValidationStamp{
+             timestamp: timestamp,
+             ledger_operations: %LedgerOperations{
+               transaction_movements: transaction_movements,
+               consumed_inputs: consumed_inputs
+             },
+             protocol_version: protocol_version
+           }
+         }, io_transaction?},
+        _,
+        state
+      ) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    # Ingest all the movements to fill up the UTXO list
+    Enum.each(
+      transaction_movements,
+      &ingest_genesis_inputs(&1, address, timestamp, authorized_nodes, protocol_version)
+    )
+
+    case find_genesis_address(tx) do
+      {:ok, genesis_address} ->
+        # We need to determine whether the node is responsible of the chain genesis pool as the transaction have been received as an I/O transaction.
+        chain_transaction? =
+          (not io_transaction? or TransactionChain.get_size(genesis_address) > 0) and
+            genesis_node?(genesis_address, authorized_nodes)
+
+        # In case, this transaction is one of the genesis chains, we have to consume inputs
+        if chain_transaction? and length(consumed_inputs) > 0 do
+          consume_genesis_inputs(genesis_address, tx)
+        end
+
+      _ ->
+        :ignore
+    end
+
+    {:reply, :ok, state}
+  end
+
+  defp find_genesis_address(tx = %Transaction{address: address}) do
+    case DB.find_genesis_address(address) do
+      {:ok, genesis_address} ->
+        # This happens when the last transaction is ingested in the system (i.e last's tx chain)
+        {:ok, genesis_address}
+
+      {:error, :not_found} ->
+        # This might happens when the transaction haven't been yet synchronized but the previous transaction is already in the system (i.e genesis's chain)
+        DB.find_genesis_address(Transaction.previous_address(tx))
+    end
+  end
+
+  defp genesis_node?(genesis_address, nodes) do
+    genesis_nodes = Election.chain_storage_nodes(genesis_address, nodes)
+    Utils.key_in_node_list?(genesis_nodes, Crypto.first_node_public_key())
+  end
+
+  defp ingest_genesis_inputs(
+         %TransactionMovement{to: to, amount: amount, type: type},
+         tx_address,
+         tx_timestamp,
+         authorized_nodes,
+         protocol_version
+       ) do
+    tx_input = %VersionedTransactionInput{
+      input: %TransactionInput{
+        from: tx_address,
+        amount: amount,
+        timestamp: tx_timestamp,
+        type: type
+      },
+      protocol_version: protocol_version
+    }
+
+    # We need to determine whether the node is responsible of the transaction movements destination genesis pool
+    case DB.find_genesis_address(to) do
+      {:ok, genesis_address} ->
+        if genesis_node?(genesis_address, authorized_nodes) do
+          GenesisPendingLog.append(genesis_address, tx_input)
+          GenesisInputLedger.add_chain_input(genesis_address, tx_input)
+        end
+
+      _ ->
+        # Support when the resolved address is the genesis address
+        if genesis_node?(to, authorized_nodes) do
+          GenesisPendingLog.append(to, tx_input)
+          GenesisInputLedger.add_chain_input(to, tx_input)
+        end
+    end
+  end
+
+  defp consume_genesis_inputs(genesis_address, tx = %Transaction{}) do
+    # We update the UTXOs by using the consumed inputs by the transaction
+    GenesisInputLedger.update_chain_inputs(tx, genesis_address)
+    utxos = GenesisInputLedger.get_unspent_inputs(genesis_address)
+
+    # We flush the serialized state of the genesis UTXOs
+    GenesisState.persist(genesis_address, utxos)
+
+    # Once the state have been serialized, we can clean the pending log of inputs
+    GenesisPendingLog.clear(genesis_address)
   end
 end
