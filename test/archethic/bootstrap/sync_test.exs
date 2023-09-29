@@ -2,6 +2,7 @@ defmodule Archethic.Bootstrap.SyncTest do
   use ArchethicCase, async: false
 
   alias Archethic.Account
+  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
 
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
 
@@ -98,9 +99,11 @@ defmodule Archethic.Bootstrap.SyncTest do
         }
       ]
     end)
+    |> stub(:list_io_transactions, fn _ -> [] end)
 
     start_supervised!(RewardMemTable)
     start_supervised!(RewardTableLoader)
+    start_supervised!(AccountMemTableLoader)
 
     :ok
   end

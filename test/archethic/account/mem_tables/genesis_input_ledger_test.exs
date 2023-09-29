@@ -11,6 +11,7 @@ defmodule Archethic.Account.MemTables.GenesisInputLedgerTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   setup do
     GenesisInputLedger.start_link()
@@ -18,20 +19,25 @@ defmodule Archethic.Account.MemTables.GenesisInputLedgerTest do
   end
 
   describe "add_chain_input/1" do
-    test "should ingest a transaction and ingest the movements as input" do
-      GenesisInputLedger.add_chain_input(
-        %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO},
-        "@Alice2",
-        ~U[2023-09-20 01:00:00Z],
-        "@Bob0"
-      )
+    test "should ingest an input" do
+      GenesisInputLedger.add_chain_input("@Bob0", %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: "@Alice2",
+          amount: 100_000_000,
+          type: :UCO,
+          timestamp: ~U[2023-09-20 01:00:00Z]
+        },
+        protocol_version: 1
+      })
 
       assert [
-               %TransactionInput{
-                 from: "@Alice2",
-                 amount: 100_000_000,
-                 type: :UCO,
-                 timestamp: ~U[2023-09-20 01:00:00Z]
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "@Alice2",
+                   amount: 100_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2023-09-20 01:00:00Z]
+                 }
                }
              ] = GenesisInputLedger.get_unspent_inputs("@Bob0")
     end
@@ -39,30 +45,34 @@ defmodule Archethic.Account.MemTables.GenesisInputLedgerTest do
 
   describe "update_chain_inputs/2" do
     test "should ingest transaction UTXO reducing consumed inputs (with utxo consolidation)" do
-      GenesisInputLedger.add_chain_input(
-        %TransactionMovement{to: "@Alice5", amount: 200_000_000, type: :UCO},
-        "@Bob3",
-        ~U[2023-09-10 01:00:00Z],
-        "@Alice0"
-      )
-
-      GenesisInputLedger.add_chain_input(
-        %TransactionMovement{to: "@Alice5", amount: 200_000_000, type: :UCO},
-        "@Tom5",
-        ~U[2023-09-10 05:00:00Z],
-        "@Alice0"
-      )
-
-      GenesisInputLedger.add_chain_input(
-        %TransactionMovement{
-          to: "@Alice5",
-          amount: 100_000_000,
-          type: {:token, "token1", 0}
+      inputs = [
+        %VersionedTransactionInput{
+          input: %TransactionInput{
+            from: "@Bob3",
+            type: :UCO,
+            amount: 200_000_000,
+            timestamp: ~U[2023-09-10 01:00:00Z]
+          }
         },
-        "@Tom5",
-        ~U[2023-09-10 05:00:00Z],
-        "@Alice0"
-      )
+        %VersionedTransactionInput{
+          input: %TransactionInput{
+            from: "@Tom5",
+            type: :UCO,
+            amount: 200_000_000,
+            timestamp: ~U[2023-09-10 05:00:00Z]
+          }
+        },
+        %VersionedTransactionInput{
+          input: %TransactionInput{
+            from: "@Tom5",
+            type: {:token, "token1", 0},
+            amount: 100_000_000,
+            timestamp: ~U[2023-09-10 05:00:00Z]
+          }
+        }
+      ]
+
+      GenesisInputLedger.load_inputs("@Alice0", inputs)
 
       tx = %Transaction{
         address: "@Alice2",
@@ -113,46 +123,54 @@ defmodule Archethic.Account.MemTables.GenesisInputLedgerTest do
       GenesisInputLedger.update_chain_inputs(tx, "@Alice0")
 
       assert [
-               %TransactionInput{
-                 from: "@Alice2",
-                 amount: 300_000_000,
-                 type: :UCO,
-                 timestamp: ~U[2023-09-20 01:00:00Z]
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "@Alice2",
+                   amount: 300_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2023-09-20 01:00:00Z]
+                 }
                },
-               %TransactionInput{
-                 from: "@Alice2",
-                 amount: 100_000_000,
-                 type: {:token, "token1", 0},
-                 timestamp: ~U[2023-09-20 01:00:00Z]
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "@Alice2",
+                   amount: 100_000_000,
+                   type: {:token, "token1", 0},
+                   timestamp: ~U[2023-09-20 01:00:00Z]
+                 }
                }
              ] = GenesisInputLedger.get_unspent_inputs("@Alice0")
     end
 
     test "should ingest transaction UTXO reducing consumed inputs ((without utxo consolidation)" do
-      GenesisInputLedger.add_chain_input(
-        %TransactionMovement{to: "@Alice5", amount: 200_000_000, type: :UCO},
-        "@Bob3",
-        ~U[2023-09-10 01:00:00Z],
-        "@Alice0"
-      )
-
-      GenesisInputLedger.add_chain_input(
-        %TransactionMovement{to: "@Alice5", amount: 200_000_000, type: :UCO},
-        "@Tom5",
-        ~U[2023-09-10 05:00:00Z],
-        "@Alice0"
-      )
-
-      GenesisInputLedger.add_chain_input(
-        %TransactionMovement{
-          to: "@Alice5",
-          amount: 100_000_000,
-          type: {:token, "token1", 0}
+      inputs = [
+        %VersionedTransactionInput{
+          input: %TransactionInput{
+            from: "@Bob3",
+            type: :UCO,
+            amount: 200_000_000,
+            timestamp: ~U[2023-09-10 01:00:00Z]
+          }
         },
-        "@Tom5",
-        ~U[2023-09-10 05:00:00Z],
-        "@Alice0"
-      )
+        %VersionedTransactionInput{
+          input: %TransactionInput{
+            from: "@Tom5",
+            type: :UCO,
+            amount: 200_000_000,
+            timestamp: ~U[2023-09-10 05:00:00Z]
+          }
+        },
+        %VersionedTransactionInput{
+          input: %TransactionInput{
+            from: "@Tom5",
+            type: {:token, "token1", 0},
+            amount: 100_000_000,
+            timestamp: ~U[2023-09-10 05:00:00Z]
+          }
+        }
+      ]
+
+      GenesisInputLedger.load_inputs("@Alice0", inputs)
 
       tx = %Transaction{
         address: "@Alice2",
@@ -185,23 +203,29 @@ defmodule Archethic.Account.MemTables.GenesisInputLedgerTest do
       GenesisInputLedger.update_chain_inputs(tx, "@Alice0", true)
 
       assert [
-               %TransactionInput{
-                 from: "@Tom5",
-                 amount: 200_000_000,
-                 type: :UCO,
-                 timestamp: ~U[2023-09-10 05:00:00Z]
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "@Tom5",
+                   amount: 100_000_000,
+                   type: {:token, "token1", 0},
+                   timestamp: ~U[2023-09-10 05:00:00Z]
+                 }
                },
-               %TransactionInput{
-                 from: "@Tom5",
-                 amount: 100_000_000,
-                 type: {:token, "token1", 0},
-                 timestamp: ~U[2023-09-10 05:00:00Z]
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "@Tom5",
+                   amount: 200_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2023-09-10 05:00:00Z]
+                 }
                },
-               %TransactionInput{
-                 from: "@Alice2",
-                 amount: 100_000_000,
-                 type: :UCO,
-                 timestamp: ~U[2023-09-20 01:00:00Z]
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: "@Alice2",
+                   amount: 100_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2023-09-20 01:00:00Z]
+                 }
                }
              ] = GenesisInputLedger.get_unspent_inputs("@Alice0")
     end

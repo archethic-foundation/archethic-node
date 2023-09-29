@@ -2,6 +2,8 @@ defmodule Archethic.RewardTest do
   use ArchethicCase
   use ExUnitProperties
 
+  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
@@ -124,11 +126,14 @@ defmodule Archethic.RewardTest do
           %Transaction{address: "@RewardToken4", type: :mint_rewards}
         ]
       end)
+      |> stub(:list_transactions, fn _ -> [] end)
+      |> stub(:list_io_transactions, fn _ -> [] end)
 
       start_supervised({RewardTokens, []})
       start_supervised({RewardMemTableLoader, []})
       start_supervised(UCOLedger)
       start_supervised(TokenLedger)
+      start_supervised(AccountMemTableLoader)
       :ok
     end
 

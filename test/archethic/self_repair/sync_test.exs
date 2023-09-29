@@ -1,6 +1,8 @@
 defmodule Archethic.SelfRepair.SyncTest do
   use ArchethicCase, async: false
 
+    alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
+
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.Summary, as: BeaconSummary
@@ -76,8 +78,23 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   describe "load_missed_transactions/2" do
     setup do
+      MockDB
+      |> stub(:register_stats, fn _, _, _, _ -> :ok end)
+      |> stub(:list_io_transactions, fn _fields -> [] end)
+      |> stub(:list_transactions, fn _fields -> [] end)
+
+      start_supervised!(AccountMemTableLoader)
+
+      :ok
+    end
+
+    test "should retrieve the missing beacon summaries from the given date" do
       start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
       start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
+
+      Crypto.generate_deterministic_keypair("daily_nonce_seed")
+      |> elem(0)
+      |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
       welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
 
@@ -138,19 +155,6 @@ defmodule Archethic.SelfRepair.SyncTest do
       P2P.add_and_connect_node(welcome_node)
       P2P.add_and_connect_node(coordinator_node)
 
-      {:ok,
-       %{
-         welcome_node: welcome_node,
-         coordinator_node: coordinator_node,
-         storage_nodes: storage_nodes
-       }}
-    end
-
-    test "should retrieve the missing beacon summaries from the given date" do
-      Crypto.generate_deterministic_keypair("daily_nonce_seed")
-      |> elem(0)
-      |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
-
       inputs = [
         %TransactionInput{
           from: "@Alice2",
@@ -175,10 +179,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       elected_storage_nodes =
         Election.chain_storage_nodes(tx.address, P2P.authorized_and_available_nodes())
-
-      welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
-      storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
-      storage_node_keypair2 = Crypto.derive_keypair("node_keypair", 2)
 
       summary = %BeaconSummary{
         subset: <<0>>,
@@ -235,9 +235,6 @@ defmodule Archethic.SelfRepair.SyncTest do
           {:ok, %NotFound{}}
       end)
 
-      MockDB
-      |> stub(:register_stats, fn _, _, _, _ -> :ok end)
-
       assert :ok =
                Sync.load_missed_transactions(
                  DateTime.utc_now() |> DateTime.add(-86_400),
@@ -246,184 +243,192 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       assert_receive :storage
     end
-  end
 
-  test "load_missed_transactions should postpone attestation if refused" do
-    Crypto.generate_deterministic_keypair("daily_nonce_seed")
-    |> elem(0)
-    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
+    test "load_missed_transactions should postpone attestation if refused" do
+      Crypto.generate_deterministic_keypair("daily_nonce_seed")
+      |> elem(0)
+      |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
+  
+      # Summary timer each hour
+      start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * *"})
+      start_supervised!({BeaconSlotTimer, interval: "0 */10 * * * *"})
 
-    # Summary timer each hour
-    start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * *"})
-    start_supervised!({BeaconSlotTimer, interval: "0 */10 * * * *"})
-    # Create 11 nodes on last summary
-    nodes_keypair =
-      Enum.map(0..10, fn i ->
-        node_keypair = Crypto.derive_keypair("node_seed#{i}", 1)
-
-        P2P.add_and_connect_node(%Node{
-          ip: {88, 130, 19, i},
-          port: 3000 + i,
-          last_public_key: elem(node_keypair, 0),
-          first_public_key: elem(node_keypair, 0),
-          geo_patch: "BBB",
-          network_patch: "BBB",
-          available?: true,
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-1, :hour),
-          enrollment_date: DateTime.utc_now() |> DateTime.add(-2, :hour)
-        })
-
-        node_keypair
+      # Create 11 nodes on last summary
+      nodes_keypair =
+        Enum.map(0..10, fn i ->
+          node_keypair = Crypto.derive_keypair("node_seed#{i}", 1)
+  
+          P2P.add_and_connect_node(%Node{
+            ip: {88, 130, 19, i},
+            port: 3000 + i,
+            last_public_key: elem(node_keypair, 0),
+            first_public_key: elem(node_keypair, 0),
+            geo_patch: "BBB",
+            network_patch: "BBB",
+            available?: true,
+            authorized?: true,
+            authorization_date: DateTime.utc_now() |> DateTime.add(-1, :hour),
+            enrollment_date: DateTime.utc_now() |> DateTime.add(-2, :hour)
+          })
+  
+          node_keypair
+        end)
+  
+      P2P.add_and_connect_node(%Node{
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        authorized?: true,
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1, :hour),
+        enrollment_date: DateTime.utc_now() |> DateTime.add(-2, :hour)
+      })
+  
+      tx_timestamp = DateTime.utc_now() |> DateTime.add(-59, :minute)
+  
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          timestamp: tx_timestamp
+        )
+  
+      tx1_summary = TransactionSummary.from_transaction(tx1)
+  
+      elected_storage_nodes =
+        Election.chain_storage_nodes(tx1.address, P2P.authorized_and_available_nodes(tx_timestamp))
+  
+      # First Replication with enough threshold
+      attestation1 = %ReplicationAttestation{
+        transaction_summary: tx1_summary,
+        confirmations:
+          Enum.map(0..3, fn i ->
+            node = Enum.at(elected_storage_nodes, i)
+  
+            signature =
+              if node.first_public_key == Crypto.first_node_public_key() do
+                tx1_summary
+                |> TransactionSummary.serialize()
+                |> Crypto.sign_with_first_node_key()
+              else
+                node_private_key =
+                  Enum.find_value(
+                    nodes_keypair,
+                    &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
+                  )
+  
+                tx1_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
+              end
+  
+            index =
+              ReplicationAttestation.get_node_index(node.first_public_key, tx1_summary.timestamp)
+  
+            {index, signature}
+          end)
+      }
+  
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1,
+          timestamp: DateTime.utc_now() |> DateTime.add(-59, :minute)
+        )
+  
+      tx2_summary = TransactionSummary.from_transaction(tx2)
+  
+      elected_storage_nodes =
+        Election.chain_storage_nodes(tx2.address, P2P.authorized_and_available_nodes())
+  
+      # Second Replication without enough threshold
+      attestation2 = %ReplicationAttestation{
+        transaction_summary: tx2_summary,
+        confirmations:
+          Enum.map(0..1, fn i ->
+            node = Enum.at(elected_storage_nodes, i)
+  
+            signature =
+              if node.first_public_key == Crypto.first_node_public_key() do
+                tx2_summary
+                |> TransactionSummary.serialize()
+                |> Crypto.sign_with_first_node_key()
+              else
+                node_private_key =
+                  Enum.find_value(
+                    nodes_keypair,
+                    &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
+                  )
+  
+                tx2_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
+              end
+  
+            index =
+              ReplicationAttestation.get_node_index(node.first_public_key, tx2_summary.timestamp)
+  
+            {index, signature}
+          end)
+      }
+  
+      attestations = [attestation1, attestation2]
+  
+      summary_time = DateTime.utc_now() |> BeaconSummaryTimer.previous_summary()
+  
+      PubSub.register_to_new_replication_attestations()
+  
+      summary = %BeaconSummary{
+        subset: <<0>>,
+        summary_time: summary_time,
+        transaction_attestations: attestations
+      }
+  
+      tx1_address = tx1.address
+      tx2_address = tx2.address
+  
+      me = self()
+  
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary]}}
+  
+        _, %GetTransaction{address: ^tx1_address}, _ ->
+          send(me, :should_request)
+          {:ok, tx1}
+  
+        _, %GetTransaction{address: ^tx2_address}, _ ->
+          send(me, :should_not_request)
+          {:ok, tx2}
+  
+        _, %GetTransaction{address: _}, _ ->
+          {:ok, %NotFound{}}
+  
+        _, %GetTransactionChain{}, _ ->
+          {:ok, %TransactionList{transactions: []}}
+  
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %NotFound{}}
       end)
-
-    P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1, :hour),
-      enrollment_date: DateTime.utc_now() |> DateTime.add(-2, :hour)
-    })
-
-    tx_timestamp = DateTime.utc_now() |> DateTime.add(-59, :minute)
-
-    tx1 =
-      TransactionFactory.create_valid_transaction([],
-        timestamp: tx_timestamp
+  
+      Sync.load_missed_transactions(
+        DateTime.utc_now() |> DateTime.add(-1, :hour),
+        P2P.authorized_and_available_nodes()
       )
-
-    tx1_summary = TransactionSummary.from_transaction(tx1)
-
-    elected_storage_nodes =
-      Election.chain_storage_nodes(tx1.address, P2P.authorized_and_available_nodes(tx_timestamp))
-
-    # First Replication with enough threshold
-    attestation1 = %ReplicationAttestation{
-      transaction_summary: tx1_summary,
-      confirmations:
-        Enum.map(0..3, fn i ->
-          node = Enum.at(elected_storage_nodes, i)
-
-          signature =
-            if node.first_public_key == Crypto.first_node_public_key() do
-              tx1_summary
-              |> TransactionSummary.serialize()
-              |> Crypto.sign_with_first_node_key()
-            else
-              node_private_key =
-                Enum.find_value(
-                  nodes_keypair,
-                  &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
-                )
-
-              tx1_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
-            end
-
-          index =
-            ReplicationAttestation.get_node_index(node.first_public_key, tx1_summary.timestamp)
-
-          {index, signature}
-        end)
-    }
-
-    tx2 =
-      TransactionFactory.create_valid_transaction([],
-        index: 1,
-        timestamp: DateTime.utc_now() |> DateTime.add(-59, :minute)
-      )
-
-    tx2_summary = TransactionSummary.from_transaction(tx2)
-
-    elected_storage_nodes =
-      Election.chain_storage_nodes(tx2.address, P2P.authorized_and_available_nodes())
-
-    # Second Replication without enough threshold
-    attestation2 = %ReplicationAttestation{
-      transaction_summary: tx2_summary,
-      confirmations:
-        Enum.map(0..1, fn i ->
-          node = Enum.at(elected_storage_nodes, i)
-
-          signature =
-            if node.first_public_key == Crypto.first_node_public_key() do
-              tx2_summary
-              |> TransactionSummary.serialize()
-              |> Crypto.sign_with_first_node_key()
-            else
-              node_private_key =
-                Enum.find_value(
-                  nodes_keypair,
-                  &if(elem(&1, 0) == node.first_public_key, do: elem(&1, 1))
-                )
-
-              tx2_summary |> TransactionSummary.serialize() |> Crypto.sign(node_private_key)
-            end
-
-          index =
-            ReplicationAttestation.get_node_index(node.first_public_key, tx2_summary.timestamp)
-
-          {index, signature}
-        end)
-    }
-
-    attestations = [attestation1, attestation2]
-
-    summary_time = DateTime.utc_now() |> BeaconSummaryTimer.previous_summary()
-
-    PubSub.register_to_new_replication_attestations()
-
-    summary = %BeaconSummary{
-      subset: <<0>>,
-      summary_time: summary_time,
-      transaction_attestations: attestations
-    }
-
-    tx1_address = tx1.address
-    tx2_address = tx2.address
-
-    me = self()
-
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetBeaconSummaries{}, _ ->
-        {:ok, %BeaconSummaryList{summaries: [summary]}}
-
-      _, %GetTransaction{address: ^tx1_address}, _ ->
-        send(me, :should_request)
-        {:ok, tx1}
-
-      _, %GetTransaction{address: ^tx2_address}, _ ->
-        send(me, :should_not_request)
-        {:ok, tx2}
-
-      _, %GetTransaction{address: _}, _ ->
-        {:ok, %NotFound{}}
-
-      _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
-
-      _, %GetGenesisAddress{}, _ ->
-        {:ok, %NotFound{}}
-    end)
-
-    Sync.load_missed_transactions(
-      DateTime.utc_now() |> DateTime.add(-1, :hour),
-      P2P.authorized_and_available_nodes()
-    )
-
-    assert_receive {:new_replication_attestation, ^attestation2}
-    assert_receive :should_request
-    refute_receive {:new_replication_attestation, ^attestation1}
-    refute_receive :should_not_request
+  
+      assert_receive {:new_replication_attestation, ^attestation2}
+      assert_receive :should_request
+      refute_receive {:new_replication_attestation, ^attestation1}
+      refute_receive :should_not_request
+    end
   end
 
   describe "process_summary_aggregate/2" do
     setup do
       start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
       start_supervised!({BeaconSummaryTimer, [interval: "0 * * * * *"]})
+
+      MockDB
+      |> stub(:list_io_transactions, fn _ -> [] end)
+      |> stub(:list_transactions, fn _ -> [] end)
+
+      start_supervised!(AccountMemTableLoader)
+
       :ok
     end
 
@@ -463,11 +468,6 @@ defmodule Archethic.SelfRepair.SyncTest do
 
         _, %GetGenesisAddress{}, _ ->
           {:ok, %NotFound{}}
-      end)
-
-      MockDB
-      |> stub(:register_stats, fn _, _, _, _ ->
-        :ok
       end)
 
       tx_summary = TransactionSummary.from_transaction(transfer_tx)

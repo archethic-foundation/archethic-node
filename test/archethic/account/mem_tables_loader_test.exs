@@ -6,6 +6,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTables.GenesisInputLedger
   alias Archethic.Account.MemTablesLoader
+  alias Archethic.Account.GenesisPendingLog
+  alias Archethic.Account.GenesisState
 
   alias Archethic.Crypto
 
@@ -25,6 +27,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   import Mox
   import Mock
@@ -100,165 +103,291 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   end
 
   describe "load_transaction/1" do
+    setup do
+      MockDB
+      |> stub(:list_io_transactions, fn _fields -> [] end)
+      |> stub(:list_transactions, fn _fields -> [] end)
+
+      {:ok, _} = MemTablesLoader.start_link()
+      :ok
+    end
+
     test "should load genesis inputs as io storage nodes but not for chain" do
+      destination_address = ArchethicCase.random_address()
+      destination_previous_address = ArchethicCase.random_address()
+      destination_genesis_address = ArchethicCase.random_address()
+
+      transaction_address = ArchethicCase.random_address()
+      transaction_previous_address = ArchethicCase.random_address()
+      transaction_genesis_address = ArchethicCase.random_address()
+
       tx = %Transaction{
-        address: "@Alice2",
+        address: transaction_address,
         validation_stamp: %ValidationStamp{
           timestamp: ~U[2023-09-10 05:00:00Z],
+          protocol_version: ArchethicCase.current_protocol_version(),
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}
+              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
             ],
             unspent_outputs: [
               %UnspentOutput{
-                from: "@Alice2",
+                from: transaction_address,
                 amount: 300_000_000,
                 type: :UCO,
                 timestamp: ~U[2023-09-10 05:00:00Z]
               }
             ],
             consumed_inputs: [
-              %UnspentOutput{from: "@Alice1", amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: "@Bob2", amount: 200_000_000, type: :UCO}
+              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO}
             ]
           }
         },
-        previous_public_key: "Alice1"
+        previous_public_key: ArchethicCase.random_public_key()
       }
 
       MockDB
       |> stub(:find_genesis_address, fn
-        "@Bob3" -> {:ok, "@Bob0"}
-        _ -> {:ok, "@Alice0"}
+        ^destination_address -> {:ok, destination_genesis_address}
+        _ -> {:ok, transaction_genesis_address}
       end)
 
       with_mock(Election,
         chain_storage_nodes: fn
-          "@Bob0", _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
-          _, _ -> []
+          ^destination_genesis_address, _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key()}]
+
+          _, _ ->
+            []
         end
       ) do
         MemTablesLoader.load_transaction(tx, io_transaction?: true)
 
         assert [
-                 %TransactionInput{from: "@Alice2", amount: 100_000_000, type: :UCO}
-               ] = GenesisInputLedger.get_unspent_inputs("@Bob0")
-
-        assert [] = GenesisInputLedger.get_unspent_inputs("@Alice0")
-      end
-    end
-
-    test "should load genesis inputs as io storage nodes but for chain" do
-      tx = %Transaction{
-        address: "@Alice2",
-        validation_stamp: %ValidationStamp{
-          timestamp: ~U[2023-09-10 05:00:00Z],
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [
-              %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}
-            ],
-            unspent_outputs: [
-              %UnspentOutput{
-                from: "@Alice2",
-                amount: 300_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00Z]
-              }
-            ],
-            consumed_inputs: [
-              %UnspentOutput{from: "@Alice1", amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: "@Bob2", amount: 200_000_000, type: :UCO}
-            ]
-          }
-        },
-        previous_public_key: "Alice1"
-      }
-
-      MockDB
-      |> stub(:find_genesis_address, fn
-        "@Bob3" -> {:ok, "@Bob0"}
-        _ -> {:ok, "@Alice0"}
-      end)
-      |> stub(:chain_size, fn
-        "@Alice0" -> 1
-        _ -> 0
-      end)
-
-      with_mock(Election,
-        chain_storage_nodes: fn
-          "@Alice0", _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
-          _, _ -> []
-        end
-      ) do
-        MemTablesLoader.load_transaction(tx, io_transaction?: true)
-
-        assert [
-                 %TransactionInput{
-                   from: "@Alice2",
-                   type: :UCO,
-                   timestamp: ~U[2023-09-10 05:00:00Z],
-                   amount: 300_000_000
+                 %VersionedTransactionInput{
+                   input: %TransactionInput{
+                     from: ^transaction_address,
+                     amount: 100_000_000,
+                     type: :UCO
+                   }
                  }
-               ] = GenesisInputLedger.get_unspent_inputs("@Alice0")
+               ] = GenesisInputLedger.get_unspent_inputs(destination_genesis_address)
 
-        assert [] = GenesisInputLedger.get_unspent_inputs("@Bob0")
+        assert [] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+
+        assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) ==
+                 GenesisPendingLog.stream(destination_genesis_address) |> Enum.to_list()
       end
     end
 
-    test "should load genesis inputs as chain storage nodes" do
+    test "should load genesis inputs as chain storage node" do
+      destination_address = ArchethicCase.random_address()
+      destination_previous_address = ArchethicCase.random_address()
+      destination_genesis_address = ArchethicCase.random_address()
+
+      transaction_address = ArchethicCase.random_address()
+      transaction_previous_address = ArchethicCase.random_address()
+      transaction_genesis_address = ArchethicCase.random_address()
+
       tx = %Transaction{
-        address: "@Alice2",
+        address: transaction_address,
         validation_stamp: %ValidationStamp{
+          protocol_version: ArchethicCase.current_protocol_version(),
           timestamp: ~U[2023-09-10 05:00:00Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}
+              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
             ],
             unspent_outputs: [
               %UnspentOutput{
-                from: "@Alice2",
+                from: transaction_address,
                 amount: 300_000_000,
                 type: :UCO,
                 timestamp: ~U[2023-09-10 05:00:00Z]
               }
             ],
             consumed_inputs: [
-              %UnspentOutput{from: "@Alice1", amount: 200_000_000, type: :UCO},
-              %UnspentOutput{from: "@Bob2", amount: 200_000_000, type: :UCO}
+              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO}
             ]
           }
         },
-        previous_public_key: "Alice1"
+        previous_public_key: ArchethicCase.random_public_key()
       }
 
       MockDB
       |> stub(:find_genesis_address, fn
-        "@Bob3" -> {:ok, "@Bob0"}
-        _ -> {:ok, "@Alice0"}
+        ^destination_address -> {:ok, destination_genesis_address}
+        _ -> {:ok, transaction_genesis_address}
       end)
       |> stub(:chain_size, fn
-        "@Alice0" -> 1
+        ^transaction_genesis_address -> 1
         _ -> 0
       end)
 
       with_mock(Election,
         chain_storage_nodes: fn
-          "@Alice0", _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
-          "@Bob0", _ -> []
+          ^transaction_genesis_address, _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key()}]
+
+          _, _ ->
+            []
         end
       ) do
         MemTablesLoader.load_transaction(tx, io_transaction?: false)
 
-        assert [] = GenesisInputLedger.get_unspent_inputs("@Bob0")
+        assert [
+                 %VersionedTransactionInput{
+                   input: %TransactionInput{
+                     from: ^transaction_address,
+                     type: :UCO,
+                     timestamp: ~U[2023-09-10 05:00:00Z],
+                     amount: 300_000_000
+                   }
+                 }
+               ] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+
+        assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) |> Enum.empty?()
+        assert GenesisPendingLog.stream(destination_genesis_address) |> Enum.empty?()
+
+        assert GenesisPendingLog.stream(transaction_genesis_address) |> Enum.empty?()
+
+        assert GenesisState.fetch(transaction_genesis_address) ==
+                 GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+      end
+    end
+
+    test "should load genesis inputs as IO and then as chain storage node to consume inputs" do
+      destination_address = ArchethicCase.random_address()
+      destination_previous_address = ArchethicCase.random_address()
+      destination_genesis_address = ArchethicCase.random_address()
+
+      transaction_address = ArchethicCase.random_address()
+      transaction_previous_address = ArchethicCase.random_address()
+      transaction_genesis_address = ArchethicCase.random_address()
+
+      tx1 = %Transaction{
+        address: destination_address,
+        validation_stamp: %ValidationStamp{
+          protocol_version: ArchethicCase.current_protocol_version(),
+          timestamp: ~U[2023-09-10 05:00:00Z],
+          ledger_operations: %LedgerOperations{
+            transaction_movements: [
+              %TransactionMovement{
+                to: transaction_previous_address,
+                amount: 100_000_000,
+                type: :UCO
+              }
+            ],
+            unspent_outputs: [
+              %UnspentOutput{
+                from: destination_address,
+                amount: 300_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-10 05:00:00Z]
+              }
+            ],
+            consumed_inputs: [
+              %UnspentOutput{from: destination_previous_address, amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO}
+            ]
+          }
+        },
+        previous_public_key: ArchethicCase.random_public_key()
+      }
+
+      tx2 = %Transaction{
+        address: transaction_address,
+        validation_stamp: %ValidationStamp{
+          protocol_version: ArchethicCase.current_protocol_version(),
+          timestamp: ~U[2023-09-12 05:00:00Z],
+          ledger_operations: %LedgerOperations{
+            transaction_movements: [
+              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
+            ],
+            unspent_outputs: [
+              %UnspentOutput{
+                from: transaction_address,
+                amount: 300_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-12 05:00:00Z]
+              }
+            ],
+            consumed_inputs: [
+              %UnspentOutput{
+                from: transaction_previous_address,
+                amount: 400_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-08 05:00:00Z]
+              },
+              %UnspentOutput{
+                from: destination_address,
+                amount: 100_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-10 05:00:00Z]
+              }
+            ]
+          }
+        },
+        previous_public_key: ArchethicCase.random_public_key()
+      }
+
+      MockDB
+      |> stub(:find_genesis_address, fn
+        ^destination_address -> {:ok, destination_genesis_address}
+        _ -> {:ok, transaction_genesis_address}
+      end)
+      |> stub(:chain_size, fn
+        ^transaction_genesis_address -> 1
+        ^destination_address -> 1
+        _ -> 0
+      end)
+
+      with_mock(Election,
+        chain_storage_nodes: fn
+          ^transaction_genesis_address, _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key()}]
+
+          _, _ ->
+            []
+        end
+      ) do
+        MemTablesLoader.load_transaction(tx1, io_transaction?: true)
 
         assert [
-                 %TransactionInput{
-                   from: "@Alice2",
-                   type: :UCO,
-                   timestamp: ~U[2023-09-10 05:00:00Z],
-                   amount: 300_000_000
+                 %VersionedTransactionInput{
+                   input: %TransactionInput{
+                     from: ^destination_address,
+                     type: :UCO,
+                     timestamp: ~U[2023-09-10 05:00:00Z],
+                     amount: 100_000_000
+                   }
                  }
-               ] = GenesisInputLedger.get_unspent_inputs("@Alice0")
+               ] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+
+        assert transaction_genesis_address
+               |> GenesisPendingLog.stream()
+               |> Enum.to_list() ==
+                 GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+
+        MemTablesLoader.load_transaction(tx2, io_transaction?: false)
+
+        assert GenesisPendingLog.stream(transaction_genesis_address) |> Enum.empty?()
+
+        assert [
+                 %VersionedTransactionInput{
+                   input: %TransactionInput{
+                     from: ^transaction_address,
+                     amount: 300_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2023-09-12 05:00:00Z]
+                   }
+                 }
+               ] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+
+        assert GenesisState.fetch(transaction_genesis_address) ==
+                 GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
       end
     end
 
@@ -333,127 +462,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
-  end
 
-  describe "start_link/1" do
-    setup do
-      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-
-      MockDB
-      |> stub(:list_io_transactions, fn _fields ->
-        [create_transaction(timestamp, "@Charlie4")]
-      end)
-      |> stub(:list_transactions, fn _fields ->
-        [create_transaction(timestamp, "@Charlie3")]
-      end)
-
-      %{timestamp: timestamp}
-    end
-
-    test "should query DB to load all the transactions", %{timestamp: timestamp} do
-      assert {:ok, _} = MemTablesLoader.start_link()
-
-      assert [
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "@Charlie3",
-                   amount: 1_900_000_000,
-                   type: :UCO,
-                   timestamp: ^timestamp
-                 }
-               },
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "@Alice2",
-                   amount: 200_000_000,
-                   type: :UCO,
-                   timestamp: ^timestamp
-                 }
-               }
-             ] = UCOLedger.get_unspent_outputs("@Charlie3")
-
-      assert [
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "@Charlie3",
-                   amount: 3_400_000_000,
-                   type: :UCO,
-                   timestamp: ^timestamp
-                 }
-               },
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "@Charlie4",
-                   amount: 3_400_000_000,
-                   type: :UCO,
-                   timestamp: ^timestamp
-                 }
-               }
-             ] = UCOLedger.get_unspent_outputs("@Tom4")
-
-      assert [
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "@Charlie3",
-                   amount: 1_000_000_000,
-                   type: {:token, "@CharlieToken", 0},
-                   timestamp: ^timestamp
-                 }
-               },
-               %VersionedUnspentOutput{
-                 unspent_output: %UnspentOutput{
-                   from: "@Charlie4",
-                   amount: 1_000_000_000,
-                   type: {:token, "@CharlieToken", 0},
-                   timestamp: ^timestamp
-                 }
-               }
-             ] = TokenLedger.get_unspent_outputs("@Bob3")
-    end
-  end
-
-  defp create_transaction(timestamp, address) do
-    %Transaction{
-      address: address,
-      previous_public_key: "Charlie2",
-      validation_stamp: %ValidationStamp{
-        protocol_version: ArchethicCase.current_protocol_version(),
-        timestamp: timestamp,
-        ledger_operations: %LedgerOperations{
-          fee: 100_000_000,
-          transaction_movements: [
-            %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
-            %TransactionMovement{
-              to: "@Bob3",
-              amount: 1_000_000_000,
-              type: {:token, "@CharlieToken", 0}
-            },
-            %TransactionMovement{
-              to: LedgerOperations.burning_address(),
-              amount: 100_000_000,
-              type: {:token, "@Charlie2", 0}
-            }
-          ],
-          unspent_outputs: [
-            %UnspentOutput{
-              from: "@Alice2",
-              amount: 200_000_000,
-              type: :UCO,
-              timestamp: timestamp
-            },
-            %UnspentOutput{
-              from: "@Charlie3",
-              amount: 1_900_000_000,
-              type: :UCO,
-              timestamp: timestamp
-            }
-          ]
-        }
-      }
-    }
-  end
-
-  describe "Reward Minting test" do
     test "Should display Reward Token as UCO in UnspentOutput of Recipient" do
       timestamp = DateTime.utc_now() |> DateTime.add(-186_400) |> DateTime.truncate(:millisecond)
 
@@ -543,6 +552,187 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
+  end
+
+  describe "start_link/1" do
+    test "should query DB to load all the transactions" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
+      MockDB
+      |> stub(:list_io_transactions, fn _fields ->
+        [create_transaction(timestamp, "@Charlie4")]
+      end)
+      |> stub(:list_transactions, fn _fields ->
+        [create_transaction(timestamp, "@Charlie3")]
+      end)
+
+      assert {:ok, _} = MemTablesLoader.start_link()
+
+      assert [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 1_900_000_000,
+                   type: :UCO,
+                   timestamp: ^timestamp
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Alice2",
+                   amount: 200_000_000,
+                   type: :UCO,
+                   timestamp: ^timestamp
+                 }
+               }
+             ] = UCOLedger.get_unspent_outputs("@Charlie3")
+
+      assert [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 3_400_000_000,
+                   type: :UCO,
+                   timestamp: ^timestamp
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie4",
+                   amount: 3_400_000_000,
+                   type: :UCO,
+                   timestamp: ^timestamp
+                 }
+               }
+             ] = UCOLedger.get_unspent_outputs("@Tom4")
+
+      assert [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie3",
+                   amount: 1_000_000_000,
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ^timestamp
+                 }
+               },
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: "@Charlie4",
+                   amount: 1_000_000_000,
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ^timestamp
+                 }
+               }
+             ] = TokenLedger.get_unspent_outputs("@Bob3")
+    end
+
+    test "should refill the genesis state" do
+      MockDB
+      |> stub(:list_io_transactions, fn _fields -> [] end)
+      |> stub(:list_transactions, fn _fields -> [] end)
+
+      assert {:ok, pid} = MemTablesLoader.start_link()
+
+      destination_address = ArchethicCase.random_address()
+      destination_genesis_address = ArchethicCase.random_address()
+
+      transaction_address = ArchethicCase.random_address()
+      transaction_previous_address = ArchethicCase.random_address()
+      transaction_genesis_address = ArchethicCase.random_address()
+
+      tx = %Transaction{
+        address: transaction_address,
+        validation_stamp: %ValidationStamp{
+          timestamp: ~U[2023-09-10 05:00:00Z],
+          protocol_version: ArchethicCase.current_protocol_version(),
+          ledger_operations: %LedgerOperations{
+            transaction_movements: [
+              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
+            ],
+            unspent_outputs: [
+              %UnspentOutput{
+                from: transaction_address,
+                amount: 100_000_000,
+                type: :UCO,
+                timestamp: ~U[2023-09-10 05:00:00Z]
+              }
+            ],
+            consumed_inputs: [
+              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
+            ]
+          }
+        },
+        previous_public_key: ArchethicCase.random_public_key()
+      }
+
+      MockDB
+      |> stub(:find_genesis_address, fn
+        ^destination_address -> {:ok, destination_genesis_address}
+        _ -> {:ok, transaction_genesis_address}
+      end)
+
+      with_mock(Election,
+        chain_storage_nodes: fn
+          _, _ -> [%Node{first_public_key: Crypto.first_node_public_key()}] end
+      ) do
+        MemTablesLoader.load_transaction(tx, io_transaction?: false)
+
+        pending_log = GenesisPendingLog.stream(destination_genesis_address) |> Enum.to_list()
+        genesis_state = GenesisState.fetch(transaction_genesis_address)
+
+        refute pending_log |> Enum.empty?()
+        refute genesis_state |> Enum.empty?()
+        refute GenesisInputLedger.get_unspent_inputs(destination_genesis_address) |> Enum.empty?()
+        refute GenesisInputLedger.get_unspent_inputs(transaction_genesis_address) |> Enum.empty?()
+
+        GenServer.stop(pid)
+        assert {:ok, _} = MemTablesLoader.start_link()
+
+        assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) == pending_log
+        assert GenesisInputLedger.get_unspent_inputs(transaction_genesis_address) == genesis_state
+      end
+    end
+  end
+
+  defp create_transaction(timestamp, address) do
+    %Transaction{
+      address: address,
+      previous_public_key: "Charlie2",
+      validation_stamp: %ValidationStamp{
+        protocol_version: ArchethicCase.current_protocol_version(),
+        timestamp: timestamp,
+        ledger_operations: %LedgerOperations{
+          fee: 100_000_000,
+          transaction_movements: [
+            %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
+            %TransactionMovement{
+              to: "@Bob3",
+              amount: 1_000_000_000,
+              type: {:token, "@CharlieToken", 0}
+            },
+            %TransactionMovement{
+              to: LedgerOperations.burning_address(),
+              amount: 100_000_000,
+              type: {:token, "@Charlie2", 0}
+            }
+          ],
+          unspent_outputs: [
+            %UnspentOutput{
+              from: "@Alice2",
+              amount: 200_000_000,
+              type: :UCO,
+              timestamp: timestamp
+            },
+            %UnspentOutput{
+              from: "@Charlie3",
+              amount: 1_900_000_000,
+              type: :UCO,
+              timestamp: timestamp
+            }
+          ]
+        }
+      }
+    }
   end
 
   defp create_reward_transaction(timestamp, validation_time) do

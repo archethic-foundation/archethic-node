@@ -1,6 +1,8 @@
 defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   use ArchethicCase
 
+  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
+
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
@@ -258,6 +260,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       send(me, :transaction_replicated)
       :ok
     end)
+    |> stub(:list_io_transactions, fn _fields -> [] end)
+    |> stub(:list_transactions, fn _fields -> [] end)
+
+    start_supervised!(AccountMemTableLoader)
 
     tx_summary = TransactionSummary.from_transaction(tx)
 
@@ -314,11 +320,16 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     tx =
       TransactionFactory.create_valid_transaction(inputs, timestamp: ~U[2022-01-02 00:00:00.000Z])
 
+
     MockDB
     |> stub(:write_transaction, fn ^tx, _ ->
       send(me, :transaction_replicated)
       :ok
     end)
+    |> stub(:list_io_transactions, fn _fields -> [] end)
+    |> stub(:list_transactions, fn _fields -> [] end)
+
+    start_supervised!(AccountMemTableLoader)
 
     tx_summary = TransactionSummary.from_transaction(tx)
 

@@ -15,10 +15,9 @@ defmodule Archethic.Account.MemTables.GenesisInputLedger do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
 
   @spec start_link(arg :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
@@ -37,29 +36,12 @@ defmodule Archethic.Account.MemTables.GenesisInputLedger do
   Add new input in the genesis ledger
   """
   @spec add_chain_input(
-          TransactionMovement.t(),
-          tx_address :: binary(),
-          tx_timestamp :: DateTime.t(),
-          genesis_address :: binary()
+          genesis_address :: binary(),
+          input :: VersionedTransactionInput.t()
         ) :: :ok
-  def add_chain_input(
-        %TransactionMovement{amount: amount, type: type},
-        tx_address,
-        tx_timestamp = %DateTime{},
-        genesis_address
-      )
-      when is_binary(tx_address) and is_binary(genesis_address) do
-    :ets.insert(
-      @table_name,
-      {genesis_address,
-       %TransactionInput{
-         from: tx_address,
-         amount: amount,
-         type: type,
-         timestamp: tx_timestamp
-       }}
-    )
-
+  def add_chain_input(genesis_address, input = %VersionedTransactionInput{})
+      when is_binary(genesis_address) do
+    :ets.insert(@table_name, {genesis_address, input})
     :ok
   end
 
@@ -73,7 +55,8 @@ defmodule Archethic.Account.MemTables.GenesisInputLedger do
             ledger_operations: %LedgerOperations{
               consumed_inputs: consumed_inputs,
               unspent_outputs: unspent_outputs
-            }
+            },
+            protocol_version: protocol_version
           }
         },
         genesis_address,
@@ -86,7 +69,10 @@ defmodule Archethic.Account.MemTables.GenesisInputLedger do
         phase2? or Enum.any?(consumed_inputs, &(&1.type == type))
       end)
       |> Enum.map(fn %UnspentOutput{from: from, type: type, timestamp: timestamp, amount: amount} ->
-        %TransactionInput{from: from, type: type, timestamp: timestamp, amount: amount}
+        %VersionedTransactionInput{
+          input: %TransactionInput{from: from, type: type, timestamp: timestamp, amount: amount},
+          protocol_version: protocol_version
+        }
       end)
 
     # Remove the consumed inputs
@@ -98,11 +84,20 @@ defmodule Archethic.Account.MemTables.GenesisInputLedger do
                                   } ->
       Logger.debug("Consuming #{Base.encode16(from)} - for #{inspect(genesis_address)}")
 
-      :ets.delete_object(
-        @table_name,
+      pattern =
         {genesis_address,
-         %TransactionInput{from: from, type: type, amount: amount, timestamp: timestamp}}
-      )
+         %{
+           __struct__: VersionedTransactionInput,
+           input: %{
+             __struct__: TransactionInput,
+             amount: amount,
+             from: from,
+             timestamp: timestamp,
+             type: type
+           }
+         }}
+
+      :ets.match_delete(@table_name, pattern)
     end)
 
     Enum.each(updated_inputs, &:ets.insert(@table_name, {genesis_address, &1}))
@@ -111,10 +106,24 @@ defmodule Archethic.Account.MemTables.GenesisInputLedger do
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
   """
-  @spec get_unspent_inputs(binary()) :: list(TransactionInput.t())
+  @spec get_unspent_inputs(binary()) :: list(VersionedTransactionInput.t())
   def get_unspent_inputs(genesis_address) do
     @table_name
     |> :ets.lookup(genesis_address)
     |> Enum.map(&elem(&1, 1))
+  end
+
+  @doc """
+  Insert multiple inputs on a genesis address
+  """
+  @spec load_inputs(binary(), list(VersionedTransactionInput.t())) :: :ok
+  def load_inputs(genesis_address, inputs) do
+    objects =
+      Enum.map(inputs, fn input ->
+        {genesis_address, input}
+      end)
+
+    :ets.insert(@table_name, objects)
+    :ok
   end
 end
