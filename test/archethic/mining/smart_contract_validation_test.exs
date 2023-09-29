@@ -11,17 +11,17 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
   import Mox
 
-  describe "valid_contract_calls?/2" do
-    test "returns true if all contracts calls are valid" do
+  describe "validate_contract_calls/2" do
+    test "should returns {true, fees} if all contracts calls are valid" do
       MockClient
       |> stub(
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true}}
+            {:ok, %SmartContractCallValidation{valid?: true, fee: 123_456}}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true}}
+            {:ok, %SmartContractCallValidation{valid?: true, fee: 654_321}}
         end
       )
 
@@ -38,30 +38,27 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       P2P.add_and_connect_node(node)
 
-      assert SmartContractValidation.valid_contract_calls?(
-               [
-                 %Recipient{address: "@SC1"},
-                 %Recipient{
-                   address: "@SC2",
-                   action: "do_something",
-                   args: [1, 2, 3]
-                 }
-               ],
-               %Transaction{},
-               DateTime.utc_now()
-             )
+      assert {true, 777_777} =
+               SmartContractValidation.validate_contract_calls(
+                 [
+                   %Recipient{address: "@SC1"},
+                   %Recipient{address: "@SC2", action: "do_something", args: [1, 2, 3]}
+                 ],
+                 %Transaction{},
+                 DateTime.utc_now()
+               )
     end
 
-    test "returns false if any contract is invalid" do
+    test "should returns {false, 0} if any contract is invalid" do
       MockClient
       |> stub(
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: false}}
+            {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true}}
+            {:ok, %SmartContractCallValidation{valid?: true, fee: 0}}
         end
       )
 
@@ -78,21 +75,22 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
       P2P.add_and_connect_node(node)
 
-      refute SmartContractValidation.valid_contract_calls?(
-               [
-                 %Recipient{address: "@SC1"},
-                 %Recipient{
-                   address: "@SC2",
-                   action: "do_something",
-                   args: [1, 2, 3]
-                 }
-               ],
-               %Transaction{},
-               DateTime.utc_now()
-             )
+      assert {false, 0} =
+               SmartContractValidation.validate_contract_calls(
+                 [
+                   %Recipient{address: "@SC1"},
+                   %Recipient{
+                     address: "@SC2",
+                     action: "do_something",
+                     args: [1, 2, 3]
+                   }
+                 ],
+                 %Transaction{},
+                 DateTime.utc_now()
+               )
     end
 
-    test "returns false if one node replying asserting the contract is invalid" do
+    test "should returns {false, 0} if one node replying asserting the contract is invalid" do
       MockClient
       |> stub(
         :send_message,
@@ -100,12 +98,12 @@ defmodule Archethic.Mining.SmartContractValidationTest do
           %Node{port: 1234},
           %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
           _ ->
-            {:ok, %SmartContractCallValidation{valid?: false}}
+            {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
 
           %Node{port: 1235},
           %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}},
           _ ->
-            {:ok, %SmartContractCallValidation{valid?: true}}
+            {:ok, %SmartContractCallValidation{valid?: true, fee: 123_456}}
         end
       )
 
@@ -134,23 +132,24 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node1)
       P2P.add_and_connect_node(node2)
 
-      refute SmartContractValidation.valid_contract_calls?(
-               [%Recipient{address: "@SC1"}],
-               %Transaction{},
-               DateTime.utc_now()
-             )
+      assert {false, 0} =
+               SmartContractValidation.validate_contract_calls(
+                 [%Recipient{address: "@SC1"}],
+                 %Transaction{},
+                 DateTime.utc_now()
+               )
     end
 
-    test "returns false if one smart contract is invalid" do
+    test "should returns {false, 0} if one smart contract is invalid" do
       MockClient
       |> stub(
         :send_message,
         fn
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC1"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: false}}
+            {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
 
           _, %ValidateSmartContractCall{recipient: %Recipient{address: "@SC2"}}, _ ->
-            {:ok, %SmartContractCallValidation{valid?: true}}
+            {:ok, %SmartContractCallValidation{valid?: true, fee: 123_456}}
         end
       )
 
@@ -179,11 +178,12 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       P2P.add_and_connect_node(node1)
       P2P.add_and_connect_node(node2)
 
-      refute SmartContractValidation.valid_contract_calls?(
-               [%Recipient{address: "@SC1"}, %Recipient{address: "@SC2"}],
-               %Transaction{},
-               DateTime.utc_now()
-             )
+      assert {false, 0} =
+               SmartContractValidation.validate_contract_calls(
+                 [%Recipient{address: "@SC1"}, %Recipient{address: "@SC2"}],
+                 %Transaction{},
+                 DateTime.utc_now()
+               )
     end
   end
 end
