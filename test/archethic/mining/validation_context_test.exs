@@ -86,14 +86,14 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
-      %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:signature]}]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_invalid_signature(validation_context)
-        )
-        |> ValidationContext.cross_validate()
+      assert %ValidationContext{
+               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:signature]}]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_signature(validation_context)
+               )
+               |> ValidationContext.cross_validate()
     end
 
     test "should get inconsistency when the proof of work is invalid" do
@@ -102,40 +102,44 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
-      %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_invalid_proof_of_work(validation_context)
-        )
-        |> ValidationContext.cross_validate()
+      assert %ValidationContext{
+               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_proof_of_work(validation_context)
+               )
+               |> ValidationContext.cross_validate()
     end
 
     test "should get inconsistency when the proof of work is not in authorized keys" do
       timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
       validation_context = create_context(timestamp)
 
-      %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
-        |> ValidationContext.cross_validate()
+      assert %ValidationContext{
+               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:proof_of_work]}]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp(validation_context)
+               )
+               |> ValidationContext.cross_validate()
     end
 
     test "should get inconsistency when the transaction fee is invalid" do
       validation_context = create_context()
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
-      %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:transaction_fee]}]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_invalid_transaction_fee(validation_context)
-        )
-        |> ValidationContext.cross_validate()
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:transaction_fee]}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_transaction_fee(validation_context)
+               )
+               |> ValidationContext.cross_validate()
     end
 
     test "should get inconsistency when the transaction movements are invalid" do
@@ -144,16 +148,16 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
-      %ValidationContext{
-        cross_validation_stamps: [
-          %CrossValidationStamp{inconsistencies: [:transaction_movements]}
-        ]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_invalid_transaction_movements(validation_context)
-        )
-        |> ValidationContext.cross_validate()
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:transaction_movements]}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_transaction_movements(validation_context)
+               )
+               |> ValidationContext.cross_validate()
     end
 
     test "should get inconsistency when the unspent outputs are invalid" do
@@ -161,14 +165,16 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
-      %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:unspent_outputs]}]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_invalid_unspent_outputs(validation_context)
-        )
-        |> ValidationContext.cross_validate()
+      assert %ValidationContext{
+               cross_validation_stamps: [
+                 %CrossValidationStamp{inconsistencies: [:unspent_outputs]}
+               ]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_unspent_outputs(validation_context)
+               )
+               |> ValidationContext.cross_validate()
     end
 
     test "should get inconsistency when the errors are invalid" do
@@ -176,14 +182,14 @@ defmodule Archethic.Mining.ValidationContextTest do
 
       SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
 
-      %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:error]}]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_invalid_errors(validation_context)
-        )
-        |> ValidationContext.cross_validate()
+      assert %ValidationContext{
+               cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:error]}]
+             } =
+               validation_context
+               |> ValidationContext.add_validation_stamp(
+                 create_validation_stamp_with_invalid_errors(validation_context)
+               )
+               |> ValidationContext.cross_validate()
     end
   end
 
