@@ -17,12 +17,12 @@ defmodule Archethic.Mining.SmartContractValidation do
 
   This function requests storage nodes of the contract address to execute the transaction validation and return assertion about the execution
   """
-  @spec valid_contract_calls?(
+  @spec validate_contract_calls(
           recipients :: list(Recipient.t()),
           transaction :: Transaction.t(),
           validation_time :: DateTime.t()
-        ) :: boolean()
-  def valid_contract_calls?(
+        ) :: {true, fee :: non_neg_integer()} | {false, 0}
+  def validate_contract_calls(
         recipients,
         transaction = %Transaction{},
         validation_time = %DateTime{}
@@ -30,15 +30,17 @@ defmodule Archethic.Mining.SmartContractValidation do
     TaskSupervisor
     |> Task.Supervisor.async_stream_nolink(
       recipients,
-      &request_contract_validation?(&1, transaction, validation_time),
+      &request_contract_validation(&1, transaction, validation_time),
       timeout: 3_000,
       ordered: false
     )
-    |> Stream.filter(&match?({:ok, true}, &1))
-    |> Enum.count() == length(recipients)
+    |> Enum.reduce_while({true, 0}, fn
+      {:ok, {_valid? = true, fee}}, {true, total_fee} -> {:cont, {true, total_fee + fee}}
+      _, _ -> {:halt, {false, 0}}
+    end)
   end
 
-  defp request_contract_validation?(
+  defp request_contract_validation(
          recipient = %Recipient{address: address},
          transaction = %Transaction{},
          validation_time
@@ -64,8 +66,8 @@ defmodule Archethic.Mining.SmartContractValidation do
            conflicts_resolver,
            0
          ) do
-      {:ok, %SmartContractCallValidation{valid?: valid?}} -> valid?
-      _ -> false
+      {:ok, %SmartContractCallValidation{valid?: valid?, fee: fee}} -> {valid?, fee}
+      _ -> {false, 0}
     end
   end
 end

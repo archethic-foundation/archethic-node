@@ -365,7 +365,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: 2_020_000_000,
+          fee: 1,
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)

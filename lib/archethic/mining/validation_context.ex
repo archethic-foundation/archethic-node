@@ -48,7 +48,6 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.Election
 
   alias Archethic.Mining
-  alias Archethic.Mining.Fee
   alias Archethic.Mining.ProofOfWork
   alias Archethic.Mining.SmartContractValidation
 
@@ -726,14 +725,18 @@ defmodule Archethic.Mining.ValidationContext do
           contract_context: contract_context
         }
       ) do
-    protocol_version = Mining.protocol_version()
-    {sufficient_funds?, ledger_operations} = get_ledger_operations(context, protocol_version)
-
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
+
+    {valid_contract_recipients?, contract_recipients_fee} =
+      validate_contract_recipients(tx, resolved_recipients, validation_time)
+
+    fee = calculate_fee(tx, contract_recipients_fee, validation_time)
+
+    {sufficient_funds?, ledger_operations} = get_ledger_operations(context, fee, validation_time)
 
     validation_stamp =
       %ValidationStamp{
-        protocol_version: protocol_version,
+        protocol_version: Mining.protocol_version(),
         timestamp: validation_time,
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
@@ -748,7 +751,8 @@ defmodule Archethic.Mining.ValidationContext do
             valid_pending_transaction?,
             resolved_recipients,
             validation_time,
-            contract_context
+            contract_context,
+            valid_contract_recipients?
           )
       }
       |> ValidationStamp.sign()
@@ -756,34 +760,30 @@ defmodule Archethic.Mining.ValidationContext do
     %{context | validation_stamp: validation_stamp}
   end
 
-  defp get_ledger_operations(
-         %__MODULE__{
-           transaction: tx,
-           unspent_outputs: unspent_outputs,
-           validation_time: validation_time,
-           resolved_addresses: resolved_addresses
-         },
-         protocol_version
-       ) do
+  defp calculate_fee(tx, contract_recipients_fee, validation_time) do
     previous_usd_price =
       validation_time
       |> OracleChain.get_last_scheduling_date()
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
+    Mining.get_transaction_fee(tx, previous_usd_price, validation_time) + contract_recipients_fee
+  end
+
+  defp get_ledger_operations(
+         %__MODULE__{
+           transaction: tx,
+           unspent_outputs: unspent_outputs,
+           resolved_addresses: resolved_addresses
+         },
+         fee,
+         validation_time
+       ) do
     initial_movements =
       tx
       |> Transaction.get_movements()
       |> Enum.map(&{{&1.to, &1.type}, &1})
       |> Enum.into(%{})
-
-    fee =
-      Fee.calculate(
-        tx,
-        previous_usd_price,
-        validation_time,
-        protocol_version
-      )
 
     resolved_movements =
       Enum.reduce(resolved_addresses, [], fn
@@ -819,7 +819,8 @@ defmodule Archethic.Mining.ValidationContext do
           valid_pending_transaction? :: boolean(),
           resolved_recipients :: list(Recipient.t()),
           validation_time :: DateTime.t(),
-          contract_context :: nil | Contract.Context.t()
+          contract_context :: nil | Contract.Context.t(),
+          valid_contract_recipients? :: boolean()
         ) :: nil | ValidationStamp.error()
   defp get_validation_error(
          prev_tx,
@@ -828,7 +829,8 @@ defmodule Archethic.Mining.ValidationContext do
          valid_pending_transaction?,
          resolved_recipients,
          validation_time,
-         contract_context
+         contract_context,
+         valid_contract_recipients?
        ) do
     cond do
       not valid_pending_transaction? ->
@@ -846,7 +848,7 @@ defmodule Archethic.Mining.ValidationContext do
       not valid_contract_recipients_distinct?(resolved_recipients) ->
         :recipients_not_distinct
 
-      not valid_contract_recipients?(tx, resolved_recipients, validation_time) ->
+      not valid_contract_recipients? ->
         :invalid_recipients_execution
 
       true ->
@@ -860,10 +862,10 @@ defmodule Archethic.Mining.ValidationContext do
     resolved_recipients_addresses == Enum.uniq(resolved_recipients_addresses)
   end
 
-  defp valid_contract_recipients?(_tx, [], _validation_time), do: true
+  defp validate_contract_recipients(_tx, [], _validation_time), do: {true, 0}
 
-  defp valid_contract_recipients?(tx, resolved_recipients, validation_time),
-    do: SmartContractValidation.valid_contract_calls?(resolved_recipients, tx, validation_time)
+  defp validate_contract_recipients(tx, resolved_recipients, validation_time),
+    do: SmartContractValidation.validate_contract_calls(resolved_recipients, tx, validation_time)
 
   ####################
   defp valid_inherit_condition?(
@@ -1067,18 +1069,46 @@ defmodule Archethic.Mining.ValidationContext do
     %{context | cross_validation_stamps: [cross_stamp]}
   end
 
-  defp validation_stamp_inconsistencies(context = %__MODULE__{validation_stamp: stamp}) do
+  defp validation_stamp_inconsistencies(
+         context = %__MODULE__{
+           transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
+           resolved_addresses: resolved_addresses,
+           validation_time: validation_time,
+           validation_stamp:
+             stamp = %ValidationStamp{
+               timestamp: timestamp,
+               ledger_operations: %LedgerOperations{fee: stamp_fee}
+             }
+         }
+       ) do
+    resolved_recipients = resolved_recipients(recipients, resolved_addresses)
+
+    {valid_contract_recipients?, contract_recipients_fee} =
+      validate_contract_recipients(tx, resolved_recipients, validation_time)
+
+    fee = calculate_fee(tx, contract_recipients_fee, validation_time)
+
+    {sufficient_funds?, ledger_operations} = get_ledger_operations(context, stamp_fee, timestamp)
+
     subsets_verifications = [
       timestamp: fn -> valid_timestamp(stamp, context) end,
       signature: fn -> valid_stamp_signature(stamp, context) end,
       proof_of_work: fn -> valid_stamp_proof_of_work?(stamp, context) end,
       proof_of_integrity: fn -> valid_stamp_proof_of_integrity?(stamp, context) end,
       proof_of_election: fn -> valid_stamp_proof_of_election?(stamp, context) end,
-      transaction_fee: fn -> valid_stamp_fee?(stamp, context) end,
+      transaction_fee: fn -> valid_stamp_fee?(stamp, fee) end,
       transaction_movements: fn -> valid_stamp_transaction_movements?(stamp, context) end,
       recipients: fn -> valid_stamp_recipients?(stamp, context) end,
-      unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, context) end,
-      error: fn -> valid_stamp_error?(stamp, context) end,
+      unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, ledger_operations) end,
+      error: fn ->
+        valid_stamp_error?(
+          stamp,
+          context,
+          valid_contract_recipients?,
+          sufficient_funds?,
+          resolved_recipients
+        )
+      end,
       protocol_version: fn -> valid_protocol_version?(stamp) end
     ]
 
@@ -1129,43 +1159,25 @@ defmodule Archethic.Mining.ValidationContext do
        do: poe == Election.validation_nodes_election_seed_sorting(tx, timestamp)
 
   defp valid_stamp_fee?(
-         %ValidationStamp{
-           protocol_version: protocol_version,
-           timestamp: timestamp,
-           ledger_operations: %LedgerOperations{fee: fee}
-         },
-         %__MODULE__{transaction: tx}
+         %ValidationStamp{ledger_operations: %LedgerOperations{fee: stamp_fee}},
+         expected_fee
        ) do
-    previous_usd_price =
-      timestamp
-      |> OracleChain.get_last_scheduling_date()
-      |> OracleChain.get_uco_price()
-      |> Keyword.fetch!(:usd)
-
-    Fee.calculate(
-      tx,
-      previous_usd_price,
-      timestamp,
-      protocol_version
-    ) == fee
+    stamp_fee == expected_fee
   end
 
   defp valid_stamp_error?(
-         stamp = %ValidationStamp{error: error, protocol_version: protocol_version},
-         context = %__MODULE__{
-           transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
+         %ValidationStamp{error: error},
+         %__MODULE__{
+           transaction: tx,
            previous_transaction: prev_tx,
            valid_pending_transaction?: valid_pending_transaction?,
-           resolved_addresses: resolved_addresses,
            validation_time: validation_time,
            contract_context: contract_context
-         }
+         },
+         valid_contract_recipients?,
+         sufficient_funds?,
+         resolved_recipients
        ) do
-    validated_context = %{context | transaction: %{tx | validation_stamp: stamp}}
-
-    resolved_recipients = resolved_recipients(recipients, resolved_addresses)
-    {sufficient_funds?, _} = get_ledger_operations(validated_context, protocol_version)
-
     expected_error =
       get_validation_error(
         prev_tx,
@@ -1174,7 +1186,8 @@ defmodule Archethic.Mining.ValidationContext do
         valid_pending_transaction?,
         resolved_recipients,
         validation_time,
-        contract_context
+        contract_context,
+        valid_contract_recipients?
       )
 
     error == expected_error
@@ -1227,27 +1240,10 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp valid_stamp_unspent_outputs?(
          %ValidationStamp{
-           ledger_operations: %LedgerOperations{fee: fee, unspent_outputs: next_unspent_outputs},
-           timestamp: timestamp
+           ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
          },
-         %__MODULE__{
-           transaction: tx,
-           unspent_outputs: previous_unspent_outputs
-         }
+         %LedgerOperations{unspent_outputs: expected_unspent_outputs}
        ) do
-    %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
-      %LedgerOperations{
-        fee: fee,
-        transaction_movements: Transaction.get_movements(tx),
-        tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-      }
-      |> LedgerOperations.consume_inputs(
-        tx.address,
-        previous_unspent_outputs,
-        timestamp
-      )
-      |> elem(1)
-
     expected_unspent_outputs == next_unspent_outputs
   end
 
