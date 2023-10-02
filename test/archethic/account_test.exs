@@ -1,6 +1,5 @@
 defmodule Archethic.AccountTest do
   @moduledoc false
-  use ExUnit.Case
 
   alias Archethic.Account
   alias Archethic.Account.MemTables.TokenLedger
@@ -16,10 +15,10 @@ defmodule Archethic.AccountTest do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
 
-  alias Archethic.Reward.MemTables.RewardTokens
-  alias Archethic.Reward.MemTablesLoader, as: RewardMemTableLoader
-
   import Mox
+  import ArchethicCase
+
+  use ArchethicCase
 
   setup :set_mox_global
 
@@ -70,10 +69,6 @@ defmodule Archethic.AccountTest do
         ]
       end)
 
-      start_supervised!(RewardTokens)
-      start_supervised!(RewardMemTableLoader)
-      start_supervised!(UCOLedger)
-      start_supervised!(TokenLedger)
       :ok
     end
 
@@ -187,9 +182,6 @@ defmodule Archethic.AccountTest do
 
   test "should return both UCO and TOKEN spent" do
     timestamp = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    start_supervised!(UCOLedger)
-    start_supervised!(TokenLedger)
 
     alice2_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     bob3_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -326,5 +318,33 @@ defmodule Archethic.AccountTest do
                  protocol_version: 1
                })
            )
+  end
+
+  describe("get_unspent_outputs/1") do
+    test "should return empty if there is nothing" do
+      assert [] == Account.get_unspent_outputs(random_address())
+    end
+
+    test "should be able to store and return state utxo" do
+      state_utxo = %UnspentOutput{
+        type: :state,
+        encoded_payload: :crypto.strong_rand_bytes(10)
+      }
+
+      # some ucos are necessary for TransactionFactory.create_valid_transaction
+      uco_utxo = %UnspentOutput{
+        amount: 200_000_000,
+        from: ArchethicCase.random_address(),
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+
+      tx = Archethic.TransactionFactory.create_valid_transaction([uco_utxo], state: state_utxo)
+      Account.load_transaction(tx, false)
+
+      assert utxos = Account.get_unspent_outputs(tx.address)
+      assert length(utxos) == 2
+      assert Enum.any?(utxos, &match?(%VersionedUnspentOutput{unspent_output: ^state_utxo}, &1))
+    end
   end
 end
