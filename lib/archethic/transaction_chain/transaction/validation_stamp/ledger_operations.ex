@@ -150,28 +150,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   defp get_token_utxos(_, _, _), do: []
 
-  @doc """
-  Returns the amount to spend from the transaction movements and the fee
-
-  ## Examples
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2_000_000_000, type:
-      ...>      {:token, "@TomToken", 0}},
-      ...>    ],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.total_to_spend()
-      %{ uco: 1_297_000_000, token: %{ {"@TomToken",0} => 2_000_000_000 } }
-  """
-  @spec total_to_spend(t()) :: %{
-          :uco => non_neg_integer(),
-          :token => %{binary() => non_neg_integer()}
-        }
-  def total_to_spend(%__MODULE__{transaction_movements: transaction_movements, fee: fee}) do
+  defp total_to_spend(%__MODULE__{transaction_movements: transaction_movements, fee: fee}) do
     ledger_balances(transaction_movements, %{uco: fee, token: %{}})
   end
 
@@ -183,56 +162,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       %{type: {:token, token_address, token_id}, amount: amount}, acc ->
         update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
 
-      %{type: :call}, acc ->
+      _, acc ->
         acc
     end)
   end
 
-  @doc """
-  Determine if the funds are sufficient with the given unspent outputs for total of uco to spend
-
-  ## Examples
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:token, "@BobToken", 0}}
-      ...>    ],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.sufficient_funds?([])
-      false
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:token, "@BobToken", 0}}
-      ...>    ],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.sufficient_funds?([
-      ...>     %UnspentOutput{from: "@Charlie5", amount: 3_000_000_000, type: :UCO},
-      ...>     %UnspentOutput{from: "@Bob4", amount: 1_000_000_000, type: {:token, "@BobToken", 0}}
-      ...> ])
-      true
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.sufficient_funds?([
-      ...>     %UnspentOutput{from: "@Charlie5", amount: 3_000_000_000, type: :UCO},
-      ...>     %UnspentOutput{from: "@Bob4", amount: 10_000_000_000, type: {:token, "@BobToken", 0}}
-      ...> ])
-      true
-  """
-  @spec sufficient_funds?(t(), list(UnspentOutput.t() | TransactionInput.t())) :: boolean()
-  def sufficient_funds?(operations = %__MODULE__{}, inputs) when is_list(inputs) do
-    %{uco: uco_balance, token: tokens_received} = ledger_balances(inputs)
-    %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(operations)
-    uco_balance >= uco_to_spend and sufficient_tokens?(tokens_received, tokens_to_spend)
+  defp sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
+    uco_balance >= uco_to_spend and sufficient_tokens?(tokens_balance, tokens_to_spend)
   end
 
   defp sufficient_tokens?(tokens_received = %{}, token_to_spend = %{})
@@ -263,42 +199,50 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           ledger_operations :: t(),
           change_address :: binary(),
           inputs :: list(UnspentOutput.t() | TransactionInput.t()),
-          timestamp :: DateTime.t()
+          timestamp :: DateTime.t(),
+          maybe_new_state_utxo :: nil | UnspentOutput.t()
         ) ::
           {boolean(), t()}
   def consume_inputs(
         ops = %__MODULE__{tokens_to_mint: tokens_to_mint},
         change_address,
         inputs,
-        timestamp
+        timestamp,
+        maybe_new_state_utxo \\ nil
       )
       when is_binary(change_address) and is_list(inputs) and not is_nil(timestamp) do
     # Since AEIP-19 we can consume from minted tokens
     inputs = inputs ++ tokens_to_mint
 
-    if sufficient_funds?(ops, inputs) do
-      %{uco: uco_balance, token: tokens_received} = ledger_balances(inputs)
-      %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(ops)
+    %{uco: uco_balance, token: tokens_balance} = ledger_balances(inputs)
+    %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(ops)
 
-      new_unspent_outputs = [
-        %UnspentOutput{
-          from: change_address,
-          amount: uco_balance - uco_to_spend,
-          type: :UCO,
-          timestamp: timestamp
-        }
-        | new_token_unspent_outputs(
-            tokens_received,
-            tokens_to_spend,
-            change_address,
-            inputs,
-            timestamp
-          )
-      ]
+    if sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
+      tokens_utxos =
+        new_token_unspent_outputs(
+          tokens_balance,
+          tokens_to_spend,
+          change_address,
+          inputs,
+          timestamp
+        )
+
+      uco_utxo = %UnspentOutput{
+        from: change_address,
+        amount: uco_balance - uco_to_spend,
+        type: :UCO,
+        timestamp: timestamp
+      }
+
+      utxos =
+        case maybe_new_state_utxo do
+          nil -> [uco_utxo | tokens_utxos]
+          state_utxo -> [uco_utxo, state_utxo | tokens_utxos]
+        end
 
       {true,
        ops
-       |> Map.put(:unspent_outputs, new_unspent_outputs)
+       |> Map.put(:unspent_outputs, utxos)
        |> Map.put(:tokens_to_mint, [])}
     else
       {false, ops}
@@ -366,54 +310,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc """
   Serialize a ledger operations
-
-  ## Examples
-
-      iex> %LedgerOperations{
-      ...>   fee: 10_000_000,
-      ...>   transaction_movements: [
-      ...>     %TransactionMovement{
-      ...>       to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
-      ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-      ...>       amount: 102_000_000,
-      ...>       type: :UCO
-      ...>     },
-      ...>   ],
-      ...>   unspent_outputs: [
-      ...>     %UnspentOutput{
-      ...>       from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
-      ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-      ...>       amount: 200_000_000,
-      ...>       type: :UCO,
-      ...>       timestamp: ~U[2022-10-11 07:27:22.815Z]
-      ...>     }
-      ...>   ]
-      ...> }
-      ...> |> LedgerOperations.serialize(current_protocol_version())
-      <<
-      # Fee (0.1 UCO)
-      0, 0, 0, 0, 0, 152, 150, 128,
-      # Nb of transaction movements in VarInt
-      1, 1,
-      # Transaction movement recipient
-      0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
-      86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      # Transaction movement amount (1.2 UCO)
-      0, 0, 0, 0, 6, 20, 101, 128,
-      # Transaction movement type (UCO)
-      0,
-      # Nb of unspent outputs in VarInt
-      1, 1,
-      # Unspent output origin
-      0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
-      86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      # Unspent output amount (2 UCO)
-      0, 0, 0, 0, 11, 235, 194, 0,
-      # Timestamp
-      0, 0, 1, 131, 197, 240, 230, 191,
-      # Unspent output type (UCO)
-      0
-      >>
   """
   @spec serialize(ledger_operations :: t(), protocol_version :: non_neg_integer()) :: bitstring()
   def serialize(
@@ -444,39 +340,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc """
   Deserialize an encoded ledger operations
-
-  ## Examples
-
-      iex> <<0, 0, 0, 0, 0, 152, 150, 128, 1, 1,
-      ...> 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96,
-      ...> 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207, 0, 0, 0, 0, 60, 203, 247, 0, 0,
-      ...> 1, 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1,
-      ...> 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0, 1, 131, 197, 240, 230, 191, 0>>
-      ...> |> LedgerOperations.deserialize(current_protocol_version())
-      {
-        %LedgerOperations{
-          fee: 10_000_000,
-          transaction_movements: [
-            %TransactionMovement{
-              to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
-                86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-              amount: 1_020_000_000,
-              type: :UCO
-            }
-          ],
-          unspent_outputs: [
-            %UnspentOutput{
-              from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
-                86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-              amount: 200_000_000,
-              type: :UCO,
-              timestamp: ~U[2022-10-11 07:27:22.815Z]
-            }
-          ]
-        },
-        ""
-      }
   """
   @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
           {t(), bitstring()}
