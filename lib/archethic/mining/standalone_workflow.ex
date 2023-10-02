@@ -158,7 +158,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     |> ValidationContext.cross_validate()
   end
 
-  defp start_replication(context = %ValidationContext{}) do
+  defp start_replication(context = %ValidationContext{contract_context: contract_context}) do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     replication_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -170,7 +170,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     )
 
     message = %ValidateTransaction{
-      transaction: validated_tx
+      transaction: validated_tx,
+      contract_context: contract_context
     }
 
     results =

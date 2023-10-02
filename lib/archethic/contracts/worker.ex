@@ -126,7 +126,7 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp execute_contract(
-         contract = %Contract{transaction: %Transaction{address: contract_address}},
+         contract = %Contract{transaction: prev_tx = %Transaction{address: contract_address}},
          trigger,
          maybe_trigger_tx,
          maybe_recipient
@@ -135,8 +135,15 @@ defmodule Archethic.Contracts.Worker do
     Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 
     with true <- has_minimum_fees?(contract_address),
-         {:ok, next_tx} when not is_nil(next_tx) <-
-           Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
+         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(prev_tx),
+         %Contract.Result.Success{next_tx: next_tx} <-
+           Contracts.execute_trigger(
+             trigger,
+             contract,
+             maybe_trigger_tx,
+             maybe_recipient,
+             maybe_state_utxo
+           ),
          index = TransactionChain.get_size(contract_address),
          {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
          contract_context <-
@@ -144,10 +151,10 @@ defmodule Archethic.Contracts.Worker do
          :ok <- send_transaction(contract_context, next_tx) do
       Logger.debug("Contract execution success", meta)
     else
-      {:ok, nil} ->
+      %Contract.Result.Noop{} ->
         Logger.debug("Contract execution success but there is no new transaction", meta)
 
-      {:error, reason} ->
+      %Contract.Result.Error{user_friendly_error: reason} ->
         Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
 
       _ ->

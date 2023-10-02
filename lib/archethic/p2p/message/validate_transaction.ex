@@ -2,8 +2,9 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   @moduledoc false
 
   @enforce_keys [:transaction]
-  defstruct [:transaction]
+  defstruct [:transaction, :contract_context]
 
+  alias Archethic.Contracts.Contract
   alias Archethic.TransactionChain.Transaction
   alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.Ok
@@ -11,12 +12,13 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   alias Archethic.Crypto
 
   @type t :: %__MODULE__{
-          transaction: Transaction.t()
+          transaction: Transaction.t(),
+          contract_context: nil | Contract.Context.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
-  def process(%__MODULE__{transaction: tx}, _) do
-    case Replication.validate_transaction(tx) do
+  def process(%__MODULE__{transaction: tx, contract_context: contract_context}, _) do
+    case Replication.validate_transaction(tx, contract_context) do
       :ok ->
         Replication.add_transaction_to_commit_pool(tx)
         %Ok{}
@@ -27,16 +29,34 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{transaction: tx}) do
-    Transaction.serialize(tx)
+  def serialize(%__MODULE__{transaction: tx, contract_context: contract_context}) do
+    serialized_contract_context =
+      case contract_context do
+        nil ->
+          <<0::8>>
+
+        _ ->
+          <<1::8, Contract.Context.serialize(contract_context)::bitstring>>
+      end
+
+    <<Transaction.serialize(tx)::bitstring, serialized_contract_context::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(bin) when is_bitstring(bin) do
     {tx, rest} = Transaction.deserialize(bin)
 
+    {contract_context, rest} =
+      case rest do
+        <<0::8, rest::bitstring>> ->
+          {nil, rest}
+
+        <<1::8, rest::bitstring>> ->
+          Contract.Context.deserialize(rest)
+      end
+
     {
-      %__MODULE__{transaction: tx},
+      %__MODULE__{transaction: tx, contract_context: contract_context},
       rest
     }
   end

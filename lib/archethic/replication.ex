@@ -9,42 +9,28 @@ defmodule Archethic.Replication do
   those transactions will be loaded into the subsystems (Node, Shared Secrets, Governance, etc..)
   """
 
-  alias Archethic.Account
-
-  alias Archethic.Contracts
-
-  alias Archethic.Crypto
-
-  alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.NotifyLastTransactionAddress
-
-  alias Archethic.P2P.Node
-
-  alias Archethic.PubSub
-
-  alias Archethic.OracleChain
-
-  alias Archethic.SelfRepair.NetworkView
-
-  alias Archethic.SharedSecrets
-
-  alias Archethic.Reward
-
-  alias Archethic.Governance
-
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionPool
   alias __MODULE__.TransactionValidator
-
+  alias Archethic.Account
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
+  alias Archethic.Crypto
+  alias Archethic.Election
+  alias Archethic.Governance
+  alias Archethic.OracleChain
+  alias Archethic.P2P
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.Message.NotifyLastTransactionAddress
+  alias Archethic.P2P.Node
+  alias Archethic.PubSub
+  alias Archethic.Reward
+  alias Archethic.SelfRepair.NetworkView
+  alias Archethic.SharedSecrets
   alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-
   alias Archethic.Utils
 
   require Logger
@@ -54,9 +40,12 @@ defmodule Archethic.Replication do
 
   It will download the transaction chain and unspents to validate the new transaction and store the new transaction in the pool awaiting commitment
   """
-  @spec validate_transaction(tx :: Transaction.t()) ::
+  @spec validate_transaction(
+          tx :: Transaction.t(),
+          contract_context :: nil | Contract.Context.t()
+        ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_transaction(tx = %Transaction{address: address, type: type}) do
+  def validate_transaction(tx = %Transaction{address: address, type: type}, contract_context) do
     if TransactionChain.transaction_exists?(address) do
       Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
@@ -74,7 +63,7 @@ defmodule Archethic.Replication do
 
       {previous_tx, inputs} = fetch_context(tx)
       # Validate the transaction and check integrity from the previous transaction
-      case TransactionValidator.validate(tx, previous_tx, inputs) do
+      case TransactionValidator.validate(tx, previous_tx, inputs, contract_context) do
         :ok ->
           Logger.info("Replication validation finished",
             transaction_address: Base.encode16(address),
@@ -183,10 +172,16 @@ defmodule Archethic.Replication do
   It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
   and update the internal ledger and views
   """
-  @spec validate_and_store_transaction_chain(validated_tx :: Transaction.t()) ::
+  @spec validate_and_store_transaction_chain(
+          validated_tx :: Transaction.t(),
+          contract_context :: Contract.Context.t()
+        ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_and_store_transaction_chain(tx = %Transaction{address: address, type: type}) do
-    case validate_transaction(tx) do
+  def validate_and_store_transaction_chain(
+        tx = %Transaction{address: address, type: type},
+        contract_context
+      ) do
+    case validate_transaction(tx, contract_context) do
       :ok ->
         sync_transaction_chain(tx)
 

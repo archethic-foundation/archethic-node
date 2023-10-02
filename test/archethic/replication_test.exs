@@ -1,6 +1,8 @@
 defmodule Archethic.ReplicationTest do
   use ArchethicCase, async: false
 
+  alias Archethic.ContractFactory
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -50,7 +52,7 @@ defmodule Archethic.ReplicationTest do
     :ok
   end
 
-  test "validate_transaction" do
+  test "validate_transaction without contract_context" do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -107,7 +109,81 @@ defmodule Archethic.ReplicationTest do
         {:ok, %NotFound{}}
     end)
 
-    assert :ok = Replication.validate_transaction(tx)
+    assert :ok = Replication.validate_transaction(tx, nil)
+  end
+
+  test "validate_transaction with a state" do
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      authorized?: true,
+      last_public_key: Crypto.last_node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
+      available?: true,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now(),
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    })
+
+    unspent_outputs = [
+      %UnspentOutput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+    ]
+
+    now = ~U[2023-01-01 00:00:00Z]
+
+    code = """
+    @version 1
+
+    actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
+      State.set("key", "value")
+      Contract.set_content "ok"
+    end
+    """
+
+    p2p_context()
+
+    prev_tx = ContractFactory.create_valid_contract_tx(code)
+    next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "ok")
+
+    previous_address = prev_tx.address
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransactionInputs{}, _ ->
+        {:ok,
+         %TransactionInputList{
+           inputs:
+             Enum.map(unspent_outputs, fn utxo ->
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: utxo.from,
+                   amount: utxo.amount,
+                   type: utxo.type,
+                   timestamp:
+                     DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
+                 },
+                 protocol_version: 1
+               }
+             end)
+         }}
+
+      _, %GetTransaction{address: ^previous_address}, _ ->
+        {:ok, prev_tx}
+    end)
+
+    assert :ok =
+             Replication.validate_transaction(next_tx, %Contract.Context{
+               status: :tx_output,
+               trigger: {:datetime, now},
+               timestamp: now
+             })
   end
 
   test "validate_and_store_transaction_chain/2" do
@@ -179,7 +255,7 @@ defmodule Archethic.ReplicationTest do
         {:ok, %NotFound{}}
     end)
 
-    assert :ok = Replication.validate_and_store_transaction_chain(tx)
+    assert :ok = Replication.validate_and_store_transaction_chain(tx, nil)
     assert_receive :replicated
   end
 

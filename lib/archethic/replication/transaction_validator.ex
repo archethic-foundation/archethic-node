@@ -47,20 +47,35 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_unspent_outputs
 
   @doc """
+  Validate transaction only (without chain integrity or unspent outputs)
+
+  This function called by the replication nodes which are involved in the I/O storage
+  """
+  @spec validate(tx :: Transaction.t()) :: :ok | {:error, error()}
+  def validate(tx = %Transaction{}) do
+    with :ok <- validate_consensus(tx),
+         :ok <- validate_validation_stamp(tx) do
+      :ok
+    end
+  end
+
+  @doc """
   Validate transaction with context
 
   This function is called by the chain replication nodes
   """
   @spec validate(
           validated_transaction :: Transaction.t(),
-          previous_transaction :: Transaction.t() | nil,
-          inputs_outputs :: list(TransactionInput.t())
+          prev_tx :: Transaction.t() | nil,
+          inputs_outputs :: list(TransactionInput.t()),
+          contract_context :: nil | Contract.Context.t()
         ) ::
           :ok | {:error, error()}
-  def validate(tx = %Transaction{}, previous_transaction, inputs) do
-    with :ok <- valid_transaction(tx, inputs, true),
-         :ok <- validate_inheritance(previous_transaction, tx) do
-      validate_chain(tx, previous_transaction)
+  def validate(tx = %Transaction{}, prev_tx, inputs, contract_context) do
+    with :ok <- validate(tx),
+         :ok <- validate_inputs(tx, inputs, prev_tx, contract_context),
+         :ok <- validate_inheritance(prev_tx, tx) do
+      validate_chain(tx, prev_tx)
     end
   end
 
@@ -93,30 +108,6 @@ defmodule Archethic.Replication.TransactionValidator do
       :ok
     else
       {:error, :invalid_chain}
-    end
-  end
-
-  @doc """
-  Validate transaction only (without chain integrity or unspent outputs)
-
-  This function called by the replication nodes which are involved in the chain storage
-  """
-  @spec validate(Transaction.t()) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}),
-    do: valid_transaction(tx, [], false)
-
-  defp valid_transaction(tx = %Transaction{}, inputs, chain_node?) when is_list(inputs) do
-    with :ok <- validate_consensus(tx),
-         :ok <- validate_validation_stamp(tx) do
-      if chain_node? do
-        validate_inputs(tx, inputs)
-      else
-        :ok
-      end
-    else
-      {:error, _} = e ->
-        # TODO: start malicious detection
-        e
     end
   end
 
@@ -313,12 +304,14 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp validate_inputs(
          tx = %Transaction{address: address},
-         inputs
+         inputs,
+         prev_tx,
+         contract_context
        ) do
     if address == Bootstrap.genesis_address() do
       :ok
     else
-      do_validate_inputs(tx, inputs)
+      do_validate_inputs(tx, inputs, prev_tx, contract_context)
     end
   end
 
@@ -335,8 +328,24 @@ defmodule Archethic.Replication.TransactionValidator do
              }
            }
          },
-         inputs
+         inputs,
+         prev_tx,
+         contract_context
        ) do
+    # maybe execute the contract to get the state
+    maybe_state_utxo =
+      case Archethic.Mining.SmartContractValidation.valid_contract_execution?(
+             contract_context,
+             prev_tx,
+             tx
+           ) do
+        {true, %Contract.Result.Success{state_utxo: state_utxo}} ->
+          state_utxo
+
+        _ ->
+          nil
+      end
+
     case LedgerOperations.consume_inputs(
            %LedgerOperations{
              fee: fee,
@@ -345,7 +354,8 @@ defmodule Archethic.Replication.TransactionValidator do
            },
            address,
            inputs,
-           timestamp
+           timestamp,
+           maybe_state_utxo
          ) do
       {false, _} ->
         {:error, :insufficient_funds}

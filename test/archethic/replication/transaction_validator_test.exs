@@ -1,19 +1,16 @@
 defmodule Archethic.Replication.TransactionValidatorTest do
   use ArchethicCase, async: false
 
+  alias Archethic.ContractFactory
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
-
   alias Archethic.P2P
   alias Archethic.P2P.Node
-
   alias Archethic.Replication.TransactionValidator
-
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
-
-  alias Archethic.TransactionFactory
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionFactory
 
   @moduletag :capture_log
 
@@ -136,7 +133,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     end
   end
 
-  describe "validate/3" do
+  describe "validate/4" do
     test "should return :ok when the transaction is valid" do
       unspent_outputs = [
         %UnspentOutput{
@@ -149,7 +146,39 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert :ok =
                TransactionFactory.create_valid_transaction(unspent_outputs)
-               |> TransactionValidator.validate(nil, unspent_outputs)
+               |> TransactionValidator.validate(nil, unspent_outputs, nil)
+    end
+
+    test "should validate when the transaction coming from a contract is valid" do
+      now = ~U[2023-01-01 00:00:00Z]
+
+      code = """
+      @version 1
+
+      actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
+        State.set("key", "value")
+        Contract.set_content "ok"
+      end
+      """
+
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
+      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "ok")
+
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+
+      assert :ok =
+               TransactionValidator.validate(next_tx, prev_tx, inputs, %Contract.Context{
+                 status: :tx_output,
+                 timestamp: now,
+                 trigger: {:datetime, now}
+               })
     end
   end
 end

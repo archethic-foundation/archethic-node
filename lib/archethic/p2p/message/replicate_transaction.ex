@@ -3,8 +3,9 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   Represents a message to initiate the replication of the transaction
   """
   @enforce_keys [:transaction]
-  defstruct [:transaction]
+  defstruct [:transaction, :contract_context]
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
@@ -19,20 +20,22 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   @type t :: %__MODULE__{
-          transaction: Transaction.t()
+          transaction: Transaction.t(),
+          contract_context: nil | Contract.Context.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
   def process(
         %__MODULE__{
           transaction:
-            tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}}
+            tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}},
+          contract_context: contract_context
         },
         _
       ) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
       if Transaction.network_type?(tx.type) do
-        Replication.validate_and_store_transaction_chain(tx)
+        Replication.validate_and_store_transaction_chain(tx, contract_context)
       else
         resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
 
@@ -53,16 +56,35 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{transaction: tx}) do
-    <<Transaction.serialize(tx)::bitstring>>
+  def serialize(%__MODULE__{transaction: tx, contract_context: contract_context}) do
+    serialized_contract_context =
+      case contract_context do
+        nil ->
+          <<0::8>>
+
+        _ ->
+          <<1::8, Contract.Context.serialize(contract_context)::bitstring>>
+      end
+
+    <<Transaction.serialize(tx)::bitstring, serialized_contract_context::binary>>
   end
 
-  @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<rest::bitstring>>) do
-    {tx, rest} = Transaction.deserialize(rest)
+  @spec deserialize(bitstring()) :: {t(), bitstring()}
+  def deserialize(bin) when is_bitstring(bin) do
+    {tx, rest} = Transaction.deserialize(bin)
 
-    {%__MODULE__{
-       transaction: tx
-     }, rest}
+    {contract_context, rest} =
+      case rest do
+        <<0::8, rest::bitstring>> ->
+          {nil, rest}
+
+        <<1::8, rest::bitstring>> ->
+          Contract.Context.deserialize(rest)
+      end
+
+    {
+      %__MODULE__{transaction: tx, contract_context: contract_context},
+      rest
+    }
   end
 end
