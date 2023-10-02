@@ -109,7 +109,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
           |> OracleChain.get_uco_price()
           |> Keyword.fetch!(:usd)
 
-        Mining.get_transaction_fee(tx, previous_usd_price, timestamp)
+        # Here we use a nil contract_context as we return the fees the user has to pay for the contract
+        Mining.get_transaction_fee(tx, nil, previous_usd_price, timestamp)
 
       _ ->
         0
