@@ -2,6 +2,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
   use ArchethicCase, async: false
   import ArchethicCase
 
+  alias Archethic.Contracts.Contract
+
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -141,7 +143,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     end
   end
 
-  describe "validate/3" do
+  describe "validate/4" do
     test "should return :ok when the transaction is valid" do
       unspent_outputs = [
         %UnspentOutput{
@@ -154,7 +156,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert :ok =
                TransactionFactory.create_valid_transaction(unspent_outputs)
-               |> TransactionValidator.validate(nil, unspent_outputs)
+               |> TransactionValidator.validate(nil, unspent_outputs, nil)
     end
 
     test "should return {:error, :invalid_transaction_fee} when the fees are invalid" do
@@ -169,7 +171,28 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
       assert {:error, :invalid_transaction_fee} =
                TransactionFactory.create_transaction_with_invalid_fee()
-               |> TransactionValidator.validate(nil, unspent_outputs)
+               |> TransactionValidator.validate(nil, unspent_outputs, nil)
+    end
+
+    test "should return {:error, :invalid_transaction_fee} when the fees are invalid using contract context" do
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, random_secret(), %Recipient{}},
+        status: :tx_output,
+        timestamp: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_transaction_fee} =
+               TransactionFactory.create_valid_transaction(unspent_outputs)
+               |> TransactionValidator.validate(nil, unspent_outputs, contract_context)
     end
 
     test "should return {:error, :invalid_recipients_execution} if recipient contract execution invalid" do
@@ -194,7 +217,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       end)
 
       assert {:error, :invalid_recipients_execution} =
-               TransactionValidator.validate(tx, nil, unspent_outputs)
+               TransactionValidator.validate(tx, nil, unspent_outputs, nil)
     end
   end
 end

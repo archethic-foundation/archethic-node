@@ -28,13 +28,14 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   def process(
         %__MODULE__{
           transaction:
-            tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}}
+            tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}},
+          contract_context: contract_context
         },
         _
       ) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
       if Transaction.network_type?(tx.type) do
-        Replication.validate_and_store_transaction_chain(tx)
+        Replication.validate_and_store_transaction_chain(tx, contract_context)
       else
         resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
 
