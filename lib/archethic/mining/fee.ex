@@ -4,6 +4,8 @@ defmodule Archethic.Mining.Fee do
   """
   alias Archethic.Bootstrap
 
+  alias Archethic.Contracts.Contract
+
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -44,18 +46,18 @@ defmodule Archethic.Mining.Fee do
   """
   @spec calculate(
           transaction :: Transaction.t(),
+          contract_context :: Contract.Context.t() | nil,
           uco_usd_price :: float(),
           timestamp :: DateTime.t(),
           protocol_version :: pos_integer()
         ) :: non_neg_integer()
-  def calculate(%Transaction{type: :keychain}, _, _, _), do: 0
-  def calculate(%Transaction{type: :keychain_access}, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain}, _, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _, _, _, _), do: 0
+  def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _), do: 0
 
   def calculate(
-        tx = %Transaction{
-          address: address,
-          type: type
-        },
+        tx = %Transaction{address: address, type: type},
+        _contract_context,
         uco_price_in_usd,
         timestamp,
         protocol_version
