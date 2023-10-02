@@ -1,6 +1,7 @@
 defmodule Archethic.Replication.TransactionValidator do
   @moduledoc false
 
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.Bootstrap
 
   alias Archethic.Contracts
@@ -14,6 +15,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.P2P.Node
 
   alias Archethic.Mining
+  alias Archethic.Mining.SmartContractValidation
 
   alias Archethic.OracleChain
 
@@ -45,6 +47,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_inherit_constraints
           | :invalid_validation_stamp_signature
           | :invalid_unspent_outputs
+          | :invalid_recipients_execution
 
   @doc """
   Validate transaction with context
@@ -105,18 +108,50 @@ defmodule Archethic.Replication.TransactionValidator do
   def validate(tx = %Transaction{}),
     do: valid_transaction(tx, [], false)
 
-  defp valid_transaction(tx = %Transaction{}, inputs, chain_node?) when is_list(inputs) do
+  defp valid_transaction(tx = %Transaction{}, _inputs, _chain_node? = false) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx) do
-      if chain_node? do
-        validate_inputs(tx, inputs)
-      else
-        :ok
-      end
+      :ok
     else
       {:error, _} = e ->
         # TODO: start malicious detection
         e
+    end
+  end
+
+  defp valid_transaction(tx = %Transaction{}, inputs, _chain_node? = true) when is_list(inputs) do
+    with :ok <- validate_consensus(tx),
+         :ok <- validate_validation_stamp(tx),
+         {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
+         :ok <- validate_transaction_fee(tx, contract_recipient_fees),
+         :ok <- validate_inputs(tx, inputs) do
+      :ok
+    else
+      {:error, _} = e ->
+        # TODO: start malicious detection
+        e
+    end
+  end
+
+  defp validate_contract_recipients(%Transaction{
+         validation_stamp: %ValidationStamp{recipients: []}
+       }) do
+    {:ok, 0}
+  end
+
+  defp validate_contract_recipients(
+         tx = %Transaction{
+           validation_stamp: %ValidationStamp{recipients: recipients, timestamp: timestamp}
+         }
+       ) do
+    res =
+      recipients
+      |> Enum.map(&%Recipient{address: &1})
+      |> SmartContractValidation.validate_contract_calls(tx, timestamp)
+
+    case res do
+      {true, fees} -> {:ok, fees}
+      {false, _} -> {:error, :invalid_recipients_execution}
     end
   end
 
@@ -150,7 +185,6 @@ defmodule Archethic.Replication.TransactionValidator do
   defp validate_validation_stamp(tx = %Transaction{}) do
     with :ok <- validate_proof_of_work(tx),
          :ok <- validate_node_election(tx),
-         :ok <- validate_transaction_fee(tx),
          :ok <- validate_transaction_movements(tx) do
       validate_no_additional_error(tx)
     end
@@ -219,12 +253,11 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp validate_transaction_fee(
          tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{fee: fee}
-           }
-         }
+           validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: fee}}
+         },
+         contract_recipient_fees
        ) do
-    if fee == get_transaction_fee(tx) do
+    if fee == get_transaction_fee(tx, contract_recipient_fees) do
       :ok
     else
       Logger.error(
@@ -242,7 +275,8 @@ defmodule Archethic.Replication.TransactionValidator do
            validation_stamp: %ValidationStamp{
              timestamp: timestamp
            }
-         }
+         },
+         contract_recipient_fees
        ) do
     previous_usd_price =
       timestamp
@@ -250,7 +284,7 @@ defmodule Archethic.Replication.TransactionValidator do
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, previous_usd_price, timestamp)
+    Mining.get_transaction_fee(tx, previous_usd_price, timestamp) + contract_recipient_fees
   end
 
   defp validate_transaction_movements(
