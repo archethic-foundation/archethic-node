@@ -89,7 +89,8 @@ defmodule Archethic.TransactionFactory do
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations,
-        protocol_version: ArchethicCase.current_protocol_version()
+        protocol_version: ArchethicCase.current_protocol_version(),
+        recipients: Enum.map(recipients, & &1.address)
       }
       |> ValidationStamp.sign()
 
