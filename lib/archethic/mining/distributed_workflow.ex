@@ -1047,7 +1047,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
   end
 
   defp request_replication_validation(
-         context = %ValidationContext{transaction: tx, coordinator_node: coordinator_node},
+         context = %ValidationContext{
+           transaction: tx,
+           coordinator_node: coordinator_node,
+           contract_context: contract_context
+         },
          node_public_key
        ) do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -1061,7 +1065,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     message = %ValidateTransaction{
-      transaction: validated_tx
+      transaction: validated_tx,
+      contract_context: contract_context
     }
 
     results =

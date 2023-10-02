@@ -3,8 +3,9 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   Represents a message to initiate the replication of the transaction
   """
   @enforce_keys [:transaction]
-  defstruct [:transaction]
+  defstruct [:transaction, :contract_context]
 
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P
@@ -19,7 +20,8 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   @type t :: %__MODULE__{
-          transaction: Transaction.t()
+          transaction: Transaction.t(),
+          contract_context: nil | Contract.Context.t()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
@@ -53,16 +55,28 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{transaction: tx}) do
-    <<Transaction.serialize(tx)::bitstring>>
+  def serialize(%__MODULE__{transaction: tx, contract_context: nil}) do
+    <<Transaction.serialize(tx)::bitstring, 0::8>>
+  end
+
+  def serialize(%__MODULE__{transaction: tx, contract_context: contract_context}) do
+    <<Transaction.serialize(tx)::bitstring, 1::8,
+      Contract.Context.serialize(contract_context)::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<rest::bitstring>>) do
     {tx, rest} = Transaction.deserialize(rest)
 
-    {%__MODULE__{
-       transaction: tx
-     }, rest}
+    {contract_context, rest} =
+      case rest do
+        <<0::8, rest::bitstring>> -> {nil, rest}
+        <<1::8, rest::bitstring>> -> Contract.Context.deserialize(rest)
+      end
+
+    {
+      %__MODULE__{transaction: tx, contract_context: contract_context},
+      rest
+    }
   end
 end
