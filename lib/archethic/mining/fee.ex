@@ -32,9 +32,9 @@ defmodule Archethic.Mining.Fee do
   @doc """
   Return the minimum UCO amount to pay the minimum fee (equivalent of 1 cts)
   """
-  @spec minimum_fee(uco_price_in_usd :: float()) :: float()
-  def minimum_fee(uco_price_in_usd) do
-    0.01 / uco_price_in_usd
+  @spec base_fee(uco_price_in_usd :: float()) :: non_neg_integer()
+  def base_fee(uco_price_in_usd) do
+    trunc(minimum_fee(uco_price_in_usd) * @unit_uco)
   end
 
   @doc """
@@ -91,6 +91,10 @@ defmodule Archethic.Mining.Fee do
 
         trunc(fee * @unit_uco)
     end
+  end
+
+  defp minimum_fee(uco_price_in_usd) do
+    0.01 / uco_price_in_usd
   end
 
   defp get_additional_fee(
