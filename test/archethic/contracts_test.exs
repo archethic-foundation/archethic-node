@@ -196,6 +196,42 @@ defmodule Archethic.ContractsTest do
              )
     end
 
+    test "should return true if condition is true based on state" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, as: [
+          type: State.get("key") == "value"
+        ]
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+      """
+
+      state_utxo = State.to_utxo(%{"key" => "value"})
+
+      # some ucos are necessary for ContractFactory.create_valid_contract_tx
+      uco_utxo = %UnspentOutput{
+        amount: 200_000_000,
+        from: ArchethicCase.random_address(),
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(code, state: state_utxo, inputs: [uco_utxo])
+
+      trigger_tx = TransactionFactory.create_valid_transaction([])
+
+      assert Contracts.valid_condition?(
+               {:transaction, nil, nil},
+               Contract.from_transaction!(contract_tx),
+               trigger_tx,
+               nil,
+               DateTime.utc_now()
+             )
+    end
+
     test "should return false if condition is falsy" do
       code = """
         @version 1

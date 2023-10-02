@@ -263,12 +263,15 @@ defmodule Archethic.Contracts do
          transaction,
          datetime
        ) do
+    maybe_state_utxo = State.get_utxo_from_transaction(contract_tx)
+
     %{
       "previous" => Constants.from_contract_transaction(contract_tx, contract_version),
       "next" => Constants.from_contract_transaction(transaction, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
-      :encrypted_seed => Contract.get_encrypted_seed(contract)
+      :encrypted_seed => Contract.get_encrypted_seed(contract),
+      :state => State.from_utxo(maybe_state_utxo)
     }
   end
 
@@ -282,12 +285,15 @@ defmodule Archethic.Contracts do
          transaction,
          datetime
        ) do
+    maybe_state_utxo = State.get_utxo_from_transaction(contract_tx)
+
     %{
       "transaction" => Constants.from_transaction(transaction, contract_version),
       "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
-      :encrypted_seed => Contract.get_encrypted_seed(contract)
+      :encrypted_seed => Contract.get_encrypted_seed(contract),
+      :state => State.from_utxo(maybe_state_utxo)
     }
   end
 
