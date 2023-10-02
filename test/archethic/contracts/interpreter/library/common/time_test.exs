@@ -32,16 +32,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      {:ok, tx} =
-        Contracts.execute_trigger(
-          {:datetime, datetime},
-          Contract.from_transaction!(contract_tx),
-          nil,
-          nil,
-          time_now: datetime
-        )
+      assert %Contract.Result.Success{next_tx: next_tx} =
+               Contracts.execute_trigger(
+                 {:datetime, datetime},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil,
+                 nil,
+                 time_now: datetime
+               )
 
-      assert %Transaction{data: %TransactionData{content: content}} = tx
+      assert %Transaction{data: %TransactionData{content: content}} = next_tx
       assert String.to_integer(content) == timestamp
     end
 

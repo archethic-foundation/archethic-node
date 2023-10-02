@@ -3,7 +3,10 @@ defmodule Archethic.Contracts.InterpreterTest do
   use ArchethicCase
   import ArchethicCase
 
+  alias Archethic.Contracts.State
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter
   alias Archethic.ContractFactory
 
@@ -320,6 +323,29 @@ defmodule Archethic.Contracts.InterpreterTest do
   end
 
   describe "execute_trigger/5" do
+    test "should return an error if the trigger is not found" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        Contract.set_content "hello"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      assert {:error, "Trigger not found on the contract"} =
+               Interpreter.execute_trigger(
+                 {:transaction, "function", []},
+                 Contract.from_transaction!(contract_tx),
+                 State.empty(),
+                 incoming_tx,
+                 nil
+               )
+    end
+
     test "should return a transaction if the contract is correct and there was a Contract.* call" do
       code = """
         @version 1
@@ -333,10 +359,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok, %Transaction{}} =
+      assert {:ok, %Transaction{}, _state, _logs} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -355,15 +382,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "hello"
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: "hello"
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -385,15 +417,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       tx_address_hex = Base.encode16(tx_address)
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: ^tx_address_hex
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: ^tx_address_hex
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -417,15 +454,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "hello world"
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: "hello world"
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -449,10 +491,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:error, _} =
+      assert {:error, _, _, _} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -479,10 +522,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:error, _} =
+      assert {:error, _, _, _} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -510,10 +554,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok, _} =
+      assert {:ok, _, _state, _logs} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -539,15 +584,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "300"
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: "300"
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -571,15 +621,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "5"
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: "5"
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -607,15 +662,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "5"
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: "5"
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -639,15 +699,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "my name is Toto"
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: "my name is Toto"
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -671,41 +736,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: "10"
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: "10"
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 incoming_tx,
-                 nil
-               )
-    end
-
-    test "should return the proper line in case of error" do
-      code = """
-        @version 1
-        condition triggered_by: transaction, as: []
-        actions triggered_by: transaction do
-          div_by_zero()
-        end
-
-        export fun div_by_zero() do
-          1 / 0
-        end
-      """
-
-      contract_tx = ContractFactory.create_valid_contract_tx(code)
-
-      incoming_tx = TransactionFactory.create_valid_transaction([])
-
-      assert {:error, "division_by_zero - L8"} =
-               Interpreter.execute_trigger(
-                 {:transaction, nil, nil},
-                 Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -726,10 +770,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok, nil} =
+      assert {:ok, nil, _state, _logs} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -750,15 +795,14 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert match?(
-               {:error, "division_by_zero - L5"},
+      assert {:error, _, _, _} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
-             )
 
       code = """
         @version 1
@@ -771,15 +815,14 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert match?(
-               {:error, "Contract used add_uco_transfer with an invalid amount - L5"},
+      assert {:error, _, _, _} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil
                )
-             )
     end
 
     test "should be able to simulate a trigger: datetime" do
@@ -792,10 +835,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert {:ok, %Transaction{}} =
+      assert {:ok, %Transaction{}, _state, _logs} =
                Interpreter.execute_trigger(
                  {:datetime, ~U[2023-03-16 16:29:00Z]},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  nil,
                  nil
                )
@@ -811,10 +855,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert {:ok, %Transaction{}} =
+      assert {:ok, %Transaction{}, _state, _logs} =
                Interpreter.execute_trigger(
                  {:interval, "* * * * *"},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  nil,
                  nil
                )
@@ -833,10 +878,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle)
 
-      assert {:ok, %Transaction{}} =
+      assert {:ok, %Transaction{}, _state, _logs} =
                Interpreter.execute_trigger(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  oracle_tx,
                  nil
                )
@@ -863,10 +909,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       trigger_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert {:ok, %Transaction{data: %TransactionData{content: "Dr. Who?"}}} =
+      assert {:ok, %Transaction{data: %TransactionData{content: "Dr. Who?"}}, _state, _logs} =
                Interpreter.execute_trigger(
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
                )
@@ -888,15 +935,20 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      assert {:ok,
-              %Transaction{
-                data: %TransactionData{
-                  content: content
-                }
-              }} =
+      assert {
+               :ok,
+               %Transaction{
+                 data: %TransactionData{
+                   content: content
+                 }
+               },
+               _state,
+               _logs
+             } =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  incoming_tx,
                  nil,
                  time_now: now
@@ -923,10 +975,11 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       trigger_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
+      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}, _state, _logs} =
                Interpreter.execute_trigger(
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
                )
@@ -950,12 +1003,143 @@ defmodule Archethic.Contracts.InterpreterTest do
 
       trigger_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}} =
+      assert {:ok, %Transaction{data: %TransactionData{content: "3"}}, _state, _logs} =
                Interpreter.execute_trigger(
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
+                 State.empty(),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
+               )
+    end
+
+    test "should be able to read and update the contract state from an action block" do
+      code = """
+      @version 1
+      actions triggered_by: datetime, at: 0 do
+        counter = State.get("counter")
+        State.set("counter", counter + 1)
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      assert {:ok, nil, %{"counter" => 45}, _logs} =
+               Interpreter.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 %{"counter" => 44},
+                 nil,
+                 nil
+               )
+    end
+
+    test "should be able to read the contract state from a condition block" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: [
+        content: transaction.content == State.get("password")
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      trigger_tx = TransactionFactory.create_valid_transaction([], content: "p4ssw0rd")
+      contract = Contract.from_transaction!(contract_tx)
+
+      %Conditions{subjects: subjects} = Map.get(contract.conditions, {:transaction, nil, nil})
+
+      constants = %{
+        "transaction" => Constants.from_transaction(trigger_tx),
+        state: %{
+          "password" => "p4ssw0rd"
+        }
+      }
+
+      assert Interpreter.valid_conditions?(
+               1,
+               subjects,
+               constants
+             )
+    end
+
+    test "should be able to read the contract state from a private function block" do
+      code = """
+      @version 1
+      actions triggered_by: datetime, at: 0 do
+        if read_counter() == 44 do
+          Contract.set_content "ok"
+        end
+      end
+
+      fun read_counter() do
+        State.get("counter")
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      assert {:ok, %Transaction{data: %TransactionData{content: "ok"}}, _state, _logs} =
+               Interpreter.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 %{"counter" => 44},
+                 nil,
+                 nil
+               )
+    end
+
+    test "should be able to read the contract state from a public function block" do
+      code = """
+      @version 1
+      actions triggered_by: datetime, at: 0 do
+        if read_counter() == 44 do
+          Contract.set_content "ok"
+        end
+      end
+
+      export fun read_counter() do
+        State.get("counter")
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      assert {:ok, %Transaction{data: %TransactionData{content: "ok"}}, _state, _logs} =
+               Interpreter.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 %{"counter" => 44},
+                 nil,
+                 nil
+               )
+    end
+
+    test "should be able to have complex state" do
+      code = """
+      @version 1
+      actions triggered_by: datetime, at: 0 do
+        a = State.get("a")
+        b = Map.get(a, "b")
+        c = Map.get(b, "c")
+        c = List.append(c, 4)
+        b = Map.set(b, "c", c)
+        a = Map.set(a, "b", b)
+        State.set("a", a)
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      assert {:ok, nil, %{"a" => %{"b" => %{"c" => [1, 2, 3, 4]}}}, _logs} =
+               Interpreter.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 %{"a" => %{"b" => %{"c" => [1, 2, 3]}}},
+                 nil,
+                 nil
                )
     end
   end

@@ -27,7 +27,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.RegexTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "match"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "match"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should not match" do
@@ -41,7 +42,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.RegexTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "no match"}} =
+      assert {%Transaction{data: %TransactionData{content: "no match"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -56,7 +57,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.RegexTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "12"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "12"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should return empty when no match" do
@@ -69,7 +71,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.RegexTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "no match"}} =
+      assert {%Transaction{data: %TransactionData{content: "no match"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -84,7 +86,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.RegexTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[\"12\"]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[\"12\"]"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -96,7 +98,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.RegexTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[[\"Michael\",\"12\"]]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[[\"Michael\",\"12\"]]"}}, _state} =
                sanitize_parse_execute(code)
     end
   end

@@ -22,7 +22,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "0"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "0"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -35,7 +36,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "3"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "3"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -49,7 +51,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should return nil when key not found" do
@@ -62,7 +65,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -76,7 +80,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should return default when key not found" do
@@ -87,7 +92,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "4"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "4"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -102,7 +108,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "{\"one\":1,\"two\":2}"}} =
+      assert {%Transaction{data: %TransactionData{content: "{\"one\":1,\"two\":2}"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -118,7 +124,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[\"one\",\"two\"]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[\"one\",\"two\"]"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -134,7 +140,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[1,2]"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "[1,2]"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -149,7 +156,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.MapTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "{\"two\":2}"}} =
+      assert {%Transaction{data: %TransactionData{content: "{\"two\":2}"}}, _state} =
                sanitize_parse_execute(code)
     end
   end

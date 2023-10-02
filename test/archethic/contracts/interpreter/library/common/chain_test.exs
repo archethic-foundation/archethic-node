@@ -82,7 +82,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
           {:ok, %GenesisAddress{address: genesis_address, timestamp: DateTime.utc_now()}}
       end)
 
-      assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: content}}, _state} =
+               sanitize_parse_execute(code)
+
       assert content == Base.encode16(genesis_address)
     end
   end
@@ -105,7 +107,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
           {:ok, %FirstTransactionAddress{address: first_address, timestamp: DateTime.utc_now()}}
       end)
 
-      assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: content}}, _state} =
+               sanitize_parse_execute(code)
+
       assert content == Base.encode16(first_address)
     end
 
@@ -126,7 +130,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
           {:ok, %NotFound{}}
       end)
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -148,7 +153,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
           {:ok, %FirstPublicKey{public_key: genesis_pub_key}}
       end)
 
-      assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: content}}, _state} =
+               sanitize_parse_execute(code)
+
       assert content == Base.encode16(genesis_pub_key)
     end
 
@@ -169,7 +176,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
           {:ok, %NotFound{}}
       end)
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -191,7 +199,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: content}}, _state} =
+               sanitize_parse_execute(code)
+
       assert content == "Gloubi-Boulga"
     end
 
@@ -212,7 +222,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
           {:ok, %NotFound{}}
       end)
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 

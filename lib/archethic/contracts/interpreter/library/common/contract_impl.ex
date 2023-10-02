@@ -27,8 +27,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
         )
 
     with {:ok, tx} <- Archethic.get_last_transaction(address),
+         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(tx),
          {:ok, contract} <- Contracts.from_transaction(tx),
-         {:ok, result} <- Contracts.execute_function(contract, function, args) do
+         {:ok, result} <- Contracts.execute_function(contract, function, args, maybe_state_utxo) do
       result
     else
       {:error, reason} ->

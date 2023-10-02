@@ -48,10 +48,11 @@ defmodule Archethic.Contracts.ContractTest do
         |> ContractFactory.create_valid_contract_tx(seed: seed)
         |> Contract.from_transaction!()
 
-      {:ok, next_tx} =
+      %Contract.Result.Success{next_tx: next_tx} =
         Contracts.execute_trigger(
           {:datetime, DateTime.from_unix!(trigger_time)},
           contract,
+          nil,
           nil,
           nil
         )
@@ -84,13 +85,16 @@ defmodule Archethic.Contracts.ContractTest do
 
       storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-      assert {:ok, next_tx = %Transaction{data: %TransactionData{ownerships: []}}} =
+      assert %Contract.Result.Success{next_tx: next_tx} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(trigger_time)},
                  contract,
                  nil,
+                 nil,
                  nil
                )
+
+      assert %Transaction{data: %TransactionData{ownerships: []}} = next_tx
 
       assert {:ok, %Transaction{data: %TransactionData{ownerships: [new_ownership]}}} =
                Contract.sign_next_transaction(contract, next_tx, 1)

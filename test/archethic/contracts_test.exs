@@ -3,12 +3,12 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
+  alias Archethic.Contracts.State
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.ContractFactory
   alias Archethic.TransactionFactory
@@ -144,223 +144,6 @@ defmodule Archethic.ContractsTest do
                nil,
                DateTime.utc_now()
              )
-    end
-  end
-
-  describe "valid_execution?/3" do
-    setup do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: ArchethicCase.random_public_key(),
-        last_public_key: ArchethicCase.random_public_key(),
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-
-      :ok
-    end
-
-    test "should return false if there is no context and there is a trigger" do
-      now = ~U[2023-06-20 12:00:00Z]
-
-      code = """
-      @version 1
-      actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
-        Contract.set_content "wake up"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
-
-      refute Contracts.valid_execution?(prev_tx, next_tx, nil)
-    end
-
-    test "should return true if there is no context and there is no trigger" do
-      code = """
-      @version 1
-      condition inherit: [ content: true ]
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx =
-        ContractFactory.create_next_contract_tx(prev_tx,
-          content: "{\"uco\":{\"eur\":0.00, \"usd\":0.00}}",
-          type: :oracle
-        )
-
-      assert Contracts.valid_execution?(prev_tx, next_tx, nil)
-    end
-
-    test "should return true when the transaction have been triggered by datetime and timestamp matches" do
-      now = %DateTime{DateTime.utc_now() | second: 0, microsecond: {0, 0}}
-
-      code = """
-      @version 1
-      actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
-        Contract.set_content "wake up"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
-
-      contract_context = %Contract.Context{
-        trigger: {:datetime, now},
-        status: :tx_output,
-        timestamp: now
-      }
-
-      assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-    end
-
-    test "should work with contract version 0" do
-      now = %DateTime{DateTime.utc_now() | second: 0, microsecond: {0, 0}}
-
-      code = """
-      actions triggered_by: datetime, at: #{DateTime.to_unix(now)} do
-        set_content "wake up"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
-
-      contract_context = %Contract.Context{
-        trigger: {:datetime, now},
-        status: :tx_output,
-        timestamp: now
-      }
-
-      assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-    end
-
-    test "should return false when the transaction have been triggered by datetime but timestamp doesn't match" do
-      yesterday = %DateTime{
-        (DateTime.utc_now()
-         |> DateTime.add(-1, :day))
-        | second: 0,
-          microsecond: {0, 0}
-      }
-
-      code = """
-      @version 1
-      actions triggered_by: datetime, at: #{DateTime.to_unix(yesterday)} do
-        Contract.set_content "wake up"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
-
-      contract_context = %Contract.Context{
-        trigger: {:datetime, yesterday},
-        status: :tx_output,
-        timestamp: DateTime.utc_now()
-      }
-
-      refute Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-    end
-
-    test "should return true when the transaction have been triggered by interval and timestamp matches" do
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-      code = """
-      @version 1
-      actions triggered_by: interval, at: "* * * * *" do
-        Contract.set_content "beep"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "beep")
-
-      contract_context = %Contract.Context{
-        trigger: {:interval, "* * * * *", now},
-        status: :tx_output,
-        timestamp: now
-      }
-
-      assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-    end
-
-    test "should return false when the transaction have been triggered by interval but timestamp doesn't match" do
-      yesterday = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
-
-      code = """
-      @version 1
-      actions triggered_by: interval, at: "* * * * *" do
-        Contract.set_content "beep"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "beep")
-
-      contract_context = %Contract.Context{
-        trigger: {:interval, "* * * * *", yesterday},
-        status: :tx_output,
-        timestamp: DateTime.utc_now()
-      }
-
-      refute Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-    end
-
-    test "should return true when the resulting transaction is the same as next_transaction" do
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-      code = """
-      @version 1
-      actions triggered_by: interval, at: "* * * * *" do
-        Contract.set_content "beep"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "beep")
-
-      contract_context = %Contract.Context{
-        trigger: {:interval, "* * * * *", now},
-        status: :tx_output,
-        timestamp: now
-      }
-
-      assert Contracts.valid_execution?(prev_tx, next_tx, contract_context)
-    end
-
-    test "should return false when the resulting transaction is the same as next_transaction" do
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
-
-      code = """
-      @version 1
-      actions triggered_by: interval, at: "* * * * *" do
-        Contract.set_content "beep"
-      end
-      """
-
-      prev_tx = ContractFactory.create_valid_contract_tx(code)
-
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "boop")
-
-      contract_context = %Contract.Context{
-        trigger: {:interval, "* * * * *", now},
-        status: :tx_output,
-        timestamp: now
-      }
-
-      refute Contracts.valid_execution?(prev_tx, next_tx, contract_context)
     end
   end
 
@@ -716,6 +499,34 @@ defmodule Archethic.ContractsTest do
     end
   end
 
+  describe "execute_trigger" do
+    test "should return the proper line in case of error" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, as: []
+        actions triggered_by: transaction do
+          div_by_zero()
+        end
+
+        export fun div_by_zero() do
+          1 / 0
+        end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      assert %Contract.Result.Error{user_friendly_error: "division_by_zero - L8"} =
+               Contracts.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil
+               )
+    end
+  end
+
   describe "execute_function/3" do
     test "should return an error if the function takes too much time" do
       code = ~S"""
@@ -743,7 +554,42 @@ defmodule Archethic.ContractsTest do
         )
 
       assert {:error, :timeout} =
-               Contracts.execute_function(contract_with_sleep, "meaning_of_life", [])
+               Contracts.execute_function(contract_with_sleep, "meaning_of_life", [], nil)
+    end
+
+    test "should be able to read the state" do
+      code = ~S"""
+      @version 1
+      export fun meaning_of_life() do
+        State.get("key")
+      end
+      """
+
+      # some ucos are necessary for ContractFactory.create_valid_contract_tx
+      uco_utxo = %UnspentOutput{
+        amount: 200_000_000,
+        from: ArchethicCase.random_address(),
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+
+      contract_tx =
+        ContractFactory.create_valid_contract_tx(code,
+          inputs: [uco_utxo],
+          state: State.to_utxo(%{"key" => 42})
+        )
+
+      contract = Contract.from_transaction!(contract_tx)
+
+      maybe_state_utxo = State.get_utxo_from_transaction(contract_tx)
+
+      assert {:ok, 42} =
+               Contracts.execute_function(
+                 contract,
+                 "meaning_of_life",
+                 [],
+                 maybe_state_utxo
+               )
     end
   end
 end

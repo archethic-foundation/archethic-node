@@ -70,14 +70,17 @@ defmodule Archethic.ContractFactory do
       |> Keyword.put(:ownerships, [contract_seed_ownership | ownerships])
       |> Keyword.put(:code, code)
 
-    TransactionFactory.create_valid_transaction([], opts)
+    TransactionFactory.create_valid_transaction(Keyword.get(opts, :inputs, []), opts)
   end
 
   def create_next_contract_tx(
-        %Transaction{data: %TransactionData{code: code}},
+        prev_tx = %Transaction{data: %TransactionData{code: code}},
         opts \\ []
       ) do
-    opts = opts |> Keyword.update(:index, 1, & &1)
+    opts =
+      opts
+      |> Keyword.update(:index, 1, & &1)
+      |> Keyword.put(:prev_tx, prev_tx)
 
     create_valid_contract_tx(code, opts)
   end

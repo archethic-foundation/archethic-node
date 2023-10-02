@@ -4,6 +4,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Contracts.State
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
@@ -44,7 +45,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   The "contract" constant is mandatory.
   """
   @spec execute(ast :: any(), constants :: map(), previous_contract_tx :: Transaction.t()) ::
-          Transaction.t() | nil
+          {Transaction.t() | nil, State.t()}
   def execute(ast, constants, %Transaction{data: %TransactionData{code: code}}) do
     :ok = Macro.validate(ast)
 
@@ -58,11 +59,16 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
 
     Scope.execute(ast, constants)
 
+    state = Scope.read_global([:state])
+
     # return a next transaction only if it has been modified
     if Scope.read_global([:next_transaction_changed]) do
-      Scope.read_global([:next_transaction])
+      {
+        Scope.read_global([:next_transaction]),
+        state
+      }
     else
-      nil
+      {nil, state}
     end
   end
 

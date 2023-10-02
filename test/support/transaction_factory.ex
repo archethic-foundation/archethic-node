@@ -55,6 +55,8 @@ defmodule Archethic.TransactionFactory do
     ledger = Keyword.get(opts, :ledger, %Ledger{})
     ownerships = Keyword.get(opts, :ownerships, [])
     recipients = Keyword.get(opts, :recipients, [])
+    maybe_state_utxo = Keyword.get(opts, :state)
+    prev_tx = Keyword.get(opts, :prev_tx)
 
     timestamp =
       Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
@@ -78,8 +80,17 @@ defmodule Archethic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07, timestamp, ArchethicCase.current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, maybe_state_utxo)
       |> elem(1)
+
+    poi =
+      case prev_tx do
+        nil ->
+          TransactionChain.proof_of_integrity([tx])
+
+        _ ->
+          TransactionChain.proof_of_integrity([tx, prev_tx])
+      end
 
     validation_stamp =
       %ValidationStamp{
@@ -87,7 +98,7 @@ defmodule Archethic.TransactionFactory do
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        proof_of_integrity: poi,
         ledger_operations: ledger_operations,
         protocol_version: ArchethicCase.current_protocol_version()
       }

@@ -113,6 +113,9 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreter do
     if Library.function_tagged_with?(module_name, function_name, :write_contract),
       do: throw({:error, node, "Write contract functions are not allowed in custom functions"})
 
+    if Library.function_tagged_with?(module_name, function_name, :write_state),
+      do: throw({:error, node, "Modifying contract's state is not allowed in custom functions"})
+
     if public? and Library.function_tagged_with?(module_name, function_name, :io),
       do: throw({:error, node, "IO function calls not allowed in public functions"})
 

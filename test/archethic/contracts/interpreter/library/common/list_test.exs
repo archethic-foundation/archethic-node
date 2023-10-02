@@ -24,7 +24,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "Jean"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "Jean"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with maths (because bigint)" do
@@ -35,7 +36,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "Jean"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "Jean"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -48,7 +50,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "0"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "0"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work" do
@@ -59,7 +62,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "4"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "4"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -77,7 +81,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -90,7 +95,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -108,7 +114,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -121,7 +128,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -139,7 +147,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[1,2,3,4]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[1,2,3,4]"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -158,7 +166,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[1,2,3]"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -177,7 +185,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[0,1,2]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[0,1,2]"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -192,7 +200,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ListTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "Emma, Joseph, Emily"}} =
+      assert {%Transaction{data: %TransactionData{content: "Emma, Joseph, Emily"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
