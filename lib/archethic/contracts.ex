@@ -81,17 +81,39 @@ defmodule Archethic.Contracts do
            opts
          ) do
       {:ok, nil, next_state, logs} ->
-        %Contract.Result.Noop{
-          next_state: next_state,
-          logs: logs
-        }
+        case State.to_utxo(next_state) do
+          {:ok, maybe_utxo} ->
+            %Contract.Result.Noop{
+              next_state: maybe_utxo,
+              logs: logs
+            }
+
+          {:error, :state_too_big} ->
+            %Contract.Result.Error{
+              logs: [],
+              error: "Execution was successful but the state exceed the threshold",
+              stacktrace: [],
+              user_friendly_error: "Execution was successful but the state exceed the threshold"
+            }
+        end
 
       {:ok, next_tx, next_state, logs} ->
-        %Contract.Result.Success{
-          logs: logs,
-          next_tx: next_tx,
-          state_utxo: State.to_utxo(next_state)
-        }
+        case State.to_utxo(next_state) do
+          {:ok, maybe_utxo} ->
+            %Contract.Result.Success{
+              logs: logs,
+              next_tx: next_tx,
+              state_utxo: maybe_utxo
+            }
+
+          {:error, :state_too_big} ->
+            %Contract.Result.Error{
+              logs: [],
+              error: "Execution was successful but the state exceed the threshold",
+              stacktrace: [],
+              user_friendly_error: "Execution was successful but the state exceed the threshold"
+            }
+        end
 
       {:error, err} ->
         %Contract.Result.Error{

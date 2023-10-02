@@ -7,6 +7,7 @@ defmodule Archethic.Contracts.State do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  @max_compressed_state_size 256 * 1024
   @type t() :: map()
 
   @spec empty() :: t()
@@ -40,22 +41,26 @@ defmodule Archethic.Contracts.State do
   end
 
   @doc """
-  Return either
-    nil (if the state is empty)
-    the state encoded in an utxo
+  Return the state utxo if it's not too big
+  May return nil when state is empty
   """
-  @spec to_utxo(t()) :: nil | UnspentOutput.t()
+  @spec to_utxo(t()) :: {:ok, nil | UnspentOutput.t()} | {:error, :state_too_big}
   def to_utxo(state = %{}) do
     if state == empty() do
-      nil
+      {:ok, nil}
     else
       # FIXME: real implementation
-      %UnspentOutput{
-        type: :state,
-        encoded_payload:
-          state
-          |> :erlang.term_to_binary()
-      }
+      case :erlang.term_to_binary(state) do
+        bin when byte_size(bin) > @max_compressed_state_size ->
+          {:error, :state_too_big}
+
+        bin ->
+          {:ok,
+           %UnspentOutput{
+             type: :state,
+             encoded_payload: bin
+           }}
+      end
     end
   end
 end

@@ -208,7 +208,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      state_utxo = State.to_utxo(%{"key" => "value"})
+      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
 
       # some ucos are necessary for ContractFactory.create_valid_contract_tx
       uco_utxo = %UnspentOutput{
@@ -561,6 +561,32 @@ defmodule Archethic.ContractsTest do
                  nil
                )
     end
+
+    test "should fail if the state is too big" do
+      code = ~S"""
+        @version 1
+        actions triggered_by: datetime, at: 0 do
+          str = ""
+          for i in 0..26214 do
+            str = "#{str}0000000000"
+          end
+          State.set("key", str)
+        end
+
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      assert %Contract.Result.Error{
+               user_friendly_error: "Execution was successful but the state exceed the threshold"
+             } =
+               Contracts.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil
+               )
+    end
   end
 
   describe "execute_function/3" do
@@ -609,10 +635,12 @@ defmodule Archethic.ContractsTest do
         timestamp: DateTime.utc_now()
       }
 
+      {:ok, state_utxo} = State.to_utxo(%{"key" => 42})
+
       contract_tx =
         ContractFactory.create_valid_contract_tx(code,
           inputs: [uco_utxo],
-          state: State.to_utxo(%{"key" => 42})
+          state: state_utxo
         )
 
       contract = Contract.from_transaction!(contract_tx)
