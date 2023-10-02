@@ -268,4 +268,8 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:address, address)
     |> assign(:ko?, true)
   end
+
+  def print_state(state_utxo) do
+    Jason.encode!(Archethic.Contracts.State.from_utxo(state_utxo), pretty: true)
+  end
 end

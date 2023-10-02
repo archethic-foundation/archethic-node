@@ -37,7 +37,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   def execute(%{contract: contract_adress, function: function_name, args: args}) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(contract_adress),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         {:ok, result} <- Contracts.execute_function(contract, function_name, args) do
+         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(contract_tx),
+         {:ok, result} <-
+           Contracts.execute_function(contract, function_name, args, maybe_state_utxo) do
       {:ok, result}
     else
       {:error, reason} ->

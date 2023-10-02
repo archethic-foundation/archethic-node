@@ -6,6 +6,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
   use ArchethicWeb.API, :controller
 
   alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -232,10 +233,22 @@ defmodule ArchethicWeb.API.REST.TransactionController do
 
   defp fetch_recipient_tx_and_simulate(recipient_address, trigger_tx) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
-         {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         {:ok, _} <-
-           Contracts.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil) do
-      :ok
+         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(contract_tx),
+         {:ok, contract} <-
+           Contracts.from_transaction(contract_tx) do
+      case Contracts.execute_trigger(
+             {:transaction, nil, nil},
+             contract,
+             trigger_tx,
+             nil,
+             maybe_state_utxo
+           ) do
+        %Contract.Result.Error{user_friendly_error: reason} ->
+          {:error, reason}
+
+        _ ->
+          :ok
+      end
     else
       # search_transaction errors
       {:error, :transaction_not_exists} ->
@@ -247,7 +260,6 @@ defmodule ArchethicWeb.API.REST.TransactionController do
       {:error, :network_issue} ->
         {:error, "Network issue, please try again later."}
 
-      # execute_contract errors
       # parse_contract errors
       {:error, reason} when is_binary(reason) ->
         {:error, reason}
