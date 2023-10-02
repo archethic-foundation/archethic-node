@@ -247,11 +247,18 @@ defmodule Archethic.Mining do
   """
   @spec get_transaction_fee(
           transaction :: Transaction.t(),
+          contract_context :: Contract.Context.t() | nil,
           uco_price_in_usd :: float(),
           timestamp :: DateTime.t(),
           protocol_version :: pos_integer()
         ) :: non_neg_integer()
-  def get_transaction_fee(tx, uco_price_in_usd, timestamp, proto_version \\ protocol_version()) do
-    Fee.calculate(tx, uco_price_in_usd, timestamp, proto_version)
+  def get_transaction_fee(
+        tx,
+        contract_context,
+        uco_price_in_usd,
+        timestamp,
+        proto_version \\ protocol_version()
+      ) do
+    Fee.calculate(tx, contract_context, uco_price_in_usd, timestamp, proto_version)
   end
 end

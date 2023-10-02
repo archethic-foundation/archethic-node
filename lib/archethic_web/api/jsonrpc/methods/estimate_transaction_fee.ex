@@ -45,7 +45,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
     uco_eur = previous_price |> Keyword.fetch!(:eur)
     uco_usd = previous_price |> Keyword.fetch!(:usd)
 
-    fee = Mining.get_transaction_fee(tx, uco_usd, timestamp)
+    fee = Mining.get_transaction_fee(tx, nil, uco_usd, timestamp)
 
     result = %{"fee" => fee, "rates" => %{"usd" => uco_usd, "eur" => uco_eur}}
     {:ok, result}

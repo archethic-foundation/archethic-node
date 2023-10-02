@@ -184,7 +184,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
     operations =
       %LedgerOperations{
-        fee: Mining.get_transaction_fee(tx, 0.07, timestamp),
+        fee: Mining.get_transaction_fee(tx, nil, 0.07, timestamp),
         transaction_movements: Transaction.get_movements(tx),
         tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       }
