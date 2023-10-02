@@ -730,7 +730,7 @@ defmodule Archethic.Mining.ValidationContext do
     {valid_contract_recipients?, contract_recipients_fee} =
       validate_contract_recipients(tx, resolved_recipients, validation_time)
 
-    fee = calculate_fee(tx, contract_recipients_fee, validation_time)
+    fee = calculate_fee(tx, contract_context, contract_recipients_fee, validation_time)
 
     {sufficient_funds?, ledger_operations} = get_ledger_operations(context, fee, validation_time)
 
@@ -760,14 +760,15 @@ defmodule Archethic.Mining.ValidationContext do
     %{context | validation_stamp: validation_stamp}
   end
 
-  defp calculate_fee(tx, contract_recipients_fee, validation_time) do
+  defp calculate_fee(tx, contract_context, contract_recipients_fee, validation_time) do
     previous_usd_price =
       validation_time
       |> OracleChain.get_last_scheduling_date()
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, previous_usd_price, validation_time) + contract_recipients_fee
+    Mining.get_transaction_fee(tx, contract_context, previous_usd_price, validation_time) +
+      contract_recipients_fee
   end
 
   defp get_ledger_operations(
@@ -1074,6 +1075,7 @@ defmodule Archethic.Mining.ValidationContext do
            transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
            resolved_addresses: resolved_addresses,
            validation_time: validation_time,
+           contract_context: contract_context,
            validation_stamp:
              stamp = %ValidationStamp{
                timestamp: timestamp,
@@ -1086,7 +1088,7 @@ defmodule Archethic.Mining.ValidationContext do
     {valid_contract_recipients?, contract_recipients_fee} =
       validate_contract_recipients(tx, resolved_recipients, validation_time)
 
-    fee = calculate_fee(tx, contract_recipients_fee, validation_time)
+    fee = calculate_fee(tx, contract_context, contract_recipients_fee, validation_time)
 
     {sufficient_funds?, ledger_operations} = get_ledger_operations(context, stamp_fee, timestamp)
 
