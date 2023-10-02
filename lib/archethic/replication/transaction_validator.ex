@@ -57,11 +57,12 @@ defmodule Archethic.Replication.TransactionValidator do
   @spec validate(
           validated_transaction :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
-          inputs_outputs :: list(TransactionInput.t())
+          inputs_outputs :: list(TransactionInput.t()),
+          contract_context :: nil | Contract.Context.t()
         ) ::
           :ok | {:error, error()}
-  def validate(tx = %Transaction{}, previous_transaction, inputs) do
-    with :ok <- valid_transaction(tx, inputs, true),
+  def validate(tx = %Transaction{}, previous_transaction, inputs, contract_context) do
+    with :ok <- valid_transaction(tx, inputs, contract_context, true),
          :ok <- validate_inheritance(previous_transaction, tx) do
       validate_chain(tx, previous_transaction)
     end
@@ -106,9 +107,9 @@ defmodule Archethic.Replication.TransactionValidator do
   """
   @spec validate(Transaction.t()) :: :ok | {:error, error()}
   def validate(tx = %Transaction{}),
-    do: valid_transaction(tx, [], false)
+    do: valid_transaction(tx, [], nil, false)
 
-  defp valid_transaction(tx = %Transaction{}, _inputs, _chain_node? = false) do
+  defp valid_transaction(tx = %Transaction{}, _inputs, _contract_context, _chain_node? = false) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx) do
       :ok
@@ -119,11 +120,12 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
-  defp valid_transaction(tx = %Transaction{}, inputs, _chain_node? = true) when is_list(inputs) do
+  defp valid_transaction(tx = %Transaction{}, inputs, contract_context, _chain_node? = true)
+       when is_list(inputs) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx),
          {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
-         :ok <- validate_transaction_fee(tx, contract_recipient_fees),
+         :ok <- validate_transaction_fee(tx, contract_recipient_fees, contract_context),
          :ok <- validate_inputs(tx, inputs) do
       :ok
     else
@@ -255,9 +257,10 @@ defmodule Archethic.Replication.TransactionValidator do
          tx = %Transaction{
            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: fee}}
          },
-         contract_recipient_fees
+         contract_recipient_fees,
+         contract_context
        ) do
-    if fee == get_transaction_fee(tx, contract_recipient_fees) do
+    if fee == get_transaction_fee(tx, contract_recipient_fees, contract_context) do
       :ok
     else
       Logger.error(
@@ -271,12 +274,9 @@ defmodule Archethic.Replication.TransactionValidator do
   end
 
   defp get_transaction_fee(
-         tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             timestamp: timestamp
-           }
-         },
-         contract_recipient_fees
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
+         contract_recipient_fees,
+         contract_context
        ) do
     previous_usd_price =
       timestamp
@@ -284,7 +284,8 @@ defmodule Archethic.Replication.TransactionValidator do
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, previous_usd_price, timestamp) + contract_recipient_fees
+    Mining.get_transaction_fee(tx, contract_context, previous_usd_price, timestamp) +
+      contract_recipient_fees
   end
 
   defp validate_transaction_movements(

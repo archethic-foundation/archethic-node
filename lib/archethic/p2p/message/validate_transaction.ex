@@ -17,8 +17,8 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | ReplicationError.t()
-  def process(%__MODULE__{transaction: tx}, _) do
-    case Replication.validate_transaction(tx) do
+  def process(%__MODULE__{transaction: tx, contract_context: contract_context}, _) do
+    case Replication.validate_transaction(tx, contract_context) do
       :ok ->
         Replication.add_transaction_to_commit_pool(tx)
         %Ok{}
