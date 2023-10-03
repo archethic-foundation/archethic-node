@@ -22,6 +22,7 @@ defmodule Archethic.Mining do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
 
@@ -249,9 +250,16 @@ defmodule Archethic.Mining do
           transaction :: Transaction.t(),
           uco_price_in_usd :: float(),
           timestamp :: DateTime.t(),
-          protocol_version :: pos_integer()
+          protocol_version :: pos_integer(),
+          maybe_state_utxo :: nil | UnspentOutput.t()
         ) :: non_neg_integer()
-  def get_transaction_fee(tx, uco_price_in_usd, timestamp, proto_version \\ protocol_version()) do
-    Fee.calculate(tx, uco_price_in_usd, timestamp, proto_version)
+  def get_transaction_fee(
+        tx,
+        uco_price_in_usd,
+        timestamp,
+        proto_version \\ protocol_version(),
+        maybe_state_utxo \\ nil
+      ) do
+    Fee.calculate(tx, uco_price_in_usd, timestamp, proto_version, maybe_state_utxo)
   end
 end

@@ -9,6 +9,7 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.P2P
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
@@ -46,10 +47,12 @@ defmodule Archethic.Mining.Fee do
           transaction :: Transaction.t(),
           uco_usd_price :: float(),
           timestamp :: DateTime.t(),
-          protocol_version :: pos_integer()
+          protocol_version :: pos_integer(),
+          maybe_state_utxo :: nil | UnspentOutput.t()
         ) :: non_neg_integer()
-  def calculate(%Transaction{type: :keychain}, _, _, _), do: 0
-  def calculate(%Transaction{type: :keychain_access}, _, _, _), do: 0
+  def calculate(transaction, uco_usd_price, timestamp, protocol_version, maybe_state_utxo \\ nil)
+  def calculate(%Transaction{type: :keychain}, _, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _, _, _, _), do: 0
 
   def calculate(
         tx = %Transaction{
@@ -58,7 +61,8 @@ defmodule Archethic.Mining.Fee do
         },
         uco_price_in_usd,
         timestamp,
-        protocol_version
+        protocol_version,
+        maybe_state_utxo
       ) do
     cond do
       address == Bootstrap.genesis_address() ->
@@ -69,7 +73,7 @@ defmodule Archethic.Mining.Fee do
 
       true ->
         nb_recipients = get_number_recipients(tx)
-        nb_bytes = get_transaction_size(tx)
+        nb_bytes = get_transaction_size(tx) + get_state_size(maybe_state_utxo)
         nb_storage_nodes = get_number_replicas(tx, timestamp)
 
         # TODO: determine the fee for smart contract execution
@@ -117,6 +121,11 @@ defmodule Archethic.Mining.Fee do
     |> TransactionData.serialize(version)
     |> byte_size()
   end
+
+  defp get_state_size(nil), do: 0
+
+  defp get_state_size(%UnspentOutput{encoded_payload: encoded_payload}),
+    do: byte_size(encoded_payload)
 
   defp get_number_recipients(
          tx = %Transaction{

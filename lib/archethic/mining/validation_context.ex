@@ -783,12 +783,19 @@ defmodule Archethic.Mining.ValidationContext do
       |> Enum.map(&{{&1.to, &1.type}, &1})
       |> Enum.into(%{})
 
+    maybe_state_utxo =
+      case maybe_execution_result do
+        %Contract.Result.Success{state_utxo: state_utxo} -> state_utxo
+        _ -> nil
+      end
+
     fee =
       Fee.calculate(
         tx,
         previous_usd_price,
         validation_time,
-        protocol_version
+        protocol_version,
+        maybe_state_utxo
       )
 
     resolved_movements =
@@ -815,10 +822,7 @@ defmodule Archethic.Mining.ValidationContext do
       tx.address,
       unspent_outputs,
       validation_time |> DateTime.truncate(:millisecond),
-      case maybe_execution_result do
-        %Contract.Result.Success{state_utxo: state_utxo} -> state_utxo
-        _ -> nil
-      end
+      maybe_state_utxo
     )
   end
 
@@ -1084,7 +1088,7 @@ defmodule Archethic.Mining.ValidationContext do
       proof_of_work: fn -> valid_stamp_proof_of_work?(stamp, context) end,
       proof_of_integrity: fn -> valid_stamp_proof_of_integrity?(stamp, context) end,
       proof_of_election: fn -> valid_stamp_proof_of_election?(stamp, context) end,
-      transaction_fee: fn -> valid_stamp_fee?(stamp, context) end,
+      transaction_fee: fn -> valid_stamp_fee?(stamp, context, maybe_execution_result) end,
       transaction_movements: fn -> valid_stamp_transaction_movements?(stamp, context) end,
       recipients: fn -> valid_stamp_recipients?(stamp, context) end,
       unspent_outputs: fn ->
@@ -1148,7 +1152,8 @@ defmodule Archethic.Mining.ValidationContext do
            timestamp: timestamp,
            ledger_operations: %LedgerOperations{fee: fee}
          },
-         %__MODULE__{transaction: tx}
+         %__MODULE__{transaction: tx},
+         maybe_execution_result
        ) do
     previous_usd_price =
       timestamp
@@ -1156,11 +1161,18 @@ defmodule Archethic.Mining.ValidationContext do
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
+    maybe_state_utxo =
+      case maybe_execution_result do
+        %Contract.Result.Success{state_utxo: state_utxo} -> state_utxo
+        _ -> nil
+      end
+
     Fee.calculate(
       tx,
       previous_usd_price,
       timestamp,
-      protocol_version
+      protocol_version,
+      maybe_state_utxo
     ) == fee
   end
 

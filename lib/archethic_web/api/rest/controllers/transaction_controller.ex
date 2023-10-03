@@ -114,6 +114,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
         uco_eur = previous_price |> Keyword.fetch!(:eur)
         uco_usd = previous_price |> Keyword.fetch!(:usd)
 
+        # not possible to have a contract's state here
         fee =
           changeset
           |> TransactionPayload.to_map()

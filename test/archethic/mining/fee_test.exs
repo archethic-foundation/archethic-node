@@ -9,6 +9,7 @@ defmodule Archethic.Mining.FeeTest do
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -391,6 +392,29 @@ defmodule Archethic.Mining.FeeTest do
         |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
 
       assert fee_tx_big > fee_tx_small
+    end
+
+    test "should consider state size" do
+      tx = TransactionFactory.create_valid_transaction([])
+
+      fee_without_state =
+        Fee.calculate(tx, 0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+
+      state_utxo = %UnspentOutput{
+        type: :state,
+        encoded_payload: :crypto.strong_rand_bytes(1000)
+      }
+
+      fee_with_state =
+        Fee.calculate(
+          tx,
+          0.2,
+          DateTime.utc_now(),
+          ArchethicCase.current_protocol_version(),
+          state_utxo
+        )
+
+      assert fee_with_state > fee_without_state
     end
 
     test "should cost more with more replication nodes" do

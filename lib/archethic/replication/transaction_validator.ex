@@ -5,6 +5,7 @@ defmodule Archethic.Replication.TransactionValidator do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.State
 
   alias Archethic.DB
 
@@ -241,7 +242,13 @@ defmodule Archethic.Replication.TransactionValidator do
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, previous_usd_price, timestamp)
+    Mining.get_transaction_fee(
+      tx,
+      previous_usd_price,
+      timestamp,
+      Mining.protocol_version(),
+      State.get_utxo_from_transaction(tx)
+    )
   end
 
   defp validate_transaction_movements(
