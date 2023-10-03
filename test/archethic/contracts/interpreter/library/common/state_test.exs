@@ -1,6 +1,8 @@
 defmodule Archethic.Contracts.Interpreter.Library.Common.StateTest do
   alias Archethic.Contracts.Interpreter.Library.Common.State
 
+  alias Archethic.Contracts.Interpreter.Library
+
   use ArchethicCase
   use ExUnitProperties
 
@@ -63,6 +65,32 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StateTest do
     end
   end
 
+  describe "set/2" do
+    setup do
+      # initiate a scope with an empty state
+      Process.put(:scope, %{state: %{}})
+      :ok
+    end
+
+    test "should raise if key is not a string" do
+      assert_raise Library.Error, fn ->
+        State.set(1, "value")
+      end
+
+      assert_raise Library.Error, fn ->
+        State.set([], "value")
+      end
+
+      assert_raise Library.Error, fn ->
+        State.set(%{}, "value")
+      end
+
+      assert_raise Library.Error, fn ->
+        State.set(true, "value")
+      end
+    end
+  end
+
   describe "get/2" do
     setup do
       # initiate a scope with an empty state
@@ -77,6 +105,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StateTest do
 
     test "should return the default if key is not found" do
       assert 42 == State.get("not existing key", 42)
+    end
+
+    test "should raise if key is not a string" do
+      assert_raise Library.Error, fn ->
+        State.get(1)
+      end
+
+      assert_raise Library.Error, fn ->
+        State.get([])
+      end
+
+      assert_raise Library.Error, fn ->
+        State.get(%{})
+      end
+
+      assert_raise Library.Error, fn ->
+        State.get(true)
+      end
     end
   end
 
@@ -97,6 +143,24 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.StateTest do
                Process.get(:scope)
                |> Map.get(:state)
                |> map_size()
+    end
+
+    test "should raise if key is not a string" do
+      assert_raise Library.Error, fn ->
+        State.delete(1)
+      end
+
+      assert_raise Library.Error, fn ->
+        State.delete([])
+      end
+
+      assert_raise Library.Error, fn ->
+        State.delete(%{})
+      end
+
+      assert_raise Library.Error, fn ->
+        State.delete(true)
+      end
     end
   end
 end
