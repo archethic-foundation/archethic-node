@@ -23,6 +23,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionInput
@@ -153,7 +154,7 @@ defmodule Archethic.Replication.TransactionValidator do
       recipients
       |> Enum.zip(resolved_recipients)
       |> Enum.map(fn {recipient, resolved_address} ->
-        Map.put(recipient, :address, resolved_address)
+        %Recipient{recipient | address: resolved_address}
       end)
       |> SmartContractValidation.validate_contract_calls(tx, timestamp)
 
