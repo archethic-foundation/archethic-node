@@ -2,13 +2,13 @@ defmodule Archethic.Contracts.Contract.Result.Noop do
   @moduledoc """
   This struct represents a NO-OP, an execution that did not produce a next transaction
   """
-  alias Archethic.Contracts.State
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
-  @enforce_keys [:next_state]
-  defstruct [:next_state, logs: []]
+  @enforce_keys [:next_state_utxo]
+  defstruct [:next_state_utxo, logs: []]
 
   @type t :: %__MODULE__{
-          next_state: State.t(),
+          next_state_utxo: nil | UnspentOutput.t(),
           logs: list(String.t())
         }
 end

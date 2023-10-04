@@ -785,7 +785,7 @@ defmodule Archethic.Mining.ValidationContext do
 
     maybe_state_utxo =
       case maybe_execution_result do
-        %Contract.Result.Success{state_utxo: state_utxo} -> state_utxo
+        %Contract.Result.Success{next_state_utxo: state_utxo} -> state_utxo
         _ -> nil
       end
 
@@ -1163,7 +1163,7 @@ defmodule Archethic.Mining.ValidationContext do
 
     maybe_state_utxo =
       case maybe_execution_result do
-        %Contract.Result.Success{state_utxo: state_utxo} -> state_utxo
+        %Contract.Result.Success{next_state_utxo: state_utxo} -> state_utxo
         _ -> nil
       end
 
@@ -1271,7 +1271,7 @@ defmodule Archethic.Mining.ValidationContext do
         previous_unspent_outputs,
         timestamp,
         case maybe_execution_result do
-          %Contract.Result.Success{state_utxo: state_utxo} -> state_utxo
+          %Contract.Result.Success{next_state_utxo: state_utxo} -> state_utxo
           _ -> nil
         end
       )

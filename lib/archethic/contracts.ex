@@ -86,7 +86,7 @@ defmodule Archethic.Contracts do
         case State.to_utxo(next_state) do
           {:ok, maybe_utxo} ->
             %Contract.Result.Noop{
-              next_state: maybe_utxo,
+              next_state_utxo: maybe_utxo,
               logs: logs
             }
 
@@ -105,7 +105,7 @@ defmodule Archethic.Contracts do
             %Contract.Result.Success{
               logs: logs,
               next_tx: next_tx,
-              state_utxo: maybe_utxo
+              next_state_utxo: maybe_utxo
             }
 
           {:error, :state_too_big} ->
