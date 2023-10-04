@@ -6,13 +6,14 @@ defmodule Archethic.Utils.Regression do
 
   alias Archethic.Utils
 
+  alias Archethic.Utils.Regression.Playbook.SmartContract
   alias Archethic.Utils.Regression.Playbook.UCO
 
   alias Archethic.Utils.WebClient
   alias Archethic.Utils.Regression.Benchmark.EndToEndValidation
   alias Archethic.Utils.Regression.Benchmark.P2PMessage
 
-  @playbooks [UCO]
+  @playbooks [UCO, SmartContract]
   @benchmarks [P2PMessage, EndToEndValidation]
 
   def run_playbooks(nodes, opts \\ []) do

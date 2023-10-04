@@ -798,7 +798,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
 
       code = ~S"""
       actions triggered_by: transaction do
-        content = ""
+        content = "你好"
 
         if false do
           content = "hello"
@@ -808,7 +808,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: ""}} = sanitize_parse_execute(code)
+      assert %Transaction{data: %TransactionData{content: "你好"}} = sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do

@@ -5,8 +5,8 @@ defmodule Archethic.Utils.Regression.Benchmark.EndToEndValidation do
 
   alias Archethic.Crypto
 
+  alias Archethic.Utils.Regression.Api
   alias Archethic.Utils.Regression.Benchmark.SeedHolder
-  alias Archethic.Utils.Regression.Playbook
   alias Archethic.Utils.Regression.Benchmark
   alias Archethic.Utils.WebSocket.Client, as: WSClient
 
@@ -19,6 +19,8 @@ defmodule Archethic.Utils.Regression.Benchmark.EndToEndValidation do
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
 
+    endpoint = %Api{host: host, port: port, protocol: :http}
+
     WSClient.start_link(host: host, port: port)
     Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")
 
@@ -29,32 +31,24 @@ defmodule Archethic.Utils.Regression.Benchmark.EndToEndValidation do
 
     {:ok, pid} = SeedHolder.start_link(seeds: seeds)
 
-    allocate_funds(SeedHolder.get_seeds(pid), host, port)
+    amount = 100
+
+    Api.send_funds_to_seeds(
+      SeedHolder.get_seeds(pid)
+      |> Enum.map(fn seed -> {seed, amount} end)
+      |> Enum.into(%{}),
+      endpoint
+    )
 
     {
       %{
         "UCO Transfer single recipient" => fn ->
           recipient_seed = SeedHolder.get_random_seed(pid)
-          uco_transfer_single_recipient(pid, host, port, recipient_seed)
+          uco_transfer_single_recipient(pid, recipient_seed, endpoint)
         end
       },
       [parallel: 4]
     }
-  end
-
-  defp allocate_funds(seeds, host, port, amount \\ 100) do
-    recipient_addresses =
-      Enum.map(
-        seeds,
-        fn seed ->
-          seed
-          |> Crypto.derive_keypair(0)
-          |> elem(0)
-          |> Crypto.derive_address()
-        end
-      )
-
-    Playbook.batch_send_funds_to(recipient_addresses, host, port, amount)
   end
 
   defp get_txn_data(receiver_seed) do
@@ -78,15 +72,14 @@ defmodule Archethic.Utils.Regression.Benchmark.EndToEndValidation do
     }
   end
 
-  defp uco_transfer_single_recipient(pid, host, port, recipient_seed) do
+  defp uco_transfer_single_recipient(pid, recipient_seed, endpoint) do
     {sender_seed, index} = SeedHolder.pop_seed(pid)
 
-    Playbook.send_transaction_with_await_replication(
+    Api.send_transaction_with_await_replication(
       sender_seed,
       :transfer,
       get_txn_data(recipient_seed),
-      host,
-      port
+      endpoint
     )
 
     SeedHolder.put_seed(pid, sender_seed, index)
