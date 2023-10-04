@@ -436,4 +436,50 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
                Chain.get_tokens_balance(address_hex, [token_key1, token_key2, token_key3])
     end
   end
+
+  describe "get_last_address/1" do
+    test "should return last address" do
+      address = random_address()
+      address_hex = Base.encode16(address)
+
+      last_address = random_address()
+      last_address_hex = Base.encode16(last_address)
+
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->
+        {:ok, %LastTransactionAddress{address: last_address}}
+      end)
+
+      assert last_address_hex == Chain.get_last_address(address_hex)
+    end
+
+    test "should raise an error if address is invalid" do
+      assert_raise(Library.Error, fn -> Chain.get_last_address("invalid") end)
+    end
+  end
+
+  describe "get_last_transaction/1" do
+    test "should return last transaction" do
+      address = random_address()
+      address_hex = Base.encode16(address)
+
+      last_address = random_address()
+      last_transaction = TransactionFactory.create_valid_transaction([], content: "hello")
+      last_transaction_constant = ContractConstants.from_transaction(last_transaction)
+
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->
+        {:ok, %LastTransactionAddress{address: last_address}}
+      end)
+      |> expect(:send_message, fn _, %GetTransaction{address: ^last_address}, _ ->
+        {:ok, last_transaction}
+      end)
+
+      assert last_transaction_constant == Chain.get_last_transaction(address_hex)
+    end
+
+    test "should raise an error if address is invalid" do
+      assert_raise(Library.Error, fn -> Chain.get_last_transaction("invalid") end)
+    end
+  end
 end
