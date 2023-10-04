@@ -9,8 +9,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
 
   @callback get_genesis_address(binary()) :: binary()
   @callback get_first_transaction_address(binary()) :: binary() | nil
+  @callback get_last_address(binary()) :: binary()
   @callback get_genesis_public_key(binary()) :: binary() | nil
-  @callback get_transaction(binary()) :: map()
+  @callback get_transaction(binary()) :: map() | nil
+  @callback get_last_transaction(binary()) :: map() | nil
   @callback get_burn_address() :: binary()
   @callback get_previous_address(binary() | map()) :: binary()
   @callback get_balance(binary()) :: map()
@@ -29,11 +31,19 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Chain do
     binary_or_variable_or_function?(first)
   end
 
+  def check_types(:get_last_address, [first]) do
+    binary_or_variable_or_function?(first)
+  end
+
   def check_types(:get_genesis_public_key, [first]) do
     binary_or_variable_or_function?(first)
   end
 
   def check_types(:get_transaction, [first]) do
+    binary_or_variable_or_function?(first)
+  end
+
+  def check_types(:get_last_transaction, [first]) do
     binary_or_variable_or_function?(first)
   end
 

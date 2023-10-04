@@ -36,6 +36,34 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
 
   @tag [:io]
   @impl Chain
+  def get_last_address(address) do
+    function = "Chain.get_last_address"
+
+    address
+    |> get_binary_address(function)
+    |> Archethic.get_last_transaction_address()
+    |> then(fn
+      {:ok, last_address} -> Base.encode16(last_address)
+      {:error, _} -> raise Library.Error, message: "Network issue in #{function}"
+    end)
+  end
+
+  @tag [:io]
+  @impl Chain
+  def get_last_transaction(address) do
+    function = "Chain.get_last_transaction"
+
+    address
+    |> get_binary_address(function)
+    |> Archethic.get_last_transaction()
+    |> then(fn
+      {:ok, tx} -> Constants.from_transaction(tx)
+      {:error, _} -> nil
+    end)
+  end
+
+  @tag [:io]
+  @impl Chain
   def get_genesis_public_key(public_key) do
     try do
       Legacy.Library.get_genesis_public_key(public_key)
@@ -155,7 +183,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainImpl do
   end
 
   defp get_binary_address(address_hex, function) do
-    with {:ok, address} <- Base.decode16(address_hex),
+    with {:ok, address} <- Base.decode16(address_hex, case: :mixed),
          true <- Crypto.valid_address?(address) do
       address
     else
