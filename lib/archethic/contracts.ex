@@ -18,6 +18,8 @@ defmodule Archethic.Contracts do
 
   require Logger
 
+  @extended_mode? Mix.env() != :prod
+
   @doc """
   Return the minimum trigger interval in milliseconds.
   Depends on the env

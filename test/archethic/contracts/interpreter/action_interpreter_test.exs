@@ -820,8 +820,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "你好"}, _state} =
-         sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "你好"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
