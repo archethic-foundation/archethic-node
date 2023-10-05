@@ -120,6 +120,25 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, state}
   end
 
+  def code_change("1.3.0", state, _) do
+    Logger.debug("CODE_CHANGE 1.3.0 for Contracts.Worker #{inspect(self())} start")
+
+    with {:ok, contract_tx} <-
+           TransactionChain.get_transaction(state.contract.constants.contract["address"]),
+         {:ok, contract} <- Contract.from_transaction(contract_tx) do
+      Logger.debug("CODE_CHANGE 1.3.0 for Contracts.Worker #{inspect(self())} success")
+      {:ok, %{state | contract: contract}}
+    end
+  end
+
+  def code_change(old_version, state = %{contract: %Contract{transaction: contract_tx}}, _) do
+    Logger.debug("CODE_CHANGE #{old_version} for Contracts.Worker #{inspect(self())}")
+    # because the worker maintain a parsed contract in memory
+    # it's possible that the parsing changed with the new release
+    # so we reparse the contract here
+    {:ok, %{state | contract: Contract.from_transaction(contract_tx)}}
+  end
+
   # ----------------------------------------------
   defp via_tuple(address) do
     {:via, Registry, {ContractRegistry, address}}
