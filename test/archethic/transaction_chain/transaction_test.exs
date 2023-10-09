@@ -54,11 +54,13 @@ defmodule Archethic.TransactionChain.TransactionTest do
     end
   end
 
-  test "new/4 should create transaction with specific seed and index" do
-    tx = Transaction.new(:node, %TransactionData{}, "seed", 0)
-    tx2 = Transaction.new(:node, %TransactionData{}, "seed", 1)
+  describe "new/4" do
+    test "should create transaction with specific seed and index" do
+      tx = Transaction.new(:node, %TransactionData{}, "seed", 0)
+      tx2 = Transaction.new(:node, %TransactionData{}, "seed", 1)
 
-    assert Crypto.derive_address(tx2.previous_public_key) == tx.address
+      assert Crypto.derive_address(tx2.previous_public_key) == tx.address
+    end
   end
 
   describe "valid_stamps_signature?/2" do
