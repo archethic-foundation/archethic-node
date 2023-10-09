@@ -165,12 +165,23 @@ defmodule Archethic.TransactionChain.Transaction do
           type :: transaction_type(),
           data :: TransactionData.t(),
           seed :: binary(),
-          index :: non_neg_integer()
+          index :: non_neg_integer(),
+          curve :: Crypto.supported_curve(),
+          origin :: Crypto.supported_origin()
         ) :: t()
-  def new(type, data = %TransactionData{}, seed, index, curve \\ Crypto.default_curve())
+  def new(
+        type,
+        data = %TransactionData{},
+        seed,
+        index,
+        curve \\ Crypto.default_curve(),
+        origin \\ :software
+      )
       when type in @transaction_types and is_binary(seed) and is_integer(index) and index >= 0 do
-    {previous_public_key, previous_private_key} = Crypto.derive_keypair(seed, index, curve)
-    {next_public_key, _} = Crypto.derive_keypair(seed, index + 1, curve)
+    {previous_public_key, previous_private_key} =
+      Crypto.derive_keypair(seed, index, curve, origin)
+
+    {next_public_key, _} = Crypto.derive_keypair(seed, index + 1, curve, origin)
 
     %__MODULE__{
       address: Crypto.derive_address(next_public_key),
