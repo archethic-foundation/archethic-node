@@ -13,6 +13,7 @@ defmodule Archethic.Contracts do
   alias __MODULE__.State
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -62,7 +63,7 @@ defmodule Archethic.Contracts do
         ) :: Contract.Result.t()
   def execute_trigger(
         trigger_type,
-        contract,
+        contract = %Contract{transaction: contract_tx},
         maybe_trigger_tx,
         maybe_recipient,
         maybe_state_utxo \\ nil,
@@ -84,10 +85,26 @@ defmodule Archethic.Contracts do
          ) do
       {:ok, nil, next_state, logs} ->
         case State.to_utxo(next_state) do
-          {:ok, maybe_utxo} ->
+          {:ok, nil} ->
+            # empty state
             %Contract.Result.Noop{
-              next_state_utxo: maybe_utxo,
+              next_state_utxo: nil,
               logs: logs
+            }
+
+          {:ok, ^maybe_state_utxo} ->
+            # output state == input state
+            %Contract.Result.Noop{
+              next_state_utxo: maybe_state_utxo,
+              logs: logs
+            }
+
+          {:ok, state_utxo} ->
+            # state changed, we "forward" the same transaction
+            %Contract.Result.Success{
+              logs: logs,
+              next_tx: generate_next_tx(contract_tx),
+              next_state_utxo: state_utxo
             }
 
           {:error, :state_too_big} ->
@@ -318,6 +335,16 @@ defmodule Archethic.Contracts do
       :functions => functions,
       :encrypted_seed => Contract.get_encrypted_seed(contract),
       :state => State.from_utxo(maybe_state_utxo)
+    }
+  end
+
+  # create a new transaction with the same code
+  defp generate_next_tx(%Transaction{data: %TransactionData{code: code}}) do
+    %Transaction{
+      type: :contract,
+      data: %TransactionData{
+        code: code
+      }
     }
   end
 

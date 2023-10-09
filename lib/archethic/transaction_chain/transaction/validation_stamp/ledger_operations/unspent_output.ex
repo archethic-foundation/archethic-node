@@ -12,10 +12,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   alias Archethic.Utils
 
   @type t :: %__MODULE__{
-          amount: non_neg_integer(),
-          from: Crypto.versioned_hash(),
+          amount: nil | non_neg_integer(),
+          from: nil | Crypto.versioned_hash(),
           type: TransactionMovementType.t() | :state,
-          timestamp: DateTime.t(),
+          timestamp: nil | DateTime.t(),
           encoded_payload: nil | binary()
         }
 

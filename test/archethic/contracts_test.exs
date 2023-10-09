@@ -587,6 +587,78 @@ defmodule Archethic.ContractsTest do
                  nil
                )
     end
+
+    test "should return Success if the state changed" do
+      code = ~S"""
+        @version 1
+        actions triggered_by: datetime, at: 0 do
+          State.set("key", "value")
+        end
+
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      assert %Contract.Result.Success{} =
+               Contracts.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil
+               )
+    end
+
+    test "should return NoOp if the state did not changed" do
+      code = ~S"""
+        @version 1
+        actions triggered_by: datetime, at: 0 do
+          State.set("key", "value")
+        end
+
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
+
+      assert %Contract.Result.Noop{} =
+               Contracts.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil,
+                 state_utxo
+               )
+    end
+
+    test "should return NoOp if there is no state" do
+      code = ~S"""
+        @version 1
+        actions triggered_by: datetime, at: 0 do
+          a = 1
+        end
+
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
+
+      assert %Contract.Result.Noop{} =
+               Contracts.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil
+               )
+
+      assert %Contract.Result.Noop{} =
+               Contracts.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil,
+                 state_utxo
+               )
+    end
   end
 
   describe "execute_function/3" do
