@@ -4,17 +4,16 @@ defmodule Archethic.Contracts do
   Each smart contract is register and supervised as long running process to interact with later on.
   """
 
+  alias __MODULE__.Conditions
+  alias __MODULE__.Constants
   alias __MODULE__.Contract
-  alias __MODULE__.Contract.State
-  alias __MODULE__.Contract.Failure
   alias __MODULE__.Contract.ActionWithoutTransaction
   alias __MODULE__.Contract.ActionWithTransaction
-  alias __MODULE__.ContractConditions, as: Conditions
-  alias __MODULE__.ContractConstants, as: Constants
+  alias __MODULE__.Contract.Failure
+  alias __MODULE__.Contract.State
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient

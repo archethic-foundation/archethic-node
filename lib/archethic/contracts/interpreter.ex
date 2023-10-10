@@ -10,10 +10,10 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.FunctionKeys
   alias __MODULE__.Legacy
   alias __MODULE__.Scope
+  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
+  alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
-  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
-  alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData.Recipient

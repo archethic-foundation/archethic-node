@@ -1,7 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.Legacy.ConditionInterpreterTest do
   use ArchethicCase
 
-  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
+  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter.Legacy.ConditionInterpreter
   alias Archethic.Contracts.Interpreter
 

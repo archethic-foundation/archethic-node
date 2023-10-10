@@ -3,17 +3,15 @@ defmodule Archethic.Contracts.InterpreterTest do
   use ArchethicCase
   import ArchethicCase
 
+  alias Archethic.ContractFactory
+  alias Archethic.Contracts.Conditions
+  alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
-  alias Archethic.Contracts.ContractConstants, as: Constants
-  alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter
-  alias Archethic.ContractFactory
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
-
   alias Archethic.TransactionFactory
 
   doctest Interpreter

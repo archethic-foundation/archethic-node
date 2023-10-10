@@ -1,7 +1,7 @@
 defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
   use ArchethicCase
 
-  alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
 
