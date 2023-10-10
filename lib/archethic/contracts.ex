@@ -9,6 +9,8 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract
   alias __MODULE__.Contract.ActionWithoutTransaction
   alias __MODULE__.Contract.ActionWithTransaction
+  alias __MODULE__.Contract.ConditionAccepted
+  alias __MODULE__.Contract.ConditionRejected
   alias __MODULE__.Contract.Failure
   alias __MODULE__.Contract.State
   alias __MODULE__.Interpreter
@@ -212,15 +214,14 @@ defmodule Archethic.Contracts do
   Validate any kind of condition.
   The transaction and datetime depends on the condition.
   """
-  @spec valid_condition?(
+  @spec execute_condition(
           Contract.condition_type(),
           Contract.t(),
           Transaction.t(),
           nil | Recipient.t(),
           DateTime.t()
-        ) :: boolean()
-
-  def valid_condition?(
+        ) :: Failure.t() | ConditionAccepted.t() | ConditionRejected.t()
+  def execute_condition(
         condition_key,
         contract = %Contract{version: version, conditions: conditions},
         transaction = %Transaction{},
@@ -230,7 +231,18 @@ defmodule Archethic.Contracts do
     case Map.get(conditions, condition_key) do
       nil ->
         # only inherit condition are optional
-        condition_key == :inherit
+        if condition_key == :inherit do
+          %ConditionAccepted{
+            logs: []
+          }
+        else
+          %Failure{
+            error: "Missing condition",
+            user_friendly_error: "Missing condition",
+            logs: [],
+            stacktrace: []
+          }
+        end
 
       %Conditions{args: args, subjects: subjects} ->
         named_action_constants = Interpreter.get_named_action_constants(args, maybe_recipient)
@@ -238,15 +250,33 @@ defmodule Archethic.Contracts do
         condition_constants =
           get_condition_constants(condition_key, contract, transaction, datetime)
 
-        Interpreter.valid_conditions?(
-          version,
-          subjects,
-          Map.merge(named_action_constants, condition_constants)
-        )
+        case Interpreter.execute_condition(
+               version,
+               subjects,
+               Map.merge(named_action_constants, condition_constants)
+             ) do
+          {:ok, logs} ->
+            %ConditionAccepted{
+              logs: logs
+            }
+
+          {:error, subject, logs} ->
+            %ConditionRejected{
+              subject: subject,
+              logs: logs
+            }
+        end
     end
   rescue
-    _ ->
-      false
+    err ->
+      stacktrace = __STACKTRACE__
+
+      %Failure{
+        error: err,
+        user_friendly_error: append_line_to_error(err, stacktrace),
+        logs: [],
+        stacktrace: stacktrace
+      }
   end
 
   @doc """

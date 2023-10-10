@@ -5,6 +5,8 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ConditionAccepted
+  alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.TransactionData.Ledger
@@ -20,8 +22,8 @@ defmodule Archethic.ContractsTest do
 
   doctest Contracts
 
-  describe "valid_condition?/5 (inherit)" do
-    test "should return false when the inherit constraints literal values are not respected" do
+  describe "execute_condition/5 (inherit)" do
+    test "should return Rejected when the inherit constraints literal values are not respected" do
       code = """
       condition inherit: [
         uco_transfers: [%{ to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 1000000000}],
@@ -52,16 +54,17 @@ defmodule Archethic.ContractsTest do
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, ledger: ledger)
 
-      refute Contracts.valid_condition?(
-               :inherit,
-               Contract.from_transaction!(contract_tx),
-               next_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionRejected{} =
+               Contracts.execute_condition(
+                 :inherit,
+                 Contract.from_transaction!(contract_tx),
+                 next_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return false when the inherit constraints execution return false" do
+    test "should return Rejected when the inherit constraints execution return false" do
       code = """
       condition inherit: [
         content: regex_match?(\"hello\")
@@ -78,16 +81,17 @@ defmodule Archethic.ContractsTest do
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hola")
 
-      refute Contracts.valid_condition?(
-               :inherit,
-               Contract.from_transaction!(contract_tx),
-               next_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionRejected{} =
+               Contracts.execute_condition(
+                 :inherit,
+                 Contract.from_transaction!(contract_tx),
+                 next_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return true when the inherit constraints matches the next transaction" do
+    test "should return Accepted when the inherit constraints matches the next transaction" do
       address = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
 
       code = ~s"""
@@ -119,16 +123,17 @@ defmodule Archethic.ContractsTest do
           type: :transfer
         )
 
-      assert Contracts.valid_condition?(
-               :inherit,
-               Contract.from_transaction!(contract_tx),
-               next_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 :inherit,
+                 Contract.from_transaction!(contract_tx),
+                 next_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return true when the inherit constraint match and when no trigger is specified" do
+    test "should return Accepted when the inherit constraint match and when no trigger is specified" do
       code = """
       @version 1
       condition inherit: [
@@ -140,18 +145,19 @@ defmodule Archethic.ContractsTest do
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hello")
 
-      assert Contracts.valid_condition?(
-               :inherit,
-               Contract.from_transaction!(contract_tx),
-               next_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 :inherit,
+                 Contract.from_transaction!(contract_tx),
+                 next_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
   end
 
-  describe "valid_condition?/5 (transaction)" do
-    test "should return true if condition is empty" do
+  describe "execute_condition/5 (transaction)" do
+    test "should return Accepted if condition is empty" do
       code = """
         @version 1
         condition triggered_by: transaction, as: []
@@ -165,16 +171,17 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return true if condition is true" do
+    test "should return Accepted if condition is true" do
       code = """
         @version 1
         condition triggered_by: transaction, as: [
@@ -190,16 +197,17 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return true if condition is true based on state" do
+    test "should return Accepted if condition is true based on state" do
       code = """
         @version 1
         condition triggered_by: transaction, as: [
@@ -226,16 +234,17 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return false if condition is falsy" do
+    test "should return Rejected if condition is falsy" do
       code = """
         @version 1
         condition triggered_by: transaction, as: [
@@ -251,16 +260,17 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      refute Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionRejected{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return false if condition execution raise an error" do
+    test "should return Error if condition execution raise an error" do
       code = """
         @version 1
         condition triggered_by: transaction, as: [
@@ -276,13 +286,14 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      refute Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %Failure{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
     test "should be able to use a custom function call as parameter in condition block" do
@@ -305,13 +316,14 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               incoming_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
 
       code = """
       @version 1
@@ -332,13 +344,14 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "I'm a content")
 
-      refute Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               incoming_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionRejected{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
     test "should pass first parameter automatically to custom fun in condition block" do
@@ -361,18 +374,19 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "tresor")
 
-      assert Contracts.valid_condition?(
-               {:transaction, nil, nil},
-               Contract.from_transaction!(contract_tx),
-               incoming_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
   end
 
-  describe "valid_condition?/4 (oracle)" do
-    test "should return true if condition is empty" do
+  describe "execute_condition/4 (oracle)" do
+    test "should return Accepted if condition is empty" do
       code = """
         @version 1
         condition triggered_by: oracle, as: []
@@ -386,16 +400,17 @@ defmodule Archethic.ContractsTest do
 
       oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle)
 
-      assert Contracts.valid_condition?(
-               :oracle,
-               Contract.from_transaction!(contract_tx),
-               oracle_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 :oracle,
+                 Contract.from_transaction!(contract_tx),
+                 oracle_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return true if condition is true" do
+    test "should return Accepted if condition is true" do
       code = """
         @version 1
         condition triggered_by: oracle, as: [
@@ -411,16 +426,17 @@ defmodule Archethic.ContractsTest do
 
       oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle, content: "{}")
 
-      assert Contracts.valid_condition?(
-               :oracle,
-               Contract.from_transaction!(contract_tx),
-               oracle_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 :oracle,
+                 Contract.from_transaction!(contract_tx),
+                 oracle_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return false if condition is falsy" do
+    test "should return Rejected if condition is falsy" do
       code = """
         @version 1
         condition triggered_by: oracle, as: [
@@ -436,18 +452,19 @@ defmodule Archethic.ContractsTest do
 
       oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle, content: "")
 
-      refute Contracts.valid_condition?(
-               :oracle,
-               Contract.from_transaction!(contract_tx),
-               oracle_tx,
-               nil,
-               DateTime.utc_now()
-             )
+      assert %ConditionRejected{} =
+               Contracts.execute_condition(
+                 :oracle,
+                 Contract.from_transaction!(contract_tx),
+                 oracle_tx,
+                 nil,
+                 DateTime.utc_now()
+               )
     end
   end
 
-  describe "valid_condition?/5 (transaction named action)" do
-    test "should return true if condition is empty" do
+  describe "execute_condition/5 (transaction named action)" do
+    test "should return Accepted if condition is empty" do
       code = """
         @version 1
         condition triggered_by: transaction, on: vote(candidate), as: []
@@ -464,16 +481,17 @@ defmodule Archethic.ContractsTest do
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Juliette"]}
       condition_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert Contracts.valid_condition?(
-               condition_key,
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               recipient,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 condition_key,
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 recipient,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return true if condition is true" do
+    test "should return Accepted if condition is true" do
       code = """
       @version 1
       condition triggered_by: transaction, on: vote(candidate), as: [
@@ -496,16 +514,17 @@ defmodule Archethic.ContractsTest do
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
       condition_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert Contracts.valid_condition?(
-               condition_key,
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               recipient,
-               DateTime.utc_now()
-             )
+      assert %ConditionAccepted{} =
+               Contracts.execute_condition(
+                 condition_key,
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 recipient,
+                 DateTime.utc_now()
+               )
     end
 
-    test "should return false if condition is false" do
+    test "should return Rejected if condition is false" do
       code = """
       @version 1
       condition triggered_by: transaction, on: vote(candidate), as: [
@@ -528,13 +547,14 @@ defmodule Archethic.ContractsTest do
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
       condition_key = Contract.get_trigger_for_recipient(recipient)
 
-      refute Contracts.valid_condition?(
-               condition_key,
-               Contract.from_transaction!(contract_tx),
-               trigger_tx,
-               recipient,
-               DateTime.utc_now()
-             )
+      assert %ConditionRejected{} =
+               Contracts.execute_condition(
+                 condition_key,
+                 Contract.from_transaction!(contract_tx),
+                 trigger_tx,
+                 recipient,
+                 DateTime.utc_now()
+               )
     end
   end
 

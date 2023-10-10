@@ -13,27 +13,37 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   @doc """
   Determines if the conditions of a contract are valid from the given constants
   """
-  @spec valid_conditions?(ConditionsSubjects.t(), map()) :: boolean()
-  def valid_conditions?(conditions, constants = %{}) do
+  @spec execute_condition(ConditionsSubjects.t(), map()) ::
+          {:ok, list(String.t())} | {:error, String.t(), list(String.t())}
+  def execute_condition(conditions, constants = %{}) do
     conditions
     |> Map.from_struct()
-    |> Enum.all?(fn {field, condition} ->
-      field = Atom.to_string(field)
+    |> Enum.reduce_while(
+      {:ok, []},
+      fn {field, condition}, {:ok, logs_acc} ->
+        field = Atom.to_string(field)
 
-      case validate_condition({field, condition}, constants) do
-        {_, true} ->
-          true
+        case validate_condition({field, condition}, constants) do
+          {_, true} ->
+            # TODO: logs
+            logs = []
 
-        {_, false} ->
-          value = get_constant_value(constants, field)
+            {:cont, {:ok, logs ++ logs_acc}}
 
-          Logger.debug(
-            "Invalid condition for `#{inspect(field)}` with the given value: `#{inspect(value)}` - condition: #{inspect(condition)}"
-          )
+          {_, false} ->
+            # TODO: logs
+            logs = []
 
-          false
+            value = get_constant_value(constants, field)
+
+            Logger.debug(
+              "Invalid condition for `#{inspect(field)}` with the given value: `#{inspect(value)}` - condition: #{inspect(condition)}"
+            )
+
+            {:halt, {:error, field, logs}}
+        end
       end
-    end)
+    )
   end
 
   defp get_constant_value(constants, field) do
