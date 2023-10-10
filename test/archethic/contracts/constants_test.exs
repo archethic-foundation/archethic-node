@@ -1,9 +1,9 @@
-defmodule Archethic.Contracts.ContractConstantsTest do
+defmodule Archethic.Contracts.ConstantsTest do
   use ArchethicCase
 
   import ArchethicCase
 
-  alias Archethic.Contracts.ContractConstants
+  alias Archethic.Contracts.Constants
 
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
@@ -26,7 +26,7 @@ defmodule Archethic.Contracts.ContractConstantsTest do
 
       constant =
         tx
-        |> ContractConstants.from_transaction()
+        |> Constants.from_transaction()
 
       assert %{"type" => "transfer"} = constant
     end
@@ -93,7 +93,7 @@ defmodule Archethic.Contracts.ContractConstantsTest do
       constant =
         TransactionFactory.create_valid_transaction([], ledger: ledger)
         |> put_in([Access.key!(:validation_stamp), Access.key!(:ledger_operations)], ledger_op)
-        |> ContractConstants.from_transaction()
+        |> Constants.from_transaction()
 
       assert %{
                "uco_movements" => uco_movements,
@@ -142,7 +142,7 @@ defmodule Archethic.Contracts.ContractConstantsTest do
       assert length(contract_tx.data.ownerships) == 2
 
       assert %{"ownerships" => [^ownership_hex]} =
-               ContractConstants.from_contract_transaction(contract_tx)
+               Constants.from_contract_transaction(contract_tx)
     end
   end
 end

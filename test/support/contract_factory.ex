@@ -3,7 +3,7 @@ defmodule Archethic.ContractFactory do
 
   alias Archethic.Crypto
 
-  alias Archethic.Contracts.ContractConstants, as: Constants
+  alias Archethic.Contracts.Constants
   alias Archethic.TransactionFactory
 
   alias Archethic.TransactionChain.Transaction
