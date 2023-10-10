@@ -84,37 +84,13 @@ defmodule Archethic.Contracts do
            opts
          ) do
       {:ok, nil, next_state, logs} ->
-        case State.to_utxo(next_state) do
-          {:ok, nil} ->
-            # empty state
-            %Contract.Result.Noop{
-              next_state_utxo: nil,
-              logs: logs
-            }
-
-          {:ok, ^maybe_state_utxo} ->
-            # output state == input state
-            %Contract.Result.Noop{
-              next_state_utxo: maybe_state_utxo,
-              logs: logs
-            }
-
-          {:ok, state_utxo} ->
-            # state changed, we "forward" the same transaction
-            %Contract.Result.Success{
-              logs: logs,
-              next_tx: generate_next_tx(contract_tx),
-              next_state_utxo: state_utxo
-            }
-
-          {:error, :state_too_big} ->
-            %Contract.Result.Error{
-              logs: [],
-              error: "Execution was successful but the state exceed the threshold",
-              stacktrace: [],
-              user_friendly_error: "Execution was successful but the state exceed the threshold"
-            }
-        end
+        # I hate you credo
+        execute_trigger_noop_response(
+          State.to_utxo(next_state),
+          logs,
+          maybe_state_utxo,
+          contract_tx
+        )
 
       {:ok, next_tx, next_state, logs} ->
         case State.to_utxo(next_state) do
@@ -127,7 +103,7 @@ defmodule Archethic.Contracts do
 
           {:error, :state_too_big} ->
             %Contract.Result.Error{
-              logs: [],
+              logs: logs,
               error: "Execution was successful but the state exceed the threshold",
               stacktrace: [],
               user_friendly_error: "Execution was successful but the state exceed the threshold"
@@ -362,5 +338,37 @@ defmodule Archethic.Contracts do
       _ ->
         Exception.message(err)
     end
+  end
+
+  defp execute_trigger_noop_response({:ok, nil}, logs, _input_utxo, _contract_tx) do
+    %Contract.Result.Noop{
+      next_state_utxo: nil,
+      logs: logs
+    }
+  end
+
+  defp execute_trigger_noop_response({:ok, output_utxo}, logs, input_utxo, _contract_tx)
+       when input_utxo == output_utxo do
+    %Contract.Result.Noop{
+      next_state_utxo: output_utxo,
+      logs: logs
+    }
+  end
+
+  defp execute_trigger_noop_response({:ok, state_utxo}, logs, _input_utxo, contract_tx) do
+    %Contract.Result.Success{
+      logs: logs,
+      next_tx: generate_next_tx(contract_tx),
+      next_state_utxo: state_utxo
+    }
+  end
+
+  defp execute_trigger_noop_response({:error, :state_too_big}, logs, _input_utxo, _contract_tx) do
+    %Contract.Result.Error{
+      logs: logs,
+      error: "Execution was successful but the state exceed the threshold",
+      stacktrace: [],
+      user_friendly_error: "Execution was successful but the state exceed the threshold"
+    }
   end
 end

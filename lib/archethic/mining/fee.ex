@@ -4,6 +4,8 @@ defmodule Archethic.Mining.Fee do
   """
   alias Archethic.Bootstrap
 
+  alias Archethic.Contracts.Contract
+
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -31,9 +33,9 @@ defmodule Archethic.Mining.Fee do
   @doc """
   Return the minimum UCO amount to pay the minimum fee (equivalent of 1 cts)
   """
-  @spec minimum_fee(uco_price_in_usd :: float()) :: float()
-  def minimum_fee(uco_price_in_usd) do
-    0.01 / uco_price_in_usd
+  @spec base_fee(uco_price_in_usd :: float()) :: non_neg_integer()
+  def base_fee(uco_price_in_usd) do
+    trunc(minimum_fee(uco_price_in_usd) * @unit_uco)
   end
 
   @doc """
@@ -45,20 +47,28 @@ defmodule Archethic.Mining.Fee do
   """
   @spec calculate(
           transaction :: Transaction.t(),
+          contract_context :: Contract.Context.t() | nil,
           uco_usd_price :: float(),
           timestamp :: DateTime.t(),
           protocol_version :: pos_integer(),
           maybe_state_utxo :: nil | UnspentOutput.t()
         ) :: non_neg_integer()
-  def calculate(transaction, uco_usd_price, timestamp, protocol_version, maybe_state_utxo \\ nil)
-  def calculate(%Transaction{type: :keychain}, _, _, _, _), do: 0
-  def calculate(%Transaction{type: :keychain_access}, _, _, _, _), do: 0
+  def calculate(
+        transaction,
+        contract_context,
+        uco_usd_price,
+        timestamp,
+        protocol_version,
+        maybe_state_utxo \\ nil
+      )
+
+  def calculate(%Transaction{type: :keychain}, _, _, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _, _, _, _, _), do: 0
+  def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _, _), do: 0
 
   def calculate(
-        tx = %Transaction{
-          address: address,
-          type: type
-        },
+        tx = %Transaction{address: address, type: type},
+        _contract_context,
         uco_price_in_usd,
         timestamp,
         protocol_version,
@@ -93,6 +103,10 @@ defmodule Archethic.Mining.Fee do
 
         trunc(fee * @unit_uco)
     end
+  end
+
+  defp minimum_fee(uco_price_in_usd) do
+    0.01 / uco_price_in_usd
   end
 
   defp get_additional_fee(

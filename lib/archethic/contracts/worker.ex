@@ -271,7 +271,7 @@ defmodule Archethic.Contracts.Worker do
       DateTime.utc_now()
       |> OracleChain.get_uco_price()
       |> Keyword.get(:usd)
-      |> Fee.minimum_fee()
+      |> Fee.base_fee()
 
     case Account.get_balance(contract_address) do
       %{uco: uco_balance} when uco_balance >= minimum_fees ->

@@ -1,27 +1,23 @@
 defmodule Archethic.Mining.FeeTest do
-  use ArchethicCase
-
-  import ArchethicCase
-
+  alias Archethic.Contracts.Contract
   alias Archethic.Mining.Fee
-
   alias Archethic.P2P
   alias Archethic.P2P.Node
-
-  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
-
   alias Archethic.TransactionFactory
-
   alias Archethic.Utils
 
+  use ArchethicCase
   use ExUnitProperties
 
-  describe "calculate/2" do
+  import ArchethicCase
+
+  describe "calculate/5" do
     setup do
       add_nodes(50)
       :ok
@@ -31,26 +27,17 @@ defmodule Archethic.Mining.FeeTest do
       amount = 100_000_000
 
       assert tx_fee =
-               %Transaction{
-                 address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 type: :transfer,
-                 data: %TransactionData{
-                   ledger: %Ledger{
-                     uco: %UCOLedger{
-                       transfers: [
-                         %Transfer{
-                           amount: amount,
-                           to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                         }
-                       ]
-                     }
-                   }
-                 },
-                 previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                 previous_signature: :crypto.strong_rand_bytes(32),
-                 origin_signature: :crypto.strong_rand_bytes(32)
-               }
-               |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+               TransactionFactory.create_non_valided_transaction(
+                 ledger: %Ledger{
+                   uco: %UCOLedger{transfers: [%Transfer{amount: amount, to: random_address()}]}
+                 }
+               )
+               |> Fee.calculate(
+                 nil,
+                 0.2,
+                 DateTime.utc_now(),
+                 current_protocol_version()
+               )
 
       assert tx_fee < amount
     end
@@ -58,10 +45,9 @@ defmodule Archethic.Mining.FeeTest do
     test "should take token unique recipients into account (token creation)" do
       address1 = random_address()
 
-      tx_distinct_recipients = %Transaction{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        type: :token,
-        data: %TransactionData{
+      tx_distinct_recipients =
+        TransactionFactory.create_non_valided_transaction(
+          type: :token,
           content: """
           {
            "aeip": [2, 8, 19],
@@ -91,33 +77,22 @@ defmodule Archethic.Mining.FeeTest do
           }
           """,
           ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{
-                  amount: 100_000_000,
-                  to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                }
-              ]
-            }
+            uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000, to: random_address()}]}
           }
-        },
-        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_signature: :crypto.strong_rand_bytes(32),
-        origin_signature: :crypto.strong_rand_bytes(32)
-      }
+        )
 
       fee_tx_distinct_recipients =
         Fee.calculate(
           tx_distinct_recipients,
+          nil,
           2.0,
           DateTime.utc_now(),
-          ArchethicCase.current_protocol_version()
+          current_protocol_version()
         )
 
-      tx_uniq_recipients = %Transaction{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        type: :token,
-        data: %TransactionData{
+      tx_uniq_recipients =
+        TransactionFactory.create_non_valided_transaction(
+          type: :token,
           content: """
           {
            "aeip": [2, 8, 19],
@@ -143,27 +118,17 @@ defmodule Archethic.Mining.FeeTest do
           }
           """,
           ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{
-                  amount: 100_000_000,
-                  to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                }
-              ]
-            }
+            uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000, to: random_address()}]}
           }
-        },
-        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_signature: :crypto.strong_rand_bytes(32),
-        origin_signature: :crypto.strong_rand_bytes(32)
-      }
+        )
 
       fee_tx_uniq_recipients =
         Fee.calculate(
           tx_uniq_recipients,
+          nil,
           2.0,
           DateTime.utc_now(),
-          ArchethicCase.current_protocol_version()
+          current_protocol_version()
         )
 
       tx_uniq_recipients_size =
@@ -189,10 +154,9 @@ defmodule Archethic.Mining.FeeTest do
     test "should take token unique recipients into account (token resupply)" do
       addr1 = random_address()
 
-      tx_uniq_recipients = %Transaction{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        type: :token,
-        data: %TransactionData{
+      tx_uniq_recipients =
+        TransactionFactory.create_non_valided_transaction(
+          type: :token,
           content: """
           {
            "aeip": [8, 18],
@@ -206,26 +170,22 @@ defmodule Archethic.Mining.FeeTest do
            ]
           }
           """
-        },
-        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_signature: :crypto.strong_rand_bytes(32),
-        origin_signature: :crypto.strong_rand_bytes(32)
-      }
+        )
 
       fee_tx_uniq_recipients =
         Fee.calculate(
           tx_uniq_recipients,
+          nil,
           2.0,
           DateTime.utc_now(),
-          ArchethicCase.current_protocol_version()
+          current_protocol_version()
         )
 
       addr1 = random_address()
 
-      tx_distinct_recipients = %Transaction{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        type: :token,
-        data: %TransactionData{
+      tx_distinct_recipients =
+        TransactionFactory.create_non_valided_transaction(
+          type: :token,
           content: """
           {
            "aeip": [8, 18],
@@ -243,18 +203,15 @@ defmodule Archethic.Mining.FeeTest do
            ]
           }
           """
-        },
-        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_signature: :crypto.strong_rand_bytes(32),
-        origin_signature: :crypto.strong_rand_bytes(32)
-      }
+        )
 
       fee_tx_distinct_recipients =
         Fee.calculate(
           tx_distinct_recipients,
+          nil,
           2.0,
           DateTime.utc_now(),
-          ArchethicCase.current_protocol_version()
+          current_protocol_version()
         )
 
       tx_uniq_recipients_size =
@@ -278,10 +235,9 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should pay additional fee for tokens without recipient" do
-      tx = %Transaction{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        type: :token,
-        data: %TransactionData{
+      tx =
+        TransactionFactory.create_non_valided_transaction(
+          type: :token,
           content: """
           {
            "aeip": [2, 8, 19],
@@ -292,13 +248,9 @@ defmodule Archethic.Mining.FeeTest do
            "properties": {}
           }
           """
-        },
-        previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_signature: :crypto.strong_rand_bytes(32),
-        origin_signature: :crypto.strong_rand_bytes(32)
-      }
+        )
 
-      fee = Fee.calculate(tx, 2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+      fee = Fee.calculate(tx, nil, 2.0, DateTime.utc_now(), current_protocol_version())
 
       nb_bytes =
         tx.data
@@ -317,79 +269,35 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should decrease the fee when the amount stays the same but the price of UCO increases" do
-      fee1 =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      tx =
+        TransactionFactory.create_non_valided_transaction(
           type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{
-                    amount: 100_000_000,
-                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                  }
-                ]
-              }
-            }
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          ledger: %Ledger{
+            uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000, to: random_address()}]}
+          }
+        )
 
-      fee2 =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{
-                    amount: 100_000_000,
-                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                  }
-                ]
-              }
-            }
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(10.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+      fee1 = Fee.calculate(tx, nil, 2.0, DateTime.utc_now(), current_protocol_version())
+
+      fee2 = Fee.calculate(tx, nil, 10.0, DateTime.utc_now(), current_protocol_version())
 
       assert fee2 < fee1
     end
 
     test "should increase the fee when the transaction size increases" do
       fee_tx_small =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :transfer,
-          data: %TransactionData{
-            content: :crypto.strong_rand_bytes(1_000)
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          content: :crypto.strong_rand_bytes(1_000)
+        )
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
 
       fee_tx_big =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :transfer,
-          data: %TransactionData{
-            content: :crypto.strong_rand_bytes(10 * 1_000_000)
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          content: :crypto.strong_rand_bytes(10 * 1_000_000)
+        )
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
 
       assert fee_tx_big > fee_tx_small
     end
@@ -398,7 +306,7 @@ defmodule Archethic.Mining.FeeTest do
       tx = TransactionFactory.create_valid_transaction([])
 
       fee_without_state =
-        Fee.calculate(tx, 0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+        Fee.calculate(tx, nil, 0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
 
       state_utxo = %UnspentOutput{
         type: :state,
@@ -408,6 +316,7 @@ defmodule Archethic.Mining.FeeTest do
       fee_with_state =
         Fee.calculate(
           tx,
+          nil,
           0.2,
           DateTime.utc_now(),
           ArchethicCase.current_protocol_version(),
@@ -417,191 +326,152 @@ defmodule Archethic.Mining.FeeTest do
       assert fee_with_state > fee_without_state
     end
 
+    test "should return 0 fee for contract triggered by transaction" do
+      tx = TransactionFactory.create_non_valided_transaction()
+
+      timestamp = DateTime.utc_now()
+      version = current_protocol_version()
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, random_address(), %Recipient{address: random_address()}},
+        timestamp: timestamp,
+        status: :tx_output
+      }
+
+      assert 0 == Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+    end
+
+    test "should return fee for contract not triggered by transaction" do
+      tx = TransactionFactory.create_non_valided_transaction()
+
+      timestamp = DateTime.utc_now()
+      version = current_protocol_version()
+
+      contract_context = %Contract.Context{
+        trigger: {:oracle, random_address()},
+        timestamp: timestamp,
+        status: :tx_output
+      }
+
+      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+
+      contract_context = Map.put(contract_context, :trigger, {:datetime, DateTime.utc_now()})
+      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+
+      contract_context =
+        Map.put(contract_context, :trigger, {:interval, "* * * * *", DateTime.utc_now()})
+
+      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+    end
+
     test "should cost more with more replication nodes" do
       tx_fee_50_nodes =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{
-                    amount: 100_000_000,
-                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                  }
-                ]
-              }
-            }
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          ledger: %Ledger{
+            uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000, to: random_address()}]}
+          }
+        )
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
 
       add_nodes(100)
 
       tx_fee_100_nodes =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{
-                    amount: 100_000_000,
-                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                  }
-                ]
-              }
-            }
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          ledger: %Ledger{
+            uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000, to: random_address()}]}
+          }
+        )
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
 
       assert tx_fee_50_nodes < tx_fee_100_nodes
     end
 
     test "should cost more sending multiple transfers than sending a single big transfer" do
       single_tx_fee =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{
-                    amount: 100_000_000_000,
-                    to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                  }
-                ]
-              }
-            }
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          ledger: %Ledger{
+            uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000_000, to: random_address()}]}
+          }
+        )
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
 
       batched_tx_fee =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :transfer,
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers:
-                  Enum.map(1..1000, fn _ ->
-                    %Transfer{
-                      amount: 100_000_000,
-                      to: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-                    }
-                  end)
-              }
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers:
+                Enum.map(1..1000, fn _ -> %Transfer{amount: 100_000_000, to: random_address()} end)
             }
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          }
+        )
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
 
       assert batched_tx_fee > single_tx_fee
     end
 
     test "should cost more when a token is created with multiple UTXO to create (collection)" do
       fee1 =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :token,
-          data: %TransactionData{
-            content:
-              Jason.encode!(%{
-                type: "non-fungible",
-                collection: [
-                  %{image: "link"},
-                  %{image: "link"},
-                  %{image: "link"}
-                ]
-              })
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          content:
+            Jason.encode!(%{
+              type: "non-fungible",
+              collection: [
+                %{image: "link"},
+                %{image: "link"},
+                %{image: "link"}
+              ]
+            })
+        )
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
 
       fee2 =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :token,
-          data: %TransactionData{
-            content:
-              Jason.encode!(%{
-                type: "non-fungible",
-                collection: [
-                  %{image: "link"},
-                  %{image: "link"},
-                  %{image: "link"},
-                  %{image: "link"},
-                  %{image: "link"},
-                  %{image: "link"}
-                ]
-              })
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          content:
+            Jason.encode!(%{
+              type: "non-fungible",
+              collection: [
+                %{image: "link"},
+                %{image: "link"},
+                %{image: "link"},
+                %{image: "link"},
+                %{image: "link"},
+                %{image: "link"}
+              ]
+            })
+        )
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
 
       assert fee2 > fee1
     end
 
     test "should cost more when a token is created with recipients" do
       fee1 =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :token,
-          data: %TransactionData{
-            content:
-              Jason.encode!(%{
-                type: "fungible"
-              })
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          content: Jason.encode!(%{type: "fungible"})
+        )
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
 
       fee2 =
-        %Transaction{
-          address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        TransactionFactory.create_non_valided_transaction(
           type: :token,
-          data: %TransactionData{
-            content:
-              Jason.encode!(%{
-                type: "fungible",
-                recipients: [
-                  %{to: "", amount: 1},
-                  %{to: "", amount: 1},
-                  %{to: "", amount: 1}
-                ]
-              })
-          },
-          previous_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          previous_signature: :crypto.strong_rand_bytes(32),
-          origin_signature: :crypto.strong_rand_bytes(32)
-        }
-        |> Fee.calculate(2.0, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+          content:
+            Jason.encode!(%{
+              type: "fungible",
+              recipients: [
+                %{to: "", amount: 1},
+                %{to: "", amount: 1},
+                %{to: "", amount: 1}
+              ]
+            })
+        )
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
 
       assert fee2 > fee1
     end
@@ -615,10 +485,7 @@ defmodule Archethic.Mining.FeeTest do
               uco: %UCOLedger{
                 transfers:
                   Enum.map(1..nb_recipients, fn _ ->
-                    %Transfer{
-                      to: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                      amount: 100_000_000
-                    }
+                    %Transfer{to: random_address(), amount: 100_000_000}
                   end)
               }
             }
@@ -627,32 +494,27 @@ defmodule Archethic.Mining.FeeTest do
         batch_tx_fee =
           Fee.calculate(
             batch_tx,
+            nil,
             2.0,
             DateTime.utc_now(),
-            ArchethicCase.current_protocol_version()
+            current_protocol_version()
           )
 
         single_tx =
           TransactionFactory.create_valid_transaction([],
             type: :transfer,
             ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: [
-                  %Transfer{
-                    to: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                    amount: 100_000_000
-                  }
-                ]
-              }
+              uco: %UCOLedger{transfers: [%Transfer{to: random_address(), amount: 100_000_000}]}
             }
           )
 
         single_tx_fee =
           Fee.calculate(
             single_tx,
+            nil,
             2.0,
             DateTime.utc_now(),
-            ArchethicCase.current_protocol_version()
+            current_protocol_version()
           )
 
         assert batch_tx_fee < single_tx_fee * nb_recipients

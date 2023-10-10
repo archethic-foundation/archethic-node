@@ -174,7 +174,7 @@ defmodule Archethic.Replication do
   """
   @spec validate_and_store_transaction_chain(
           validated_tx :: Transaction.t(),
-          contract_context :: Contract.Context.t()
+          contract_context :: nil | Contract.Context.t()
         ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
   def validate_and_store_transaction_chain(

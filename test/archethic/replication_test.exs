@@ -5,10 +5,6 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
 
-  alias Archethic.Election
-
-  alias Archethic.Mining.Fee
-
   alias Archethic.P2P
   alias Archethic.P2P.Message
   alias Archethic.P2P.Message.GetTransactionChainLength
@@ -30,15 +26,13 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
+
+  alias Archethic.TransactionFactory
 
   doctest Archethic.Replication
 
@@ -77,7 +71,7 @@ defmodule Archethic.ReplicationTest do
     ]
 
     p2p_context()
-    tx = create_valid_transaction(unspent_outputs)
+    tx = TransactionFactory.create_valid_transaction(unspent_outputs)
 
     MockClient
     |> stub(:send_message, fn
@@ -213,7 +207,7 @@ defmodule Archethic.ReplicationTest do
     ]
 
     p2p_context()
-    tx = create_valid_transaction(unspent_outputs)
+    tx = TransactionFactory.create_valid_transaction(unspent_outputs)
 
     MockDB
     |> expect(:write_transaction, fn ^tx, _ ->
@@ -272,7 +266,7 @@ defmodule Archethic.ReplicationTest do
     ]
 
     p2p_context()
-    tx = create_valid_transaction(unspent_outputs)
+    tx = TransactionFactory.create_valid_transaction(unspent_outputs)
 
     MockDB
     |> expect(:write_transaction, fn _, _ ->
@@ -336,34 +330,6 @@ defmodule Archethic.ReplicationTest do
       coordinator_node: coordinator_node,
       storage_nodes: storage_nodes
     }
-  end
-
-  defp create_valid_transaction(unspent_outputs) do
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
-
-    ledger_operations =
-      %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07, timestamp, ArchethicCase.current_protocol_version())
-      }
-      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-      |> elem(1)
-
-    validation_stamp =
-      %ValidationStamp{
-        timestamp: timestamp,
-        proof_of_work: Crypto.origin_node_public_key(),
-        proof_of_election:
-          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        ledger_operations: ledger_operations,
-        protocol_version: ArchethicCase.current_protocol_version()
-      }
-      |> ValidationStamp.sign()
-
-    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
-
-    %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
   end
 
   describe "acknowledge_previous_storage_nodes/1" do

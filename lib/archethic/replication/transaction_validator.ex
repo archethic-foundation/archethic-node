@@ -15,6 +15,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.P2P.Node
 
   alias Archethic.Mining
+  alias Archethic.Mining.SmartContractValidation
 
   alias Archethic.OracleChain
 
@@ -23,6 +24,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionInput
@@ -46,19 +48,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_inherit_constraints
           | :invalid_validation_stamp_signature
           | :invalid_unspent_outputs
-
-  @doc """
-  Validate transaction only (without chain integrity or unspent outputs)
-
-  This function called by the replication nodes which are involved in the I/O storage
-  """
-  @spec validate(tx :: Transaction.t()) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}) do
-    with :ok <- validate_consensus(tx),
-         :ok <- validate_validation_stamp(tx) do
-      :ok
-    end
-  end
+          | :invalid_recipients_execution
 
   @doc """
   Validate transaction with context
@@ -66,17 +56,17 @@ defmodule Archethic.Replication.TransactionValidator do
   This function is called by the chain replication nodes
   """
   @spec validate(
-          validated_transaction :: Transaction.t(),
-          prev_tx :: Transaction.t() | nil,
-          inputs_outputs :: list(TransactionInput.t()),
+          tx :: Transaction.t(),
+          previous_transaction :: Transaction.t() | nil,
+          inputs :: list(TransactionInput.t()),
           contract_context :: nil | Contract.Context.t()
         ) ::
           :ok | {:error, error()}
-  def validate(tx = %Transaction{}, prev_tx, inputs, contract_context) do
-    with :ok <- validate(tx),
-         :ok <- validate_inputs(tx, inputs, prev_tx, contract_context),
-         :ok <- validate_inheritance(prev_tx, tx) do
-      validate_chain(tx, prev_tx)
+
+  def validate(tx = %Transaction{}, previous_transaction, inputs, contract_context) do
+    with :ok <- valid_transaction(tx, previous_transaction, inputs, contract_context),
+         :ok <- validate_inheritance(previous_transaction, tx) do
+      validate_chain(tx, previous_transaction)
     end
   end
 
@@ -112,6 +102,67 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
+  @doc """
+  Validate transaction only (without chain integrity or unspent outputs)
+
+  This function called by the replication nodes which are involved in the chain storage
+  """
+  @spec validate(Transaction.t()) :: :ok | {:error, error()}
+  def validate(tx = %Transaction{}) do
+    with :ok <- validate_consensus(tx),
+         :ok <- validate_validation_stamp(tx) do
+      :ok
+    else
+      {:error, _} = e ->
+        # TODO: start malicious detection
+        e
+    end
+  end
+
+  defp valid_transaction(tx, previous_transaction, inputs, contract_context)
+       when is_list(inputs) do
+    with :ok <- validate_consensus(tx),
+         :ok <- validate_validation_stamp(tx),
+         {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
+         :ok <- validate_transaction_fee(tx, contract_recipient_fees, contract_context),
+         :ok <- validate_inputs(tx, inputs, previous_transaction, contract_context) do
+      :ok
+    else
+      {:error, _} = e ->
+        # TODO: start malicious detection
+        e
+    end
+  end
+
+  defp validate_contract_recipients(%Transaction{
+         validation_stamp: %ValidationStamp{recipients: []}
+       }) do
+    {:ok, 0}
+  end
+
+  defp validate_contract_recipients(
+         tx = %Transaction{
+           data: %TransactionData{recipients: recipients},
+           validation_stamp: %ValidationStamp{
+             recipients: resolved_recipients,
+             timestamp: timestamp
+           }
+         }
+       ) do
+    res =
+      recipients
+      |> Enum.zip(resolved_recipients)
+      |> Enum.map(fn {recipient, resolved_address} ->
+        %Recipient{recipient | address: resolved_address}
+      end)
+      |> SmartContractValidation.validate_contract_calls(tx, timestamp)
+
+    case res do
+      {true, fees} -> {:ok, fees}
+      {false, _} -> {:error, :invalid_recipients_execution}
+    end
+  end
+
   defp validate_consensus(
          tx = %Transaction{
            cross_validation_stamps: cross_stamps
@@ -142,7 +193,6 @@ defmodule Archethic.Replication.TransactionValidator do
   defp validate_validation_stamp(tx = %Transaction{}) do
     with :ok <- validate_proof_of_work(tx),
          :ok <- validate_node_election(tx),
-         :ok <- validate_transaction_fee(tx),
          :ok <- validate_transaction_movements(tx) do
       validate_no_additional_error(tx)
     end
@@ -211,12 +261,12 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp validate_transaction_fee(
          tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{fee: fee}
-           }
-         }
+           validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: fee}}
+         },
+         contract_recipient_fees,
+         contract_context
        ) do
-    if fee == get_transaction_fee(tx) do
+    if fee == get_transaction_fee(tx, contract_recipient_fees, contract_context) do
       :ok
     else
       Logger.error(
@@ -230,11 +280,9 @@ defmodule Archethic.Replication.TransactionValidator do
   end
 
   defp get_transaction_fee(
-         tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             timestamp: timestamp
-           }
-         }
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
+         contract_recipient_fees,
+         contract_context
        ) do
     previous_usd_price =
       timestamp
@@ -244,11 +292,13 @@ defmodule Archethic.Replication.TransactionValidator do
 
     Mining.get_transaction_fee(
       tx,
+      contract_context,
       previous_usd_price,
       timestamp,
       Mining.protocol_version(),
       State.get_utxo_from_transaction(tx)
-    )
+    ) +
+      contract_recipient_fees
   end
 
   defp validate_transaction_movements(

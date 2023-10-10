@@ -1,6 +1,8 @@
 defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
   use ArchethicCase
+  import ArchethicCase
 
+  alias Archethic.Mining.Fee
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.SmartContractCallValidation
@@ -68,7 +70,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
         @version 1
 
         condition triggered_by: transaction, as: [
-          content: transaction.timestamp < 5000000000
+          timestamp: transaction.timestamp > 0
         ]
 
         actions triggered_by: transaction do
@@ -117,6 +119,39 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
                |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
     end
 
+    test "should return fee of generated transaction" do
+      code = ~s"""
+      @version 1
+
+      condition triggered_by: transaction, as: [
+        timestamp: transaction.timestamp > 0
+      ]
+
+      actions triggered_by: transaction do
+        Contract.set_content "hello"
+      end
+      """
+
+      tx = ContractFactory.create_valid_contract_tx(code)
+
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
+
+      expected_fee =
+        ContractFactory.create_valid_contract_tx(code, content: "hello")
+        |> Fee.calculate(nil, 0.07, DateTime.utc_now(), current_protocol_version())
+
+      assert %SmartContractCallValidation{valid?: true, fee: expected_fee} ==
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{address: "@SC1"},
+                 transaction: incoming_tx,
+                 inputs_before: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
     test "should NOT validate smart contract that does not have a transaction trigger" do
       tx =
         ~s"""
@@ -133,7 +168,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = %Transaction{data: %TransactionData{content: "hola"}}
 
-      assert %SmartContractCallValidation{valid?: false} =
+      assert %SmartContractCallValidation{valid?: false, fee: 0} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
@@ -162,7 +197,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = %Transaction{data: %TransactionData{content: "hi"}}
 
-      assert %SmartContractCallValidation{valid?: false} =
+      assert %SmartContractCallValidation{valid?: false, fee: 0} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,

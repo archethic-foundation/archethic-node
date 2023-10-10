@@ -9,6 +9,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
+  alias Archethic.Mining
+  alias Archethic.OracleChain
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -73,30 +75,55 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       | validation_stamp: ValidationStamp.generate_dummy(timestamp: datetime)
     }
 
-    valid? =
-      with {:ok, contract_tx} <- TransactionChain.get_transaction(recipient_address),
-           {:ok, contract} <- Contracts.from_transaction(contract_tx),
-           trigger when not is_nil(trigger) <- Contract.get_trigger_for_recipient(recipient),
-           maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(contract_tx),
-           true <-
-             Contracts.valid_condition?(trigger, contract, transaction, recipient, datetime),
-           result <-
-             Contracts.execute_trigger(
-               trigger,
-               contract,
-               transaction,
-               recipient,
-               maybe_state_utxo,
-               time_now: datetime
-             ) do
-        Contract.Result.valid?(result)
-      else
-        _ ->
-          false
-      end
-
-    %SmartContractCallValidation{
-      valid?: valid?
-    }
+    with {:ok, contract_tx} <- TransactionChain.get_transaction(recipient_address),
+         {:ok, contract} <- Contracts.from_transaction(contract_tx),
+         trigger when not is_nil(trigger) <- Contract.get_trigger_for_recipient(recipient),
+         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(contract_tx),
+         true <-
+           Contracts.valid_condition?(trigger, contract, transaction, recipient, datetime),
+         execution_result <-
+           Contracts.execute_trigger(trigger, contract, transaction, recipient, maybe_state_utxo,
+             time_now: datetime
+           ) do
+      %SmartContractCallValidation{
+        valid?: Contract.Result.valid?(execution_result),
+        fee: calculate_fee(execution_result, contract, datetime)
+      }
+    else
+      _ ->
+        %SmartContractCallValidation{valid?: false, fee: 0}
+    end
   end
+
+  defp calculate_fee(
+         %Contract.Result.Success{next_tx: next_tx, next_state_utxo: maybe_state_utxo},
+         contract = %Contract{transaction: %Transaction{address: contract_address}},
+         timestamp
+       ) do
+    index = TransactionChain.get_size(contract_address)
+
+    case Contract.sign_next_transaction(contract, next_tx, index) do
+      {:ok, tx} ->
+        previous_usd_price =
+          timestamp
+          |> OracleChain.get_last_scheduling_date()
+          |> OracleChain.get_uco_price()
+          |> Keyword.fetch!(:usd)
+
+        # Here we use a nil contract_context as we return the fees the user has to pay for the contract
+        Mining.get_transaction_fee(
+          tx,
+          nil,
+          previous_usd_price,
+          timestamp,
+          Mining.protocol_version(),
+          maybe_state_utxo
+        )
+
+      _ ->
+        0
+    end
+  end
+
+  defp calculate_fee(_, _, _), do: 0
 end

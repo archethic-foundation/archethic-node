@@ -56,17 +56,13 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{transaction: tx, contract_context: nil}) do
+    <<Transaction.serialize(tx)::bitstring, 0::8>>
+  end
+
   def serialize(%__MODULE__{transaction: tx, contract_context: contract_context}) do
-    serialized_contract_context =
-      case contract_context do
-        nil ->
-          <<0::8>>
-
-        _ ->
-          <<1::8, Contract.Context.serialize(contract_context)::bitstring>>
-      end
-
-    <<Transaction.serialize(tx)::bitstring, serialized_contract_context::binary>>
+    <<Transaction.serialize(tx)::bitstring, 1::8,
+      Contract.Context.serialize(contract_context)::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
@@ -75,11 +71,8 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
 
     {contract_context, rest} =
       case rest do
-        <<0::8, rest::bitstring>> ->
-          {nil, rest}
-
-        <<1::8, rest::bitstring>> ->
-          Contract.Context.deserialize(rest)
+        <<0::8, rest::bitstring>> -> {nil, rest}
+        <<1::8, rest::bitstring>> -> Contract.Context.deserialize(rest)
       end
 
     {

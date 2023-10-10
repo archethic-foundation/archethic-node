@@ -3,14 +3,23 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract
   alias Archethic.Crypto
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.SmartContractCallValidation
+  alias Archethic.P2P.Message.ValidateSmartContractCall
   alias Archethic.P2P.Node
   alias Archethic.Replication.TransactionValidator
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionFactory
+
+  import ArchethicCase
+  import Mox
 
   @moduletag :capture_log
 
@@ -25,7 +34,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       first_public_key: "key1",
       last_public_key: "key1",
       available?: true,
-      geo_patch: "BBB"
+      geo_patch: "BBB",
+      network_patch: "BBB"
     }
 
     coordinator_node = %Node{
@@ -34,7 +44,8 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       authorized?: true,
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-1),
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      network_patch: "AAA"
     }
 
     storage_nodes = [
@@ -45,6 +56,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         last_public_key: "key3",
         available?: true,
         geo_patch: "BBB",
+        network_patch: "BBB",
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       }
     ]
@@ -87,12 +99,6 @@ defmodule Archethic.Replication.TransactionValidatorTest do
     test "should return {:error, :invalid_node_election} when the validation stamp signature is invalid" do
       assert {:error, :invalid_node_election} =
                TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
-               |> TransactionValidator.validate()
-    end
-
-    test "should return {:error, :invalid_transaction_fee} when the fees are invalid" do
-      assert {:error, :invalid_transaction_fee} =
-               TransactionFactory.create_transaction_with_invalid_fee()
                |> TransactionValidator.validate()
     end
 
@@ -179,6 +185,67 @@ defmodule Archethic.Replication.TransactionValidatorTest do
                  timestamp: now,
                  trigger: {:datetime, now}
                })
+    end
+
+    test "should return {:error, :invalid_transaction_fee} when the fees are invalid" do
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+
+      assert {:error, :invalid_transaction_fee} =
+               TransactionFactory.create_transaction_with_invalid_fee()
+               |> TransactionValidator.validate(nil, unspent_outputs, nil)
+    end
+
+    test "should return {:error, :invalid_transaction_fee} when the fees are invalid using contract context" do
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+
+      contract_context = %Contract.Context{
+        trigger: {:transaction, random_secret(), %Recipient{}},
+        status: :tx_output,
+        timestamp: DateTime.utc_now()
+      }
+
+      assert {:error, :invalid_transaction_fee} =
+               TransactionFactory.create_valid_transaction(unspent_outputs)
+               |> TransactionValidator.validate(nil, unspent_outputs, contract_context)
+    end
+
+    test "should return {:error, :invalid_recipients_execution} if recipient contract execution invalid" do
+      unspent_outputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        }
+      ]
+
+      recipient = %Recipient{address: random_address()}
+      tx = TransactionFactory.create_valid_transaction(unspent_outputs, recipients: [recipient])
+
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
+        {:ok, %LastTransactionAddress{address: random_address()}}
+      end)
+      |> expect(:send_message, fn _, %ValidateSmartContractCall{}, _ ->
+        {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
+      end)
+
+      assert {:error, :invalid_recipients_execution} =
+               TransactionValidator.validate(tx, nil, unspent_outputs, nil)
     end
   end
 end
