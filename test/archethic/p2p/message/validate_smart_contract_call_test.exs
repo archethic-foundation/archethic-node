@@ -141,7 +141,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       expected_fee =
         ContractFactory.create_valid_contract_tx(code, content: "hello")
-        |> Fee.calculate(nil, 0.07, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 0.07, DateTime.utc_now(), 0, current_protocol_version())
 
       assert %SmartContractCallValidation{valid?: true, fee: expected_fee} ==
                %ValidateSmartContractCall{
