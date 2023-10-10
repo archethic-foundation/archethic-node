@@ -767,8 +767,13 @@ defmodule Archethic.Mining.ValidationContext do
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, contract_context, previous_usd_price, validation_time) +
+    Mining.get_transaction_fee(
+      tx,
+      contract_context,
+      previous_usd_price,
+      validation_time,
       contract_recipients_fee
+    )
   end
 
   defp get_ledger_operations(

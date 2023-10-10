@@ -291,8 +291,13 @@ defmodule Archethic.Replication.TransactionValidator do
       |> OracleChain.get_uco_price()
       |> Keyword.fetch!(:usd)
 
-    Mining.get_transaction_fee(tx, contract_context, previous_usd_price, timestamp) +
+    Mining.get_transaction_fee(
+      tx,
+      contract_context,
+      previous_usd_price,
+      timestamp,
       contract_recipient_fees
+    )
   end
 
   defp validate_transaction_movements(
