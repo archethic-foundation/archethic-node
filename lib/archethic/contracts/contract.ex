@@ -4,14 +4,10 @@ defmodule Archethic.Contracts.Contract do
   """
 
   alias __MODULE__.State
-
-  alias Archethic.Contracts.ContractConditions, as: Conditions
-  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
-
+  alias Archethic.Contracts.Conditions
+  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
-
   alias Archethic.Crypto
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership

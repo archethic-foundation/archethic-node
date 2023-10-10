@@ -7,7 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Contracts.ContractConstants
+  alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Library.Common.Chain
 
@@ -248,7 +248,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       transaction_constant =
         TransactionFactory.create_non_valided_transaction(seed: seed, index: 0)
-        |> ContractConstants.from_transaction()
+        |> Constants.from_transaction()
 
       assert Base.encode16(previous_address) == Chain.get_previous_address(transaction_constant)
     end
@@ -476,7 +476,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ChainTest do
 
       last_address = random_address()
       last_transaction = TransactionFactory.create_valid_transaction([], content: "hello")
-      last_transaction_constant = ContractConstants.from_transaction(last_transaction)
+      last_transaction_constant = Constants.from_transaction(last_transaction)
 
       MockClient
       |> expect(:send_message, fn _, %GetLastTransactionAddress{address: ^address}, _ ->

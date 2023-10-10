@@ -7,7 +7,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
   alias __MODULE__.ConditionInterpreter
 
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
+  alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Interpreter
 
   alias Archethic.TransactionChain.Transaction
@@ -50,9 +50,9 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
         :ok,
         %Archethic.Contracts.Contract{
           conditions: %{
-            {:transaction, nil, nil} => %Archethic.Contracts.ContractConditions{
+            {:transaction, nil, nil} => %Archethic.Contracts.Conditions{
               args: [],
-              subjects: %Archethic.Contracts.ContractConditions.Subjects{
+              subjects: %Archethic.Contracts.Conditions.Subjects{
                 address: nil,
                 authorized_keys: nil,
                 code: nil,
@@ -95,9 +95,9 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                 uco_transfers: nil
               }
             },
-            inherit: %Archethic.Contracts.ContractConditions{
+            inherit: %Archethic.Contracts.Conditions{
               args: [],
-              subjects: %Archethic.Contracts.ContractConditions.Subjects{
+              subjects: %Archethic.Contracts.Conditions.Subjects{
                 address: nil,
                 authorized_keys: nil,
                 code: nil,
@@ -140,9 +140,9 @@ defmodule Archethic.Contracts.Interpreter.Legacy do
                 uco_transfers: nil
               }
             },
-            oracle: %Archethic.Contracts.ContractConditions{
+            oracle: %Archethic.Contracts.Conditions{
               args: [],
-              subjects: %Archethic.Contracts.ContractConditions.Subjects{
+              subjects: %Archethic.Contracts.Conditions.Subjects{
                 address: nil,
                 authorized_keys: nil,
                 code: nil,
