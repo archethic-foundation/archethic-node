@@ -42,6 +42,7 @@ defmodule Archethic.Mining.ValidationContext do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ConditionAccepted
 
   alias Archethic.Crypto
 
@@ -902,13 +903,16 @@ defmodule Archethic.Mining.ValidationContext do
          validation_time
        )
        when code != "" do
-    Contracts.valid_condition?(
-      :inherit,
-      Contract.from_transaction!(prev_tx),
-      next_tx,
-      nil,
-      validation_time
-    )
+    case Contracts.execute_condition(
+           :inherit,
+           Contract.from_transaction!(prev_tx),
+           next_tx,
+           nil,
+           validation_time
+         ) do
+      %ConditionAccepted{} -> true
+      _ -> false
+    end
   end
 
   # handle cases:

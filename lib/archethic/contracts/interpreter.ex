@@ -103,13 +103,19 @@ defmodule Archethic.Contracts.Interpreter do
   @doc """
   Return true if the given conditions are valid on the given constants
   """
-  @spec valid_conditions?(version(), ConditionsSubjects.t(), map()) :: bool()
-  def valid_conditions?(0, conditions, constants) do
-    Legacy.valid_conditions?(conditions, constants)
+  @spec execute_condition(version(), ConditionsSubjects.t(), map()) ::
+          {:ok, list(String.t())} | {:error, String.t(), list(String.t())}
+  def execute_condition(0, conditions, constants) do
+    if Legacy.valid_conditions?(conditions, constants) do
+      {:ok, []}
+    else
+      # we're not going to modify the legacy to return the subject
+      {:error, "N/A", []}
+    end
   end
 
-  def valid_conditions?(1, conditions, constants) do
-    ConditionValidator.valid_conditions?(conditions, constants)
+  def execute_condition(1, conditions, constants) do
+    ConditionValidator.execute_condition(conditions, constants)
   end
 
   @doc """
