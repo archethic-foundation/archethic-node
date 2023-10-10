@@ -7,6 +7,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.ConditionAccepted
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain.Transaction
@@ -156,13 +157,16 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   defp format_reason(_), do: {:internal_error, "Unknown error"}
 
   defp validate_contract_condition(condition_type, contract, tx, recipient, timestamp) do
-    if Contracts.valid_condition?(condition_type, contract, tx, recipient, timestamp) do
-      :ok
-    else
-      case condition_type do
-        :inherit -> {:error, :invalid_inherit_constraints}
-        {:transaction, _, _} -> {:error, :invalid_transaction_constraints}
-      end
+    case Contracts.execute_condition(condition_type, contract, tx, recipient, timestamp) do
+      %ConditionAccepted{} ->
+        :ok
+
+      _ ->
+        # TODO: propagate error, or subject
+        case condition_type do
+          :inherit -> {:error, :invalid_inherit_constraints}
+          {:transaction, _, _} -> {:error, :invalid_transaction_constraints}
+        end
     end
   end
 end

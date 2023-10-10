@@ -1,22 +1,20 @@
 defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
   use ArchethicCase
 
+  alias Archethic.ContractFactory
   alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
-
   alias Archethic.Contracts.Interpreter.ConditionValidator
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
-
-  alias Archethic.ContractFactory
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionFactory
 
-  describe "valid_conditions?/2" do
-    test "should return true if the transaction's conditions are valid" do
+  describe "execute_condition/2" do
+    test "should return ok if the transaction's conditions are valid" do
       code = ~s"""
       condition triggered_by: transaction, as: [
         type: "transfer"
@@ -25,17 +23,18 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([])
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "transaction" => Constants.from_transaction(tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
     end
 
-    test "should return true if the inherit's conditions are valid" do
+    test "should return ok if the inherit's conditions are valid" do
       code = ~s"""
       condition inherit: [
         content: "Hello"
@@ -45,18 +44,19 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
 
-    test "should return true if the oracle's conditions are valid" do
+    test "should return ok if the oracle's conditions are valid" do
       code = ~s"""
       condition triggered_by: oracle, as: [
         content: "Hello"
@@ -65,17 +65,18 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([], content: "Hello")
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "transaction" => Constants.from_transaction(tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
     end
 
-    test "should return true with a flexible condition" do
+    test "should return ok with a flexible condition" do
       code = ~s"""
       condition inherit: [
         content: true
@@ -85,18 +86,19 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
 
-    test "should return false if modifying a value not in the condition" do
+    test "should return error if modifying a value not in the condition" do
       code = ~s"""
       condition inherit: []
       """
@@ -104,15 +106,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      refute code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:error, "content", _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
 
     test "should be able to use boolean expression in inherit" do
@@ -134,15 +137,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, ledger: ledger)
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
 
       code = ~s"""
       condition inherit: [
@@ -150,15 +154,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      refute code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:error, "uco_transfers", _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
 
     test "should cast bigint to float" do
@@ -196,14 +201,15 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([], ledger: ledger)
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "transaction" => Constants.from_transaction(tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
     end
 
     test "should be able to use boolean expression in transaction" do
@@ -223,14 +229,15 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "transaction" => Constants.from_transaction(tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
 
       code = ~s"""
       condition triggered_by: transaction, as: [
@@ -238,14 +245,15 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "transaction" => Constants.from_transaction(tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
 
       code = ~s"""
       condition triggered_by: transaction, as: [
@@ -253,14 +261,15 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      refute code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "transaction" => Constants.from_transaction(tx)
-             })
+      assert {:error, "uco_transfers", _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
 
       code = ~s"""
       condition triggered_by: transaction, as: [
@@ -268,14 +277,15 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "transaction" => Constants.from_transaction(tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
     end
 
     test "should be able to use dot access" do
@@ -288,15 +298,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code, content: "zoubida")
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "zoubida")
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
 
       code = ~s"""
       condition inherit: [
@@ -307,15 +318,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code, content: "lavabo")
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "bidet")
 
-      refute code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:error, "content", _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
 
     test "should evaluate AST" do
@@ -328,15 +340,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
 
       code = ~s"""
       condition inherit: [
@@ -347,15 +360,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "World")
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
 
       code = ~s"""
       condition inherit: [
@@ -366,15 +380,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      refute code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:error, "content", _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
 
     test "should be able to use variables in the AST" do
@@ -390,15 +405,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "smthg")
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
 
     test "should be able to use for loops" do
@@ -433,15 +449,16 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, ledger: ledger)
 
-      assert code
-             |> Interpreter.sanitize_code()
-             |> elem(1)
-             |> ConditionInterpreter.parse([])
-             |> elem(2)
-             |> ConditionValidator.valid_conditions?(%{
-               "previous" => Constants.from_contract_transaction(previous_tx),
-               "next" => Constants.from_contract_transaction(next_tx)
-             })
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_contract_transaction(previous_tx),
+                 "next" => Constants.from_contract_transaction(next_tx)
+               })
     end
   end
 end

@@ -6,6 +6,7 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.ConditionAccepted
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
   alias Archethic.Election
@@ -99,8 +100,12 @@ defmodule Archethic.Contracts.Worker do
     trigger_datetime = DateTime.utc_now()
     {:ok, oracle_tx} = TransactionChain.get_transaction(tx_address)
 
-    if Contracts.valid_condition?(:oracle, contract, oracle_tx, nil, trigger_datetime) do
-      execute_contract(contract, :oracle, oracle_tx, nil)
+    case Contracts.execute_condition(:oracle, contract, oracle_tx, nil, trigger_datetime) do
+      %ConditionAccepted{} ->
+        execute_contract(contract, :oracle, oracle_tx, nil)
+
+      _ ->
+        :skip
     end
 
     {:noreply, state}
