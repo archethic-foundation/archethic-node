@@ -183,7 +183,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column">
-                                                    <%= to_float(transfer.amount) %> UCO
+                                                    <%= from_bigint(transfer.amount) %> UCO
                                                     <%= if transfer.amount > 0 do %>
                                                         (<%= format_full_usd_amount(transfer.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                     <% end %>
@@ -211,7 +211,7 @@
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column">
                                                     <%= decimals = Map.get(@token_properties, transfer.token_address, %{}) |> Map.get(:decimals, 8)
-                                                    to_float(transfer.amount, decimals) %>
+                                                    from_bigint(transfer.amount, decimals) %>
                                                 </div>
                                             </div>
                                             <div class="columns">
@@ -373,14 +373,14 @@
                                                 <div class="column">
                                                     <%= case movement.type do %>
                                                         <% :UCO -> %>
-                                                            <%= to_float(movement.amount) %>
+                                                            <%= from_bigint(movement.amount) %>
                                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                                             <%= if movement.amount > 0 do %>
                                                                 (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                             <% end %>
                                                         <% {:token, token_address, token_id} -> %>
                                                             <%= decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
-                                                            to_float(movement.amount, decimals) %>
+                                                            from_bigint(movement.amount, decimals) %>
                                                             <span class="tag is-success is-light ml-2">Token
                                                                 <%= if token_id >= 1 do %>
                                                                     (#<%= token_id %>)
@@ -419,14 +419,14 @@
                                                 <div class="column">
                                                     <%= case unspent_output.type do %>
                                                     <% :UCO -> %>
-                                                        <%= to_float(unspent_output.amount) %>
+                                                        <%= from_bigint(unspent_output.amount) %>
                                                         <span class="tag is-primary is-light ml-2">UCO</span>
                                                         <%= if unspent_output.amount > 0 do %>
                                                             (<%= format_full_usd_amount(unspent_output.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                         <% end %>
                                                     <% {:token, token_address, token_id} -> %>
                                                         <%= decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
-                                                        to_float(unspent_output.amount, decimals) %>
+                                                        from_bigint(unspent_output.amount, decimals) %>
                                                         <span class="tag is-success is-light ml-2">Token
                                                             <%= if token_id >= 1 do %>
                                                                 (#<%= token_id %>)
@@ -450,7 +450,7 @@
                                     <div x-show="operation_section == 'transaction_fee' ">
                                         <p class="heading mb-4">Transaction fee</p>
                                         <p>
-                                            <%= to_float(@transaction.validation_stamp.ledger_operations.fee) %>
+                                            <%= from_bigint(@transaction.validation_stamp.ledger_operations.fee) %>
                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                             <%= if @transaction.validation_stamp.ledger_operations.fee > 0 do %>
                                               (<%= format_full_usd_amount(@transaction.validation_stamp.ledger_operations.fee, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
@@ -564,10 +564,10 @@
                                             <%= case input.type do
                                                 {:token, token_address, _} ->
                                                     decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
-                                                    to_float(input.amount, decimals)
+                                                    from_bigint(input.amount, decimals)
 
                                                 _ ->
-                                                     to_float(input.amount)
+                                                     from_bigint(input.amount)
                                             end %>
                                         </div>
                                       </div>
