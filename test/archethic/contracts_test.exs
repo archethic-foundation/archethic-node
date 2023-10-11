@@ -8,6 +8,7 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts.Contract.ConditionAccepted
   alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.Failure
+  alias Archethic.Contracts.Contract.PublicFunctionValue
   alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -731,7 +732,7 @@ defmodule Archethic.ContractsTest do
           end
         )
 
-      assert {:error, :timeout} =
+      assert %Failure{user_friendly_error: "Function timed-out"} =
                Contracts.execute_function(contract_with_sleep, "meaning_of_life", [])
     end
 
@@ -758,7 +759,7 @@ defmodule Archethic.ContractsTest do
 
       contract = Contract.from_transaction!(contract_tx)
 
-      assert {:ok, 42} =
+      assert %PublicFunctionValue{value: 42} =
                Contracts.execute_function(
                  contract,
                  "meaning_of_life",
