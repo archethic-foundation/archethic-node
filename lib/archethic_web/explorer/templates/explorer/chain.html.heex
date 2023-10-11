@@ -62,7 +62,7 @@
                         <div class="level-item has-text-centered">
                             <div>
                                 <p class="heading">UCO Balance</p>
-                                <p class="title"><%= to_float(@uco_balance) %> UCO
+                                <p class="title"><%= from_bigint(@uco_balance) %> UCO
                                 <%= if @uco_balance > 0 do %>
                                 (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
                                 <% end %>
