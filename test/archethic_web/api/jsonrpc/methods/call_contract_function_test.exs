@@ -343,8 +343,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         export fun hello(a, b) do
           a + b
         end
-        condition triggered_by: transaction, as: []
 
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
             Contract.set_content "hello"
         end
@@ -369,7 +369,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       }
 
       assert {:error, :function_failure, "There was an error while executing the function",
-              "hello/2"} = CallContractFunction.execute(params)
+              "bad argument in arithmetic expression - L4"} = CallContractFunction.execute(params)
     end
 
     test "should return error when calling private function" do
@@ -381,8 +381,8 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         fun hello(a, b) do
           a + b
         end
-        condition triggered_by: transaction, as: []
 
+        condition triggered_by: transaction, as: []
         actions triggered_by: transaction do
             Contract.set_content "hello"
         end
