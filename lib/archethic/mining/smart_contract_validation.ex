@@ -4,7 +4,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   """
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.State
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ActionWithTransaction

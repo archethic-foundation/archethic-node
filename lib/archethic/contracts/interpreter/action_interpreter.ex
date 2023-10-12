@@ -1,16 +1,15 @@
 defmodule Archethic.Contracts.Interpreter.ActionInterpreter do
   @moduledoc false
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-
-  alias Archethic.Contracts.State
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter.ASTHelper, as: AST
   alias Archethic.Contracts.Interpreter.CommonInterpreter
   alias Archethic.Contracts.Interpreter.FunctionKeys
   alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Contracts.Interpreter.Scope
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   # # Module `Contract` is handled differently
   # @modules_whitelisted []

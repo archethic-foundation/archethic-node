@@ -3,7 +3,7 @@ defmodule Archethic.Contracts.InterpreterTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Contracts.State
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.ContractConditions, as: Conditions

@@ -6,7 +6,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
 
   use ArchethicCase
 
-  alias Archethic.Contracts.State
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Library

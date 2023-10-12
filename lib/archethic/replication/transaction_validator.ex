@@ -5,7 +5,7 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
-  alias Archethic.Contracts.State
+  alias Archethic.Contracts.Contract.State
   alias Archethic.DB
   alias Archethic.Election
   alias Archethic.Mining

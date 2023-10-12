@@ -3,24 +3,20 @@ defmodule Archethic.Contracts.Interpreter do
 
   require Logger
 
-  alias __MODULE__.Scope
-  alias __MODULE__.Legacy
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
+  alias __MODULE__.ConditionValidator
   alias __MODULE__.FunctionInterpreter
   alias __MODULE__.FunctionKeys
-
-  alias __MODULE__.ConditionValidator
-
-  alias Archethic.Contracts.State
+  alias __MODULE__.Legacy
+  alias __MODULE__.Scope
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData.Recipient
-
   alias Archethic.Utils
 
   @type version() :: integer()

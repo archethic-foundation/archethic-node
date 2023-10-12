@@ -1,5 +1,5 @@
-defmodule Archethic.Contracts.StateTest do
-  alias Archethic.Contracts.State
+defmodule Archethic.Contracts.Contract.StateTest do
+  alias Archethic.Contracts.Contract.State
 
   use ArchethicCase
 

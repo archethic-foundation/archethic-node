@@ -5,6 +5,7 @@ defmodule Archethic.Contracts do
   """
 
   alias __MODULE__.Contract
+  alias __MODULE__.Contract.State
   alias __MODULE__.Contract.Failure
   alias __MODULE__.Contract.ActionWithoutTransaction
   alias __MODULE__.Contract.ActionWithTransaction
@@ -13,7 +14,6 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
-  alias __MODULE__.State
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData

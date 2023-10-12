@@ -5,6 +5,7 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.ContractRegistry
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
@@ -128,7 +129,7 @@ defmodule Archethic.Contracts.Worker do
     Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 
     with true <- has_minimum_fees?(contract_address),
-         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(prev_tx),
+         maybe_state_utxo <- State.get_utxo_from_transaction(prev_tx),
          %ActionWithTransaction{next_tx: next_tx} <-
            Contracts.execute_trigger(
              trigger,

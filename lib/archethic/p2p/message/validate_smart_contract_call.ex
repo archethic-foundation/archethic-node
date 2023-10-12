@@ -11,6 +11,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -81,7 +82,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     with {:ok, contract_tx} <- TransactionChain.get_transaction(recipient_address),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
          trigger when not is_nil(trigger) <- Contract.get_trigger_for_recipient(recipient),
-         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(contract_tx),
+         maybe_state_utxo <- State.get_utxo_from_transaction(contract_tx),
          true <-
            Contracts.valid_condition?(trigger, contract, transaction, recipient, datetime),
          execution_result <-

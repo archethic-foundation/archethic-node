@@ -2,28 +2,24 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   @moduledoc false
   use ArchethicWeb.Explorer, :live_view
 
-  alias Phoenix.View
-
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
-
+  alias Archethic.OracleChain
   alias Archethic.PubSub
-
+  alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.TokenLedger
-  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.TransactionInput
   alias ArchethicWeb.Explorer.ExplorerView
-
-  alias Archethic.OracleChain
-
-  alias Archethic.TaskSupervisor
+  alias Phoenix.View
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -270,6 +266,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   def print_state(state_utxo) do
-    Jason.encode!(Archethic.Contracts.State.from_utxo(state_utxo), pretty: true)
+    Jason.encode!(State.from_utxo(state_utxo), pretty: true)
   end
 end

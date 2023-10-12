@@ -9,6 +9,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.Failure
+  alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -236,7 +237,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
 
   defp fetch_recipient_tx_and_simulate(recipient_address, trigger_tx) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
-         maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(contract_tx),
+         maybe_state_utxo <- State.get_utxo_from_transaction(contract_tx),
          {:ok, contract} <-
            Contracts.from_transaction(contract_tx) do
       case Contracts.execute_trigger(

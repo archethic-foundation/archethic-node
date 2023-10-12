@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.State do
+defmodule Archethic.Contracts.Contract.State do
   @moduledoc """
   Module to manipulate the contract state
   """
