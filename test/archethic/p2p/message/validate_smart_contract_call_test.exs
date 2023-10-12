@@ -8,8 +8,6 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.P2P.Message.ValidateSmartContractCall
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias Archethic.ContractFactory
@@ -166,7 +164,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       MockDB
       |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
 
-      incoming_tx = %Transaction{data: %TransactionData{content: "hola"}}
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
       assert %SmartContractCallValidation{valid?: false, fee: 0} =
                %ValidateSmartContractCall{
@@ -195,7 +193,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       MockDB
       |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
 
-      incoming_tx = %Transaction{data: %TransactionData{content: "hi"}}
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
 
       assert %SmartContractCallValidation{valid?: false, fee: 0} =
                %ValidateSmartContractCall{
