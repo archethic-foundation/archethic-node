@@ -42,6 +42,8 @@ defmodule Archethic.Mining.ValidationContext do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ActionWithTransaction
 
   alias Archethic.Crypto
 
@@ -793,7 +795,8 @@ defmodule Archethic.Mining.ValidationContext do
       validation_time,
       Mining.protocol_version(),
       case maybe_execution_result do
-        %Contract.Result.Success{next_state_utxo: state_utxo} -> state_utxo
+        %ActionWithTransaction{next_state_utxo: state_utxo} -> state_utxo
+        %ActionWithoutTransaction{next_state_utxo: state_utxo} -> state_utxo
         _ -> nil
       end
     ) +
@@ -841,7 +844,8 @@ defmodule Archethic.Mining.ValidationContext do
       unspent_outputs,
       validation_time |> DateTime.truncate(:millisecond),
       case maybe_execution_result do
-        %Contract.Result.Success{next_state_utxo: state_utxo} -> state_utxo
+        %ActionWithTransaction{next_state_utxo: state_utxo} -> state_utxo
+        %ActionWithoutTransaction{next_state_utxo: state_utxo} -> state_utxo
         _ -> nil
       end
     )

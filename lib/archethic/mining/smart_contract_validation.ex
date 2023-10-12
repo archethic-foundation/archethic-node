@@ -6,6 +6,9 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts
   alias Archethic.Contracts.State
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Failure
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation
@@ -56,7 +59,10 @@ defmodule Archethic.Mining.SmartContractValidation do
   It also return the result because it's need to extract the state
   """
   @spec valid_contract_execution?(Contract.Context.t(), Transaction.t(), Transaction.t()) ::
-          {boolean(), nil | Contract.Result.t()}
+          {
+            boolean(),
+            nil | Failure.t() | ActionWithTransaction.t() | ActionWithoutTransaction.t()
+          }
   def valid_contract_execution?(
         %Contract.Context{status: :tx_output, trigger: trigger, timestamp: timestamp},
         prev_tx = %Transaction{address: previous_address},
@@ -75,7 +81,7 @@ defmodule Archethic.Mining.SmartContractValidation do
         )
 
       case result do
-        %Contract.Result.Success{next_tx: expected_next_tx} ->
+        %ActionWithTransaction{next_tx: expected_next_tx} ->
           {Transaction.same_payload?(
              Contract.remove_seed_ownership(next_tx),
              expected_next_tx

@@ -5,6 +5,9 @@ defmodule Archethic.Contracts do
   """
 
   alias __MODULE__.Contract
+  alias __MODULE__.Contract.Failure
+  alias __MODULE__.Contract.ActionWithoutTransaction
+  alias __MODULE__.Contract.ActionWithTransaction
   alias __MODULE__.ContractConditions, as: Conditions
   alias __MODULE__.ContractConstants, as: Constants
   alias __MODULE__.Interpreter
@@ -60,7 +63,7 @@ defmodule Archethic.Contracts do
           maybe_recipient :: nil | Recipient.t(),
           maybe_state_utxo :: nil | UnspentOutput.t(),
           opts :: Keyword.t()
-        ) :: Contract.Result.t()
+        ) :: Failure.t() | ActionWithTransaction.t() | ActionWithoutTransaction.t()
   def execute_trigger(
         trigger_type,
         contract = %Contract{transaction: contract_tx},
@@ -95,14 +98,14 @@ defmodule Archethic.Contracts do
       {:ok, next_tx, next_state, logs} ->
         case State.to_utxo(next_state) do
           {:ok, maybe_utxo} ->
-            %Contract.Result.Success{
+            %ActionWithTransaction{
               logs: logs,
               next_tx: next_tx,
               next_state_utxo: maybe_utxo
             }
 
           {:error, :state_too_big} ->
-            %Contract.Result.Error{
+            %Failure{
               logs: logs,
               error: "Execution was successful but the state exceed the threshold",
               stacktrace: [],
@@ -111,7 +114,7 @@ defmodule Archethic.Contracts do
         end
 
       {:error, err} ->
-        %Contract.Result.Error{
+        %Failure{
           logs: [],
           error: err,
           stacktrace: [],
@@ -119,7 +122,7 @@ defmodule Archethic.Contracts do
         }
 
       {:error, err, stacktrace, logs} ->
-        %Contract.Result.Error{
+        %Failure{
           logs: logs,
           error: err,
           stacktrace: stacktrace,
@@ -341,7 +344,7 @@ defmodule Archethic.Contracts do
   end
 
   defp execute_trigger_noop_response({:ok, nil}, logs, _input_utxo, _contract_tx) do
-    %Contract.Result.Noop{
+    %ActionWithoutTransaction{
       next_state_utxo: nil,
       logs: logs
     }
@@ -349,14 +352,14 @@ defmodule Archethic.Contracts do
 
   defp execute_trigger_noop_response({:ok, output_utxo}, logs, input_utxo, _contract_tx)
        when input_utxo == output_utxo do
-    %Contract.Result.Noop{
+    %ActionWithoutTransaction{
       next_state_utxo: output_utxo,
       logs: logs
     }
   end
 
   defp execute_trigger_noop_response({:ok, state_utxo}, logs, _input_utxo, contract_tx) do
-    %Contract.Result.Success{
+    %ActionWithTransaction{
       logs: logs,
       next_tx: generate_next_tx(contract_tx),
       next_state_utxo: state_utxo
@@ -364,7 +367,7 @@ defmodule Archethic.Contracts do
   end
 
   defp execute_trigger_noop_response({:error, :state_too_big}, logs, _input_utxo, _contract_tx) do
-    %Contract.Result.Error{
+    %Failure{
       logs: logs,
       error: "Execution was successful but the state exceed the threshold",
       stacktrace: [],

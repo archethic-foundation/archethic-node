@@ -2,12 +2,11 @@ defmodule Archethic.Contracts.ContractTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Contracts
   alias Archethic.ContractFactory
+  alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-
+  alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Crypto
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
@@ -48,7 +47,7 @@ defmodule Archethic.Contracts.ContractTest do
         |> ContractFactory.create_valid_contract_tx(seed: seed)
         |> Contract.from_transaction!()
 
-      %Contract.Result.Success{next_tx: next_tx} =
+      %ActionWithTransaction{next_tx: next_tx} =
         Contracts.execute_trigger(
           {:datetime, DateTime.from_unix!(trigger_time)},
           contract,
@@ -85,7 +84,7 @@ defmodule Archethic.Contracts.ContractTest do
 
       storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-      assert %Contract.Result.Success{next_tx: next_tx} =
+      assert %ActionWithTransaction{next_tx: next_tx} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(trigger_time)},
                  contract,

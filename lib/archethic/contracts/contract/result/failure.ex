@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Contract.Result.Error do
+defmodule Archethic.Contracts.Contract.Failure do
   @moduledoc """
   This struct holds the data about an execution that failed
   """

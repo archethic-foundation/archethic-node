@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Contract.Result.Noop do
+defmodule Archethic.Contracts.Contract.ActionWithoutTransaction do
   @moduledoc """
   This struct represents a NO-OP, an execution that did not produce a next transaction
   """

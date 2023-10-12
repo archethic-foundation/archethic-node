@@ -3,6 +3,9 @@ defmodule Archethic.ContractsTest do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.State
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -553,7 +556,7 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %Contract.Result.Error{user_friendly_error: "division_by_zero - L8"} =
+      assert %Failure{user_friendly_error: "division_by_zero - L8"} =
                Contracts.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -577,7 +580,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert %Contract.Result.Error{
+      assert %Failure{
                user_friendly_error: "Execution was successful but the state exceed the threshold"
              } =
                Contracts.execute_trigger(
@@ -599,7 +602,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert %Contract.Result.Success{} =
+      assert %ActionWithTransaction{} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -620,7 +623,7 @@ defmodule Archethic.ContractsTest do
       contract_tx = ContractFactory.create_valid_contract_tx(code)
       {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
 
-      assert %Contract.Result.Noop{} =
+      assert %ActionWithoutTransaction{} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -642,7 +645,7 @@ defmodule Archethic.ContractsTest do
       contract_tx = ContractFactory.create_valid_contract_tx(code)
       {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
 
-      assert %Contract.Result.Noop{} =
+      assert %ActionWithoutTransaction{} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -650,7 +653,7 @@ defmodule Archethic.ContractsTest do
                  nil
                )
 
-      assert %Contract.Result.Noop{} =
+      assert %ActionWithoutTransaction{} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),

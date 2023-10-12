@@ -2,31 +2,24 @@ defmodule Archethic.Replication.TransactionValidator do
   @moduledoc false
 
   alias Archethic.Bootstrap
-
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.State
-
   alias Archethic.DB
-
   alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-
   alias Archethic.Mining
   alias Archethic.Mining.SmartContractValidation
-
   alias Archethic.OracleChain
-
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
   alias Archethic.SharedSecrets
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionInput
 
   require Logger
@@ -391,12 +384,12 @@ defmodule Archethic.Replication.TransactionValidator do
        ) do
     # maybe execute the contract to get the state
     maybe_state_utxo =
-      case Archethic.Mining.SmartContractValidation.valid_contract_execution?(
+      case SmartContractValidation.valid_contract_execution?(
              contract_context,
              prev_tx,
              tx
            ) do
-        {true, %Contract.Result.Success{next_state_utxo: state_utxo}} ->
+        {true, %ActionWithTransaction{next_state_utxo: state_utxo}} ->
           state_utxo
 
         _ ->

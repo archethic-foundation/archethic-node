@@ -3,6 +3,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Mining.SmartContractValidation
   alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation
@@ -244,7 +245,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %Contract.Result.Success{}} =
+      assert {true, %ActionWithTransaction{}} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -271,7 +272,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %Contract.Result.Success{}} =
+      assert {true, %ActionWithTransaction{}} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -332,7 +333,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %Contract.Result.Success{}} =
+      assert {true, %ActionWithTransaction{}} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -388,7 +389,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %Contract.Result.Success{}} =
+      assert {true, %ActionWithTransaction{}} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -416,7 +417,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {false, %Contract.Result.Success{}} =
+      assert {false, %ActionWithTransaction{}} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,

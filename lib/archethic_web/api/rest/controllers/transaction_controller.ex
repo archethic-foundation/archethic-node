@@ -6,7 +6,9 @@ defmodule ArchethicWeb.API.REST.TransactionController do
   use ArchethicWeb.API, :controller
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -244,11 +246,14 @@ defmodule ArchethicWeb.API.REST.TransactionController do
              nil,
              maybe_state_utxo
            ) do
-        %Contract.Result.Error{user_friendly_error: reason} ->
-          {:error, reason}
-
-        _ ->
+        %ActionWithTransaction{} ->
           :ok
+
+        %ActionWithoutTransaction{} ->
+          {:error, "Execution success, but the contract did not produce a next transaction"}
+
+        %Failure{user_friendly_error: reason} ->
+          {:error, reason}
       end
     else
       # search_transaction errors

@@ -8,6 +8,9 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -86,7 +89,12 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
              time_now: datetime
            ) do
       %SmartContractCallValidation{
-        valid?: Contract.Result.valid?(execution_result),
+        valid?:
+          case execution_result do
+            %ActionWithoutTransaction{} -> true
+            %ActionWithTransaction{} -> true
+            %Failure{} -> false
+          end,
         fee: calculate_fee(execution_result, contract, datetime)
       }
     else
@@ -96,7 +104,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   end
 
   defp calculate_fee(
-         %Contract.Result.Success{next_tx: next_tx, next_state_utxo: maybe_state_utxo},
+         %ActionWithTransaction{next_tx: next_tx, next_state_utxo: maybe_state_utxo},
          contract = %Contract{transaction: %Transaction{address: contract_address}},
          timestamp
        ) do

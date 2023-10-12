@@ -1,4 +1,4 @@
-defmodule Archethic.Contracts.Contract.Result.Success do
+defmodule Archethic.Contracts.Contract.ActionWithTransaction do
   @moduledoc """
   This struct holds the data about an execution that was successful
   """

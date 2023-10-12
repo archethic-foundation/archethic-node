@@ -2,31 +2,24 @@ defmodule Archethic.Contracts.Worker do
   @moduledoc false
 
   alias Archethic.Account
-
   alias Archethic.ContractRegistry
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
-
   alias Archethic.Election
-
   alias Archethic.Mining.Fee
-
   alias Archethic.OracleChain
-
   alias Archethic.P2P
   alias Archethic.P2P.Node
-
   alias Archethic.PubSub
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
-
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
-
   alias Crontab.CronExpression.Parser, as: CronParser
 
   @extended_mode? Mix.env() != :prod
@@ -136,7 +129,7 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- has_minimum_fees?(contract_address),
          maybe_state_utxo <- Contracts.State.get_utxo_from_transaction(prev_tx),
-         %Contract.Result.Success{next_tx: next_tx} <-
+         %ActionWithTransaction{next_tx: next_tx} <-
            Contracts.execute_trigger(
              trigger,
              contract,
@@ -151,10 +144,10 @@ defmodule Archethic.Contracts.Worker do
          :ok <- send_transaction(contract_context, next_tx) do
       Logger.debug("Contract execution success", meta)
     else
-      %Contract.Result.Noop{} ->
+      %ActionWithoutTransaction{} ->
         Logger.debug("Contract execution success but there is no new transaction", meta)
 
-      %Contract.Result.Error{user_friendly_error: reason} ->
+      %Failure{user_friendly_error: reason} ->
         Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
 
       _ ->
