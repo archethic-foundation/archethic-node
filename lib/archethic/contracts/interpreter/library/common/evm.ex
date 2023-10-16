@@ -47,6 +47,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Evm do
     check_types(:abi_encode, [first]) && list_or_variable_or_function?(second)
   end
 
+  def check_types(:abi_decode, [first, second]) do
+    binary_or_variable_or_function?(first) && binary_or_variable_or_function?(second)
+  end
+
   def check_types(_, _), do: false
 
   defp binary_or_variable_or_function?(arg) do
