@@ -277,7 +277,7 @@ defmodule Archethic.TransactionChain.Transaction do
     previous_signature =
       tx
       |> extract_for_previous_signature()
-      |> serialize()
+      |> serialize(:extended)
       |> Crypto.sign_with_previous_node_key()
 
     %{tx | previous_signature: previous_signature}
@@ -297,7 +297,7 @@ defmodule Archethic.TransactionChain.Transaction do
   defp do_previous_sign_transaction(tx = %__MODULE__{type: :node_shared_secrets}, key_index) do
     tx
     |> extract_for_previous_signature()
-    |> serialize()
+    |> serialize(:extended)
     |> Crypto.sign_with_node_shared_secrets_key(key_index)
   end
 
@@ -305,7 +305,7 @@ defmodule Archethic.TransactionChain.Transaction do
        when type in [:node_rewards, :mint_rewards] do
     tx
     |> extract_for_previous_signature()
-    |> serialize()
+    |> serialize(:extended)
     |> Crypto.sign_with_network_pool_key(key_index)
   end
 
@@ -318,7 +318,7 @@ defmodule Archethic.TransactionChain.Transaction do
     previous_signature =
       tx
       |> extract_for_previous_signature()
-      |> serialize()
+      |> serialize(:extended)
       |> Crypto.sign(private_key)
 
     %{tx | previous_signature: previous_signature}
@@ -332,7 +332,7 @@ defmodule Archethic.TransactionChain.Transaction do
     origin_sig =
       tx
       |> extract_for_origin_signature
-      |> serialize()
+      |> serialize(:extended)
       |> Crypto.sign_with_origin_node_key()
 
     %{tx | origin_signature: origin_sig}
@@ -342,7 +342,7 @@ defmodule Archethic.TransactionChain.Transaction do
     origin_sig =
       tx
       |> extract_for_origin_signature
-      |> serialize()
+      |> serialize(:extended)
       |> Crypto.sign(origin_private_key)
 
     %{tx | origin_signature: origin_sig}
@@ -536,7 +536,7 @@ defmodule Archethic.TransactionChain.Transaction do
     raw_tx =
       tx
       |> extract_for_origin_signature()
-      |> serialize()
+      |> serialize(:extended)
 
     Crypto.verify?(origin_signature, raw_tx, public_key)
   end
@@ -664,7 +664,7 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>   },
       ...>   version: current_transaction_version()
       ...> }
-      ...> |> Transaction.serialize()
+      ...> |> Transaction.serialize(:extended)
       <<current_transaction_version()::32, 0, 0, 120, 135, 125, 48, 92, 13, 27, 60, 42, 84, 221, 204, 42,
           196, 25, 37, 237, 215, 122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217,
           180, 32, 3, 0, 0, 0, 0, 0, 0, 0, 92, 0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238,
