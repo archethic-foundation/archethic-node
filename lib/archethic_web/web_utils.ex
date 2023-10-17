@@ -63,15 +63,13 @@ defmodule ArchethicWeb.WebUtils do
   end
 
   def format_usd_amount(uco_amount, uco_price) do
-    usd_price =
-      (uco_price * uco_amount)
-      |> from_bigint()
-      |> Float.parse()
-      |> elem(0)
-      |> Float.round(2)
-      |> :erlang.float_to_binary(decimals: 2)
-
-    "#{usd_price}$"
+    uco_amount
+    |> Decimal.new()
+    |> Decimal.div(Decimal.new(100_000_000))
+    |> Decimal.mult(Decimal.from_float(uco_price))
+    |> Decimal.round(2)
+    |> Decimal.to_string()
+    |> then(fn usd_price -> "#{usd_price}$" end)
   end
 
   def format_full_usd_amount(uco_amount, uco_price_at_time, uco_price_now) do
