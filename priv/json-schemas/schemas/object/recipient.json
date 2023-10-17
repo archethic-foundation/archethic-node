@@ -46,7 +46,8 @@
             "null",
             "boolean"
           ]
-        }
+        },
+        "maxItems": 255
       }
     }
   },
