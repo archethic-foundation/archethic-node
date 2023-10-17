@@ -18,6 +18,8 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias Archethic.Utils
 
+  @type serialization_mode :: :compact | :extended
+
   @token_creation_schema :archethic
                          |> Application.app_dir("priv/json-schemas/token-core.json")
                          |> File.read!()
@@ -32,7 +34,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   @unit_uco 100_000_000
 
-  @version 2
+  @version 3
 
   defstruct [
     :address,
@@ -549,7 +551,7 @@ defmodule Archethic.TransactionChain.Transaction do
     raw_tx =
       tx
       |> extract_for_previous_signature()
-      |> serialize()
+      |> serialize(:extended)
 
     Crypto.verify?(prev_sig, raw_tx, prev_key)
   end
@@ -694,71 +696,85 @@ defmodule Archethic.TransactionChain.Transaction do
           9, 228, 44, 237, 157, 90, 243, 90, 6, 0>>
 
   """
-  @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{
-        version: version,
-        address: address,
-        type: type,
-        data: data,
-        previous_public_key: nil,
-        previous_signature: nil,
-        origin_signature: nil,
-        validation_stamp: nil
-      }) do
+  @spec serialize(t(), serialization_mode()) :: bitstring()
+  def serialize(tx, serialization_mode \\ :compact)
+
+  def serialize(
+        %__MODULE__{
+          version: version,
+          address: address,
+          type: type,
+          data: data,
+          previous_public_key: nil,
+          previous_signature: nil,
+          origin_signature: nil,
+          validation_stamp: nil
+        },
+        serialization_mode
+      ) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data, version)::binary>>
+      TransactionData.serialize(data, version, serialization_mode)::bitstring>>
   end
 
-  def serialize(%__MODULE__{
-        version: version,
-        address: address,
-        type: type,
-        data: data,
-        previous_public_key: previous_public_key,
-        previous_signature: previous_signature,
-        origin_signature: nil,
-        validation_stamp: nil
-      }) do
+  def serialize(
+        %__MODULE__{
+          version: version,
+          address: address,
+          type: type,
+          data: data,
+          previous_public_key: previous_public_key,
+          previous_signature: previous_signature,
+          origin_signature: nil,
+          validation_stamp: nil
+        },
+        serialization_mode
+      ) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
-      byte_size(previous_signature)::8, previous_signature::binary>>
+      TransactionData.serialize(data, version, serialization_mode)::bitstring,
+      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary>>
   end
 
-  def serialize(%__MODULE__{
-        version: version,
-        address: address,
-        type: type,
-        data: data,
-        previous_public_key: previous_public_key,
-        previous_signature: previous_signature,
-        origin_signature: origin_signature,
-        validation_stamp: nil
-      }) do
+  def serialize(
+        %__MODULE__{
+          version: version,
+          address: address,
+          type: type,
+          data: data,
+          previous_public_key: previous_public_key,
+          previous_signature: previous_signature,
+          origin_signature: origin_signature,
+          validation_stamp: nil
+        },
+        serialization_mode
+      ) do
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
-      byte_size(previous_signature)::8, previous_signature::binary,
+      TransactionData.serialize(data, version, serialization_mode)::bitstring,
+      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 0::8>>
   end
 
-  def serialize(%__MODULE__{
-        version: version,
-        address: address,
-        type: type,
-        data: data,
-        previous_public_key: previous_public_key,
-        previous_signature: previous_signature,
-        origin_signature: origin_signature,
-        validation_stamp: validation_stamp,
-        cross_validation_stamps: cross_validation_stamps
-      }) do
+  def serialize(
+        %__MODULE__{
+          version: version,
+          address: address,
+          type: type,
+          data: data,
+          previous_public_key: previous_public_key,
+          previous_signature: previous_signature,
+          origin_signature: origin_signature,
+          validation_stamp: validation_stamp,
+          cross_validation_stamps: cross_validation_stamps
+        },
+        serialization_mode
+      ) do
     cross_validation_stamps_bin =
       cross_validation_stamps
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
     <<version::32, address::binary, serialize_type(type)::8,
-      TransactionData.serialize(data, version)::binary, previous_public_key::binary,
-      byte_size(previous_signature)::8, previous_signature::binary,
+      TransactionData.serialize(data, version, serialization_mode)::bitstring,
+      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 1::8,
       ValidationStamp.serialize(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
       cross_validation_stamps_bin::binary>>
@@ -858,17 +874,20 @@ defmodule Archethic.TransactionChain.Transaction do
             timestamp: ~U[2022-02-15 21:15:50.000Z],
             protocol_version: 2
           },
-          version: 2
+          version: 3
         },
         ""
       }
 
   """
-  @spec deserialize(bitstring()) :: {transaction :: t(), rest :: bitstring}
-  def deserialize(_serialized_term = <<version::32, rest::bitstring>>) do
+  @spec deserialize(bitstring(), serialization_mode()) :: {transaction :: t(), rest :: bitstring}
+  def deserialize(
+        _serialized_term = <<version::32, rest::bitstring>>,
+        serialization_mode \\ :compact
+      ) do
     {address, <<type::8, rest::bitstring>>} = Utils.deserialize_address(rest)
 
-    {data, rest} = TransactionData.deserialize(rest, version)
+    {data, rest} = TransactionData.deserialize(rest, version, serialization_mode)
 
     {previous_public_key,
      <<previous_signature_size::8, previous_signature::binary-size(previous_signature_size),

@@ -128,26 +128,11 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
               code <- StreamData.binary(),
               content <- StreamData.binary(),
               secret <- StreamData.binary(min_length: 1),
-              authorized_key_seeds <-
-                StreamData.list_of(StreamData.binary(length: 32), min_length: 1),
-              transfers <-
-                StreamData.map_of(StreamData.binary(length: 32), StreamData.positive_integer()),
-              recipients_data <- list_of(StreamData.binary(length: 32))
+              authorized_public_keys <-
+                StreamData.list_of(gen_authorized_public_key(), min_length: 1),
+              transfers <- StreamData.list_of(uco_transfer_gen()),
+              recipients <- StreamData.list_of(recipient_gen())
             ) do
-        authorized_public_keys =
-          Enum.map(authorized_key_seeds, fn seed ->
-            {pub, _} = Crypto.generate_deterministic_keypair(seed)
-            pub
-          end)
-
-        recipients =
-          Enum.map(recipients_data, fn r -> %Recipient{address: <<0::8, 0::8, r::binary>>} end)
-
-        transfers =
-          Enum.map(transfers, fn {to, amount} ->
-            %UCOLedger.Transfer{to: <<0::8, 0::8, to::binary>>, amount: amount}
-          end)
-
         {tx_data, _} =
           %TransactionData{
             code: code,
@@ -181,6 +166,41 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
         assert tx_data.recipients == recipients
         assert tx_data.ledger.uco.transfers == transfers
       end
+    end
+  end
+
+  defp uco_transfer_gen() do
+    gen all(
+          to <- StreamData.binary(length: 32),
+          amount <- StreamData.positive_integer()
+        ) do
+      %UCOLedger.Transfer{to: <<0::8, 0::8, to::binary>>, amount: amount}
+    end
+  end
+
+  defp gen_authorized_public_key() do
+    StreamData.binary(length: 32)
+    |> StreamData.map(fn seed ->
+      {pub, _} = Crypto.generate_deterministic_keypair(seed)
+      pub
+    end)
+  end
+
+  defp recipient_gen() do
+    gen all(
+          address <- StreamData.binary(length: 32),
+          action <- StreamData.string(:alphanumeric, min_length: 1),
+          args <-
+            StreamData.list_of(
+              StreamData.one_of([
+                StreamData.integer(),
+                StreamData.string(:alphanumeric),
+                StreamData.boolean(),
+                StreamData.constant(nil)
+              ])
+            )
+        ) do
+      %Recipient{address: <<0::8, 0::8, address::binary>>, action: action, args: args}
     end
   end
 end
