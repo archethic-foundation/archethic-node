@@ -20,13 +20,13 @@ defmodule Archethic.Utils.TypedEncodingTest do
           ) do
       assert {^data, ""} =
                data
-               |> TypedEncoding.serialize(8)
-               |> TypedEncoding.deserialize(8)
+               |> TypedEncoding.serialize(:extended)
+               |> TypedEncoding.deserialize(:extended)
 
       assert {^data, ""} =
                data
-               |> TypedEncoding.serialize(1)
-               |> TypedEncoding.deserialize(1)
+               |> TypedEncoding.serialize(:compact)
+               |> TypedEncoding.deserialize(:compact)
     end
   end
 
