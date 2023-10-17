@@ -5,7 +5,9 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   Action & Args are nil for a :transaction trigger and are filled for a {:transaction, action, args} trigger
   """
   alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
+  alias __MODULE__.ArgumentsEncoding
 
   defstruct [:address, :action, :args]
 
@@ -28,37 +30,72 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
   @doc """
   Serialize a recipient
   """
-  @spec serialize(recipient :: t(), version :: pos_integer()) :: bitstring()
-  def serialize(%__MODULE__{address: address}, _version = 1) do
+  @spec serialize(
+          recipient :: t(),
+          version :: pos_integer(),
+          serialization_mode :: Transaction.serialization_mode()
+        ) :: bitstring()
+  def serialize(recipient, version, serialization_mode \\ :compact)
+
+  def serialize(%__MODULE__{address: address}, _version = 1, _serialization_mode) do
     <<address::binary>>
   end
 
-  def serialize(%__MODULE__{address: address, action: nil, args: nil}, _version = 2) do
+  def serialize(%__MODULE__{address: address, action: nil}, _version, _serialization_mode) do
     <<@unnamed_action::8, address::binary>>
   end
 
-  def serialize(%__MODULE__{address: address, action: action, args: args}, _version = 2) do
+  def serialize(
+        %__MODULE__{address: address, action: action, args: args},
+        _version = 2,
+        _serialization_mode
+      ) do
     # action is stored on 8 bytes which means 255 characters
     # we force that in the interpreters (action & condition)
     action_bytes = byte_size(action)
 
     serialized_args = Jason.encode!(args)
-    args_bytes = byte_size(serialized_args) |> Utils.VarInt.from_value()
+
+    args_bytes =
+      serialized_args
+      |> byte_size()
+      |> Utils.VarInt.from_value()
 
     <<@named_action::8, address::binary, action_bytes::8, action::binary, args_bytes::binary,
-      serialized_args::binary>>
+      serialized_args::bitstring>>
+  end
+
+  def serialize(
+        %__MODULE__{address: address, action: action, args: args},
+        _version = 3,
+        serialization_mode
+      ) do
+    # action is stored on 8 bytes which means 255 characters
+    # we force that in the interpreters (action & condition)
+    action_bytes = byte_size(action)
+
+    serialized_args = ArgumentsEncoding.serialize(args, serialization_mode)
+
+    <<@named_action::8, address::binary, action_bytes::8, action::binary,
+      serialized_args::bitstring>>
   end
 
   @doc """
   Deserialize a recipient
   """
-  @spec deserialize(rest :: bitstring(), version :: pos_integer()) :: {t(), bitstring()}
-  def deserialize(rest, _version = 1) do
+  @spec deserialize(
+          rest :: bitstring(),
+          version :: pos_integer(),
+          serialization_mode :: Transaction.serialization_mode()
+        ) :: {t(), bitstring()}
+  def deserialize(binary, version, serialization_mode \\ :compact)
+
+  def deserialize(rest, _version = 1, _serialization_mode) do
     {address, rest} = Utils.deserialize_address(rest)
     {%__MODULE__{address: address}, rest}
   end
 
-  def deserialize(<<@unnamed_action::8, rest::bitstring>>, _version = 2) do
+  def deserialize(<<@unnamed_action::8, rest::bitstring>>, _version, _serialization_mode) do
     {address, rest} = Utils.deserialize_address(rest)
 
     {
@@ -67,7 +104,7 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
     }
   end
 
-  def deserialize(<<@named_action::8, rest::bitstring>>, _version = 2) do
+  def deserialize(<<@named_action::8, rest::bitstring>>, _version = 2, _serialization_mode) do
     {address, <<action_bytes::8, rest::bitstring>>} = Utils.deserialize_address(rest)
     <<action::binary-size(action_bytes), rest::bitstring>> = rest
 
@@ -79,6 +116,21 @@ defmodule Archethic.TransactionChain.TransactionData.Recipient do
         address: address,
         action: action,
         args: Jason.decode!(args)
+      },
+      rest
+    }
+  end
+
+  def deserialize(<<@named_action::8, rest::bitstring>>, _version = 3, serialization_mode) do
+    {address, <<action_bytes::8, rest::bitstring>>} = Utils.deserialize_address(rest)
+    <<action::binary-size(action_bytes), rest::bitstring>> = rest
+    {args, rest} = ArgumentsEncoding.deserialize(rest, serialization_mode)
+
+    {
+      %__MODULE__{
+        address: address,
+        action: action,
+        args: args
       },
       rest
     }
