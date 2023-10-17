@@ -64,7 +64,8 @@ defmodule Archethic.Utils.TypedEncoding do
     size_bin = VarInt.from_value(size)
 
     Enum.reduce(map, <<@type_map::8, size_bin::binary>>, fn {k, v}, acc ->
-      <<acc::bitstring, do_serialize(k, bit_size)::bitstring, do_serialize(v, bit_size)::bitstring>>
+      <<acc::bitstring, do_serialize(k, bit_size)::bitstring,
+        do_serialize(v, bit_size)::bitstring>>
     end)
   end
 

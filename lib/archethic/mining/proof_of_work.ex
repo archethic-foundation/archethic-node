@@ -86,7 +86,7 @@ defmodule Archethic.Mining.ProofOfWork do
     pow =
       tx
       |> Transaction.extract_for_origin_signature()
-      |> Transaction.serialize()
+      |> Transaction.serialize(:extended)
       |> do_find_transaction_origin_public_key(origin_signature, origin_public_keys)
 
     :telemetry.execute(
