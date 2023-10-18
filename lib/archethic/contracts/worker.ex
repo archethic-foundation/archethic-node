@@ -130,7 +130,7 @@ defmodule Archethic.Contracts.Worker do
     # because the worker maintain a parsed contract in memory
     # it's possible that the parsing changed with the new release
     # so we reparse the contract here
-    {:ok, %{state | contract: Contract.from_transaction(contract_tx)}}
+    {:ok, %{state | contract: Contract.from_transaction!(contract_tx)}}
   end
 
   # ----------------------------------------------
