@@ -176,7 +176,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
 
   def get_version do
     %{
-      code: Mix.Project.config()[:version],
+      code: Application.spec(:archethic, :vsn),
       protocol: Mining.protocol_version(),
       transaction: Transaction.version()
     }
