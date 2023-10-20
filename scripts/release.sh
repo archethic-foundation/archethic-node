@@ -14,21 +14,24 @@ usage() {
   echo ""
   echo " Release Archethic node binary"
   echo ""
-  echo "  " release.sh [-d  dir] " Specify the installation dir"
-  echo "  " release.sh -u "       Upgrade the release"
-  echo "  " release.sh -s "       Create a systemd service"
-  echo "  " release.sh -h "       Print the help usage"
+  echo "  " release.sh [-d  dir] "  Specify the installation dir"
+  echo "  " release.sh -u "         Upgrade the release"
+  echo "  " release.sh [-s suffix] "Create a systemd service with a suffix"
+  echo "  " release.sh -h "         Print the help usage"
   echo ""
 }
 
-while getopts :suphd: option
+while getopts :s:uphd: option
 do
   case "${option}"
   in
     d) INSTALL_DIR=${OPTARG};;
     u) UPGRADE=1;;
     p) PREPARE=1;;
-    s) SERVICE_CREATION=1;;
+    s)
+      SERVICE_CREATION=1
+      SERVICE_NAME=archethic-${OPTARG}
+      ;;
     h)
       usage
       exit 0
@@ -113,45 +116,45 @@ else
 
   if [ $SERVICE_CREATION == 1 ]
   then
-  
+
   echo "Creating service file"
-  sudo bash -c 'cat > /etc/systemd/system/archethic.service' << EOF
+  sudo bash -c "cat > /etc/systemd/system/$SERVICE_NAME.service" << EOF
 
   [Unit]
-  Description=ARCHEthic service
+  Description=$SERVICE_NAME
   After=local-fs.target network.target
-  
+
   [Service]
   Type=simple
   User=$USER
   Group=$USER
-  
+
   WorkingDirectory=$INSTALL_DIR
-  
+
   ExecStart=$INSTALL_DIR/bin/archethic_node foreground
   ExecStop=$INSTALL_DIR/bin/archethic_node stop
-  
-  EnvironmentFile=/etc/default/archethic.env
+
+  EnvironmentFile=/etc/default/$SERVICE_NAME.env
   Environment=LANG=en_US.utf8
   Environment=MIX_ENV=prod
   Environment=ERLANG_COOKIE=$ERLANG_COOKIE
-  
+
   Restart=on-failure
   RemainAfterExit=yes
   RestartSec=5
-  
+
   LimitNOFILE=65535
   UMask=0027
-  SyslogIdentifier=archethic
-  
+  SyslogIdentifier=$SERVICE_NAME
+
   [Install]
   WantedBy=multi-user.target
 EOF
 
   # restart daemon, enable
   echo "Reloading daemon and enabling service"
-  sudo systemctl daemon-reload 
-  sudo systemctl enable archethic
+  sudo systemctl daemon-reload
+  sudo systemctl enable $SERVICE_NAME
   fi
 fi
 
