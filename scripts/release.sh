@@ -3,35 +3,32 @@
 set -e
 trap 'echo "******* FAILED *******" 1>&2' ERR
 
-USER=$(whoami)
-INSTALL_DIR=/home/$USER/aebot/build
+# variables that might be changed from cli
 UPGRADE=0
 PREPARE=0
 SERVICE_CREATION=0
+SUFFIX=""
 
 usage() {
   echo "Usage:"
   echo ""
   echo " Release Archethic node binary"
   echo ""
-  echo "  " release.sh [-d  dir] "  Specify the installation dir"
-  echo "  " release.sh -u "         Upgrade the release"
-  echo "  " release.sh [-s suffix] "Create a systemd service with a suffix"
-  echo "  " release.sh -h "         Print the help usage"
+  echo "  " release.sh [-n suffix] "Suffix for the folders & service"
+  echo "  " release.sh -u          "Upgrade the release"
+  echo "  " release.sh -s          "Create a systemd service"
+  echo "  " release.sh -h          "Print the help usage"
   echo ""
 }
 
-while getopts :s:uphd: option
+while getopts :suphn: option
 do
   case "${option}"
   in
-    d) INSTALL_DIR=${OPTARG};;
     u) UPGRADE=1;;
     p) PREPARE=1;;
-    s)
-      SERVICE_CREATION=1
-      SERVICE_NAME=archethic-${OPTARG}
-      ;;
+    n) SUFFIX=-${OPTARG};;
+    s) SERVICE_CREATION=1;;
     h)
       usage
       exit 0
@@ -45,6 +42,21 @@ done
 shift $((OPTIND -1))
 
 source ~/.profile
+
+if [[ $SUFFIX == "" ]]
+then
+  echo "WARNING: no suffix (-n) flag passed."
+fi
+
+# export all the env variable so the distillery script
+# can access them
+set -o allexport
+source /etc/default/archethic$SUFFIX.env
+set +o allexport
+
+USER=$(whoami)
+SERVICE_NAME=archethic$SUFFIX
+INSTALL_DIR=~/aebot$SUFFIX/build
 
 if [[ -d $HOME/.asdf ]]
 then
