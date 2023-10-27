@@ -3,8 +3,7 @@
 set -e
 trap 'echo "******* FAILED *******" 1>&2' ERR
 
-SUFFIX="${1:-mainnet}"
-INSTALL_DIR=~/aebot-$SUFFIX
+INSTALL_DIR=~/aebot/
 echo "INSTALL_DIR=$INSTALL_DIR"
 
 SCRIPT_DIR=$(dirname $(readlink -f $0))

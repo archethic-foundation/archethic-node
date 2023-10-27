@@ -14,7 +14,8 @@ usage() {
   echo ""
   echo " Release Archethic node binary"
   echo ""
-  echo "  " release.sh [-n suffix] "Suffix for the folders & service"
+  echo "  " release.sh [-n suffix] "Suffix for the service"
+  echo "  " release.sh -p          "Prepare the release"
   echo "  " release.sh -u          "Upgrade the release"
   echo "  " release.sh -s          "Create a systemd service"
   echo "  " release.sh -h          "Print the help usage"
@@ -56,7 +57,7 @@ set +o allexport
 
 USER=$(whoami)
 SERVICE_NAME=archethic$SUFFIX
-INSTALL_DIR=~/aebot$SUFFIX/build
+INSTALL_DIR=~/aebot/build
 
 if [[ -d $HOME/.asdf ]]
 then
