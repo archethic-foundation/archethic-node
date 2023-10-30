@@ -6,7 +6,7 @@
     "chokidar": "^3.5.3",
     "diff2html": "^3.4.35",
     "echarts": "^5.4.2",
-    "highlight.js": "^11.8.0",
+    "highlight.js": "^11.9.0",
     "phoenix": "file:../deps/phoenix",
     "phoenix_html": "file:../deps/phoenix_html",
     "phoenix_live_view": "file:../deps/phoenix_live_view"
