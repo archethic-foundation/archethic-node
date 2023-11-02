@@ -1,9 +1,10 @@
 defmodule ArchethicWeb.Explorer.ExplorerRootController do
   @moduledoc false
 
+  alias Archethic.Crypto
+
   use ArchethicWeb.Explorer, :controller
 
-  # def index(conn, _params), do: redirect(conn, to: "/explorer")
   def index(conn, _params) do
     case get_web_hosting_address(conn) do
       nil ->
@@ -16,7 +17,7 @@ defmodule ArchethicWeb.Explorer.ExplorerRootController do
             path -> path
           end
 
-        redirect(conn, to: "/api/web_hosting/" <> address <> path)
+        redirect(conn, to: "/aeweb/" <> address <> path)
     end
   end
 
@@ -24,17 +25,27 @@ defmodule ArchethicWeb.Explorer.ExplorerRootController do
 
   defp get_web_hosting_address(conn) do
     case get_req_header(conn, "referer") do
-      [] ->
-        nil
+      [] -> nil
+      [referer] -> get_referer_address(referer)
+    end
+  end
 
-      [referer] ->
-        case Regex.scan(~r/(?<=\/api\/web_hosting\/)[^\/]*/, referer) do
-          [] ->
-            nil
+  defp get_referer_address(referer) do
+    with address_hex when is_binary(address_hex) <- extract_address(referer),
+         {:ok, address} <- Base.decode16(address_hex, case: :mixed),
+         true <- Crypto.valid_address?(address) do
+      address_hex
+    else
+      _ -> nil
+    end
+  end
 
-          [match] ->
-            List.first(match)
-        end
+  defp extract_address(referer) do
+    with [] <- Regex.scan(~r/(?<=\/api\/web_hosting\/)[^\/]*/, referer),
+         [] <- Regex.scan(~r/(?<=\/aeweb\/)[^\/]*/, referer) do
+      nil
+    else
+      [match] -> List.first(match)
     end
   end
 end
