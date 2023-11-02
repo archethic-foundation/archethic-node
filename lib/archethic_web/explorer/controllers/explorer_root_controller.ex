@@ -10,7 +10,12 @@ defmodule ArchethicWeb.Explorer.ExplorerRootController do
         redirect(conn, to: "/explorer")
 
       address ->
-        path = Map.get(conn, :request_path)
+        path =
+          case Map.get(conn, :request_path, "/") do
+            "" -> "/"
+            path -> path
+          end
+
         redirect(conn, to: "/api/web_hosting/" <> address <> path)
     end
   end
@@ -23,7 +28,7 @@ defmodule ArchethicWeb.Explorer.ExplorerRootController do
         nil
 
       [referer] ->
-        case Regex.scan(~r/(?<=\/api\/web_hosting\/)[^\/]*(?!$)/, referer) do
+        case Regex.scan(~r/(?<=\/api\/web_hosting\/)[^\/]*/, referer) do
           [] ->
             nil
 
