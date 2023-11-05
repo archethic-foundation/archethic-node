@@ -3,7 +3,6 @@ defmodule Archethic.Mining.FeeTest do
   alias Archethic.Mining.Fee
   alias Archethic.P2P
   alias Archethic.P2P.Node
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -313,10 +312,7 @@ defmodule Archethic.Mining.FeeTest do
       fee_without_state =
         Fee.calculate(tx, nil, 0.2, DateTime.utc_now(), nil, current_protocol_version())
 
-      state_utxo = %UnspentOutput{
-        type: :state,
-        encoded_payload: :crypto.strong_rand_bytes(1000)
-      }
+      encoded_state = :crypto.strong_rand_bytes(10)
 
       fee_with_state =
         Fee.calculate(
@@ -324,8 +320,8 @@ defmodule Archethic.Mining.FeeTest do
           nil,
           0.2,
           DateTime.utc_now(),
-          ArchethicCase.current_protocol_version(),
-          state_utxo
+          encoded_state,
+          current_protocol_version()
         )
 
       assert fee_with_state > fee_without_state

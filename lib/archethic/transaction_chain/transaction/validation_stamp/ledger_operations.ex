@@ -11,6 +11,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defstruct transaction_movements: [],
             unspent_outputs: [],
             tokens_to_mint: [],
+            encoded_state: nil,
             fee: 0
 
   alias Archethic.Contracts.Contract.State
@@ -36,6 +37,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           transaction_movements: list(TransactionMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
           tokens_to_mint: list(UnspentOutput.t()),
+          encoded_state: State.encoded() | nil,
           fee: non_neg_integer()
         }
 
@@ -201,16 +203,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           ledger_operations :: t(),
           change_address :: binary(),
           inputs :: list(UnspentOutput.t() | TransactionInput.t()),
-          timestamp :: DateTime.t(),
-          encoded_state :: State.encoded() | nil
+          timestamp :: DateTime.t()
         ) ::
           {boolean(), t()}
   def consume_inputs(
-        ops = %__MODULE__{tokens_to_mint: tokens_to_mint},
+        ops = %__MODULE__{tokens_to_mint: tokens_to_mint, encoded_state: encoded_state},
         change_address,
         inputs,
-        timestamp,
-        encoded_state
+        timestamp
       )
       when is_binary(change_address) and is_list(inputs) and not is_nil(timestamp) do
     # Since AEIP-19 we can consume from minted tokens

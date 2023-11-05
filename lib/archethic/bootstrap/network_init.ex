@@ -188,7 +188,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
         transaction_movements: Transaction.get_movements(tx),
         tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       }
-      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp, nil)
+      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
       |> elem(1)
 
     validation_stamp =

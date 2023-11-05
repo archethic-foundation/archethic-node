@@ -829,13 +829,13 @@ defmodule Archethic.Mining.ValidationContext do
     %LedgerOperations{
       fee: fee,
       transaction_movements: resolved_movements,
-      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, validation_time)
+      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, validation_time),
+      encoded_state: encoded_state
     }
     |> LedgerOperations.consume_inputs(
       tx.address,
       unspent_outputs,
-      validation_time |> DateTime.truncate(:millisecond),
-      encoded_state
+      validation_time |> DateTime.truncate(:millisecond)
     )
   end
 

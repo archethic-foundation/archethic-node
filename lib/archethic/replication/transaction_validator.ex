@@ -389,17 +389,14 @@ defmodule Archethic.Replication.TransactionValidator do
          inputs,
          encoded_state
        ) do
-    case LedgerOperations.consume_inputs(
-           %LedgerOperations{
-             fee: fee,
-             transaction_movements: transaction_movements,
-             tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-           },
-           address,
-           inputs,
-           timestamp,
-           encoded_state
-         ) do
+    ops = %LedgerOperations{
+      fee: fee,
+      transaction_movements: transaction_movements,
+      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+      encoded_state: encoded_state
+    }
+
+    case LedgerOperations.consume_inputs(ops, address, inputs, timestamp) do
       {false, _} ->
         {:error, :insufficient_funds}
 
