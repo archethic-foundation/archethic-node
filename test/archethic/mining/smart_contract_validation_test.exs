@@ -3,7 +3,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Mining.SmartContractValidation
   alias Archethic.P2P
   alias Archethic.P2P.Message.SmartContractCallValidation
@@ -245,7 +245,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %ActionWithTransaction{}} =
+      assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -272,7 +272,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %ActionWithTransaction{}} =
+      assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -333,7 +333,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %ActionWithTransaction{}} =
+      assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -389,7 +389,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {true, %ActionWithTransaction{}} =
+      assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,
@@ -417,7 +417,39 @@ defmodule Archethic.Mining.SmartContractValidationTest do
         timestamp: now
       }
 
-      assert {false, %ActionWithTransaction{}} =
+      assert {false, nil} =
+               SmartContractValidation.valid_contract_execution?(
+                 contract_context,
+                 prev_tx,
+                 next_tx
+               )
+    end
+
+    test "should return encoded_state if execution is valid" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      code = """
+      @version 1
+      actions triggered_by: interval, at: "* * * * *" do
+        State.set("truth", 42)
+        Contract.set_content "beep"
+      end
+      """
+
+      encoded_state = State.serialize(%{"truth" => 42})
+
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
+
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx, content: "beep", state: encoded_state)
+
+      contract_context = %Contract.Context{
+        trigger: {:interval, "* * * * *", now},
+        status: :tx_output,
+        timestamp: now
+      }
+
+      assert {true, ^encoded_state} =
                SmartContractValidation.valid_contract_execution?(
                  contract_context,
                  prev_tx,

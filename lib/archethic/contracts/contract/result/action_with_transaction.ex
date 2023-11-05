@@ -2,15 +2,15 @@ defmodule Archethic.Contracts.Contract.ActionWithTransaction do
   @moduledoc """
   This struct holds the data about an execution that was successful
   """
+  alias Archethic.Contracts.Contract.State
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
-  @enforce_keys [:next_tx, :next_state_utxo]
-  defstruct [:next_tx, :next_state_utxo, logs: []]
+  @enforce_keys [:next_tx, :encoded_state]
+  defstruct [:next_tx, :encoded_state, logs: []]
 
   @type t :: %__MODULE__{
           next_tx: Transaction.t(),
-          next_state_utxo: nil | UnspentOutput.t(),
+          encoded_state: State.encoded() | nil,
           logs: list(String.t())
         }
 end

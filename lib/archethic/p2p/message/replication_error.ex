@@ -71,6 +71,8 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp serialize_reason(:invalid_inherit_constraints), do: 12
   defp serialize_reason(:invalid_validation_stamp_signature), do: 13
   defp serialize_reason(:invalid_unspent_outputs), do: 14
+  defp serialize_reason(:invalid_recipients_execution), do: 15
+  defp serialize_reason(:invalid_contract_execution), do: 16
 
   @doc """
   DeSerialize a replication error message
@@ -122,4 +124,6 @@ defmodule Archethic.P2P.Message.ReplicationError do
   defp error(12), do: :invalid_inherit_constraints
   defp error(13), do: :invalid_validation_stamp_signature
   defp error(14), do: :invalid_unspent_outputs
+  defp error(15), do: :invalid_recipients_execution
+  defp error(16), do: :invalid_contract_execution
 end

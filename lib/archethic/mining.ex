@@ -4,6 +4,7 @@ defmodule Archethic.Mining do
   """
 
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
 
   alias Archethic.Election
@@ -22,7 +23,6 @@ defmodule Archethic.Mining do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
 
@@ -251,24 +251,24 @@ defmodule Archethic.Mining do
           contract_context :: Contract.Context.t() | nil,
           uco_price_in_usd :: float(),
           timestamp :: DateTime.t(),
-          protocol_version :: pos_integer(),
-          maybe_state_utxo :: nil | UnspentOutput.t()
+          encoded_state :: State.encoded() | nil,
+          protocol_version :: pos_integer()
         ) :: non_neg_integer()
   def get_transaction_fee(
         tx,
         contract_context,
         uco_price_in_usd,
         timestamp,
-        proto_version \\ protocol_version(),
-        maybe_state_utxo \\ nil
+        encoded_state,
+        proto_version \\ protocol_version()
       ) do
     Fee.calculate(
       tx,
       contract_context,
       uco_price_in_usd,
       timestamp,
-      proto_version,
-      maybe_state_utxo
+      encoded_state,
+      proto_version
     )
   end
 end

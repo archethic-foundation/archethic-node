@@ -78,57 +78,66 @@ defmodule Archethic.Contracts do
     # TODO: rescue should be done in here as well
     # TODO: implement timeout
 
-    case Interpreter.execute_trigger(
-           trigger_type,
-           contract,
-           state,
-           maybe_trigger_tx,
-           maybe_recipient,
-           opts
-         ) do
-      {:ok, nil, next_state, logs} ->
-        # I hate you credo
-        execute_trigger_noop_response(
-          State.to_utxo(next_state),
-          logs,
-          maybe_state_utxo,
-          contract_tx
-        )
+    Interpreter.execute_trigger(
+      trigger_type,
+      contract,
+      state,
+      maybe_trigger_tx,
+      maybe_recipient,
+      opts
+    )
+    |> cast_trigger_result(state, contract_tx)
+  end
 
-      {:ok, next_tx, next_state, logs} ->
-        case State.to_utxo(next_state) do
-          {:ok, maybe_utxo} ->
-            %ActionWithTransaction{
-              logs: logs,
-              next_tx: next_tx,
-              next_state_utxo: maybe_utxo
-            }
+  defp cast_trigger_result(res = {:ok, _, next_state, logs}, prev_state, contract_tx) do
+    if State.empty?(next_state) do
+      cast_valid_trigger_result(res, prev_state, contract_tx, nil)
+    else
+      encoded_state = State.serialize(next_state)
 
-          {:error, :state_too_big} ->
-            %Failure{
-              logs: logs,
-              error: "Execution was successful but the state exceed the threshold",
-              stacktrace: [],
-              user_friendly_error: "Execution was successful but the state exceed the threshold"
-            }
-        end
-
-      {:error, err} ->
-        %Failure{
-          logs: [],
-          error: err,
-          stacktrace: [],
-          user_friendly_error: err
-        }
-
-      {:error, err, stacktrace, logs} ->
+      if State.valid_size?(encoded_state) do
+        cast_valid_trigger_result(res, prev_state, contract_tx, encoded_state)
+      else
         %Failure{
           logs: logs,
-          error: err,
-          stacktrace: stacktrace,
-          user_friendly_error: append_line_to_error(err, stacktrace)
+          error: "Execution was successful but the state exceed the threshold",
+          stacktrace: [],
+          user_friendly_error: "Execution was successful but the state exceed the threshold"
         }
+      end
     end
+  end
+
+  defp cast_trigger_result({:error, err}, _, _) do
+    %Failure{logs: [], error: err, stacktrace: [], user_friendly_error: err}
+  end
+
+  defp cast_trigger_result({:error, err, stacktrace, logs}, _, _) do
+    %Failure{
+      logs: logs,
+      error: err,
+      stacktrace: stacktrace,
+      user_friendly_error: append_line_to_error(err, stacktrace)
+    }
+  end
+
+  # No output transaction, no state update
+  defp cast_valid_trigger_result({:ok, nil, next_state, logs}, previous_state, _, encoded_state)
+       when next_state == previous_state do
+    %ActionWithoutTransaction{encoded_state: encoded_state, logs: logs}
+  end
+
+  # No output transaction but state update
+  defp cast_valid_trigger_result({:ok, nil, _next_state, logs}, _, contract_tx, encoded_state) do
+    %ActionWithTransaction{
+      encoded_state: encoded_state,
+      logs: logs,
+      next_tx: generate_next_tx(contract_tx)
+    }
+  end
+
+  defp cast_valid_trigger_result({:ok, next_tx, _next_state, logs}, _, _, encoded_state) do
+    %ActionWithTransaction{encoded_state: encoded_state, logs: logs, next_tx: next_tx}
   end
 
   @doc """
@@ -341,37 +350,5 @@ defmodule Archethic.Contracts do
       _ ->
         Exception.message(err)
     end
-  end
-
-  defp execute_trigger_noop_response({:ok, nil}, logs, _input_utxo, _contract_tx) do
-    %ActionWithoutTransaction{
-      next_state_utxo: nil,
-      logs: logs
-    }
-  end
-
-  defp execute_trigger_noop_response({:ok, output_utxo}, logs, input_utxo, _contract_tx)
-       when input_utxo == output_utxo do
-    %ActionWithoutTransaction{
-      next_state_utxo: output_utxo,
-      logs: logs
-    }
-  end
-
-  defp execute_trigger_noop_response({:ok, state_utxo}, logs, _input_utxo, contract_tx) do
-    %ActionWithTransaction{
-      logs: logs,
-      next_tx: generate_next_tx(contract_tx),
-      next_state_utxo: state_utxo
-    }
-  end
-
-  defp execute_trigger_noop_response({:error, :state_too_big}, logs, _input_utxo, _contract_tx) do
-    %Failure{
-      logs: logs,
-      error: "Execution was successful but the state exceed the threshold",
-      stacktrace: [],
-      user_friendly_error: "Execution was successful but the state exceed the threshold"
-    }
   end
 end

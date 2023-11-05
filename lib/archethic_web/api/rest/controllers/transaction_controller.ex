@@ -122,7 +122,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
           changeset
           |> TransactionPayload.to_map()
           |> Transaction.cast()
-          |> Mining.get_transaction_fee(nil, uco_usd, timestamp)
+          |> Mining.get_transaction_fee(nil, uco_usd, timestamp, nil)
 
         conn
         |> put_status(:ok)

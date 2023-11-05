@@ -15,6 +15,8 @@ defmodule Archethic.AccountTest do
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
 
+  alias Archethic.TransactionFactory
+
   import Mox
   import ArchethicCase
 
@@ -326,9 +328,11 @@ defmodule Archethic.AccountTest do
     end
 
     test "should be able to store and return state utxo" do
+      encoded_state = :crypto.strong_rand_bytes(10)
+
       state_utxo = %UnspentOutput{
         type: :state,
-        encoded_payload: :crypto.strong_rand_bytes(10)
+        encoded_payload: encoded_state
       }
 
       # some ucos are necessary for TransactionFactory.create_valid_transaction
@@ -339,7 +343,7 @@ defmodule Archethic.AccountTest do
         timestamp: DateTime.utc_now()
       }
 
-      tx = Archethic.TransactionFactory.create_valid_transaction([uco_utxo], state: state_utxo)
+      tx = TransactionFactory.create_valid_transaction([uco_utxo], state: encoded_state)
       Account.load_transaction(tx, false)
 
       assert utxos = Account.get_unspent_outputs(tx.address)

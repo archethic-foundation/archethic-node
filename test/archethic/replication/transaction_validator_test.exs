@@ -3,7 +3,7 @@ defmodule Archethic.Replication.TransactionValidatorTest do
 
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetLastTransactionAddress
@@ -167,8 +167,12 @@ defmodule Archethic.Replication.TransactionValidatorTest do
       end
       """
 
+      encoded_state = State.serialize(%{"key" => "value"})
+
       prev_tx = ContractFactory.create_valid_contract_tx(code)
-      next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "ok")
+
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx, content: "ok", state: encoded_state)
 
       inputs = [
         %UnspentOutput{

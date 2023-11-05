@@ -1,12 +1,11 @@
 defmodule Archethic.TransactionFactory do
   @moduledoc false
 
-  alias Archethic.{
-    Crypto,
-    Election,
-    Mining.Fee,
-    SharedSecrets
-  }
+  alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.Mining.Fee
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -18,6 +17,10 @@ defmodule Archethic.TransactionFactory do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
+
+  alias Archethic.SharedSecrets
+
+  import ArchethicCase
 
   def create_non_valided_transaction(opts \\ []) do
     type = Keyword.get(opts, :type, :transfer)
@@ -55,7 +58,7 @@ defmodule Archethic.TransactionFactory do
     ledger = Keyword.get(opts, :ledger, %Ledger{})
     ownerships = Keyword.get(opts, :ownerships, [])
     recipients = Keyword.get(opts, :recipients, [])
-    maybe_state_utxo = Keyword.get(opts, :state)
+    encoded_state = Keyword.get(opts, :state)
     prev_tx = Keyword.get(opts, :prev_tx)
 
     timestamp =
@@ -77,10 +80,10 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, ArchethicCase.current_protocol_version()),
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, encoded_state, current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, maybe_state_utxo)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, encoded_state)
       |> elem(1)
 
     poi =
@@ -128,9 +131,9 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, ArchethicCase.current_protocol_version())
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version())
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, nil)
       |> elem(1)
 
     validation_stamp =
@@ -163,9 +166,9 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, ArchethicCase.current_protocol_version())
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version())
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, nil)
       |> elem(1)
 
     validation_stamp = %ValidationStamp{
@@ -199,9 +202,9 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, ArchethicCase.current_protocol_version())
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version())
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, nil)
       |> elem(1)
 
     validation_stamp = %ValidationStamp{
@@ -231,7 +234,7 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{
         fee: 1_000_000_000
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, nil)
       |> elem(1)
 
     validation_stamp =
@@ -261,12 +264,12 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, ArchethicCase.current_protocol_version()),
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version()),
         transaction_movements: [
           %TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}
         ]
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, nil)
       |> elem(1)
 
     validation_stamp =
@@ -313,10 +316,10 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, ArchethicCase.current_protocol_version()),
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp, nil)
       |> elem(1)
 
     validation_stamp =

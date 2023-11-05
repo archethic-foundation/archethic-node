@@ -36,6 +36,7 @@ defmodule Archethic.Mining.FeeTest do
                  nil,
                  0.2,
                  DateTime.utc_now(),
+                 nil,
                  current_protocol_version()
                )
 
@@ -87,6 +88,7 @@ defmodule Archethic.Mining.FeeTest do
           nil,
           2.0,
           DateTime.utc_now(),
+          nil,
           current_protocol_version()
         )
 
@@ -128,6 +130,7 @@ defmodule Archethic.Mining.FeeTest do
           nil,
           2.0,
           DateTime.utc_now(),
+          nil,
           current_protocol_version()
         )
 
@@ -178,6 +181,7 @@ defmodule Archethic.Mining.FeeTest do
           nil,
           2.0,
           DateTime.utc_now(),
+          nil,
           current_protocol_version()
         )
 
@@ -211,6 +215,7 @@ defmodule Archethic.Mining.FeeTest do
           nil,
           2.0,
           DateTime.utc_now(),
+          nil,
           current_protocol_version()
         )
 
@@ -250,7 +255,7 @@ defmodule Archethic.Mining.FeeTest do
           """
         )
 
-      fee = Fee.calculate(tx, nil, 2.0, DateTime.utc_now(), current_protocol_version())
+      fee = Fee.calculate(tx, nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
       nb_bytes =
         tx.data
@@ -277,9 +282,9 @@ defmodule Archethic.Mining.FeeTest do
           }
         )
 
-      fee1 = Fee.calculate(tx, nil, 2.0, DateTime.utc_now(), current_protocol_version())
+      fee1 = Fee.calculate(tx, nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
-      fee2 = Fee.calculate(tx, nil, 10.0, DateTime.utc_now(), current_protocol_version())
+      fee2 = Fee.calculate(tx, nil, 10.0, DateTime.utc_now(), nil, current_protocol_version())
 
       assert fee2 < fee1
     end
@@ -290,14 +295,14 @@ defmodule Archethic.Mining.FeeTest do
           type: :transfer,
           content: :crypto.strong_rand_bytes(1_000)
         )
-        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), nil, current_protocol_version())
 
       fee_tx_big =
         TransactionFactory.create_non_valided_transaction(
           type: :transfer,
           content: :crypto.strong_rand_bytes(10 * 1_000_000)
         )
-        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), nil, current_protocol_version())
 
       assert fee_tx_big > fee_tx_small
     end
@@ -306,7 +311,7 @@ defmodule Archethic.Mining.FeeTest do
       tx = TransactionFactory.create_valid_transaction([])
 
       fee_without_state =
-        Fee.calculate(tx, nil, 0.2, DateTime.utc_now(), ArchethicCase.current_protocol_version())
+        Fee.calculate(tx, nil, 0.2, DateTime.utc_now(), nil, current_protocol_version())
 
       state_utxo = %UnspentOutput{
         type: :state,
@@ -338,7 +343,7 @@ defmodule Archethic.Mining.FeeTest do
         status: :tx_output
       }
 
-      assert 0 == Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+      assert 0 == Fee.calculate(tx, contract_context, 0.2, timestamp, nil, version)
     end
 
     test "should return fee for contract not triggered by transaction" do
@@ -353,15 +358,15 @@ defmodule Archethic.Mining.FeeTest do
         status: :tx_output
       }
 
-      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, nil, version)
 
       contract_context = Map.put(contract_context, :trigger, {:datetime, DateTime.utc_now()})
-      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, nil, version)
 
       contract_context =
         Map.put(contract_context, :trigger, {:interval, "* * * * *", DateTime.utc_now()})
 
-      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, version)
+      assert 0 != Fee.calculate(tx, contract_context, 0.2, timestamp, nil, version)
     end
 
     test "should cost more with more replication nodes" do
@@ -372,7 +377,7 @@ defmodule Archethic.Mining.FeeTest do
             uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000, to: random_address()}]}
           }
         )
-        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
       add_nodes(100)
 
@@ -383,7 +388,7 @@ defmodule Archethic.Mining.FeeTest do
             uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000, to: random_address()}]}
           }
         )
-        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
       assert tx_fee_50_nodes < tx_fee_100_nodes
     end
@@ -396,7 +401,7 @@ defmodule Archethic.Mining.FeeTest do
             uco: %UCOLedger{transfers: [%Transfer{amount: 100_000_000_000, to: random_address()}]}
           }
         )
-        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), nil, current_protocol_version())
 
       batched_tx_fee =
         TransactionFactory.create_non_valided_transaction(
@@ -408,7 +413,7 @@ defmodule Archethic.Mining.FeeTest do
             }
           }
         )
-        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 0.2, DateTime.utc_now(), nil, current_protocol_version())
 
       assert batched_tx_fee > single_tx_fee
     end
@@ -427,7 +432,7 @@ defmodule Archethic.Mining.FeeTest do
               ]
             })
         )
-        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
       fee2 =
         TransactionFactory.create_non_valided_transaction(
@@ -445,7 +450,7 @@ defmodule Archethic.Mining.FeeTest do
               ]
             })
         )
-        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
       assert fee2 > fee1
     end
@@ -456,7 +461,7 @@ defmodule Archethic.Mining.FeeTest do
           type: :token,
           content: Jason.encode!(%{type: "fungible"})
         )
-        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
       fee2 =
         TransactionFactory.create_non_valided_transaction(
@@ -471,7 +476,7 @@ defmodule Archethic.Mining.FeeTest do
               ]
             })
         )
-        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), current_protocol_version())
+        |> Fee.calculate(nil, 2.0, DateTime.utc_now(), nil, current_protocol_version())
 
       assert fee2 > fee1
     end
@@ -497,6 +502,7 @@ defmodule Archethic.Mining.FeeTest do
             nil,
             2.0,
             DateTime.utc_now(),
+            nil,
             current_protocol_version()
           )
 
@@ -514,6 +520,7 @@ defmodule Archethic.Mining.FeeTest do
             nil,
             2.0,
             DateTime.utc_now(),
+            nil,
             current_protocol_version()
           )
 

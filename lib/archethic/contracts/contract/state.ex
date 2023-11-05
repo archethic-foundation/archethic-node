@@ -19,11 +19,16 @@ defmodule Archethic.Contracts.Contract.State do
   @type_nil 6
 
   @type t() :: map()
+  @type encoded() :: binary()
 
   @spec empty() :: t()
-  def empty() do
-    %{}
-  end
+  def empty(), do: %{}
+
+  @spec empty?(state :: t()) :: boolean()
+  def empty?(state), do: state == empty()
+
+  @spec valid_size?(encoded_state :: encoded()) :: boolean()
+  def valid_size?(encoded_state), do: byte_size(encoded_state) <= @max_compressed_state_size
 
   @doc """
   Extract the state from a validated transaction (nil if none)
@@ -75,7 +80,7 @@ defmodule Archethic.Contracts.Contract.State do
   @doc """
   Serialize the given state
   """
-  @spec serialize(t()) :: binary()
+  @spec serialize(t()) :: encoded()
   def serialize(state) do
     case @current_serialization_version do
       1 ->

@@ -211,7 +211,7 @@ defmodule Archethic.ContractsTest do
         end
       """
 
-      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
+      encoded_state = State.serialize(%{"key" => "value"})
 
       # some ucos are necessary for ContractFactory.create_valid_contract_tx
       uco_utxo = %UnspentOutput{
@@ -222,7 +222,7 @@ defmodule Archethic.ContractsTest do
       }
 
       contract_tx =
-        ContractFactory.create_valid_contract_tx(code, state: state_utxo, inputs: [uco_utxo])
+        ContractFactory.create_valid_contract_tx(code, state: encoded_state, inputs: [uco_utxo])
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
@@ -609,6 +609,27 @@ defmodule Archethic.ContractsTest do
                  nil,
                  nil
                )
+
+      code = ~S"""
+        @version 1
+        actions triggered_by: datetime, at: 0 do
+          State.delete("key")
+        end
+
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
+
+      assert %ActionWithTransaction{} =
+               Contracts.execute_trigger(
+                 {:datetime, DateTime.from_unix!(0)},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil,
+                 state_utxo
+               )
     end
 
     test "should return NoOp if the state did not changed" do
@@ -710,13 +731,10 @@ defmodule Archethic.ContractsTest do
         timestamp: DateTime.utc_now()
       }
 
-      {:ok, state_utxo} = State.to_utxo(%{"key" => 42})
+      encoded_state = State.serialize(%{"key" => 42})
 
       contract_tx =
-        ContractFactory.create_valid_contract_tx(code,
-          inputs: [uco_utxo],
-          state: state_utxo
-        )
+        ContractFactory.create_valid_contract_tx(code, inputs: [uco_utxo], state: encoded_state)
 
       contract = Contract.from_transaction!(contract_tx)
 

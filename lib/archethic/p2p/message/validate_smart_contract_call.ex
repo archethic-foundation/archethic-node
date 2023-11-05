@@ -105,7 +105,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   end
 
   defp calculate_fee(
-         %ActionWithTransaction{next_tx: next_tx, next_state_utxo: maybe_state_utxo},
+         %ActionWithTransaction{next_tx: next_tx, encoded_state: encoded_state},
          contract = %Contract{transaction: %Transaction{address: contract_address}},
          timestamp
        ) do
@@ -125,8 +125,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
           nil,
           previous_usd_price,
           timestamp,
-          Mining.protocol_version(),
-          maybe_state_utxo
+          encoded_state
         )
 
       _ ->

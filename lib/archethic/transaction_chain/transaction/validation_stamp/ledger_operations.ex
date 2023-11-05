@@ -13,6 +13,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             tokens_to_mint: [],
             fee: 0
 
+  alias Archethic.Contracts.Contract.State
+
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction
@@ -200,7 +202,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           change_address :: binary(),
           inputs :: list(UnspentOutput.t() | TransactionInput.t()),
           timestamp :: DateTime.t(),
-          maybe_new_state_utxo :: nil | UnspentOutput.t()
+          encoded_state :: State.encoded() | nil
         ) ::
           {boolean(), t()}
   def consume_inputs(
@@ -208,7 +210,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         change_address,
         inputs,
         timestamp,
-        maybe_new_state_utxo \\ nil
+        encoded_state
       )
       when is_binary(change_address) and is_list(inputs) and not is_nil(timestamp) do
     # Since AEIP-19 we can consume from minted tokens
@@ -235,9 +237,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       }
 
       utxos =
-        case maybe_new_state_utxo do
-          nil -> [uco_utxo | tokens_utxos]
-          state_utxo -> [uco_utxo, state_utxo | tokens_utxos]
+        if encoded_state == nil do
+          [uco_utxo | tokens_utxos]
+        else
+          state_utxo = %UnspentOutput{type: :state, encoded_payload: encoded_state}
+          [uco_utxo, state_utxo | tokens_utxos]
         end
 
       {true,
