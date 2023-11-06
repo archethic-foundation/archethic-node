@@ -3,9 +3,13 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
   JsonRPC method to estimate transaction fee for a given transaction
   """
 
+  alias Archethic.TransactionChain
   alias Archethic.Mining
+  alias Archethic.Mining.SmartContractValidation
   alias Archethic.OracleChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
 
   alias ArchethicWeb.API.JsonRPC.Method
   alias ArchethicWeb.API.JsonRPC.TransactionSchema
@@ -45,9 +49,32 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
     uco_eur = previous_price |> Keyword.fetch!(:eur)
     uco_usd = previous_price |> Keyword.fetch!(:usd)
 
-    fee = Mining.get_transaction_fee(tx, nil, uco_usd, timestamp)
+    resolved_recipients = resolve_recipient_addresses(tx, timestamp)
+
+    {_valid?, recipients_fee} =
+      SmartContractValidation.validate_contract_calls(resolved_recipients, tx, timestamp)
+
+    fee = Mining.get_transaction_fee(tx, nil, uco_usd, timestamp, recipients_fee)
 
     result = %{"fee" => fee, "rates" => %{"usd" => uco_usd, "eur" => uco_eur}}
     {:ok, result}
+  end
+
+  defp resolve_recipient_addresses(
+         tx = %Transaction{data: %TransactionData{recipients: recipients}},
+         timestamp
+       ) do
+    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, timestamp)
+
+    Enum.reduce(recipients, [], fn r = %Recipient{address: address}, acc ->
+      resolved = get_resolved_address_for_address(resolved_addresses, address)
+      [%Recipient{r | address: resolved} | acc]
+    end)
+    |> Enum.reverse()
+  end
+
+  defp get_resolved_address_for_address(resolved_addresses, address) do
+    {_to, resolved} = Enum.find(resolved_addresses, fn {to, _resolved} -> to == address end)
+    resolved
   end
 end

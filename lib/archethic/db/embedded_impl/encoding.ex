@@ -63,7 +63,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     recipients_encoding =
       recipients
       |> Enum.map(&Recipient.serialize(&1, tx_version))
-      |> :erlang.list_to_binary()
+      |> :erlang.list_to_bitstring()
 
     transaction_movements_encoding =
       transaction_movements
@@ -107,7 +107,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"data.ledger.uco", UCOLedger.serialize(uco_ledger, tx_version)},
         {"data.ledger.token", TokenLedger.serialize(token_ledger, tx_version)},
         {"data.ownerships", <<encoded_ownerships_len::binary, ownerships_encoding::binary>>},
-        {"data.recipients", <<encoded_recipients_len::binary, recipients_encoding::binary>>},
+        {"data.recipients", <<encoded_recipients_len::binary, recipients_encoding::bitstring>>},
         {"previous_public_key", previous_public_key},
         {"previous_signature", previous_signature},
         {"origin_signature", origin_signature},
@@ -129,7 +129,10 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
          <<length(cross_validation_stamps)::8, cross_validation_stamps_encoding::binary>>}
       ]
       |> Enum.map(fn {column, value} ->
-        <<byte_size(column)::8, byte_size(value)::32, column::binary, value::binary>>
+        wrapped_value = Utils.wrap_binary(value)
+
+        <<byte_size(column)::8, byte_size(wrapped_value)::32, column::binary,
+          wrapped_value::binary>>
       end)
 
     binary_encoding = :erlang.list_to_binary(encoding)

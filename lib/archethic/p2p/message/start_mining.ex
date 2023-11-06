@@ -112,11 +112,11 @@ defmodule Archethic.P2P.Message.StartMining do
           <<1::8, Contract.Context.serialize(contract_context)::bitstring>>
       end
 
-    <<Transaction.serialize(tx)::binary, welcome_node_public_key::binary,
+    <<Transaction.serialize(tx)::bitstring, welcome_node_public_key::binary,
       length(validation_node_public_keys)::8,
       :erlang.list_to_binary(validation_node_public_keys)::binary,
       network_chains_view_hash::binary, p2p_view_hash::binary,
-      serialized_contract_context::binary>>
+      serialized_contract_context::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}

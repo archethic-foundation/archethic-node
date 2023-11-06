@@ -10,6 +10,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     as: TransactionMovementType
 
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
           amount: non_neg_integer(),
@@ -38,7 +39,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
-      0, 0, 0, 0, 62, 149, 186, 128,
+      4, 62, 149, 186, 128,
       # Timestamp
       0, 0, 1, 131, 197, 240, 230, 191,
       # UCO Unspent Output
@@ -61,7 +62,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
-      0, 0, 0, 0, 62, 149, 186, 128,
+      4, 62, 149, 186, 128,
       # Timestamp
       0, 0, 1, 131, 197, 240, 230, 191,
       # Token Unspent Output
@@ -81,9 +82,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           type: type,
           timestamp: timestamp
         },
-        _protocol_version
+        protocol_version
       ) do
-    <<from::binary, amount::64, DateTime.to_unix(timestamp, :millisecond)::64,
+    amount_bin = if protocol_version <= 2, do: <<amount::64>>, else: VarInt.from_value(amount)
+
+    <<from::binary, amount_bin::binary, DateTime.to_unix(timestamp, :millisecond)::64,
       TransactionMovementType.serialize(type)::binary>>
   end
 
@@ -94,7 +97,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 0>>
+      ...> 4, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 0>>
       ...> |> UnspentOutput.deserialize(current_protocol_version())
       {
         %UnspentOutput{
@@ -109,7 +112,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
+      ...> 4, 62, 149, 186, 128, 0, 0, 1, 131, 197, 240, 230, 191, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35,
       ...> 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 1, 0>>
       ...> |> UnspentOutput.deserialize(current_protocol_version())
       {
@@ -126,8 +129,24 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   """
   @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
           {t(), bitstring}
-  def deserialize(data, _protocol_version) do
+  def deserialize(data, protocol_version) when protocol_version <= 2 do
     {address, <<amount::64, timestamp::64, rest::bitstring>>} = Utils.deserialize_address(data)
+    {type, rest} = TransactionMovementType.deserialize(rest)
+
+    {
+      %__MODULE__{
+        from: address,
+        amount: amount,
+        type: type,
+        timestamp: DateTime.from_unix!(timestamp, :millisecond)
+      },
+      rest
+    }
+  end
+
+  def deserialize(data, _protocol_version) do
+    {address, rest} = Utils.deserialize_address(data)
+    {amount, <<timestamp::64, rest::bitstring>>} = VarInt.get_value(rest)
     {type, rest} = TransactionMovementType.deserialize(rest)
 
     {

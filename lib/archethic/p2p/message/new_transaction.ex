@@ -54,7 +54,7 @@ defmodule Archethic.P2P.Message.NewTransaction do
       end
 
     <<Transaction.serialize(tx)::bitstring, node_pbkey::binary,
-      serialized_contract_context::binary>>
+      serialized_contract_context::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}

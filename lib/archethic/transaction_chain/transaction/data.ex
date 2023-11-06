@@ -3,6 +3,8 @@ defmodule Archethic.TransactionChain.TransactionData do
   Represents any transaction data block
   """
 
+  alias Archethic.TransactionChain.Transaction
+
   alias __MODULE__.Ledger
   alias __MODULE__.Ownership
   alias __MODULE__.Recipient
@@ -30,7 +32,11 @@ defmodule Archethic.TransactionChain.TransactionData do
   @doc """
   Serialize transaction data into binary format
   """
-  @spec serialize(tx_data :: t(), tx_version :: pos_integer()) :: bitstring()
+  @spec serialize(
+          tx_data :: t(),
+          tx_version :: pos_integer(),
+          serialization_mode :: Transaction.serialization_mode()
+        ) :: bitstring()
   def serialize(
         %__MODULE__{
           code: code,
@@ -39,7 +45,8 @@ defmodule Archethic.TransactionChain.TransactionData do
           ledger: ledger,
           recipients: recipients
         },
-        tx_version
+        tx_version,
+        mode \\ :compact
       ) do
     ownerships_bin =
       ownerships
@@ -48,8 +55,8 @@ defmodule Archethic.TransactionChain.TransactionData do
 
     recipients_bin =
       recipients
-      |> Enum.map(&Recipient.serialize(&1, tx_version))
-      |> :erlang.list_to_binary()
+      |> Enum.map(&Recipient.serialize(&1, tx_version, mode))
+      |> :erlang.list_to_bitstring()
 
     encoded_ownership_len = length(ownerships) |> VarInt.from_value()
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
@@ -57,17 +64,22 @@ defmodule Archethic.TransactionChain.TransactionData do
     <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary,
       Ledger.serialize(ledger, tx_version)::binary, encoded_recipients_len::binary,
-      recipients_bin::binary>>
+      recipients_bin::bitstring>>
   end
 
   @doc """
   Deserialize encoded transaction data
   """
-  @spec deserialize(data :: bitstring(), tx_version :: pos_integer()) :: {t(), bitstring()}
+  @spec deserialize(
+          data :: bitstring(),
+          tx_version :: pos_integer(),
+          serialization_mode :: Transaction.serialization_mode()
+        ) :: {t(), bitstring()}
   def deserialize(
         <<code_size::32, code::binary-size(code_size), content_size::32,
           content::binary-size(content_size), rest::bitstring>>,
-        tx_version
+        tx_version,
+        serialization_mode \\ :compact
       ) do
     {nb_ownerships, rest} = VarInt.get_value(rest)
 
@@ -75,7 +87,9 @@ defmodule Archethic.TransactionChain.TransactionData do
     {ledger, rest} = Ledger.deserialize(rest, tx_version)
 
     {nb_recipients, rest} = rest |> VarInt.get_value()
-    {recipients, rest} = reduce_recipients(rest, nb_recipients, [], tx_version)
+
+    {recipients, rest} =
+      reduce_recipients(rest, nb_recipients, [], tx_version, serialization_mode)
 
     {
       %__MODULE__{
@@ -99,14 +113,15 @@ defmodule Archethic.TransactionChain.TransactionData do
     reduce_ownerships(rest, nb_ownerships, [key | acc], version)
   end
 
-  defp reduce_recipients(rest, 0, _acc, _version), do: {[], rest}
+  defp reduce_recipients(rest, 0, _acc, _version, _mode), do: {[], rest}
 
-  defp reduce_recipients(rest, nb_recipients, acc, _version) when nb_recipients == length(acc),
-    do: {Enum.reverse(acc), rest}
+  defp reduce_recipients(rest, nb_recipients, acc, _version, _mode)
+       when nb_recipients == length(acc),
+       do: {Enum.reverse(acc), rest}
 
-  defp reduce_recipients(rest, nb_recipients, acc, version) do
-    {recipient, rest} = Recipient.deserialize(rest, version)
-    reduce_recipients(rest, nb_recipients, [recipient | acc], version)
+  defp reduce_recipients(rest, nb_recipients, acc, version, serialization_mode) do
+    {recipient, rest} = Recipient.deserialize(rest, version, serialization_mode)
+    reduce_recipients(rest, nb_recipients, [recipient | acc], version, serialization_mode)
   end
 
   @spec cast(map()) :: t()

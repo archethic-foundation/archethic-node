@@ -27,7 +27,7 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @protocol_version 2
+  @protocol_version 3
 
   def protocol_version, do: @protocol_version
 
@@ -257,8 +257,16 @@ defmodule Archethic.Mining do
         contract_context,
         uco_price_in_usd,
         timestamp,
+        contract_recipient_fees \\ 0,
         proto_version \\ protocol_version()
       ) do
-    Fee.calculate(tx, contract_context, uco_price_in_usd, timestamp, proto_version)
+    Fee.calculate(
+      tx,
+      contract_context,
+      uco_price_in_usd,
+      timestamp,
+      contract_recipient_fees,
+      proto_version
+    )
   end
 end

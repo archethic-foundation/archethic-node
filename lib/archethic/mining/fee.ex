@@ -49,17 +49,19 @@ defmodule Archethic.Mining.Fee do
           contract_context :: Contract.Context.t() | nil,
           uco_usd_price :: float(),
           timestamp :: DateTime.t(),
+          contract_recipient_fee :: non_neg_integer(),
           protocol_version :: pos_integer()
         ) :: non_neg_integer()
-  def calculate(%Transaction{type: :keychain}, _, _, _, _), do: 0
-  def calculate(%Transaction{type: :keychain_access}, _, _, _, _), do: 0
-  def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain}, _, _, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _, _, _, _, _), do: 0
+  def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _, _), do: 0
 
   def calculate(
         tx = %Transaction{address: address, type: type},
         _contract_context,
         uco_price_in_usd,
         timestamp,
+        contract_recipient_fee,
         protocol_version
       ) do
     cond do
@@ -89,7 +91,7 @@ defmodule Archethic.Mining.Fee do
           minimum_fee(uco_price_in_usd) + storage_cost + replication_cost +
             get_additional_fee(tx, uco_price_in_usd)
 
-        trunc(fee * @unit_uco)
+        trunc(fee * @unit_uco + contract_recipient_fee)
     end
   end
 
