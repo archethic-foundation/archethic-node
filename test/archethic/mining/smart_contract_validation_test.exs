@@ -207,7 +207,7 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       :ok
     end
 
-    test "should return true if there is no context" do
+    test "should return false if there is no context and there is a trigger" do
       now = ~U[2023-06-20 12:00:00Z]
 
       code = """
@@ -220,6 +220,24 @@ defmodule Archethic.Mining.SmartContractValidationTest do
       prev_tx = ContractFactory.create_valid_contract_tx(code)
 
       next_tx = ContractFactory.create_next_contract_tx(prev_tx, content: "wake up")
+
+      assert {false, nil} =
+               SmartContractValidation.valid_contract_execution?(nil, prev_tx, next_tx)
+    end
+
+    test "should return true if there is no context and there is no trigger" do
+      code = """
+      @version 1
+      condition inherit: [ content: true ]
+      """
+
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
+
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx,
+          content: "{\"uco\":{\"eur\":0.00, \"usd\":0.00}}",
+          type: :oracle
+        )
 
       assert {true, nil} =
                SmartContractValidation.valid_contract_execution?(nil, prev_tx, next_tx)

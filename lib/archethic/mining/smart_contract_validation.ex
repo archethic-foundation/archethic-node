@@ -14,6 +14,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TaskSupervisor
 
@@ -59,39 +60,54 @@ defmodule Archethic.Mining.SmartContractValidation do
   @spec valid_contract_execution?(Contract.Context.t(), Transaction.t(), Transaction.t()) ::
           {boolean(), State.encoded() | nil}
   def valid_contract_execution?(
-        %Contract.Context{status: :tx_output, trigger: trigger, timestamp: timestamp},
+        %Contract.Context{status: status, trigger: trigger, timestamp: timestamp},
         prev_tx = %Transaction{address: previous_address},
         next_tx
       ) do
+    trigger_type = trigger_to_trigger_type(trigger)
+    recipient = trigger_to_recipient(trigger)
+    opts = trigger_to_execute_opts(trigger)
+
     with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
-         {:ok, contract} <- Contract.from_transaction(prev_tx) do
-      result =
-        Contracts.execute_trigger(
-          trigger_to_trigger_type(trigger),
-          contract,
-          maybe_trigger_tx,
-          trigger_to_recipient(trigger),
-          trigger_to_execute_opts(trigger)
-        )
-
-      case result do
-        %ActionWithTransaction{next_tx: expected_next_tx, encoded_state: encoded_state} ->
-          same_transaction? =
-            next_tx
-            |> Contract.remove_seed_ownership()
-            |> Transaction.same_payload?(expected_next_tx)
-
-          {same_transaction?, encoded_state}
-
-        _ ->
-          {false, nil}
-      end
+         {:ok, contract} <- Contract.from_transaction(prev_tx),
+         res <-
+           Contracts.execute_trigger(trigger_type, contract, maybe_trigger_tx, recipient, opts),
+         {:ok, encoded_state} <- validate_result(res, next_tx, status) do
+      {true, encoded_state}
     else
       _ -> {false, nil}
     end
   end
 
-  def valid_contract_execution?(_context, _prev_tx, _next_tx), do: {true, nil}
+  def valid_contract_execution?(
+        _contract_context = nil,
+        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        _next_tx = %Transaction{}
+      )
+      when code != "" do
+    # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
+    case Contract.from_transaction(prev_tx) do
+      {:ok, %Contract{triggers: triggers}} when map_size(triggers) == 0 -> {true, nil}
+      _ -> {false, nil}
+    end
+  end
+
+  def valid_contract_execution?(_, _, _), do: {true, nil}
+
+  defp validate_result(
+         %ActionWithTransaction{next_tx: expected_next_tx, encoded_state: encoded_state},
+         next_tx,
+         _status = :tx_output
+       ) do
+    same_payload? =
+      next_tx
+      |> Contract.remove_seed_ownership()
+      |> Transaction.same_payload?(expected_next_tx)
+
+    if same_payload?, do: {:ok, encoded_state}, else: :error
+  end
+
+  defp validate_result(_, _, _), do: :error
 
   defp validate_trigger({:datetime, datetime}, validation_datetime, _contract_address) do
     if within_drift_tolerance?(validation_datetime, datetime) do
