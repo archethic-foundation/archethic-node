@@ -3,8 +3,8 @@ defmodule Archethic.Contracts.InterpreterTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.ContractConstants, as: Constants
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.Interpreter
@@ -340,7 +340,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, "function", []},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -363,7 +362,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -395,7 +393,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -430,7 +427,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -467,7 +463,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -495,7 +490,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -526,7 +520,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -558,7 +551,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -597,7 +589,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -634,7 +625,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -675,7 +665,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -712,7 +701,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -749,7 +737,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -774,7 +761,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -799,7 +785,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -819,7 +804,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil
                )
@@ -839,7 +823,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:datetime, ~U[2023-03-16 16:29:00Z]},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  nil,
                  nil
                )
@@ -859,7 +842,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:interval, "* * * * *"},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  nil,
                  nil
                )
@@ -882,7 +864,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  oracle_tx,
                  nil
                )
@@ -913,7 +894,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
                )
@@ -948,7 +928,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  incoming_tx,
                  nil,
                  time_now: now
@@ -979,7 +958,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
                )
@@ -1007,7 +985,6 @@ defmodule Archethic.Contracts.InterpreterTest do
                Interpreter.execute_trigger(
                  trigger_key,
                  Contract.from_transaction!(contract_tx),
-                 State.empty(),
                  trigger_tx,
                  List.first(trigger_tx.data.recipients)
                )
@@ -1022,13 +999,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
       """
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      encoded_state = State.serialize(%{"counter" => 44})
+      contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
       assert {:ok, nil, %{"counter" => 45}, _logs} =
                Interpreter.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
-                 %{"counter" => 44},
                  nil,
                  nil
                )
@@ -1079,13 +1056,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
       """
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      encoded_state = State.serialize(%{"counter" => 44})
+      contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
       assert {:ok, %Transaction{data: %TransactionData{content: "ok"}}, _state, _logs} =
                Interpreter.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
-                 %{"counter" => 44},
                  nil,
                  nil
                )
@@ -1105,13 +1082,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
       """
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      encoded_state = State.serialize(%{"counter" => 44})
+      contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
       assert {:ok, %Transaction{data: %TransactionData{content: "ok"}}, _state, _logs} =
                Interpreter.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
-                 %{"counter" => 44},
                  nil,
                  nil
                )
@@ -1131,13 +1108,13 @@ defmodule Archethic.Contracts.InterpreterTest do
       end
       """
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      encoded_state = State.serialize(%{"a" => %{"b" => %{"c" => [1, 2, 3]}}})
+      contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
       assert {:ok, nil, %{"a" => %{"b" => %{"c" => [1, 2, 3, 4]}}}, _logs} =
                Interpreter.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
-                 %{"a" => %{"b" => %{"c" => [1, 2, 3]}}},
                  nil,
                  nil
                )

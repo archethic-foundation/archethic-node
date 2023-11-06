@@ -4,7 +4,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
   """
 
   alias Archethic.Contracts
-  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
   alias Archethic.Contracts.Interpreter.Library
 
@@ -28,9 +27,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
         )
 
     with {:ok, tx} <- Archethic.get_last_transaction(address),
-         maybe_state_utxo <- State.get_utxo_from_transaction(tx),
          {:ok, contract} <- Contracts.from_transaction(tx),
-         {:ok, result} <- Contracts.execute_function(contract, function, args, maybe_state_utxo) do
+         {:ok, result} <- Contracts.execute_function(contract, function, args) do
       result
     else
       {:error, reason} ->

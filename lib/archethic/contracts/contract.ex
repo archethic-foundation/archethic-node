@@ -3,6 +3,8 @@ defmodule Archethic.Contracts.Contract do
   Represents a smart contract
   """
 
+  alias __MODULE__.State
+
   alias Archethic.Contracts.ContractConditions, as: Conditions
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
 
@@ -14,6 +16,9 @@ defmodule Archethic.Contracts.Contract do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
 
@@ -21,6 +26,7 @@ defmodule Archethic.Contracts.Contract do
             functions: %{},
             version: 0,
             conditions: %{},
+            state: %{},
             transaction: %Transaction{}
 
   @type trigger_type() ::
@@ -53,6 +59,7 @@ defmodule Archethic.Contracts.Contract do
           triggers: %{trigger_key() => %{args: list(binary()), ast: Macro.t()}},
           version: integer(),
           conditions: %{condition_key() => Conditions.t()},
+          state: State.t(),
           transaction: Transaction.t()
         }
 
@@ -71,8 +78,28 @@ defmodule Archethic.Contracts.Contract do
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
   def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
     case Interpreter.parse(code) do
-      {:ok, contract} -> {:ok, contract |> Map.put(:transaction, tx)}
-      {:error, reason} -> {:error, reason}
+      {:ok, contract} ->
+        state = get_state_from_tx(tx)
+        contract = contract |> Map.put(:transaction, tx) |> Map.put(:state, state)
+        {:ok, contract}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp get_state_from_tx(%Transaction{
+         validation_stamp: %ValidationStamp{
+           ledger_operations: %LedgerOperations{unspent_outputs: utxos}
+         }
+       }) do
+    case Enum.find(utxos, &(&1.type == :state)) do
+      %UnspentOutput{encoded_payload: encoded_state} ->
+        {state, _rest} = State.deserialize(encoded_state)
+        state
+
+      nil ->
+        State.empty()
     end
   end
 

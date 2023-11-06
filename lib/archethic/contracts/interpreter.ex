@@ -119,7 +119,6 @@ defmodule Archethic.Contracts.Interpreter do
   @spec execute_trigger(
           trigger :: Contract.trigger_type(),
           contract :: Contract.t(),
-          state :: State.t(),
           maybe_trigger_tx :: nil | Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
           opts :: execute_opts()
@@ -134,9 +133,9 @@ defmodule Archethic.Contracts.Interpreter do
           transaction: contract_tx,
           version: version,
           triggers: triggers,
-          functions: functions
+          functions: functions,
+          state: state
         },
-        state,
         maybe_trigger_tx,
         maybe_recipient,
         opts \\ []

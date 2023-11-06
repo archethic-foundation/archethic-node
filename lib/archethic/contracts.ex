@@ -18,7 +18,6 @@ defmodule Archethic.Contracts do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
 
@@ -61,19 +60,15 @@ defmodule Archethic.Contracts do
           contract :: Contract.t(),
           maybe_trigger_tx :: nil | Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
-          maybe_state_utxo :: nil | UnspentOutput.t(),
           opts :: Keyword.t()
         ) :: Failure.t() | ActionWithTransaction.t() | ActionWithoutTransaction.t()
   def execute_trigger(
         trigger_type,
-        contract = %Contract{transaction: contract_tx},
+        contract = %Contract{transaction: contract_tx, state: state},
         maybe_trigger_tx,
         maybe_recipient,
-        maybe_state_utxo \\ nil,
         opts \\ []
       ) do
-    state = State.from_utxo(maybe_state_utxo)
-
     # TODO: trigger_tx & recipient should be transformed into recipient here
     # TODO: rescue should be done in here as well
     # TODO: implement timeout
@@ -81,7 +76,6 @@ defmodule Archethic.Contracts do
     Interpreter.execute_trigger(
       trigger_type,
       contract,
-      state,
       maybe_trigger_tx,
       maybe_recipient,
       opts
@@ -146,8 +140,7 @@ defmodule Archethic.Contracts do
   @spec execute_function(
           contract :: Contract.t(),
           function_name :: String.t(),
-          args_values :: list(),
-          maybe_state_utxo :: nil | UnspentOutput.t()
+          args_values :: list()
         ) ::
           {:ok, result :: any()}
           | {:error, :function_failure}
@@ -156,10 +149,9 @@ defmodule Archethic.Contracts do
           | {:error, :timeout}
 
   def execute_function(
-        contract = %Contract{transaction: contract_tx, version: contract_version},
+        contract = %Contract{transaction: contract_tx, version: contract_version, state: state},
         function_name,
-        args_values,
-        maybe_state_utxo \\ nil
+        args_values
       ) do
     case get_function_from_contract(contract, function_name, args_values) do
       {:ok, function} ->
@@ -167,7 +159,7 @@ defmodule Archethic.Contracts do
           "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
           :time_now => DateTime.utc_now() |> DateTime.to_unix(),
           :encrypted_seed => Contract.get_encrypted_seed(contract),
-          :state => State.from_utxo(maybe_state_utxo)
+          :state => state
         }
 
         task =
@@ -287,20 +279,19 @@ defmodule Archethic.Contracts do
          contract = %Contract{
            transaction: contract_tx,
            functions: functions,
-           version: contract_version
+           version: contract_version,
+           state: state
          },
          transaction,
          datetime
        ) do
-    maybe_state_utxo = State.get_utxo_from_transaction(contract_tx)
-
     %{
       "previous" => Constants.from_contract_transaction(contract_tx, contract_version),
       "next" => Constants.from_contract_transaction(transaction, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
       :encrypted_seed => Contract.get_encrypted_seed(contract),
-      :state => State.from_utxo(maybe_state_utxo)
+      :state => state
     }
   end
 
@@ -309,20 +300,19 @@ defmodule Archethic.Contracts do
          contract = %Contract{
            transaction: contract_tx,
            functions: functions,
-           version: contract_version
+           version: contract_version,
+           state: state
          },
          transaction,
          datetime
        ) do
-    maybe_state_utxo = State.get_utxo_from_transaction(contract_tx)
-
     %{
       "transaction" => Constants.from_transaction(transaction, contract_version),
       "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
       :encrypted_seed => Contract.get_encrypted_seed(contract),
-      :state => State.from_utxo(maybe_state_utxo)
+      :state => state
     }
   end
 

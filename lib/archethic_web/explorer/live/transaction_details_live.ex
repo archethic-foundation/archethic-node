@@ -1,5 +1,6 @@
 defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   @moduledoc false
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Contracts.Contract.State
@@ -265,7 +266,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:ko?, true)
   end
 
-  def print_state(state_utxo) do
-    Jason.encode!(State.from_utxo(state_utxo), pretty: true)
+  def print_state(%UnspentOutput{encoded_payload: encoded_state}) do
+    encoded_state |> State.deserialize() |> Jason.encode!(pretty: true)
   end
 end

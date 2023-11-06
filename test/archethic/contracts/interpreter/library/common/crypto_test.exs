@@ -6,7 +6,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
 
   use ArchethicCase
 
-  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.Library
@@ -77,7 +76,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  contract,
-                 State.empty(),
                  trigger_tx,
                  nil
                )
@@ -122,7 +120,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  contract,
-                 State.empty(),
                  trigger_tx,
                  nil
                )
@@ -149,7 +146,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  contract,
-                 State.empty(),
                  trigger_tx,
                  nil
                )

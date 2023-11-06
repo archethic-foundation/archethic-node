@@ -12,6 +12,7 @@ defmodule Archethic.TransactionFactory do
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
@@ -47,7 +48,14 @@ defmodule Archethic.TransactionFactory do
   end
 
   def create_valid_transaction(
-        inputs \\ [],
+        inputs \\ [
+          %UnspentOutput{
+            type: :UCO,
+            amount: 1_000_000_000,
+            from: random_address(),
+            timestamp: DateTime.utc_now()
+          }
+        ],
         opts \\ []
       ) do
     type = Keyword.get(opts, :type, :transfer)

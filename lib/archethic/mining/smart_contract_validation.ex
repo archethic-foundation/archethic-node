@@ -71,7 +71,6 @@ defmodule Archethic.Mining.SmartContractValidation do
           contract,
           maybe_trigger_tx,
           trigger_to_recipient(trigger),
-          State.get_utxo_from_transaction(prev_tx),
           trigger_to_execute_opts(trigger)
         )
 

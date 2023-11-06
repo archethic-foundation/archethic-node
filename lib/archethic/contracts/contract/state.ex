@@ -2,10 +2,6 @@ defmodule Archethic.Contracts.Contract.State do
   @moduledoc """
   Module to manipulate the contract state
   """
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.Utils
 
   @current_serialization_version 1
@@ -29,53 +25,6 @@ defmodule Archethic.Contracts.Contract.State do
 
   @spec valid_size?(encoded_state :: encoded()) :: boolean()
   def valid_size?(encoded_state), do: byte_size(encoded_state) <= @max_compressed_state_size
-
-  @doc """
-  Extract the state from a validated transaction (nil if none)
-  """
-  @spec get_utxo_from_transaction(Transaction.t()) :: nil | UnspentOutput.t()
-  def get_utxo_from_transaction(%Transaction{
-        validation_stamp: %ValidationStamp{
-          ledger_operations: %LedgerOperations{unspent_outputs: unspent_outputs}
-        }
-      }) do
-    Enum.find(unspent_outputs, &(&1.type == :state))
-  end
-
-  @doc """
-  Extract the state from an unspent output
-  Return an empty state if nil given
-  """
-  @spec from_utxo(nil | UnspentOutput.t()) :: t()
-  def from_utxo(nil), do: empty()
-
-  def from_utxo(%UnspentOutput{type: :state, encoded_payload: encoded_payload}) do
-    {state, <<>>} = deserialize(encoded_payload)
-    state
-  end
-
-  @doc """
-  Return the state utxo if it's not too big
-  May return nil when state is empty
-  """
-  @spec to_utxo(t()) :: {:ok, nil | UnspentOutput.t()} | {:error, :state_too_big}
-  def to_utxo(state = %{}) do
-    if state == empty() do
-      {:ok, nil}
-    else
-      case serialize(state) do
-        bin when byte_size(bin) > @max_compressed_state_size ->
-          {:error, :state_too_big}
-
-        bin ->
-          {:ok,
-           %UnspentOutput{
-             type: :state,
-             encoded_payload: bin
-           }}
-      end
-    end
-  end
 
   @doc """
   Serialize the given state

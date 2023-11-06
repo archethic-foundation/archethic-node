@@ -7,8 +7,11 @@ defmodule Archethic.ContractFactory do
   alias Archethic.TransactionFactory
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
+
+  import ArchethicCase
 
   def valid_version1_contract(opts \\ []) do
     code = ~S"""
@@ -70,7 +73,17 @@ defmodule Archethic.ContractFactory do
       |> Keyword.put(:ownerships, [contract_seed_ownership | ownerships])
       |> Keyword.put(:code, code)
 
-    TransactionFactory.create_valid_transaction(Keyword.get(opts, :inputs, []), opts)
+    inputs =
+      Keyword.get(opts, :inputs, [
+        %UnspentOutput{
+          type: :UCO,
+          amount: 1_000_000_000,
+          from: random_address(),
+          timestamp: DateTime.utc_now()
+        }
+      ])
+
+    TransactionFactory.create_valid_transaction(inputs, opts)
   end
 
   def create_next_contract_tx(

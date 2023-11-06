@@ -6,6 +6,8 @@ defmodule Archethic.Contracts.ContractTest do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.State
+  alias Archethic.Contracts.Interpreter
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -25,6 +27,48 @@ defmodule Archethic.Contracts.ContractTest do
     test "should return {:transaction, nil, nil} when no action nor args" do
       assert {:transaction, nil, nil} ==
                Contract.get_trigger_for_recipient(%Recipient{address: random_address()})
+    end
+  end
+
+  describe "from_transaction/1" do
+    test "should return Contract with contract_tx filled" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, as: []
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      {:ok, contract_with_code} = Interpreter.parse(code)
+
+      expected_contract = %Contract{
+        contract_with_code
+        | transaction: contract_tx,
+          state: State.empty()
+      }
+
+      ^expected_contract = Contract.from_transaction!(contract_tx)
+    end
+
+    test "should return Contract with state filled" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, as: []
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+      """
+
+      state = %{"key" => "value"}
+      contract_tx = ContractFactory.create_valid_contract_tx(code, state: State.serialize(state))
+
+      {:ok, contract_with_code} = Interpreter.parse(code)
+      expected_contract = %Contract{contract_with_code | transaction: contract_tx, state: state}
+
+      ^expected_contract = Contract.from_transaction!(contract_tx)
     end
   end
 
@@ -51,7 +95,6 @@ defmodule Archethic.Contracts.ContractTest do
         Contracts.execute_trigger(
           {:datetime, DateTime.from_unix!(trigger_time)},
           contract,
-          nil,
           nil,
           nil
         )
@@ -88,7 +131,6 @@ defmodule Archethic.Contracts.ContractTest do
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(trigger_time)},
                  contract,
-                 nil,
                  nil,
                  nil
                )

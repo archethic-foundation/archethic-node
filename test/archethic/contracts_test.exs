@@ -618,17 +618,15 @@ defmodule Archethic.ContractsTest do
 
       """
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code)
-
-      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
+      encoded_state = State.serialize(%{"key" => "value"})
+      contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
       assert %ActionWithTransaction{} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil,
-                 state_utxo
+                 nil
                )
     end
 
@@ -641,16 +639,15 @@ defmodule Archethic.ContractsTest do
 
       """
 
-      contract_tx = ContractFactory.create_valid_contract_tx(code)
-      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
+      encoded_state = State.serialize(%{"key" => "value"})
+      contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
       assert %ActionWithoutTransaction{} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
                  nil,
-                 nil,
-                 state_utxo
+                 nil
                )
     end
 
@@ -664,7 +661,11 @@ defmodule Archethic.ContractsTest do
       """
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
-      {:ok, state_utxo} = State.to_utxo(%{"key" => "value"})
+
+      encoded_state = State.serialize(%{"key" => "value"})
+
+      contract_tx_with_state =
+        ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
       assert %ActionWithoutTransaction{} =
                Contracts.execute_trigger(
@@ -677,10 +678,9 @@ defmodule Archethic.ContractsTest do
       assert %ActionWithoutTransaction{} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
-                 Contract.from_transaction!(contract_tx),
+                 Contract.from_transaction!(contract_tx_with_state),
                  nil,
-                 nil,
-                 state_utxo
+                 nil
                )
     end
   end
@@ -712,7 +712,7 @@ defmodule Archethic.ContractsTest do
         )
 
       assert {:error, :timeout} =
-               Contracts.execute_function(contract_with_sleep, "meaning_of_life", [], nil)
+               Contracts.execute_function(contract_with_sleep, "meaning_of_life", [])
     end
 
     test "should be able to read the state" do
@@ -738,14 +738,11 @@ defmodule Archethic.ContractsTest do
 
       contract = Contract.from_transaction!(contract_tx)
 
-      maybe_state_utxo = State.get_utxo_from_transaction(contract_tx)
-
       assert {:ok, 42} =
                Contracts.execute_function(
                  contract,
                  "meaning_of_life",
-                 [],
-                 maybe_state_utxo
+                 []
                )
     end
   end
