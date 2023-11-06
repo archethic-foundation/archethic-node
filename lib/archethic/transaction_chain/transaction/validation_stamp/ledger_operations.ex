@@ -332,14 +332,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     bin_unspent_outputs =
       unspent_outputs
       |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
-      |> :erlang.list_to_binary()
+      |> :erlang.list_to_bitstring()
 
     encoded_transaction_movements_len = length(transaction_movements) |> VarInt.from_value()
 
     encoded_unspent_outputs_len = length(unspent_outputs) |> VarInt.from_value()
 
     <<fee::64, encoded_transaction_movements_len::binary, bin_transaction_movements::binary,
-      encoded_unspent_outputs_len::binary, bin_unspent_outputs::binary>>
+      encoded_unspent_outputs_len::binary, bin_unspent_outputs::bitstring>>
   end
 
   @doc """

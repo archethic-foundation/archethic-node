@@ -82,7 +82,7 @@ defmodule Archethic.Utils.TypedEncoding do
   defp sign_to_bit(_num), do: 0
 
   @spec deserialize(binary :: bitstring(), mode :: Transaction.serialization_mode()) ::
-          {list(arg()), bitstring()}
+          {arg(), bitstring()}
   def deserialize(bin, :compact), do: do_deserialize(bin, 1)
   def deserialize(bin, :extended), do: do_deserialize(bin, 8)
 
