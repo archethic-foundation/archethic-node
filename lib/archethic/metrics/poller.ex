@@ -13,6 +13,8 @@ defmodule Archethic.Metrics.Poller do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
+  alias Archethic.PubSub
+
   def start_link(opts \\ []) do
     options = Keyword.get(opts, :options, name: __MODULE__)
     interval = Keyword.get(opts, :interval, 5_000)
@@ -21,15 +23,19 @@ defmodule Archethic.Metrics.Poller do
   end
 
   def init([interval]) do
-    timer = schedule_polling(interval)
-
     state = %{
       pid_refs: %{},
-      interval: interval,
-      timer: timer
+      interval: interval
     }
 
-    {:ok, state}
+    if Archethic.up?() do
+      Logger.info("Metric poller scheduler started")
+      timer = schedule_polling(interval)
+      {:ok, Map.put(state, :timer, timer)}
+    else
+      PubSub.register_to_node_status()
+      {:ok, state}
+    end
   end
 
   @doc """
@@ -41,7 +47,30 @@ defmodule Archethic.Metrics.Poller do
   end
 
   def handle_call(:monitor, {pid, _tag}, state) do
-    {:reply, :ok, register_process(pid, state)}
+    case Map.get(state, :timer) do
+      nil ->
+        {:reply, :ok, state}
+
+      _ ->
+        {:reply, :ok, register_process(pid, state)}
+    end
+  end
+
+  def handle_info(:node_up, state = %{interval: interval}) do
+    Logger.info("Metric poller scheduler started")
+    timer = schedule_polling(interval)
+    {:noreply, Map.put(state, :timer, timer)}
+  end
+
+  def handle_info(:node_down, state) do
+    case Map.pop(state, :timer) do
+      {nil, _} ->
+        {:noreply, state}
+
+      {timer, new_state} ->
+        Process.cancel_timer(timer)
+        {:noreply, new_state}
+    end
   end
 
   def handle_info({:DOWN, _ref, :process, from_pid, _reason}, state) do

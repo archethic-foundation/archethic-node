@@ -22,6 +22,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Crontab.DateChecker, as: CronDateChecker
 
   @extended_mode? Mix.env() != :prod
+  @timeout 5_000
 
   require Logger
 
@@ -44,8 +45,9 @@ defmodule Archethic.Mining.SmartContractValidation do
     |> Task.Supervisor.async_stream_nolink(
       recipients,
       &request_contract_validation(&1, transaction, validation_time),
-      timeout: 3_000,
-      ordered: false
+      timeout: @timeout + 500,
+      ordered: false,
+      on_timeout: :kill_task
     )
     |> Enum.reduce_while({true, 0}, fn
       {:ok, {_valid? = true, fee}}, {true, total_fee} -> {:cont, {true, total_fee + fee}}
@@ -228,7 +230,7 @@ defmodule Archethic.Mining.SmartContractValidation do
              inputs_before: validation_time
            },
            conflicts_resolver,
-           0
+           @timeout
          ) do
       {:ok, %SmartContractCallValidation{valid?: valid?, fee: fee}} -> {valid?, fee}
       _ -> {false, 0}

@@ -1,7 +1,6 @@
 defmodule Archethic.Contracts.Worker do
   @moduledoc false
 
-  alias Archethic.Account
   alias Archethic.ContractRegistry
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
@@ -10,8 +9,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
   alias Archethic.Election
-  alias Archethic.Mining.Fee
-  alias Archethic.OracleChain
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.PubSub
@@ -113,6 +110,25 @@ defmodule Archethic.Contracts.Worker do
     {:noreply, state}
   end
 
+  def code_change("1.3.0", state, _) do
+    Logger.debug("CODE_CHANGE 1.3.0 for Contracts.Worker #{inspect(self())} start")
+
+    with {:ok, contract_tx} <-
+           TransactionChain.get_transaction(state.contract.constants.contract["address"]),
+         {:ok, contract} <- Contract.from_transaction(contract_tx) do
+      Logger.debug("CODE_CHANGE 1.3.0 for Contracts.Worker #{inspect(self())} success")
+      {:ok, %{state | contract: contract}}
+    end
+  end
+
+  def code_change(old_version, state = %{contract: %Contract{transaction: contract_tx}}, _) do
+    Logger.debug("CODE_CHANGE #{old_version} for Contracts.Worker #{inspect(self())}")
+    # because the worker maintain a parsed contract in memory
+    # it's possible that the parsing changed with the new release
+    # so we reparse the contract here
+    {:ok, %{state | contract: Contract.from_transaction!(contract_tx)}}
+  end
+
   # ----------------------------------------------
   defp via_tuple(address) do
     {:via, Registry, {ContractRegistry, address}}
@@ -127,8 +143,7 @@ defmodule Archethic.Contracts.Worker do
     meta = log_metadata(contract_address, maybe_trigger_tx)
     Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 
-    with true <- has_minimum_fees?(contract_address),
-         %ActionWithTransaction{next_tx: next_tx} <-
+    with %ActionWithTransaction{next_tx: next_tx} <-
            Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
          index = TransactionChain.get_size(contract_address),
          {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
@@ -250,26 +265,6 @@ defmodule Archethic.Contracts.Worker do
   defp trigger_node?(validation_nodes, count \\ 0) do
     %Node{first_public_key: key} = validation_nodes |> Enum.at(count)
     key == Crypto.first_node_public_key()
-  end
-
-  defp has_minimum_fees?(contract_address) do
-    minimum_fees =
-      DateTime.utc_now()
-      |> OracleChain.get_uco_price()
-      |> Keyword.get(:usd)
-      |> Fee.base_fee()
-
-    case Account.get_balance(contract_address) do
-      %{uco: uco_balance} when uco_balance >= minimum_fees ->
-        true
-
-      _ ->
-        Logger.debug("Not enough funds to pay the minimum fee",
-          contract: Base.encode16(contract_address)
-        )
-
-        false
-    end
   end
 
   defp log_metadata(contract_address, nil) do

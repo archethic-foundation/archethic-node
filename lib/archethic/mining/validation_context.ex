@@ -791,8 +791,9 @@ defmodule Archethic.Mining.ValidationContext do
       contract_context,
       previous_usd_price,
       validation_time,
-      encoded_state
-    ) + contract_recipients_fee
+      encoded_state,
+      contract_recipients_fee
+    )
   end
 
   defp get_ledger_operations(

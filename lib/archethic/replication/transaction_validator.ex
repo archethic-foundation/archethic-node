@@ -298,9 +298,9 @@ defmodule Archethic.Replication.TransactionValidator do
       contract_context,
       previous_usd_price,
       timestamp,
-      encoded_state
-    ) +
+      encoded_state,
       contract_recipient_fees
+    )
   end
 
   defp validate_transaction_movements(

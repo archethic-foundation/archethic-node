@@ -114,38 +114,47 @@ defmodule Archethic.Crypto do
       iex> {pub_bis, _} = Crypto.derive_keypair("myseed", 1)
       iex> pub != pub10 and pub == pub_bis
       true
+
+      iex> {pub, _} = Crypto.derive_keypair("myseed", 1, :ed25519, :on_chain_wallet)
+      iex> <<curve_id::8, origin_id::8, _::binary>> = pub
+      iex> origin_id == 0 and curve_id == 0
+      true
   """
   @spec derive_keypair(
           seed :: binary(),
           additional_data :: non_neg_integer() | binary(),
-          curve :: __MODULE__.supported_curve()
+          curve :: __MODULE__.supported_curve(),
+          origin :: __MODULE__.supported_origin()
         ) :: {public_key :: key(), private_key :: key()}
   def derive_keypair(
         seed,
         additional_data,
-        curve \\ Application.get_env(:archethic, __MODULE__)[:default_curve]
+        curve \\ Application.get_env(:archethic, __MODULE__)[:default_curve],
+        origin \\ :software
       )
 
   def derive_keypair(
         seed,
         index,
-        curve
+        curve,
+        origin
       )
       when is_binary(seed) and is_integer(index) do
     seed
     |> get_extended_seed(<<index::32>>)
-    |> generate_deterministic_keypair(curve)
+    |> generate_deterministic_keypair(curve, origin)
   end
 
   def derive_keypair(
         seed,
         additional_data,
-        curve
+        curve,
+        origin
       )
       when is_binary(seed) and is_binary(additional_data) do
     seed
     |> get_extended_seed(additional_data)
-    |> generate_deterministic_keypair(curve)
+    |> generate_deterministic_keypair(curve, origin)
   end
 
   @doc """
@@ -363,26 +372,28 @@ defmodule Archethic.Crypto do
   """
   @spec generate_deterministic_keypair(
           seed :: binary(),
-          curve :: supported_curve()
+          curve :: supported_curve(),
+          origin :: supported_origin()
         ) :: {public_key :: key(), private_key :: key()}
   def generate_deterministic_keypair(
         seed,
-        curve \\ Application.get_env(:archethic, __MODULE__)[:default_curve]
+        curve \\ Application.get_env(:archethic, __MODULE__)[:default_curve],
+        origin \\ :software
       )
       when is_binary(seed) do
-    do_generate_deterministic_keypair(curve, seed)
+    do_generate_deterministic_keypair(curve, origin, seed)
   end
 
-  defp do_generate_deterministic_keypair(:ed25519, seed) do
+  defp do_generate_deterministic_keypair(:ed25519, origin, seed) do
     seed
     |> Ed25519.generate_keypair()
-    |> ID.prepend_keypair(:ed25519)
+    |> ID.prepend_keypair(:ed25519, origin)
   end
 
-  defp do_generate_deterministic_keypair(curve, seed) do
+  defp do_generate_deterministic_keypair(curve, origin, seed) do
     curve
     |> ECDSA.generate_keypair(seed)
-    |> ID.prepend_keypair(curve)
+    |> ID.prepend_keypair(curve, origin)
   end
 
   @doc """
@@ -1276,6 +1287,14 @@ defmodule Archethic.Crypto do
   @spec get_public_key_curve(key()) :: supported_curve()
   def get_public_key_curve(<<curve_id::8, _::binary>>) do
     ID.to_curve(curve_id)
+  end
+
+  @doc """
+  Get the public key elliptic curve
+  """
+  @spec get_public_key_origin(key()) :: supported_origin()
+  def get_public_key_origin(<<_::8, origin_id::8, _::binary>>) do
+    ID.to_origin(origin_id)
   end
 
   @doc """

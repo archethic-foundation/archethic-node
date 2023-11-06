@@ -54,20 +54,22 @@ defmodule ArchethicWeb.WebUtils do
     Sizeable.filesize(nb_bytes)
   end
 
-  def to_float(number, decimals \\ 8) when is_number(number) do
-    :erlang.float_to_binary(number / :math.pow(10, decimals), [:compact, decimals: decimals])
+  def from_bigint(int, decimals \\ 8) when is_integer(int) and decimals >= 0 do
+    Decimal.div(
+      Decimal.new(int),
+      Decimal.new(trunc(:math.pow(10, decimals)))
+    )
+    |> Decimal.to_string()
   end
 
   def format_usd_amount(uco_amount, uco_price) do
-    usd_price =
-      (uco_price * uco_amount)
-      |> to_float()
-      |> Float.parse()
-      |> elem(0)
-      |> Float.round(2)
-      |> :erlang.float_to_binary(decimals: 2)
-
-    "#{usd_price}$"
+    uco_amount
+    |> Decimal.new()
+    |> Decimal.div(Decimal.new(100_000_000))
+    |> Decimal.mult(Decimal.from_float(uco_price))
+    |> Decimal.round(2)
+    |> Decimal.to_string()
+    |> then(fn usd_price -> "#{usd_price}$" end)
   end
 
   def format_full_usd_amount(uco_amount, uco_price_at_time, uco_price_now) do

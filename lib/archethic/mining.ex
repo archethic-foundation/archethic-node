@@ -252,6 +252,7 @@ defmodule Archethic.Mining do
           uco_price_in_usd :: float(),
           timestamp :: DateTime.t(),
           encoded_state :: State.encoded() | nil,
+          contract_recipient_fees :: non_neg_integer(),
           protocol_version :: pos_integer()
         ) :: non_neg_integer()
   def get_transaction_fee(
@@ -260,6 +261,7 @@ defmodule Archethic.Mining do
         uco_price_in_usd,
         timestamp,
         encoded_state,
+        contract_recipient_fees \\ 0,
         proto_version \\ protocol_version()
       ) do
     Fee.calculate(
@@ -268,6 +270,7 @@ defmodule Archethic.Mining do
       uco_price_in_usd,
       timestamp,
       encoded_state,
+      contract_recipient_fees,
       proto_version
     )
   end

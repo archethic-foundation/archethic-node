@@ -88,7 +88,8 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, encoded_state, current_protocol_version()),
+        fee:
+          Fee.calculate(tx, nil, 0.07, timestamp, encoded_state, 0, current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx),
         encoded_state: encoded_state
       }
@@ -140,7 +141,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version())
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
       |> elem(1)
@@ -175,7 +176,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version())
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
       |> elem(1)
@@ -211,7 +212,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version())
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
       |> elem(1)
@@ -273,7 +274,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version()),
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
         transaction_movements: [
           %TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}
         ]
@@ -325,7 +326,7 @@ defmodule Archethic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, current_protocol_version()),
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)

@@ -84,6 +84,11 @@ defmodule Archethic.SelfRepair do
           Logger.error("Error during bootstrap self repair")
           Logger.error(Exception.format(:error, error, __STACKTRACE__))
           {:cont, :error}
+      catch
+        :exit, error ->
+          Logger.error("Error during bootstrap self repair")
+          Logger.error(Exception.format(:error, error, __STACKTRACE__))
+          {:cont, :error}
       end
     end)
   end

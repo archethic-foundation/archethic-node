@@ -31,8 +31,16 @@ defmodule Archethic.Utils do
   Convert a number to a bigint
   """
   @spec to_bigint(integer() | float()) :: bigint()
-  def to_bigint(value) do
-    trunc(value * 100_000_000)
+  def to_bigint(value) when is_integer(value) do
+    value * 100_000_000
+  end
+
+  def to_bigint(value) when is_float(value) do
+    value
+    |> Decimal.from_float()
+    |> Decimal.mult(100_000_000)
+    |> Decimal.round(0, :floor)
+    |> Decimal.to_integer()
   end
 
   @doc """
@@ -40,7 +48,10 @@ defmodule Archethic.Utils do
   """
   @spec from_bigint(bigint()) :: float()
   def from_bigint(value) do
-    value / 100_000_000
+    value
+    |> Decimal.new()
+    |> Decimal.div(100_000_000)
+    |> Decimal.to_float()
   end
 
   @doc """
