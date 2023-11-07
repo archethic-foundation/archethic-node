@@ -6,6 +6,7 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTables.StateLedger
 
   alias Archethic.Crypto
 
@@ -87,6 +88,7 @@ defmodule Archethic.Account.MemTablesLoader do
 
       UCOLedger.spend_all_unspent_outputs(previous_address)
       TokenLedger.spend_all_unspent_outputs(previous_address)
+      StateLedger.spend_all_unspent_outputs(previous_address)
     end
 
     :ok =
@@ -125,6 +127,9 @@ defmodule Archethic.Account.MemTablesLoader do
         }
       } ->
         TokenLedger.add_unspent_output(address, unspent_output)
+
+      unspent_output = %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :state}} ->
+        StateLedger.add_unspent_output(address, unspent_output)
 
       _ ->
         # Ignore smart contract calls

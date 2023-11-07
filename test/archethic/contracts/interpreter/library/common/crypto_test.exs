@@ -72,8 +72,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be signed !")
 
-      assert {:ok, %Transaction{data: %TransactionData{content: content}}} =
-               Interpreter.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil)
+      assert {:ok, %Transaction{data: %TransactionData{content: content}}, _state, _logs} =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 contract,
+                 trigger_tx,
+                 nil
+               )
 
       assert {:ok, sig} = Jason.decode(content)
 
@@ -111,8 +116,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be hmacked !")
 
-      assert {:ok, %Transaction{data: %TransactionData{content: content}}} =
-               Interpreter.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil)
+      assert {:ok, %Transaction{data: %TransactionData{content: content}}, _state, _logs} =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 contract,
+                 trigger_tx,
+                 nil
+               )
 
       assert "E82E28E72D4C0436AB7443969B82B0F5E9F6B796BC354E42A1B22E70D9EE5BBA" == content
     end
@@ -132,8 +142,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.CryptoTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([], content: "I'll be hmacked !")
 
-      assert {:ok, %Transaction{data: %TransactionData{content: content}}} =
-               Interpreter.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil)
+      assert {:ok, %Transaction{data: %TransactionData{content: content}}, _state, _logs} =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 contract,
+                 trigger_tx,
+                 nil
+               )
 
       assert "3A2EF5397A8F062432EE759457169D2E0950A8A5C03FCB320CF0C2C4141159CA13CC2F6E696B07F0176A0069E51E4C35BF55C4665E31241F495F596DA7968172" ==
                content

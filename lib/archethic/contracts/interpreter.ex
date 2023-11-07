@@ -3,22 +3,20 @@ defmodule Archethic.Contracts.Interpreter do
 
   require Logger
 
-  alias __MODULE__.Legacy
   alias __MODULE__.ActionInterpreter
   alias __MODULE__.ConditionInterpreter
+  alias __MODULE__.ConditionValidator
   alias __MODULE__.FunctionInterpreter
   alias __MODULE__.FunctionKeys
-
-  alias __MODULE__.ConditionValidator
-
+  alias __MODULE__.Legacy
+  alias __MODULE__.Scope
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.ContractConditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.ContractConstants, as: Constants
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData.Recipient
-
   alias Archethic.Utils
 
   @type version() :: integer()
@@ -119,21 +117,24 @@ defmodule Archethic.Contracts.Interpreter do
   /!\ The transaction returned is not complete, only the `type` and `data` are filled-in.
   """
   @spec execute_trigger(
-          Contract.trigger_key(),
-          Contract.t(),
-          nil | Transaction.t(),
-          nil | Recipient.t(),
-          execute_opts()
+          trigger :: Contract.trigger_type(),
+          contract :: Contract.t(),
+          maybe_trigger_tx :: nil | Transaction.t(),
+          maybe_recipient :: nil | Recipient.t(),
+          opts :: execute_opts()
         ) ::
-          {:ok, nil | Transaction.t()}
-          | {:error, String.t()}
+          {:ok, nil | Transaction.t(), State.t(), logs :: list(String.t())}
+          | {:error, err :: String.t()}
+          | {:error, err :: Exception.t(), stacktrace :: term(), logs :: list(String.t())}
+
   def execute_trigger(
         trigger_key,
         contract = %Contract{
           transaction: contract_tx,
           version: version,
           triggers: triggers,
-          functions: functions
+          functions: functions,
+          state: state
         },
         maybe_trigger_tx,
         maybe_recipient,
@@ -171,20 +172,32 @@ defmodule Archethic.Contracts.Interpreter do
             "contract" => contract_constants,
             :time_now => timestamp_now,
             :functions => functions,
-            :encrypted_seed => Contract.get_encrypted_seed(contract)
+            :encrypted_seed => Contract.get_encrypted_seed(contract),
+            :state => state,
+            :logs => []
           })
 
-        result =
+        {maybe_next_tx, next_state} =
           case version do
-            0 -> Legacy.execute_trigger(trigger_code, constants, contract_tx)
-            _ -> ActionInterpreter.execute(trigger_code, constants, contract_tx)
+            0 ->
+              {
+                Legacy.execute_trigger(trigger_code, constants, contract_tx),
+                State.empty()
+              }
+
+            _ ->
+              ActionInterpreter.execute(trigger_code, constants, contract_tx)
           end
 
-        {:ok, result}
+        logs = Scope.read_global([:logs])
+
+        {:ok, maybe_next_tx, next_state, logs}
     end
   rescue
     err ->
-      {:error, error_to_string(err, __STACKTRACE__)}
+      logs = Scope.read_global([:logs])
+
+      {:error, err, __STACKTRACE__, logs}
   end
 
   @doc """
@@ -499,22 +512,6 @@ defmodule Archethic.Contracts.Interpreter do
       else
         {:error, "missing 'condition triggered_by: transaction, on: #{action}/#{arity}' block"}
       end
-    end
-  end
-
-  defp error_to_string(err, stacktrace) do
-    case Enum.find_value(stacktrace, fn
-           {_, _, _, [file: 'nofile', line: line]} ->
-             line
-
-           _ ->
-             false
-         end) do
-      line when is_integer(line) ->
-        Exception.message(err) <> " - L#{line}"
-
-      _ ->
-        Exception.message(err)
     end
   end
 end

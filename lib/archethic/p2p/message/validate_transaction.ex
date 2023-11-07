@@ -29,6 +29,7 @@ defmodule Archethic.P2P.Message.ValidateTransaction do
   end
 
   @spec serialize(t()) :: bitstring()
+
   def serialize(%__MODULE__{transaction: tx, contract_context: nil}) do
     <<Transaction.serialize(tx)::bitstring, 0::8>>
   end

@@ -1,15 +1,14 @@
 defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
   use ArchethicCase
 
-  alias Archethic.TransactionFactory
+  alias Archethic.ContractFactory
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Interpreter.Library.Common.Time
-
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-
-  alias Archethic.ContractFactory
+  alias Archethic.TransactionFactory
 
   doctest Time
 
@@ -32,16 +31,16 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      {:ok, tx} =
-        Contracts.execute_trigger(
-          {:datetime, datetime},
-          Contract.from_transaction!(contract_tx),
-          nil,
-          nil,
-          time_now: datetime
-        )
+      assert %ActionWithTransaction{next_tx: next_tx} =
+               Contracts.execute_trigger(
+                 {:datetime, datetime},
+                 Contract.from_transaction!(contract_tx),
+                 nil,
+                 nil,
+                 time_now: datetime
+               )
 
-      assert %Transaction{data: %TransactionData{content: content}} = tx
+      assert %Transaction{data: %TransactionData{content: content}} = next_tx
       assert String.to_integer(content) == timestamp
     end
 

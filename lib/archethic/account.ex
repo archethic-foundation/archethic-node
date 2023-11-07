@@ -3,6 +3,7 @@ defmodule Archethic.Account do
 
   alias __MODULE__.MemTables.TokenLedger
   alias __MODULE__.MemTables.UCOLedger
+  alias __MODULE__.MemTables.StateLedger
   alias __MODULE__.MemTablesLoader
 
   alias Archethic.Crypto
@@ -38,6 +39,9 @@ defmodule Archethic.Account do
       },
       acc ->
         update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
+
+      _, acc ->
+        acc
     end)
   end
 
@@ -46,7 +50,16 @@ defmodule Archethic.Account do
   """
   @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
   def get_unspent_outputs(address) when is_binary(address) do
-    UCOLedger.get_unspent_outputs(address) ++ TokenLedger.get_unspent_outputs(address)
+    uco_tokens_utxos =
+      UCOLedger.get_unspent_outputs(address) ++ TokenLedger.get_unspent_outputs(address)
+
+    case StateLedger.get_unspent_output(address) do
+      nil ->
+        uco_tokens_utxos
+
+      state_utxo ->
+        [state_utxo | uco_tokens_utxos]
+    end
   end
 
   @doc """

@@ -222,6 +222,17 @@ defmodule Archethic.TransactionChain.Transaction do
     |> origin_sign_transaction()
   end
 
+  @doc """
+  Return wether two transactions have a similar payload
+  """
+  @spec same_payload?(t(), t()) :: boolean()
+  def same_payload?(
+        %__MODULE__{type: type1, data: data1},
+        %__MODULE__{type: type2, data: data2}
+      ) do
+    type1 == type2 && data1 == data2
+  end
+
   defp get_transaction_public_keys(:node_shared_secrets) do
     key_index = Crypto.number_of_node_shared_secrets_keys()
     do_get_transaction_public_keys(:node_shared_secrets, key_index)

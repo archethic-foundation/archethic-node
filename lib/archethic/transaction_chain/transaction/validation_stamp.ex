@@ -178,7 +178,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
     <<version::32, DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary,
-      poe::binary, LedgerOperations.serialize(ledger_operations, version)::binary,
+      poe::binary, LedgerOperations.serialize(ledger_operations, version)::bitstring,
       encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
       serialize_error(error)::8>>
   end
@@ -205,7 +205,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
     <<version::32, DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary,
-      poe::binary, LedgerOperations.serialize(ledger_operations, version)::binary,
+      poe::binary, LedgerOperations.serialize(ledger_operations, version)::bitstring,
       encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
       serialize_error(error)::8, byte_size(signature)::8, signature::binary>>
   end

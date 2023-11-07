@@ -4,23 +4,19 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.ContractRegistry
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
-
   alias Archethic.Election
-
   alias Archethic.P2P
   alias Archethic.P2P.Node
-
   alias Archethic.PubSub
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData.Recipient
-
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
-
   alias Crontab.CronExpression.Parser, as: CronParser
 
   @extended_mode? Mix.env() != :prod
@@ -147,7 +143,7 @@ defmodule Archethic.Contracts.Worker do
     meta = log_metadata(contract_address, maybe_trigger_tx)
     Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 
-    with {:ok, next_tx} when not is_nil(next_tx) <-
+    with %ActionWithTransaction{next_tx: next_tx} <-
            Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
          index = TransactionChain.get_size(contract_address),
          {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
@@ -156,10 +152,10 @@ defmodule Archethic.Contracts.Worker do
          :ok <- send_transaction(contract_context, next_tx) do
       Logger.debug("Contract execution success", meta)
     else
-      {:ok, nil} ->
+      %ActionWithoutTransaction{} ->
         Logger.debug("Contract execution success but there is no new transaction", meta)
 
-      {:error, reason} ->
+      %Failure{user_friendly_error: reason} ->
         Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
 
       _ ->
@@ -270,26 +266,6 @@ defmodule Archethic.Contracts.Worker do
     %Node{first_public_key: key} = validation_nodes |> Enum.at(count)
     key == Crypto.first_node_public_key()
   end
-
-  # defp has_minimum_fees?(contract_address) do
-  #   minimum_fees =
-  #     DateTime.utc_now()
-  #     |> OracleChain.get_uco_price()
-  #     |> Keyword.get(:usd)
-  #     |> Fee.base_fee()
-  #
-  #   case Account.get_balance(contract_address) do
-  #     %{uco: uco_balance} when uco_balance >= minimum_fees ->
-  #       true
-  #
-  #     _ ->
-  #       Logger.debug("Not enough funds to pay the minimum fee",
-  #         contract: Base.encode16(contract_address)
-  #       )
-  #
-  #       false
-  #   end
-  # end
 
   defp log_metadata(contract_address, nil) do
     [contract: Base.encode16(contract_address)]

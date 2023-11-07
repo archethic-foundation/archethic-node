@@ -11,6 +11,39 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   doctest LedgerOperations
 
+  describe "serialization" do
+    test "should be able to serialize and deserialize" do
+      ops = %LedgerOperations{
+        fee: 10_000_000,
+        transaction_movements: [
+          %TransactionMovement{
+            to:
+              <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+                86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+            amount: 102_000_000,
+            type: :UCO
+          }
+        ],
+        unspent_outputs: [
+          %UnspentOutput{
+            from:
+              <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+                86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+            amount: 200_000_000,
+            type: :UCO,
+            timestamp: ~U[2022-10-11 07:27:22.815Z]
+          }
+        ]
+      }
+
+      for version <- 1..current_protocol_version() do
+        assert {^ops, <<>>} =
+                 LedgerOperations.serialize(ops, version)
+                 |> LedgerOperations.deserialize(version)
+      end
+    end
+  end
+
   describe("get_utxos_from_transaction/2") do
     test "should return empty list for non token/mint_reward transactiosn" do
       types = Archethic.TransactionChain.Transaction.types() -- [:node, :mint_reward]

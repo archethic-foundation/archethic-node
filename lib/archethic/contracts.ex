@@ -5,20 +5,17 @@ defmodule Archethic.Contracts do
   """
 
   alias __MODULE__.Contract
+  alias __MODULE__.Contract.State
+  alias __MODULE__.Contract.Failure
+  alias __MODULE__.Contract.ActionWithoutTransaction
+  alias __MODULE__.Contract.ActionWithTransaction
   alias __MODULE__.ContractConditions, as: Conditions
   alias __MODULE__.ContractConstants, as: Constants
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
 
-  alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.DateChecker, as: CronDateChecker
-
-  alias Archethic.Election
-  alias Archethic.P2P
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
@@ -59,29 +56,91 @@ defmodule Archethic.Contracts do
   Execute the contract trigger.
   """
   @spec execute_trigger(
-          Contract.trigger_type(),
-          Contract.t(),
-          nil | Transaction.t(),
-          nil | Recipient.t(),
-          Keyword.t()
-        ) :: {:ok, nil | Transaction.t()} | {:error, String.t()}
-  defdelegate execute_trigger(
-                trigger_type,
-                contract,
-                maybe_trigger_tx,
-                maybe_recipient,
-                opts \\ []
-              ),
-              to: Interpreter,
-              as: :execute_trigger
+          trigger :: Contract.trigger_type(),
+          contract :: Contract.t(),
+          maybe_trigger_tx :: nil | Transaction.t(),
+          maybe_recipient :: nil | Recipient.t(),
+          opts :: Keyword.t()
+        ) :: Failure.t() | ActionWithTransaction.t() | ActionWithoutTransaction.t()
+  def execute_trigger(
+        trigger_type,
+        contract = %Contract{transaction: contract_tx, state: state},
+        maybe_trigger_tx,
+        maybe_recipient,
+        opts \\ []
+      ) do
+    # TODO: trigger_tx & recipient should be transformed into recipient here
+    # TODO: rescue should be done in here as well
+    # TODO: implement timeout
+
+    Interpreter.execute_trigger(
+      trigger_type,
+      contract,
+      maybe_trigger_tx,
+      maybe_recipient,
+      opts
+    )
+    |> cast_trigger_result(state, contract_tx)
+  end
+
+  defp cast_trigger_result(res = {:ok, _, next_state, logs}, prev_state, contract_tx) do
+    if State.empty?(next_state) do
+      cast_valid_trigger_result(res, prev_state, contract_tx, nil)
+    else
+      encoded_state = State.serialize(next_state)
+
+      if State.valid_size?(encoded_state) do
+        cast_valid_trigger_result(res, prev_state, contract_tx, encoded_state)
+      else
+        %Failure{
+          logs: logs,
+          error: "Execution was successful but the state exceed the threshold",
+          stacktrace: [],
+          user_friendly_error: "Execution was successful but the state exceed the threshold"
+        }
+      end
+    end
+  end
+
+  defp cast_trigger_result({:error, err}, _, _) do
+    %Failure{logs: [], error: err, stacktrace: [], user_friendly_error: err}
+  end
+
+  defp cast_trigger_result({:error, err, stacktrace, logs}, _, _) do
+    %Failure{
+      logs: logs,
+      error: err,
+      stacktrace: stacktrace,
+      user_friendly_error: append_line_to_error(err, stacktrace)
+    }
+  end
+
+  # No output transaction, no state update
+  defp cast_valid_trigger_result({:ok, nil, next_state, logs}, previous_state, _, encoded_state)
+       when next_state == previous_state do
+    %ActionWithoutTransaction{encoded_state: encoded_state, logs: logs}
+  end
+
+  # No output transaction but state update
+  defp cast_valid_trigger_result({:ok, nil, _next_state, logs}, _, contract_tx, encoded_state) do
+    %ActionWithTransaction{
+      encoded_state: encoded_state,
+      logs: logs,
+      next_tx: generate_next_tx(contract_tx)
+    }
+  end
+
+  defp cast_valid_trigger_result({:ok, next_tx, _next_state, logs}, _, _, encoded_state) do
+    %ActionWithTransaction{encoded_state: encoded_state, logs: logs, next_tx: next_tx}
+  end
 
   @doc """
   Execute contract's function
   """
   @spec execute_function(
-          Contract.t(),
-          String.t(),
-          list()
+          contract :: Contract.t(),
+          function_name :: String.t(),
+          args_values :: list()
         ) ::
           {:ok, result :: any()}
           | {:error, :function_failure}
@@ -90,7 +149,7 @@ defmodule Archethic.Contracts do
           | {:error, :timeout}
 
   def execute_function(
-        contract = %Contract{transaction: contract_tx, version: contract_version},
+        contract = %Contract{transaction: contract_tx, version: contract_version, state: state},
         function_name,
         args_values
       ) do
@@ -99,7 +158,8 @@ defmodule Archethic.Contracts do
         constants = %{
           "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
           :time_now => DateTime.utc_now() |> DateTime.to_unix(),
-          :encrypted_seed => Contract.get_encrypted_seed(contract)
+          :encrypted_seed => Contract.get_encrypted_seed(contract),
+          :state => state
         }
 
         task =
@@ -150,83 +210,6 @@ defmodule Archethic.Contracts do
   defdelegate load_transaction(tx, opts), to: Loader
 
   @doc """
-  Validate an execution by re-executing the contract & comparing both transactions.
-  They should have the same type & data
-
-  ps: this function is called in the Validation Workflow so next_tx.validation_stamp is nil
-  """
-  def valid_execution?(
-        prev_tx = %Transaction{data: %TransactionData{code: code}},
-        _next_tx = %Transaction{},
-        _contract_context = nil
-      )
-      when code != "" do
-    # only contract without triggers (with only conditions) are allowed to NOT have a Contract.Context
-    case from_transaction(prev_tx) do
-      {:ok, %Contract{triggers: triggers}} when map_size(triggers) == 0 ->
-        true
-
-      _ ->
-        false
-    end
-  end
-
-  def valid_execution?(
-        prev_tx = %Transaction{address: previous_address},
-        next_tx,
-        %Contract.Context{trigger: trigger, timestamp: timestamp, status: status}
-      ) do
-    with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
-         {:ok, contract} <- from_transaction(prev_tx) do
-      case execute_trigger(
-             trigger_to_trigger_type(trigger),
-             contract,
-             maybe_trigger_tx,
-             trigger_to_recipient(trigger),
-             trigger_to_execute_opts(trigger)
-           ) do
-        {:ok, %Transaction{type: expected_type, data: expected_data}} ->
-          %Transaction{type: next_tx_type, data: next_tx_data} =
-            Contract.remove_seed_ownership!(next_tx)
-
-          status == :tx_output &&
-            next_tx_type == expected_type &&
-            next_tx_data == expected_data
-
-        {:ok, nil} ->
-          status == :no_output
-
-        {:error, _} ->
-          status == :failure
-      end
-    else
-      _ ->
-        false
-    end
-  rescue
-    err ->
-      Logger.warn(Exception.format(:error, err, __STACKTRACE__))
-      false
-  end
-
-  defp trigger_to_recipient({:transaction, _, recipient}), do: recipient
-  defp trigger_to_recipient(_), do: nil
-
-  defp trigger_to_trigger_type({:oracle, _}), do: :oracle
-  defp trigger_to_trigger_type({:datetime, datetime}), do: {:datetime, datetime}
-  defp trigger_to_trigger_type({:interval, cron, _datetime}), do: {:interval, cron}
-
-  defp trigger_to_trigger_type({:transaction, _, recipient = %Recipient{}}) do
-    Contract.get_trigger_for_recipient(recipient)
-  end
-
-  # In the case of a trigger interval,
-  # because of the delay between execution and validation,
-  # we override the value returned by library function Time.now()
-  defp trigger_to_execute_opts({:interval, _cron, datetime}), do: [time_now: datetime]
-  defp trigger_to_execute_opts(_), do: []
-
-  @doc """
   Validate any kind of condition.
   The transaction and datetime depends on the condition.
   """
@@ -267,84 +250,6 @@ defmodule Archethic.Contracts do
       false
   end
 
-  defp validate_trigger({:datetime, datetime}, validation_datetime, _contract_address) do
-    if within_drift_tolerance?(validation_datetime, datetime) do
-      {:ok, nil}
-    else
-      :invalid_triggers_execution
-    end
-  end
-
-  defp validate_trigger(
-         {:interval, interval, interval_datetime},
-         validation_datetime,
-         _contract_address
-       ) do
-    matches_date? =
-      interval
-      |> CronParser.parse!(@extended_mode?)
-      |> CronDateChecker.matches_date?(DateTime.to_naive(interval_datetime))
-
-    if matches_date? && within_drift_tolerance?(validation_datetime, interval_datetime) do
-      {:ok, nil}
-    else
-      :invalid_triggers_execution
-    end
-  end
-
-  defp validate_trigger(
-         {:transaction, address, _recipient},
-         _validation_datetime,
-         contract_address
-       ) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    case TransactionChain.fetch_transaction(address, storage_nodes) do
-      {:ok,
-       tx = %Transaction{
-         type: trigger_type,
-         address: trigger_address,
-         validation_stamp: %ValidationStamp{recipients: trigger_resolved_recipients}
-       }} ->
-        # check that trigger transaction did indeed call this contract
-        if contract_address in trigger_resolved_recipients do
-          {:ok, tx}
-        else
-          Logger.error("Contract was wrongly triggered by transaction",
-            transaction_address: Base.encode16(trigger_address),
-            transaction_type: trigger_type,
-            contract: Base.encode16(contract_address)
-          )
-
-          :invalid_triggers_execution
-        end
-
-      {:error, _} ->
-        # todo: it might too strict to say that it's invalid in some cases (timeout)
-        :invalid_triggers_execution
-    end
-  end
-
-  defp validate_trigger({:oracle, address}, _validation_datetime, _contract_address) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-
-    case TransactionChain.fetch_transaction(address, storage_nodes) do
-      {:ok, tx} ->
-        {:ok, tx}
-
-      {:error, _} ->
-        # todo: it might too strict to say that it's invalid in some cases (timeout)
-        :invalid_triggers_execution
-    end
-  end
-
-  # validation_time: practical date of trigger
-  # datetime: theoretical date of trigger
-  defp within_drift_tolerance?(validation_datetime, datetime) do
-    DateTime.diff(validation_datetime, datetime) >= 0 and
-      DateTime.diff(validation_datetime, datetime) < 10
-  end
-
   @doc """
   List the address of the transaction which has contacted a smart contract
   """
@@ -374,7 +279,8 @@ defmodule Archethic.Contracts do
          contract = %Contract{
            transaction: contract_tx,
            functions: functions,
-           version: contract_version
+           version: contract_version,
+           state: state
          },
          transaction,
          datetime
@@ -384,7 +290,8 @@ defmodule Archethic.Contracts do
       "next" => Constants.from_contract_transaction(transaction, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
-      :encrypted_seed => Contract.get_encrypted_seed(contract)
+      :encrypted_seed => Contract.get_encrypted_seed(contract),
+      :state => state
     }
   end
 
@@ -393,7 +300,8 @@ defmodule Archethic.Contracts do
          contract = %Contract{
            transaction: contract_tx,
            functions: functions,
-           version: contract_version
+           version: contract_version,
+           state: state
          },
          transaction,
          datetime
@@ -403,7 +311,34 @@ defmodule Archethic.Contracts do
       "contract" => Constants.from_contract_transaction(contract_tx, contract_version),
       :time_now => DateTime.to_unix(datetime),
       :functions => functions,
-      :encrypted_seed => Contract.get_encrypted_seed(contract)
+      :encrypted_seed => Contract.get_encrypted_seed(contract),
+      :state => state
     }
+  end
+
+  # create a new transaction with the same code
+  defp generate_next_tx(%Transaction{data: %TransactionData{code: code}}) do
+    %Transaction{
+      type: :contract,
+      data: %TransactionData{
+        code: code
+      }
+    }
+  end
+
+  defp append_line_to_error(err, stacktrace) do
+    case Enum.find_value(stacktrace, fn
+           {_, _, _, [file: 'nofile', line: line]} ->
+             line
+
+           _ ->
+             false
+         end) do
+      line when is_integer(line) ->
+        Exception.message(err) <> " - L#{line}"
+
+      _ ->
+        Exception.message(err)
+    end
   end
 end

@@ -5,6 +5,7 @@ defmodule Archethic.Account.Supervisor do
 
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTables.StateLedger
   alias Archethic.Account.MemTablesLoader
 
   alias Archethic.Utils
@@ -17,6 +18,7 @@ defmodule Archethic.Account.Supervisor do
     children = [
       TokenLedger,
       UCOLedger,
+      StateLedger,
       MemTablesLoader
     ]
 

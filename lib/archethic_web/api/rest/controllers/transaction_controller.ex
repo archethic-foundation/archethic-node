@@ -6,6 +6,9 @@ defmodule ArchethicWeb.API.REST.TransactionController do
   use ArchethicWeb.API, :controller
 
   alias Archethic.Contracts
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
@@ -113,11 +116,12 @@ defmodule ArchethicWeb.API.REST.TransactionController do
         uco_eur = previous_price |> Keyword.fetch!(:eur)
         uco_usd = previous_price |> Keyword.fetch!(:usd)
 
+        # not possible to have a contract's state here
         fee =
           changeset
           |> TransactionPayload.to_map()
           |> Transaction.cast()
-          |> Mining.get_transaction_fee(nil, uco_usd, timestamp)
+          |> Mining.get_transaction_fee(nil, uco_usd, timestamp, nil)
 
         conn
         |> put_status(:ok)
@@ -232,10 +236,22 @@ defmodule ArchethicWeb.API.REST.TransactionController do
 
   defp fetch_recipient_tx_and_simulate(recipient_address, trigger_tx) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(recipient_address),
-         {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         {:ok, _} <-
-           Contracts.execute_trigger({:transaction, nil, nil}, contract, trigger_tx, nil) do
-      :ok
+         {:ok, contract} <- Contracts.from_transaction(contract_tx) do
+      case Contracts.execute_trigger(
+             {:transaction, nil, nil},
+             contract,
+             trigger_tx,
+             nil
+           ) do
+        %ActionWithTransaction{} ->
+          :ok
+
+        %ActionWithoutTransaction{} ->
+          {:error, "Execution success, but the contract did not produce a next transaction"}
+
+        %Failure{user_friendly_error: reason} ->
+          {:error, reason}
+      end
     else
       # search_transaction errors
       {:error, :transaction_not_exists} ->
@@ -247,7 +263,6 @@ defmodule ArchethicWeb.API.REST.TransactionController do
       {:error, :network_issue} ->
         {:error, "Network issue, please try again later."}
 
-      # execute_contract errors
       # parse_contract errors
       {:error, reason} when is_binary(reason) ->
         {:error, reason}

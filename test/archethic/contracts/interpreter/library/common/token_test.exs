@@ -67,7 +67,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TokenTest do
 
       {:ok, %{id: token_id}} = Utils.get_token_properties(genesis_address, tx)
 
-      assert %Transaction{data: %TransactionData{content: content}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: content}}, _state} =
+               sanitize_parse_execute(code)
+
       assert content == token_id
     end
   end

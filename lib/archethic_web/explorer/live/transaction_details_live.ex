@@ -1,29 +1,26 @@
 defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   @moduledoc false
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   use ArchethicWeb.Explorer, :live_view
 
-  alias Phoenix.View
-
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
-
+  alias Archethic.OracleChain
   alias Archethic.PubSub
-
+  alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.TokenLedger
-  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.TransactionInput
   alias ArchethicWeb.Explorer.ExplorerView
-
-  alias Archethic.OracleChain
-
-  alias Archethic.TaskSupervisor
+  alias Phoenix.View
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -267,5 +264,9 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     socket
     |> assign(:address, address)
     |> assign(:ko?, true)
+  end
+
+  def print_state(%UnspentOutput{encoded_payload: encoded_state}) do
+    encoded_state |> State.deserialize() |> Jason.encode!(pretty: true)
   end
 end

@@ -8,6 +8,9 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.ActionWithoutTransaction
+  alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -80,11 +83,16 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
          trigger when not is_nil(trigger) <- Contract.get_trigger_for_recipient(recipient),
          true <-
            Contracts.valid_condition?(trigger, contract, transaction, recipient, datetime),
-         {:ok, maybe_tx} <-
+         execution_result <-
            Contracts.execute_trigger(trigger, contract, transaction, recipient, time_now: datetime) do
       %SmartContractCallValidation{
-        valid?: true,
-        fee: calculate_fee(maybe_tx, contract, datetime)
+        valid?:
+          case execution_result do
+            %ActionWithoutTransaction{} -> true
+            %ActionWithTransaction{} -> true
+            %Failure{} -> false
+          end,
+        fee: calculate_fee(execution_result, contract, datetime)
       }
     else
       _ ->
@@ -92,10 +100,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
     end
   end
 
-  defp calculate_fee(nil, _, _), do: 0
-
   defp calculate_fee(
-         next_tx,
+         %ActionWithTransaction{next_tx: next_tx, encoded_state: encoded_state},
          contract = %Contract{transaction: %Transaction{address: contract_address}},
          timestamp
        ) do
@@ -110,10 +116,18 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
           |> Keyword.fetch!(:usd)
 
         # Here we use a nil contract_context as we return the fees the user has to pay for the contract
-        Mining.get_transaction_fee(tx, nil, previous_usd_price, timestamp)
+        Mining.get_transaction_fee(
+          tx,
+          nil,
+          previous_usd_price,
+          timestamp,
+          encoded_state
+        )
 
       _ ->
         0
     end
   end
+
+  defp calculate_fee(_, _, _), do: 0
 end

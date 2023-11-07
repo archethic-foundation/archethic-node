@@ -41,7 +41,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{type: :transfer} = sanitize_parse_execute(code)
+      assert {%Transaction{type: :transfer}, _state} = sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -49,7 +49,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{type: :contract} = sanitize_parse_execute(code)
+      assert {%Transaction{type: :contract}, _state} = sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -58,7 +58,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{type: :transfer} = sanitize_parse_execute(code)
+      assert {%Transaction{type: :transfer}, _state} = sanitize_parse_execute(code)
     end
 
     test "should not parse if the type is unknown" do
@@ -81,7 +81,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with integer" do
@@ -91,7 +92,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "12"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "12"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with float" do
@@ -101,7 +103,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "13.1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "13.1"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -109,7 +112,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "13"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "13"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with variable" do
@@ -120,7 +124,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "foo"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "foo"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -133,7 +138,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{code: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{code: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with variable" do
@@ -144,7 +150,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{code: "foo"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{code: "foo"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 
@@ -161,17 +168,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
 
       expected_amount = Archethic.Utils.to_bigint(9000)
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ledger: %Ledger{
-                   uco: %UCOLedger{
-                     transfers: [
-                       %UCOTransfer{amount: ^expected_amount, to: ^address}
-                     ]
-                   }
-                 }
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ledger: %Ledger{
+                    uco: %UCOLedger{
+                      transfers: [
+                        %UCOTransfer{amount: ^expected_amount, to: ^address}
+                      ]
+                    }
+                  }
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work with variable" do
@@ -186,17 +193,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
 
       expected_amount = Archethic.Utils.to_bigint(9000)
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ledger: %Ledger{
-                   uco: %UCOLedger{
-                     transfers: [
-                       %UCOTransfer{amount: ^expected_amount, to: ^address}
-                     ]
-                   }
-                 }
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ledger: %Ledger{
+                    uco: %UCOLedger{
+                      transfers: [
+                        %UCOTransfer{amount: ^expected_amount, to: ^address}
+                      ]
+                    }
+                  }
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should crash if the amount is 0" do
@@ -240,22 +247,22 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
 
       expected_amount = Archethic.Utils.to_bigint(14)
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ledger: %Ledger{
-                   token: %TokenLedger{
-                     transfers: [
-                       %TokenTransfer{
-                         to: ^address,
-                         amount: ^expected_amount,
-                         token_address: ^token_address,
-                         token_id: 0
-                       }
-                     ]
-                   }
-                 }
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ledger: %Ledger{
+                    token: %TokenLedger{
+                      transfers: [
+                        %TokenTransfer{
+                          to: ^address,
+                          amount: ^expected_amount,
+                          token_address: ^token_address,
+                          token_id: 0
+                        }
+                      ]
+                    }
+                  }
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work with variable" do
@@ -271,22 +278,22 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
 
       expected_amount = Archethic.Utils.to_bigint(15)
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ledger: %Ledger{
-                   token: %TokenLedger{
-                     transfers: [
-                       %TokenTransfer{
-                         to: ^address,
-                         amount: ^expected_amount,
-                         token_address: ^token_address,
-                         token_id: 1
-                       }
-                     ]
-                   }
-                 }
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ledger: %Ledger{
+                    token: %TokenLedger{
+                      transfers: [
+                        %TokenTransfer{
+                          to: ^address,
+                          amount: ^expected_amount,
+                          token_address: ^token_address,
+                          token_id: 1
+                        }
+                      ]
+                    }
+                  }
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should crash if the amount is 0" do
@@ -329,11 +336,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 recipients: [%Recipient{address: ^address}]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  recipients: [%Recipient{address: ^address}]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work with a recipient struct" do
@@ -346,17 +353,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 recipients: [
-                   %Recipient{
-                     address: ^address,
-                     action: "vote",
-                     args: ["Mr. Zero"]
-                   }
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  recipients: [
+                    %Recipient{
+                      address: ^address,
+                      action: "vote",
+                      args: ["Mr. Zero"]
+                    }
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work when called multiple times" do
@@ -370,14 +377,14 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 recipients: [
-                   %Recipient{address: ^address2},
-                   %Recipient{address: ^address}
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  recipients: [
+                    %Recipient{address: ^address2},
+                    %Recipient{address: ^address}
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work with variable" do
@@ -390,11 +397,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 recipients: [%Recipient{address: ^address}]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  recipients: [%Recipient{address: ^address}]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should fail when recipient is invalid" do
@@ -428,13 +435,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ownerships: [
-                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key}, secret: ^secret}
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ownerships: [
+                    %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key}, secret: ^secret}
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work when called multiple times" do
@@ -456,14 +463,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ownerships: [
-                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key1}, secret: ^secret1},
-                   %Ownership{authorized_keys: %{^pub_key2 => ^encrypted_key2}, secret: ^secret2}
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ownerships: [
+                    %Ownership{
+                      authorized_keys: %{^pub_key1 => ^encrypted_key1},
+                      secret: ^secret1
+                    },
+                    %Ownership{authorized_keys: %{^pub_key2 => ^encrypted_key2}, secret: ^secret2}
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work with variable" do
@@ -480,13 +490,13 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ownerships: [
-                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key}, secret: ^secret}
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ownerships: [
+                    %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key}, secret: ^secret}
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
   end
 
@@ -509,18 +519,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       expected_amount1 = Archethic.Utils.to_bigint(12.34)
       expected_amount2 = Archethic.Utils.to_bigint(567.8)
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ledger: %Ledger{
-                   uco: %UCOLedger{
-                     transfers: [
-                       %UCOTransfer{amount: ^expected_amount2, to: ^address2},
-                       %UCOTransfer{amount: ^expected_amount1, to: ^address}
-                     ]
-                   }
-                 }
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ledger: %Ledger{
+                    uco: %UCOLedger{
+                      transfers: [
+                        %UCOTransfer{amount: ^expected_amount2, to: ^address2},
+                        %UCOTransfer{amount: ^expected_amount1, to: ^address}
+                      ]
+                    }
+                  }
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
   end
 
@@ -544,28 +554,28 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       expected_amount1 = Archethic.Utils.to_bigint(14.1864)
       expected_amount2 = Archethic.Utils.to_bigint(3)
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ledger: %Ledger{
-                   token: %TokenLedger{
-                     transfers: [
-                       %TokenTransfer{
-                         to: ^address2,
-                         amount: ^expected_amount2,
-                         token_address: ^token_address,
-                         token_id: 4
-                       },
-                       %TokenTransfer{
-                         to: ^address,
-                         amount: ^expected_amount1,
-                         token_address: ^token_address,
-                         token_id: 0
-                       }
-                     ]
-                   }
-                 }
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ledger: %Ledger{
+                    token: %TokenLedger{
+                      transfers: [
+                        %TokenTransfer{
+                          to: ^address2,
+                          amount: ^expected_amount2,
+                          token_address: ^token_address,
+                          token_id: 4
+                        },
+                        %TokenTransfer{
+                          to: ^address,
+                          amount: ^expected_amount1,
+                          token_address: ^token_address,
+                          token_id: 0
+                        }
+                      ]
+                    }
+                  }
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
   end
 
@@ -582,14 +592,14 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 recipients: [
-                   %Recipient{address: ^address2},
-                   %Recipient{address: ^address}
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  recipients: [
+                    %Recipient{address: ^address2},
+                    %Recipient{address: ^address}
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "should work with mix of structs & binaries" do
@@ -606,18 +616,18 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 recipients: [
-                   %Recipient{address: ^address2},
-                   %Recipient{
-                     address: ^address,
-                     action: "vote",
-                     args: ["Mr. Zero"]
-                   }
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  recipients: [
+                    %Recipient{address: ^address2},
+                    %Recipient{
+                      address: ^address,
+                      action: "vote",
+                      args: ["Mr. Zero"]
+                    }
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
   end
 
@@ -646,14 +656,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ownerships: [
-                   %Ownership{authorized_keys: %{^pub_key1 => ^encrypted_key1}, secret: ^secret1},
-                   %Ownership{authorized_keys: %{^pub_key2 => ^encrypted_key2}, secret: ^secret2}
-                 ]
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ownerships: [
+                    %Ownership{
+                      authorized_keys: %{^pub_key1 => ^encrypted_key1},
+                      secret: ^secret1
+                    },
+                    %Ownership{authorized_keys: %{^pub_key2 => ^encrypted_key2}, secret: ^secret2}
+                  ]
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
   end
 

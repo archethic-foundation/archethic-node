@@ -589,7 +589,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to change the contract even if there are code after" do
@@ -600,7 +601,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use a variable" do
@@ -611,7 +613,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use a function call as parameter" do
@@ -622,7 +625,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "\"hello\""}} =
+      assert {%Transaction{data: %TransactionData{content: "\"hello\""}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -634,7 +637,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use a common module" do
@@ -646,7 +650,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "2"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "2"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should evaluate actions based on if statement" do
@@ -660,7 +665,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "yes"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "yes"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should consider the ! (not) keyword" do
@@ -674,7 +680,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "yes"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "yes"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should not parse if trying to access an undefined variable" do
@@ -705,7 +712,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -718,7 +726,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello world"}} =
+      assert {%Transaction{data: %TransactionData{content: "hello world"}}, _state} =
                sanitize_parse_execute(code)
 
       code = ~S"""
@@ -734,7 +742,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to have variable in block" do
@@ -749,7 +758,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -762,7 +772,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello world"}} =
+      assert {%Transaction{data: %TransactionData{content: "hello world"}}, _state} =
                sanitize_parse_execute(code)
 
       code = ~S"""
@@ -778,7 +788,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to update a parent scope variable" do
@@ -794,7 +805,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -808,7 +820,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "你好"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "你好"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -824,7 +837,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -844,7 +858,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "layer 3"}} =
+      assert {%Transaction{data: %TransactionData{content: "layer 3"}}, _state} =
                sanitize_parse_execute(code)
 
       code = ~S"""
@@ -863,7 +877,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "layer 3"}} =
+      assert {%Transaction{data: %TransactionData{content: "layer 3"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -877,7 +891,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -887,7 +902,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -897,7 +913,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -911,7 +928,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use for loop" do
@@ -927,7 +945,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "6"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "6"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -942,7 +961,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "6"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "6"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -957,7 +977,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "12"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "12"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -969,7 +990,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use ranges" do
@@ -983,7 +1005,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1\n2\n3\n4\n"}} =
+      assert {%Transaction{data: %TransactionData{content: "1\n2\n3\n4\n"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -996,7 +1018,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use [] access with a variable" do
@@ -1009,7 +1032,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use [] access with a dot access" do
@@ -1022,7 +1046,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use [] access with a fn call" do
@@ -1034,7 +1059,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use nested [] access" do
@@ -1047,7 +1073,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "hello"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "hello"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to use named action arguments from the block" do
@@ -1059,7 +1086,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} =
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
                sanitize_parse_execute(code, %{"candidate" => "Mr. T"})
     end
   end
@@ -1084,28 +1111,28 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       expected_b = Archethic.Utils.to_bigint(5.1)
       expected_c = Archethic.Utils.to_bigint(15)
 
-      assert %Transaction{
-               data: %TransactionData{
-                 ledger: %Ledger{
-                   token: %TokenLedger{
-                     transfers: [
-                       %TokenTransfer{
-                         to: ^address,
-                         amount: ^expected_c,
-                         token_address: ^address2,
-                         token_id: 1
-                       }
-                     ]
-                   },
-                   uco: %UCOLedger{
-                     transfers: [
-                       %UCOTransfer{to: ^address2, amount: ^expected_b},
-                       %UCOTransfer{to: ^address, amount: ^expected_a}
-                     ]
-                   }
-                 }
-               }
-             } = sanitize_parse_execute(code)
+      assert {%Transaction{
+                data: %TransactionData{
+                  ledger: %Ledger{
+                    token: %TokenLedger{
+                      transfers: [
+                        %TokenTransfer{
+                          to: ^address,
+                          amount: ^expected_c,
+                          token_address: ^address2,
+                          token_id: 1
+                        }
+                      ]
+                    },
+                    uco: %UCOLedger{
+                      transfers: [
+                        %UCOTransfer{to: ^address2, amount: ^expected_b},
+                        %UCOTransfer{to: ^address, amount: ^expected_a}
+                      ]
+                    }
+                  }
+                }
+              }, _state} = sanitize_parse_execute(code)
     end
 
     test "read from transfers" do
@@ -1143,7 +1170,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
 
       tx = TransactionFactory.create_valid_transaction([], ledger: ledger)
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} =
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
                sanitize_parse_execute(code, %{"transaction" => Constants.from_transaction(tx)})
     end
 
@@ -1154,7 +1181,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{code: ^code}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{code: ^code}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should be able to clear the code" do
@@ -1164,7 +1192,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{code: ""}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{code: ""}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "maths are OK" do
@@ -1178,7 +1207,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1189,7 +1219,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1200,7 +1231,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1211,7 +1243,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1222,7 +1255,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1233,7 +1267,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1244,7 +1279,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1255,7 +1291,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~s"""
       actions triggered_by: transaction do
@@ -1266,7 +1303,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     property "floating points additions" do
@@ -1280,7 +1318,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
         end
         """
 
-        assert %Transaction{data: %TransactionData{content: content}} =
+        assert {%Transaction{data: %TransactionData{content: content}}, _state} =
                  sanitize_parse_execute(code)
 
         assert_less_than_8_decimals(content)
@@ -1298,7 +1336,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
         end
         """
 
-        assert %Transaction{data: %TransactionData{content: content}} =
+        assert {%Transaction{data: %TransactionData{content: content}}, _state} =
                  sanitize_parse_execute(code)
 
         assert_less_than_8_decimals(content)
@@ -1318,7 +1356,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
         end
         """
 
-        assert %Transaction{data: %TransactionData{content: content}} =
+        assert {%Transaction{data: %TransactionData{content: content}}, _state} =
                  sanitize_parse_execute(code)
 
         assert_less_than_8_decimals(content)
@@ -1336,7 +1374,7 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
         end
         """
 
-        assert %Transaction{data: %TransactionData{content: content}} =
+        assert {%Transaction{data: %TransactionData{content: content}}, _state} =
                  sanitize_parse_execute(code)
 
         assert_less_than_8_decimals(content)

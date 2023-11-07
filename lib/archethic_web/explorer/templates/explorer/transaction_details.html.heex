@@ -404,7 +404,7 @@
 
                                    <div x-show="operation_section == 'unspent_outputs' ">
                                         <p class="heading mb-4">Unspent outputs</p>
-                                        <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
+                                        <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs, unspent_output.type != :state do %>
                                         <div class="box">
                                             <div class="columns">
                                                 <div class="column is-1 heading">From</div>
@@ -442,6 +442,15 @@
                                                         <% end %>
                                                     <% end %>
                                                 </div>
+                                            </div>
+                                        </div>
+                                        <% end %>
+
+                                        <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs, unspent_output.type == :state do %>
+                                         <div class="box">
+                                            <div class="columns">
+                                                <div class="column is-1 heading">State</div>
+                                                <pre style="width: 100%"><%= ArchethicWeb.Explorer.TransactionDetailsLive.print_state(unspent_output) %></pre>
                                             </div>
                                         </div>
                                         <% end %>

@@ -9,43 +9,28 @@ defmodule Archethic.Replication do
   those transactions will be loaded into the subsystems (Node, Shared Secrets, Governance, etc..)
   """
 
-  alias Archethic.Account
-
-  alias Archethic.Contracts
-  alias Archethic.Contracts.Contract
-
-  alias Archethic.Crypto
-
-  alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Message
-  alias Archethic.P2P.Message.NotifyLastTransactionAddress
-
-  alias Archethic.P2P.Node
-
-  alias Archethic.PubSub
-
-  alias Archethic.OracleChain
-
-  alias Archethic.SelfRepair.NetworkView
-
-  alias Archethic.SharedSecrets
-
-  alias Archethic.Reward
-
-  alias Archethic.Governance
-
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionPool
   alias __MODULE__.TransactionValidator
-
+  alias Archethic.Account
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
+  alias Archethic.Crypto
+  alias Archethic.Election
+  alias Archethic.Governance
+  alias Archethic.OracleChain
+  alias Archethic.P2P
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.Message.NotifyLastTransactionAddress
+  alias Archethic.P2P.Node
+  alias Archethic.PubSub
+  alias Archethic.Reward
+  alias Archethic.SelfRepair.NetworkView
+  alias Archethic.SharedSecrets
   alias Archethic.TaskSupervisor
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
-
   alias Archethic.Utils
 
   require Logger

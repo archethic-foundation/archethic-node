@@ -2,30 +2,22 @@ defmodule Archethic.Replication.TransactionValidator do
   @moduledoc false
 
   alias Archethic.Bootstrap
-
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-
   alias Archethic.DB
-
   alias Archethic.Election
-
-  alias Archethic.P2P
-  alias Archethic.P2P.Node
-
   alias Archethic.Mining
   alias Archethic.Mining.SmartContractValidation
-
   alias Archethic.OracleChain
-
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
   alias Archethic.SharedSecrets
-
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionInput
 
   require Logger
@@ -48,6 +40,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_validation_stamp_signature
           | :invalid_unspent_outputs
           | :invalid_recipients_execution
+          | :invalid_contract_execution
 
   @doc """
   Validate transaction with context
@@ -55,14 +48,15 @@ defmodule Archethic.Replication.TransactionValidator do
   This function is called by the chain replication nodes
   """
   @spec validate(
-          validated_transaction :: Transaction.t(),
+          tx :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
-          inputs_outputs :: list(TransactionInput.t()),
+          inputs :: list(TransactionInput.t()),
           contract_context :: nil | Contract.Context.t()
         ) ::
           :ok | {:error, error()}
+
   def validate(tx = %Transaction{}, previous_transaction, inputs, contract_context) do
-    with :ok <- valid_transaction(tx, inputs, contract_context, true),
+    with :ok <- valid_transaction(tx, previous_transaction, inputs, contract_context),
          :ok <- validate_inheritance(previous_transaction, tx) do
       validate_chain(tx, previous_transaction)
     end
@@ -106,10 +100,7 @@ defmodule Archethic.Replication.TransactionValidator do
   This function called by the replication nodes which are involved in the chain storage
   """
   @spec validate(Transaction.t()) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}),
-    do: valid_transaction(tx, [], nil, false)
-
-  defp valid_transaction(tx = %Transaction{}, _inputs, _contract_context, _chain_node? = false) do
+  def validate(tx = %Transaction{}) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx) do
       :ok
@@ -120,13 +111,15 @@ defmodule Archethic.Replication.TransactionValidator do
     end
   end
 
-  defp valid_transaction(tx = %Transaction{}, inputs, contract_context, _chain_node? = true)
+  defp valid_transaction(tx, prev_tx, inputs, contract_context)
        when is_list(inputs) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx),
          {:ok, contract_recipient_fees} <- validate_contract_recipients(tx),
-         :ok <- validate_transaction_fee(tx, contract_recipient_fees, contract_context),
-         :ok <- validate_inputs(tx, inputs) do
+         {:ok, encoded_state} <- validate_contract_execution(contract_context, prev_tx, tx),
+         :ok <-
+           validate_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state),
+         :ok <- validate_inputs(tx, inputs, encoded_state) do
       :ok
     else
       {:error, _} = e ->
@@ -161,6 +154,13 @@ defmodule Archethic.Replication.TransactionValidator do
     case res do
       {true, fees} -> {:ok, fees}
       {false, _} -> {:error, :invalid_recipients_execution}
+    end
+  end
+
+  defp validate_contract_execution(contract_context, prev_tx, tx) do
+    case SmartContractValidation.valid_contract_execution?(contract_context, prev_tx, tx) do
+      {true, encoded_state} -> {:ok, encoded_state}
+      _ -> {:error, :invalid_contract_execution}
     end
   end
 
@@ -265,9 +265,10 @@ defmodule Archethic.Replication.TransactionValidator do
            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: fee}}
          },
          contract_recipient_fees,
-         contract_context
+         contract_context,
+         encoded_state
        ) do
-    if fee == get_transaction_fee(tx, contract_recipient_fees, contract_context) do
+    if fee == get_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state) do
       :ok
     else
       Logger.error(
@@ -283,7 +284,8 @@ defmodule Archethic.Replication.TransactionValidator do
   defp get_transaction_fee(
          tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
          contract_recipient_fees,
-         contract_context
+         contract_context,
+         encoded_state
        ) do
     previous_usd_price =
       timestamp
@@ -296,6 +298,7 @@ defmodule Archethic.Replication.TransactionValidator do
       contract_context,
       previous_usd_price,
       timestamp,
+      encoded_state,
       contract_recipient_fees
     )
   end
@@ -360,12 +363,13 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp validate_inputs(
          tx = %Transaction{address: address},
-         inputs
+         inputs,
+         encoded_state
        ) do
     if address == Bootstrap.genesis_address() do
       :ok
     else
-      do_validate_inputs(tx, inputs)
+      do_validate_inputs(tx, inputs, encoded_state)
     end
   end
 
@@ -382,18 +386,17 @@ defmodule Archethic.Replication.TransactionValidator do
              }
            }
          },
-         inputs
+         inputs,
+         encoded_state
        ) do
-    case LedgerOperations.consume_inputs(
-           %LedgerOperations{
-             fee: fee,
-             transaction_movements: transaction_movements,
-             tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-           },
-           address,
-           inputs,
-           timestamp
-         ) do
+    ops = %LedgerOperations{
+      fee: fee,
+      transaction_movements: transaction_movements,
+      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+      encoded_state: encoded_state
+    }
+
+    case LedgerOperations.consume_inputs(ops, address, inputs, timestamp) do
       {false, _} ->
         {:error, :insufficient_funds}
 

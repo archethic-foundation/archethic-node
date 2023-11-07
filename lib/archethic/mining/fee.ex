@@ -5,6 +5,7 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.Bootstrap
 
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.State
 
   alias Archethic.Election
 
@@ -49,18 +50,20 @@ defmodule Archethic.Mining.Fee do
           contract_context :: Contract.Context.t() | nil,
           uco_usd_price :: float(),
           timestamp :: DateTime.t(),
+          encoded_state :: State.encoded() | nil,
           contract_recipient_fee :: non_neg_integer(),
           protocol_version :: pos_integer()
         ) :: non_neg_integer()
-  def calculate(%Transaction{type: :keychain}, _, _, _, _, _), do: 0
-  def calculate(%Transaction{type: :keychain_access}, _, _, _, _, _), do: 0
-  def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain}, _, _, _, _, _, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _, _, _, _, _, _), do: 0
+  def calculate(_, %Contract.Context{trigger: {:transaction, _, _}}, _, _, _, _, _), do: 0
 
   def calculate(
         tx = %Transaction{address: address, type: type},
         _contract_context,
         uco_price_in_usd,
         timestamp,
+        encoded_state,
         contract_recipient_fee,
         protocol_version
       ) do
@@ -73,7 +76,7 @@ defmodule Archethic.Mining.Fee do
 
       true ->
         nb_recipients = get_number_recipients(tx)
-        nb_bytes = get_transaction_size(tx)
+        nb_bytes = get_transaction_size(tx) + get_state_size(encoded_state)
         nb_storage_nodes = get_number_replicas(tx, timestamp)
 
         # TODO: determine the fee for smart contract execution
@@ -125,6 +128,9 @@ defmodule Archethic.Mining.Fee do
     |> TransactionData.serialize(version)
     |> byte_size()
   end
+
+  defp get_state_size(nil), do: 0
+  defp get_state_size(encoded_state), do: byte_size(encoded_state)
 
   defp get_number_recipients(
          tx = %Transaction{

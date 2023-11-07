@@ -65,9 +65,9 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
       Contract.Context.serialize(contract_context)::bitstring>>
   end
 
-  @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<rest::bitstring>>) do
-    {tx, rest} = Transaction.deserialize(rest)
+  @spec deserialize(bitstring()) :: {t(), bitstring()}
+  def deserialize(bin) when is_bitstring(bin) do
+    {tx, rest} = Transaction.deserialize(bin)
 
     {contract_context, rest} =
       case rest do

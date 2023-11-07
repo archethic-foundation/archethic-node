@@ -147,6 +147,20 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> ConditionInterpreter.parse([])
     end
 
+    test "should not parse :write_state functions" do
+      code = ~s"""
+       condition triggered_by: transaction, as: [
+        uco_transfers: State.set("foo", "bar")
+      ]
+      """
+
+      assert {:error, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
     test "parse custom functions" do
       code = ~s"""
        condition triggered_by: transaction, as: [

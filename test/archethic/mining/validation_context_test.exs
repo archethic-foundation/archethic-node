@@ -296,15 +296,14 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee:
-            Fee.calculate(tx, nil, 0.07, timestamp, 0, ArchethicCase.current_protocol_version()),
+          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
           transaction_movements: Transaction.get_movements(tx),
           tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
         |> elem(1),
       signature: :crypto.strong_rand_bytes(32),
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
   end
 
@@ -320,14 +319,13 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee:
-            Fee.calculate(tx, nil, 0.07, timestamp, 0, ArchethicCase.current_protocol_version()),
+          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
           transaction_movements: Transaction.get_movements(tx),
           tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
         |> elem(1),
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -344,14 +342,13 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee:
-            Fee.calculate(tx, nil, 0.07, timestamp, 0, ArchethicCase.current_protocol_version()),
+          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
           transaction_movements: Transaction.get_movements(tx),
           tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
         |> elem(1),
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -373,7 +370,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
         |> elem(1),
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -383,7 +380,7 @@ defmodule Archethic.Mining.ValidationContextTest do
          validation_time: timestamp,
          unspent_outputs: unspent_outputs
        }) do
-    fee = Fee.calculate(tx, nil, 0.07, timestamp, 0, ArchethicCase.current_protocol_version())
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
 
     %ValidationStamp{
       timestamp: timestamp,
@@ -407,7 +404,7 @@ defmodule Archethic.Mining.ValidationContextTest do
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
         |> elem(1),
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -423,7 +420,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, 0, ArchethicCase.current_protocol_version()),
+        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
         transaction_movements: Transaction.get_movements(tx),
         unspent_outputs: [
           %UnspentOutput{
@@ -434,7 +431,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           }
         ]
       },
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
   end
@@ -451,14 +448,13 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee:
-            Fee.calculate(tx, nil, 0.07, timestamp, 0, ArchethicCase.current_protocol_version()),
+          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
         |> elem(1),
       error: :invalid_pending_transaction,
-      protocol_version: ArchethicCase.current_protocol_version()
+      protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
   end

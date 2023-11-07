@@ -725,18 +725,31 @@ defmodule Archethic.Mining.ValidationContext do
           contract_context: contract_context
         }
       ) do
+    protocol_version = Mining.protocol_version()
+
+    {valid_contract_execution?, encoded_state} =
+      SmartContractValidation.valid_contract_execution?(contract_context, prev_tx, tx)
+
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
     {valid_contract_recipients?, contract_recipients_fee} =
       validate_contract_recipients(tx, resolved_recipients, validation_time)
 
-    fee = calculate_fee(tx, contract_context, contract_recipients_fee, validation_time)
+    fee =
+      calculate_fee(
+        tx,
+        contract_context,
+        contract_recipients_fee,
+        validation_time,
+        encoded_state
+      )
 
-    {sufficient_funds?, ledger_operations} = get_ledger_operations(context, fee, validation_time)
+    {sufficient_funds?, ledger_operations} =
+      get_ledger_operations(context, fee, validation_time, encoded_state)
 
     validation_stamp =
       %ValidationStamp{
-        protocol_version: Mining.protocol_version(),
+        protocol_version: protocol_version,
         timestamp: validation_time,
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
@@ -751,7 +764,7 @@ defmodule Archethic.Mining.ValidationContext do
             valid_pending_transaction?,
             resolved_recipients,
             validation_time,
-            contract_context,
+            valid_contract_execution?,
             valid_contract_recipients?
           )
       }
@@ -760,7 +773,13 @@ defmodule Archethic.Mining.ValidationContext do
     %{context | validation_stamp: validation_stamp}
   end
 
-  defp calculate_fee(tx, contract_context, contract_recipients_fee, validation_time) do
+  defp calculate_fee(
+         tx,
+         contract_context,
+         contract_recipients_fee,
+         validation_time,
+         encoded_state
+       ) do
     previous_usd_price =
       validation_time
       |> OracleChain.get_last_scheduling_date()
@@ -772,6 +791,7 @@ defmodule Archethic.Mining.ValidationContext do
       contract_context,
       previous_usd_price,
       validation_time,
+      encoded_state,
       contract_recipients_fee
     )
   end
@@ -783,7 +803,8 @@ defmodule Archethic.Mining.ValidationContext do
            resolved_addresses: resolved_addresses
          },
          fee,
-         validation_time
+         validation_time,
+         encoded_state
        ) do
     initial_movements =
       tx
@@ -809,7 +830,8 @@ defmodule Archethic.Mining.ValidationContext do
     %LedgerOperations{
       fee: fee,
       transaction_movements: resolved_movements,
-      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, validation_time)
+      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, validation_time),
+      encoded_state: encoded_state
     }
     |> LedgerOperations.consume_inputs(
       tx.address,
@@ -819,13 +841,13 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   @spec get_validation_error(
-          previous_transaction :: nil | Transaction.t(),
-          pending_transaction :: Transaction.t(),
+          prev_tx :: nil | Transaction.t(),
+          tx :: Transaction.t(),
           sufficient_funds? :: boolean(),
           valid_pending_transaction? :: boolean(),
           resolved_recipients :: list(Recipient.t()),
           validation_time :: DateTime.t(),
-          contract_context :: nil | Contract.Context.t(),
+          valid_contract_execution? :: boolean(),
           valid_contract_recipients? :: boolean()
         ) :: nil | ValidationStamp.error()
   defp get_validation_error(
@@ -835,7 +857,7 @@ defmodule Archethic.Mining.ValidationContext do
          valid_pending_transaction?,
          resolved_recipients,
          validation_time,
-         contract_context,
+         valid_contract_execution?,
          valid_contract_recipients?
        ) do
     cond do
@@ -848,7 +870,7 @@ defmodule Archethic.Mining.ValidationContext do
       not valid_inherit_condition?(prev_tx, tx, validation_time) ->
         :invalid_inherit_constraints
 
-      not valid_contract_execution?(prev_tx, tx, contract_context) ->
+      not valid_contract_execution? ->
         :invalid_contract_execution
 
       not valid_contract_recipients_distinct?(resolved_recipients) ->
@@ -893,21 +915,6 @@ defmodule Archethic.Mining.ValidationContext do
   #   - first transaction
   #   - previous has no code
   defp valid_inherit_condition?(_prev_tx, _next_tx, _validation_time), do: true
-
-  ####################
-  defp valid_contract_execution?(
-         prev_tx = %Transaction{data: %TransactionData{code: code}},
-         next_tx = %Transaction{},
-         maybe_contract_context
-       )
-       when code != "" do
-    Contracts.valid_execution?(prev_tx, next_tx, maybe_contract_context)
-  end
-
-  # handle cases:
-  #   - first transaction
-  #   - previous has no code
-  defp valid_contract_execution?(_prev_tx, _next_tx, _contract_contract), do: true
 
   @doc """
   Create a replication tree based on the validation context (storage nodes and validation nodes)
@@ -1078,6 +1085,7 @@ defmodule Archethic.Mining.ValidationContext do
   defp validation_stamp_inconsistencies(
          context = %__MODULE__{
            transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
+           previous_transaction: prev_tx,
            resolved_addresses: resolved_addresses,
            validation_time: validation_time,
            contract_context: contract_context,
@@ -1090,12 +1098,23 @@ defmodule Archethic.Mining.ValidationContext do
        ) do
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
+    {valid_contract_execution?, next_state} =
+      SmartContractValidation.valid_contract_execution?(contract_context, prev_tx, tx)
+
     {valid_contract_recipients?, contract_recipients_fee} =
       validate_contract_recipients(tx, resolved_recipients, validation_time)
 
-    fee = calculate_fee(tx, contract_context, contract_recipients_fee, validation_time)
+    fee =
+      calculate_fee(
+        tx,
+        contract_context,
+        contract_recipients_fee,
+        validation_time,
+        next_state
+      )
 
-    {sufficient_funds?, ledger_operations} = get_ledger_operations(context, stamp_fee, timestamp)
+    {sufficient_funds?, ledger_operations} =
+      get_ledger_operations(context, stamp_fee, timestamp, next_state)
 
     subsets_verifications = [
       timestamp: fn -> valid_timestamp(stamp, context) end,
@@ -1111,6 +1130,7 @@ defmodule Archethic.Mining.ValidationContext do
         valid_stamp_error?(
           stamp,
           context,
+          valid_contract_execution?,
           valid_contract_recipients?,
           sufficient_funds?,
           resolved_recipients
@@ -1178,9 +1198,9 @@ defmodule Archethic.Mining.ValidationContext do
            transaction: tx,
            previous_transaction: prev_tx,
            valid_pending_transaction?: valid_pending_transaction?,
-           validation_time: validation_time,
-           contract_context: contract_context
+           validation_time: validation_time
          },
+         valid_contract_execution?,
          valid_contract_recipients?,
          sufficient_funds?,
          resolved_recipients
@@ -1193,7 +1213,7 @@ defmodule Archethic.Mining.ValidationContext do
         valid_pending_transaction?,
         resolved_recipients,
         validation_time,
-        contract_context,
+        valid_contract_execution?,
         valid_contract_recipients?
       )
 

@@ -23,7 +23,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1.0"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1.0"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with integer" do
@@ -33,7 +34,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "1"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "1"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with string" do
@@ -43,7 +45,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "\"hello\""}} =
+      assert {%Transaction{data: %TransactionData{content: "\"hello\""}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -54,7 +56,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[1,2,3]"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -65,7 +67,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "{\"foo\":\"bar\"}"}} =
+      assert {%Transaction{data: %TransactionData{content: "{\"foo\":\"bar\"}"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -77,7 +79,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "{\"foo\":\"bar\"}"}} =
+      assert {%Transaction{data: %TransactionData{content: "{\"foo\":\"bar\"}"}}, _state} =
                sanitize_parse_execute(code)
     end
   end
@@ -92,7 +94,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "world"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "world"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -100,7 +103,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "Whoopi Goldberg"}} =
+      assert {%Transaction{data: %TransactionData{content: "Whoopi Goldberg"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -112,7 +115,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "42"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "42"}}, _state} =
+               sanitize_parse_execute(code)
 
       code = ~S"""
       actions triggered_by: transaction do
@@ -122,7 +126,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with list" do
@@ -133,7 +138,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[1,2,3]"}}, _state} =
                sanitize_parse_execute(code)
 
       code = ~S"""
@@ -145,7 +150,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
 
     test "should work with map" do
@@ -156,7 +162,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "{\"foo\":\"bar\"}"}} =
+      assert {%Transaction{data: %TransactionData{content: "{\"foo\":\"bar\"}"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -169,7 +175,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[1,2,3]"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -182,7 +188,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "[1,2,3]"}} =
+      assert {%Transaction{data: %TransactionData{content: "[1,2,3]"}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -209,7 +215,8 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.JsonTest do
       end
       """
 
-      assert %Transaction{data: %TransactionData{content: "ok"}} = sanitize_parse_execute(code)
+      assert {%Transaction{data: %TransactionData{content: "ok"}}, _state} =
+               sanitize_parse_execute(code)
     end
   end
 end

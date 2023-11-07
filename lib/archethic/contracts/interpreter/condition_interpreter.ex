@@ -196,6 +196,9 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     if Library.function_tagged_with?(module_name, function_name, :write_contract),
       do: throw({:error, node, "Write contract functions are not allowed in condition block"})
 
+    if Library.function_tagged_with?(module_name, function_name, :write_state),
+      do: throw({:error, node, "Modifying contract's state is not allowed in condition block"})
+
     with {:error, :invalid_function_arity, _} <-
            Library.validate_module_call(module_name, function_name, arity),
          :ok <- Library.validate_module_call(module_name, function_name, arity + 1) do

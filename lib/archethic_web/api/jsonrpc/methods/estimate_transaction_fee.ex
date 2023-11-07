@@ -54,7 +54,8 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
     {_valid?, recipients_fee} =
       SmartContractValidation.validate_contract_calls(resolved_recipients, tx, timestamp)
 
-    fee = Mining.get_transaction_fee(tx, nil, uco_usd, timestamp, recipients_fee)
+    # not possible to have a contract's state here
+    fee = Mining.get_transaction_fee(tx, nil, uco_usd, timestamp, nil, recipients_fee)
 
     result = %{"fee" => fee, "rates" => %{"usd" => uco_usd, "eur" => uco_eur}}
     {:ok, result}

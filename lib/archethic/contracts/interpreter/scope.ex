@@ -163,7 +163,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
   @doc """
   Update the global variable (or prop) at path with given function
   """
-  @spec update_global(list(String.t()), (any() -> any())) :: :ok
+  @spec update_global(list(String.t() | atom()), (any() -> any())) :: :ok
   def update_global(path, update_fn) do
     Process.put(
       :scope,
