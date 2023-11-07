@@ -50,7 +50,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
               }
           }
       }) do
-    validation_stamp_checksum = :crypto.hash(:sha256, ValidationStamp.serialize(validation_stamp))
+    raw_stamp = validation_stamp |> ValidationStamp.serialize() |> Utils.wrap_binary()
+    validation_stamp_checksum = :crypto.hash(:sha256, raw_stamp)
 
     %__MODULE__{
       address: address,

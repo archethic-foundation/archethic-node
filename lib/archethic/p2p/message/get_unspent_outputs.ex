@@ -33,7 +33,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
         acc_size =
           acc.utxos
           |> Enum.map(&VersionedUnspentOutput.serialize/1)
-          |> :erlang.list_to_binary()
+          |> :erlang.list_to_bitstring()
           |> byte_size()
 
         utxo_size =
