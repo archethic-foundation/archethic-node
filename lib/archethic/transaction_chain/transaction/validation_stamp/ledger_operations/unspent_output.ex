@@ -4,6 +4,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   """
   defstruct [:amount, :from, :type, :timestamp, :encoded_payload, reward?: false]
 
+  alias Archethic.Contracts.Contract.State
+
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
@@ -239,6 +241,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       token_id: token_id,
       reward?: reward,
       timestamp: timestamp
+    }
+  end
+
+  def to_map(%__MODULE__{
+        type: :state,
+        encoded_payload: encoded_payload
+      }) do
+    %{
+      type: "state",
+      state: State.deserialize(encoded_payload) |> elem(0)
     }
   end
 end

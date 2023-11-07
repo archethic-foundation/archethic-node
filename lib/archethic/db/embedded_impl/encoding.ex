@@ -73,7 +73,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     unspent_outputs_encoding =
       unspent_outputs
       |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
-      |> :erlang.list_to_binary()
+      |> :erlang.list_to_bitstring()
 
     cross_validation_stamps_encoding =
       cross_validation_stamps
@@ -118,7 +118,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"validation_stamp.ledger_operations.transaction_movements",
          <<encoded_transaction_movements_len::binary, transaction_movements_encoding::binary>>},
         {"validation_stamp.ledger_operations.unspent_outputs",
-         <<encoded_unspent_outputs_len::binary, unspent_outputs_encoding::binary>>},
+         <<encoded_unspent_outputs_len::binary, unspent_outputs_encoding::bitstring>>},
         {"validation_stamp.ledger_operations.fee", <<fee::64>>},
         {"validation_stamp.recipients",
          <<encoded_resolved_recipients_len::binary,

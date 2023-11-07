@@ -19,7 +19,7 @@ defmodule Archethic.P2P.Message.UnspentOutputList do
       unspent_outputs
       |> Stream.map(&VersionedUnspentOutput.serialize/1)
       |> Enum.to_list()
-      |> :erlang.list_to_binary()
+      |> :erlang.list_to_bitstring()
 
     encoded_unspent_outputs_length =
       unspent_outputs
@@ -28,7 +28,7 @@ defmodule Archethic.P2P.Message.UnspentOutputList do
 
     more_bit = if more?, do: 1, else: 0
 
-    <<encoded_unspent_outputs_length::binary, unspent_outputs_bin::binary, more_bit::1,
+    <<encoded_unspent_outputs_length::binary, unspent_outputs_bin::bitstring, more_bit::1,
       VarInt.from_value(offset)::binary>>
   end
 

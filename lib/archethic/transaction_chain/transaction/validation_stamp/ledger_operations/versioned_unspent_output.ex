@@ -17,7 +17,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         protocol_version: protocol_version,
         unspent_output: unspent_output = %UnspentOutput{}
       }) do
-    <<protocol_version::32, UnspentOutput.serialize(unspent_output, protocol_version)::binary>>
+    <<protocol_version::32, UnspentOutput.serialize(unspent_output, protocol_version)::bitstring>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
