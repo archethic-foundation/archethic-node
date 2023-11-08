@@ -1,12 +1,76 @@
 body {
-  background: $explorer_bg;
+  background: #000000;
+  color: #fff;
   min-height: 100vh;
+  font-family: 'PPTelegraf Regular';
+  background-image: url('/images/background-mainscreen.png');
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
 }
 
-.main_title,
-.main_subtitle {
-  color: #fff;
+
+body::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: url('/images/background-mainscreen.png') center center no-repeat;
+  background-size: cover;
+  opacity: 0.8;
+  pointer-events: none;
 }
+
+.text_title {
+  position: relative;
+  font-size: 4rem;
+  font-weight: 600;
+  background: var(--gradient-1, linear-gradient(209deg, #562FED 0%, #D55CFF 100%));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding-top: 50px;
+  padding-bottom: 1px;
+  font-family: 'PPTelegraf Regular' !important;
+}
+
+.text_subtitle {
+  color: $color-neutral-0;
+  position: relative;
+  font-size: 20px;
+  font-weight: 600;
+  padding-bottom: 1px;
+  font-family: 'PPTelegraf UltraLight';
+}
+
+.text_regular {
+  color: #fff;
+  font-family: 'PPTelegraf Regular';
+}
+
+.text_regular_address {
+  color: #fff;
+  font-family: 'RobotoMono Regular';
+}
+
+.text_regular_positive {
+  color: $color-system-positive-500;
+  font-family: 'PPTelegraf Regular';
+}
+
+.text_regular_error {
+  color: $color-system-danger-500;
+  font-family: 'PPTelegraf Regular';
+}
+
+.text_regular_info {
+  color: $color-system-info-500;
+  font-family: 'PPTelegraf Regular';
+}
+
 
 .main_input {
   box-shadow: none !important;
@@ -25,6 +89,8 @@ pre {
 
 .text_wrap {
   word-break: break-word;
+  display: block;
+  margin-bottom: 5px;
 }
 
 .modal-content {
@@ -34,8 +100,211 @@ pre {
 
 .is-absolute {
   position: absolute;
+
   &.on-top-right {
     top: 5px;
     right: 5px;
   }
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.input-container {
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 20px;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 0.5px solid #4027A2;
+  background: linear-gradient(90deg, rgba(19, 19, 19, 1) 0%, rgba(19, 19, 19, 0.3) 100%);
+  color: white;
+  font-size: 14px;
+  outline: none;
+  box-shadow: none;
+}
+
+.input-field::placeholder {
+  color: white;
+  opacity: 1;
+  font-family: 'PPTelegraf Regular';
+  font-weight: 400;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 5px;
+  color: white;
+}
+
+
+.title_row {
+  display: flex;
+  align-items: center;
+  color: #CCC1FA;
+}
+
+.title_row .text-large {
+  font-size: 20px;
+  margin-left: 20px;
+}
+
+.title_row img {
+  height: 20px;
+  padding-right: 10px;
+}
+
+
+.title_row .title_text-medium {
+  font-size: 12px;
+  margin-left: 4px;
+  padding-bottom: 30px;
+  color: #FFFFFF;
+}
+
+.title_spacer {
+  width: 16px;
+}
+
+.box {
+  color: #FFF;
+  width: 650px;
+  min-height: 400px;
+  max-height: 600px;
+  background: linear-gradient(to bottom right, #4027A2, #4027A2);
+  border-radius: 24px;
+  box-shadow: 1px 10px 40px 10px $color-neutral-900;
+  padding: 20px;
+  margin: 20px auto;
+  overflow: hidden;
+  position: relative;
+}
+
+.box::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  bottom: -2px;
+  left: -2px;
+  z-index: -1;
+  background: linear-gradient(to bottom right, rgba(19, 19, 19, 0.7), #131313);
+  border-radius: 26px;
+}
+
+.menu-list {
+  color: #FFF;
+}
+
+.box1 {
+  background: $color-neutral-900;
+  color: white;
+  max-width: 550px;
+  height: 200px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-image: url('/images/embrace-journey-card-invest-bg.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.box1 h1,
+.box2 h1 {
+  margin-top: 40px;
+  margin-left: 40px;
+  font-size: 1.75rem;
+  font-family: 'PPTelegraf Regular' !important;
+}
+
+.box1 h2,
+.box2 h2 {
+  font-size: 1.125rem;
+  margin-left: 40px;
+  font-family: 'PPTelegraf UltraBold' !important;
+  font-weight: 800;
+}
+
+.box2 {
+  background: $color-brand-raspberry-400;
+  color: white;
+  max-width: 550px;
+  height: 200px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-image: url('/images/embrace-journey-card-building-bg.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.list-card {
+  background: linear-gradient(180deg, #4027A2 0%, #4027A2 100%);
+  border-radius: 24px;
+  box-shadow: 1px 10px 40px #131313;
+  padding: 10px;
+  color: white;
+}
+
+.list-card a {
+  color: white;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.list-card a:hover {
+  color: #fbfbfb75;
+}
+
+.list-card-item {
+  color: white;
+  font-family: 'PPTelegraf Regular' !important;
+}
+
+.list-card-item-address {
+  color: white;
+  font-family: 'RobotoMono Regular' !important;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+
+.spacer {
+  height: 20px !important;
+}
+
+.app-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'PPTelegraf Regular';
+  font-weight: 400;
+  height: 44px;
+  padding: 0 20px;
+  background-image: linear-gradient(20deg, #562FED, #D55CFF);
+  border: none;
+  border-radius: 9999px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 5px 7px rgba(0, 0, 0, 0.5);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+hr {
+  border: none;
+  height: 1px;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid $color-neutral-0;
+  opacity: 0.2;
 }

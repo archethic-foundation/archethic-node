@@ -11,22 +11,24 @@ defmodule ArchethicWeb.Explorer.Pagination do
   """
   def previous_next(assigns) do
     ~H"""
+    <br/>
     <nav class="pagination is-right" role="navigation" aria-label="pagination">
-      <%= if @current_page > 1 do %>
-        <a class="pagination-previous" phx-value-page={@current_page - 1} phx-click="goto">Previous</a>
-      <% else %>
-        <a class="pagination-previous is-disabled" phx-click="first_page">Previous</a>
-      <% end %>
-
-      <%= if @current_page + 1 <= @total_pages do %>
-        <a class="pagination-next" phx-value-page={@current_page + 1} phx-click="goto">Next page</a>
-      <% else %>
-        <a class="pagination-next is-disabled" phx-click="last_page">Next page</a>
-      <% end %>
-
-      <p class="pagination-list has-text-white">
-        Page <%= @current_page %> on <%= @total_pages %>
-      </p>
+    <div>
+    <%= if @current_page > 1 do %>
+      <button class="app-button" phx-value-page={@current_page - 1} phx-click="goto">Previous</button>
+    <% else %>
+      <button class="app-button" disabled>Previous</button>
+    <% end %>
+    &nbsp;
+    <%= if @current_page + 1 <= @total_pages do %>
+      <button class="app-button" phx-value-page={@current_page + 1} phx-click="goto">Next page</button>
+    <% else %>
+      <button class="app-button" disabled>Next page</button>
+    <% end %>
+    </div>
+    <div class="text_regular">
+      <%= @current_page %>/<%= @total_pages %>
+    </div>
     </nav>
     """
   end

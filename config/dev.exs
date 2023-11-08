@@ -41,8 +41,23 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
 config :archethic, Archethic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
 
+# Master Chain (pools' management): 000023ca0313eb76617060ae119b48e98e689f2b2ef030e6df063d426dc0b00f4428
+# Pool UCO: 0000f53a34560bfe06b01689e585d53c07671f6eaa1b31e62659d8f7d5292f066941
+# Faucet: 00001259AE51A6E63A1E04E308C5E769E0E9D15BFFE4E7880266C8FA10C3ADD7B7A2
 config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_pools: [
+    %{
+      address:
+        "000023ca0313eb76617060ae119b48e98e689f2b2ef030e6df063d426dc0b00f4428"
+        |> Base.decode16!(case: :mixed),
+      amount: 1_000_000_000_000_000
+    },
+    %{
+      address:
+        "0000f53a34560bfe06b01689e585d53c07671f6eaa1b31e62659d8f7d5292f066941"
+        |> Base.decode16!(case: :mixed),
+      amount: 1_000_000_000_000_000
+    },
     %{
       address:
         "00001259AE51A6E63A1E04E308C5E769E0E9D15BFFE4E7880266C8FA10C3ADD7B7A2"
@@ -142,7 +157,7 @@ config :archethic, ArchethicWeb.Endpoint,
     URI.to_string(%URI{
       scheme: "https",
       host: System.get_env("ARCHETHIC_DOMAIN_NAME", "localhost"),
-      port: System.get_env("ARCHETHIC_HTTPS_PORT", "5000") |> String.to_integer(),
+      port: System.get_env("ARCHETHIC_HTTPS_PORT", "5001") |> String.to_integer(),
       path: "/explorer"
     }),
   http: [port: System.get_env("ARCHETHIC_HTTP_PORT", "4000") |> String.to_integer()],
@@ -159,7 +174,7 @@ config :archethic, ArchethicWeb.Endpoint,
     }
   ],
   https: [
-    port: System.get_env("ARCHETHIC_HTTPS_PORT", "5000") |> String.to_integer(),
+    port: System.get_env("ARCHETHIC_HTTPS_PORT", "5001") |> String.to_integer(),
     cipher_suite: :strong,
     otp_app: :archethic,
     sni_fun: &ArchethicWeb.AEWeb.Domain.sni/1,

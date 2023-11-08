@@ -48,29 +48,25 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="box mb-2">
-      <div class="columns">
-        <div class="column"><span class="heading is-size-7">Latest transactions</span></div>
-      </div>
-      <div class="columns">
-        <div class="column">
-            <%= for tx <- @transactions do %>
-              <div class="columns">
-                <div class="column is-7-desktop">
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
-                    <span class="text_wrap has-text-primary is-size-6"><%= Base.encode16(tx.address) %></span>
-                    <% end %>
-                </div>
-                <div class="column is-2-desktop is-size-6">
-                  <%= format_date(tx.timestamp) %>
-                </div>
-                <div class="column is-2-desktop is-size-6">
-                  <span class="tag is-light is-info"><%= tx.type %></span>
-                </div>
-              </div>
+    <div>
+      <div class="text_regular is-multiline">Latest transactions</div>
+      <br/><br/>
+      <%= for tx <- @transactions do %>
+        <div class="columns list-card">
+          <div class="column list-card-item-address is-12-mobile is-6-tablet is-8-desktop">
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+              <%= Base.encode16(tx.address) %>
             <% end %>
+          </div>
+          <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
+            <%= format_date(tx.timestamp) %>
+          </div>
+          <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
+            <div class="tag is-light is-info"><%= tx.type %></div>
+          </div>
         </div>
-      </div>
+        <div style="height: 20px;"></div>
+      <% end %>
     </div>
     """
   end

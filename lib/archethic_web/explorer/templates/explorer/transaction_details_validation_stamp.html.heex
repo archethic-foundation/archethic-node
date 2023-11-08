@@ -1,0 +1,174 @@
+<div class="text_subtitle">Validation Stamp</div>
+<div class="columns mt-4">
+    <div class="column">
+        <div class="text_regular">Proof of work</div>
+        <div class="text_regular_address"><%= Base.encode16(@transaction.validation_stamp.proof_of_work) %></div>
+    </div>
+</div>
+
+<div class="columns mt-4">
+    <div class="column">
+        <div class="text_regular">Proof of integrity</div>
+        <div class="text_regular_address"><%= Base.encode16(@transaction.validation_stamp.proof_of_integrity) %></div>
+    </div>
+</div>
+
+<div class="columns mt-4">
+    <div class="column is-2-desktop">
+        <div class="menu">
+            <div class="text_regular">Ledger Operations</div>
+            <ul class="menu-list">
+                <li>
+                    <a @click="operation_section = 'transaction_movements' "
+                    x-bind:class="operation_section == 'transaction_movements' ? 'is-active' : '' ">
+                         <div class="text_regular">Transaction movements</div>
+                    </a>
+                </li>
+                <li>
+                    <a @click="operation_section = 'unspent_outputs' "
+                    x-bind:class="operation_section == 'unspent_outputs' ? 'is-active' : '' ">
+                         <div class="text_regular">Unspent outputs</div>
+                    </a>
+                </li>
+                <li>
+                    <a @click="operation_section = 'transaction_fee' "
+                    x-bind:class="operation_section == 'transaction_fee' ? 'is-active' : '' ">
+                         <div class="text_regular">Transaction fee</div>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="column is-10-desktop">
+        <div x-show="operation_section == 'transaction_movements' ">
+            <div class="text_regular mb-4">Transaction movements (resolved addresses)</div>
+            <%= if Enum.count(@transaction.validation_stamp.ledger_operations.transaction_movements) == 0 do %>
+               <div class="text_regular">N/A</div>
+            <% end %>
+            <%= for movement <- @transaction.validation_stamp.ledger_operations.transaction_movements do %>
+              <div class="columns list-card">
+                    <div class="column">
+                        <div class="columns">
+                            <div class="column is-1 list-card-item">To</div>
+                            <div class="column">
+                                <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(movement.to)) do%>
+                                    <div class="list-card-item-address"><%= Base.encode16(movement.to) %></div>
+                                <% end %>
+                            </div>
+                        </div>
+                    <div class="columns">
+                        <div class="column is-1 list-card-item">Amount</div>
+                        <div class="column">
+                        <div class="list-card-item">
+                            <%= case movement.type do %>
+                                <% :UCO -> %>
+                                    <%= to_float(movement.amount) %>
+                                    <span class="tag is-primary is-light ml-2">UCO</span>
+                                    <%= if movement.amount > 0 do %>
+                                        (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
+                                    <% end %>
+                                <% {:token, token_address, token_id} -> %>
+                                    <%= decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
+                                    to_float(movement.amount, decimals) %>
+                                    <span class="tag is-success is-light ml-2">Token
+                                        <%= if token_id >= 1 do %>
+                                            (#<%= token_id %>)
+                                        <% end %>
+                                    </span>
+                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                        <span>
+                                            <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do
+                                                nil -> "#{Base.encode16(:binary.part(token_address, 0, 13))}..."
+                                                symbol -> symbol
+                                            end %>
+                                        </span>
+                                    <% end %>
+                                <% end %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% end %>
+        </div>
+
+
+        <div x-show="operation_section == 'unspent_outputs' ">
+            <div class="text_regular mb-4">Unspent outputs</div>
+            <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
+             <div class="columns list-card">
+                <div class="column">
+                    <div class="columns">
+                        <div class="column is-1 list-card-item">From</div>
+                        <div class="column">
+                            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(unspent_output.from)) do%>
+                                <span class="text_wrap"><%= Base.encode16(unspent_output.from) %></span>
+                            <% end %>
+                        </div>
+                    </div>
+                </div>
+                <div class="columns">
+                    <div class="column is-1 list-card-item">Amount</div>
+                        <div class="column">
+                            <%= case unspent_output.type do %>
+                            <% :UCO -> %>
+                                <%= to_float(unspent_output.amount) %>
+                                <span class="tag is-primary is-light ml-2">UCO</span>
+                                <%= if unspent_output.amount > 0 do %>
+                                    (<%= format_full_usd_amount(unspent_output.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
+                                <% end %>
+                            <% {:token, token_address, token_id} -> %>
+                                <%= decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
+                                to_float(unspent_output.amount, decimals) %>
+                                <span class="tag is-success is-light ml-2">Token
+                                    <%= if token_id >= 1 do %>
+                                        (#<%= token_id %>)
+                                    <% end %>
+                                </span>
+                                <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                    <div class="list-card-item-address">
+                                        <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do
+                                            nil -> "#{Base.encode16(:binary.part(token_address, 0, 13))}..."
+                                            symbol -> symbol
+                                        end %>
+                                    </div>
+                                <% end %>
+                            <% end %>
+                        </div>
+                    </div>
+                </div>
+            <br/>
+            <% end %>
+        </div>
+
+        <div x-show="operation_section == 'transaction_fee' ">
+            <div class="text_regular mb-4">Transaction fee</div>
+            <p>
+                <div class="text_regular"><%= to_float(@transaction.validation_stamp.ledger_operations.fee) %></div>
+                <div class="tag is-primary is-light ml-2">UCO</div>
+                <%= if @transaction.validation_stamp.ledger_operations.fee > 0 do %>
+                    (<%= format_full_usd_amount(@transaction.validation_stamp.ledger_operations.fee, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
+                    <p class="is-size-7 mt-2">The fees have been transfered to the
+                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.burning_address())) do %><span>burning address</span><% end %></p>
+                <% end %>
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="columns mt-4">
+    <div class="column">
+        <div class="text_regular">Contract recipients (resolved addresses)</div>
+        <%= if Enum.count(@transaction.validation_stamp.recipients) == 0 do %>
+            <div class="text_regular">N/A</div>
+        <% end %>
+
+        <%= for recipient <- @transaction.validation_stamp.recipients do %>
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(recipient)) do%>
+                <div class="text_regular_address"><%= Base.encode16(recipient) %></div>
+            <% end %>
+        <%  end %>
+    </div>
+</div>
+
+<hr />

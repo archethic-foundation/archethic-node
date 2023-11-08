@@ -1,66 +1,44 @@
-<div class="box" x-data="{ tab_panel: 'network'}">
-  <div class="columns">
-    <div class="column">
-      <h2 class="is-size-3 subtitle">Live Archethic's dashboard</h2>
-      <p>Metrics are updated every 5 seconds to give an overview of the entire system</p>
-      <p class="mt-6 heading">Version: <%= @version %></p> 
-    </div>
-  </div>
-  <div class="tabs">
-    <ul>
-      <li x-bind:class="tab_panel == 'network' ? 'is-active' : '' " @click="tab_panel='network'"><a>Network</a></li>
-    </ul>
-  </div>
-
-  <div x-bind:class=" tab_panel == 'network' ? '' : 'is-hidden'">
+<div x-data="{ tab_panel: 'network'}"> 
+  <div class="text_title">Live Archethic's dashboard</div>
+  <div class="text_regular">Version: <%= @version %></div> 
+  <br/>
+  <div class="text_regular">Metrics are updated every 5 seconds to give an overview of the entire system</div>
+  <div class="text_subtitle">Network</div>
     <div class="columns" phx-hook="network_charts" phx-update="ignore" id="network_charts">
       <div class="column is-6">
-        <div id="nb_transactions" style="height: 200px">  </div>
+        <div class="text_regular" id="nb_transactions" style="height: 250px">  </div>
       </div>
       <div class="column is-6">
-        <div id="validation_duration" style="height: 200px">  </div>
+        <div class="text_regular" id="validation_duration" style="height: 250px">  </div>
       </div>
     </div>
-
-    <div class="columns">
-      <div class="column">
-        <div class="table-container">
-          <table class="table is-fullwidth is-striped">
+    <br/><br/>
+    <div class="columns list-card is-multiline">
+      <div class="column" >
+          <table class="is-fullwidth is-striped">
             <thead>
               <tr>
-                <th>Node</th>
-                <th>Nb transactions processed <span class="tag is-info is-light">last poll</span></th>
-                <th>Nb transactions processed <span class="tag is-warning is-light">total</span></th>
-                <th>TPS <span class="tag is-info is-light">last poll</span></th>
-                <th>Validation duration (ms) <span class="tag is-info is-light">last poll</span> </th>
+                <th class="list-card-item">Node</th>
+                <th class="list-card-item">Nb transactions processed <span class="tag is-info is-light">last poll</span></th>
+                <th class="list-card-item">Nb transactions processed <span class="tag is-warning is-light">total</span></th>
+                <th class="list-card-item">TPS <span class="tag is-info is-light">last poll</span></th>
+                <th class="list-card-item">Validation duration (ms) <span class="tag is-info is-light">last poll</span> </th>
 
               </tr>
             </thead>
             <tbody phx-update="prepend" id="stats_table">
             <%= for { node, data } <- @stats do %>
               <tr id={Base.encode16(node)}>
-                <td><%= Base.encode16(node) %></td>
-                <td><%= data.nb_transactions %></td>
-                <td><%= data.cumul.transaction_validation |> elem(0) %></td>
-                <td><%= data.tps %></td>
-                <td><%= data.validation_duration %></td>
+                <td class="list-card-item-address"><%= Base.encode16(node) %></td>
+                <td class="list-card-item"><%= data.nb_transactions %></td>
+                <td class="list-card-item"><%= data.cumul.transaction_validation |> elem(0) %></td>
+                <td class="list-card-item"><%= data.tps %></td>
+                <td class="list-card-item"><%= data.validation_duration %></td>
               </tr>
             <% end %>
             </tbody>
           </table>
-        </div>
-
       </div>
     </div>
-  </div>
+    <br/><br/>
 </div>
-
-
-
-<style>
-
-</style>
-<script>
-
-
-</script>

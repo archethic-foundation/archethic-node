@@ -15,6 +15,7 @@ export function initializeNbTransactionGraph(el) {
       left: "center",
       text: "Transaction volume",
       textStyle: {
+        color: 'white',
         fontSize: 14,
       },
     },
@@ -22,13 +23,20 @@ export function initializeNbTransactionGraph(el) {
       trigger: 'axis'
     },
     xAxis: {
-      type: "category"
+      type: "category",
+      axisLabel: {
+        textStyle: {
+          color: 'white',
+          fontSize: 14,
+        },
+      },
     },
     yAxis: {
       type: "value",
       boundaryGap: [0, "10%"],
       axisLabel: {
         textStyle: {
+          color: 'white',
           fontSize: 14,
         },
       },
@@ -88,6 +96,7 @@ export function initializeValidationDurationGraph(el) {
       left: "center",
       text: "Transaction validation time",
       textStyle: {
+        color: 'white',
         fontSize: 14,
       },
     },
@@ -95,13 +104,20 @@ export function initializeValidationDurationGraph(el) {
       trigger: 'axis'
     },
     xAxis: {
-      type: "category"
+      type: "category",
+      axisLabel: {
+        textStyle: {
+          color: 'white',
+          fontSize: 14,
+        },
+      },
     },
     yAxis: {
       type: "value",
       boundaryGap: [0, "10%"],
       axisLabel: {
         textStyle: {
+          color: 'white',
           fontSize: 14,
         },
       },
