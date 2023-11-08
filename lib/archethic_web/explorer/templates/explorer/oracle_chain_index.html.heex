@@ -1,54 +1,32 @@
-<h1 class="subtitle is-size-4 heading has-text-white">Oracle chain</h1>
-
-
-<p class="heading is-size-7 has-text-white">Last changes from <span><%= format_date(@update_time) %></span></p>
-
-<div class="columns">
-  <div class="column is-3">
-    <div class="box has-text-centered">
-      <p class="heading">UCO Price</p>
-      <p class="title">
-        <%= if Enum.empty?(@last_oracle_data) do %>
-        N/A
-        <% else %>
-        <%= get_in(@last_oracle_data, ["uco", "usd"]) %> $
-        <% end %>
-      </p>
-    </div>
-  </div>
+<div class="text_title">Oracle chain</div>
+<div class="text_regular">Last changes from <%= format_date(@update_time) %></div>
+<br/>
+<div class="box1 has-text-centered">
+  <h1>UCO Price</h1>
+  <h2>
+    <%= if Enum.empty?(@last_oracle_data) do %>
+    N/A
+    <% else %>
+    <%= get_in(@last_oracle_data, ["uco", "usd"]) %> $
+    <% end %>
+  </h2>
 </div>
-
-<div class="columns">
-  <div class="column">
-    <ArchethicWeb.Explorer.Pagination.previous_next
-      current_page={@current_date_page}
-      total_pages={Enum.count(@dates)} />
-  </div>
-</div>
-
-<div class="columns">
-  <div class="column">
-    <div class="box">
-      <p class="heading is-size-6">Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %></p>
-      <div class="columns mt-6">
-        <div class="column">
-      <%= for tx <- @transactions do %>
-        <div class="columns">
-          <div class="column is-5-desktop">
-            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
-                <span class="text_wrap"><%= Base.encode16(tx.address) %></span>
-              <% end %>
-          </div>
-          <div class="column is-2-desktop">
-            <%= format_date(tx.timestamp) %>
-          </div>
-          <div class="column is-1-desktop">
-            <span class="tag is-light is-info"><%= tx.type %></span>
-          </div>
-        </div>
+<ArchethicWeb.Explorer.Pagination.previous_next current_page={@current_date_page} total_pages={Enum.count(@dates)} />
+<div class="text_regular">Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %></div>
+<br/><br/>
+<%= for tx <- @transactions do %>
+  <div class="columns list-card is-multiline">
+    <div class="column list-card-item-address is-12-mobile is-6-tablet is-7-desktop">
+      <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+        <%= Base.encode16(tx.address) %>
       <% end %>
-        </div>
-      </div>
+    </div>
+    <div class="column list-card-item is-6-mobile is-3-tablet is-3-desktop">
+      <%= format_date(tx.timestamp) %>
+    </div>
+    <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
+      <div class="tag is-light is-info"><%= tx.type %></div>
     </div>
   </div>
-</div>
+    <div style="height: 20px;"></div>
+<% end %>

@@ -13,6 +13,7 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
       left: "center",
       text: "Average validation time",
       textStyle: {
+        color: 'white',
         fontSize: 14,
       },
     },
@@ -20,13 +21,20 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
       trigger: 'axis'
     },
     xAxis: {
-      type: "category"
+      type: "category",
+      axisLabel: {
+        textStyle: {
+          color: 'white',
+          fontSize: 14,
+        },
+      },
     },
     yAxis: {
       type: "value",
       axisLabel: {
         formatter: '{value} ms',
         textStyle: {
+          color: 'white',
           fontSize: 14,
         },
       },
@@ -67,6 +75,7 @@ export function initNetworkTransactionsCountChart(el) {
       left: "center",
       text: "Transactions count",
       textStyle: {
+        color: 'white',
         fontSize: 14,
       },
     },
@@ -74,12 +83,19 @@ export function initNetworkTransactionsCountChart(el) {
       trigger: 'axis'
     },
     xAxis: {
-      type: "category"
+      type: "category",
+      axisLabel: {
+        textStyle: {
+          color: 'white',
+          fontSize: 14,
+        },
+      },
     },
     yAxis: {
       type: "value",
       axisLabel: {
         textStyle: {
+          color: 'white',
           fontSize: 14,
         },
       },

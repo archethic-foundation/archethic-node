@@ -1,0 +1,86 @@
+// Neutral
+$color-neutral-0: #FFFFFF;
+$color-neutral-40: #F8F9FA;
+$color-neutral-50: #F5F6F8;
+$color-neutral-100: #F1F2F5;
+$color-neutral-200: #EAEDF0;
+$color-neutral-300: #D7D7D7;
+$color-neutral-400: #B1B1B1;
+$color-neutral-500: #8F8F8F;
+$color-neutral-600: #6F6F6F;
+$color-neutral-700: #4F4F4F;
+$color-neutral-800: #202020;
+$color-neutral-900: #131313;
+
+// Brand
+// - Purple
+$color-brand-purple-50: #ECE9F6;
+$color-brand-purple-200: #B3A9DA;
+$color-brand-purple-300: #8C7DC7;
+$color-brand-purple-400: #4027A2;
+$color-brand-purple-800: #201844;
+$color-brand-purple-900: #140A2F;
+// - Blue
+$color-brand-blue-50: #EEEAFD;
+$color-brand-blue-200: #CCC1FA;
+$color-brand-blue-300: #896DF2;
+$color-brand-blue-400: #562FED;
+$color-brand-blue-800: #39147F;
+// - Plum
+$color-brand-plum-50: #F5EDFE;
+$color-brand-plum-200: #CCA4FB;
+$color-brand-plum-300: #9948F7;
+$color-brand-plum-400: #7A3AC6;
+$color-brand-plum-800: #3D1D63;
+// - Raspberry
+$color-brand-raspberry-50: #FBEFFF;
+$color-brand-raspberry-200: #EAAEFF;
+$color-brand-raspberry-300: #D55CFF;
+$color-brand-raspberry-400: #9816C5;
+$color-brand-raspberry-800: #552566;
+
+// System
+// - Info
+$color-system-info-50: #EBF4FD;
+$color-system-info-100: #DEEFFF;
+$color-system-info-300: #C3DFF9;
+$color-system-info-500: #3693E9;
+$color-system-info-800: #2071BD;
+// - Danger
+$color-system-danger-50: #FDE9EB;
+$color-system-danger-100: #FFDDE0;
+$color-system-danger-300: #FABCC2;
+$color-system-danger-500: #DA2A33;
+$color-system-danger-800: #AE2229;
+// - Warning
+$color-system-warning-50: #FFF9DB;
+$color-system-warning-100: #FFF2C6;
+$color-system-warning-300: #FFEAA1;
+$color-system-warning-500: #EDC844;
+$color-system-warning-800: #D4AD24;
+// - Positive
+$color-system-positive-50: #EDF7F0;
+$color-system-positive-100: #DDEEE2;
+$color-system-positive-300: #CAE8D2;
+$color-system-positive-500: #4EB46A;
+$color-system-positive-800: #3C8550;
+
+// Gradients
+$gradient-pink-purple-500: var(--gradient-1, linear-gradient(209deg, #562FED 0%, #D55CFF 100%));
+$gradient-light-to-dark-blue: linear-gradient(180deg, $color-brand-purple-800 0.52%, $color-brand-purple-400 100%);
+$gradient-dark-to-light-blue: linear-gradient(180deg, $color-brand-purple-400 0%, #121229 100%);
+
+// Other
+$navbar-burger-color: #fff;
+$navbar-dropdown-background-color: $color-brand-blue-400;
+$navbar-dropdown-arrow: #fff;
+$navbar-dropdown-item-hover-color: #fbfbfb75;
+$navbar-background-color: "transparent";
+$navbar-item-color: #fff;
+$navbar-item-hover-color: #fbfbfb75;
+$navbar-item-hover-background-color: transparent;
+
+$card-header-background-color: #fff;
+
+$pagination-color: #fff;
+$pagination-hover-color: #e6e6e6;

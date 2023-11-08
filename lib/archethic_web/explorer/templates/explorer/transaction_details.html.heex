@@ -4,11 +4,15 @@
             <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
         <% assigns[:error] != nil and @error == :invalid_address -> %>
             <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small>Invalid address</small></h1>
+
+            <div class="text_title">Transaction Detail</div>
+            <div class="text_regular_address">Invalid address</div>
         <% true -> %>
-            <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
+            <div class="text_title">Transaction Detail</div>
+            <div class="text_regular_address"><%= Base.encode16(@address) %></div>
     <% end %>
 
-    <div class="box">
+    <div>
         <%= if  assigns[:error] != nil and @error == :invalid_address do %>
             <p>The transaction address is invalid.</p>
             <div class="mt-4 box has-background-warning-light">
@@ -18,12 +22,12 @@
             <%= if assigns[:error] == nil do %>
                 <div class="columns">
                     <div class="column is-2-desktop">
-                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
+                        <%= link class: "app-button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
                             Previous transaction
                         <% end %>
                     </div>
                     <div class="column is-2-desktop">
-                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@address)) do%>
+                        <%= link class: "app-button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@address)) do%>
                             Explore chain
                         <% end %>
                     </div>
@@ -38,7 +42,7 @@
                 <div class="tabs is-fullwidth"  >
                     <ul>
                         <li @click="tab_panel='tx' "
-                        x-bind:class="tab_panel == 'tx' ? 'is-active' : '' "><a>Overview</a></li>
+                        x-bind:class="tab_panel == 'tx' ? 'is-active' : ''"><a>Overview</a></li>
 
                         <li @click="tab_panel='inputs' "
                         x-bind:class="tab_panel == 'inputs' ? 'is-active' : '' ">

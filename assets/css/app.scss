@@ -1,60 +1,7 @@
 @charset "utf-8";
 
-@import "variables";
-@import "../node_modules/bulma/bulma";
-
+@import "colors";
+@import "typography";
 @import "explorer";
 
-.alert {
-    top: 52px;
-    width: 100%;
-    margin: 0 auto;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
-    height: 80px;
-    line-height: 80px;
-    background: rgba(255,229,229,0.84);
-    box-shadow: 0px 1px 3px 0px rgba(0,0,0,0.18);
-    border-radius: 5px;
-    color: #C35A5A;
-    padding-top: 10px;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-
-    &:empty {
-      display: none;
-    }
-  
-    &.alert-info {
-      background: rgba(191, 232, 176, 0.82);
-      color: #317931;
-      -moz-animation: cssAnimation 5s forwards;
-      -webkit-animation: cssAnimation 5s forwards;
-      -o-animation: cssAnimation 5s forwards;
-      animation: cssAnimation 5s forwards;
-      -webkit-animation-fill-mode: forwards;
-      animation-fill-mode: forwards;
-    }
-
-    @keyframes cssAnimation {
-      0%   {opacity: 1;}
-      95%  {opacity: 1;}
-      100% {opacity: 0;}
-    }
-    
-    @-webkit-keyframes cssAnimation {
-      0%   {opacity: 1;}
-      95%  {opacity: 1;}
-      100% {opacity: 0;}
-    }
-}
-
-pre {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+@import "../node_modules/bulma/bulma";

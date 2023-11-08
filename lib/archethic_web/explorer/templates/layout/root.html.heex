@@ -4,19 +4,23 @@
     <meta charset="utf-8"/>
     <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title><%= assigns[:page_title] || "ARCHETHIC" %></title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+    <title><%= assigns[:page_title] || "Archethic - Explorer" %></title>
     <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")} />
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css" />
     <%= csrf_meta_tag() %>
   </head>
   <body>
-    <div class="container is-fluid">
+    <div class="container">
       <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-          <a class="navbar-item is-size-5 is-uppercase" href={Routes.live_path(@conn, ArchethicWeb.Explorer.ExplorerIndexLive)}>
-            <img src={Routes.static_path(@conn, "/images/logo_full_white.svg")} alt="archethic_logo"/>
+            <a class="navbar-item is-size-5" href={Routes.live_path(@conn, ArchethicWeb.Explorer.ExplorerIndexLive)}>
+              <div class="title_row">
+                <div class="title_spacer"></div>
+                  <img src={Routes.static_path(@conn, "/images/logo_alone.svg")} alt="archethic_logo"/>
+                <div class="title_text-large">Explorer</div>
+              <div class="title_text-medium">Beta</div>
+            </div>
           </a>
+         
           <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
@@ -24,16 +28,8 @@
           </a>
         </div>
        <div id="navbar" class="navbar-menu">
-
-
           <div class="navbar-end">
-
-
-
               <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.DashboardLive)}>Dashboard </a>
-
-
-
             <%= if faucet?() do %>
               <a class="navbar-item" href={Routes.faucet_path(@conn, :index)}>
                 Faucet
@@ -88,7 +84,7 @@
           </div>
         </div>
       </nav>
-      <main class="pt-6">
+      <main>
         <%= @inner_content %>
       </main>
     </div>

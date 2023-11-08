@@ -13,14 +13,15 @@ export function createWorldmap(worldmapDatas) {
 
   map = echarts.init(document.getElementById('worldmap'));
 
-  echarts.registerMap('worldmap', {geoJSON: worldmapJSON})
+  echarts.registerMap('worldmap', { geoJSON: worldmapJSON })
 
   // Specify the configuration items and data for the chart
   const options = {
-    tooltip:{},
-    legend:{
+    tooltip: {},
+    legend: {
       selectedMode: 'single',
       textStyle: {
+        color: 'white',
         fontSize: 16
       }
     },
@@ -42,7 +43,7 @@ export function createWorldmap(worldmapDatas) {
         max: 20
       },
       itemStyle: {
-        color : 'rgb(0,0,0,0.15)',
+        color: 'rgb(0,0,0,0.15)',
         borderColor: 'rgb(255,255,255)'
       },
       tooltip: {
@@ -58,6 +59,10 @@ export function createWorldmap(worldmapDatas) {
         geoIndex: 0,
         renderItem: renderItem,
         data: formatData(worldmapDatas, true),
+        label: {
+          show: true,
+          color: 'white',
+        },
         tooltip: {
           show: true,
           formatter: tooltipFormatter,
@@ -71,6 +76,10 @@ export function createWorldmap(worldmapDatas) {
         geoIndex: 0,
         renderItem: renderItem,
         data: formatData(worldmapDatas, false),
+        label: {
+          show: true,
+          color: 'white',
+        },
         tooltip: {
           show: true,
           formatter: tooltipFormatter,
@@ -112,7 +121,7 @@ function calculateNbOfNodes(datas) {
   maxNbOfAuthorizedNodes = Math.max(...authorizedNodes)
 
   const pendingNodes = datas.filter(data => !data.authorized)
-  .map(data => data.nb_of_nodes)
+    .map(data => data.nb_of_nodes)
 
   minNbOfPendingNodes = Math.min(...pendingNodes)
   maxNbOfPendingNodes = Math.max(...pendingNodes)
@@ -153,30 +162,30 @@ function renderItem(params, api) {
   if (color != 'rgba(0,0,0,0)') {
     const firstPoint = api.coord([api.value(0), api.value(2)])
     const secondPoint = api.coord([api.value(1), api.value(3)])
-  
+
     // Circle
     const centerPoint = [
       (firstPoint[0] + secondPoint[0]) / 2,
       (firstPoint[1] + secondPoint[1]) / 2
     ]
-    
+
     const maxRadius = Math.abs((secondPoint[0] - firstPoint[0]) / 2)
-  
+
     // Calculate radius to have a range from 20% to 100% of maxRadius
     const min = api.value(6)
     const max = api.value(7)
     const nbNodes = api.value(4)
 
     // Avoid dividing by 0
-    const percent = max !== min ? 
+    const percent = max !== min ?
       (0.60 * (nbNodes - min) / (max - min)) + 0.40 : 1
-    
+
     const radius = maxRadius * percent
-  
+
     // Rectangle
     const rectWidth = secondPoint[0] - firstPoint[0]
     const rectHeight = secondPoint[1] - firstPoint[1]
-  
+
     return {
       type: 'group',
       children: [

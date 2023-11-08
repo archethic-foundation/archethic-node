@@ -1,0 +1,97 @@
+<div x-bind:class=" tab_panel == 'inputs' ? '' : 'is-hidden' ">
+    <%= if Enum.count(@inputs) > 0 do %>
+        <%= for input <- @inputs do %>        
+        <div class="columns list-card is-multiline">
+            <div class="column is-1-desktop">
+                <div class="columns">
+                    <div class="column list-card-item heading">Status</div>
+                </div>
+                <div class="columns">
+                    <div class="column">
+                    <%= if input.spent? do %>
+                        <span class="tag is-danger is-light">Spent</span>
+                    <% else %>
+                        <span class="tag is-success is-light">Unspent</span>
+                    <% end %>
+                    </div>
+                </div>
+            </div>
+            <div class="column is-2-desktop">
+                <div class="columns">
+                    <div class="column list-card-item heading">Date</div>
+                </div>
+                <div class="columns">
+                    <div class="column list-card-item"><%= format_date(input.timestamp) %></div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="columns">
+                    <div class="column list-card-item heading">From</div>
+                </div>
+                <div class="columns">
+                <div class="column">
+                <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(input.from)) do%>
+                    <div class="is-hidden-mobile list-card-item-address"><%= Base.encode16(input.from) %></div>
+                    <div class="is-hidden-desktop list-card-item-address"><%= Base.encode16(:binary.part(input.from, 0, 12)) %>...</div>
+                <% end %>
+                </div>
+                </div>
+            </div>
+            <div class="column is-1-desktop">
+                <div class="columns">
+                <div class="column list-card-item heading">Amount</div>
+                </div>
+                <div class="columns">
+                    <div class="column list-card-item ">
+                    <%= case input.type do
+                        {:token, token_address, _} ->
+                            decimals = Map.get(@token_properties, token_address, %{}) |> Map.get(:decimals, 8)
+                            to_float(input.amount, decimals)
+
+                        _ ->
+                                to_float(input.amount)
+                    end %>
+                </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="columns">
+                <div class="column list-card-item heading">Asset type</div>
+                </div>
+                <div class="columns">
+                    <div class="column">
+                    <%= case input.type do %>
+                        <% :UCO -> %>
+                        <span class="tag is-primary is-light">UCO</span>
+                        <%= if input.reward? do %>
+                            <span class="tag is-info is-light">Mining reward</span>
+                        <% end %>
+                        <% {:token, token_address, token_id} -> %>
+                        <div class="columns">
+                            <div class="column is-2-desktop"><span class="tag is-success is-light">Token
+                                <%= if token_id >= 1 do %>
+                                (#<%= token_id %>)
+                                <% end %>
+                            </span></div>
+                            <div class="column is-4-desktop">
+                            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do
+                                case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
+                                    <% nil -> %>
+                                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(token_address, 0, 6)) %>...</span>
+                                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(token_address, 0, 12)) %>...</span>
+                                    <% symbol -> %>
+                                        <span><%= symbol %></span>
+                                <% end
+                            end %>
+                            </div>
+                        </div>
+                    <% end %>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <% end %>
+    <% else %>
+        <div class="text_regular">There are no matching inputs</div>
+    <% end %>
+</div>
