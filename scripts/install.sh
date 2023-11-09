@@ -3,7 +3,7 @@
 set -e
 trap 'echo "******* FAILED *******" 1>&2' ERR
 
-INSTALL_DIR=~/aebot/
+INSTALL_DIR=~/aebot
 echo "INSTALL_DIR=$INSTALL_DIR"
 
 SCRIPT_DIR=$(dirname $(readlink -f $0))

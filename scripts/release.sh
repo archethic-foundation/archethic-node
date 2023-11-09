@@ -57,7 +57,7 @@ set +o allexport
 
 USER=$(whoami)
 SERVICE_NAME=archethic$SUFFIX
-INSTALL_DIR=~/aebot/build
+INSTALL_DIR=/home/$USER/aebot/build
 
 if [[ -d $HOME/.asdf ]]
 then
