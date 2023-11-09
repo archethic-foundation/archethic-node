@@ -797,5 +797,62 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  now
                )
     end
+
+    test "should merge two similar tokens and update the from & timestamp" do
+      transaction_address = random_address()
+      transaction_timestamp = DateTime.utc_now()
+
+      from = random_address()
+      token_address = random_address()
+      old_timestamp = ~U[2023-11-09 10:39:10Z]
+
+      assert {true,
+              %LedgerOperations{
+                transaction_movements: [],
+                unspent_outputs: [
+                  %UnspentOutput{
+                    from: ^transaction_address,
+                    amount: 160_000_000,
+                    type: :UCO,
+                    timestamp: ^transaction_timestamp
+                  },
+                  %UnspentOutput{
+                    from: ^transaction_address,
+                    amount: 200_000_000,
+                    type: {:token, ^token_address, 0},
+                    timestamp: ^transaction_timestamp
+                  }
+                ],
+                fee: 40_000_000
+              }} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{
+                   transaction_movements: [],
+                   fee: 40_000_000
+                 },
+                 transaction_address,
+                 [
+                   %UnspentOutput{
+                     from: from,
+                     amount: 200_000_000,
+                     type: :UCO,
+                     timestamp: old_timestamp
+                   },
+                   %UnspentOutput{
+                     from: from,
+                     amount: 100_000_000,
+                     type: {:token, token_address, 0},
+                     timestamp: old_timestamp
+                   },
+                   %UnspentOutput{
+                     from: from,
+                     amount: 100_000_000,
+                     type: {:token, token_address, 0},
+                     timestamp: old_timestamp
+                   }
+                 ],
+                 transaction_timestamp
+               )
+    end
   end
 end
