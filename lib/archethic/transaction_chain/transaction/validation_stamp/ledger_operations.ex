@@ -317,14 +317,18 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       tokens_received
       |> Enum.reject(&Map.has_key?(tokens_to_spend, elem(&1, 0)))
       |> Enum.map(fn {{token_address, token_id}, amount} ->
-        input =
-          Enum.find(inputs, fn input ->
-            input.type == {:token, token_address, token_id}
-          end)
-
-        if input.amount == amount,
-          do: input,
-          else: %{input | amount: amount, from: change_address}
+        # if we can't find the original input, it means there was a merge
+        # we update the utxo's from & timestamp
+        Enum.find(
+          inputs,
+          %UnspentOutput{
+            from: change_address,
+            amount: amount,
+            type: {:token, token_address, token_id},
+            timestamp: timestamp
+          },
+          &(&1.type == {:token, token_address, token_id} && &1.amount == amount)
+        )
       end)
 
     Enum.reduce(tokens_to_spend, tokens_not_used, fn {{token_address, token_id}, amount_to_spend},
