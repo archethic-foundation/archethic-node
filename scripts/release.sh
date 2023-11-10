@@ -3,31 +3,32 @@
 set -e
 trap 'echo "******* FAILED *******" 1>&2' ERR
 
-USER=$(whoami)
-INSTALL_DIR=/home/$USER/aebot/build
+# variables that might be changed from cli
 UPGRADE=0
 PREPARE=0
 SERVICE_CREATION=0
+SUFFIX=""
 
 usage() {
   echo "Usage:"
   echo ""
   echo " Release Archethic node binary"
   echo ""
-  echo "  " release.sh [-d  dir] " Specify the installation dir"
-  echo "  " release.sh -u "       Upgrade the release"
-  echo "  " release.sh -s "       Create a systemd service"
-  echo "  " release.sh -h "       Print the help usage"
+  echo "  " release.sh [-n suffix] "Suffix for the service"
+  echo "  " release.sh -p          "Prepare the release"
+  echo "  " release.sh -u          "Upgrade the release"
+  echo "  " release.sh -s          "Create a systemd service"
+  echo "  " release.sh -h          "Print the help usage"
   echo ""
 }
 
-while getopts :suphd: option
+while getopts :suphn: option
 do
   case "${option}"
   in
-    d) INSTALL_DIR=${OPTARG};;
     u) UPGRADE=1;;
     p) PREPARE=1;;
+    n) SUFFIX=-${OPTARG};;
     s) SERVICE_CREATION=1;;
     h)
       usage
@@ -42,6 +43,21 @@ done
 shift $((OPTIND -1))
 
 source ~/.profile
+
+if [[ $SUFFIX == "" ]]
+then
+  echo "WARNING: no suffix (-n) flag passed."
+fi
+
+# export all the env variable so the distillery script
+# can access them
+set -o allexport
+source /etc/default/archethic$SUFFIX.env
+set +o allexport
+
+USER=$(whoami)
+SERVICE_NAME=archethic$SUFFIX
+INSTALL_DIR=/home/$USER/aebot/build
 
 if [[ -d $HOME/.asdf ]]
 then
@@ -113,45 +129,45 @@ else
 
   if [ $SERVICE_CREATION == 1 ]
   then
-  
+
   echo "Creating service file"
-  sudo bash -c 'cat > /etc/systemd/system/archethic.service' << EOF
+  sudo bash -c "cat > /etc/systemd/system/$SERVICE_NAME.service" << EOF
 
   [Unit]
-  Description=ARCHEthic service
+  Description=$SERVICE_NAME
   After=local-fs.target network.target
-  
+
   [Service]
   Type=simple
   User=$USER
   Group=$USER
-  
+
   WorkingDirectory=$INSTALL_DIR
-  
+
   ExecStart=$INSTALL_DIR/bin/archethic_node foreground
   ExecStop=$INSTALL_DIR/bin/archethic_node stop
-  
-  EnvironmentFile=/etc/default/archethic.env
+
+  EnvironmentFile=/etc/default/$SERVICE_NAME.env
   Environment=LANG=en_US.utf8
   Environment=MIX_ENV=prod
   Environment=ERLANG_COOKIE=$ERLANG_COOKIE
-  
+
   Restart=on-failure
   RemainAfterExit=yes
   RestartSec=5
-  
+
   LimitNOFILE=65535
   UMask=0027
-  SyslogIdentifier=archethic
-  
+  SyslogIdentifier=$SERVICE_NAME
+
   [Install]
   WantedBy=multi-user.target
 EOF
 
   # restart daemon, enable
   echo "Reloading daemon and enabling service"
-  sudo systemctl daemon-reload 
-  sudo systemctl enable archethic
+  sudo systemctl daemon-reload
+  sudo systemctl enable $SERVICE_NAME
   fi
 fi
 

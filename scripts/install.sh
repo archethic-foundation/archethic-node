@@ -4,6 +4,8 @@ set -e
 trap 'echo "******* FAILED *******" 1>&2' ERR
 
 INSTALL_DIR=~/aebot
+echo "INSTALL_DIR=$INSTALL_DIR"
+
 SCRIPT_DIR=$(dirname $(readlink -f $0))
 mkdir -p $INSTALL_DIR
 echo "Install required system dependencies"
@@ -120,9 +122,9 @@ sudo apt -y install \
   acl
 
 cd $INSTALL_DIR
-wget https://github.com/tpm2-software/tpm2-tss/releases/download/3.2.1-rc2/tpm2-tss-3.2.1-rc2.tar.gz
-tar -xf tpm2-tss-3.2.1-rc2.tar.gz --one-top-level=tpm2-tss --strip-components 1
-rm tpm2-tss-3.2.1-rc2.tar.gz && cd tpm2-tss
+wget https://github.com/tpm2-software/tpm2-tss/releases/download/3.2.1/tpm2-tss-3.2.1.tar.gz
+tar -xf tpm2-tss-3.2.1.tar.gz --one-top-level=tpm2-tss --strip-components 1
+rm tpm2-tss-3.2.1.tar.gz && cd tpm2-tss
 ./configure --with-udevrulesdir=/etc/udev/rules.d
 make -j$(nproc)
 
@@ -138,7 +140,7 @@ make
 IFACE=$(route | grep '^default' | grep -o '[^ ]*$')
 FILENAME=`cat /sys/class/net/$IFACE/address`
 echo Generating Keys - It may take a while...
-./priv/c_dist/tpm_keygen > $INSTALL_DIR/$FILENAME 
+./priv/c_dist/tpm_keygen > $INSTALL_DIR/$FILENAME
 echo Certified keys stored at $INSTALL_DIR/${FILENAME}
 
 cd ~
