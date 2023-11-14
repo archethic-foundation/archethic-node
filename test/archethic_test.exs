@@ -196,7 +196,7 @@ defmodule ArchethicTest do
 
       MockDB
       |> stub(:get_last_chain_address, fn ^nss_genesis_address ->
-        {nss_last_address, DateTime.utc_now()}
+        {nss_last_address, DateTime.utc_now() |> DateTime.add(-20_000)}
       end)
       |> stub(
         :get_transaction,
@@ -221,7 +221,8 @@ defmodule ArchethicTest do
         # validate nss chain from network
         # anticippated to be failed
         _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: "willnotmatchaddress"}}
+          {:ok,
+           %LastTransactionAddress{address: "willnotmatchaddress", timestamp: DateTime.utc_now()}}
 
         _, %NewTransaction{transaction: _, welcome_node: _}, _ ->
           # forward the tx
@@ -264,7 +265,7 @@ defmodule ArchethicTest do
 
       MockDB
       |> stub(:get_last_chain_address, fn ^nss_genesis_address ->
-        {nss_last_address, DateTime.utc_now()}
+        {nss_last_address, DateTime.utc_now() |> DateTime.add(-20_000)}
       end)
       |> stub(
         :get_transaction,
@@ -289,7 +290,8 @@ defmodule ArchethicTest do
       MockClient
       |> expect(:send_message, 4, fn
         _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: "willnotmatchaddress"}}
+          {:ok,
+           %LastTransactionAddress{address: "willnotmatchaddress", timestamp: DateTime.utc_now()}}
 
         %Node{first_public_key: ^second_node_first_public_key},
         %NewTransaction{transaction: ^tx, welcome_node: ^welcome_node},

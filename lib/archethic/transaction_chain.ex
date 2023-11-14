@@ -259,12 +259,16 @@ defmodule Archethic.TransactionChain do
   # ------------------------------------------------------------
 
   @doc """
-  Fetch the last address remotely
+  Fetch the last address remotely.
   """
-  @spec fetch_last_address(binary(), list(Node.t()), DateTime.t()) ::
-          {:ok, binary()} | {:error, :network_issue}
-  def fetch_last_address(address, nodes, timestamp = %DateTime{} \\ DateTime.utc_now())
-      when is_binary(address) and is_list(nodes) do
+  @spec fetch_last_address(binary(), list(Node.t()), Keyword.t()) ::
+          {:ok, binary()} | {:error, :network_issue | :acceptance_failed}
+  def fetch_last_address(address, nodes, opts \\ []) when is_binary(address) and is_list(nodes) do
+    timestamp = Keyword.get(opts, :timestamp, DateTime.utc_now())
+    timeout = Keyword.get(opts, :timeout, 0)
+    consistency_level = Keyword.get(opts, :consistency_level, 3)
+    acceptance_resolver = Keyword.get(opts, :acceptance_resolver, fn _ -> true end)
+
     conflict_resolver = fn results ->
       Enum.max_by(results, &DateTime.to_unix(&1.timestamp, :millisecond))
     end
@@ -272,12 +276,15 @@ defmodule Archethic.TransactionChain do
     case P2P.quorum_read(
            nodes,
            %GetLastTransactionAddress{address: address, timestamp: timestamp},
-           conflict_resolver
+           conflict_resolver,
+           timeout,
+           acceptance_resolver,
+           consistency_level
          ) do
       {:ok, %LastTransactionAddress{address: last_address}} ->
         {:ok, last_address}
 
-      {:error, :network_issue} = e ->
+      {:error, _} = e ->
         e
     end
   end
@@ -804,7 +811,7 @@ defmodule Archethic.TransactionChain do
         {to, type} ->
           nodes = Election.chain_storage_nodes(to, authorized_nodes)
 
-          case fetch_last_address(to, nodes, time) do
+          case fetch_last_address(to, nodes, timestamp: time) do
             {:ok, resolved} ->
               {{to, type}, resolved}
 
@@ -818,7 +825,7 @@ defmodule Archethic.TransactionChain do
         to ->
           nodes = Election.chain_storage_nodes(to, authorized_nodes)
 
-          case fetch_last_address(to, nodes, time) do
+          case fetch_last_address(to, nodes, timestamp: time) do
             {:ok, resolved} ->
               {to, resolved}
 

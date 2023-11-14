@@ -152,7 +152,7 @@ defmodule Archethic.P2PTest do
         end
       )
 
-      assert {:error, :network_issue} =
+      assert {:error, :acceptance_failed} =
                P2P.quorum_read(
                  nodes,
                  %GetTransaction{address: ""},

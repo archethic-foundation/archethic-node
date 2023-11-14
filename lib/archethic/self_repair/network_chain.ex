@@ -152,17 +152,19 @@ defmodule Archethic.SelfRepair.NetworkChain do
   defp validate_last_address(genesis_address) do
     nodes = Election.chain_storage_nodes(genesis_address, P2P.authorized_and_available_nodes())
 
-    case TransactionChain.fetch_last_address(genesis_address, nodes) do
+    {_, local_last_address_timestamp} = TransactionChain.get_last_address(genesis_address)
+
+    case TransactionChain.fetch_last_address(genesis_address, nodes,
+           consistency_level: 8,
+           acceptance_resolver: &(&1.timestamp > local_last_address_timestamp)
+         ) do
       {:ok, remote_last_address} ->
-        {local_last_address, _} = TransactionChain.get_last_address(genesis_address)
+        {:error, [remote_last_address]}
 
-        if remote_last_address == local_last_address do
-          :ok
-        else
-          {:error, [remote_last_address]}
-        end
+      {:error, :acceptance_failed} ->
+        :ok
 
-      {:error, _} ->
+      {:error, :network_issue} ->
         :error
     end
   end
