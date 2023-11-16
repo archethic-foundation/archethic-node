@@ -61,9 +61,18 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   def process(%__MODULE__{subsets: subsets}, _node_public_key) do
     stats =
       subsets
-      |> Task.async_stream(fn subset ->
-        stats = BeaconChain.get_network_stats(subset)
-        {subset, stats}
+      |> Task.async_stream(
+        fn subset ->
+          stats = BeaconChain.get_network_stats(subset)
+
+          {subset, stats}
+        end,
+        on_timeout: :kill_task,
+        max_concurrency: 256
+      )
+      |> Stream.filter(fn
+        {:exit, :timeout} -> false
+        _ -> true
       end)
       |> Stream.map(fn {:ok, res} -> res end)
       |> Enum.reduce(%{}, fn
