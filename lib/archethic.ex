@@ -80,7 +80,7 @@ defmodule Archethic do
 
       true ->
         Logger.debug("Transaction has not been forwarded",
-          transaction_address: address,
+          transaction_address: Base.encode16(address),
           transaction_type: type
         )
     end
@@ -97,7 +97,7 @@ defmodule Archethic do
         SharedSecrets.genesis_address(:node_shared_secrets) |> SelfRepair.resync(addresses, [])
         false
 
-      _ ->
+      :error ->
         false
     end
   end
