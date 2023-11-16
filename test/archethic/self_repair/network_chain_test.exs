@@ -40,15 +40,16 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
     test "should start a resync when remote /= local" do
       last_address = random_address()
+      now = DateTime.utc_now()
 
       MockDB
       |> expect(:get_last_chain_address, 2, fn address ->
-        {address, DateTime.utc_now()}
+        {address, DateTime.add(now, -1, :minute)}
       end)
 
       MockClient
       |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
-        {:ok, %LastTransactionAddress{address: last_address}}
+        {:ok, %LastTransactionAddress{address: last_address, timestamp: now}}
       end)
 
       with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do
@@ -59,15 +60,16 @@ defmodule Archethic.SelfRepair.NetworkChainTest do
 
     test "should not start a resync when remote == local" do
       last_address = random_address()
+      now = DateTime.utc_now()
 
       MockDB
       |> expect(:get_last_chain_address, 2, fn _ ->
-        {last_address, DateTime.utc_now()}
+        {last_address, now}
       end)
 
       MockClient
       |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
-        {:ok, %LastTransactionAddress{address: last_address}}
+        {:ok, %LastTransactionAddress{address: last_address, timestamp: now}}
       end)
 
       with_mock(SelfRepair, replicate_transaction: fn _ -> :ok end) do

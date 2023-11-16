@@ -37,6 +37,7 @@ defmodule Archethic.TransactionChainTest do
   doctest TransactionChain
 
   import Mox
+  import ArchethicCase
 
   describe "fetch_last_address/1 should retrieve the last address for a chain" do
     test "when not conflicts" do
@@ -68,10 +69,14 @@ defmodule Archethic.TransactionChainTest do
       nodes = P2P.authorized_and_available_nodes()
 
       assert {:ok, "@Alice1"} =
-               TransactionChain.fetch_last_address("@Alice1", nodes, ~U[2021-03-25 15:11:29Z])
+               TransactionChain.fetch_last_address("@Alice1", nodes,
+                 timestamp: ~U[2021-03-25 15:11:29Z]
+               )
 
       assert {:ok, "@Alice2"} =
-               TransactionChain.fetch_last_address("@Alice1", nodes, ~U[2021-03-25 15:12:29Z])
+               TransactionChain.fetch_last_address("@Alice1", nodes,
+                 timestamp: ~U[2021-03-25 15:12:29Z]
+               )
     end
 
     test "with conflicts" do
@@ -114,8 +119,87 @@ defmodule Archethic.TransactionChainTest do
 
       nodes = P2P.authorized_and_available_nodes()
 
-      assert {:ok, "@Alice2"} =
-               TransactionChain.fetch_last_address("@Alice1", nodes, DateTime.utc_now())
+      assert {:ok, "@Alice2"} = TransactionChain.fetch_last_address("@Alice1", nodes)
+    end
+
+    test "should ask all the elected nodes with a specific acceptance resolver" do
+      address = random_address()
+      now = DateTime.utc_now()
+
+      MockClient
+      |> expect(:send_message, 200, fn _, %GetLastTransactionAddress{}, _ ->
+        {:ok, %LastTransactionAddress{address: address, timestamp: now}}
+      end)
+
+      Enum.each(1..200, fn i ->
+        P2P.add_and_connect_node(%Node{
+          ip: {127, 0, 0, 1},
+          port: 3000 + i,
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          available?: true,
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          authorized?: true,
+          authorization_date: DateTime.add(now, -1, :day)
+        })
+      end)
+
+      nodes = P2P.authorized_and_available_nodes()
+
+      acceptance_resolver = fn %LastTransactionAddress{timestamp: remote_last_address_timestamp} ->
+        now < remote_last_address_timestamp
+      end
+
+      assert {:error, :acceptance_failed} =
+               TransactionChain.fetch_last_address(address, nodes,
+                 timestamp: now,
+                 acceptance_resolver: acceptance_resolver
+               )
+    end
+
+    test "should ask only a few nodes if they have a more recent value" do
+      address = random_address()
+      latest_address = random_address()
+      now = DateTime.utc_now()
+
+      consistency_level = 8
+
+      MockClient
+      |> expect(:send_message, consistency_level, fn _, %GetLastTransactionAddress{}, _ ->
+        {:ok,
+         %LastTransactionAddress{
+           address: latest_address,
+           timestamp: DateTime.add(now, 1, :minute)
+         }}
+      end)
+
+      Enum.each(1..200, fn i ->
+        P2P.add_and_connect_node(%Node{
+          ip: {127, 0, 0, 1},
+          port: 3000 + i,
+          first_public_key: random_public_key(),
+          last_public_key: random_public_key(),
+          available?: true,
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          authorized?: true,
+          authorization_date: DateTime.add(now, -1, :day)
+        })
+      end)
+
+      nodes = P2P.authorized_and_available_nodes()
+
+      acceptance_resolver = fn %LastTransactionAddress{timestamp: remote_last_address_timestamp} ->
+        now < remote_last_address_timestamp
+      end
+
+      assert {:ok, ^latest_address} =
+               TransactionChain.fetch_last_address(address, nodes,
+                 timestamp: now,
+                 consistency_level: consistency_level,
+                 acceptance_resolver: acceptance_resolver
+               )
     end
   end
 

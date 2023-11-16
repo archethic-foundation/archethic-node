@@ -698,7 +698,7 @@ defmodule Archethic.P2P do
           acceptance_resolver :: (Message.t() -> boolean()),
           consistency_level :: pos_integer()
         ) ::
-          {:ok, Message.t()} | {:error, :network_issue}
+          {:ok, Message.t()} | {:error, :network_issue} | {:error, :acceptance_failed}
   def quorum_read(
         nodes,
         message,
@@ -726,12 +726,14 @@ defmodule Archethic.P2P do
       acceptance_resolver,
       timeout,
       consistency_level,
+      0,
       nil
     )
   end
 
-  defp do_quorum_read([], _, _, _, _, _, nil), do: {:error, :network_issue}
-  defp do_quorum_read([], _, _, _, _, _, previous_result), do: {:ok, previous_result}
+  defp do_quorum_read([], _, _, _, _, _, 0, nil), do: {:error, :network_issue}
+  defp do_quorum_read([], _, _, _, _, _, _, nil), do: {:error, :acceptance_failed}
+  defp do_quorum_read([], _, _, _, _, _, _, previous_result), do: {:ok, previous_result}
 
   defp do_quorum_read(
          nodes,
@@ -740,6 +742,7 @@ defmodule Archethic.P2P do
          acceptance_resolver,
          timeout,
          consistency_level,
+         acceptance_failures_count,
          previous_result
        ) do
     # We determine how many nodes to fetch for the quorum from the consistency level
@@ -770,6 +773,7 @@ defmodule Archethic.P2P do
           acceptance_resolver,
           timeout,
           consistency_level,
+          acceptance_failures_count,
           previous_result
         )
 
@@ -790,6 +794,7 @@ defmodule Archethic.P2P do
             acceptance_resolver,
             timeout,
             consistency_level,
+            acceptance_failures_count,
             quorum_result
           )
         else
@@ -801,6 +806,7 @@ defmodule Archethic.P2P do
               acceptance_resolver,
               timeout,
               consistency_level,
+              acceptance_failures_count + 1,
               previous_result
             )
 
@@ -822,6 +828,7 @@ defmodule Archethic.P2P do
             acceptance_resolver,
             timeout,
             consistency_level,
+            acceptance_failures_count + 1,
             previous_result
           )
         end
