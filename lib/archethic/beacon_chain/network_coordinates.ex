@@ -259,8 +259,9 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
       TaskSupervisor,
       subsets_by_node,
       fn {node, subsets} ->
-        P2P.send_message(node, %GetNetworkStats{subsets: subsets})
+        P2P.send_message(node, %GetNetworkStats{subsets: subsets}, 5_000)
       end,
+      timeout: 5_000,
       ordered: false,
       on_timeout: :kill_task,
       max_concurrency: 256
