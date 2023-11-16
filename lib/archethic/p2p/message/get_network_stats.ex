@@ -9,6 +9,8 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   alias Archethic.BeaconChain
   alias Archethic.Crypto
   alias Archethic.P2P.Message.NetworkStats
+  alias Archethic.Utils.JobCache
+  alias Archethic.TaskSupervisor
 
   @type t :: %__MODULE__{
           subsets: list(binary())
@@ -18,11 +20,11 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   Serialize the get network stats message into binary
 
   ## Examples
-      
+
       iex> %GetNetworkStats{subsets: [<<0>>, <<255>>]} |> GetNetworkStats.serialize()
       <<
       # Length of subsets
-      0, 2, 
+      0, 2,
       # Subset
       0, 255
       >>
@@ -35,7 +37,7 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   Deserialize the binary into the get network stats message
 
   ## Examples
-      
+
       iex> <<0, 2, 0, 255>> |> GetNetworkStats.deserialize()
       {
         %GetNetworkStats{subsets: [<<0>>, <<255>>]},
@@ -59,6 +61,23 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   """
   @spec process(t(), Crypto.key()) :: NetworkStats.t()
   def process(%__MODULE__{subsets: subsets}, _node_public_key) do
+    # We use a JobCache because many nodes will send this message at the same time
+    # The message that spawned the JobCache also spawn a process that will terminate it
+    case JobCache.start(name: __MODULE__, function: fn -> do_get_stats(subsets) end) do
+      {:ok, pid} ->
+        Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+          Process.sleep(30_000)
+          JobCache.clear(pid)
+        end)
+
+      _ ->
+        :ok
+    end
+
+    JobCache.get!(__MODULE__)
+  end
+
+  defp do_get_stats(subsets) do
     stats =
       subsets
       |> Task.async_stream(

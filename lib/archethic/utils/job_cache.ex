@@ -105,6 +105,12 @@ defmodule Archethic.Utils.JobCache do
     GenServer.start_link(__MODULE__, opts, Keyword.take(opts, [:name]))
   end
 
+  @spec start(Keyword.t()) :: GenServer.on_start()
+  def start(opts) do
+    Keyword.has_key?(opts, :function) || raise ArgumentError, "expected :function in options"
+    GenServer.start(__MODULE__, opts, Keyword.take(opts, [:name]))
+  end
+
   @impl GenServer
   def init(opts) do
     {:ok, %S{function: Keyword.fetch!(opts, :function)}}
