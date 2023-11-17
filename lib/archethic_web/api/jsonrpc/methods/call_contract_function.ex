@@ -5,7 +5,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.Failure
-  alias Archethic.Contracts.Contract.PublicFunctionValue
   alias ArchethicWeb.API.FunctionCallPayload
   alias ArchethicWeb.API.JsonRPC.Method
   alias ArchethicWeb.WebUtils
@@ -39,27 +38,17 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   def execute(%{contract: contract_adress, function: function_name, args: args}) do
     with {:ok, contract_tx} <- Archethic.get_last_transaction(contract_adress),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         %PublicFunctionValue{value: value} <-
-           Contracts.execute_function(contract, function_name, args) do
+         {:ok, value, _logs} <- Contracts.execute_function(contract, function_name, args) do
       {:ok, value}
     else
-      result_error = %Failure{} ->
-        format_reason(result_error, "#{function_name}/#{length(args)}")
-
       {:error, reason} ->
         format_reason(reason)
     end
   end
 
   # Error must be static (jsonrpc spec), the dynamic part is in the 4th tuple position
-  defp format_reason(
-         %Failure{error: :function_failure, user_friendly_error: reason},
-         _function
-       ),
-       do: {:error, :function_failure, "There was an error while executing the function", reason}
-
-  defp format_reason(%Failure{error: error, user_friendly_error: reason}, function),
-    do: {:error, error, reason, function}
+  defp format_reason(%Failure{error: error, user_friendly_error: reason}),
+    do: {:error, error, "There was an error while executing the function", reason}
 
   defp format_reason(:transaction_not_exists),
     do: {:error, :transaction_not_exists, "Contract transaction does not exist"}

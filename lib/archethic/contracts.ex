@@ -11,7 +11,6 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract.ActionWithTransaction
   alias __MODULE__.Contract.ConditionAccepted
   alias __MODULE__.Contract.ConditionRejected
-  alias __MODULE__.Contract.PublicFunctionValue
   alias __MODULE__.Contract.Failure
   alias __MODULE__.Contract.State
   alias __MODULE__.Interpreter
@@ -143,30 +142,32 @@ defmodule Archethic.Contracts do
           contract :: Contract.t(),
           function_name :: String.t(),
           args_values :: list()
-        ) :: Failure.t() | PublicFunctionValue.t()
-  def(
-    execute_function(
-      contract = %Contract{
-        transaction: contract_tx,
-        version: contract_version,
-        state: state
-      },
-      function_name,
-      args_values
-    )
-  ) do
+        ) ::
+          {:ok, value :: any(), logs :: list(String.t())}
+          | {:error, Failure.t()}
+  def execute_function(
+        contract = %Contract{
+          transaction: contract_tx,
+          version: contract_version,
+          state: state
+        },
+        function_name,
+        args_values
+      ) do
     case get_function_from_contract(contract, function_name, args_values) do
       {:error, :function_does_not_exist} ->
-        %Failure{
-          user_friendly_error: "The function you are trying to call does not exist",
-          error: :function_does_not_exist
-        }
+        {:error,
+         %Failure{
+           user_friendly_error: "The function you are trying to call does not exist",
+           error: :function_does_not_exist
+         }}
 
       {:error, :function_is_private} ->
-        %Failure{
-          user_friendly_error: "The function you are trying to call is private",
-          error: :function_is_private
-        }
+        {:error,
+         %Failure{
+           user_friendly_error: "The function you are trying to call is private",
+           error: :function_is_private
+         }}
 
       {:ok, function} ->
         constants = %{
@@ -193,24 +194,23 @@ defmodule Archethic.Contracts do
         # 500ms to execute or raise
         case Task.yield(task, 500) || Task.shutdown(task) do
           nil ->
-            %Failure{
-              user_friendly_error: "Function timed-out",
-              error: :function_timeout
-            }
+            {:error,
+             %Failure{
+               user_friendly_error: "Function timed-out",
+               error: :function_timeout
+             }}
 
           {:ok, {:error, err, stacktrace}} ->
-            %Failure{
-              user_friendly_error: append_line_to_error(err, stacktrace),
-              error: :function_failure,
-              stacktrace: stacktrace,
-              logs: []
-            }
+            {:error,
+             %Failure{
+               user_friendly_error: append_line_to_error(err, stacktrace),
+               error: :function_failure,
+               stacktrace: stacktrace,
+               logs: []
+             }}
 
           {:ok, {:ok, value, logs}} ->
-            %PublicFunctionValue{
-              value: value,
-              logs: logs
-            }
+            {:ok, value, logs}
         end
     end
   end

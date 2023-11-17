@@ -290,9 +290,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         args: []
       }
 
-      assert {:error, :function_does_not_exist,
-              "The function you are trying to call does not exist",
-              "hello/0"} = CallContractFunction.execute(params)
+      assert {:error, :function_does_not_exist, "There was an error while executing the function",
+              "The function you are trying to call does not exist"} =
+               CallContractFunction.execute(params)
     end
 
     test "should return error when function is called with bad arity" do
@@ -329,9 +329,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         args: [1]
       }
 
-      assert {:error, :function_does_not_exist,
-              "The function you are trying to call does not exist",
-              "hello/1"} = CallContractFunction.execute(params)
+      assert {:error, :function_does_not_exist, "There was an error while executing the function",
+              "The function you are trying to call does not exist"} =
+               CallContractFunction.execute(params)
     end
 
     test "should return error when function call failed" do
@@ -406,8 +406,9 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
         args: [1, 2]
       }
 
-      assert {:error, :function_is_private, "The function you are trying to call is private",
-              "hello/2"} = CallContractFunction.execute(params)
+      assert {:error, :function_is_private, "There was an error while executing the function",
+              "The function you are trying to call is private"} =
+               CallContractFunction.execute(params)
     end
   end
 end

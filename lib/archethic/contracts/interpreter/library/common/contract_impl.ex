@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.Failure
-  alias Archethic.Contracts.Contract.PublicFunctionValue
   alias Archethic.Contracts.Interpreter.Legacy.UtilsInterpreter
   alias Archethic.Contracts.Interpreter.Library
 
@@ -30,11 +29,10 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
 
     with {:ok, tx} <- Archethic.get_last_transaction(address),
          {:ok, contract} <- Contracts.from_transaction(tx),
-         %PublicFunctionValue{value: value} <-
-           Contracts.execute_function(contract, function, args) do
+         {:ok, value, _logs} <- Contracts.execute_function(contract, function, args) do
       value
     else
-      err -> raise Library.Error, message: error_to_message(err)
+      {:error, reason} -> raise Library.Error, message: error_to_message(reason)
     end
   end
 
@@ -42,7 +40,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractImpl do
     "Contract.call_function failed with #{reason}"
   end
 
-  defp error_to_message({:error, reason}) do
+  defp error_to_message(reason) do
     "Contract.call_function failed with #{inspect(reason)}"
   end
 end
