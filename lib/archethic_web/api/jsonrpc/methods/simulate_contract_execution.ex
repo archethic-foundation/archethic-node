@@ -7,7 +7,6 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
   alias Archethic.Contracts.Contract.ActionWithTransaction
-  alias Archethic.Contracts.Contract.ConditionAccepted
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain.Transaction
@@ -158,7 +157,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.SimulateContractExecution do
 
   defp validate_contract_condition(condition_type, contract, tx, recipient, timestamp) do
     case Contracts.execute_condition(condition_type, contract, tx, recipient, timestamp) do
-      %ConditionAccepted{} ->
+      {:ok, _logs} ->
         :ok
 
       _ ->

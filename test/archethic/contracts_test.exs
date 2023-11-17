@@ -5,7 +5,6 @@ defmodule Archethic.ContractsTest do
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Contracts.Contract.ActionWithoutTransaction
-  alias Archethic.Contracts.Contract.ConditionAccepted
   alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.State
@@ -54,7 +53,7 @@ defmodule Archethic.ContractsTest do
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, ledger: ledger)
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  :inherit,
                  Contract.from_transaction!(contract_tx),
@@ -81,7 +80,7 @@ defmodule Archethic.ContractsTest do
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hola")
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  :inherit,
                  Contract.from_transaction!(contract_tx),
@@ -123,7 +122,7 @@ defmodule Archethic.ContractsTest do
           type: :transfer
         )
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  :inherit,
                  Contract.from_transaction!(contract_tx),
@@ -145,7 +144,7 @@ defmodule Archethic.ContractsTest do
 
       next_tx = ContractFactory.create_next_contract_tx(contract_tx, content: "hello")
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  :inherit,
                  Contract.from_transaction!(contract_tx),
@@ -171,7 +170,7 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -197,7 +196,7 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -234,7 +233,7 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -260,7 +259,7 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -286,7 +285,7 @@ defmodule Archethic.ContractsTest do
 
       trigger_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %Failure{} =
+      assert {:error, %Failure{}} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -316,7 +315,7 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -344,7 +343,7 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "I'm a content")
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -374,7 +373,7 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "tresor")
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -400,7 +399,7 @@ defmodule Archethic.ContractsTest do
 
       oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle)
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
@@ -426,7 +425,7 @@ defmodule Archethic.ContractsTest do
 
       oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle, content: "{}")
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
@@ -452,7 +451,7 @@ defmodule Archethic.ContractsTest do
 
       oracle_tx = TransactionFactory.create_valid_transaction([], type: :oracle, content: "")
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  :oracle,
                  Contract.from_transaction!(contract_tx),
@@ -481,7 +480,7 @@ defmodule Archethic.ContractsTest do
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Juliette"]}
       condition_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  condition_key,
                  Contract.from_transaction!(contract_tx),
@@ -514,7 +513,7 @@ defmodule Archethic.ContractsTest do
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
       condition_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  condition_key,
                  Contract.from_transaction!(contract_tx),
@@ -547,7 +546,7 @@ defmodule Archethic.ContractsTest do
       recipient = %Recipient{address: contract_tx.address, action: "vote", args: ["Jules"]}
       condition_key = Contract.get_trigger_for_recipient(recipient)
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  condition_key,
                  Contract.from_transaction!(contract_tx),
