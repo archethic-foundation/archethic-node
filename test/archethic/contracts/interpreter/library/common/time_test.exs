@@ -5,7 +5,6 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
-  alias Archethic.Contracts.Contract.ConditionAccepted
   alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Interpreter.Library.Common.Time
   alias Archethic.TransactionChain.Transaction
@@ -74,7 +73,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           timestamp: datetime
         )
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -112,7 +111,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           timestamp: datetime
         )
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -147,7 +146,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
           timestamp: datetime
         )
 
-      assert %ConditionAccepted{} =
+      assert {:ok, _} =
                Contracts.execute_condition(
                  :inherit,
                  Contract.from_transaction!(contract_tx),
@@ -178,7 +177,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
       next_tx =
         ContractFactory.create_next_contract_tx(contract_tx, content: "ciao", timestamp: datetime)
 
-      assert %ConditionRejected{} =
+      assert {:error, %ConditionRejected{}} =
                Contracts.execute_condition(
                  :inherit,
                  Contract.from_transaction!(contract_tx),

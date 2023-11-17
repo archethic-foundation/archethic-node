@@ -4,7 +4,6 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.Bootstrap
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.ConditionAccepted
   alias Archethic.DB
   alias Archethic.Election
   alias Archethic.Mining
@@ -76,7 +75,7 @@ defmodule Archethic.Replication.TransactionValidator do
            nil,
            validation_time
          ) do
-      %ConditionAccepted{} ->
+      {:ok, _logs} ->
         :ok
 
       _ ->

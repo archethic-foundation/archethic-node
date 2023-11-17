@@ -42,7 +42,6 @@ defmodule Archethic.Mining.ValidationContext do
 
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
-  alias Archethic.Contracts.Contract.ConditionAccepted
 
   alias Archethic.Crypto
 
@@ -910,7 +909,7 @@ defmodule Archethic.Mining.ValidationContext do
            nil,
            validation_time
          ) do
-      %ConditionAccepted{} -> true
+      {:ok, _logs} -> true
       _ -> false
     end
   end
