@@ -9,7 +9,6 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract
   alias __MODULE__.Contract.ActionWithoutTransaction
   alias __MODULE__.Contract.ActionWithTransaction
-  alias __MODULE__.Contract.ConditionAccepted
   alias __MODULE__.Contract.ConditionRejected
   alias __MODULE__.Contract.Failure
   alias __MODULE__.Contract.State
@@ -249,7 +248,7 @@ defmodule Archethic.Contracts do
           Transaction.t(),
           nil | Recipient.t(),
           DateTime.t()
-        ) :: Failure.t() | ConditionAccepted.t() | ConditionRejected.t()
+        ) :: {:ok, logs :: list(String.t())} | {:error, :condition_rejected | Failure.t()}
   def execute_condition(
         condition_key,
         contract = %Contract{version: version, conditions: conditions},
@@ -261,16 +260,15 @@ defmodule Archethic.Contracts do
       nil ->
         # only inherit condition are optional
         if condition_key == :inherit do
-          %ConditionAccepted{
-            logs: []
-          }
+          {:ok, []}
         else
-          %Failure{
-            error: "Missing condition",
-            user_friendly_error: "Missing condition",
-            logs: [],
-            stacktrace: []
-          }
+          {:error,
+           %Failure{
+             error: "Missing condition",
+             user_friendly_error: "Missing condition",
+             logs: [],
+             stacktrace: []
+           }}
         end
 
       %Conditions{args: args, subjects: subjects} ->
@@ -285,27 +283,27 @@ defmodule Archethic.Contracts do
                Map.merge(named_action_constants, condition_constants)
              ) do
           {:ok, logs} ->
-            %ConditionAccepted{
-              logs: logs
-            }
+            {:ok, logs}
 
           {:error, subject, logs} ->
-            %ConditionRejected{
-              subject: subject,
-              logs: logs
-            }
+            {:error,
+             %ConditionRejected{
+               subject: subject,
+               logs: logs
+             }}
         end
     end
   rescue
     err ->
       stacktrace = __STACKTRACE__
 
-      %Failure{
-        error: err,
-        user_friendly_error: append_line_to_error(err, stacktrace),
-        logs: [],
-        stacktrace: stacktrace
-      }
+      {:error,
+       %Failure{
+         error: err,
+         user_friendly_error: append_line_to_error(err, stacktrace),
+         logs: [],
+         stacktrace: stacktrace
+       }}
   end
 
   @doc """
