@@ -33,7 +33,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.TimeTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert %ActionWithTransaction{next_tx: next_tx} =
+      assert {:ok, %ActionWithTransaction{next_tx: next_tx}} =
                Contracts.execute_trigger(
                  {:datetime, datetime},
                  Contract.from_transaction!(contract_tx),

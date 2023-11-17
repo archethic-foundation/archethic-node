@@ -70,11 +70,14 @@ defmodule Archethic.Mining.SmartContractValidation do
     recipient = trigger_to_recipient(trigger)
     opts = trigger_to_execute_opts(trigger)
 
-    with {:ok, maybe_trigger_tx} <- validate_trigger(trigger, timestamp, previous_address),
-         {:ok, contract} <- Contract.from_transaction(prev_tx),
-         res <-
+    with {:ok, maybe_trigger_tx} <-
+           validate_trigger(trigger, timestamp, previous_address),
+         {:ok, contract} <-
+           Contract.from_transaction(prev_tx),
+         {:ok, res} <-
            Contracts.execute_trigger(trigger_type, contract, maybe_trigger_tx, recipient, opts),
-         {:ok, encoded_state} <- validate_result(res, next_tx, status) do
+         {:ok, encoded_state} <-
+           validate_result(res, next_tx, status) do
       {true, encoded_state}
     else
       _ -> {false, nil}

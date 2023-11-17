@@ -62,7 +62,9 @@ defmodule Archethic.Contracts do
           maybe_trigger_tx :: nil | Transaction.t(),
           maybe_recipient :: nil | Recipient.t(),
           opts :: Keyword.t()
-        ) :: Failure.t() | ActionWithTransaction.t() | ActionWithoutTransaction.t()
+        ) ::
+          {:ok, ActionWithTransaction.t() | ActionWithoutTransaction.t()}
+          | {:error, Failure.t()}
   def execute_trigger(
         trigger_type,
         contract = %Contract{transaction: contract_tx, state: state},
@@ -93,46 +95,49 @@ defmodule Archethic.Contracts do
       if State.valid_size?(encoded_state) do
         cast_valid_trigger_result(res, prev_state, contract_tx, encoded_state)
       else
-        %Failure{
-          logs: logs,
-          error: "Execution was successful but the state exceed the threshold",
-          stacktrace: [],
-          user_friendly_error: "Execution was successful but the state exceed the threshold"
-        }
+        {:error,
+         %Failure{
+           logs: logs,
+           error: "Execution was successful but the state exceed the threshold",
+           stacktrace: [],
+           user_friendly_error: "Execution was successful but the state exceed the threshold"
+         }}
       end
     end
   end
 
   defp cast_trigger_result({:error, err}, _, _) do
-    %Failure{logs: [], error: err, stacktrace: [], user_friendly_error: err}
+    {:error, %Failure{logs: [], error: err, stacktrace: [], user_friendly_error: err}}
   end
 
   defp cast_trigger_result({:error, err, stacktrace, logs}, _, _) do
-    %Failure{
-      logs: logs,
-      error: err,
-      stacktrace: stacktrace,
-      user_friendly_error: append_line_to_error(err, stacktrace)
-    }
+    {:error,
+     %Failure{
+       logs: logs,
+       error: err,
+       stacktrace: stacktrace,
+       user_friendly_error: append_line_to_error(err, stacktrace)
+     }}
   end
 
   # No output transaction, no state update
   defp cast_valid_trigger_result({:ok, nil, next_state, logs}, previous_state, _, encoded_state)
        when next_state == previous_state do
-    %ActionWithoutTransaction{encoded_state: encoded_state, logs: logs}
+    {:ok, %ActionWithoutTransaction{encoded_state: encoded_state, logs: logs}}
   end
 
   # No output transaction but state update
   defp cast_valid_trigger_result({:ok, nil, _next_state, logs}, _, contract_tx, encoded_state) do
-    %ActionWithTransaction{
-      encoded_state: encoded_state,
-      logs: logs,
-      next_tx: generate_next_tx(contract_tx)
-    }
+    {:ok,
+     %ActionWithTransaction{
+       encoded_state: encoded_state,
+       logs: logs,
+       next_tx: generate_next_tx(contract_tx)
+     }}
   end
 
   defp cast_valid_trigger_result({:ok, next_tx, _next_state, logs}, _, _, encoded_state) do
-    %ActionWithTransaction{encoded_state: encoded_state, logs: logs, next_tx: next_tx}
+    {:ok, %ActionWithTransaction{encoded_state: encoded_state, logs: logs, next_tx: next_tx}}
   end
 
   @doc """
