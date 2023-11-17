@@ -243,13 +243,13 @@ defmodule ArchethicWeb.API.REST.TransactionController do
              trigger_tx,
              nil
            ) do
-        %ActionWithTransaction{} ->
+        {:ok, %ActionWithTransaction{}} ->
           :ok
 
-        %ActionWithoutTransaction{} ->
+        {:ok, %ActionWithoutTransaction{}} ->
           {:error, "Execution success, but the contract did not produce a next transaction"}
 
-        %Failure{user_friendly_error: reason} ->
+        {:error, %Failure{user_friendly_error: reason}} ->
           {:error, reason}
       end
     else

@@ -91,7 +91,7 @@ defmodule Archethic.Contracts.ContractTest do
         |> ContractFactory.create_valid_contract_tx(seed: seed)
         |> Contract.from_transaction!()
 
-      %ActionWithTransaction{next_tx: next_tx} =
+      {:ok, %ActionWithTransaction{next_tx: next_tx}} =
         Contracts.execute_trigger(
           {:datetime, DateTime.from_unix!(trigger_time)},
           contract,
@@ -127,7 +127,7 @@ defmodule Archethic.Contracts.ContractTest do
 
       storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-      assert %ActionWithTransaction{next_tx: next_tx} =
+      assert {:ok, %ActionWithTransaction{next_tx: next_tx}} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(trigger_time)},
                  contract,

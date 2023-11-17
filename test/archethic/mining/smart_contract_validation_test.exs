@@ -474,5 +474,69 @@ defmodule Archethic.Mining.SmartContractValidationTest do
                  next_tx
                )
     end
+
+    test "should return false if the context status is failure" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      code = """
+      @version 1
+      actions triggered_by: interval, at: "* * * * *" do
+        State.set("truth", 42)
+        Contract.set_content "beep"
+      end
+      """
+
+      encoded_state = State.serialize(%{"truth" => 42})
+
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
+
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx, content: "beep", state: encoded_state)
+
+      contract_context = %Contract.Context{
+        trigger: {:interval, "* * * * *", now},
+        status: :failure,
+        timestamp: now
+      }
+
+      assert {false, nil} =
+               SmartContractValidation.valid_contract_execution?(
+                 contract_context,
+                 prev_tx,
+                 next_tx
+               )
+    end
+
+    test "should return false if the context status is no_output" do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      code = """
+      @version 1
+      actions triggered_by: interval, at: "* * * * *" do
+        State.set("truth", 42)
+        Contract.set_content "beep"
+      end
+      """
+
+      encoded_state = State.serialize(%{"truth" => 42})
+
+      prev_tx = ContractFactory.create_valid_contract_tx(code)
+
+      next_tx =
+        ContractFactory.create_next_contract_tx(prev_tx, content: "beep", state: encoded_state)
+
+      contract_context = %Contract.Context{
+        trigger: {:interval, "* * * * *", now},
+        status: :no_output,
+        timestamp: now
+      }
+
+      assert {false, nil} =
+               SmartContractValidation.valid_contract_execution?(
+                 contract_context,
+                 prev_tx,
+                 next_tx
+               )
+    end
   end
 end

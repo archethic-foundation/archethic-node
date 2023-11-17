@@ -148,7 +148,7 @@ defmodule Archethic.Contracts.Worker do
     meta = log_metadata(contract_address, maybe_trigger_tx)
     Logger.debug("Contract execution started (trigger=#{inspect(trigger)})", meta)
 
-    with %ActionWithTransaction{next_tx: next_tx} <-
+    with {:ok, %ActionWithTransaction{next_tx: next_tx}} <-
            Contracts.execute_trigger(trigger, contract, maybe_trigger_tx, maybe_recipient),
          index = TransactionChain.get_size(contract_address),
          {:ok, next_tx} <- Contract.sign_next_transaction(contract, next_tx, index),
@@ -157,10 +157,10 @@ defmodule Archethic.Contracts.Worker do
          :ok <- send_transaction(contract_context, next_tx) do
       Logger.debug("Contract execution success", meta)
     else
-      %ActionWithoutTransaction{} ->
+      {:ok, %ActionWithoutTransaction{}} ->
         Logger.debug("Contract execution success but there is no new transaction", meta)
 
-      %Failure{user_friendly_error: reason} ->
+      {:error, %Failure{user_friendly_error: reason}} ->
         Logger.debug("Contract execution failed: #{inspect(reason)}", meta)
 
       _ ->

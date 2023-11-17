@@ -576,7 +576,7 @@ defmodule Archethic.ContractsTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([])
 
-      assert %Failure{user_friendly_error: "division_by_zero - L8"} =
+      assert {:error, %Failure{user_friendly_error: "division_by_zero - L8"}} =
                Contracts.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
@@ -600,9 +600,10 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert %Failure{
-               user_friendly_error: "Execution was successful but the state exceed the threshold"
-             } =
+      assert {:error,
+              %Failure{
+                user_friendly_error: "Execution was successful but the state exceed the threshold"
+              }} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -622,7 +623,7 @@ defmodule Archethic.ContractsTest do
 
       contract_tx = ContractFactory.create_valid_contract_tx(code)
 
-      assert %ActionWithTransaction{} =
+      assert {:ok, %ActionWithTransaction{}} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -641,7 +642,7 @@ defmodule Archethic.ContractsTest do
       encoded_state = State.serialize(%{"key" => "value"})
       contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
-      assert %ActionWithTransaction{} =
+      assert {:ok, %ActionWithTransaction{}} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -662,7 +663,7 @@ defmodule Archethic.ContractsTest do
       encoded_state = State.serialize(%{"key" => "value"})
       contract_tx = ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
-      assert %ActionWithoutTransaction{} =
+      assert {:ok, %ActionWithoutTransaction{}} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -687,7 +688,7 @@ defmodule Archethic.ContractsTest do
       contract_tx_with_state =
         ContractFactory.create_valid_contract_tx(code, state: encoded_state)
 
-      assert %ActionWithoutTransaction{} =
+      assert {:ok, %ActionWithoutTransaction{}} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx),
@@ -695,7 +696,7 @@ defmodule Archethic.ContractsTest do
                  nil
                )
 
-      assert %ActionWithoutTransaction{} =
+      assert {:ok, %ActionWithoutTransaction{}} =
                Contracts.execute_trigger(
                  {:datetime, DateTime.from_unix!(0)},
                  Contract.from_transaction!(contract_tx_with_state),
