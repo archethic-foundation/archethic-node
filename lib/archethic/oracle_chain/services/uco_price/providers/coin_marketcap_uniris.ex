@@ -1,4 +1,4 @@
-defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCap do
+defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapUniris do
   @moduledoc false
 
   alias Archethic.OracleChain.Services.UCOPrice.Providers.Impl
