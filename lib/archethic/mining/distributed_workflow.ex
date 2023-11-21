@@ -681,7 +681,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:keep_state, %{data | context: new_context}}
 
       err ->
-        Logger.info("Skipped replication because validation failed", err: err)
+        Logger.info("Skipped replication because validation failed: #{inspect(err)}")
 
         notify_error(err, data)
         :stop
