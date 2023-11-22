@@ -230,6 +230,30 @@ defmodule Archethic.PubSub do
     Registry.register(PubSubRegistry, :new_transaction_attestation, [])
   end
 
+  @doc """
+  The mining completed event is sent for every successful and unsuccessful transactions mined by this node
+
+  - Validation_time is used to be able to aggregate on a deterministic value
+  - Duration is in :native unit (monotonic time)
+  - Success is used to be able to aggregate successes/failures separately if need be
+  """
+  @spec notify_mining_completed(DateTime.t(), pos_integer(), boolean()) :: :ok
+  def notify_mining_completed(validation_time, duration, success?) do
+    dispatch(
+      :mining,
+      {:mining_completed,
+       validation_time: validation_time, duration: duration, success?: success?}
+    )
+  end
+
+  @doc """
+  Register to a topic
+  """
+  @spec register_to_topic(atom()) :: {:ok, pid()}
+  def register_to_topic(topic) do
+    Registry.register(PubSubRegistry, topic, [])
+  end
+
   defp dispatch(topic, message) do
     Registry.dispatch(PubSubRegistry, topic, fn entries ->
       for {pid, _} <- entries, do: send(pid, message)
