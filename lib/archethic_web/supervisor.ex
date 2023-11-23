@@ -9,6 +9,7 @@ defmodule ArchethicWeb.Supervisor do
   alias ArchethicCache.LRUDisk
 
   alias ArchethicWeb.DashboardAggregator
+  alias ArchethicWeb.DashboardAggregatorAggregator
   alias ArchethicWeb.Endpoint
   alias ArchethicWeb.Explorer.TransactionCache
   alias ArchethicWeb.Explorer.FaucetRateLimiter
@@ -28,6 +29,7 @@ defmodule ArchethicWeb.Supervisor do
         web_hosting_cache_ref_tx(),
         web_hosting_cache_file(),
         DashboardAggregator,
+        DashboardAggregatorAggregator,
         FaucetRateLimiter,
         TransactionCache,
         TopTransactionsCache,
