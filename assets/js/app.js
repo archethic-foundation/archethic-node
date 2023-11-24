@@ -6,7 +6,9 @@ import {
   initializeNbTransactionGraph,
   updateNbTransactionGraph,
   initializeValidationDurationGraph,
-  updateValidationDurationGraph
+  updateValidationDurationGraph,
+  updateNodeChart,
+  initializeNodeChart
 } from "./metric_config.js";
 import { createWorldmap, updateWorldmap } from "./worldmap";
 
@@ -94,12 +96,23 @@ Hooks.network_charts = {
     const txGraph = initializeNbTransactionGraph(nbTransactionEl);
     const validationDurationGraph = initializeValidationDurationGraph(validationDurationEl);
 
-    this.handleEvent("network_updates", ({ nb_transactions, validation_duration }) => {
-      updateNbTransactionGraph(txGraph, nb_transactions);
-      updateValidationDurationGraph(validationDurationGraph, validation_duration);
+    this.handleEvent("network_updates", (stats) => {
+      updateNbTransactionGraph(txGraph, stats);
+      updateValidationDurationGraph(validationDurationGraph, stats);
     });
   },
 };
+
+//metric dashboard hook /metrics/dashboard
+Hooks.node_chart = {
+  mounted() {
+    const graph = initializeNodeChart(this.el.querySelector(".chart"))
+
+    this.handleEvent("node_updates", (stats) => {
+      updateNodeChart(graph, stats);
+    });
+  }
+}
 
 Hooks.worldmap = {
   mounted() {

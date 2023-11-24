@@ -31,12 +31,12 @@ defmodule ArchethicWeb.DashboardAggregatorAggregator do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @spec get_all() :: %{DateTime.t() => list(pos_integer())}
+  @spec get_all() :: %{{Crypto.key(), DateTime.t()} => list(pos_integer())}
   def get_all() do
     GenServer.call(__MODULE__, :get_all)
   end
 
-  @spec get_since(DateTime.t()) :: %{DateTime.t() => list(pos_integer())}
+  @spec get_since(DateTime.t()) :: %{{Crypto.key(), DateTime.t()} => list(pos_integer())}
   def get_since(since) do
     GenServer.call(__MODULE__, {:get_since, since})
   end

@@ -3,17 +3,13 @@
     <div class="column">
       <h2 class="is-size-3 subtitle">Live Archethic's dashboard</h2>
       <p>Metrics are updated every 5 seconds to give an overview of the entire system</p>
-      <p class="mt-6 heading">Version: <%= @version %></p> 
+      <p class="mt-6 heading">Version: <%= @version %></p>
     </div>
   </div>
-  <div class="tabs">
-    <ul>
-      <li x-bind:class="tab_panel == 'network' ? 'is-active' : '' " @click="tab_panel='network'"><a>Network</a></li>
-    </ul>
-  </div>
 
-  <div x-bind:class=" tab_panel == 'network' ? '' : 'is-hidden'">
-    <div class="columns" phx-hook="network_charts" phx-update="ignore" id="network_charts">
+
+  <%!-- NETWORK --%>
+  <div class="columns" phx-hook="network_charts" phx-update="ignore" id="network_charts">
       <div class="column is-6">
         <div id="nb_transactions" style="height: 200px">  </div>
       </div>
@@ -22,45 +18,13 @@
       </div>
     </div>
 
-    <div class="columns">
-      <div class="column">
-        <div class="table-container">
-          <table class="table is-fullwidth is-striped">
-            <thead>
-              <tr>
-                <th>Node</th>
-                <th>Nb transactions processed <span class="tag is-info is-light">last poll</span></th>
-                <th>Nb transactions processed <span class="tag is-warning is-light">total</span></th>
-                <th>TPS <span class="tag is-info is-light">last poll</span></th>
-                <th>Validation duration (ms) <span class="tag is-info is-light">last poll</span> </th>
-
-              </tr>
-            </thead>
-            <tbody phx-update="prepend" id="stats_table">
-            <%= for { node, data } <- @stats do %>
-              <tr id={Base.encode16(node)}>
-                <td><%= Base.encode16(node) %></td>
-                <td><%= data.nb_transactions %></td>
-                <td><%= data.cumul.transaction_validation |> elem(0) %></td>
-                <td><%= data.tps %></td>
-                <td><%= data.validation_duration %></td>
-              </tr>
-            <% end %>
-            </tbody>
-          </table>
-        </div>
-
-      </div>
+  <%!-- NODES --%>
+  <div class="columns" phx-hook="node_chart" phx-update="ignore" id="node_chart">
+    <div class="column is-12">
+      <div class="chart" style="height: 400px"></div>
     </div>
   </div>
+
 </div>
 
 
-
-<style>
-
-</style>
-<script>
-
-
-</script>

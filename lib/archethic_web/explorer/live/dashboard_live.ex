@@ -4,147 +4,86 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
   """
   use ArchethicWeb.Explorer, :live_view
 
-  alias Archethic.Metrics.Poller
+  alias ArchethicWeb.DashboardAggregatorAggregator
   alias ArchethicWeb.Explorer.DashboardView
 
   alias Phoenix.View
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      Poller.monitor()
+      # start the tick loop
+      Process.send_after(self(), :tick, 30_000)
     end
 
     version = Application.spec(:archethic, :vsn)
+    stats = fetch_stats()
 
-    Task.async(fn ->
-      Poller.fetch_metrics()
-      |> Stream.filter(&match?({:ok, {_, {:ok, _}}}, &1))
-      |> Enum.reduce(%{}, fn {:ok, {node, {:ok, metrics}}}, acc ->
-        Map.put(
-          acc,
-          node,
-          Enum.reduce(
-            metrics,
-            default_node_metric(),
-            &cumul(&2, &1)
-          )
-        )
-      end)
-    end)
-
-    new_socket =
-      socket
-      |> assign(:version, version)
-      |> assign(:stats, %{})
-
-    {:ok, new_socket}
-  end
-
-  def handle_info({_ref, stats}, socket) do
-    {:noreply, assign(socket, :stats, stats)}
-  end
-
-  def handle_info({:DOWN, _ref, :process, _, _}, socket), do: {:noreply, socket}
-
-  def handle_info(:aggregate, socket = %{assigns: %{stats: stats}}) do
-    %{tx_processed: tx_processed, validation_duration: validation_duration} =
-      Enum.reduce(stats, %{tx_processed: 0, validation_duration: 0}, fn {_node,
-                                                                         %{
-                                                                           nb_transactions:
-                                                                             nb_transactions,
-                                                                           validation_duration:
-                                                                             validation_duration
-                                                                         }},
-                                                                        acc ->
-        acc
-        |> Map.update!(:tx_processed, &(&1 + nb_transactions))
-        |> Map.update!(:validation_duration, &(&1 + validation_duration))
-      end)
-
-    avg_nb_transactions = tx_processed / map_size(stats)
-    avg_duration = validation_duration / map_size(stats)
-
-    new_socket =
-      socket
-      |> push_event("network_updates", %{
-        nb_transactions: avg_nb_transactions,
-        validation_duration: avg_duration
-      })
-
-    {:noreply, new_socket}
-  end
-
-  def handle_info({:update_data, data, public_key}, socket = %{assigns: %{stats: stats}}) do
-    new_data =
-      case Map.get(stats, public_key) do
-        nil ->
-          Enum.reduce(data, default_node_metric(), fn metric, acc ->
-            acc
-            |> aggregate(metric)
-            |> cumul(metric)
-          end)
-          |> Enum.into(%{})
-
-        previous_data ->
-          Enum.reduce(data, previous_data, fn metric, acc ->
-            acc
-            |> aggregate(metric)
-            |> cumul(metric)
-          end)
-          |> Enum.into(%{})
-      end
-
-    new_socket =
-      socket
-      |> update(:stats, &Map.put(&1, public_key, new_data))
-
-    {:noreply, new_socket}
+    {:ok,
+     socket
+     |> assign(
+       version: version,
+       stats: stats
+     )
+     |> push_event("network_updates", network_aggregate(stats))
+     |> push_event("node_updates", node_aggregate(stats))}
   end
 
   def render(assigns) do
     View.render(DashboardView, "dashboard.html", assigns)
   end
 
-  defp aggregate(
-         acc,
-         {"archethic_mining_full_transaction_validation_duration", %{count: count, sum: sum}}
-       ) do
-    {acc_count, acc_sum} =
-      get_in(acc, [Access.key(:cumul, %{}), :transaction_validation]) || {0, 0}
+  def handle_info(:tick, socket) do
+    # continue the tick loop
+    Process.send_after(self(), :tick, 30_000)
 
-    new_count = count - acc_count
-    new_tps = new_count / 5
+    # fetch data
+    version = Application.spec(:archethic, :vsn)
+    stats = fetch_stats()
 
-    new_duration =
-      if new_count > 0 do
-        (sum - acc_sum) / new_count
-      else
-        0
-      end
-
-    acc
-    |> Map.put(:nb_transactions, new_count)
-    |> Map.put(:tps, Float.round(new_tps, 2))
-    |> Map.put(:validation_duration, new_duration)
+    {:noreply,
+     socket
+     |> assign(version: version, stats: stats)
+     |> push_event("network_updates", network_aggregate(stats))
+     |> push_event("node_updates", node_aggregate(stats))}
   end
 
-  defp aggregate(acc, _), do: acc
-
-  defp cumul(
-         acc,
-         {"archethic_mining_full_transaction_validation_duration", %{count: count, sum: sum}}
-       ) do
-    put_in(acc, [Access.key(:cumul, %{}), :transaction_validation], {count, sum})
+  def display_time(datetime) do
+    "#{zero_pad(datetime.hour)}:#{zero_pad(datetime.minute)}:#{zero_pad(datetime.second)} UTC"
   end
 
-  defp cumul(acc, _), do: acc
+  def stats_to_nodes(stats) do
+    stats
+    |> Enum.reduce(MapSet.new(), fn {{node, _datetime}, _durations}, acc ->
+      MapSet.put(acc, node)
+    end)
+    |> MapSet.to_list()
+  end
 
-  defp default_node_metric do
-    %{
-      nb_transactions: 0,
-      tps: 0.0,
-      validation_duration: 0,
-      cumul: %{transaction_validation: {0, 0}}
-    }
+  defp fetch_stats() do
+    DashboardAggregatorAggregator.get_all()
+    |> Enum.map(fn {{node_public_key, datetime}, durations} ->
+      {{Base.encode16(node_public_key), datetime}, durations}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp network_aggregate(stats) do
+    Enum.reduce(stats, %{}, fn {{_node, datetime}, durations}, acc ->
+      Map.update(acc, DateTime.to_unix(datetime), durations, &(&1 ++ durations))
+    end)
+  end
+
+  defp node_aggregate(stats) do
+    Enum.reduce(stats, %{}, fn {{node, datetime}, durations}, acc ->
+      timestamp = DateTime.to_unix(datetime)
+      default = %{timestamps: [timestamp], durations: [durations]}
+
+      Map.update(acc, node, default, fn %{
+                                          timestamps: timestamps_acc,
+                                          durations: durations_acc
+                                        } ->
+        %{timestamps: [timestamp | timestamps_acc], durations: [durations | durations_acc]}
+      end)
+    end)
   end
 end
