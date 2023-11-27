@@ -38,11 +38,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {:ok, %{}}
   end
 
-  def code_change("1.2.3", state, _extra) do
-    PubSub.register_to_node_status()
-    {:ok, state}
-  end
-
   def code_change(_version, state, _extra), do: {:ok, state}
 
   def handle_info({:current_epoch_of_slot_timer, slot_time}, state) do
