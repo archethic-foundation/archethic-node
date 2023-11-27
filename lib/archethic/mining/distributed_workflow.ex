@@ -713,7 +713,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :info,
         {:ack_replication, signature, node_public_key},
         :replication,
-        data = %{start_time: start_time, context: context = %ValidationContext{transaction: tx}}
+        data = %{
+          start_time: start_time,
+          context: context = %ValidationContext{transaction: tx, validation_time: validation_time}
+        }
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
@@ -730,8 +733,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
       new_context = ValidationContext.add_storage_confirmation(context, node_index, signature)
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
+        duration = System.monotonic_time() - start_time
+
+        # send the mining_completed event
+        Archethic.PubSub.notify_mining_completed(validation_time, duration, true)
+
+        # metrics
         :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
-          duration: System.monotonic_time() - start_time
+          duration: duration
         })
 
         {:keep_state, %{data | context: new_context},
@@ -913,6 +922,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           start_time: start_time,
           context:
             context = %ValidationContext{
+              validation_time: validation_time,
               transaction: tx,
               storage_nodes_confirmations: confirmations
             }
@@ -928,8 +938,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
         transaction_address: Base.encode16(tx.address)
       )
 
+      duration = System.monotonic_time() - start_time
+
+      # send the mining_completed event
+      Archethic.PubSub.notify_mining_completed(validation_time, duration, false)
+
+      # metrics
       :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
-        duration: System.monotonic_time() - start_time
+        duration: duration
       })
 
       {:keep_state_and_data,

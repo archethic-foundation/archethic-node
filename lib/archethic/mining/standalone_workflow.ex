@@ -260,7 +260,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   def handle_info(
         {:ack_replication, signature, node_public_key},
-        state = %{start_time: start_time, context: context = %ValidationContext{transaction: tx}}
+        state = %{
+          start_time: start_time,
+          context: context = %ValidationContext{transaction: tx, validation_time: validation_time}
+        }
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
@@ -273,8 +276,14 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       new_state = %{state | context: new_context}
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
+        duration = System.monotonic_time() - start_time
+
+        # send the mining_completed event
+        Archethic.PubSub.notify_mining_completed(validation_time, duration, true)
+
+        # metrics
         :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
-          duration: System.monotonic_time() - start_time
+          duration: duration
         })
 
         notify(new_state)
