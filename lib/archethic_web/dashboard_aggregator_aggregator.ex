@@ -6,10 +6,12 @@ defmodule ArchethicWeb.DashboardAggregatorAggregator do
   is `{node_first_public_key, datetime}` instead of `datetime`
   """
 
+  alias Archethic.Crypto
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetDashboardData
   alias Archethic.P2P.Message.DashboardData
+  alias Archethic.PubSub
   alias Archethic.TaskSupervisor
 
   use GenServer
@@ -20,7 +22,7 @@ defmodule ArchethicWeb.DashboardAggregatorAggregator do
   @history_seconds 3600
 
   # The keys are a pair: {node_first_public_key, datetime}
-  defstruct buckets: %{}
+  defstruct buckets: %{}, timer: nil
 
   # ----------------------------
   # API
@@ -49,10 +51,16 @@ defmodule ArchethicWeb.DashboardAggregatorAggregator do
     # Start the clean_state loop
     Process.send_after(self(), :clean_state, @clean_interval_seconds * 1_000)
 
-    # Immediately start to request other nodes data
-    Process.send_after(self(), :request_other_nodes, 0)
+    # Start to request other nodes data only when bootstrap is done
+    timer =
+      if Archethic.up?() do
+        Process.send_after(self(), :request_other_nodes, 1)
+      else
+        PubSub.register_to_node_status()
+        nil
+      end
 
-    {:ok, %__MODULE__{}}
+    {:ok, %__MODULE__{timer: timer}}
   end
 
   def handle_call(:get_all, _from, state) do
@@ -100,6 +108,17 @@ defmodule ArchethicWeb.DashboardAggregatorAggregator do
     {:noreply, %__MODULE__{state | buckets: new_buckets}}
   end
 
+  def handle_info(:node_up, state) do
+    timer = Process.send_after(self(), :request_other_nodes, 1)
+    {:noreply, %__MODULE__{state | timer: timer}}
+  end
+
+  def handle_info(:node_down, state) do
+    %__MODULE__{timer: timer} = state
+    Process.cancel_timer(timer)
+    {:noreply, %__MODULE__{state | timer: nil}}
+  end
+
   # ----------------------------
   # INTERNAL FUNCTIONS
   # ----------------------------
@@ -109,26 +128,30 @@ defmodule ArchethicWeb.DashboardAggregatorAggregator do
     P2P.authorized_and_available_nodes()
     |> zip_nodes_with_latest_request(buckets)
     |> Enum.each(fn {node, since} ->
-      %Node{first_public_key: first_public_key} = node
-
-      Task.Supervisor.start_child(
-        TaskSupervisor,
-        fn ->
-          case P2P.send_message(
-                 node,
-                 %GetDashboardData{since: since},
-                 @timeout_seconds * 1000
-               ) do
-            {:ok, %DashboardData{buckets: buckets}} ->
-              remote_buckets = prefix_buckets(first_public_key, buckets)
-              send(pid, {:remote_buckets, remote_buckets})
-
-            _ ->
-              :ok
-          end
-        end
-      )
+      async_request_dashboard_data(pid, node, since)
     end)
+  end
+
+  defp async_request_dashboard_data(pid, node, since) do
+    %Node{first_public_key: first_public_key} = node
+
+    Task.Supervisor.start_child(
+      TaskSupervisor,
+      fn ->
+        case P2P.send_message(
+               node,
+               %GetDashboardData{since: since},
+               @timeout_seconds * 1000
+             ) do
+          {:ok, %DashboardData{buckets: buckets}} ->
+            remote_buckets = prefix_buckets(first_public_key, buckets)
+            send(pid, {:remote_buckets, remote_buckets})
+
+          _ ->
+            :ok
+        end
+      end
+    )
   end
 
   defp prefix_buckets(first_public_key, buckets) do

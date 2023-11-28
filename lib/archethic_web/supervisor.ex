@@ -28,8 +28,6 @@ defmodule ArchethicWeb.Supervisor do
       [
         web_hosting_cache_ref_tx(),
         web_hosting_cache_file(),
-        DashboardAggregator,
-        DashboardAggregatorAggregator,
         FaucetRateLimiter,
         TransactionCache,
         TopTransactionsCache,
@@ -37,7 +35,9 @@ defmodule ArchethicWeb.Supervisor do
         {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
         {PlugAttack.Storage.Ets, name: ArchethicWeb.PlugAttack.Storage, clean_period: 60_000},
         Endpoint,
-        {Absinthe.Subscription, Endpoint}
+        {Absinthe.Subscription, Endpoint},
+        DashboardAggregator,
+        DashboardAggregatorAggregator
       ]
       |> Utils.configurable_children()
 

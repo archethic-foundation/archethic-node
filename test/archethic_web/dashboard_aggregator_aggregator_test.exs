@@ -3,6 +3,7 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetDashboardData
+  alias Archethic.P2P.Message.DashboardData
 
   use ArchethicCase
 
@@ -10,6 +11,10 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
   import ArchethicCase
 
   setup do
+    # we'll act as if the node is not up for these tests
+    # (otherwise we would have to mock in the setup)
+    :persistent_term.put(:archethic_up, nil)
+
     current_node_pkey = random_public_key()
     other_node_pkey = random_public_key()
 
@@ -37,7 +42,13 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
-    DashboardAggregatorAggregator.start_link()
+    # the DashboardAggregatorAggregator is already started and supervised
+    # we kill it to reset it's data on every test
+    DashboardAggregatorAggregator
+    |> Process.whereis()
+    |> Process.exit(:kill)
+
+    Process.sleep(10)
 
     {:ok, %{current_node_pkey: current_node_pkey, other_node_pkey: other_node_pkey}}
   end
@@ -50,20 +61,26 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
     |> expect(:send_message, 2, fn
       %Node{first_public_key: ^current_node_pkey}, %GetDashboardData{}, _ ->
         {:ok,
-         %{
-           ~U[2023-11-23 16:00:00Z] => [1],
-           ~U[2023-11-23 16:01:00Z] => [2, 3]
+         %DashboardData{
+           buckets: %{
+             ~U[2023-11-23 16:00:00Z] => [1],
+             ~U[2023-11-23 16:01:00Z] => [2, 3]
+           }
          }}
 
       %Node{first_public_key: ^other_node_pkey}, %GetDashboardData{}, _ ->
         {:ok,
-         %{
-           ~U[2023-11-23 16:00:00Z] => [4, 5, 6],
-           ~U[2023-11-23 16:01:00Z] => [7]
+         %DashboardData{
+           buckets: %{
+             ~U[2023-11-23 16:00:00Z] => [4, 5, 6],
+             ~U[2023-11-23 16:01:00Z] => [7]
+           }
          }}
     end)
 
+    Archethic.PubSub.notify_node_status(:node_up)
     Process.sleep(10)
+
     result = DashboardAggregatorAggregator.get_all()
 
     assert 4 = length(Map.keys(result))
@@ -87,20 +104,26 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
     |> expect(:send_message, 2, fn
       %Node{first_public_key: ^current_node_pkey}, %GetDashboardData{}, _ ->
         {:ok,
-         %{
-           now_rounded => [1],
-           expired_rounded => [2, 3]
+         %DashboardData{
+           buckets: %{
+             now_rounded => [1],
+             expired_rounded => [2, 3]
+           }
          }}
 
       %Node{first_public_key: ^other_node_pkey}, %GetDashboardData{}, _ ->
         {:ok,
-         %{
-           now_rounded => [4, 5, 6],
-           expired_rounded => [7]
+         %DashboardData{
+           buckets: %{
+             now_rounded => [4, 5, 6],
+             expired_rounded => [7]
+           }
          }}
     end)
 
+    Archethic.PubSub.notify_node_status(:node_up)
     Process.sleep(10)
+
     result = DashboardAggregatorAggregator.get_all()
     assert 4 = length(Map.keys(result))
 

@@ -5,7 +5,14 @@ defmodule ArchethicWeb.DashboardAggregatorTest do
   alias Archethic.PubSub
 
   setup do
-    DashboardAggregator.start_link()
+    # the DashboardAggregator is already started and supervised
+    # we kill it to reset it's data on every test
+    DashboardAggregator
+    |> Process.whereis()
+    |> Process.exit(:kill)
+
+    # 10ms sleep required for the restart to complete
+    Process.sleep(10)
     :ok
   end
 
