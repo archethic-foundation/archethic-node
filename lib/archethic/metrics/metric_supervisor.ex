@@ -3,7 +3,6 @@ defmodule Archethic.Metrics.MetricSupervisor do
   use Supervisor
 
   alias Archethic.Metrics.ETSFlush
-  alias Archethic.Metrics.Poller
 
   alias Archethic.Utils
 
@@ -14,7 +13,6 @@ defmodule Archethic.Metrics.MetricSupervisor do
   def init(_initial_state) do
     children =
       Utils.configurable_children([
-        Poller,
         ETSFlush
       ])
 
