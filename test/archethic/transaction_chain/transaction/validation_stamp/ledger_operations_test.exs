@@ -887,5 +887,98 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  transaction_timestamp
                )
     end
+
+    test "should return the movements even if there are multiple with the same address" do
+      alice_address = random_address()
+
+      assert {true,
+              %LedgerOperations{
+                transaction_movements: [
+                  %TransactionMovement{
+                    to: ^alice_address,
+                    amount: 10,
+                    type: :UCO
+                  },
+                  %TransactionMovement{
+                    to: ^alice_address,
+                    amount: 20,
+                    type: :UCO
+                  },
+                  %TransactionMovement{
+                    to: ^alice_address,
+                    amount: 30,
+                    type: :UCO
+                  },
+                  %TransactionMovement{
+                    to: ^alice_address,
+                    amount: 1,
+                    type: {:token, "@BobToken", 0}
+                  },
+                  %TransactionMovement{
+                    to: ^alice_address,
+                    amount: 2,
+                    type: {:token, "@BobToken", 0}
+                  },
+                  %TransactionMovement{
+                    to: ^alice_address,
+                    amount: 3,
+                    type: {:token, "@BobToken", 0}
+                  }
+                ]
+              }} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{
+                   fee: 33,
+                   transaction_movements: [
+                     %TransactionMovement{
+                       to: alice_address,
+                       amount: 10,
+                       type: :UCO
+                     },
+                     %TransactionMovement{
+                       to: alice_address,
+                       amount: 20,
+                       type: :UCO
+                     },
+                     %TransactionMovement{
+                       to: alice_address,
+                       amount: 30,
+                       type: :UCO
+                     },
+                     %TransactionMovement{
+                       to: alice_address,
+                       amount: 1,
+                       type: {:token, "@BobToken", 0}
+                     },
+                     %TransactionMovement{
+                       to: alice_address,
+                       amount: 2,
+                       type: {:token, "@BobToken", 0}
+                     },
+                     %TransactionMovement{
+                       to: alice_address,
+                       amount: 3,
+                       type: {:token, "@BobToken", 0}
+                     }
+                   ]
+                 },
+                 random_address(),
+                 [
+                   %UnspentOutput{
+                     from: random_address(),
+                     amount: 93,
+                     type: :UCO,
+                     timestamp: DateTime.utc_now()
+                   },
+                   %UnspentOutput{
+                     from: random_address(),
+                     amount: 6,
+                     type: {:token, "@BobToken", 0},
+                     timestamp: DateTime.utc_now()
+                   }
+                 ],
+                 DateTime.utc_now()
+               )
+    end
   end
 end

@@ -16,6 +16,9 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionInput
@@ -317,22 +320,10 @@ defmodule Archethic.Replication.TransactionValidator do
        ) do
     resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, timestamp)
 
-    initial_movements =
+    resolved_movements =
       tx
       |> Transaction.get_movements()
-      |> Enum.map(&{{&1.to, &1.type}, &1})
-      |> Enum.into(%{})
-
-    resolved_movements =
-      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
-        case Map.get(initial_movements, to) do
-          nil ->
-            acc
-
-          movement ->
-            [%{movement | to: resolved} | acc]
-        end
-      end)
+      |> TransactionMovement.resolve_movements(resolved_addresses)
 
     with true <- length(resolved_movements) == length(transaction_movements),
          true <- Enum.all?(resolved_movements, &(&1 in transaction_movements)) do

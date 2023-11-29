@@ -24,11 +24,69 @@ defmodule Archethic.Mining.ValidationContextTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.Recipient
 
   import Mock
 
   doctest ValidationContext
+
+  describe "create_validation_stamp/1" do
+    test "should return the correct movements even if there are multiple to the same address" do
+      timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      transfer_address = random_address()
+      resolved_address = random_address()
+
+      validation_context = %ValidationContext{
+        create_context(timestamp)
+        | transaction:
+            Transaction.new(
+              :transfer,
+              %TransactionData{
+                ledger: %Ledger{
+                  uco: %UCOLedger{
+                    transfers: [
+                      %UCOLedger.Transfer{to: transfer_address, amount: 10},
+                      %UCOLedger.Transfer{to: transfer_address, amount: 20},
+                      %UCOLedger.Transfer{to: transfer_address, amount: 30}
+                    ]
+                  }
+                }
+              },
+              "seed",
+              0
+            ),
+          resolved_addresses: [
+            {transfer_address, resolved_address}
+          ]
+      }
+
+      expected_movements = [
+        %TransactionMovement{
+          to: resolved_address,
+          amount: 10,
+          type: :UCO
+        },
+        %TransactionMovement{
+          to: resolved_address,
+          amount: 20,
+          type: :UCO
+        },
+        %TransactionMovement{
+          to: resolved_address,
+          amount: 30,
+          type: :UCO
+        }
+      ]
+
+      assert %ValidationContext{
+               validation_stamp: %ValidationStamp{
+                 ledger_operations: %LedgerOperations{transaction_movements: ^expected_movements}
+               }
+             } = ValidationContext.create_validation_stamp(validation_context)
+    end
+  end
 
   describe "cross_validate/1" do
     test "should validate with a valid validation stamp" do
