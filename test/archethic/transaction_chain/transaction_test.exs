@@ -155,6 +155,79 @@ defmodule Archethic.TransactionChain.TransactionTest do
                  }
                })
     end
+
+    test "should behave properly when there is multiple times the same from" do
+      alice_address = random_address()
+      token_address = random_address()
+
+      assert [
+               %TransactionMovement{
+                 to: ^alice_address,
+                 amount: 10,
+                 type: :UCO
+               },
+               %TransactionMovement{
+                 to: ^alice_address,
+                 amount: 20,
+                 type: :UCO
+               },
+               %TransactionMovement{
+                 to: ^alice_address,
+                 amount: 30,
+                 type: :UCO
+               },
+               %TransactionMovement{
+                 to: ^alice_address,
+                 amount: 1,
+                 type: {:token, ^token_address, 0}
+               },
+               %TransactionMovement{
+                 to: ^alice_address,
+                 amount: 2,
+                 type: {:token, ^token_address, 0}
+               },
+               %TransactionMovement{
+                 to: ^alice_address,
+                 amount: 3,
+                 type: {:token, ^token_address, 0}
+               }
+             ] =
+               Transaction.get_movements(%Transaction{
+                 data: %TransactionData{
+                   ledger: %Ledger{
+                     uco: %UCOLedger{
+                       transfers: [
+                         %UCOLedger.Transfer{to: alice_address, amount: 10},
+                         %UCOLedger.Transfer{to: alice_address, amount: 20},
+                         %UCOLedger.Transfer{to: alice_address, amount: 30}
+                       ]
+                     },
+                     token: %TokenLedger{
+                       transfers: [
+                         %TokenLedger.Transfer{
+                           to: alice_address,
+                           amount: 1,
+                           token_address: token_address,
+                           token_id: 0
+                         },
+                         %TokenLedger.Transfer{
+                           to: alice_address,
+                           amount: 2,
+                           token_address: token_address,
+                           token_id: 0
+                         },
+                         %TokenLedger.Transfer{
+                           to: alice_address,
+                           amount: 3,
+                           token_address: token_address,
+                           token_id: 0
+                         }
+                       ]
+                     }
+                   }
+                 }
+               })
+    end
   end
 
   describe "get_movements/1 token resupply transaction" do
