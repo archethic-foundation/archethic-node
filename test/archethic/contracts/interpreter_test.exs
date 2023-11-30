@@ -509,6 +509,37 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
 
+    test "should be able to throw in a condition block" do
+      code = """
+      @version 1
+
+      condition triggered_by: transaction, as: [
+        content: throw "invalid content"
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      %Contract{
+        conditions: %{
+          {:transaction, nil, nil} => %Archethic.Contracts.Conditions{subjects: subjects}
+        }
+      } = Contract.from_transaction!(contract_tx)
+
+      contract_constants = Constants.from_transaction(contract_tx)
+      incoming_constants = Constants.from_transaction(incoming_tx)
+
+      assert {:error, "content", "invalid content", []} =
+               Interpreter.execute_condition(1, subjects, %{
+                 "transaction" => incoming_constants,
+                 "contract" => contract_constants
+               })
+    end
+
     test "Should not be able to use out of scope variables" do
       code = """
         @version 1
