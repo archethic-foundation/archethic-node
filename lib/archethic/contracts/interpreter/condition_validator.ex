@@ -23,24 +23,32 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
       fn {field, condition}, {:ok, logs_acc} ->
         field = Atom.to_string(field)
 
-        case validate_condition({field, condition}, constants) do
-          {_, true} ->
+        try do
+          case validate_condition({field, condition}, constants) do
+            {_, true} ->
+              # TODO: logs
+              logs = []
+
+              {:cont, {:ok, logs ++ logs_acc}}
+
+            {_, false} ->
+              # TODO: logs
+              logs = []
+
+              value = get_constant_value(constants, field)
+
+              Logger.debug(
+                "Invalid condition for `#{inspect(field)}` with the given value: `#{inspect(value)}` - condition: #{inspect(condition)}"
+              )
+
+              {:halt, {:error, field, logs}}
+          end
+        catch
+          err ->
             # TODO: logs
             logs = []
 
-            {:cont, {:ok, logs ++ logs_acc}}
-
-          {_, false} ->
-            # TODO: logs
-            logs = []
-
-            value = get_constant_value(constants, field)
-
-            Logger.debug(
-              "Invalid condition for `#{inspect(field)}` with the given value: `#{inspect(value)}` - condition: #{inspect(condition)}"
-            )
-
-            {:halt, {:error, field, logs}}
+            {:halt, {:error, field, err, logs}}
         end
       end
     )
