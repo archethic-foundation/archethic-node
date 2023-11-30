@@ -262,6 +262,21 @@ defmodule Archethic.Contracts.Interpreter.FunctionInterpreterTest do
                # mark function as declared
                |> FunctionInterpreter.parse([{"hello", 0, :public}])
     end
+
+    test "should  be able to call throw" do
+      code = ~S"""
+      export fun im_public() do
+       throw "err"
+      end
+      """
+
+      assert {:ok, _, _, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               # mark function as declared
+               |> FunctionInterpreter.parse([{"hello", 0, :public}])
+    end
   end
 
   describe "execute/2" do
