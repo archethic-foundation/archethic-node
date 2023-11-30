@@ -540,6 +540,74 @@ defmodule Archethic.Contracts.InterpreterTest do
                })
     end
 
+    test "should be able to throw in a private function (from an action)" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        function_that_throws()
+      end
+
+      fun function_that_throws() do
+        throw "you shall not pass"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      assert {:error, "you shall not pass", [], []} =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil,
+                 []
+               )
+    end
+
+    test "should be able to throw in a private function (from a condition)" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: [
+        address: function_that_throws()
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+
+      fun function_that_throws() do
+        throw "you shall not pass"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      %Contract{
+        functions: functions,
+        conditions: %{
+          {:transaction, nil, nil} => %Archethic.Contracts.Conditions{subjects: subjects}
+        }
+      } = Contract.from_transaction!(contract_tx)
+
+      contract_constants = Constants.from_transaction(contract_tx)
+      incoming_constants = Constants.from_transaction(incoming_tx)
+
+      assert {
+               :error,
+               "address",
+               "you shall not pass",
+               []
+             } =
+               Interpreter.execute_condition(1, subjects, %{
+                 :functions => functions,
+                 "transaction" => incoming_constants,
+                 "contract" => contract_constants
+               })
+    end
+
     test "Should not be able to use out of scope variables" do
       code = """
         @version 1
