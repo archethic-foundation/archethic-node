@@ -192,6 +192,11 @@ defmodule Archethic.Contracts.Interpreter do
       logs = Scope.read_global([:logs])
 
       {:error, err, __STACKTRACE__, logs}
+  catch
+    err ->
+      logs = Scope.read_global([:logs])
+
+      {:error, err, [], logs}
   end
 
   defp do_execute_trigger(0, trigger_code, constants, contract_tx) do
