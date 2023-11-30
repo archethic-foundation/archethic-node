@@ -49,6 +49,19 @@ defmodule Archethic.Contracts.InterpreterTest do
   end
 
   describe "parse code v1" do
+    test "should be able to throw in an action block" do
+      assert {:ok, %Contract{}} =
+               """
+               @version 1
+
+               condition triggered_by: transaction, as: []
+               actions triggered_by: transaction do
+                 throw "something bad happened"
+               end
+               """
+               |> Interpreter.parse()
+    end
+
     test "should return an error if there are unexpected terms" do
       assert {:error, _} =
                """
@@ -463,6 +476,30 @@ defmodule Archethic.Contracts.InterpreterTest do
                _state,
                _logs
              } =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil,
+                 []
+               )
+    end
+
+    test "should be able to throw in an action block" do
+      code = """
+      @version 1
+
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        throw "something bad happened"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      assert {:error, "something bad happened", [], []} =
                Interpreter.execute_trigger(
                  {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
