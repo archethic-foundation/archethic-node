@@ -731,6 +731,27 @@ defmodule Archethic.ContractsTest do
   end
 
   describe "execute_function/3" do
+    test "should be able to throw in public function" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+
+      export fun function_that_throws() do
+        throw "nope"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      contract = Contract.from_transaction!(contract_tx)
+
+      assert {:error, %Failure{user_friendly_error: "nope"}} =
+               Contracts.execute_function(contract, "function_that_throws", [], [])
+    end
+
     test "should return an error if the function takes too much time" do
       code = ~S"""
       @version 1
