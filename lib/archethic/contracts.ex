@@ -259,7 +259,23 @@ defmodule Archethic.Contracts do
             rescue
               err ->
                 # error from the code (ex: 1 + "abc")
-                {:error, err, __STACKTRACE__}
+                {:error,
+                 %Failure{
+                   user_friendly_error: append_line_to_error(err, __STACKTRACE__),
+                   error: :function_failure,
+                   stacktrace: __STACKTRACE__,
+                   logs: []
+                 }}
+            catch
+              err ->
+                # throw from the code
+                {:error,
+                 %Failure{
+                   user_friendly_error: err,
+                   error: :function_failure,
+                   stacktrace: [],
+                   logs: []
+                 }}
             end
           end)
 
@@ -272,14 +288,8 @@ defmodule Archethic.Contracts do
                error: :function_timeout
              }}
 
-          {:ok, {:error, err, stacktrace}} ->
-            {:error,
-             %Failure{
-               user_friendly_error: append_line_to_error(err, stacktrace),
-               error: :function_failure,
-               stacktrace: stacktrace,
-               logs: []
-             }}
+          {:ok, {:error, failure}} ->
+            {:error, failure}
 
           {:ok, {:ok, value, logs}} ->
             {:ok, value, logs}
