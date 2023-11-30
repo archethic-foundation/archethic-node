@@ -39,6 +39,9 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
   def prewalk(node = {:&&, _, _}, acc), do: {node, acc}
   def prewalk(node = {:||, _, _}, acc), do: {node, acc}
 
+  # throw "reason"
+  def prewalk(node = {:throw, _, [reason]}, acc) when is_binary(reason), do: {node, acc}
+
   # ranges
   def prewalk(node = {:.., _, _}, acc), do: {node, acc}
 
@@ -254,6 +257,11 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
       end
 
     {new_node, acc}
+  end
+
+  # throw
+  def prewalk({{:atom, "throw"}, _, [reason]}, acc) when is_binary(reason) do
+    {{:throw, [context: Elixir, imports: [{1, Kernel}]], [reason]}, acc}
   end
 
   # function call, should be placed after "for" prewalk
