@@ -104,7 +104,9 @@ defmodule Archethic.Contracts.Interpreter do
   Return true if the given conditions are valid on the given constants
   """
   @spec execute_condition(version(), ConditionsSubjects.t(), map()) ::
-          {:ok, list(String.t())} | {:error, String.t(), list(String.t())}
+          {:ok, list(String.t())}
+          | {:error, String.t(), list(String.t())}
+          | {:error, String.t(), String.t(), list(String.t())}
   def execute_condition(0, conditions, constants) do
     if Legacy.valid_conditions?(conditions, constants) do
       {:ok, []}
