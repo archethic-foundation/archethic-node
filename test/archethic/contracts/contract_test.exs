@@ -6,6 +6,7 @@ defmodule Archethic.Contracts.ContractTest do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Interpreter
   alias Archethic.Crypto
@@ -142,6 +143,29 @@ defmodule Archethic.Contracts.ContractTest do
 
       assert new_ownership != ownerships
       assert Ownership.authorized_public_key?(new_ownership, storage_nonce_public_key)
+    end
+  end
+
+  describe "execute_function" do
+    test "should be able to throw in public function" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: []
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+
+      export fun function_that_throws() do
+        throw "nope"
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      contract = Contract.from_transaction!(contract_tx)
+
+      assert {:error, %Failure{user_friendly_error: "nope"}} =
+               Contracts.execute_function(contract, "function_that_throws", [])
     end
   end
 end
