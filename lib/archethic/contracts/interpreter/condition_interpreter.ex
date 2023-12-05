@@ -18,7 +18,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   Parse the given node and return the trigger and the actions block.
   """
   @spec parse(any(), FunctionKeys.t()) ::
-          {:ok, Contract.condition_type(), ConditionsSubjects.t()} | {:error, any(), String.t()}
+          {:ok, Contract.condition_type(), ConditionsSubjects.t() | Macro.t()}
+          | {:error, any(), String.t()}
   def parse(
         # legacy syntax: condition transaction: []
         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, keyword}]]},
@@ -26,13 +27,13 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       ) do
     case condition_name do
       "transaction" ->
-        do_parse({:transaction, nil, nil}, keyword, functions_keys, node)
+        do_parse_keyword({:transaction, nil, nil}, keyword, functions_keys, node)
 
       "inherit" ->
-        do_parse(:inherit, keyword, functions_keys, node)
+        do_parse_keyword(:inherit, keyword, functions_keys, node)
 
       "oracle" ->
-        do_parse(:oracle, keyword, functions_keys, node)
+        do_parse_keyword(:oracle, keyword, functions_keys, node)
 
       _ ->
         {:error, node, "invalid condition type"}
@@ -52,10 +53,10 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
       ) do
     case triggered_by do
       "oracle" ->
-        do_parse(:oracle, keyword, functions_keys, node)
+        do_parse_keyword(:oracle, keyword, functions_keys, node)
 
       "transaction" ->
-        do_parse({:transaction, nil, nil}, keyword, functions_keys, node)
+        do_parse_keyword({:transaction, nil, nil}, keyword, functions_keys, node)
 
       _ ->
         {:error, node, "unknown condition type"}
@@ -80,7 +81,60 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
         _ -> Enum.map(args, fn {{:atom, arg_name}, _, nil} -> arg_name end)
       end
 
-    do_parse({:transaction, action_name, args}, keyword, functions_keys, node)
+    do_parse_keyword({:transaction, action_name, args}, keyword, functions_keys, node)
+  end
+
+  def parse(
+        {{:atom, "condition"}, _,
+         [
+           [{{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}}],
+           [do: block]
+         ]},
+        functions_keys
+      ) do
+    do_parse_block({:transaction, nil, nil}, block, functions_keys)
+  end
+
+  def parse(
+        {{:atom, "condition"}, _,
+         [
+           [{{:atom, "triggered_by"}, {{:atom, "oracle"}, _, nil}}],
+           [do: block]
+         ]},
+        functions_keys
+      ) do
+    do_parse_block(:oracle, block, functions_keys)
+  end
+
+  def parse(
+        {{:atom, "condition"}, _,
+         [
+           {{:atom, "inherit"}, _, nil},
+           [do: block]
+         ]},
+        functions_keys
+      ) do
+    do_parse_block(:inherit, block, functions_keys)
+  end
+
+  def parse(
+        {{:atom, "condition"}, _,
+         [
+           [
+             {{:atom, "triggered_by"}, {{:atom, "transaction"}, _, nil}},
+             {{:atom, "on"}, {{:atom, action_name}, _, args}}
+           ],
+           [do: block]
+         ]},
+        functions_keys
+      ) do
+    args =
+      case args do
+        nil -> []
+        _ -> Enum.map(args, fn {{:atom, arg_name}, _, nil} -> arg_name end)
+      end
+
+    do_parse_block({:transaction, action_name, args}, block, functions_keys)
   end
 
   def parse(node, _) do
@@ -95,7 +149,25 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ----------------------------------------------------------------------
-  defp do_parse(condition_type, keyword, functions_keys, node) do
+  defp do_parse_block(condition_type, block, functions_keys) do
+    {new_ast, _} =
+      Macro.traverse(
+        AST.wrap_in_block(block),
+        %{
+          functions: functions_keys
+        },
+        fn node, acc ->
+          CommonInterpreter.prewalk(node, acc)
+        end,
+        fn node, acc ->
+          CommonInterpreter.postwalk(node, acc)
+        end
+      )
+
+    {:ok, condition_type, new_ast}
+  end
+
+  defp do_parse_keyword(condition_type, keyword, functions_keys, node) do
     global_variable =
       case condition_type do
         {:transaction, _, _} -> "transaction"
