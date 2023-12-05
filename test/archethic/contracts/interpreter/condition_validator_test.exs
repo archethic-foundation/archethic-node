@@ -6,6 +6,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
   alias Archethic.Contracts.Interpreter.ConditionValidator
+  alias Archethic.Contracts.Interpreter.Library
   alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
@@ -464,6 +465,181 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
                |> ConditionValidator.execute_condition(%{
                  "previous" => Constants.from_contract_transaction(previous_tx),
                  "next" => Constants.from_contract_transaction(next_tx)
+               })
+    end
+  end
+
+  describe "execute_condition/2 transaction with do..end" do
+    test "should be able to return true" do
+      code = ~s"""
+      condition triggered_by: transaction do
+        transaction.type == "transfer"
+      end
+      """
+
+      tx = TransactionFactory.create_valid_transaction([])
+
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
+    end
+
+    test "should be able to return false" do
+      code = ~s"""
+      condition triggered_by: transaction do
+        transaction.type == "data"
+      end
+      """
+
+      tx = TransactionFactory.create_valid_transaction([])
+
+      assert {:error, "N/A", []} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
+    end
+
+    test "should be able to throw" do
+      code = ~s"""
+      condition triggered_by: transaction do
+        throw code: 4, message: "Something went wrong"
+      end
+      """
+
+      tx = TransactionFactory.create_valid_transaction([])
+
+      assert_raise Library.ErrorContractThrow, "Something went wrong", fn ->
+        code
+        |> Interpreter.sanitize_code()
+        |> elem(1)
+        |> ConditionInterpreter.parse([])
+        |> elem(2)
+        |> ConditionValidator.execute_condition(%{
+          "transaction" => Constants.from_transaction(tx)
+        })
+      end
+    end
+
+    test "should be able to call private function" do
+      code = ~s"""
+      condition triggered_by: transaction do
+        transaction.type == allowed_type()
+      end
+
+      fun allowed_type() do
+        "transfer"
+      end
+      """
+
+      tx = TransactionFactory.create_valid_transaction([])
+
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
+    end
+  end
+
+  describe "execute_condition/2 oracle with do..end" do
+    test "should return truthy" do
+      code = ~s"""
+      condition triggered_by: oracle do
+        transaction.content == "Hello"
+      end
+      """
+
+      tx = TransactionFactory.create_valid_transaction([], content: "Hello")
+
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
+    end
+
+    test "should return falsy" do
+      code = ~s"""
+      condition triggered_by: oracle do
+        transaction.content == "Hello"
+      end
+      """
+
+      tx = TransactionFactory.create_valid_transaction([], content: "Heyho")
+
+      assert {:error, "N/A", []} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "transaction" => Constants.from_transaction(tx)
+               })
+    end
+  end
+
+  describe "execute_condition/2 inherit with do..end" do
+    test "should return truthy" do
+      code = ~s"""
+      condition inherit do
+        previous.content == next.content
+      end
+      """
+
+      prev = TransactionFactory.create_valid_transaction([], content: "Hello")
+      next = TransactionFactory.create_valid_transaction([], content: "Hello")
+
+      assert {:ok, _logs} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_transaction(prev),
+                 "next" => Constants.from_transaction(next)
+               })
+    end
+
+    test "should return falsy" do
+      code = ~s"""
+      condition inherit do
+        previous.content == next.content
+      end
+      """
+
+      prev = TransactionFactory.create_valid_transaction([], content: "Hi")
+      next = TransactionFactory.create_valid_transaction([], content: "Hello")
+
+      assert {:error, "N/A", []} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+               |> elem(2)
+               |> ConditionValidator.execute_condition(%{
+                 "previous" => Constants.from_transaction(prev),
+                 "next" => Constants.from_transaction(next)
                })
     end
   end
