@@ -2,13 +2,15 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
   use ArchethicCase
   import ArchethicCase
 
-  alias Archethic.P2P.Message.UnspentOutputList
-  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.Contracts.Contract.Failure
+
   alias Archethic.Mining.Fee
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.SmartContractCallValidation
   alias Archethic.P2P.Message.ValidateSmartContractCall
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.GetUnspentOutputs
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -201,7 +203,9 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
-      assert %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} =
+      failure = %Failure{error: :missing_condition, user_friendly_error: "Missing condition"}
+
+      assert %SmartContractCallValidation{status: {:error, :invalid_execution, ^failure}, fee: 0} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1_for_contract_without_trigger_transaction"},
                  transaction: incoming_tx,
@@ -232,7 +236,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
 
-      assert %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0} =
+      assert %SmartContractCallValidation{status: {:error, :invalid_condition, "content"}, fee: 0} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1_for_contract_with_invalid_message"},
                  transaction: incoming_tx,
@@ -365,6 +369,90 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
       assert %SmartContractCallValidation{status: :ok, fee: _} =
                %ValidateSmartContractCall{
                  recipient: recipient,
+                 transaction: incoming_tx,
+                 timestamp: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should return custom message when throw in condition" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction do
+          throw code: 1234, message: "Custom message", data: [key: "custom data"]
+        end
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
+
+      message = "Custom message - L4"
+
+      data = %{
+        "code" => 1234,
+        "message" => "Custom message",
+        "data" => %{"key" => "custom data"}
+      }
+
+      assert %SmartContractCallValidation{
+               status:
+                 {:error, :invalid_execution,
+                  %Failure{user_friendly_error: ^message, error: :contract_throw, data: ^data}},
+               fee: 0
+             } =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{address: "@SC1"},
+                 transaction: incoming_tx,
+                 timestamp: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should return custom message when throw in action" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction do
+          true
+        end
+
+        actions triggered_by: transaction do
+          throw code: 1234, message: "Custom message", data: [key: "custom data"]
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
+
+      message = "Custom message - L8"
+
+      data = %{
+        "code" => 1234,
+        "message" => "Custom message",
+        "data" => %{"key" => "custom data"}
+      }
+
+      assert %SmartContractCallValidation{
+               status:
+                 {:error, :invalid_execution,
+                  %Failure{user_friendly_error: ^message, error: :contract_throw, data: ^data}},
+               fee: 0
+             } =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
                  timestamp: DateTime.utc_now()
                }

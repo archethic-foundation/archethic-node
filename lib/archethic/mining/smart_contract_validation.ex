@@ -100,6 +100,25 @@ defmodule Archethic.Mining.SmartContractValidation do
     end
   end
 
+  defp format_error_status({:error, :transaction_not_exists}, data) do
+    {:error, "Contract recipient does not exists", data}
+  end
+
+  defp format_error_status(
+         {:error, :invalid_execution, %Failure{user_friendly_error: message, data: data}},
+         data
+       ) do
+    {:error, message, data}
+  end
+
+  defp format_error_status({:error, :invalid_condition, subject}, data) do
+    {:error, "Invalid condition on #{subject}", data}
+  end
+
+  defp format_error_status({:error, :parsing_error, reason}, data) do
+    {:error, "Error when parsing contract #{reason}", data}
+  end
+
   @doc """
   Execute the contract if it's relevant and return a boolean if given transaction is genuine.
   It also return the result because it's need to extract the state

@@ -11,6 +11,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ConditionRejected
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.ConditionRejected
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -100,22 +102,13 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
     unspent_outputs = Archethic.get_unspent_outputs(recipient_address)
 
-    with {:ok, contract_tx} <- TransactionChain.get_last_transaction(recipient_address),
-         {:ok, contract} <- Contracts.from_transaction(contract_tx),
+    with {:ok, contract_tx} <- get_last_transaction(recipient_address),
+         {:ok, contract} <- parse_contract(contract_tx),
          trigger = Contract.get_trigger_for_recipient(recipient),
-         {:ok, _} <-
-           Contracts.execute_condition(
-             trigger,
-             contract,
-             transaction,
-             recipient,
-             datetime,
-             unspent_outputs
-           ),
+         :ok <-
+           execute_condition(trigger, contract, transaction, recipient, datetime, unspent_outputs),
          {:ok, execution_result} <-
-           Contracts.execute_trigger(trigger, contract, transaction, recipient, unspent_outputs,
-             time_now: datetime
-           ) do
+           execute_trigger(trigger, contract, transaction, recipient, unspent_outputs, datetime) do
       if enough_funds_to_send?(execution_result, unspent_outputs) do
         %SmartContractCallValidation{
           status: :ok,
@@ -128,18 +121,45 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
         }
       end
     else
-      {:error, reason} when reason in [:transaction_not_exists, :invalid_transaction] ->
-        %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0}
+      error_status -> %SmartContractCallValidation{status: error_status, fee: 0}
+    end
+  end
 
-      {:error, %Failure{}} ->
-        %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}
+  defp get_last_transaction(address) do
+    case TransactionChain.get_last_transaction(address) do
+      {:ok, tx} -> {:ok, tx}
+      {:error, _} -> {:error, :transaction_not_exists}
+    end
+  end
 
-      {:error, %ConditionRejected{}} ->
-        %SmartContractCallValidation{status: {:error, :invalid_execution}, fee: 0}
+  defp parse_contract(contract_tx) do
+    case Contracts.from_transaction(contract_tx) do
+      {:ok, contract} -> {:ok, contract}
+      {:error, reason} -> {:error, :parsing_error, reason}
+    end
+  end
 
-      # When contract's code is invalid or missing
-      {:error, reason} when is_binary(reason) ->
-        %SmartContractCallValidation{status: {:error, :transaction_not_exists}, fee: 0}
+  defp execute_condition(trigger, contract, transaction, recipient, datetime, unspent_outputs) do
+    case Contracts.execute_condition(
+           trigger,
+           contract,
+           transaction,
+           recipient,
+           datetime,
+           unspent_outputs
+         ) do
+      {:ok, _} -> :ok
+      {:error, failure = %Failure{}} -> {:error, :invalid_execution, failure}
+      {:error, %ConditionRejected{subject: subject}} -> {:error, :invalid_condition, subject}
+    end
+  end
+
+  defp execute_trigger(trigger, contract, transaction, recipient, unspent_outputs, datetime) do
+    case Contracts.execute_trigger(trigger, contract, transaction, recipient, unspent_outputs,
+           time_now: datetime
+         ) do
+      {:ok, result} -> {:ok, result}
+      {:error, failure = %Failure{}} -> {:error, :invalid_execution, failure}
     end
   end
 
@@ -159,13 +179,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
           |> Keyword.fetch!(:usd)
 
         # Here we use a nil contract_context as we return the fees the user has to pay for the contract
-        Mining.get_transaction_fee(
-          tx,
-          nil,
-          previous_usd_price,
-          timestamp,
-          encoded_state
-        )
+        Mining.get_transaction_fee(tx, nil, previous_usd_price, timestamp, encoded_state)
 
       _ ->
         0
