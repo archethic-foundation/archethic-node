@@ -12,7 +12,8 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
             | {:error, :transaction_not_exists}
             | {:error, :insufficient_funds}
             | {:error, :invalid_execution, Failure.t()}
-            | {:error, :invalid_condition, String.t()},
+            | {:error, :invalid_condition, String.t()}
+            | {:error, :parsing_error, String.t()},
           fee: non_neg_integer()
         }
 
@@ -35,6 +36,9 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
     do: <<3::8, VarInt.from_value(byte_size(subject))::binary, subject::binary>>
 
   defp serialize_status({:error, :insufficient_funds}), do: <<4::8>>
+
+  defp serialize_status({:error, :parsing_error, reason}),
+    do: <<5::8, VarInt.from_value(byte_size(reason))::binary, reason::binary>>
 
   @doc """
   Deserialize the encoded message
@@ -60,5 +64,11 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
     {{:error, :invalid_condition, subject}, rest}
   end
 
-  defp deserialize_status(<<4::8, rest::bitstring>>), do: {{:error, :inets_sup}, rest}
+  defp deserialize_status(<<4::8, rest::bitstring>>), do: {{:error, :insufficient_funds}, rest}
+
+  defp deserialize_status(<<5::8, rest::bitstring>>) do
+    {reason_size, rest} = VarInt.get_value(rest)
+    <<reason::binary-size(reason_size), rest::bitstring>> = rest
+    {{:error, :parsing_error, reason}, rest}
+  end
 end
