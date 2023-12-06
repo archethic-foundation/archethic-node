@@ -115,7 +115,12 @@ defmodule Archethic.Contracts do
        logs: logs,
        error: err,
        stacktrace: stacktrace,
-       user_friendly_error: append_line_to_error(err, stacktrace)
+       user_friendly_error:
+         if is_exception(err) do
+           append_line_to_error(err, stacktrace)
+         else
+           err
+         end
      }}
   end
 
@@ -258,7 +263,7 @@ defmodule Archethic.Contracts do
           Transaction.t(),
           nil | Recipient.t(),
           DateTime.t()
-        ) :: {:ok, logs :: list(String.t())} | {:error, :condition_rejected | Failure.t()}
+        ) :: {:ok, logs :: list(String.t())} | {:error, ConditionRejected.t() | Failure.t()}
   def execute_condition(
         condition_key,
         contract = %Contract{version: version, conditions: conditions},
@@ -298,6 +303,14 @@ defmodule Archethic.Contracts do
           {:error, subject, logs} ->
             {:error,
              %ConditionRejected{
+               subject: subject,
+               logs: logs
+             }}
+
+          {:error, subject, msg, logs} ->
+            {:error,
+             %ConditionRejected{
+               msg: msg,
                subject: subject,
                logs: logs
              }}

@@ -166,7 +166,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hola")
 
-      assert %SmartContractCallValidation{valid?: false, fee: 0} =
+      assert %SmartContractCallValidation{valid?: false, fee: 0, reason: "Missing condition"} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,
@@ -195,7 +195,65 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCallTest do
 
       incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
 
-      assert %SmartContractCallValidation{valid?: false, fee: 0} =
+      assert %SmartContractCallValidation{valid?: false, fee: 0, reason: "Condition rejected"} =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{address: "@SC1"},
+                 transaction: incoming_tx,
+                 inputs_before: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should return custom message when throw in condition" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction do
+          throw "Custom message"
+        end
+
+        actions triggered_by: transaction do
+          Contract.set_content "hello"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
+
+      assert %SmartContractCallValidation{valid?: false, fee: 0, reason: "Custom message"} =
+               %ValidateSmartContractCall{
+                 recipient: %Recipient{address: "@SC1"},
+                 transaction: incoming_tx,
+                 inputs_before: DateTime.utc_now()
+               }
+               |> ValidateSmartContractCall.process(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should return custom message when throw in action" do
+      tx =
+        ~s"""
+        @version 1
+
+        condition triggered_by: transaction do
+          true
+        end
+
+        actions triggered_by: transaction do
+          throw "Custom message"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      MockDB
+      |> expect(:get_transaction, fn "@SC1", _, _ -> {:ok, tx} end)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([], content: "hi")
+
+      assert %SmartContractCallValidation{valid?: false, fee: 0, reason: "Custom message"} =
                %ValidateSmartContractCall{
                  recipient: %Recipient{address: "@SC1"},
                  transaction: incoming_tx,

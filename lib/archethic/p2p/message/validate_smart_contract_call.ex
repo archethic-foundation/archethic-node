@@ -9,6 +9,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.ActionWithTransaction
+  alias Archethic.Contracts.Contract.ConditionRejected
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Crypto
   alias Archethic.Mining
   alias Archethic.OracleChain
@@ -78,7 +80,8 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
     with {:ok, contract_tx} <- TransactionChain.get_transaction(recipient_address),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         trigger when not is_nil(trigger) <- Contract.get_trigger_for_recipient(recipient),
+         {:trigger, trigger} when not is_nil(trigger) <-
+           {:trigger, Contract.get_trigger_for_recipient(recipient)},
          {:ok, _} <-
            Contracts.execute_condition(trigger, contract, transaction, recipient, datetime),
          {:ok, execution_result} <-
@@ -88,6 +91,29 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
         fee: calculate_fee(execution_result, contract, datetime)
       }
     else
+      {:error, :transaction_not_exists} ->
+        %SmartContractCallValidation{valid?: false, fee: 0, reason: "Transaction does not exist"}
+
+      {:error, :invalid_transaction} ->
+        %SmartContractCallValidation{valid?: false, fee: 0, reason: "Transaction is invalid"}
+
+      {:error, %ConditionRejected{msg: msg}} ->
+        %SmartContractCallValidation{
+          valid?: false,
+          fee: 0,
+          reason:
+            case msg do
+              nil -> "Condition rejected"
+              msg -> msg
+            end
+        }
+
+      {:error, %Failure{user_friendly_error: err}} ->
+        %SmartContractCallValidation{valid?: false, fee: 0, reason: err}
+
+      {:trigger, nil} ->
+        %SmartContractCallValidation{valid?: false, fee: 0, reason: "Invalid trigger"}
+
       _ ->
         %SmartContractCallValidation{valid?: false, fee: 0}
     end
