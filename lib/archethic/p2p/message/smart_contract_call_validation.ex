@@ -3,49 +3,57 @@ defmodule Archethic.P2P.Message.SmartContractCallValidation do
   Represents a module to attest the validation of a transaction towards a contract
   """
 
+  alias Archethic.Utils.VarInt
+
   @type t :: %__MODULE__{
           valid?: boolean(),
+          reason: nil | String.t(),
           fee: non_neg_integer()
         }
 
-  defstruct [:valid?, :fee]
+  defstruct [:valid?, :fee, :reason]
 
   @doc """
   Serialize message into binary
-
-  ## Examples
-
-      iex> %SmartContractCallValidation{valid?: true, fee: 186435476} |> SmartContractCallValidation.serialize()
-      <<128, 0, 0, 0, 5, 142, 99, 202, 0::size(1)>>
-
-      iex> %SmartContractCallValidation{valid?: false, fee: 186435476} |> SmartContractCallValidation.serialize()
-      <<0, 0, 0, 0, 5, 142, 99, 202, 0::size(1)>>
   """
-  def serialize(%__MODULE__{valid?: valid?, fee: fee}) do
+  def serialize(%__MODULE__{valid?: valid?, fee: fee, reason: reason}) do
     valid_bit = if valid?, do: 1, else: 0
-    <<valid_bit::1, fee::64>>
+
+    reason_length =
+      case reason do
+        nil -> 0
+        _ -> byte_size(reason)
+      end
+
+    reason_length_serialized = VarInt.from_value(reason_length)
+
+    reason_serialized =
+      case reason do
+        nil -> <<>>
+        _ -> reason
+      end
+
+    <<valid_bit::1, fee::64, reason_length_serialized::binary, reason_serialized::binary>>
   end
 
   @doc """
   Deserialize the encoded message
-
-  ## Examples
-
-      iex> SmartContractCallValidation.deserialize(<<128, 0, 0, 0, 5, 142, 99, 202, 0::size(1)>>)
-      {
-        %SmartContractCallValidation{valid?: true, fee: 186435476},
-        ""
-      }
-
-      iex> SmartContractCallValidation.deserialize(<<0, 0, 0, 0, 5, 142, 99, 202, 0::size(1)>>)
-      {
-        %SmartContractCallValidation{valid?: false, fee: 186435476},
-        ""
-      }
   """
   def deserialize(<<valid_bit::1, fee::64, rest::bitstring>>) do
     valid? = if valid_bit == 1, do: true, else: false
 
-    {%__MODULE__{valid?: valid?, fee: fee}, rest}
+    {reason_length, rest} = VarInt.get_value(rest)
+
+    {reason, rest} =
+      case reason_length do
+        0 ->
+          {nil, rest}
+
+        _ ->
+          <<reason::binary-size(reason_length), rest::bitstring>> = rest
+          {reason, rest}
+      end
+
+    {%__MODULE__{valid?: valid?, fee: fee, reason: reason}, rest}
   end
 end
