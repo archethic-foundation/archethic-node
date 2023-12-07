@@ -233,6 +233,9 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         :invalid_proof_of_work ->
           {:invalid_transaction, "Invalid origin signature"}
 
+        {:invalid_recipients_execution, reason} ->
+          {:invalid_transaction, "Invalid recipient execution: #{reason}"}
+
         reason ->
           {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
       end

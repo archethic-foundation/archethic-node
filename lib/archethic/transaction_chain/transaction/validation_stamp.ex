@@ -27,7 +27,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
           | :invalid_inherit_constraints
           | :insufficient_funds
           | :invalid_contract_execution
-          | :invalid_recipients_execution
+          | {:invalid_recipients_execution, String.t()}
           | :recipients_not_distinct
 
   @typedoc """
@@ -180,7 +180,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     <<version::32, DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary,
       poe::binary, LedgerOperations.serialize(ledger_operations, version)::bitstring,
       encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
-      serialize_error(error)::8>>
+      serialize_error(error)::binary>>
   end
 
   def serialize(%__MODULE__{
@@ -207,7 +207,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     <<version::32, DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary,
       poe::binary, LedgerOperations.serialize(ledger_operations, version)::bitstring,
       encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary,
-      serialize_error(error)::8, byte_size(signature)::8, signature::binary>>
+      serialize_error(error)::binary, byte_size(signature)::8, signature::binary>>
   end
 
   @doc """
@@ -271,10 +271,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
 
     {recipients_length, rest} = rest |> VarInt.get_value()
 
-    {recipients, <<error_byte::8, rest::bitstring>>} =
-      Utils.deserialize_addresses(rest, recipients_length, [])
+    {recipients, rest} = Utils.deserialize_addresses(rest, recipients_length, [])
 
-    error = deserialize_error(error_byte)
+    {error, rest} = deserialize_error(rest)
 
     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>> = rest
 
@@ -371,19 +370,32 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     }
   end
 
-  defp serialize_error(nil), do: 0
-  defp serialize_error(:invalid_pending_transaction), do: 1
-  defp serialize_error(:invalid_inherit_constraints), do: 2
-  defp serialize_error(:insufficient_funds), do: 3
-  defp serialize_error(:invalid_contract_execution), do: 4
-  defp serialize_error(:invalid_recipients_execution), do: 5
-  defp serialize_error(:recipients_not_distinct), do: 6
+  defp serialize_error(nil), do: <<0::8>>
+  defp serialize_error(:invalid_pending_transaction), do: <<1::8>>
+  defp serialize_error(:invalid_inherit_constraints), do: <<2::8>>
+  defp serialize_error(:insufficient_funds), do: <<3::8>>
+  defp serialize_error(:invalid_contract_execution), do: <<4::8>>
 
-  defp deserialize_error(0), do: nil
-  defp deserialize_error(1), do: :invalid_pending_transaction
-  defp deserialize_error(2), do: :invalid_inherit_constraints
-  defp deserialize_error(3), do: :insufficient_funds
-  defp deserialize_error(4), do: :invalid_contract_execution
-  defp deserialize_error(5), do: :invalid_recipients_execution
-  defp deserialize_error(6), do: :recipients_not_distinct
+  defp serialize_error({:invalid_recipients_execution, reason}) do
+    reason_length = byte_size(reason)
+
+    reason_length_serialized = VarInt.from_value(reason_length)
+    <<5::8, reason_length_serialized::binary, reason::binary>>
+  end
+
+  defp serialize_error(:recipients_not_distinct), do: <<6::8>>
+
+  defp deserialize_error(<<0::8, rest::bitstring>>), do: {nil, rest}
+  defp deserialize_error(<<1::8, rest::bitstring>>), do: {:invalid_pending_transaction, rest}
+  defp deserialize_error(<<2::8, rest::bitstring>>), do: {:invalid_inherit_constraints, rest}
+  defp deserialize_error(<<3::8, rest::bitstring>>), do: {:insufficient_funds, rest}
+  defp deserialize_error(<<4::8, rest::bitstring>>), do: {:invalid_contract_execution, rest}
+
+  defp deserialize_error(<<5::8, rest::bitstring>>) do
+    {reason_length, rest} = VarInt.get_value(rest)
+    <<reason::binary-size(reason_length), rest::bitstring>> = rest
+    {{:invalid_recipients_execution, reason}, rest}
+  end
+
+  defp deserialize_error(<<6::8, rest::bitstring>>), do: {:recipients_not_distinct, rest}
 end

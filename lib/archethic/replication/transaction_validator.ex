@@ -155,8 +155,8 @@ defmodule Archethic.Replication.TransactionValidator do
       |> SmartContractValidation.validate_contract_calls(tx, timestamp)
 
     case res do
-      {true, fees} -> {:ok, fees}
-      {false, _} -> {:error, :invalid_recipients_execution}
+      {:ok, fees} -> {:ok, fees}
+      {:error, reason} -> {:error, {:invalid_recipients_execution, reason}}
     end
   end
 
