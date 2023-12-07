@@ -42,7 +42,7 @@ defmodule Archethic.Replication.TransactionValidator do
           | :invalid_inherit_constraints
           | :invalid_validation_stamp_signature
           | :invalid_unspent_outputs
-          | :invalid_recipients_execution
+          | {:invalid_recipients_execution, String.t(), any()}
           | :invalid_contract_execution
           | :invalid_contract_context_inputs
 
@@ -182,8 +182,8 @@ defmodule Archethic.Replication.TransactionValidator do
       |> SmartContractValidation.validate_contract_calls(tx, timestamp)
 
     case res do
-      {true, fees} -> {:ok, fees}
-      {false, _} -> {:error, :invalid_recipients_execution}
+      {:ok, fees} -> {:ok, fees}
+      {:error, message, data} -> {:error, {:invalid_recipients_execution, message, data}}
     end
   end
 

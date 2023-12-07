@@ -1198,7 +1198,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
            context = %ValidationContext{
              welcome_node: welcome_node = %Node{},
              transaction: %Transaction{address: tx_address},
-             pending_transaction_error_detail: pending_error_detail
+             pending_transaction_error_detail: pending_error_detail,
+             invalid_recipents_error_detail: {message, _data}
            }
        }) do
     {error_context, error_reason} =
@@ -1214,6 +1215,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
         :invalid_proof_of_work ->
           {:invalid_transaction, "Invalid origin signature"}
+
+        :invalid_recipients_execution ->
+          {:invalid_transaction, "Invalid recipient execution: #{message}"}
 
         reason ->
           {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
@@ -1231,11 +1235,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     message = %ValidationError{context: error_context, reason: error_reason, address: tx_address}
 
     Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-      P2P.send_message(
-        welcome_node,
-        message
-      )
-
+      P2P.send_message(welcome_node, message)
       :ok
     end)
 
