@@ -133,7 +133,12 @@ defmodule Archethic.Contracts.Interpreter do
         ) ::
           {:ok, nil | Transaction.t(), State.t(), logs :: list(String.t())}
           | {:error, err :: String.t()}
-          | {:error, err :: Exception.t(), stacktrace :: term(), logs :: list(String.t())}
+          | {
+              :error,
+              err :: Exception.t() | String.t(),
+              stacktrace :: term(),
+              logs :: list(String.t())
+            }
 
   def execute_trigger(
         trigger_key,

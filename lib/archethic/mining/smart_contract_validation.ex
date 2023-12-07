@@ -35,7 +35,7 @@ defmodule Archethic.Mining.SmartContractValidation do
           recipients :: list(Recipient.t()),
           transaction :: Transaction.t(),
           validation_time :: DateTime.t()
-        ) :: {true, fee :: non_neg_integer()} | {false, 0}
+        ) :: {:ok, fee :: non_neg_integer()} | {:error, String.t()}
   def validate_contract_calls(
         recipients,
         transaction = %Transaction{},
@@ -49,9 +49,13 @@ defmodule Archethic.Mining.SmartContractValidation do
       ordered: false,
       on_timeout: :kill_task
     )
-    |> Enum.reduce_while({true, 0}, fn
-      {:ok, {_valid? = true, fee}}, {true, total_fee} -> {:cont, {true, total_fee + fee}}
-      _, _ -> {:halt, {false, 0}}
+    |> Enum.reduce_while(0, fn
+      {:ok, %SmartContractCallValidation{valid?: true, fee: fee}}, acc -> {:cont, acc + fee}
+      {:ok, %SmartContractCallValidation{valid?: false, reason: reason}}, _acc -> {:halt, reason}
+    end)
+    |> then(fn
+      n when is_integer(n) -> {:ok, n}
+      reason when is_binary(reason) -> {:error, reason}
     end)
   end
 
@@ -216,13 +220,10 @@ defmodule Archethic.Mining.SmartContractValidation do
        ) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    # We are strict on the results to achieve atomic commitment
     conflicts_resolver = fn results ->
-      if Enum.any?(results, &(&1.valid? == false)) do
-        %SmartContractCallValidation{valid?: false}
-      else
-        %SmartContractCallValidation{valid?: true}
-      end
+      # keep the first invalid result if any
+      # otherwise take the first
+      Enum.find(results, List.first(results), &(not &1.valid?))
     end
 
     case P2P.quorum_read(
@@ -235,8 +236,11 @@ defmodule Archethic.Mining.SmartContractValidation do
            conflicts_resolver,
            @timeout
          ) do
-      {:ok, %SmartContractCallValidation{valid?: valid?, fee: fee}} -> {valid?, fee}
-      _ -> {false, 0}
+      {:ok, call_validation = %SmartContractCallValidation{}} ->
+        call_validation
+
+      {:error, :network_issue} ->
+        %SmartContractCallValidation{valid?: false, fee: 0, reason: "Network issue"}
     end
   end
 end
