@@ -336,13 +336,14 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, %LastTransactionAddress{address: random_address()}}
       end)
       |> expect(:send_message, fn _, %ValidateSmartContractCall{}, _ ->
-        {:ok, %SmartContractCallValidation{status: :invalid_execution, fee: 0}}
+        {:ok,
+         %SmartContractCallValidation{status: {:error, :invalid_condition, "content"}, fee: 0}}
       end)
       |> expect(:send_message, fn _, %GetGenesisAddress{address: ^recipient_address}, _ ->
         {:ok, %GenesisAddress{address: recipient_genesis, timestamp: DateTime.utc_now()}}
       end)
 
-      assert {:error, :invalid_recipients_execution} =
+      assert {:error, {:invalid_recipients_execution, _, _}} =
                TransactionValidator.validate(tx, nil, genesis, v_unspent_outputs, nil)
     end
 

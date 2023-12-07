@@ -236,7 +236,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: tx_address},
-              pending_transaction_error_detail: pending_error_detail
+              pending_transaction_error_detail: pending_error_detail,
+              invalid_recipents_error_detail: {message, _data}
             }
         }
       ) do
@@ -254,11 +255,14 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         :invalid_proof_of_work ->
           {:invalid_transaction, "Invalid origin signature"}
 
+        :invalid_recipients_execution ->
+          {:invalid_transaction, "Invalid recipient execution: #{message}"}
+
         reason ->
           {:network_issue, reason |> Atom.to_string() |> String.replace("_", " ")}
       end
 
-    Logger.warning("Invalid transaction #{inspect(reason)}",
+    Logger.warning("Invalid transaction #{inspect(error_reason)}",
       transaction_address: Base.encode16(tx_address)
     )
 

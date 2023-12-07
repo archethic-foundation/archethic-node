@@ -6,6 +6,7 @@ defmodule Archethic.Mining.SmartContractValidation do
   alias Archethic.Contracts
   alias Archethic.Contracts.Contract.State
   alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Failure
   alias Archethic.Contracts.Contract.ActionWithTransaction
   alias Archethic.Crypto
   alias Archethic.BeaconChain
@@ -39,8 +40,10 @@ defmodule Archethic.Mining.SmartContractValidation do
           recipients :: list(Recipient.t()),
           transaction :: Transaction.t(),
           validation_time :: DateTime.t()
-        ) :: {true, fee :: non_neg_integer()} | {false, 0}
-  def validate_contract_calls([], _, _), do: {true, 0}
+        ) ::
+          {:ok, fee :: non_neg_integer()}
+          | {:error, message :: String.t(), data :: any()}
+  def validate_contract_calls([], _, _), do: {:ok, 0}
 
   def validate_contract_calls(
         recipients,
@@ -57,9 +60,10 @@ defmodule Archethic.Mining.SmartContractValidation do
       max_concurrency: length(recipients)
     )
     |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.reduce_while({false, 0}, fn
-      {:ok, {_valid? = true, fee}}, {_, total_fee} -> {:cont, {true, total_fee + fee}}
-      _, _ -> {:halt, {false, 0}}
+    |> Enum.reduce_while({:error, "Failed to validate call due to timeout", nil}, fn
+      {:ok, {:ok, fee}}, {_, _, _} -> {:cont, {:ok, fee}}
+      {:ok, {:ok, fee}}, {_, total_fee} -> {:cont, {:ok, total_fee + fee}}
+      {:ok, {:error, error}}, _ -> {:halt, error}
     end)
   end
 
@@ -77,7 +81,7 @@ defmodule Archethic.Mining.SmartContractValidation do
 
     conflicts_resolver = fn results ->
       Enum.sort_by(results, fn
-        %SmartContractCallValidation{status: {:error, :invalid_execution}} -> 1
+        %SmartContractCallValidation{status: {:error, :invalid_execution, _}} -> 1
         %SmartContractCallValidation{status: :ok} -> 2
         %SmartContractCallValidation{status: {:error, :insufficient_funds}} -> 3
         %SmartContractCallValidation{status: {:error, :transaction_not_exists}} -> 4
@@ -95,8 +99,16 @@ defmodule Archethic.Mining.SmartContractValidation do
            conflicts_resolver,
            @timeout
          ) do
-      {:ok, %SmartContractCallValidation{status: :ok, fee: fee}} -> {true, fee}
-      _ -> {false, 0}
+      {:ok, %SmartContractCallValidation{status: :ok, fee: fee}} ->
+        {:ok, fee}
+
+      {:ok, %SmartContractCallValidation{status: error_status}} ->
+        data = %{recipient: Base.encode16(genesis_address)}
+        {:error, format_error_status(error_status, data)}
+
+      {:error, :network_issue} ->
+        data = %{recipient: Base.encode16(genesis_address)}
+        {:error, {:error, "Failed to validate call due to timeout", data}}
     end
   end
 

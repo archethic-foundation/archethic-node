@@ -35,6 +35,7 @@ defmodule Archethic.Mining.ValidationContext do
     previous_storage_nodes: [],
     valid_pending_transaction?: false,
     pending_transaction_error_detail: "",
+    invalid_recipents_error_detail: {"", nil},
     storage_nodes_confirmations: [],
     sub_replication_tree_validations: [],
     aggregated_utxos: []
@@ -103,6 +104,7 @@ defmodule Archethic.Mining.ValidationContext do
           valid_pending_transaction?: boolean(),
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
           pending_transaction_error_detail: binary(),
+          pending_transaction_error_detail: {String.t(), any()},
           sub_replication_tree_validations: list(Crypto.key()),
           contract_context: nil | Contract.Context.t(),
           genesis_address: binary(),
@@ -691,8 +693,11 @@ defmodule Archethic.Mining.ValidationContext do
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
-    {valid_contract_recipients?, contract_recipients_fee} =
-      validate_contract_recipients(tx, resolved_recipients, validation_time)
+    {contract_recipients_status, contract_recipients_fee} =
+      case validate_contract_recipients(tx, resolved_recipients, validation_time) do
+        res = {:ok, _} -> res
+        res -> {res, 0}
+      end
 
     fee =
       calculate_fee(
@@ -720,11 +725,21 @@ defmodule Archethic.Mining.ValidationContext do
         context,
         sufficient_funds?,
         valid_contract_execution?,
-        valid_contract_recipients?
+        contract_recipients_status
       )
       |> ValidationStamp.sign()
 
-    %{context | validation_stamp: validation_stamp}
+    case contract_recipients_status do
+      :ok ->
+        %__MODULE__{context | validation_stamp: validation_stamp}
+
+      {:error, message, data} ->
+        %__MODULE__{
+          context
+          | validation_stamp: validation_stamp,
+            invalid_recipents_error_detail: {message, data}
+        }
+    end
   end
 
   defp set_stamp_error(
@@ -732,7 +747,7 @@ defmodule Archethic.Mining.ValidationContext do
          context = %__MODULE__{},
          sufficient_funds?,
          valid_contract_execution?,
-         valid_contract_recipients?
+         contract_recipients_status
        ) do
     %{
       stamp
@@ -741,7 +756,7 @@ defmodule Archethic.Mining.ValidationContext do
             %{context | validation_stamp: stamp},
             sufficient_funds?,
             valid_contract_execution?,
-            valid_contract_recipients?
+            contract_recipients_status
           )
     }
   end
@@ -801,12 +816,6 @@ defmodule Archethic.Mining.ValidationContext do
     {sufficient_funds?, new_ops}
   end
 
-  @spec get_validation_error(
-          context :: t(),
-          sufficient_funds? :: boolean(),
-          valid_contract_execution? :: boolean(),
-          valid_contract_recipients? :: boolean()
-        ) :: nil | ValidationStamp.error()
   defp get_validation_error(
          context = %__MODULE__{
            contract_context: contract_context,
@@ -815,7 +824,7 @@ defmodule Archethic.Mining.ValidationContext do
          },
          sufficient_funds?,
          valid_contract_execution?,
-         valid_contract_recipients?
+         contract_recipients_status
        ) do
     cond do
       not valid_pending_transaction? ->
@@ -833,11 +842,11 @@ defmodule Archethic.Mining.ValidationContext do
       not valid_contract_recipients_distinct?(context) ->
         :recipients_not_distinct
 
-      not valid_contract_recipients? ->
-        :invalid_recipients_execution
-
       not Contract.Context.valid_inputs?(contract_context, unspent_outputs) ->
         :invalid_contract_context_inputs
+
+      contract_recipients_status != :ok ->
+        :invalid_recipients_execution
 
       true ->
         nil
@@ -850,15 +859,8 @@ defmodule Archethic.Mining.ValidationContext do
     Enum.uniq(recipients) == recipients
   end
 
-  defp validate_contract_recipients(_tx, [], _validation_time), do: {true, 0}
-
   defp validate_contract_recipients(tx, resolved_recipients, validation_time),
-    do:
-      SmartContractValidation.validate_contract_calls(
-        resolved_recipients,
-        tx,
-        validation_time
-      )
+    do: SmartContractValidation.validate_contract_calls(resolved_recipients, tx, validation_time)
 
   ####################
   defp valid_inherit_condition?(%__MODULE__{
@@ -1092,22 +1094,50 @@ defmodule Archethic.Mining.ValidationContext do
   The cross validation stamp is therefore signed and stored in the context
   """
   @spec cross_validate(t()) :: t()
-  def cross_validate(context = %__MODULE__{validation_stamp: validation_stamp}) do
-    inconsistencies = validation_stamp_inconsistencies(context)
+  def cross_validate(
+        context = %__MODULE__{
+          transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
+          resolved_addresses: resolved_addresses,
+          validation_stamp: stamp = %ValidationStamp{timestamp: validation_time}
+        }
+      ) do
+    resolved_recipients = resolved_recipients(recipients, resolved_addresses)
+
+    {contract_recipients_status, contract_recipients_fee} =
+      case validate_contract_recipients(tx, resolved_recipients, validation_time) do
+        res = {:ok, _} -> res
+        res = {:error, _, _} -> {res, 0}
+      end
+
+    inconsistencies =
+      validation_stamp_inconsistencies(
+        context,
+        contract_recipients_status,
+        contract_recipients_fee
+      )
 
     cross_stamp =
       %CrossValidationStamp{inconsistencies: inconsistencies}
-      |> CrossValidationStamp.sign(validation_stamp)
+      |> CrossValidationStamp.sign(stamp)
 
-    %{context | cross_validation_stamps: [cross_stamp]}
+    case contract_recipients_status do
+      :ok ->
+        %__MODULE__{context | cross_validation_stamps: [cross_stamp]}
+
+      {:error, message, data} ->
+        %__MODULE__{
+          context
+          | cross_validation_stamps: [cross_stamp],
+            invalid_recipents_error_detail: {message, data}
+        }
+    end
   end
 
   defp validation_stamp_inconsistencies(
          context = %__MODULE__{
-           transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
+           transaction: tx,
            aggregated_utxos: aggregated_utxos,
            previous_transaction: prev_tx,
-           resolved_addresses: resolved_addresses,
            contract_context: contract_context,
            genesis_address: genesis_address,
            validation_stamp:
@@ -1115,10 +1145,10 @@ defmodule Archethic.Mining.ValidationContext do
                timestamp: validation_time,
                ledger_operations: %LedgerOperations{fee: stamp_fee}
              }
-         }
+         },
+         contract_recipients_status,
+         contract_recipients_fee
        ) do
-    resolved_recipients = resolved_recipients(recipients, resolved_addresses)
-
     {valid_contract_execution?, next_state} =
       SmartContractValidation.valid_contract_execution?(
         contract_context,
@@ -1127,9 +1157,6 @@ defmodule Archethic.Mining.ValidationContext do
         tx,
         aggregated_utxos
       )
-
-    {valid_contract_recipients?, contract_recipients_fee} =
-      validate_contract_recipients(tx, resolved_recipients, validation_time)
 
     fee =
       calculate_fee(
@@ -1160,7 +1187,7 @@ defmodule Archethic.Mining.ValidationContext do
           stamp,
           context,
           valid_contract_execution?,
-          valid_contract_recipients?,
+          contract_recipients_status,
           sufficient_funds?
         )
       end,
@@ -1227,7 +1254,7 @@ defmodule Archethic.Mining.ValidationContext do
          stamp = %ValidationStamp{error: error},
          context = %__MODULE__{},
          valid_contract_execution?,
-         valid_contract_recipients?,
+         contract_recipients_status,
          sufficient_funds?
        ) do
     expected_error =
@@ -1235,7 +1262,7 @@ defmodule Archethic.Mining.ValidationContext do
         %{context | validation_stamp: stamp},
         sufficient_funds?,
         valid_contract_execution?,
-        valid_contract_recipients?
+        contract_recipients_status
       )
 
     error == expected_error

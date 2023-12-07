@@ -8,6 +8,8 @@ defmodule Archethic.P2P.Message.ReplicationError do
   alias Archethic.Mining
   alias Archethic.P2P.Message.Ok
   alias Archethic.Utils
+  alias Archethic.Utils.TypedEncoding
+  alias Archethic.Utils.VarInt
 
   @enforce_keys [:address, :reason]
   defstruct [:address, :reason]
@@ -56,30 +58,34 @@ defmodule Archethic.P2P.Message.ReplicationError do
           81, 81, 146, 164, 202, 147, 218, 207, 204, 31, 185, 73, 251, 14>>
 
   """
-  @spec serialize(%__MODULE__{}) :: <<_::32, _::_*8>>
+  @spec serialize(%__MODULE__{}) :: bitstring()
   def serialize(%__MODULE__{address: address, reason: reason}) do
-    <<address::binary, serialize_reason(reason)::8>>
+    <<address::binary, serialize_reason(reason)::bitstring>>
   end
 
-  @spec serialize_reason(reason()) :: non_neg_integer()
-  defp serialize_reason(:transaction_already_exists), do: 1
-  defp serialize_reason(:invalid_atomic_commitment), do: 2
-  defp serialize_reason(:invalid_node_election), do: 3
-  defp serialize_reason(:invalid_proof_of_work), do: 4
-  defp serialize_reason(:invalid_transaction_fee), do: 5
-  defp serialize_reason(:invalid_transaction_movements), do: 6
-  defp serialize_reason(:insufficient_funds), do: 7
-  defp serialize_reason(:invalid_chain), do: 8
-  defp serialize_reason(:invalid_transaction_with_inconsistencies), do: 9
-  defp serialize_reason(:invalid_contract_acceptance), do: 10
-  defp serialize_reason(:invalid_pending_transaction), do: 11
-  defp serialize_reason(:invalid_inherit_constraints), do: 12
-  defp serialize_reason(:invalid_validation_stamp_signature), do: 13
-  defp serialize_reason(:invalid_unspent_outputs), do: 14
-  defp serialize_reason(:invalid_recipients_execution), do: 15
-  defp serialize_reason(:invalid_contract_execution), do: 16
-  defp serialize_reason(:invalid_validation_inputs), do: 17
-  defp serialize_reason(:invalid_contract_context_inputs), do: 18
+  defp serialize_reason(:transaction_already_exists), do: <<1::8>>
+  defp serialize_reason(:invalid_atomic_commitment), do: <<2::8>>
+  defp serialize_reason(:invalid_node_election), do: <<3::8>>
+  defp serialize_reason(:invalid_proof_of_work), do: <<4::8>>
+  defp serialize_reason(:invalid_transaction_fee), do: <<5::8>>
+  defp serialize_reason(:invalid_transaction_movements), do: <<6::8>>
+  defp serialize_reason(:insufficient_funds), do: <<7::8>>
+  defp serialize_reason(:invalid_chain), do: <<8::8>>
+  defp serialize_reason(:invalid_transaction_with_inconsistencies), do: <<9::8>>
+  defp serialize_reason(:invalid_contract_acceptance), do: <<10::8>>
+  defp serialize_reason(:invalid_pending_transaction), do: <<11::8>>
+  defp serialize_reason(:invalid_inherit_constraints), do: <<12::8>>
+  defp serialize_reason(:invalid_validation_stamp_signature), do: <<13::8>>
+  defp serialize_reason(:invalid_unspent_outputs), do: <<14::8>>
+
+  defp serialize_reason({:invalid_recipients_execution, message, data}) do
+    message_bin = <<VarInt.from_value(byte_size(message))::binary, message::binary>>
+    <<15::8, message_bin::binary, TypedEncoding.serialize(data, :compact)::bitstring>>
+  end
+
+  defp serialize_reason(:invalid_contract_execution), do: <<16::8>>
+  defp serialize_reason(:invalid_validation_inputs), do: <<17::8>>
+  defp serialize_reason(:invalid_contract_context_inputs), do: <<18::8>>
 
   @doc """
   DeSerialize a replication error message
@@ -119,26 +125,37 @@ defmodule Archethic.P2P.Message.ReplicationError do
     {%__MODULE__{address: address, reason: reason}, rest}
   end
 
-  @spec deserialize_reason(bin :: bitstring) :: {atom, bitstring}
-  def deserialize_reason(<<nb::8, rest::bitstring>>), do: {error(nb), rest}
+  defp deserialize_reason(<<1::8, rest::bitstring>>), do: {:transaction_already_exists, rest}
+  defp deserialize_reason(<<2::8, rest::bitstring>>), do: {:invalid_atomic_commitment, rest}
+  defp deserialize_reason(<<3::8, rest::bitstring>>), do: {:invalid_node_election, rest}
+  defp deserialize_reason(<<4::8, rest::bitstring>>), do: {:invalid_proof_of_work, rest}
+  defp deserialize_reason(<<5::8, rest::bitstring>>), do: {:invalid_transaction_fee, rest}
+  defp deserialize_reason(<<6::8, rest::bitstring>>), do: {:invalid_transaction_movements, rest}
+  defp deserialize_reason(<<7::8, rest::bitstring>>), do: {:insufficient_funds, rest}
+  defp deserialize_reason(<<8::8, rest::bitstring>>), do: {:invalid_chain, rest}
 
-  @spec error(1..255) :: atom
-  defp error(1), do: :transaction_already_exists
-  defp error(2), do: :invalid_atomic_commitment
-  defp error(3), do: :invalid_node_election
-  defp error(4), do: :invalid_proof_of_work
-  defp error(5), do: :invalid_transaction_fee
-  defp error(6), do: :invalid_transaction_movements
-  defp error(7), do: :insufficient_funds
-  defp error(8), do: :invalid_chain
-  defp error(9), do: :invalid_transaction_with_inconsistencies
-  defp error(10), do: :invalid_contract_acceptance
-  defp error(11), do: :invalid_pending_transaction
-  defp error(12), do: :invalid_inherit_constraints
-  defp error(13), do: :invalid_validation_stamp_signature
-  defp error(14), do: :invalid_unspent_outputs
-  defp error(15), do: :invalid_recipients_execution
-  defp error(16), do: :invalid_contract_execution
-  defp error(17), do: :invalid_validation_inputs
-  defp error(18), do: :invalid_contract_context_inputs
+  defp deserialize_reason(<<9::8, rest::bitstring>>),
+    do: {:invalid_transaction_with_inconsistencies, rest}
+
+  defp deserialize_reason(<<10::8, rest::bitstring>>), do: {:invalid_contract_acceptance, rest}
+  defp deserialize_reason(<<11::8, rest::bitstring>>), do: {:invalid_pending_transaction, rest}
+  defp deserialize_reason(<<12::8, rest::bitstring>>), do: {:invalid_inherit_constraints, rest}
+
+  defp deserialize_reason(<<13::8, rest::bitstring>>),
+    do: {:invalid_validation_stamp_signature, rest}
+
+  defp deserialize_reason(<<14::8, rest::bitstring>>), do: {:invalid_unspent_outputs, rest}
+
+  defp deserialize_reason(<<15::8, rest::bitstring>>) do
+    {message_length, rest} = VarInt.get_value(rest)
+    <<message::binary-size(message_length), rest::bitstring>> = rest
+    {data, rest} = TypedEncoding.deserialize(rest, :compact)
+    {{:invalid_recipients_execution, message, data}, rest}
+  end
+
+  defp deserialize_reason(<<16::8, rest::bitstring>>), do: {:invalid_contract_execution, rest}
+  defp deserialize_reason(<<17::8, rest::bitstring>>), do: {:invalid_validation_inputs, rest}
+
+  defp deserialize_reason(<<18::8, rest::bitstring>>),
+    do: {:invalid_contract_context_inputs, rest}
 end

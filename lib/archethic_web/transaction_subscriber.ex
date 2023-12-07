@@ -53,6 +53,29 @@ defmodule ArchethicWeb.TransactionSubscriber do
     %{from: from} = Map.get(state, tx_address, %{from: make_ref()})
     send(from, {:transaction_error, tx_address, context, error})
 
+    # %{
+    #   address: tx_address,
+    #   context: context,
+    #   error: %{
+    #     message: "Invalid recipient",
+    #     code: -4001,
+    #     data: %{
+    #       recipient: "0000",
+    #       message: "Transaction not exists"
+    #     }
+    #   }
+    # }
+    #
+    # %{
+    #   address: tx_address,
+    #   context: context,
+    #   error: %{
+    #     message: "COnsensus not reached",
+    #     code: -4002,
+    #     data: [:proof_of_intergrity]
+    #   }
+    # }
+
     Subscription.publish(
       Endpoint,
       %{address: tx_address, context: context, reason: error},
