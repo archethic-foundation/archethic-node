@@ -9,6 +9,7 @@ defmodule Archethic.P2P.ListenerProtocol do
 
   alias Archethic.Crypto
   alias Archethic.P2P
+  alias Archethic.P2P.Client.Connection
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
   alias Archethic.TaskSupervisor
@@ -36,6 +37,19 @@ defmodule Archethic.P2P.ListenerProtocol do
   end
 
   def handle_info(
+        {_transport, socket, "hb"},
+        state = %{transport: transport}
+      ) do
+    :inet.setopts(socket, active: :once)
+
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      transport.send(socket, "hb")
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_info(
         {_transport, socket, err},
         state = %{transport: transport, ip: ip}
       )
@@ -45,6 +59,7 @@ defmodule Archethic.P2P.ListenerProtocol do
     end
 
     transport.close(socket)
+
     {:noreply, state}
   end
 
@@ -84,6 +99,9 @@ defmodule Archethic.P2P.ListenerProtocol do
           )
 
         if valid_signature? do
+          # we may attempt to wakeup a connection that offline
+          Connection.wake_up(sender_pkey)
+
           message
           |> process_msg(sender_pkey)
           |> encode_response(message_id, sender_pkey)
