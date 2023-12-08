@@ -24,6 +24,7 @@ defmodule Archethic.P2P.Client.Connection do
   @vsn Mix.Project.config()[:version]
   @table_name :connection_status
   @max_reconnect_attempts 5
+  @heartbeat_interval 10_000
 
   @doc """
   Starts a new connection
@@ -116,7 +117,9 @@ defmodule Archethic.P2P.Client.Connection do
       messages: %{},
       send_tasks: %{},
       availability_timer: {nil, 0},
-      reconnect_attempts: 0
+      reconnect_attempts: 0,
+      heartbeats_sent: 0,
+      heartbeats_received: 0
     }
 
     {:ok, :initializing, data, [{:next_event, :internal, {:connect, from}}]}
@@ -220,6 +223,8 @@ defmodule Archethic.P2P.Client.Connection do
     new_data =
       data
       |> Map.put(:reconnect_attempts, 0)
+      |> Map.put(:heartbeats_sent, 0)
+      |> Map.put(:heartbeats_received, 0)
       |> Map.update!(:availability_timer, fn
         {nil, time} ->
           {System.monotonic_time(:second), time}
@@ -227,6 +232,8 @@ defmodule Archethic.P2P.Client.Connection do
         timer ->
           timer
       end)
+
+    Process.send_after(self(), :heartbeat, @heartbeat_interval)
 
     {:keep_state, new_data}
   end
@@ -421,6 +428,35 @@ defmodule Archethic.P2P.Client.Connection do
     end
   end
 
+  def handle_event(
+        :info,
+        :heartbeat,
+        {:connected, socket},
+        data = %{
+          transport: transport,
+          heartbeats_sent: heartbeats_sent,
+          heartbeats_received: heartbeats_received
+        }
+      ) do
+    # disconnect if missed more than 2 heartbeats
+    if heartbeats_sent - heartbeats_received >= 2 do
+      {:next_state, :disconnected, data}
+    else
+      transport.handle_send(socket, "hb")
+      Process.send_after(self(), :heartbeat, @heartbeat_interval)
+      {:keep_state, %{data | heartbeats_sent: heartbeats_sent + 1}}
+    end
+  end
+
+  def handle_event(
+        :info,
+        :heartbeat,
+        _state,
+        _data
+      ) do
+    :keep_state_and_data
+  end
+
   def handle_event(:info, {ref, :ok}, {:connected, _socket}, data = %{send_tasks: send_tasks}) do
     case Map.pop(send_tasks, ref) do
       {nil, _} ->
@@ -496,7 +532,8 @@ defmodule Archethic.P2P.Client.Connection do
         {:connected, _socket},
         data = %{
           transport: transport,
-          node_public_key: node_public_key
+          node_public_key: node_public_key,
+          heartbeats_received: heartbeats_received
         }
       ) do
     case transport.handle_message(event) do
@@ -506,6 +543,9 @@ defmodule Archethic.P2P.Client.Connection do
         )
 
         {:next_state, :disconnected, data}
+
+      {:ok, "hb"} ->
+        {:keep_state, %{data | heartbeats_received: heartbeats_received + 1}}
 
       {:ok, msg} ->
         set_node_connected(node_public_key)

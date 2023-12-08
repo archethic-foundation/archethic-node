@@ -39,6 +39,19 @@ defmodule Archethic.P2P.ListenerProtocol do
   end
 
   def handle_info(
+        {_transport, socket, "hb"},
+        state = %{transport: transport}
+      ) do
+    :inet.setopts(socket, active: :once)
+
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      transport.send(socket, "hb")
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_info(
         {_transport, socket, msg},
         state = %{transport: transport}
       ) do
