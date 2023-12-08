@@ -128,6 +128,7 @@ config :archethic, Archethic.P2P.Client, MockClient
 config :archethic, Archethic.P2P.GeoPatch.GeoIP, MockGeoIP
 
 config :archethic, Archethic.P2P.BootstrappingSeeds, enabled: false
+config :archethic, Archethic.P2P.Client.Connection, backoff_strategy: :static
 
 config :archethic, Archethic.Mining.PendingTransactionValidation, validate_node_ip: true
 

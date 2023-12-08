@@ -23,6 +23,7 @@ defmodule Archethic.P2P.Client.Connection do
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
   @vsn Mix.Project.config()[:version]
   @table_name :connection_status
+  @max_reconnect_attempts 5
 
   @doc """
   Starts a new connection
@@ -57,6 +58,18 @@ defmodule Archethic.P2P.Client.Connection do
       timeout ->
         {:error, :timeout}
     end
+  end
+
+  @doc """
+  When called, if disconnect, it will try to connect to socket
+  Noop if it's already connected
+
+  It's used when some node has been offline for a long time
+  It has connected to us so we know we can connect to it as well
+  """
+  @spec wake_up(Crypto.key()) :: :ok
+  def wake_up(public_key) do
+    GenStateMachine.cast(via_tuple(public_key), :wake_up)
   end
 
   @doc """
@@ -102,7 +115,8 @@ defmodule Archethic.P2P.Client.Connection do
       request_id: 0,
       messages: %{},
       send_tasks: %{},
-      availability_timer: {nil, 0}
+      availability_timer: {nil, 0},
+      reconnect_attempts: 0
     }
 
     {:ok, :initializing, data, [{:next_event, :internal, {:connect, from}}]}
@@ -190,7 +204,7 @@ defmodule Archethic.P2P.Client.Connection do
       end)
 
     # Reconnect with backoff
-    actions = [{{:timeout, :reconnect}, 500, nil} | actions]
+    actions = [{{:timeout, :reconnect}, backoff(data.reconnect_attempts), nil} | actions]
     {:keep_state, new_data, actions}
   end
 
@@ -204,7 +218,9 @@ defmodule Archethic.P2P.Client.Connection do
 
     # Start availability timer
     new_data =
-      Map.update!(data, :availability_timer, fn
+      data
+      |> Map.put(:reconnect_attempts, 0)
+      |> Map.update!(:availability_timer, fn
         {nil, time} ->
           {System.monotonic_time(:second), time}
 
@@ -217,7 +233,6 @@ defmodule Archethic.P2P.Client.Connection do
 
   def handle_event(:enter, _old_state, :initializing, _data), do: :keep_state_and_data
   def handle_event(:enter, _old_state, :disconnected, _data), do: :keep_state_and_data
-  def handle_event(:enter, _old_state, {:connected, _socket}, _data), do: :keep_state_and_data
 
   # called from the :disconnected or :initializing state
   def handle_event(
@@ -258,9 +273,15 @@ defmodule Archethic.P2P.Client.Connection do
   end
 
   # this message is used to delay next connection attempt
-  def handle_event({:timeout, :reconnect}, _event_data, _state, _data) do
-    actions = [{:next_event, :internal, {:connect, nil}}]
-    {:keep_state_and_data, actions}
+  def handle_event({:timeout, :reconnect}, _event_data, _state, data) do
+    if data.reconnect_attempts > @max_reconnect_attempts do
+      :keep_state_and_data
+    else
+      actions = [{:next_event, :internal, {:connect, nil}}]
+
+      new_data = Map.update!(data, :reconnect_attempts, &(&1 + 1))
+      {:keep_state, new_data, actions}
+    end
   end
 
   def handle_event(
@@ -270,6 +291,25 @@ defmodule Archethic.P2P.Client.Connection do
         _data
       ) do
     send(from, {ref, {:error, :closed}})
+    :keep_state_and_data
+  end
+
+  def handle_event(
+        :cast,
+        :wake_up,
+        :disconnected,
+        data
+      ) do
+    actions = [{:next_event, :internal, {:connect, nil}}]
+    {:keep_state, %{data | reconnect_attempts: 0}, actions}
+  end
+
+  def handle_event(
+        :cast,
+        :wake_up,
+        _,
+        _data
+      ) do
     :keep_state_and_data
   end
 
@@ -440,13 +480,13 @@ defmodule Archethic.P2P.Client.Connection do
 
   # Task.async sending us the result of the handle_connect
   def handle_event(:info, {_ref, {:error, _reason, nil}}, _, data) do
-    actions = [{{:timeout, :reconnect}, 500, nil}]
+    actions = [{{:timeout, :reconnect}, backoff(data.reconnect_attempts), nil}]
     {:next_state, :disconnected, data, actions}
   end
 
   def handle_event(:info, {_ref, {:error, reason, from}}, _, data) do
     send(from, {:error, reason})
-    actions = [{{:timeout, :reconnect}, 500, nil}]
+    actions = [{{:timeout, :reconnect}, backoff(data.reconnect_attempts), nil}]
     {:next_state, :disconnected, data, actions}
   end
 
@@ -540,4 +580,16 @@ defmodule Archethic.P2P.Client.Connection do
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
+
+  defp backoff(attempts) do
+    config = Application.get_env(:archethic, __MODULE__, [])
+
+    case Keyword.get(config, :backoff_strategy, :exponential) do
+      :static ->
+        500
+
+      :exponential ->
+        2 ** attempts * 500
+    end
+  end
 end
