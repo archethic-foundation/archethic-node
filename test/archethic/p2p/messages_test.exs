@@ -32,7 +32,6 @@ defmodule Archethic.P2P.MessageTest do
     GetTransactionChainLength,
     GetTransactionInputs,
     GetTransactionSummary,
-    GetUnspentOutputs,
     LastTransactionAddress,
     ListNodes,
     NewTransaction,
@@ -134,16 +133,6 @@ defmodule Archethic.P2P.MessageTest do
 
       assert %GetTransactionChain{address: address, order: :asc} ==
                %GetTransactionChain{address: address, order: :asc}
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "GetUnspentOutputs message" do
-      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
-
-      assert %GetUnspentOutputs{address: address} ==
-               %GetUnspentOutputs{address: address}
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
