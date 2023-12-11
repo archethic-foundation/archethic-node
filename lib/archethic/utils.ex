@@ -1061,7 +1061,7 @@ defmodule Archethic.Utils do
 
     case Registry.lookup(registry, key) do
       [] ->
-        Task.Supervisor.async_nolink(
+        Task.Supervisor.start_child(
           Archethic.TaskSupervisor,
           fn ->
             {:ok, _} = Registry.register(registry, key, nil)
