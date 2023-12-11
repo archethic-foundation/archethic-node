@@ -24,7 +24,16 @@ defmodule Archethic.P2P.Client.Connection do
   @vsn Mix.Project.config()[:version]
   @table_name :connection_status
   @max_reconnect_attempts 5
-  @heartbeat_interval 10_000
+  @heartbeat_interval Keyword.get(
+                        Application.compile_env(:archethic, __MODULE__, []),
+                        :heartbeat_interval,
+                        10_000
+                      )
+  @reconnect_delay Keyword.get(
+                     Application.compile_env(:archethic, __MODULE__, []),
+                     :reconnect_delay,
+                     500
+                   )
 
   @doc """
   Starts a new connection
@@ -281,7 +290,7 @@ defmodule Archethic.P2P.Client.Connection do
 
   # this message is used to delay next connection attempt
   def handle_event({:timeout, :reconnect}, _event_data, _state, data) do
-    if data.reconnect_attempts > @max_reconnect_attempts do
+    if data.reconnect_attempts >= @max_reconnect_attempts do
       :keep_state_and_data
     else
       actions = [{:next_event, :internal, {:connect, nil}}]
@@ -626,10 +635,10 @@ defmodule Archethic.P2P.Client.Connection do
 
     case Keyword.get(config, :backoff_strategy, :exponential) do
       :static ->
-        500
+        @reconnect_delay
 
       :exponential ->
-        2 ** attempts * 500
+        2 ** attempts * @reconnect_delay
     end
   end
 end

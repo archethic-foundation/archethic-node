@@ -12,6 +12,17 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
   alias Archethic.Utils
 
+  @heartbeat_interval Keyword.get(
+                        Application.compile_env(:archethic, Connection, []),
+                        :heartbeat_interval,
+                        10_000
+                      )
+  @reconnect_delay Keyword.get(
+                     Application.compile_env(:archethic, Connection, []),
+                     :reconnect_delay,
+                     500
+                   )
+
   test "start_link/1 should open a socket and a connection worker and initialize the backlog and lookup tables" do
     {:ok, pid} =
       Connection.start_link(
@@ -164,7 +175,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
           {:ok, make_ref()}
         end
 
-        def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+        def handle_send(_socket, _), do: :ok
 
         def handle_message({_, _, _}), do: {:error, :closed}
       end
@@ -185,6 +196,36 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       Process.sleep(550)
 
       assert {{:connected, _socket}, _} = :sys.get_state(pid)
+    end
+
+    test "should stop trying to reconnect after some time" do
+      defmodule MockTransportOffline do
+        alias Archethic.P2P.Client.Transport
+
+        @behaviour Transport
+
+        def handle_connect({127, 0, 0, 1}, _port) do
+          {:error, :timeout}
+        end
+
+        def handle_send(_socket, _), do: :ok
+
+        def handle_message({_, _, _}), do: {:error, :closed}
+      end
+
+      {:ok, pid} =
+        Connection.start_link(
+          transport: MockTransportOffline,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      Process.sleep(@reconnect_delay * 6)
+      assert {:disconnected, %{reconnect_attempts: 5}} = :sys.get_state(pid)
+
+      Process.sleep(@reconnect_delay * 2)
+      assert {:disconnected, %{reconnect_attempts: 5}} = :sys.get_state(pid)
     end
 
     test "should get an error when the timeout is reached" do
@@ -545,6 +586,57 @@ defmodule Archethic.P2P.Client.ConnectionTest do
     end
   end
 
+  describe "Stale detection" do
+    test "should change state to disconnected once a few heartbeats are missed" do
+      defmodule MockTransportStale do
+        alias Archethic.P2P.Client.Transport
+
+        @behaviour Transport
+
+        def handle_connect({127, 0, 0, 1}, _port) do
+          conn_count = :persistent_term.get(:conn_count, 0)
+          :persistent_term.put(:conn_count, conn_count + 1)
+
+          if conn_count == 0 do
+            {:ok, make_ref()}
+          else
+            {:error, :timeout}
+          end
+        end
+
+        def handle_send(_socket, "hb") do
+          hb_count = :persistent_term.get(:hb_count, 0)
+          :persistent_term.put(:hb_count, hb_count + 1)
+
+          # become stale after 5 hbs
+          if hb_count <= 5 do
+            send(self(), {:tcp, make_ref(), "hb"})
+          end
+
+          :ok
+        end
+
+        def handle_send(_socket, _), do: :ok
+
+        def handle_message({_, _, data}), do: {:ok, data}
+      end
+
+      {:ok, pid} =
+        Connection.start_link(
+          transport: MockTransportStale,
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          node_public_key: Crypto.first_node_public_key()
+        )
+
+      Process.sleep(@heartbeat_interval * 5)
+      assert {{:connected, _}, _} = :sys.get_state(pid)
+
+      Process.sleep(@heartbeat_interval * 5)
+      assert {:disconnected, _} = :sys.get_state(pid)
+    end
+  end
+
   defmodule MockTransport do
     alias Archethic.P2P.Client.Transport
 
@@ -552,6 +644,11 @@ defmodule Archethic.P2P.Client.ConnectionTest do
 
     def handle_connect(_ip, _port) do
       {:ok, make_ref()}
+    end
+
+    def handle_send(_socket, "hb") do
+      send(self(), {:tcp, make_ref(), "hb"})
+      :ok
     end
 
     def handle_send(_socket, _data), do: :ok
@@ -568,7 +665,7 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       {:ok, make_ref()}
     end
 
-    def handle_send(_socket, <<0::32, _rest::bitstring>>), do: :ok
+    def handle_send(_socket, _), do: :ok
 
     def handle_message({_, _, _}), do: {:error, :closed}
   end
