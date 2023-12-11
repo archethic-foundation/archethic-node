@@ -29,6 +29,20 @@ defmodule Archethic.UtilsTest do
     refute_receive :bar, 100
   end
 
+  test "run_exclusive/2 should not send any message" do
+    me = self()
+
+    Utils.run_exclusive(:foo, fn _ ->
+      send(me, :bar)
+
+      # simulate some execution time
+      Process.sleep(10)
+    end)
+
+    assert_receive :bar, 100
+    refute_receive _, 100
+  end
+
   describe "get_current_time_for_interval/2" do
     test "should return a value truncated to the minute (* minute)" do
       now = DateTime.utc_now()
