@@ -14,6 +14,12 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
+  @threshold Keyword.get(
+               Application.compile_env(:archethic, __MODULE__, []),
+               :threshold,
+               3_000_000
+             )
+
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           offset: non_neg_integer()
@@ -28,34 +34,35 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
       utxos
       |> Enum.with_index()
       |> Enum.drop(offset)
-      |> Enum.reduce_while(%{utxos: [], offset: 0, more?: false}, fn {versioned_utxo, index},
-                                                                     acc ->
-        acc_size =
-          acc.utxos
-          |> Enum.map(&VersionedUnspentOutput.serialize/1)
-          |> :erlang.list_to_bitstring()
-          |> byte_size()
+      |> Enum.reduce_while(
+        %{utxos: [], offset: 0, more?: false, acc_size: 0},
+        fn {versioned_utxo, index}, acc ->
+          acc_size = Map.get(acc, :acc_size)
 
-        utxo_size =
-          versioned_utxo
-          |> VersionedUnspentOutput.serialize()
-          |> byte_size
+          utxo_size =
+            versioned_utxo
+            |> VersionedUnspentOutput.serialize()
+            |> byte_size
 
-        if acc_size + utxo_size < 3_000_000 do
-          new_acc =
-            acc
-            |> Map.update!(:utxos, &[versioned_utxo | &1])
-            |> Map.put(:offset, index + 1)
-            |> Map.put(:more?, index + 1 < utxos_length)
+          new_acc_size = acc_size + utxo_size
 
-          {:cont, new_acc}
-        else
-          {:halt, acc}
+          if new_acc_size < @threshold do
+            new_acc =
+              acc
+              |> Map.update!(:utxos, &[versioned_utxo | &1])
+              |> Map.put(:acc_size, new_acc_size)
+              |> Map.put(:offset, index + 1)
+              |> Map.put(:more?, index + 1 < utxos_length)
+
+            {:cont, new_acc}
+          else
+            {:halt, acc}
+          end
         end
-      end)
+      )
 
     %UnspentOutputList{
-      unspent_outputs: utxos,
+      unspent_outputs: Enum.reverse(utxos),
       offset: offset,
       more?: more?
     }

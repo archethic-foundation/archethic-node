@@ -193,3 +193,5 @@ config :archethic, :throttle,
 config :archethic, Archethic.Contracts.Interpreter.Library.Common.HttpImpl,
   transport_opts: [verify: :verify_none],
   timeout: 500
+
+config :archethic, Archethic.P2P.Message.GetUnspentOutputs, threshold: 1_000
