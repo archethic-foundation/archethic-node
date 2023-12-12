@@ -298,5 +298,35 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreterTest do
                |> elem(1)
                |> ConditionInterpreter.parse([])
     end
+
+    test "should parse a library function" do
+      code = ~s"""
+      condition triggered_by: transaction do
+        String.size("hello") == 5
+      end
+      """
+
+      assert {:ok, {:transaction, nil, nil}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse([])
+    end
+
+    test "should parse a custom function" do
+      code = ~s"""
+      condition triggered_by: transaction do
+        myfun("hello") == 5
+      end
+      """
+
+      assert {:ok, {:transaction, nil, nil}, _} =
+               code
+               |> Interpreter.sanitize_code()
+               |> elem(1)
+               |> ConditionInterpreter.parse(%{
+                 {"myfun", 1} => :private
+               })
+    end
   end
 end
