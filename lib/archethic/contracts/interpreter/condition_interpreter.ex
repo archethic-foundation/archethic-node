@@ -146,14 +146,17 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
           functions: functions_keys
         },
         fn node, acc ->
-          CommonInterpreter.prewalk(node, acc)
+          prewalk(nil, node, acc)
         end,
         fn node, acc ->
-          CommonInterpreter.postwalk(node, acc)
+          postwalk(nil, node, acc)
         end
       )
 
     {:ok, condition_type, new_ast}
+  catch
+    {:error, node} -> {:error, node, "unexpected term"}
+    {:error, node, reason} -> {:error, node, reason}
   end
 
   defp do_parse_keyword(condition_type, keyword, functions_keys, node) do
@@ -186,11 +189,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
 
     {:ok, condition_type, conditions}
   catch
-    {:error, node} ->
-      {:error, node, "unexpected term"}
-
-    {:error, node, reason} ->
-      {:error, node, reason}
+    {:error, node} -> {:error, node, "unexpected term"}
+    {:error, node, reason} -> {:error, node, reason}
   end
 
   defp to_boolean_expression(_subject, bool, _) when is_boolean(bool) do
@@ -225,7 +225,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
         AST.wrap_in_block(ast),
         acc,
         fn node, acc ->
-          prewalk(node, acc)
+          prewalk(subject, node, acc)
         end,
         fn node, acc ->
           postwalk(subject, node, acc)
@@ -247,6 +247,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   # Here we check arity and arity + 1 since we can automatically fill the first parameter
   # with the subject of the condition
   defp prewalk(
+         subject,
          node =
            {{:., _meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _,
             args},
@@ -260,28 +261,44 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     if Library.function_tagged_with?(module_name, function_name, :write_state),
       do: throw({:error, node, "Modifying contract's state is not allowed in condition block"})
 
-    with {:error, :invalid_function_arity, _} <-
-           Library.validate_module_call(module_name, function_name, arity),
-         :ok <- Library.validate_module_call(module_name, function_name, arity + 1) do
-      {node, acc}
-    else
+    case validate_module_call(subject, module_name, function_name, arity) do
       {:error, _reason, message} -> throw({:error, node, message})
       :ok -> {node, acc}
     end
   end
 
-  defp prewalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
+  defp prewalk(subject, node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
        when is_list(args) and function_name not in ["for", "throw"] do
     args_arity = length(args)
 
-    cond do
-      FunctionKeys.exist?(functions, function_name, args_arity) -> {node, acc}
-      FunctionKeys.exist?(functions, function_name, args_arity + 1) -> {node, acc}
-      true -> CommonInterpreter.prewalk(node, acc)
+    if function_exists?(subject, functions, function_name, args_arity),
+      do: {node, acc},
+      else: CommonInterpreter.prewalk(node, acc)
+  end
+
+  defp prewalk(_, node, acc), do: CommonInterpreter.prewalk(node, acc)
+
+  defp validate_module_call(nil, module_name, function_name, arity) do
+    Library.validate_module_call(module_name, function_name, arity)
+  end
+
+  defp validate_module_call(_subject, module_name, function_name, arity) do
+    case Library.validate_module_call(module_name, function_name, arity) do
+      {:error, :invalid_function_arity, _} ->
+        Library.validate_module_call(module_name, function_name, arity + 1)
+
+      res ->
+        res
     end
   end
 
-  defp prewalk(node, acc), do: CommonInterpreter.prewalk(node, acc)
+  defp function_exists?(nil, functions, function_name, args_arity),
+    do: FunctionKeys.exist?(functions, function_name, args_arity)
+
+  defp function_exists?(_subject, functions, function_name, args_arity) do
+    FunctionKeys.exist?(functions, function_name, args_arity) or
+      FunctionKeys.exist?(functions, function_name, args_arity + 1)
+  end
 
   # ----------------------------------------------------------------------
   #                   _                 _ _
@@ -298,7 +315,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
          node = {{:atom, function_name}, meta, args},
          acc = %{functions: functions}
        )
-       when is_list(args) and function_name not in ["for", "throw"] do
+       when subject != nil and is_list(args) and function_name not in ["for", "throw"] do
     arity = length(args)
 
     new_node =
@@ -331,7 +348,8 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
          node =
            {{:., meta, [{:__aliases__, _, [atom: module_name]}, {:atom, function_name}]}, _, args},
          acc
-       ) do
+       )
+       when subject != nil do
     # Module and function has already been verified do we get search for the good arity
     case Library.validate_module_call(module_name, function_name, length(args)) do
       :ok ->
@@ -352,7 +370,5 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
     end
   end
 
-  defp postwalk(_subject, node, acc) do
-    CommonInterpreter.postwalk(node, acc)
-  end
+  defp postwalk(_subject, node, acc), do: CommonInterpreter.postwalk(node, acc)
 end
