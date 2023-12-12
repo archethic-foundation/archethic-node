@@ -23,7 +23,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -44,7 +44,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -65,7 +65,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([], content: "Hello")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -86,7 +86,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -106,7 +106,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert {:error, "content", _logs} =
+      assert {:error, "content"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -137,7 +137,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, ledger: ledger)
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -154,7 +154,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert {:error, "uco_transfers", _logs} =
+      assert {:error, "uco_transfers"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -201,7 +201,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([], ledger: ledger)
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -229,7 +229,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -245,7 +245,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -261,7 +261,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert {:error, "uco_transfers", _logs} =
+      assert {:error, "uco_transfers"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -277,7 +277,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       ]
       """
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -298,7 +298,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code, content: "zoubida")
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "zoubida")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -318,7 +318,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code, content: "lavabo")
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "bidet")
 
-      assert {:error, "content", _logs} =
+      assert {:error, "content"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -340,7 +340,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -360,7 +360,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "World")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -380,7 +380,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "Hello")
 
-      assert {:error, "content", _logs} =
+      assert {:error, "content"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -405,7 +405,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       previous_tx = ContractFactory.create_valid_contract_tx(code)
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "smthg")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -449,7 +449,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       next_tx = ContractFactory.create_next_contract_tx(previous_tx, ledger: ledger)
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -472,7 +472,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -492,7 +492,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:error, "N/A", []} =
+      assert {:error, "N/A"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -512,7 +512,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:error, "N/A", "invalid content", []} =
+      assert {:error, "N/A", "invalid content"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -536,7 +536,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([])
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -558,7 +558,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([], content: "Hello")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -578,7 +578,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
 
       tx = TransactionFactory.create_valid_transaction([], content: "Heyho")
 
-      assert {:error, "N/A", []} =
+      assert {:error, "N/A"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -601,7 +601,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       prev = TransactionFactory.create_valid_transaction([], content: "Hello")
       next = TransactionFactory.create_valid_transaction([], content: "Hello")
 
-      assert {:ok, _logs} =
+      assert :ok =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)
@@ -623,7 +623,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
       prev = TransactionFactory.create_valid_transaction([], content: "Hi")
       next = TransactionFactory.create_valid_transaction([], content: "Hello")
 
-      assert {:error, "N/A", []} =
+      assert {:error, "N/A"} =
                code
                |> Interpreter.sanitize_code()
                |> elem(1)

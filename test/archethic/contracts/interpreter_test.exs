@@ -333,6 +333,85 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
   end
 
+  describe "execute_condition/3" do
+    test "should return ordered logs with keyword syntax" do
+      code = """
+      @version 1
+      condition triggered_by: transaction, as: [
+        content: (
+          Playground.print("Hello")
+          true
+        ),
+        address: (
+          Playground.print(2.56)
+          true
+        )
+      ]
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+      """
+
+      previous_tx = ContractFactory.create_valid_contract_tx(code, content: "PREV CONTENT")
+      next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "NEXT CONTENT")
+
+      contract = Contract.from_transaction!(previous_tx)
+
+      assert {:ok,
+              [
+                {%DateTime{}, 2.56},
+                {%DateTime{}, "Hello"}
+              ]} =
+               Interpreter.execute_condition(
+                 1,
+                 Map.get(contract.conditions, {:transaction, nil, nil}).subjects,
+                 %{
+                   "contract" => Constants.from_contract_transaction(previous_tx),
+                   "transaction" => Constants.from_contract_transaction(next_tx)
+                 }
+               )
+    end
+
+    test "should return ordered logs with block syntax" do
+      code = """
+      @version 1
+      condition triggered_by: transaction do
+        Playground.print("Hello")
+        Playground.print(contract.content)
+        Playground.print(transaction.content)
+        Playground.print(2.56)
+        Playground.print(foo: "bar")
+        throw "nope"
+      end
+      actions triggered_by: transaction do
+        Contract.set_content "ok"
+      end
+      """
+
+      previous_tx = ContractFactory.create_valid_contract_tx(code, content: "PREV CONTENT")
+      next_tx = ContractFactory.create_next_contract_tx(previous_tx, content: "NEXT CONTENT")
+
+      contract = Contract.from_transaction!(previous_tx)
+
+      assert {:error, "N/A", "nope",
+              [
+                {%DateTime{}, "Hello"},
+                {%DateTime{}, "PREV CONTENT"},
+                {%DateTime{}, "NEXT CONTENT"},
+                {%DateTime{}, 2.56},
+                {%DateTime{}, %{"foo" => "bar"}}
+              ]} =
+               Interpreter.execute_condition(
+                 1,
+                 Map.get(contract.conditions, {:transaction, nil, nil}).subjects,
+                 %{
+                   "contract" => Constants.from_contract_transaction(previous_tx),
+                   "transaction" => Constants.from_contract_transaction(next_tx)
+                 }
+               )
+    end
+  end
+
   describe "execute_trigger/5" do
     test "should return an error if the trigger is not found" do
       code = """
@@ -350,6 +429,30 @@ defmodule Archethic.Contracts.InterpreterTest do
       assert {:error, "Trigger not found on the contract"} =
                Interpreter.execute_trigger(
                  {:transaction, "function", []},
+                 Contract.from_transaction!(contract_tx),
+                 incoming_tx,
+                 nil
+               )
+    end
+
+    test "should return logs" do
+      code = """
+        @version 1
+        condition triggered_by: transaction, as: []
+        actions triggered_by: transaction do
+          Playground.print("tic")
+          Playground.print("tac")
+          Contract.set_content "hello"
+        end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+
+      incoming_tx = TransactionFactory.create_valid_transaction([])
+
+      assert {:ok, %Transaction{}, _state, [{%DateTime{}, "tic"}, {%DateTime{}, "tac"}]} =
+               Interpreter.execute_trigger(
+                 {:transaction, nil, nil},
                  Contract.from_transaction!(contract_tx),
                  incoming_tx,
                  nil

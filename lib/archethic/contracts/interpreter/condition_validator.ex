@@ -14,9 +14,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   Determines if the conditions of a contract are valid from the given constants
   """
   @spec execute_condition(Macro.t() | ConditionsSubjects.t(), map()) ::
-          {:ok, list(String.t())}
-          | {:error, subject :: String.t(), logs :: list(String.t())}
-          | {:error, subject :: String.t(), message :: String.t(), logs :: list(String.t())}
+          :ok | {:error, String.t()} | {:error, String.t(), String.t()}
   def execute_condition(subjects = %ConditionsSubjects{}, constants = %{}) do
     # condition triggered_by: <trigger>, as: [ <field>: <expr> ]
     execute_condition_subjects(subjects, constants)
@@ -29,55 +27,40 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
 
   defp execute_condition_block(ast, constants = %{}) do
     if evaluate_condition(ast, constants) do
-      # TODO: logs
-      logs = []
-      {:ok, logs}
+      :ok
     else
-      # TODO: logs
-      logs = []
-      {:error, "N/A", logs}
+      {:error, "N/A"}
     end
   catch
     err ->
-      # TODO: logs
-      logs = []
-      {:error, "N/A", err, logs}
+      {:error, "N/A", err}
   end
 
   defp execute_condition_subjects(conditions, constants = %{}) do
     conditions
     |> Map.from_struct()
     |> Enum.reduce_while(
-      {:ok, []},
-      fn {field, condition}, {:ok, logs_acc} ->
+      :ok,
+      fn {field, condition}, :ok ->
         field = Atom.to_string(field)
 
         try do
           case validate_condition({field, condition}, constants) do
             {_, true} ->
-              # TODO: logs
-              logs = []
-
-              {:cont, {:ok, logs ++ logs_acc}}
+              {:cont, :ok}
 
             {_, false} ->
-              # TODO: logs
-              logs = []
-
               value = get_constant_value(constants, field)
 
               Logger.debug(
                 "Invalid condition for `#{inspect(field)}` with the given value: `#{inspect(value)}` - condition: #{inspect(condition)}"
               )
 
-              {:halt, {:error, field, logs}}
+              {:halt, {:error, field}}
           end
         catch
           err ->
-            # TODO: logs
-            logs = []
-
-            {:halt, {:error, field, err, logs}}
+            {:halt, {:error, field, err}}
         end
       end
     )

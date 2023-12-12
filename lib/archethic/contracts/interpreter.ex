@@ -9,7 +9,7 @@ defmodule Archethic.Contracts.Interpreter do
   alias __MODULE__.FunctionInterpreter
   alias __MODULE__.FunctionKeys
   alias __MODULE__.Legacy
-  alias __MODULE__.Scope
+  alias __MODULE__.Logs
   alias Archethic.Contracts.Conditions.Subjects, as: ConditionsSubjects
   alias Archethic.Contracts.Constants
   alias Archethic.Contracts.Contract
@@ -104,9 +104,9 @@ defmodule Archethic.Contracts.Interpreter do
   Return true if the given conditions are valid on the given constants
   """
   @spec execute_condition(version(), ConditionsSubjects.t(), map()) ::
-          {:ok, list(String.t())}
-          | {:error, String.t(), list(String.t())}
-          | {:error, String.t(), String.t(), list(String.t())}
+          {:ok, Logs.t()}
+          | {:error, String.t(), Logs.t()}
+          | {:error, String.t(), String.t(), Logs.t()}
   def execute_condition(0, conditions, constants) do
     if Legacy.valid_conditions?(conditions, constants) do
       {:ok, []}
@@ -117,7 +117,16 @@ defmodule Archethic.Contracts.Interpreter do
   end
 
   def execute_condition(1, conditions, constants) do
-    ConditionValidator.execute_condition(conditions, constants)
+    case ConditionValidator.execute_condition(conditions, constants) do
+      :ok ->
+        {:ok, Logs.all()}
+
+      {:error, subject} ->
+        {:error, subject, Logs.all()}
+
+      {:error, subject, reason} ->
+        {:error, subject, reason, Logs.all()}
+    end
   end
 
   @doc """
@@ -131,14 +140,9 @@ defmodule Archethic.Contracts.Interpreter do
           maybe_recipient :: nil | Recipient.t(),
           opts :: execute_opts()
         ) ::
-          {:ok, nil | Transaction.t(), State.t(), logs :: list(String.t())}
+          {:ok, next_tx :: nil | Transaction.t(), next_state :: State.t(), logs :: Logs.t()}
           | {:error, err :: String.t()}
-          | {
-              :error,
-              err :: Exception.t() | String.t(),
-              stacktrace :: term(),
-              logs :: list(String.t())
-            }
+          | {:error, err :: Exception.t() | String.t(), stacktrace :: term(), logs :: Logs.t()}
 
   def execute_trigger(
         trigger_key,
@@ -186,8 +190,7 @@ defmodule Archethic.Contracts.Interpreter do
             :time_now => timestamp_now,
             :functions => functions,
             :encrypted_seed => Contract.get_encrypted_seed(contract),
-            :state => state,
-            :logs => []
+            :state => state
           })
 
         {maybe_next_tx, next_state} =
@@ -202,20 +205,14 @@ defmodule Archethic.Contracts.Interpreter do
               ActionInterpreter.execute(trigger_code, constants, contract_tx)
           end
 
-        logs = Scope.read_global([:logs])
-
-        {:ok, maybe_next_tx, next_state, logs}
+        {:ok, maybe_next_tx, next_state, Logs.all()}
     end
   rescue
     err ->
-      logs = Scope.read_global([:logs])
-
-      {:error, err, __STACKTRACE__, logs}
+      {:error, err, __STACKTRACE__, Logs.all()}
   catch
     err ->
-      logs = Scope.read_global([:logs])
-
-      {:error, err, [], logs}
+      {:error, err, [], Logs.all()}
   end
 
   @doc """
