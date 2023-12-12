@@ -26,6 +26,8 @@ defmodule Archethic.Mining.ValidationContextTest do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
+  import Mock
+
   doctest ValidationContext
 
   describe "cross_validate/1" do
@@ -41,6 +43,34 @@ defmodule Archethic.Mining.ValidationContextTest do
         validation_context
         |> ValidationContext.add_validation_stamp(create_validation_stamp(validation_context))
         |> ValidationContext.cross_validate()
+    end
+
+    test "should validate even if validation_time and cross_validation_time are in different oracle bucket" do
+      validation_context = create_context(~U[2023-12-11 09:00:01Z])
+
+      validation_context2 = %ValidationContext{
+        validation_context
+        | validation_time: ~U[2023-12-11 08:59:59Z]
+      }
+
+      SharedSecrets.add_origin_public_key(:software, Crypto.origin_node_public_key())
+
+      # the cross valiadation (09:00:01) should look for the price a 08:00:00
+      # because it MUST look at the price of validation_stamp.timestamp (08:59:59)
+      with_mock(Archethic.OracleChain, [:passthrough],
+        get_uco_price: fn ~U[2023-12-11 08:00:00Z] ->
+          [eur: 0.05, usd: 0.07]
+        end
+      ) do
+        assert %ValidationContext{
+                 cross_validation_stamps: [%CrossValidationStamp{inconsistencies: []}]
+               } =
+                 validation_context
+                 |> ValidationContext.add_validation_stamp(
+                   create_validation_stamp(validation_context2)
+                 )
+                 |> ValidationContext.cross_validate()
+      end
     end
 
     test "should get inconsistency when the user has not enough funds" do
