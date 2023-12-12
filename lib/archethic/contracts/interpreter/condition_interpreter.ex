@@ -157,10 +157,10 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
           functions: functions_keys
         },
         fn node, acc ->
-          CommonInterpreter.prewalk(node, acc)
+          prewalk(node, acc)
         end,
         fn node, acc ->
-          CommonInterpreter.postwalk(node, acc)
+          postwalk("", node, acc)
         end
       )
 
@@ -282,7 +282,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
   end
 
   defp prewalk(node = {{:atom, function_name}, _, args}, acc = %{functions: functions})
-       when is_list(args) and function_name != "for" do
+       when is_list(args) and function_name != "for" and function_name != "throw" do
     args_arity = length(args)
 
     cond do
@@ -309,7 +309,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionInterpreter do
          node = {{:atom, function_name}, meta, args},
          acc = %{functions: functions}
        )
-       when is_list(args) and function_name != "for" do
+       when is_list(args) and function_name != "for" and function_name != "throw" do
     arity = length(args)
 
     new_node =
