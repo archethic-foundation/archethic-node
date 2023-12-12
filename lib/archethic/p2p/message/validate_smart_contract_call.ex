@@ -97,14 +97,14 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
       {:error, :invalid_transaction} ->
         %SmartContractCallValidation{valid?: false, fee: 0, reason: "Transaction is invalid"}
 
-      {:error, %ConditionRejected{msg: msg}} ->
+      {:error, %ConditionRejected{reason: reason}} ->
         %SmartContractCallValidation{
           valid?: false,
           fee: 0,
           reason:
-            case msg do
+            case reason do
               nil -> "Condition rejected"
-              msg -> msg
+              reason -> reason
             end
         }
 

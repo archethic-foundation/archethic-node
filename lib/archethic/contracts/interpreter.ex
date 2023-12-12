@@ -218,9 +218,9 @@ defmodule Archethic.Contracts.Interpreter do
   @doc """
   Execute the given public function with the givent constants and arguments
   """
-  @spec execute_function(any(), map(), list()) :: result :: any()
+  @spec execute_function(any(), map(), list()) :: {result :: any(), logs :: Logs.t()}
   def execute_function(%{ast: ast, args: args_names}, constants, args_values) do
-    FunctionInterpreter.execute(ast, constants, args_names, args_values)
+    {FunctionInterpreter.execute(ast, constants, args_names, args_values), Logs.all()}
   end
 
   @doc """

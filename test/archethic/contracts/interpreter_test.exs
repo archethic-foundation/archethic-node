@@ -333,6 +333,32 @@ defmodule Archethic.Contracts.InterpreterTest do
     end
   end
 
+  describe "execute_function/3" do
+    test "should return ordered logs" do
+      code = ~S"""
+      @version 1
+
+      export fun add(a,b) do
+        Playground.print("a: #{a}")
+        Playground.print("b: #{b}")
+        a + b
+      end
+      """
+
+      contract_tx = ContractFactory.create_valid_contract_tx(code)
+      contract = Contract.from_transaction!(contract_tx)
+
+      %{args: args, ast: ast} = Map.get(contract.functions, {"add", 2})
+      constants = %{}
+
+      assert {3,
+              [
+                {%DateTime{}, "a: 1"},
+                {%DateTime{}, "b: 2"}
+              ]} = Interpreter.execute_function(%{ast: ast, args: args}, constants, [1, 2])
+    end
+  end
+
   describe "execute_condition/3" do
     test "should return ordered logs with keyword syntax" do
       code = """
