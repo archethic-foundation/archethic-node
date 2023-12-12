@@ -1087,11 +1087,10 @@ defmodule Archethic.Mining.ValidationContext do
            transaction: tx = %Transaction{data: %TransactionData{recipients: recipients}},
            previous_transaction: prev_tx,
            resolved_addresses: resolved_addresses,
-           validation_time: validation_time,
            contract_context: contract_context,
            validation_stamp:
              stamp = %ValidationStamp{
-               timestamp: timestamp,
+               timestamp: validation_time,
                ledger_operations: %LedgerOperations{fee: stamp_fee}
              }
          }
@@ -1114,7 +1113,7 @@ defmodule Archethic.Mining.ValidationContext do
       )
 
     {sufficient_funds?, ledger_operations} =
-      get_ledger_operations(context, stamp_fee, timestamp, next_state)
+      get_ledger_operations(context, stamp_fee, validation_time, next_state)
 
     subsets_verifications = [
       timestamp: fn -> valid_timestamp(stamp, context) end,
@@ -1193,12 +1192,11 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   defp valid_stamp_error?(
-         %ValidationStamp{error: error},
+         %ValidationStamp{error: error, timestamp: validation_time},
          %__MODULE__{
            transaction: tx,
            previous_transaction: prev_tx,
-           valid_pending_transaction?: valid_pending_transaction?,
-           validation_time: validation_time
+           valid_pending_transaction?: valid_pending_transaction?
          },
          valid_contract_execution?,
          valid_contract_recipients?,
