@@ -15,16 +15,14 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   """
   @spec execute_condition(Macro.t() | ConditionsSubjects.t(), map()) ::
           {:ok, list(String.t())} | {:error, String.t(), list(String.t())}
-  def execute_condition(condition_or_ast, constants = %{}) do
-    case condition_or_ast do
-      %ConditionsSubjects{} ->
-        # condition triggered_by: <trigger>, as: [ <field>: <expr> ]
-        execute_condition_keyword(condition_or_ast, constants)
+  def execute_condition(subjects = %ConditionsSubjects{}, constants = %{}) do
+    # condition triggered_by: <trigger>, as: [ <field>: <expr> ]
+    execute_condition_subjects(subjects, constants)
+  end
 
-      _ ->
-        # condition triggered_by: <trigger> do <expr> end
-        execute_condition_block(condition_or_ast, constants)
-    end
+  def execute_condition(ast, constants = %{}) do
+    # condition triggered_by: <trigger> do <expr> end
+    execute_condition_block(ast, constants)
   end
 
   defp execute_condition_block(ast, constants = %{}) do
@@ -39,7 +37,7 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
     end
   end
 
-  defp execute_condition_keyword(conditions, constants = %{}) do
+  defp execute_condition_subjects(conditions, constants = %{}) do
     conditions
     |> Map.from_struct()
     |> Enum.reduce_while(
