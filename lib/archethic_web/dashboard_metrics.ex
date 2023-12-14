@@ -10,6 +10,7 @@ defmodule ArchethicWeb.DashboardMetrics do
   """
 
   alias Archethic.PubSub
+  alias Archethic.Utils
 
   use GenServer
   @vsn Mix.Project.config()[:version]
@@ -87,9 +88,7 @@ defmodule ArchethicWeb.DashboardMetrics do
   end
 
   defp bucket_key(datetime) do
-    timestamp = DateTime.to_unix(datetime)
-    seconds = rem(timestamp, 60)
-    DateTime.from_unix!(timestamp - seconds)
+    Utils.truncate_datetime(datetime, second?: true, microsecond?: true)
   end
 
   defp drop_old_buckets(buckets) do
