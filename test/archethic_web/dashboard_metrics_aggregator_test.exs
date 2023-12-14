@@ -42,13 +42,7 @@ defmodule ArchethicWeb.DashboardMetricsAggregatorTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
-    # the DashboardMetricsAggregator is already started and supervised
-    # we kill it to reset it's data on every test
-    DashboardMetricsAggregator
-    |> Process.whereis()
-    |> Process.exit(:kill)
-
-    Process.sleep(10)
+    start_supervised!(DashboardMetricsAggregator)
 
     {:ok, %{current_node_pkey: current_node_pkey, other_node_pkey: other_node_pkey}}
   end

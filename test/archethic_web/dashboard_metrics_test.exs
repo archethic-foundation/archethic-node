@@ -5,14 +5,7 @@ defmodule ArchethicWeb.DashboardMetricsTest do
   alias Archethic.PubSub
 
   setup do
-    # the DashboardMetrics is already started and supervised
-    # we kill it to reset it's data on every test
-    DashboardMetrics
-    |> Process.whereis()
-    |> Process.exit(:kill)
-
-    # 10ms sleep required for the restart to complete
-    Process.sleep(10)
+    start_supervised!(DashboardMetrics)
     :ok
   end
 
