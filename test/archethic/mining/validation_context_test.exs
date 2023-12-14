@@ -55,9 +55,7 @@ defmodule Archethic.Mining.ValidationContextTest do
               "seed",
               0
             ),
-          resolved_addresses: [
-            {transfer_address, resolved_address}
-          ]
+          resolved_addresses: %{transfer_address => resolved_address}
       }
 
       expected_movements = [
@@ -117,10 +115,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       validation_context =
         %ValidationContext{
           create_context()
-          | resolved_addresses: [
-              {contract_address1, latest_contract_address},
-              {contract_address2, latest_contract_address}
-            ],
+          | resolved_addresses: %{
+              contract_address1 => latest_contract_address,
+              contract_address2 => latest_contract_address
+            },
             transaction:
               Transaction.new(
                 :transfer,

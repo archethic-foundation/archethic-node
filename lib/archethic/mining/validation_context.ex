@@ -11,7 +11,7 @@ defmodule Archethic.Mining.ValidationContext do
     :validation_stamp,
     :validation_time,
     :contract_context,
-    resolved_addresses: [],
+    resolved_addresses: %{},
     unspent_outputs: [],
     cross_validation_stamps: [],
     cross_validation_nodes_confirmation: <<>>,
@@ -76,7 +76,7 @@ defmodule Archethic.Mining.ValidationContext do
           transaction: Transaction.t(),
           previous_transaction: nil | Transaction.t(),
           unspent_outputs: list(UnspentOutput.t()),
-          resolved_addresses: list({original_address :: binary(), resolved_address :: binary()}),
+          resolved_addresses: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
           welcome_node: Node.t(),
           coordinator_node: Node.t(),
           cross_validation_nodes: list(Node.t()),
@@ -1433,7 +1433,9 @@ defmodule Archethic.Mining.ValidationContext do
   end
 
   defp get_resolved_address_for_address(resolved_addresses, address) do
-    {_to, resolved} = Enum.find(resolved_addresses, fn {to, _resolved} -> to == address end)
-    resolved
+    Enum.find_value(resolved_addresses, fn
+      {^address, resolved} -> resolved
+      _ -> false
+    end)
   end
 end

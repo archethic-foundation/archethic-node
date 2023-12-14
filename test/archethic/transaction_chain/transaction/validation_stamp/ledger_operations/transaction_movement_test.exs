@@ -17,11 +17,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       resolved3_address = random_address()
       token_address = random_address()
 
-      resolved_addresses = [
-        {transfer1_address, resolved1_address},
-        {transfer2_address, resolved2_address},
-        {transfer3_address, resolved3_address}
-      ]
+      resolved_addresses = %{
+        transfer1_address => resolved1_address,
+        transfer2_address => resolved2_address,
+        transfer3_address => resolved3_address
+      }
 
       assert [
                %TransactionMovement{
@@ -77,9 +77,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       resolved1_address = random_address()
       token_address = random_address()
 
-      resolved_addresses = [
-        {transfer1_address, resolved1_address}
-      ]
+      resolved_addresses = %{
+        transfer1_address => resolved1_address
+      }
 
       assert [
                %TransactionMovement{
@@ -146,7 +146,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       transfer3_address = random_address()
       token_address = random_address()
 
-      resolved_addresses = []
+      resolved_addresses = %{}
 
       assert [] =
                TransactionMovement.resolve_movements(

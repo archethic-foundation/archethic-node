@@ -55,10 +55,6 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction.ValidationStamp
 
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations
-
-  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
-    as: TransactionMovementType
-
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.TransactionInput
@@ -781,10 +777,7 @@ defmodule Archethic.TransactionChain do
   Resolve all the last addresses from the transaction data
   """
   @spec resolve_transaction_addresses(Transaction.t(), DateTime.t()) ::
-          list(
-            {{origin_address :: binary(), type :: TransactionMovementType.t()},
-             resolved_address :: binary()}
-          )
+          %{Crypto.prepended_hash() => Crypto.prepended_hash()}
   def resolve_transaction_addresses(
         tx = %Transaction{data: %TransactionData{recipients: recipients}},
         time = %DateTime{}
@@ -796,7 +789,7 @@ defmodule Archethic.TransactionChain do
     addresses =
       tx
       |> Transaction.get_movements()
-      |> Enum.map(&{&1.to, &1.type})
+      |> Enum.map(& &1.to)
       |> Enum.concat(recipient_addresses)
 
     authorized_nodes = P2P.authorized_and_available_nodes()
@@ -805,20 +798,6 @@ defmodule Archethic.TransactionChain do
       TaskSupervisor,
       addresses,
       fn
-        {^burning_address, type} ->
-          {{burning_address, type}, burning_address}
-
-        {to, type} ->
-          nodes = Election.chain_storage_nodes(to, authorized_nodes)
-
-          case fetch_last_address(to, nodes, timestamp: time) do
-            {:ok, resolved} ->
-              {{to, type}, resolved}
-
-            _ ->
-              {{to, type}, to}
-          end
-
         ^burning_address ->
           {burning_address, burning_address}
 
@@ -837,6 +816,7 @@ defmodule Archethic.TransactionChain do
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Enum.map(fn {:ok, res} -> res end)
+    |> Enum.into(%{})
   end
 
   @doc """
