@@ -37,12 +37,11 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
     Process.send_after(self(), :tick, 30_000)
 
     # fetch data
-    version = Application.spec(:archethic, :vsn)
     stats = fetch_stats()
 
     {:noreply,
      socket
-     |> assign(version: version, stats: stats)
+     |> assign(stats: stats)
      |> push_event("network_updates", network_aggregate(stats))
      |> push_event("node_updates", node_aggregate(stats))}
   end
