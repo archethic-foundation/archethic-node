@@ -34,6 +34,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
 
     PubSub.register_to_current_epoch_of_slot_time()
     PubSub.register_to_node_status()
+    PubSub.register_to_self_repair()
 
     {:ok, %{}}
   end
@@ -44,6 +45,15 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   def code_change(_version, state, _extra), do: {:ok, state}
+
+  def handle_info(:self_repair_sync, state) do
+    previous_summary_time = SummaryTimer.previous_summary(DateTime.utc_now())
+
+    BeaconChain.list_subsets()
+    |> Enum.each(&clean_previous_summary_slots(&1, previous_summary_time))
+
+    {:noreply, state}
+  end
 
   def handle_info({:current_epoch_of_slot_timer, slot_time}, state) do
     if SummaryTimer.match_interval?(slot_time), do: delete_old_backup_file(slot_time)
@@ -62,25 +72,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   end
 
   def handle_info(:node_down, state), do: {:noreply, state}
-
-  @doc """
-  Remove slots of previous summary time from ets table
-  """
-  @spec clean_previous_summary_slots(
-          subset :: binary(),
-          previous_summary_time :: DateTime.t()
-        ) :: :ok
-  def clean_previous_summary_slots(subset, previous_summary_time) do
-    subset
-    |> stream_current_slots()
-    |> Stream.filter(fn {%Slot{slot_time: slot_time}, _} ->
-      DateTime.compare(slot_time, previous_summary_time) != :gt
-    end)
-    |> Stream.each(fn item ->
-      :ets.delete_object(@table_name, {subset, item})
-    end)
-    |> Stream.run()
-  end
 
   @doc """
   Stream all the entries for a subset
@@ -180,5 +171,17 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {slot, _} = Slot.deserialize(slot_bin)
     {node_public_key, rest} = Utils.deserialize_public_key(rest)
     deserialize(rest, [{slot, node_public_key} | acc])
+  end
+
+  defp clean_previous_summary_slots(subset, previous_summary_time) do
+    subset
+    |> stream_current_slots()
+    |> Stream.filter(fn {%Slot{slot_time: slot_time}, _} ->
+      DateTime.compare(slot_time, previous_summary_time) != :gt
+    end)
+    |> Stream.each(fn item ->
+      :ets.delete_object(@table_name, {subset, item})
+    end)
+    |> Stream.run()
   end
 end

@@ -183,4 +183,36 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
     slots = SummaryCache.stream_current_slots(<<0>>) |> Enum.to_list()
     assert [{^slot, ^node_key}, {^slot2, ^node_key}] = slots
   end
+
+  test "should cleanup as soon as selfrepair is triggered" do
+    {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * *"], [])
+    {:ok, pid} = SummaryCache.start_link()
+    File.mkdir_p!(Utils.mut_dir())
+
+    now = DateTime.utc_now()
+
+    node_key = Crypto.first_node_public_key()
+    subset = <<0>>
+
+    slot_pre_summary = %Slot{
+      slot_time: SummaryTimer.previous_summary(now),
+      subset: subset
+    }
+
+    slot_post_summary = %Slot{
+      slot_time: SummaryTimer.next_summary(now),
+      subset: subset
+    }
+
+    SummaryCache.add_slot(subset, slot_pre_summary, node_key)
+    SummaryCache.add_slot(subset, slot_post_summary, node_key)
+
+    send(pid, :self_repair_sync)
+    Process.sleep(50)
+
+    assert [{^slot_post_summary, ^node_key}] =
+             subset
+             |> SummaryCache.stream_current_slots()
+             |> Enum.to_list()
+  end
 end

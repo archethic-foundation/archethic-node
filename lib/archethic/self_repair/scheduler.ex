@@ -93,6 +93,8 @@ defmodule Archethic.SelfRepair.Scheduler do
       "Self-Repair synchronization started from #{last_sync_date_to_string(last_sync_date)}"
     )
 
+    PubSub.notify_self_repair()
+
     Task.Supervisor.async_nolink(TaskSupervisor, fn ->
       # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
       # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it

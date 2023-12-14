@@ -111,6 +111,11 @@ defmodule Archethic.Utils.JobCache do
     GenServer.start(__MODULE__, opts, Keyword.take(opts, [:name]))
   end
 
+  @spec stop(GenServer.server()) :: :ok
+  def stop(pid) do
+    GenServer.stop(pid)
+  end
+
   @impl GenServer
   def init(opts) do
     function = Keyword.fetch!(opts, :function)
