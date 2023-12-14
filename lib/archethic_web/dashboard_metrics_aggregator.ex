@@ -59,15 +59,11 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
     end
   end
 
-  def handle_call(:get_all, _from, state) do
-    %__MODULE__{buckets: buckets} = state
-
+  def handle_call(:get_all, _from, state = %__MODULE__{buckets: buckets}) do
     {:reply, buckets, state}
   end
 
-  def handle_call({:get_since, since}, _from, state) do
-    %__MODULE__{buckets: buckets} = state
-
+  def handle_call({:get_since, since}, _from, state = %__MODULE__{buckets: buckets}) do
     filtered_buckets =
       Enum.filter(buckets, fn {{_, datetime}, _} ->
         DateTime.compare(datetime, since) != :lt
@@ -81,15 +77,12 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
     {:noreply, state, {:continue, :request_other_nodes}}
   end
 
-  def handle_info({:remote_buckets, remote_buckets}, state) do
-    %__MODULE__{buckets: buckets} = state
-
+  def handle_info({:remote_buckets, remote_buckets}, state = %__MODULE__{buckets: buckets}) do
     new_buckets = Map.merge(buckets, remote_buckets)
     {:noreply, %__MODULE__{state | buckets: new_buckets}}
   end
 
-  def handle_info(:clean_state, state) do
-    %__MODULE__{buckets: buckets} = state
+  def handle_info(:clean_state, state = %__MODULE__{buckets: buckets}) do
     new_buckets = drop_old_buckets(buckets)
 
     # Continue the clean_state loop
@@ -102,14 +95,12 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
     {:noreply, state, {:continue, :request_other_nodes}}
   end
 
-  def handle_info(:node_down, state) do
-    %__MODULE__{timer: timer} = state
+  def handle_info(:node_down, state = %__MODULE__{timer: timer}) do
     Process.cancel_timer(timer)
     {:noreply, %__MODULE__{state | timer: nil}}
   end
 
-  def handle_continue(:request_other_nodes, state) do
-    %__MODULE__{buckets: buckets} = state
+  def handle_continue(:request_other_nodes, state = %__MODULE__{buckets: buckets}) do
     async_request_other_nodes(self(), buckets)
 
     # Continue the request_other_nodes loop
@@ -131,9 +122,7 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
     end)
   end
 
-  defp async_request_dashboard_data(pid, node, since) do
-    %Node{first_public_key: first_public_key} = node
-
+  defp async_request_dashboard_data(pid, node = %Node{first_public_key: first_public_key}, since) do
     Task.Supervisor.start_child(
       TaskSupervisor,
       fn ->
