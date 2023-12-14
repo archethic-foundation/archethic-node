@@ -51,16 +51,12 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
     # Start the clean_state loop
     Process.send_after(self(), :clean_state, @clean_interval_seconds * 1_000)
 
-    # Start to request other nodes data only when bootstrap is done
-    timer =
-      if Archethic.up?() do
-        Process.send_after(self(), :request_other_nodes, 1)
-      else
-        PubSub.register_to_node_status()
-        nil
-      end
-
-    {:ok, %__MODULE__{timer: timer}}
+    if Archethic.up?() do
+      {:ok, %__MODULE__{}, {:continue, :request_other_nodes}}
+    else
+      PubSub.register_to_node_status()
+      {:ok, %__MODULE__{}}
+    end
   end
 
   def handle_call(:get_all, _from, state) do
@@ -82,13 +78,7 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
   end
 
   def handle_info(:request_other_nodes, state) do
-    %__MODULE__{buckets: buckets} = state
-    async_request_other_nodes(self(), buckets)
-
-    # Continue the request_other_nodes loop
-    Process.send_after(self(), :request_other_nodes, @request_interval_seconds * 1_000)
-
-    {:noreply, state}
+    {:noreply, state, {:continue, :request_other_nodes}}
   end
 
   def handle_info({:remote_buckets, remote_buckets}, state) do
@@ -109,14 +99,23 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
   end
 
   def handle_info(:node_up, state) do
-    timer = Process.send_after(self(), :request_other_nodes, 1)
-    {:noreply, %__MODULE__{state | timer: timer}}
+    {:noreply, state, {:continue, :request_other_nodes}}
   end
 
   def handle_info(:node_down, state) do
     %__MODULE__{timer: timer} = state
     Process.cancel_timer(timer)
     {:noreply, %__MODULE__{state | timer: nil}}
+  end
+
+  def handle_continue(:request_other_nodes, state) do
+    %__MODULE__{buckets: buckets} = state
+    async_request_other_nodes(self(), buckets)
+
+    # Continue the request_other_nodes loop
+    timer = Process.send_after(self(), :request_other_nodes, @request_interval_seconds * 1_000)
+
+    {:noreply, %__MODULE__{state | timer: timer}}
   end
 
   # ----------------------------
