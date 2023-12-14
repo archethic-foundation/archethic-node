@@ -8,8 +8,8 @@ defmodule ArchethicWeb.Supervisor do
   alias ArchethicCache.LRU
   alias ArchethicCache.LRUDisk
 
-  alias ArchethicWeb.DashboardAggregator
-  alias ArchethicWeb.DashboardAggregatorAggregator
+  alias ArchethicWeb.DashboardMetrics
+  alias ArchethicWeb.DashboardMetricsAggregator
   alias ArchethicWeb.Endpoint
   alias ArchethicWeb.Explorer.TransactionCache
   alias ArchethicWeb.Explorer.FaucetRateLimiter
@@ -36,8 +36,8 @@ defmodule ArchethicWeb.Supervisor do
         {PlugAttack.Storage.Ets, name: ArchethicWeb.PlugAttack.Storage, clean_period: 60_000},
         Endpoint,
         {Absinthe.Subscription, Endpoint},
-        DashboardAggregator,
-        DashboardAggregatorAggregator
+        DashboardMetrics,
+        DashboardMetricsAggregator
       ]
       |> Utils.configurable_children()
 

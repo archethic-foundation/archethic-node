@@ -1,8 +1,8 @@
-defmodule ArchethicWeb.DashboardAggregatorAggregator do
+defmodule ArchethicWeb.DashboardMetricsAggregator do
   @moduledoc """
-  This module regularly ask all the other nodes for their DashboardAggregator data
+  This module regularly ask all the other nodes for their DashboardMetrics data
 
-  The state is similar to DashboardAggregator but the bucket key
+  The state is similar to DashboardMetrics but the bucket key
   is `{node_first_public_key, datetime}` instead of `datetime`
   """
 

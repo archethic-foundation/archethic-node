@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.DashboardAggregator do
+defmodule ArchethicWeb.DashboardMetrics do
   @moduledoc """
   This module listens to a :mining_completed event.
 

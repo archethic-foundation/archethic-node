@@ -1,13 +1,13 @@
-defmodule ArchethicWeb.DashboardAggregatorTest do
+defmodule ArchethicWeb.DashboardMetricsTest do
   use ExUnit.Case
 
-  alias ArchethicWeb.DashboardAggregator
+  alias ArchethicWeb.DashboardMetrics
   alias Archethic.PubSub
 
   setup do
-    # the DashboardAggregator is already started and supervised
+    # the DashboardMetrics is already started and supervised
     # we kill it to reset it's data on every test
-    DashboardAggregator
+    DashboardMetrics
     |> Process.whereis()
     |> Process.exit(:kill)
 
@@ -21,7 +21,7 @@ defmodule ArchethicWeb.DashboardAggregatorTest do
     PubSub.notify_mining_completed(~U[2023-11-22 16:26:20Z], 9_000_000_000, true)
     PubSub.notify_mining_completed(~U[2023-11-22 16:26:59Z], 3_000_000_000, true)
 
-    buckets = DashboardAggregator.get_all()
+    buckets = DashboardMetrics.get_all()
 
     assert [~U[2023-11-22 16:26:00Z]] = Map.keys(buckets)
     assert 3 = length(Map.get(buckets, ~U[2023-11-22 16:26:00Z]))
@@ -33,7 +33,7 @@ defmodule ArchethicWeb.DashboardAggregatorTest do
     PubSub.notify_mining_completed(~U[2023-11-22 16:27:03Z], 9_000_000_000, true)
     PubSub.notify_mining_completed(~U[2023-11-22 16:28:03Z], 3_000_000_000, true)
 
-    buckets = DashboardAggregator.get_all()
+    buckets = DashboardMetrics.get_all()
 
     assert [~U[2023-11-22 16:26:00Z], ~U[2023-11-22 16:27:00Z], ~U[2023-11-22 16:28:00Z]] =
              Map.keys(buckets)
@@ -50,7 +50,7 @@ defmodule ArchethicWeb.DashboardAggregatorTest do
     PubSub.notify_mining_completed(~U[2023-11-22 16:28:03Z], 3_000_000_000, true)
     PubSub.notify_mining_completed(~U[2023-11-22 16:28:04Z], 3_000_000_000, true)
 
-    buckets = DashboardAggregator.get_since(~U[2023-11-22 16:28:00Z])
+    buckets = DashboardMetrics.get_since(~U[2023-11-22 16:28:00Z])
 
     assert [~U[2023-11-22 16:28:00Z]] = Map.keys(buckets)
 
@@ -67,9 +67,9 @@ defmodule ArchethicWeb.DashboardAggregatorTest do
     PubSub.notify_mining_completed(DateTime.add(now, -2, :minute), 8_000_000_000, true)
     PubSub.notify_mining_completed(DateTime.add(now, -1, :minute), 8_000_000_000, true)
 
-    send(Process.whereis(DashboardAggregator), :clean_state)
+    send(Process.whereis(DashboardMetrics), :clean_state)
 
-    buckets = DashboardAggregator.get_all()
+    buckets = DashboardMetrics.get_all()
 
     assert 4 = length(Map.keys(buckets))
   end

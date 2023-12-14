@@ -5,7 +5,7 @@ defmodule Archethic.P2P.Message.GetDashboardData do
 
   alias Archethic.Crypto
   alias Archethic.P2P.Message.DashboardData
-  alias ArchethicWeb.DashboardAggregator
+  alias ArchethicWeb.DashboardMetrics
 
   defstruct [:since]
 
@@ -15,11 +15,11 @@ defmodule Archethic.P2P.Message.GetDashboardData do
 
   @spec process(t(), Crypto.key()) :: DashboardData.t()
   def process(%__MODULE__{since: nil}, _) do
-    %DashboardData{buckets: DashboardAggregator.get_all()}
+    %DashboardData{buckets: DashboardMetrics.get_all()}
   end
 
   def process(%__MODULE__{since: since}, _) do
-    %DashboardData{buckets: DashboardAggregator.get_since(since)}
+    %DashboardData{buckets: DashboardMetrics.get_since(since)}
   end
 
   @spec serialize(t()) :: bitstring()

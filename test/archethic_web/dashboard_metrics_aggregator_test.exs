@@ -1,5 +1,5 @@
-defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
-  alias ArchethicWeb.DashboardAggregatorAggregator
+defmodule ArchethicWeb.DashboardMetricsAggregatorTest do
+  alias ArchethicWeb.DashboardMetricsAggregator
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetDashboardData
@@ -42,9 +42,9 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
-    # the DashboardAggregatorAggregator is already started and supervised
+    # the DashboardMetricsAggregator is already started and supervised
     # we kill it to reset it's data on every test
-    DashboardAggregatorAggregator
+    DashboardMetricsAggregator
     |> Process.whereis()
     |> Process.exit(:kill)
 
@@ -81,7 +81,7 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
     Archethic.PubSub.notify_node_status(:node_up)
     Process.sleep(10)
 
-    result = DashboardAggregatorAggregator.get_all()
+    result = DashboardMetricsAggregator.get_all()
 
     assert 4 = length(Map.keys(result))
     assert Map.has_key?(result, {current_node_pkey, ~U[2023-11-23 16:00:00Z]})
@@ -124,13 +124,13 @@ defmodule ArchethicWeb.DashboardAggregatorAggregatorTest do
     Archethic.PubSub.notify_node_status(:node_up)
     Process.sleep(10)
 
-    result = DashboardAggregatorAggregator.get_all()
+    result = DashboardMetricsAggregator.get_all()
     assert 4 = length(Map.keys(result))
 
     # trigger a clean
-    send(Process.whereis(DashboardAggregatorAggregator), :clean_state)
+    send(Process.whereis(DashboardMetricsAggregator), :clean_state)
 
-    buckets = DashboardAggregatorAggregator.get_all()
+    buckets = DashboardMetricsAggregator.get_all()
     assert 2 = length(Map.keys(buckets))
 
     assert Map.has_key?(result, {current_node_pkey, now_rounded})

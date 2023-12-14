@@ -4,7 +4,7 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
   """
   use ArchethicWeb.Explorer, :live_view
 
-  alias ArchethicWeb.DashboardAggregatorAggregator
+  alias ArchethicWeb.DashboardMetricsAggregator
   alias ArchethicWeb.Explorer.DashboardView
 
   alias Phoenix.View
@@ -60,7 +60,7 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
   end
 
   defp fetch_stats() do
-    DashboardAggregatorAggregator.get_all()
+    DashboardMetricsAggregator.get_all()
     |> Enum.map(fn {{node_public_key, datetime}, durations} ->
       {{Base.encode16(node_public_key), datetime}, durations}
     end)
