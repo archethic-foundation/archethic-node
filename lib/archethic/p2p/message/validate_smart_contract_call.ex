@@ -80,8 +80,7 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
     with {:ok, contract_tx} <- TransactionChain.get_transaction(recipient_address),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
-         {:trigger, trigger} when not is_nil(trigger) <-
-           {:trigger, Contract.get_trigger_for_recipient(recipient)},
+         trigger <- Contract.get_trigger_for_recipient(recipient),
          {:ok, _} <-
            Contracts.execute_condition(trigger, contract, transaction, recipient, datetime),
          {:ok, execution_result} <-
@@ -110,9 +109,6 @@ defmodule Archethic.P2P.Message.ValidateSmartContractCall do
 
       {:error, %Failure{user_friendly_error: err}} ->
         %SmartContractCallValidation{valid?: false, fee: 0, reason: err}
-
-      {:trigger, nil} ->
-        %SmartContractCallValidation{valid?: false, fee: 0, reason: "Invalid trigger"}
 
       _ ->
         %SmartContractCallValidation{valid?: false, fee: 0}

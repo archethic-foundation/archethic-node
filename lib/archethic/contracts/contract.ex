@@ -163,8 +163,9 @@ defmodule Archethic.Contracts.Contract do
   @doc """
   Return the args names for this recipient or nil
   """
-  @spec get_trigger_for_recipient(Recipient.t()) :: nil | trigger_key()
-  def get_trigger_for_recipient(%Recipient{action: nil, args: nil}), do: {:transaction, nil, nil}
+  @spec get_trigger_for_recipient(Recipient.t()) :: trigger_key()
+  def get_trigger_for_recipient(%Recipient{action: nil, args: nil}),
+    do: {:transaction, nil, nil}
 
   def get_trigger_for_recipient(%Recipient{action: action, args: args_values}),
     do: {:transaction, action, length(args_values)}
