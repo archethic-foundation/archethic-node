@@ -247,18 +247,6 @@ defmodule Archethic.Contracts.Interpreter.CommonInterpreter do
     {ast, acc}
   end
 
-  # log (not documented, only useful for developer debugging)
-  # TODO: should be implemented in a module Logger (only available if config allows it)
-  # will soon be updated to log into the playground console
-  def prewalk(_node = {{:atom, "log"}, meta, [data]}, acc) do
-    new_node =
-      quote line: Keyword.fetch!(meta, :line) do
-        apply(IO, :inspect, [unquote(data)])
-      end
-
-    {new_node, acc}
-  end
-
   # throw
   def prewalk({{:atom, "throw"}, _, [reason]}, acc) when is_binary(reason) do
     {{:throw, [context: Elixir, imports: [{1, Kernel}]], [reason]}, acc}

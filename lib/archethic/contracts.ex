@@ -13,6 +13,7 @@ defmodule Archethic.Contracts do
   alias __MODULE__.Contract.Failure
   alias __MODULE__.Contract.State
   alias __MODULE__.Interpreter
+  alias __MODULE__.Interpreter.Logs
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
   alias Archethic.TransactionChain.Transaction
@@ -152,7 +153,7 @@ defmodule Archethic.Contracts do
           function_name :: String.t(),
           args_values :: list()
         ) ::
-          {:ok, value :: any(), logs :: list(String.t())}
+          {:ok, value :: any(), logs :: Logs.t()}
           | {:error, Failure.t()}
   def execute_function(
         contract = %Contract{
@@ -189,9 +190,7 @@ defmodule Archethic.Contracts do
         task =
           Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
             try do
-              # TODO: logs
-              logs = []
-              value = Interpreter.execute_function(function, constants, args_values)
+              {value, logs} = Interpreter.execute_function(function, constants, args_values)
               {:ok, value, logs}
             rescue
               err ->
@@ -263,7 +262,7 @@ defmodule Archethic.Contracts do
           Transaction.t(),
           nil | Recipient.t(),
           DateTime.t()
-        ) :: {:ok, logs :: list(String.t())} | {:error, ConditionRejected.t() | Failure.t()}
+        ) :: {:ok, logs :: Logs.t()} | {:error, ConditionRejected.t() | Failure.t()}
   def execute_condition(
         condition_key,
         contract = %Contract{version: version, conditions: conditions},
@@ -307,11 +306,11 @@ defmodule Archethic.Contracts do
                logs: logs
              }}
 
-          {:error, subject, msg, logs} ->
+          {:error, subject, reason, logs} ->
             {:error,
              %ConditionRejected{
-               msg: msg,
                subject: subject,
+               reason: reason,
                logs: logs
              }}
         end

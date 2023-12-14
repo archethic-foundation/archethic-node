@@ -3,6 +3,7 @@ defmodule Archethic.Contracts.Contract.ActionWithTransaction do
   This struct holds the data about an execution that was successful
   """
   alias Archethic.Contracts.Contract.State
+  alias Archethic.Contracts.Interpreter.Logs
   alias Archethic.TransactionChain.Transaction
 
   @enforce_keys [:next_tx, :encoded_state]
@@ -11,6 +12,6 @@ defmodule Archethic.Contracts.Contract.ActionWithTransaction do
   @type t :: %__MODULE__{
           next_tx: Transaction.t(),
           encoded_state: State.encoded() | nil,
-          logs: list(String.t())
+          logs: Logs.t()
         }
 end
