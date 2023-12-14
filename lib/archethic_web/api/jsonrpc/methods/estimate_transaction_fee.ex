@@ -75,7 +75,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
   end
 
   defp get_resolved_address_for_address(resolved_addresses, address) do
-    {_to, resolved} = Enum.find(resolved_addresses, fn {to, _resolved} -> to == address end)
-    resolved
+    Enum.find_value(resolved_addresses, fn
+      {^address, resolved} -> resolved
+      _ -> false
+    end)
   end
 end
