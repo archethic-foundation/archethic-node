@@ -162,23 +162,22 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
     |> Enum.into(%{})
   end
 
-  # TODO: can be optimized by looping only once
   defp zip_nodes_with_latest_request(nodes, buckets) do
-    Enum.map(nodes, fn node ->
-      %Node{first_public_key: first_public_key} = node
-      {node, node_latest_request(buckets, first_public_key)}
-    end)
-  end
+    nodes_datetimes =
+      Enum.group_by(
+        buckets,
+        fn {{first_public_key, _}, _} -> first_public_key end,
+        fn {{_, datetime}, _} -> datetime end
+      )
 
-  defp node_latest_request(buckets, first_public_key) do
-    buckets
-    |> Map.keys()
-    |> Enum.filter(fn
-      {^first_public_key, _datetime} -> true
-      _ -> false
+    Enum.map(nodes, fn node = %Node{first_public_key: first_public_key} ->
+      last_datetime =
+        nodes_datetimes
+        |> Map.get(first_public_key, [])
+        |> Enum.max(DateTime, fn -> nil end)
+
+      {node, last_datetime}
     end)
-    |> Enum.max_by(&elem(&1, 1), DateTime, fn -> {first_public_key, nil} end)
-    |> elem(1)
   end
 
   defp drop_old_buckets(buckets) do
