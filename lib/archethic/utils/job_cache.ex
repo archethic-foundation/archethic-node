@@ -113,7 +113,14 @@ defmodule Archethic.Utils.JobCache do
 
   @impl GenServer
   def init(opts) do
-    {:ok, %S{function: Keyword.fetch!(opts, :function)}}
+    function = Keyword.fetch!(opts, :function)
+    immediate = Keyword.get(opts, :immediate, false)
+
+    if immediate do
+      {:ok, %S{function: function, task: Task.async(function)}}
+    else
+      {:ok, %S{function: function}}
+    end
   end
 
   @impl GenServer
