@@ -57,8 +57,8 @@ defmodule ArchethicWeb.DashboardMetricsAggregatorTest do
         {:ok,
          %DashboardData{
            buckets: %{
-             ~U[2023-11-23 16:00:00Z] => [1],
-             ~U[2023-11-23 16:01:00Z] => [2, 3]
+             ~U[2023-11-23 16:00:00Z] => [{random_address(), 1}],
+             ~U[2023-11-23 16:01:00Z] => [{random_address(), 2}, {random_address(), 3}]
            }
          }}
 
@@ -66,8 +66,12 @@ defmodule ArchethicWeb.DashboardMetricsAggregatorTest do
         {:ok,
          %DashboardData{
            buckets: %{
-             ~U[2023-11-23 16:00:00Z] => [4, 5, 6],
-             ~U[2023-11-23 16:01:00Z] => [7]
+             ~U[2023-11-23 16:00:00Z] => [
+               {random_address(), 4},
+               {random_address(), 5},
+               {random_address(), 6}
+             ],
+             ~U[2023-11-23 16:01:00Z] => [{random_address(), 7}]
            }
          }}
     end)
@@ -100,8 +104,8 @@ defmodule ArchethicWeb.DashboardMetricsAggregatorTest do
         {:ok,
          %DashboardData{
            buckets: %{
-             now_rounded => [1],
-             expired_rounded => [2, 3]
+             now_rounded => [{random_address(), 1}],
+             expired_rounded => [{random_address(), 2}, {random_address(), 3}]
            }
          }}
 
@@ -109,8 +113,8 @@ defmodule ArchethicWeb.DashboardMetricsAggregatorTest do
         {:ok,
          %DashboardData{
            buckets: %{
-             now_rounded => [4, 5, 6],
-             expired_rounded => [7]
+             now_rounded => [{random_address(), 4}, {random_address(), 5}, {random_address(), 6}],
+             expired_rounded => [{random_address(), 7}]
            }
          }}
     end)

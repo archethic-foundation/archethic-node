@@ -715,7 +715,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :replication,
         data = %{
           start_time: start_time,
-          context: context = %ValidationContext{transaction: tx, validation_time: validation_time}
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: address, type: type},
+              validation_time: validation_time
+            }
         }
       ) do
     with {:ok, node_index} <-
@@ -725,8 +729,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
          true <-
            Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
       Logger.debug("Received ack storage",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type,
+        transaction_address: Base.encode16(address),
+        transaction_type: type,
         node: Base.encode16(node_public_key)
       )
 
@@ -736,7 +740,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         duration = System.monotonic_time() - start_time
 
         # send the mining_completed event
-        Archethic.PubSub.notify_mining_completed(validation_time, duration, true)
+        Archethic.PubSub.notify_mining_completed(address, validation_time, duration, true)
 
         # metrics
         :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
@@ -754,8 +758,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
     else
       _ ->
         Logger.warning("Invalid storage ack",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: tx.type,
+          transaction_address: Base.encode16(address),
+          transaction_type: type,
           node: Base.encode16(node_public_key)
         )
 
@@ -923,7 +927,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               validation_time: validation_time,
-              transaction: tx,
+              transaction: %Transaction{address: address, type: type},
               storage_nodes_confirmations: confirmations
             }
         }
@@ -934,14 +938,14 @@ defmodule Archethic.Mining.DistributedWorkflow do
          true <- ValidationContext.enough_replication_validations?(context),
          false <- Enum.empty?(confirmations) do
       Logger.warning("Didn't received all attestations before mining timeout",
-        transaction_type: tx.type,
-        transaction_address: Base.encode16(tx.address)
+        transaction_type: type,
+        transaction_address: Base.encode16(address)
       )
 
       duration = System.monotonic_time() - start_time
 
       # send the mining_completed event
-      Archethic.PubSub.notify_mining_completed(validation_time, duration, false)
+      Archethic.PubSub.notify_mining_completed(address, validation_time, duration, false)
 
       # metrics
       :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
@@ -956,8 +960,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
     else
       _ ->
         Logger.warning("Timeout reached during mining",
-          transaction_type: tx.type,
-          transaction_address: Base.encode16(tx.address)
+          transaction_type: type,
+          transaction_address: Base.encode16(address)
         )
 
         notify_error(:timeout, data)

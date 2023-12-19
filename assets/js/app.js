@@ -3,12 +3,12 @@
 // its own CSS file.
 import { } from "./ui";
 import {
-  initializeNbTransactionGraph,
-  updateNbTransactionGraph,
-  initializeValidationDurationGraph,
-  updateValidationDurationGraph,
-  updateNodeChart,
-  initializeNodeChart
+  initNetworkTransactionsCountChart,
+  initNodeTransactionsCountChart,
+  initNodeTransactionsAvgDurationChart,
+  updateNetworkTransactionsCountChart,
+  updateNodeTransactionsCountChart,
+  updateNodeTransactionsAvgDurationChart
 } from "./metric_config.js";
 import { createWorldmap, updateWorldmap } from "./worldmap";
 
@@ -87,32 +87,32 @@ Hooks.Logs = {
   },
 };
 
-//metric dashboard hook /metrics/dashboard
-Hooks.network_charts = {
+Hooks.network_transactions_count_chart = {
   mounted() {
-    const nbTransactionEl = this.el.querySelector("#nb_transactions")
-    const validationDurationEl = this.el.querySelector("#validation_duration")
-
-    const txGraph = initializeNbTransactionGraph(nbTransactionEl);
-    const validationDurationGraph = initializeValidationDurationGraph(validationDurationEl);
-
-    this.handleEvent("network_updates", (stats) => {
-      updateNbTransactionGraph(txGraph, stats);
-      updateValidationDurationGraph(validationDurationGraph, stats);
-    });
-  },
-};
-
-//metric dashboard hook /metrics/dashboard
-Hooks.node_chart = {
-  mounted() {
-    const graph = initializeNodeChart(this.el.querySelector(".chart"))
-
-    this.handleEvent("node_updates", (stats) => {
-      updateNodeChart(graph, stats);
+    const chart = initNetworkTransactionsCountChart(this.el.querySelector(".chart"));
+    this.handleEvent("network_transactions_count", (stats) => {
+      updateNetworkTransactionsCountChart(chart, stats);
     });
   }
-}
+};
+
+Hooks.node_transactions_count_chart = {
+  mounted() {
+    const chart = initNodeTransactionsCountChart(this.el.querySelector(".chart"));
+    this.handleEvent("node_transactions_count", (stats) => {
+      updateNodeTransactionsCountChart(chart, stats);
+    });
+  }
+};
+
+Hooks.node_transactions_avg_duration_chart = {
+  mounted() {
+    const chart = initNodeTransactionsAvgDurationChart(this.el.querySelector(".chart"));
+    this.handleEvent("node_transactions_avg_duration", (stats) => {
+      updateNodeTransactionsAvgDurationChart(chart, stats);
+    });
+  }
+};
 
 Hooks.worldmap = {
   mounted() {

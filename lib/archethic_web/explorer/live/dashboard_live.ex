@@ -20,12 +20,10 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
 
     {:ok,
      socket
-     |> assign(
-       version: version,
-       stats: stats
-     )
-     |> push_event("network_updates", network_aggregate(stats))
-     |> push_event("node_updates", node_aggregate(stats))}
+     |> assign(version: version)
+     |> push_event("network_transactions_count", network_transactions_count(stats))
+     |> push_event("node_transactions_count", node_transactions_count(stats))
+     |> push_event("node_transactions_avg_duration", node_transactions_avg_duration(stats))}
   end
 
   def render(assigns) do
@@ -41,9 +39,9 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
 
     {:noreply,
      socket
-     |> assign(stats: stats)
-     |> push_event("network_updates", network_aggregate(stats))
-     |> push_event("node_updates", node_aggregate(stats))}
+     |> push_event("network_transactions_count", network_transactions_count(stats))
+     |> push_event("node_transactions_count", node_transactions_count(stats))
+     |> push_event("node_transactions_avg_duration", node_transactions_avg_duration(stats))}
   end
 
   def display_time(datetime) do
@@ -59,30 +57,84 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
   end
 
   defp fetch_stats() do
+    # DashboardMetricsAggregator returns an _UNORDERED_ map
+    # we convert it to a ORDERED list of pairs
     DashboardMetricsAggregator.get_all()
-    |> Enum.map(fn {{node_public_key, datetime}, durations} ->
-      {{Base.encode16(node_public_key), datetime}, durations}
+    |> Enum.map(fn {{node_public_key, datetime}, durations_by_address} ->
+      {{Base.encode16(node_public_key), datetime}, durations_by_address}
+    end)
+    |> Enum.sort(fn {{_, datetime_a}, _}, {{_, datetime_b}, _} ->
+      DateTime.compare(datetime_a, datetime_b) != :gt
+    end)
+  end
+
+  defp network_transactions_count(stats) do
+    stats
+    |> Enum.reduce(%{}, fn {{_node, datetime}, durations_by_address}, acc ->
+      addresses_set =
+        durations_by_address
+        |> Enum.map(&elem(&1, 0))
+        |> MapSet.new()
+
+      Map.update(
+        acc,
+        DateTime.to_unix(datetime),
+        addresses_set,
+        &MapSet.union(&1, addresses_set)
+      )
+    end)
+    |> Enum.map(fn {timestamp, addresses_set} ->
+      {timestamp, MapSet.size(addresses_set)}
     end)
     |> Enum.into(%{})
   end
 
-  defp network_aggregate(stats) do
-    Enum.reduce(stats, %{}, fn {{_node, datetime}, durations}, acc ->
-      Map.update(acc, DateTime.to_unix(datetime), durations, &(&1 ++ durations))
+  defp node_transactions_count(stats) do
+    Enum.reduce(stats, %{}, fn {{node, datetime}, durations_by_address}, acc ->
+      timestamp = DateTime.to_unix(datetime)
+      count = length(durations_by_address)
+      default = %{timestamps: [timestamp], counts: [count]}
+
+      Map.update(acc, node, default, fn %{timestamps: timestamps_acc, counts: counts_acc} ->
+        %{timestamps: [timestamp | timestamps_acc], counts: [count | counts_acc]}
+      end)
     end)
+    |> Enum.map(fn {node, %{timestamps: timestamps, counts: counts}} ->
+      {node, %{timestamps: Enum.reverse(timestamps), counts: Enum.reverse(counts)}}
+    end)
+    |> Enum.into(%{})
   end
 
-  defp node_aggregate(stats) do
-    Enum.reduce(stats, %{}, fn {{node, datetime}, durations}, acc ->
+  defp node_transactions_avg_duration(stats) do
+    Enum.reduce(stats, %{}, fn {{node, datetime}, durations_by_address}, acc ->
       timestamp = DateTime.to_unix(datetime)
-      default = %{timestamps: [timestamp], durations: [durations]}
+
+      durations = Enum.map(durations_by_address, &elem(&1, 1))
+      count = length(durations)
+
+      average_duration =
+        if count == 0 do
+          0
+        else
+          Enum.sum(durations) / count
+        end
+
+      default = %{timestamps: [timestamp], average_durations: [average_duration]}
 
       Map.update(acc, node, default, fn %{
                                           timestamps: timestamps_acc,
-                                          durations: durations_acc
+                                          average_durations: average_durations_acc
                                         } ->
-        %{timestamps: [timestamp | timestamps_acc], durations: [durations | durations_acc]}
+        %{
+          timestamps: [timestamp | timestamps_acc],
+          average_durations: [average_duration | average_durations_acc]
+        }
       end)
     end)
+    |> Enum.map(fn {node, %{timestamps: timestamps, average_durations: average_durations}} ->
+      {node,
+       %{timestamps: Enum.reverse(timestamps), average_durations: Enum.reverse(average_durations)}}
+    end)
+    |> Enum.into(%{})
   end
 end

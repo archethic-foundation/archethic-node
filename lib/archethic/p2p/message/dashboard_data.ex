@@ -1,29 +1,30 @@
 defmodule Archethic.P2P.Message.DashboardData do
   @moduledoc false
 
+  alias Archethic.Crypto
+  alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
   @enforce_keys [:buckets]
   defstruct [:buckets]
 
   @type t :: %__MODULE__{
-          buckets: %{DateTime.t() => list(pos_integer())}
+          buckets: %{DateTime.t() => list({Crypto.prepended_hash(), pos_integer()})}
         }
 
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{buckets: buckets}) do
     buckets_serialized =
-      Enum.reduce(buckets, <<>>, fn {datetime, durations}, acc ->
-        durations_count = VarInt.from_value(length(durations))
+      Enum.reduce(buckets, <<>>, fn {datetime, durations_by_address}, acc ->
+        count = VarInt.from_value(length(durations_by_address))
 
         durations_serialized =
-          Enum.reduce(durations, <<>>, fn duration, acc ->
-            acc <> VarInt.from_value(duration)
+          Enum.reduce(durations_by_address, <<>>, fn {address, duration}, acc ->
+            <<acc::bitstring, address::bitstring, VarInt.from_value(duration)::bitstring>>
           end)
 
         acc <>
-          <<DateTime.to_unix(datetime)::32, durations_count::bitstring,
-            durations_serialized::bitstring>>
+          <<DateTime.to_unix(datetime)::32, count::bitstring, durations_serialized::bitstring>>
       end)
 
     buckets_count = VarInt.from_value(map_size(buckets))
@@ -55,7 +56,8 @@ defmodule Archethic.P2P.Message.DashboardData do
   defp deserialize_durations(0, acc, rest), do: {Enum.reverse(acc), rest}
 
   defp deserialize_durations(n, acc, rest) do
+    {address, rest} = Utils.deserialize_address(rest)
     {duration, rest} = VarInt.get_value(rest)
-    deserialize_durations(n - 1, [duration | acc], rest)
+    deserialize_durations(n - 1, [{address, duration} | acc], rest)
   end
 end

@@ -27,18 +27,27 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
   # ----------------------------
   # API
   # ----------------------------
-
   @spec start_link(args :: list()) :: GenServer.on_start()
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @spec get_all() :: %{{Crypto.key(), DateTime.t()} => list(pos_integer())}
+  @doc """
+  Return all nodes' dashboard metrics
+  """
+  @spec get_all() :: %{
+          {Crypto.key(), DateTime.t()} => list({Crypto.prepended_hash(), pos_integer()})
+        }
   def get_all() do
     GenServer.call(__MODULE__, :get_all)
   end
 
-  @spec get_since(DateTime.t()) :: %{{Crypto.key(), DateTime.t()} => list(pos_integer())}
+  @doc """
+  Return all nodes' dashboard metrics (since a given time)
+  """
+  @spec get_since(DateTime.t()) :: %{
+          {Crypto.key(), DateTime.t()} => list({Crypto.prepended_hash(), pos_integer()})
+        }
   def get_since(since) do
     GenServer.call(__MODULE__, {:get_since, since})
   end
@@ -46,7 +55,6 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
   # ----------------------------
   # CALLBACKS
   # ----------------------------
-
   def init(_args) do
     # Start the clean_state loop
     Process.send_after(self(), :clean_state, @clean_interval_seconds * 1_000)
@@ -112,7 +120,6 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
   # ----------------------------
   # INTERNAL FUNCTIONS
   # ----------------------------
-
   # start a (unlinked) task for every node (included current node)
   defp async_request_other_nodes(pid, buckets) do
     P2P.authorized_and_available_nodes()
@@ -144,8 +151,8 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
 
   defp prefix_buckets(first_public_key, buckets) do
     buckets
-    |> Enum.map(fn {datetime, durations} ->
-      {{first_public_key, datetime}, durations}
+    |> Enum.map(fn {datetime, durations_per_address} ->
+      {{first_public_key, datetime}, durations_per_address}
     end)
     |> Enum.into(%{})
   end
