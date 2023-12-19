@@ -41,7 +41,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
 
         io_storage_nodes =
           resolved_addresses
-          |> Enum.map(fn {_origin, resolved} -> resolved end)
+          |> Map.values()
           |> Enum.concat([LedgerOperations.burning_address()])
           |> Election.io_storage_nodes(P2P.authorized_and_available_nodes(validation_time))
 

@@ -1427,16 +1427,9 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp resolved_recipients(recipients, resolved_addresses) do
     Enum.reduce(recipients, [], fn r = %Recipient{address: address}, acc ->
-      resolved = get_resolved_address_for_address(resolved_addresses, address)
+      resolved = Map.get(resolved_addresses, address)
       [%Recipient{r | address: resolved} | acc]
     end)
     |> Enum.reverse()
-  end
-
-  defp get_resolved_address_for_address(resolved_addresses, address) do
-    Enum.find_value(resolved_addresses, fn
-      {^address, resolved} -> resolved
-      _ -> false
-    end)
   end
 end
