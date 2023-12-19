@@ -145,10 +145,7 @@ config :archethic, Archethic.OracleChain.Services.UCOPrice,
     # Coingecko limits to 10-30 calls, with 30s delay we would be under the limitation
     Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko => [refresh_interval: 30_000],
     Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapArchethic => [
-      refresh_interval: 10_000
-    ],
-    Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapUniris => [
-      refresh_interval: 10_000
+      refresh_interval: 30_000
     ],
     # Coinpaprika limits to 25K req/mo; with 2min delay we can reach ~21K
     Archethic.OracleChain.Services.UCOPrice.Providers.CoinPaprika => [refresh_interval: 120_000]
