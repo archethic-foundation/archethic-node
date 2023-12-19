@@ -17,11 +17,6 @@ defmodule Archethic.P2P.Client.ConnectionTest do
                         :heartbeat_interval,
                         10_000
                       )
-  @reconnect_delay Keyword.get(
-                     Application.compile_env(:archethic, Connection, []),
-                     :reconnect_delay,
-                     500
-                   )
 
   test "start_link/1 should open a socket and a connection worker and initialize the backlog and lookup tables" do
     {:ok, pid} =
@@ -196,36 +191,6 @@ defmodule Archethic.P2P.Client.ConnectionTest do
       Process.sleep(550)
 
       assert {{:connected, _socket}, _} = :sys.get_state(pid)
-    end
-
-    test "should stop trying to reconnect after some time" do
-      defmodule MockTransportOffline do
-        alias Archethic.P2P.Client.Transport
-
-        @behaviour Transport
-
-        def handle_connect({127, 0, 0, 1}, _port) do
-          {:error, :timeout}
-        end
-
-        def handle_send(_socket, _), do: :ok
-
-        def handle_message({_, _, _}), do: {:error, :closed}
-      end
-
-      {:ok, pid} =
-        Connection.start_link(
-          transport: MockTransportOffline,
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          node_public_key: Crypto.first_node_public_key()
-        )
-
-      Process.sleep(@reconnect_delay * 6)
-      assert {:disconnected, %{reconnect_attempts: 5}} = :sys.get_state(pid)
-
-      Process.sleep(@reconnect_delay * 2)
-      assert {:disconnected, %{reconnect_attempts: 5}} = :sys.get_state(pid)
     end
 
     test "should get an error when the timeout is reached" do

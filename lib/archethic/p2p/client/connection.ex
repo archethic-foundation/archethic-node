@@ -23,7 +23,7 @@ defmodule Archethic.P2P.Client.Connection do
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
   @vsn Mix.Project.config()[:version]
   @table_name :connection_status
-  @max_reconnect_attempts 5
+
   @heartbeat_interval Keyword.get(
                         Application.compile_env(:archethic, __MODULE__, []),
                         :heartbeat_interval,
@@ -290,14 +290,10 @@ defmodule Archethic.P2P.Client.Connection do
 
   # this message is used to delay next connection attempt
   def handle_event({:timeout, :reconnect}, _event_data, _state, data) do
-    if data.reconnect_attempts >= @max_reconnect_attempts do
-      :keep_state_and_data
-    else
-      actions = [{:next_event, :internal, {:connect, nil}}]
+    actions = [{:next_event, :internal, {:connect, nil}}]
 
-      new_data = Map.update!(data, :reconnect_attempts, &(&1 + 1))
-      {:keep_state, new_data, actions}
-    end
+    new_data = Map.update!(data, :reconnect_attempts, &(&1 + 1))
+    {:keep_state, new_data, actions}
   end
 
   def handle_event(
@@ -638,7 +634,8 @@ defmodule Archethic.P2P.Client.Connection do
         @reconnect_delay
 
       :exponential ->
-        2 ** attempts * @reconnect_delay
+        # cap at 24hours
+        min(:timer.hours(24), 2 ** attempts * @reconnect_delay)
     end
   end
 end
