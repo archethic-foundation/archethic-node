@@ -212,7 +212,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         P2P.list_nodes()
       else
         resolved_addresses
-        |> Enum.map(fn {_origin, resolved} -> resolved end)
+        |> Map.values()
         |> Election.io_storage_nodes(authorized_nodes)
       end
 

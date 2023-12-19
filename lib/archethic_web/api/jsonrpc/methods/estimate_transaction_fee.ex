@@ -68,16 +68,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
     resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, timestamp)
 
     Enum.reduce(recipients, [], fn r = %Recipient{address: address}, acc ->
-      resolved = get_resolved_address_for_address(resolved_addresses, address)
+      resolved = Map.get(resolved_addresses, address)
       [%Recipient{r | address: resolved} | acc]
     end)
     |> Enum.reverse()
-  end
-
-  defp get_resolved_address_for_address(resolved_addresses, address) do
-    Enum.find_value(resolved_addresses, fn
-      {^address, resolved} -> resolved
-      _ -> false
-    end)
   end
 end
