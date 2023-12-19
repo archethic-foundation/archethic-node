@@ -624,6 +624,16 @@ defmodule Archethic.P2P.Client.Connection do
     :ets.delete(@table_name, node_public_key)
   end
 
+  def code_change("1.4.2", state, data, _extra) do
+    {:ok, state,
+     data
+     |> Map.merge(%{
+       reconnect_attempts: 0,
+       heartbeats_sent: 0,
+       heartbeats_received: 0
+     })}
+  end
+
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}
 
   defp backoff(attempts) do
