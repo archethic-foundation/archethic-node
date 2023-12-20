@@ -429,7 +429,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         bin_consumed_inputs =
           consumed_inputs
           |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
-          |> :erlang.list_to_binary()
+          |> :erlang.list_to_bitstring()
 
         <<encoded_consumed_inputs_len::binary, bin_consumed_inputs::bitstring>>
       end

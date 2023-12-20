@@ -53,7 +53,7 @@ defmodule Archethic.TransactionFactory do
             type: :UCO,
             amount: 1_000_000_000,
             from: random_address(),
-            timestamp: DateTime.utc_now()
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
           }
         ],
         opts \\ []

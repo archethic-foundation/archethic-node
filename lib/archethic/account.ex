@@ -75,7 +75,7 @@ defmodule Archethic.Account do
   Load the transaction into the Account context filling the memory tables for ledgers
   """
   @spec load_transaction(Transaction.t(), opts :: MemTablesLoader.load_options()) :: :ok
-  defdelegate load_transaction(transaction, io_transaction?), to: MemTablesLoader
+  defdelegate load_transaction(transaction, opts), to: MemTablesLoader
 
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
