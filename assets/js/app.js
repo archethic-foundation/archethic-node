@@ -4,9 +4,11 @@
 import { } from "./ui";
 import {
   initNetworkTransactionsCountChart,
+  initNetworkTransactionsAvgDurationChart,
   initNodeTransactionsCountChart,
   initNodeTransactionsAvgDurationChart,
   updateNetworkTransactionsCountChart,
+  updateNetworkTransactionsAvgDurationChart,
   updateNodeTransactionsCountChart,
   updateNodeTransactionsAvgDurationChart
 } from "./metric_config.js";
@@ -92,6 +94,15 @@ Hooks.network_transactions_count_chart = {
     const chart = initNetworkTransactionsCountChart(this.el.querySelector(".chart"));
     this.handleEvent("network_transactions_count", (stats) => {
       updateNetworkTransactionsCountChart(chart, stats);
+    });
+  }
+};
+
+Hooks.network_transactions_avg_duration_chart = {
+  mounted() {
+    const chart = initNetworkTransactionsAvgDurationChart(this.el.querySelector(".chart"));
+    this.handleEvent("network_transactions_avg_duration", (stats) => {
+      updateNetworkTransactionsAvgDurationChart(chart, stats);
     });
   }
 };

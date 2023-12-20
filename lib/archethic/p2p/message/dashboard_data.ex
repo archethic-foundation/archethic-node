@@ -15,11 +15,11 @@ defmodule Archethic.P2P.Message.DashboardData do
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{buckets: buckets}) do
     buckets_serialized =
-      Enum.reduce(buckets, <<>>, fn {datetime, durations_by_address}, acc ->
-        count = VarInt.from_value(length(durations_by_address))
+      Enum.reduce(buckets, <<>>, fn {datetime, duration_by_address}, acc ->
+        count = VarInt.from_value(length(duration_by_address))
 
         durations_serialized =
-          Enum.reduce(durations_by_address, <<>>, fn {address, duration}, acc ->
+          Enum.reduce(duration_by_address, <<>>, fn {address, duration}, acc ->
             <<acc::bitstring, address::bitstring, VarInt.from_value(duration)::bitstring>>
           end)
 

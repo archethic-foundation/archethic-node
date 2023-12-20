@@ -151,8 +151,8 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
 
   defp prefix_buckets(first_public_key, buckets) do
     buckets
-    |> Enum.map(fn {datetime, durations_per_address} ->
-      {{first_public_key, datetime}, durations_per_address}
+    |> Enum.map(fn {datetime, duration_by_address} ->
+      {{first_public_key, datetime}, duration_by_address}
     end)
     |> Enum.into(%{})
   end

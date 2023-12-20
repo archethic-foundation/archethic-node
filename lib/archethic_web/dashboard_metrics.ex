@@ -95,15 +95,6 @@ defmodule ArchethicWeb.DashboardMetrics do
     {:noreply, %__MODULE__{state | buckets: new_buckets}}
   end
 
-  def handle_info(:fallback, state = %__MODULE__{buckets: buckets}) do
-    new_buckets = drop_old_buckets(buckets)
-
-    # Continue the clean_state loop
-    Process.send_after(self(), :clean_state, @clean_interval_seconds * 1_000)
-
-    {:noreply, %__MODULE__{state | buckets: new_buckets}}
-  end
-
   def handle_info(:clean_state, state = %__MODULE__{buckets: buckets}) do
     now = DateTime.utc_now()
     current_bucket_key = bucket_key(now)

@@ -11,7 +11,7 @@ export function initNetworkTransactionsCountChart(el) {
     },
     title: {
       left: "center",
-      text: "Network transactions",
+      text: "Transactions count",
       textStyle: {
         fontSize: 14,
       },
@@ -24,7 +24,6 @@ export function initNetworkTransactionsCountChart(el) {
     },
     yAxis: {
       type: "value",
-
       axisLabel: {
         textStyle: {
           fontSize: 14,
@@ -34,7 +33,6 @@ export function initNetworkTransactionsCountChart(el) {
     series: [
       {
         type: "line",
-        connectNulls: false,
         areaStyle: {},
         data: [],
         smooth: 0.2,
@@ -47,6 +45,64 @@ export function initNetworkTransactionsCountChart(el) {
         showSymbol: false
       },
     ],
+  });
+
+  window.addEventListener("resize", function () {
+    chart.resize();
+  });
+
+  return chart;
+}
+
+export function initNetworkTransactionsAvgDurationChart(el) {
+  let chart = echarts.init(el);
+  chart.setOption({
+    legend: {
+      bottom: 0,
+      type: 'scroll',
+    },
+    grid: {
+      left: "10%",
+      right: "5%",
+      top: "15%",
+      bottom: "15%",
+    },
+    title: {
+      left: "center",
+      text: "Average validation time",
+      textStyle: {
+        fontSize: 14,
+      },
+    },
+    tooltip: {
+      trigger: 'axis'
+    },
+    xAxis: {
+      type: "category"
+    },
+    yAxis: {
+      type: "value",
+      axisLabel: {
+        formatter: '{value} ms',
+        textStyle: {
+          fontSize: 14,
+        },
+      },
+    },
+    series: [{
+      type: "line",
+      areaStyle: {},
+      data: [],
+      smooth: 0.2,
+      showSymbol: false,
+      tooltip: {
+        valueFormatter: value => {
+          if (value == 0) return "-"
+
+          return Number.parseFloat(value).toFixed(1) + ' ms'
+        }
+      },
+    },],
   });
 
   window.addEventListener("resize", function () {
@@ -71,7 +127,7 @@ export function initNodeTransactionsCountChart(el) {
     },
     title: {
       left: "center",
-      text: "Nodes transactions",
+      text: "Transactions count by node",
       textStyle: {
         fontSize: 14,
       },
@@ -84,7 +140,6 @@ export function initNodeTransactionsCountChart(el) {
     },
     yAxis: {
       type: "value",
-
       axisLabel: {
         textStyle: {
           fontSize: 14,
@@ -115,7 +170,7 @@ export function initNodeTransactionsAvgDurationChart(el) {
     },
     title: {
       left: "center",
-      text: "Nodes average validation time",
+      text: "Average validation time by node",
       textStyle: {
         fontSize: 14,
       },
@@ -157,6 +212,19 @@ export function updateNetworkTransactionsCountChart(chart, stats) {
   });
 }
 
+export function updateNetworkTransactionsAvgDurationChart(chart, stats) {
+  chart.setOption({
+    xAxis: {
+      data: Object.keys(stats)
+        .map((timestamp) => timestampToString(timestamp))
+    },
+    series: [{
+      data: Object.values(stats)
+        .map((average_duration) => average_duration / 1_000_000)
+    }],
+  });
+}
+
 export function updateNodeTransactionsCountChart(chart, stats) {
   chart.setOption({
     series: Object.entries(stats)
@@ -171,7 +239,6 @@ export function updateNodeTransactionsCountChart(chart, stats) {
 
         return {
           type: "line",
-          connectNulls: false,
           name: format_public_key(node_public_key),
           smooth: 0.2,
           tooltip: {
@@ -201,7 +268,6 @@ export function updateNodeTransactionsAvgDurationChart(chart, stats) {
 
         return {
           type: "line",
-          connectNulls: false,
           name: format_public_key(node_public_key),
           smooth: 0.2,
           tooltip: {
