@@ -4,6 +4,7 @@ defmodule Archethic.AccountTest do
   alias Archethic.Account
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTablesLoader
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -328,6 +329,12 @@ defmodule Archethic.AccountTest do
     end
 
     test "should be able to store and return state utxo" do
+      MockDB
+      |> stub(:list_io_transactions, fn _ -> [] end)
+      |> stub(:list_transactions, fn _ -> [] end)
+      
+      MemTablesLoader.start_link()
+
       encoded_state = :crypto.strong_rand_bytes(10)
 
       state_utxo = %UnspentOutput{
@@ -342,9 +349,10 @@ defmodule Archethic.AccountTest do
         type: :UCO,
         timestamp: DateTime.utc_now()
       }
+      
 
       tx = TransactionFactory.create_valid_transaction([uco_utxo], state: encoded_state)
-      Account.load_transaction(tx, false)
+      Account.load_transaction(tx, io_transaction?: false)
 
       assert utxos = Account.get_unspent_outputs(tx.address)
       assert length(utxos) == 2

@@ -454,6 +454,20 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         <<encoded_consumed_inputs_len::binary, bin_consumed_inputs::bitstring>>
       end
 
+    consumed_inputs_bin =
+      if protocol_version < 5 do
+        <<>>
+      else
+        encoded_consumed_inputs_len = consumed_inputs |> length() |> VarInt.from_value()
+
+        bin_consumed_inputs =
+          consumed_inputs
+          |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
+          |> :erlang.list_to_bitstring()
+
+        <<encoded_consumed_inputs_len::binary, bin_consumed_inputs::bitstring>>
+      end
+
     <<fee::64, encoded_transaction_movements_len::binary, bin_transaction_movements::binary,
       encoded_unspent_outputs_len::binary, bin_unspent_outputs::bitstring,
       consumed_inputs_bin::bitstring>>
