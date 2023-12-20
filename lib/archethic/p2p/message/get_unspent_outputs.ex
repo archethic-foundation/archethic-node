@@ -62,7 +62,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
       )
 
     %UnspentOutputList{
-      unspent_outputs: Enum.reverse(utxos),
+      unspent_outputs: utxos,
       offset: offset,
       more?: more?
     }

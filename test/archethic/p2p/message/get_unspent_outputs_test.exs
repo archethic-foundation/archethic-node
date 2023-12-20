@@ -46,7 +46,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
       address = random_address()
       now = DateTime.utc_now()
 
-      expected_utxos = [
+      utxos = [
         %VersionedUnspentOutput{
           protocol_version: current_protocol_version(),
           unspent_output: %UnspentOutput{
@@ -76,7 +76,10 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
         }
       ]
 
-      with_mock(Account, get_unspent_outputs: fn _address -> expected_utxos end) do
+      # this is implementation detail but the process function reverse the utxos
+      expected_utxos = Enum.reverse(utxos)
+
+      with_mock(Account, get_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
                  unspent_outputs: ^expected_utxos,
                  offset: 3,
@@ -123,7 +126,8 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
         }
       ]
 
-      expected_utxos = tl(utxos)
+      # this is implementation detail but the process function reverse the utxos
+      expected_utxos = Enum.reverse(tl(utxos))
 
       with_mock(Account, get_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
@@ -160,7 +164,8 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
           }
         end)
 
-      expected_utxos = Enum.slice(utxos, 0..(max_utxos - 1))
+      # this is implementation detail but the process function reverse the utxos
+      expected_utxos = Enum.reverse(Enum.slice(utxos, 0..(max_utxos - 1)))
 
       with_mock(Account, get_unspent_outputs: fn _address -> utxos end) do
         assert %UnspentOutputList{
