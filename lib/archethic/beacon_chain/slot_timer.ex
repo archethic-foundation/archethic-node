@@ -33,9 +33,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
   """
   @spec next_slot(DateTime.t()) :: DateTime.t()
   def next_slot(date_from = %DateTime{}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> Utils.next_date(date_from)
+    get_interval() |> Utils.next_date(date_from)
   end
 
   @doc """
@@ -162,7 +160,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
   end
 
   defp schedule_new_slot(interval) do
-    Process.send_after(self(), :new_slot, Utils.time_offset(interval) * 1000)
+    Process.send_after(self(), :new_slot, Utils.time_offset(interval))
   end
 
   def config_change(nil), do: :ok

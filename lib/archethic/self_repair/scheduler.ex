@@ -19,7 +19,6 @@ defmodule Archethic.SelfRepair.Scheduler do
   alias Archethic.Utils
 
   alias Archethic.Bootstrap.Sync, as: BootstrapSync
-  alias Crontab.CronExpression.Parser, as: CronParser
 
   require Logger
 
@@ -169,7 +168,7 @@ defmodule Archethic.SelfRepair.Scheduler do
   end
 
   defp schedule_sync(interval) do
-    Process.send_after(self(), :sync, Utils.time_offset(interval) * 1000)
+    Process.send_after(self(), :sync, Utils.time_offset(interval))
   end
 
   defp last_sync_date_to_string(last_sync_date) do
@@ -203,8 +202,6 @@ defmodule Archethic.SelfRepair.Scheduler do
   """
   @spec next_repair_time(DateTime.t()) :: DateTime.t()
   def next_repair_time(ref_time \\ DateTime.utc_now()) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> Utils.next_date(ref_time)
+    get_interval() |> Utils.next_date(ref_time)
   end
 end

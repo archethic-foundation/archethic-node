@@ -148,7 +148,6 @@ defmodule Archethic.OracleChain do
   def next_summary_date(date_from = %DateTime{}) do
     Application.get_env(:archethic, Scheduler)
     |> Keyword.fetch!(:summary_interval)
-    |> CronParser.parse!(true)
     |> Utils.next_date(date_from)
   end
 

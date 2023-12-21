@@ -409,7 +409,7 @@ defmodule Archethic.Reward.Scheduler do
   end
 
   defp schedule(interval) do
-    Process.send_after(self(), :mint_rewards, Utils.time_offset(interval) * 1000)
+    Process.send_after(self(), :mint_rewards, Utils.time_offset(interval))
   end
 
   defp trigger_node?(validation_nodes, count \\ 0) do
