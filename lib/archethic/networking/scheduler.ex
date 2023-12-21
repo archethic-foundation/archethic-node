@@ -89,7 +89,7 @@ defmodule Archethic.Networking.Scheduler do
   end
 
   defp schedule_update(interval) do
-    Process.send_after(self(), :update, Utils.time_offset(interval) * 1000)
+    Process.send_after(self(), :update, Utils.time_offset(interval))
   end
 
   defp do_update do

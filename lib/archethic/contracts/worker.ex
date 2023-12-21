@@ -17,7 +17,6 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.Utils
   alias Archethic.Utils.DetectNodeResponsiveness
-  alias Crontab.CronExpression.Parser, as: CronParser
 
   @extended_mode? Mix.env() != :prod
 
@@ -194,7 +193,7 @@ defmodule Archethic.Contracts.Worker do
   defp schedule_trigger(trigger = {:interval, interval}, triggers_type) do
     now = DateTime.utc_now()
 
-    next_tick = interval |> CronParser.parse!(@extended_mode?) |> Utils.next_date(now)
+    next_tick = Utils.next_date(interval, now, @extended_mode?)
 
     # do not allow an interval trigger if there is a datetime trigger at same time
     # because one of them would get a "transaction is already mining"
@@ -204,7 +203,7 @@ defmodule Archethic.Contracts.Worker do
           "Contract scheduler skips next tick for trigger=interval because there is a trigger=datetime at the same time that takes precedence"
         )
 
-        interval |> CronParser.parse!(@extended_mode?) |> Utils.next_date(next_tick)
+        Utils.next_date(interval, next_tick, @extended_mode?)
       else
         next_tick
       end

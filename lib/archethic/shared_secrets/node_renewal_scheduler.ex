@@ -7,8 +7,6 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   them as new authorized nodes and update the daily nonce seed.
   """
 
-  alias Crontab.CronExpression.Parser, as: CronParser
-
   alias Archethic
 
   alias Archethic.Election
@@ -320,7 +318,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   end
 
   defp schedule_renewal_message(interval) do
-    Process.send_after(self(), :make_renewal, Utils.time_offset(interval) * 1000)
+    Process.send_after(self(), :make_renewal, Utils.time_offset(interval))
   end
 
   defp trigger_node?(validation_nodes, count \\ 0) do
@@ -339,14 +337,9 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   """
   @spec next_application_date(DateTime.t()) :: DateTime.t()
   def next_application_date(date_from = %DateTime{}) do
-    get_application_date_interval()
-    |> CronParser.parse!(true)
-    |> Utils.next_date(date_from)
-  end
-
-  defp get_application_date_interval do
     Application.get_env(:archethic, __MODULE__)
     |> Keyword.fetch!(:application_interval)
+    |> Utils.next_date(date_from)
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}

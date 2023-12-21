@@ -117,14 +117,12 @@ defmodule Archethic.SelfRepair do
       :archethic
       |> Application.get_env(SummaryTimer, [])
       |> Keyword.fetch!(:interval)
-      |> CronParser.parse!(true)
       |> Utils.next_date(last_sync_date)
 
     next_repair_date =
       :archethic
       |> Application.get_env(Scheduler, [])
       |> Keyword.fetch!(:interval)
-      |> CronParser.parse!(true)
       |> Utils.next_date(next_summary_date)
 
     DateTime.compare(DateTime.utc_now(), next_repair_date) != :lt

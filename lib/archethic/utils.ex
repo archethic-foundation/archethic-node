@@ -60,34 +60,28 @@ defmodule Archethic.Utils do
   ## Examples
 
       # Time offset for the next 2 seconds
-      iex> Utils.time_offset("*/2 * * * * *", ~U[2020-09-24 20:13:12.10Z])
-      2
-      # 12 seconds + offset == 14 seconds
+      iex> Utils.time_offset("*/2 * * * * *", ref_time: ~U[2020-09-24 20:13:12.10Z], time_unit: :millisecond)
+      1900
 
       # Time offset for the next minute
-      iex> Utils.time_offset("0 * * * * *", ~U[2020-09-24 20:13:12.00Z])
-      48
-      # 12 seconds + offset == 60 seconds (1 minute)
+      iex> Utils.time_offset("0 * * * * *", ref_time: ~U[2020-09-24 20:13:12.00Z])
+      48000
 
       # Time offset for the next hour
-      iex> Utils.time_offset("0 0 * * * *", ~U[2020-09-24 20:13:00Z])
+      iex> Utils.time_offset("0 0 * * * *", ref_time: ~U[2020-09-24 20:13:00Z], time_unit: :second)
       2820
-      # 13 minutes: 720 seconds + offset == 3600 seconds (one hour)
 
       # Time offset for the next day
-      iex> Utils.time_offset("0 0 0 * * *", ~U[2020-09-24 00:00:01Z])
+      iex> Utils.time_offset("0 0 0 * * *", ref_time: ~U[2020-09-24 00:00:01Z], time_unit: :second)
       86399
-      # 1 second + offset = 86400 (1 day)
   """
-  @spec time_offset(cron_interval :: binary()) :: seconds :: non_neg_integer()
-  def time_offset(interval, ref_time \\ DateTime.utc_now(), extended_mode \\ true) do
-    next_slot =
-      interval
-      |> CronParser.parse!(extended_mode)
-      |> CronScheduler.get_next_run_date!(DateTime.to_naive(ref_time))
-      |> DateTime.from_naive!("Etc/UTC")
+  @spec time_offset(cron_interval :: binary(), opts :: Keyword.t()) :: offset :: non_neg_integer()
+  def time_offset(interval, opts \\ []) do
+    ref_time = Keyword.get(opts, :ref_time, DateTime.utc_now())
+    extended_mode = Keyword.get(opts, :extended_mode, true)
+    time_unit = Keyword.get(opts, :time_unit, :millisecond)
 
-    DateTime.diff(next_slot, ref_time, :second)
+    interval |> next_date(ref_time, extended_mode) |> DateTime.diff(ref_time, time_unit)
   end
 
   @doc """
@@ -820,20 +814,23 @@ defmodule Archethic.Utils do
 
   ## Examples
 
-      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00Z])
+      iex> Utils.next_date("*/10 * * * * * *", ~U[2022-10-01 01:00:00Z])
       ~U[2022-10-01 01:00:10Z]
 
-      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:00.100Z])
+      iex> Utils.next_date("*/10 * * * * * *", ~U[2022-10-01 01:00:00.100Z])
       ~U[2022-10-01 01:00:10Z]
 
-      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:05Z])
+      iex> Utils.next_date("*/10 * * * * * *", ~U[2022-10-01 01:00:05Z])
       ~U[2022-10-01 01:00:10Z]
 
-      iex> Utils.next_date(%Crontab.CronExpression{second: [{:/, :*, 10}], extended: true}, ~U[2022-10-01 01:00:05.139Z])
+      iex> Utils.next_date("*/10 * * * * * *", ~U[2022-10-01 01:00:05.139Z])
       ~U[2022-10-01 01:00:10Z]
   """
-  @spec next_date(Crontab.CronExpression.t(), DateTime.t()) :: DateTime.t()
-  def next_date(cron_expression, date_from = %DateTime{}) do
+  @spec next_date(interval :: binary(), date_from :: DateTime.t(), extended_mode? :: boolean()) ::
+          next_date :: DateTime.t()
+  def next_date(interval, date_from = %DateTime{}, extended_mode? \\ true) do
+    cron_expression = CronParser.parse!(interval, extended_mode?)
+
     naive_date_from = DateTime.to_naive(date_from)
 
     if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do

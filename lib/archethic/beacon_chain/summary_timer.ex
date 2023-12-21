@@ -25,9 +25,7 @@ defmodule Archethic.BeaconChain.SummaryTimer do
   """
   @spec next_summary(DateTime.t()) :: DateTime.t()
   def next_summary(date_from = %DateTime{}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> Utils.next_date(date_from)
+    get_interval() |> Utils.next_date(date_from)
   end
 
   @doc """
@@ -125,7 +123,7 @@ defmodule Archethic.BeaconChain.SummaryTimer do
   end
 
   defp schedule_next_summary_time(interval) do
-    Process.send_after(self(), :next_summary_time, Utils.time_offset(interval) * 1000)
+    Process.send_after(self(), :next_summary_time, Utils.time_offset(interval))
   end
 
   def config_change(nil), do: :ok

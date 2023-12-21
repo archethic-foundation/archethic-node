@@ -154,7 +154,7 @@ defmodule Archethic.OracleChain.Services.HydratingCache do
 
   defp next_tick_in_seconds(refresh_interval) do
     if is_binary(refresh_interval) do
-      Utils.time_offset(refresh_interval) * 1000
+      Utils.time_offset(refresh_interval)
     else
       refresh_interval
     end
