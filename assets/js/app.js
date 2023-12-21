@@ -3,14 +3,14 @@
 // its own CSS file.
 import { } from "./ui";
 import {
+  initBoxPlotTransactionsAvgDurationChart,
   initNetworkTransactionsCountChart,
   initNetworkTransactionsAvgDurationChart,
   initNodeTransactionsCountChart,
-  initNodeTransactionsAvgDurationChart,
+  updateBoxPlotTransactionsAvgDurationChart,
   updateNetworkTransactionsCountChart,
   updateNetworkTransactionsAvgDurationChart,
-  updateNodeTransactionsCountChart,
-  updateNodeTransactionsAvgDurationChart
+  updateNodeTransactionsCountChart
 } from "./metric_config.js";
 import { createWorldmap, updateWorldmap } from "./worldmap";
 
@@ -116,11 +116,12 @@ Hooks.node_transactions_count_chart = {
   }
 };
 
-Hooks.node_transactions_avg_duration_chart = {
+
+Hooks.boxplot_transactions_avg_duration = {
   mounted() {
-    const chart = initNodeTransactionsAvgDurationChart(this.el.querySelector(".chart"));
-    this.handleEvent("node_transactions_avg_duration", (stats) => {
-      updateNodeTransactionsAvgDurationChart(chart, stats);
+    const chart = initBoxPlotTransactionsAvgDurationChart(this.el.querySelector(".chart"));
+    this.handleEvent("boxplot_transactions_avg_duration", (stats) => {
+      updateBoxPlotTransactionsAvgDurationChart(chart, stats);
     });
   }
 };

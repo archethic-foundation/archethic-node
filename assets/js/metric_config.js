@@ -1,5 +1,59 @@
 import * as echarts from "echarts";
 
+export function initBoxPlotTransactionsAvgDurationChart(el) {
+  let chart = echarts.init(el);
+  chart.setOption({
+    grid: {
+      left: "10%",
+      right: "5%",
+      top: "15%",
+      bottom: "15%",
+    },
+    title: {
+      left: "center",
+      text: "Average validation time",
+      textStyle: {
+        fontSize: 14,
+      },
+    },
+    tooltip: {
+      trigger: 'axis'
+    },
+    xAxis: {
+      type: "category"
+    },
+    yAxis: {
+      type: "value",
+      axisLabel: {
+        formatter: '{value} ms',
+        textStyle: {
+          fontSize: 14,
+        },
+      },
+    },
+    series: [
+      {
+        type: 'boxplot',
+        tooltip: {
+          valueFormatter: value => {
+            if (value == 0) return "-"
+
+            return Number.parseFloat(value).toFixed(1) + ' ms'
+          }
+        },
+      }
+    ],
+  });
+
+  window.addEventListener("resize", function () {
+    chart.resize();
+  });
+
+  return chart;
+}
+
+
+
 export function initNetworkTransactionsCountChart(el) {
   let chart = echarts.init(el);
   chart.setOption({
@@ -127,7 +181,7 @@ export function initNodeTransactionsCountChart(el) {
     },
     title: {
       left: "center",
-      text: "Transactions count by node",
+      text: "Transactions count by node (last 60min)",
       textStyle: {
         fontSize: 14,
       },
@@ -136,6 +190,7 @@ export function initNodeTransactionsCountChart(el) {
       trigger: 'axis'
     },
     xAxis: {
+      show: false,
       type: "category"
     },
     yAxis: {
@@ -146,7 +201,15 @@ export function initNodeTransactionsCountChart(el) {
         },
       },
     },
-    series: [],
+    series: [{
+      type: "bar",
+      tooltip: {
+        valueFormatter: value => {
+          const plural = value > 1 ? "s" : ""
+          return value + ' transaction' + plural
+        }
+      }
+    }]
   });
 
   window.addEventListener("resize", function () {
@@ -155,56 +218,25 @@ export function initNodeTransactionsCountChart(el) {
 
   return chart;
 }
-export function initNodeTransactionsAvgDurationChart(el) {
-  let chart = echarts.init(el);
+
+export function updateBoxPlotTransactionsAvgDurationChart(chart, stats) {
   chart.setOption({
-    legend: {
-      bottom: 0,
-      type: 'scroll',
-    },
-    grid: {
-      left: "10%",
-      right: "5%",
-      top: "15%",
-      bottom: "15%",
-    },
-    title: {
-      left: "center",
-      text: "Average validation time by node",
-      textStyle: {
-        fontSize: 14,
-      },
-    },
-    tooltip: {
-      trigger: 'axis'
-    },
     xAxis: {
-      type: "category"
+      data: Object.keys(stats)
+        .map(timestampToString)
     },
-    yAxis: {
-      type: "value",
-      axisLabel: {
-        formatter: '{value} ms',
-        textStyle: {
-          fontSize: 14,
-        },
-      },
-    },
-    series: [],
+    series: [{
+      data: Object.values(stats)
+        .map((durationsBucket) => durationsBucket.map((duration) => duration / 1000000))
+    }],
   });
-
-  window.addEventListener("resize", function () {
-    chart.resize();
-  });
-
-  return chart;
 }
 
 export function updateNetworkTransactionsCountChart(chart, stats) {
   chart.setOption({
     xAxis: {
       data: Object.keys(stats)
-        .map((timestamp) => timestampToString(timestamp))
+        .map(timestampToString)
     },
     series: [{
       data: Object.values(stats)
@@ -216,7 +248,7 @@ export function updateNetworkTransactionsAvgDurationChart(chart, stats) {
   chart.setOption({
     xAxis: {
       data: Object.keys(stats)
-        .map((timestamp) => timestampToString(timestamp))
+        .map(timestampToString)
     },
     series: [{
       data: Object.values(stats)
@@ -227,62 +259,17 @@ export function updateNetworkTransactionsAvgDurationChart(chart, stats) {
 
 export function updateNodeTransactionsCountChart(chart, stats) {
   chart.setOption({
-    series: Object.entries(stats)
-      .map(([node_public_key, data]) => {
-        let seriesData = [];
-        for (let i = 0; i < data.timestamps.length; i++) {
-          seriesData.push([
-            timestampToString(data.timestamps[i]),
-            data.counts[i]
-          ]);
-        }
-
-        return {
-          type: "line",
-          name: format_public_key(node_public_key),
-          smooth: 0.2,
-          tooltip: {
-            valueFormatter: value => {
-              const plural = value > 1 ? "s" : ""
-              return value + ' transaction' + plural
-            }
-          },
-          showSymbol: false,
-          data: seriesData
-        };
-      })
+    xAxis: {
+      data: Object.keys(stats)
+        .map(format_public_key)
+    },
+    series: [{
+      data: Object.values(stats)
+    }],
   });
 }
 
-export function updateNodeTransactionsAvgDurationChart(chart, stats) {
-  chart.setOption({
-    series: Object.entries(stats)
-      .map(([node_public_key, data]) => {
-        let seriesData = [];
-        for (let i = 0; i < data.timestamps.length; i++) {
-          seriesData.push([
-            timestampToString(data.timestamps[i]),
-            data.average_durations[i] / 1_000_000
-          ]);
-        }
 
-        return {
-          type: "line",
-          name: format_public_key(node_public_key),
-          smooth: 0.2,
-          tooltip: {
-            valueFormatter: value => {
-              if (value == 0) return "-"
-
-              return Number.parseFloat(value).toFixed(1) + ' ms'
-            }
-          },
-          showSymbol: false,
-          data: seriesData
-        };
-      })
-  });
-}
 
 function timestampToString(timestamp) {
   return dateToString(new Date(timestamp * 1000));

@@ -4,6 +4,7 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
   """
   use ArchethicWeb.Explorer, :live_view
 
+  alias Archethic.Utils
   alias ArchethicWeb.DashboardMetricsAggregator
   alias ArchethicWeb.Explorer.DashboardView
 
@@ -15,16 +16,18 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
       Process.send_after(self(), :tick, 30_000)
     end
 
+    # TODO: check if it's called once or twice
+
     version = Application.spec(:archethic, :vsn)
     stats = fetch_stats()
 
     {:ok,
      socket
      |> assign(version: version)
+     |> push_event("boxplot_transactions_avg_duration", boxplot_transactions_avg_duration(stats))
      |> push_event("network_transactions_count", network_transactions_count(stats))
      |> push_event("network_transactions_avg_duration", network_transactions_avg_duration(stats))
-     |> push_event("node_transactions_count", node_transactions_count(stats))
-     |> push_event("node_transactions_avg_duration", node_transactions_avg_duration(stats))}
+     |> push_event("node_transactions_count", node_transactions_count(stats))}
   end
 
   def render(assigns) do
@@ -40,10 +43,10 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
 
     {:noreply,
      socket
+     |> push_event("boxplot_transactions_avg_duration", boxplot_transactions_avg_duration(stats))
      |> push_event("network_transactions_count", network_transactions_count(stats))
      |> push_event("network_transactions_avg_duration", network_transactions_avg_duration(stats))
-     |> push_event("node_transactions_count", node_transactions_count(stats))
-     |> push_event("node_transactions_avg_duration", node_transactions_avg_duration(stats))}
+     |> push_event("node_transactions_count", node_transactions_count(stats))}
   end
 
   def display_time(datetime) do
@@ -66,6 +69,35 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
       {{Base.encode16(node_public_key), datetime}, duration_by_address}
     end)
     |> Enum.sort_by(fn {{_, datetime}, _} -> datetime end, {:asc, DateTime})
+  end
+
+  defp boxplot_transactions_avg_duration(stats) do
+    stats
+    |> Enum.reduce(%{}, fn {{_node, datetime}, duration_by_address}, acc ->
+      durations =
+        duration_by_address
+        |> Enum.map(&elem(&1, 1))
+
+      Map.update(
+        acc,
+        DateTime.to_unix(datetime),
+        durations,
+        &(&1 ++ durations)
+      )
+    end)
+    |> Enum.map(fn {timestamp, durations} ->
+      durations_length = length(durations)
+
+      sorted = Enum.sort(durations)
+      min = hd(sorted)
+      max = List.last(sorted)
+      q2 = Utils.median(sorted, sorted: true)
+      q1 = Utils.median(Enum.take(sorted, div(durations_length, 2)), sorted: true)
+      q3 = Utils.median(Enum.drop(sorted, div(durations_length + 1, 2)), sorted: true)
+
+      {timestamp, [min, q1, q2, q3, max]}
+    end)
+    |> Enum.into(%{})
   end
 
   defp network_transactions_count(stats) do
@@ -113,57 +145,21 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
         {timestamp, 0}
 
       {timestamp, %{count: count, sum: sum}} ->
-        {timestamp, div(sum, count) / 1_000_000}
+        {timestamp, sum / count}
     end)
     |> Enum.into(%{})
   end
 
   defp node_transactions_count(stats) do
-    Enum.reduce(stats, %{}, fn {{node, datetime}, duration_by_address}, acc ->
-      timestamp = DateTime.to_unix(datetime)
+    Enum.reduce(stats, %{}, fn {{node, _datetime}, duration_by_address}, acc ->
       count = length(duration_by_address)
-      default = %{timestamps: [timestamp], counts: [count]}
 
-      Map.update(acc, node, default, fn %{timestamps: timestamps_acc, counts: counts_acc} ->
-        %{timestamps: [timestamp | timestamps_acc], counts: [count | counts_acc]}
-      end)
+      Map.update(
+        acc,
+        node,
+        count,
+        &(&1 + count)
+      )
     end)
-    |> Enum.map(fn {node, %{timestamps: timestamps, counts: counts}} ->
-      {node, %{timestamps: Enum.reverse(timestamps), counts: Enum.reverse(counts)}}
-    end)
-    |> Enum.into(%{})
-  end
-
-  defp node_transactions_avg_duration(stats) do
-    Enum.reduce(stats, %{}, fn {{node, datetime}, duration_by_address}, acc ->
-      timestamp = DateTime.to_unix(datetime)
-
-      durations = Enum.map(duration_by_address, &elem(&1, 1))
-      count = length(durations)
-
-      average_duration =
-        if count == 0 do
-          0
-        else
-          Enum.sum(durations) / count
-        end
-
-      default = %{timestamps: [timestamp], average_durations: [average_duration]}
-
-      Map.update(acc, node, default, fn %{
-                                          timestamps: timestamps_acc,
-                                          average_durations: average_durations_acc
-                                        } ->
-        %{
-          timestamps: [timestamp | timestamps_acc],
-          average_durations: [average_duration | average_durations_acc]
-        }
-      end)
-    end)
-    |> Enum.map(fn {node, %{timestamps: timestamps, average_durations: average_durations}} ->
-      {node,
-       %{timestamps: Enum.reverse(timestamps), average_durations: Enum.reverse(average_durations)}}
-    end)
-    |> Enum.into(%{})
   end
 end
