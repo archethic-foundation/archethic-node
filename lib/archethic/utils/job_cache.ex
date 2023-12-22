@@ -72,8 +72,13 @@ defmodule Archethic.Utils.JobCache do
       iex> :persistent_term.get(:nil)
       :called
   """
-  @spec get!(GenServer.server(), timeout) :: any
+  @spec get!(GenServer.server(), GenServer.timeout()) :: any
   def get!(pid \\ __MODULE__, timeout \\ :infinity), do: GenServer.call(pid, :get, timeout)
+
+  @spec get_async(GenServer.server(), pid()) :: any
+  def get_async(pid, from \\ self()) do
+    GenServer.cast(pid, {:get_async, from})
+  end
 
   @doc ~S"""
   Clears the result of a heavy computation, possibly by interrupting it if the
@@ -138,6 +143,19 @@ defmodule Archethic.Utils.JobCache do
   end
 
   def handle_call(:get, from, state = %S{}) do
+    {:noreply, %S{state | requests: [from | state.requests]}}
+  end
+
+  def handle_cast({:get_async, from}, state = %S{result: nil, task: nil, requests: requests}) do
+    {:noreply, %S{state | task: Task.async(state.function), requests: [from | requests]}}
+  end
+
+  def handle_cast({:get_async, from}, state = %S{result: {:ok, res}, task: nil}) do
+    GenServer.reply(from, res)
+    {:noreply, state}
+  end
+
+  def handle_cast({:get_async, from}, state = %S{}) do
     {:noreply, %S{state | requests: [from | state.requests]}}
   end
 

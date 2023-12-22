@@ -7,6 +7,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   - cache_fetch: cache the I/O to fetch remote stats
 
   It subscribes to 2 events to start and stop both jobs ASAP
+  Jobs are also started by the get/fetch function if needed
   """
 
   @vsn Mix.Project.config()[:version]
@@ -24,8 +25,6 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   alias Archethic.PubSub
 
   require Logger
-
-  defstruct [:cache_fetch, :cache_get]
 
   # ------------------------------------------------------------
   #     _    ____ ___
@@ -45,7 +44,16 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   """
   @spec get(DateTime.t(), pos_integer()) :: %{binary() => Nx.Tensor.t()}
   def get(summary_time, timeout \\ @timeout) do
-    GenServer.call(__MODULE__, {:get, summary_time}, timeout)
+    JobCache.get!(
+      {:get, summary_time},
+      function: fn ->
+        get_current_node_subsets(summary_time)
+        |> do_get_stats()
+      end,
+      timeout: timeout
+    )
+  catch
+    :exit, _ -> %{}
   end
 
   @doc """
@@ -53,7 +61,13 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   """
   @spec fetch(DateTime.t(), pos_integer()) :: Nx.Tensor.t()
   def fetch(summary_time, timeout \\ @timeout) do
-    GenServer.call(__MODULE__, {:fetch, summary_time}, timeout)
+    JobCache.get!(
+      {:fetch, summary_time},
+      function: fn -> do_fetch_stats(summary_time) end,
+      timeout: timeout
+    )
+  catch
+    :exit, _ -> Nx.tensor(0)
   end
 
   # ------------------------------------------------------------
@@ -66,54 +80,25 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   def init(_) do
     PubSub.register_to_next_summary_time()
     PubSub.register_to_self_repair()
-    {:ok, %__MODULE__{}}
+    {:ok, :no_state}
   end
 
-  def handle_call({:get, summary_time}, _, state = %__MODULE__{cache_get: nil}) do
-    {cache_fetch_pid, cache_get_pid} = start_jobs(summary_time)
-    stats = get_stats_from_cache(cache_get_pid, %{})
-    {:reply, stats, %__MODULE__{state | cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}}
-  end
+  def handle_info({:next_summary_time, next_summary_time}, state) do
+    summary_time = BeaconChain.previous_summary_time(next_summary_time)
 
-  def handle_call({:get, _}, _, state = %__MODULE__{cache_get: cache_get_pid}) do
-    stats = get_stats_from_cache(cache_get_pid, %{})
-    {:reply, stats, state}
-  end
+    maybe_start_job({:get, summary_time})
+    maybe_start_job({:fetch, summary_time})
 
-  def handle_call({:fetch, summary_time}, _, state = %__MODULE__{cache_fetch: nil}) do
-    {cache_fetch_pid, cache_get_pid} = start_jobs(summary_time)
-    stats = get_stats_from_cache(cache_fetch_pid, Nx.tensor(0))
-    {:reply, stats, %__MODULE__{state | cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}}
-  end
-
-  def handle_call({:fetch, _}, _, state = %__MODULE__{cache_fetch: cache_fetch_pid}) do
-    stats = get_stats_from_cache(cache_fetch_pid, Nx.tensor(0))
-    {:reply, stats, state}
-  end
-
-  def handle_info(
-        {:next_summary_time, next_summary_time},
-        state = %__MODULE__{cache_fetch: nil, cache_get: nil}
-      ) do
-    {cache_fetch_pid, cache_get_pid} =
-      BeaconChain.previous_summary_time(next_summary_time)
-      |> start_jobs()
-
-    {:noreply, %__MODULE__{state | cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}}
-  end
-
-  # happens if the process receive a get or fetch before the event
-  def handle_info({:next_summary_time, _}, state) do
     {:noreply, state}
   end
 
-  def handle_info(
-        :self_repair_sync,
-        state = %__MODULE__{cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}
-      ) do
-    stop_jobs(cache_fetch_pid, cache_get_pid)
+  def handle_info(:self_repair_sync, state) do
+    summary_time = BeaconChain.previous_summary_time(DateTime.utc_now())
 
-    {:noreply, %__MODULE__{state | cache_fetch: nil, cache_get: nil}}
+    maybe_stop_job({:get, summary_time})
+    maybe_stop_job({:fetch, summary_time})
+
+    {:noreply, state}
   end
 
   # ------------------------------------------------------------
@@ -124,38 +109,31 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ------------------------------------------------------------
-  defp start_jobs(summary_time) do
+
+  defp maybe_start_job({action, summary_time}) do
     case get_current_node_subsets(summary_time) do
       [] ->
-        {nil, nil}
+        nil
 
       subsets ->
-        Logger.debug("Current node is elected to store #{length(subsets)} beacon subsets")
+        JobCache.start(
+          immediate: true,
+          name_key: {action, summary_time},
+          function: fn ->
+            case action do
+              :get ->
+                do_get_stats(subsets)
 
-        {:ok, cache_fetch_pid} =
-          JobCache.start_link(immediate: true, function: fn -> do_fetch_stats(summary_time) end)
-
-        {:ok, cache_get_pid} =
-          JobCache.start_link(immediate: true, function: fn -> do_get_stats(subsets) end)
-
-        {cache_fetch_pid, cache_get_pid}
+              :fetch ->
+                do_fetch_stats(summary_time)
+            end
+          end
+        )
     end
   end
 
-  defp stop_jobs(cache_fetch_pid, cache_get_pid) do
-    if is_pid(cache_fetch_pid) do
-      JobCache.stop(cache_fetch_pid)
-    end
-
-    if is_pid(cache_get_pid) do
-      JobCache.stop(cache_get_pid)
-    end
-  end
-
-  defp get_stats_from_cache(pid, fallback) do
-    JobCache.get!(pid, @timeout)
-  catch
-    :exit, _ -> fallback
+  defp maybe_stop_job(key) do
+    JobCache.stop(key)
   end
 
   defp do_get_stats(subsets) do
