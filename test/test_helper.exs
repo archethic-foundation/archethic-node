@@ -23,7 +23,6 @@ Mox.defmock(MockCrypto.SharedSecretsKeystore, for: Archethic.Crypto.SharedSecret
 
 Mox.defmock(MockDB, for: Archethic.DB)
 Mox.defmock(MockGeoIP, for: Archethic.P2P.GeoPatch.GeoIP)
-Mox.defmock(MockMetricsCollector, for: Archethic.Metrics.Collector)
 
 # -----Start-of-Networking-Mocks-----
 

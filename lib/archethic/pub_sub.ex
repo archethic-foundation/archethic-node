@@ -9,13 +9,10 @@ defmodule Archethic.PubSub do
   """
 
   alias Archethic.BeaconChain.ReplicationAttestation
-
+  alias Archethic.Crypto
   alias Archethic.P2P.Node
-
   alias Archethic.PubSubRegistry
-
   alias Archethic.TransactionChain.Transaction
-
   alias Archethic.TransactionChain.TransactionSummary
 
   @doc """
@@ -228,6 +225,32 @@ defmodule Archethic.PubSub do
   """
   def register_to_new_transaction_attestations do
     Registry.register(PubSubRegistry, :new_transaction_attestation, [])
+  end
+
+  @doc """
+  The mining completed event is sent for every successful and unsuccessful transactions mined by this node
+
+  - Address is used to be able to count the total number of transactions
+  - Validation_time is used to be able to aggregate on a deterministic value
+  - Duration is in :native unit (monotonic time)
+  - Success is used to be able to aggregate successes/failures separately if need be
+  """
+  @spec notify_mining_completed(Crypto.prepended_hash(), DateTime.t(), pos_integer(), boolean()) ::
+          :ok
+  def notify_mining_completed(address, validation_time, duration, success?) do
+    dispatch(
+      :mining,
+      {:mining_completed,
+       address: address, validation_time: validation_time, duration: duration, success?: success?}
+    )
+  end
+
+  @doc """
+  Register to a topic
+  """
+  @spec register_to_topic(atom()) :: {:ok, pid()}
+  def register_to_topic(topic) do
+    Registry.register(PubSubRegistry, topic, [])
   end
 
   defp dispatch(topic, message) do

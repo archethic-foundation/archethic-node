@@ -789,23 +789,39 @@ defmodule Archethic.Utils do
 
   @doc """
   Get the median value from a list.
+  You may send the sorted: true flag to avoid sorting an already-sorted list
+
   ## Examples
       iex> Utils.median([])
       nil
-      iex> Utils.median([1,2,3])
+      iex> Utils.median([3])
+      3
+      iex> Utils.median([2,2,1])
       2
-      iex> Utils.median([1,2,3,4])
+      iex> Utils.median([1,2,2,2,2], sorted: true)
+      2
+      iex> Utils.median([3,1,2,4])
+      2.5
+      iex> Utils.median([1,2,3,4], sorted: true)
       2.5
   """
-  @spec median([number]) :: number | nil
-  def median([]), do: nil
+  @spec median([number], Keyword.t()) :: number | nil
+  def median(numbers, opts \\ [])
+
+  def median([], _opts), do: nil
   ## To avoid all calculation from general clause to follow
 
-  def median([number]), do: number
+  def median([number], _opts), do: number
   ## To avoid all calculation from general clause to follow
 
-  def median(numbers) do
-    sorted = Enum.sort(numbers)
+  def median(numbers, opts) do
+    sorted =
+      if Keyword.get(opts, :sorted, false) do
+        numbers
+      else
+        Enum.sort(numbers)
+      end
+
     length_list = length(sorted)
 
     case rem(length_list, 2) do
