@@ -4,11 +4,16 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
 
   Uses 2 job caches:
   - cache_get: cache the aggregation of local stats
-  - cache_fetch: cache the I/O
+  - cache_fetch: cache the I/O to fetch remote stats
+
+  It subscribes to 2 events to start and stop both jobs ASAP
   """
 
   @vsn Mix.Project.config()[:version]
-  @timeout :timer.minutes(1)
+  @timeout :archethic
+           |> Application.compile_env(__MODULE__, [])
+           |> Keyword.get(:timeout, :timer.minutes(1))
+
   use GenServer
 
   alias Archethic.P2P
@@ -36,19 +41,19 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   end
 
   @doc """
-  Get the local stats for the subsets this node is elected
+  Get the local stats if current node is beacon storage node
   """
-  @spec get(pos_integer()) :: %{binary() => Nx.Tensor.t()}
-  def get(timeout \\ @timeout) do
-    GenServer.call(__MODULE__, :get, timeout)
+  @spec get(DateTime.t(), pos_integer()) :: %{binary() => Nx.Tensor.t()}
+  def get(summary_time, timeout \\ @timeout) do
+    GenServer.call(__MODULE__, {:get, summary_time}, timeout)
   end
 
   @doc """
-  Fetch the stats from all subsets
+  Fetch the stats of given summary from beacon_nodes
   """
-  @spec fetch(pos_integer()) :: Nx.Tensor.t()
-  def fetch(timeout \\ @timeout) do
-    GenServer.call(__MODULE__, :fetch, timeout)
+  @spec fetch(DateTime.t(), pos_integer()) :: Nx.Tensor.t()
+  def fetch(summary_time, timeout \\ @timeout) do
+    GenServer.call(__MODULE__, {:fetch, summary_time}, timeout)
   end
 
   # ------------------------------------------------------------
@@ -64,73 +69,49 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
     {:ok, %__MODULE__{}}
   end
 
-  def handle_call(:get, _from, state = %__MODULE__{cache_get: pid}) do
-    stats =
-      try do
-        JobCache.get!(pid, @timeout)
-      catch
-        :exit, _ ->
-          %{}
-      end
+  def handle_call({:get, summary_time}, _, state = %__MODULE__{cache_get: nil}) do
+    {cache_fetch_pid, cache_get_pid} = start_jobs(summary_time)
+    stats = get_stats_from_cache(cache_get_pid, %{})
+    {:reply, stats, %__MODULE__{state | cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}}
+  end
 
+  def handle_call({:get, _}, _, state = %__MODULE__{cache_get: cache_get_pid}) do
+    stats = get_stats_from_cache(cache_get_pid, %{})
     {:reply, stats, state}
   end
 
-  def handle_call(:fetch, _from, state = %__MODULE__{cache_fetch: pid}) do
-    stats =
-      try do
-        JobCache.get!(pid, @timeout)
-      catch
-        :exit, _ ->
-          Nx.tensor(0)
-      end
+  def handle_call({:fetch, summary_time}, _, state = %__MODULE__{cache_fetch: nil}) do
+    {cache_fetch_pid, cache_get_pid} = start_jobs(summary_time)
+    stats = get_stats_from_cache(cache_fetch_pid, Nx.tensor(0))
+    {:reply, stats, %__MODULE__{state | cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}}
+  end
 
+  def handle_call({:fetch, _}, _, state = %__MODULE__{cache_fetch: cache_fetch_pid}) do
+    stats = get_stats_from_cache(cache_fetch_pid, Nx.tensor(0))
     {:reply, stats, state}
   end
 
-  # When the summary happens, we fetch the stats
-  # and keep the result in a cache
-  def handle_info({:next_summary_time, next_summary_time}, state) do
-    summary_time = BeaconChain.previous_summary_time(next_summary_time)
+  def handle_info(
+        {:next_summary_time, next_summary_time},
+        state = %__MODULE__{cache_fetch: nil, cache_get: nil}
+      ) do
+    {cache_fetch_pid, cache_get_pid} =
+      BeaconChain.previous_summary_time(next_summary_time)
+      |> start_jobs()
 
-    # election of current node subsets
-    new_state =
-      case get_current_node_subsets(summary_time) do
-        [] ->
-          Logger.debug("Current node is elected to store 0 beacon subset")
-          state
-
-        subsets ->
-          Logger.debug("Current node is elected to store #{length(subsets)} beacon subsets")
-
-          {:ok, cache_fetch_pid} =
-            JobCache.start_link(immediate: true, function: fn -> do_fetch_stats(summary_time) end)
-
-          {:ok, cache_get_pid} =
-            JobCache.start_link(immediate: true, function: fn -> do_get_stats(subsets) end)
-
-          %__MODULE__{state | cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}
-      end
-
-    {:noreply, new_state}
+    {:noreply, %__MODULE__{state | cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}}
   end
 
-  # When a self repair happens, nobody will ask us for the stats anymore
-  # We can clear the caches
+  # happens if the process receive a get or fetch before the event
+  def handle_info({:next_summary_time, _}, state) do
+    {:noreply, state}
+  end
+
   def handle_info(
         :self_repair_sync,
-        state = %__MODULE__{
-          cache_fetch: cache_fetch_pid,
-          cache_get: cache_get_pid
-        }
+        state = %__MODULE__{cache_fetch: cache_fetch_pid, cache_get: cache_get_pid}
       ) do
-    if is_pid(cache_fetch_pid) do
-      JobCache.stop(cache_fetch_pid)
-    end
-
-    if is_pid(cache_get_pid) do
-      JobCache.stop(cache_get_pid)
-    end
+    stop_jobs(cache_fetch_pid, cache_get_pid)
 
     {:noreply, %__MODULE__{state | cache_fetch: nil, cache_get: nil}}
   end
@@ -143,6 +124,40 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   #  | .__/|_|  |_| \_/ \__,_|\__\___|
   #  |_|
   # ------------------------------------------------------------
+  defp start_jobs(summary_time) do
+    case get_current_node_subsets(summary_time) do
+      [] ->
+        {nil, nil}
+
+      subsets ->
+        Logger.debug("Current node is elected to store #{length(subsets)} beacon subsets")
+
+        {:ok, cache_fetch_pid} =
+          JobCache.start_link(immediate: true, function: fn -> do_fetch_stats(summary_time) end)
+
+        {:ok, cache_get_pid} =
+          JobCache.start_link(immediate: true, function: fn -> do_get_stats(subsets) end)
+
+        {cache_fetch_pid, cache_get_pid}
+    end
+  end
+
+  defp stop_jobs(cache_fetch_pid, cache_get_pid) do
+    if is_pid(cache_fetch_pid) do
+      JobCache.stop(cache_fetch_pid)
+    end
+
+    if is_pid(cache_get_pid) do
+      JobCache.stop(cache_get_pid)
+    end
+  end
+
+  defp get_stats_from_cache(pid, fallback) do
+    JobCache.get!(pid, @timeout)
+  catch
+    :exit, _ -> fallback
+  end
+
   defp do_get_stats(subsets) do
     subsets
     |> Task.async_stream(

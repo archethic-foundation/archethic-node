@@ -219,9 +219,9 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   defp get_digit(acc, _, _, _, _, _), do: acc
 
   @doc """
-  Fetch remotely the network stats for a given summary time  
+  Fetch remotely the network stats for a given summary time
 
-  This request all the subsets to gather the aggregated network stats.
+  This requests all the beacon nodes their aggregated network stats.
   A NxN latency matrix is then computed based on the network stats origins and targets
   """
   @spec fetch_network_stats(DateTime.t()) :: Nx.Tensor.t()
@@ -230,36 +230,32 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
     sorted_node_list = P2P.list_nodes() |> Enum.sort_by(& &1.first_public_key)
     nb_nodes = length(sorted_node_list)
+    beacon_nodes = get_beacon_nodes(summary_time, authorized_nodes)
 
     matrix = Nx.broadcast(0, {nb_nodes, nb_nodes})
 
-    summary_time
-    |> get_subsets_nodes(authorized_nodes)
-    # Aggregate subsets by node
-    |> Enum.reduce(%{}, fn {subset, beacon_nodes}, acc ->
-      Enum.reduce(beacon_nodes, acc, fn node, acc ->
-        Map.update(acc, node, [subset], &[subset | &1])
-      end)
-    end)
-    |> stream_subsets_stats()
+    stream_network_stats(summary_time, beacon_nodes)
     # Aggregate stats per node to identify the sampling nodes
     |> aggregate_stats_per_subset()
     |> update_matrix_from_stats(matrix, sorted_node_list)
   end
 
-  defp get_subsets_nodes(summary_time, authorized_nodes) do
-    Enum.map(BeaconChain.list_subsets(), fn subset ->
-      beacon_nodes = Election.beacon_storage_nodes(subset, summary_time, authorized_nodes)
-      {subset, beacon_nodes}
+  defp get_beacon_nodes(summary_time, authorized_nodes) do
+    BeaconChain.list_subsets()
+    |> Enum.reduce(MapSet.new(), fn subset, acc ->
+      Election.beacon_storage_nodes(subset, summary_time, authorized_nodes)
+      |> MapSet.new()
+      |> MapSet.union(acc)
     end)
+    |> MapSet.to_list()
   end
 
-  defp stream_subsets_stats(subsets_by_node) do
+  defp stream_network_stats(summary_time, beacon_nodes) do
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
-      subsets_by_node,
-      fn {node, subsets} ->
-        P2P.send_message(node, %GetNetworkStats{subsets: subsets}, 5_000)
+      beacon_nodes,
+      fn node ->
+        P2P.send_message(node, %GetNetworkStats{summary_time: summary_time}, 5_000)
       end,
       timeout: 6_000,
       ordered: false,

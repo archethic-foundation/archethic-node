@@ -236,7 +236,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
 
-        _, %GetNetworkStats{subsets: _}, _ ->
+        _, %GetNetworkStats{}, _ ->
           {:ok,
            %NetworkStats{
              stats: %{

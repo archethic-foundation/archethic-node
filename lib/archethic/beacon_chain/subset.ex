@@ -394,7 +394,7 @@ defmodule Archethic.BeaconChain.Subset do
       Logger.debug("Create beacon summary", beacon_subset: Base.encode16(subset))
 
       patch_task =
-        Task.Supervisor.async_nolink(TaskSupervisor, fn -> get_network_patches(subset) end)
+        Task.Supervisor.async_nolink(TaskSupervisor, fn -> get_network_patches(time, subset) end)
 
       summary =
         %Summary{subset: subset, summary_time: time}
@@ -428,7 +428,7 @@ defmodule Archethic.BeaconChain.Subset do
     end
   end
 
-  defp get_network_patches(subset) do
+  defp get_network_patches(summary_time, subset) do
     with true <- length(P2P.authorized_and_available_nodes()) > 1,
          sampling_nodes when sampling_nodes != [] <- P2PSampling.list_nodes_to_sample(subset) do
       sampling_nodes_indexes =
@@ -440,7 +440,7 @@ defmodule Archethic.BeaconChain.Subset do
         end)
         |> Enum.map(fn {_, index} -> index end)
 
-      StatsCollector.fetch()
+      StatsCollector.fetch(summary_time)
       |> NetworkCoordinates.get_patch_from_latencies()
       |> Enum.with_index()
       |> Enum.filter(fn {_, index} ->
