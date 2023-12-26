@@ -236,7 +236,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
 
-        _, %GetNetworkStats{subsets: _}, _ ->
+        _, %GetNetworkStats{}, _ ->
           {:ok,
            %NetworkStats{
              stats: %{
@@ -271,6 +271,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
       MockDB
       |> expect(:write_beacon_summary, fn summary -> send(me, {:summary_stored, summary}) end)
 
+      # subset process is dependant of stats collector
+      send(Process.whereis(StatsCollector), {:next_summary_time, ~U[2023-07-11 02:00:00Z]})
+
       send(pid, {:current_epoch_of_slot_timer, slot_time})
 
       assert_receive {:summary_stored, summary}, 2000
@@ -281,10 +284,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
                transaction_attestations: [^attestation],
                network_patches: ["F7A", "78A"]
              } = summary
-
-      Process.sleep(5)
-
-      assert [] = SummaryCache.stream_current_slots(subset) |> Enum.to_list()
     end
   end
 

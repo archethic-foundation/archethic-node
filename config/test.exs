@@ -22,6 +22,7 @@ config :archethic, Archethic.BeaconChain.SummaryTimer,
   interval: "0 * * * * *"
 
 config :archethic, Archethic.BeaconChain.Subset.SummaryCache, enabled: false
+config :archethic, Archethic.BeaconChain.Subset.StatsCollector, enabled: false
 
 config :archethic, Archethic.Bootstrap, enabled: false
 

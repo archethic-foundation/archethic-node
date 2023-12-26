@@ -3,53 +3,34 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   Represents a message to get the network stats from the beacon summary cache
   """
 
-  @enforce_keys :subsets
-  defstruct subsets: []
+  @enforce_keys [:summary_time]
+  defstruct [:summary_time]
 
-  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.Subset.StatsCollector
   alias Archethic.Crypto
   alias Archethic.P2P.Message.NetworkStats
 
   @type t :: %__MODULE__{
-          subsets: list(binary())
+          summary_time: DateTime.t()
         }
 
   @doc """
   Serialize the get network stats message into binary
-
-  ## Examples
-      
-      iex> %GetNetworkStats{subsets: [<<0>>, <<255>>]} |> GetNetworkStats.serialize()
-      <<
-      # Length of subsets
-      0, 2, 
-      # Subset
-      0, 255
-      >>
   """
-  def serialize(%__MODULE__{subsets: subsets}) do
-    <<length(subsets)::16, :erlang.list_to_binary(subsets)::binary>>
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{summary_time: summary_time}) do
+    <<DateTime.to_unix(summary_time)::32>>
   end
 
   @doc """
   Deserialize the binary into the get network stats message
-
-  ## Examples
-      
-      iex> <<0, 2, 0, 255>> |> GetNetworkStats.deserialize()
-      {
-        %GetNetworkStats{subsets: [<<0>>, <<255>>]},
-        ""
-      }
   """
-  def deserialize(<<length::16, subsets_binary::binary-size(length), rest::bitstring>>) do
-    subsets =
-      subsets_binary
-      |> :erlang.binary_to_list()
-      |> Enum.map(&<<&1>>)
+  @spec deserialize(bitstring) :: {t(), bitstring()}
+  def deserialize(<<unix::32, rest::bitstring>>) do
+    summary_time = DateTime.from_unix!(unix)
 
     {
-      %__MODULE__{subsets: subsets},
+      %__MODULE__{summary_time: summary_time},
       rest
     }
   end
@@ -58,22 +39,7 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   Process the message to get the network stats from the summary cache
   """
   @spec process(t(), Crypto.key()) :: NetworkStats.t()
-  def process(%__MODULE__{subsets: subsets}, _node_public_key) do
-    stats =
-      subsets
-      |> Task.async_stream(fn subset ->
-        stats = BeaconChain.get_network_stats(subset)
-        {subset, stats}
-      end)
-      |> Stream.map(fn {:ok, res} -> res end)
-      |> Enum.reduce(%{}, fn
-        {subset, stats}, acc when map_size(stats) > 0 ->
-          Map.put(acc, subset, stats)
-
-        _, acc ->
-          acc
-      end)
-
-    %NetworkStats{stats: stats}
+  def process(%__MODULE__{summary_time: summary_time}, _node_public_key) do
+    %NetworkStats{stats: StatsCollector.get(summary_time)}
   end
 end

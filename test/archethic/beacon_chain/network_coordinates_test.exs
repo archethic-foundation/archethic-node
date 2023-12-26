@@ -45,7 +45,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
     test "should retrieve the stats for a given summary time" do
       MockClient
       |> expect(:send_message, 3, fn
-        _, %GetNetworkStats{subsets: _}, _ ->
+        _, %GetNetworkStats{}, _ ->
           {:ok,
            %NetworkStats{
              stats: %{
@@ -117,13 +117,13 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
 
       MockClient
       |> expect(:send_message, 3, fn
-        ^wrong_node, %GetNetworkStats{subsets: _}, _ ->
+        ^wrong_node, %GetNetworkStats{}, _ ->
           {:ok, wrong_stats}
 
-        ^ok_node_1, %GetNetworkStats{subsets: _}, _ ->
+        ^ok_node_1, %GetNetworkStats{}, _ ->
           {:ok, ok_stats_1}
 
-        ^ok_node_2, %GetNetworkStats{subsets: _}, _ ->
+        ^ok_node_2, %GetNetworkStats{}, _ ->
           {:ok, ok_stats_2}
       end)
 

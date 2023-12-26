@@ -113,6 +113,18 @@ defmodule Archethic.PubSub do
   def register_to_node_status(), do: Registry.register(PubSubRegistry, :node_status, [])
 
   @doc """
+  Notify that a self repair synchronization is starting
+  """
+  @spec notify_self_repair() :: :ok
+  def notify_self_repair(), do: dispatch(:self_repair_sync, :self_repair_sync)
+
+  @doc """
+  Register a process to self repair synchronizations starts
+  """
+  @spec register_to_self_repair :: {:error, {:already_registered, pid}} | {:ok, pid}
+  def register_to_self_repair(), do: Registry.register(PubSubRegistry, :self_repair_sync, [])
+
+  @doc """
   Register a process to a new transaction publication by type
   """
   @spec register_to_new_transaction_by_type(Transaction.transaction_type()) :: {:ok, pid()}
