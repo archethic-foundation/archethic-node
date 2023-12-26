@@ -447,6 +447,8 @@
     {delete_module,'Elixir.Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapUniris'},
     {apply,{supervisor, terminate_child, ['Elixir.Archethic.OracleChain.Supervisor', 'Elixir.Archethic.OracleChain.ServiceCacheSupervisor']}},
     {apply,{supervisor, restart_child, ['Elixir.Archethic.OracleChain.Supervisor', 'Elixir.Archethic.OracleChain.ServiceCacheSupervisor']}},
+    {apply,{supervisor, restart_child, ['Elixir.ArchethicWeb.Supervisor', 'Elixir.ArchethicWeb.DashboardMetrics']}},
+    {apply,{supervisor, restart_child, ['Elixir.ArchethicWeb.Supervisor', 'Elixir.ArchethicWeb.DashboardMetricsAggregator']}},
     {apply,{supervisor,terminate_child,
                        ['Elixir.Archethic.Telemetry',prometheus_metrics]}},
     {apply,{supervisor,restart_child,
