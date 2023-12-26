@@ -445,6 +445,8 @@
     {delete_module,'Elixir.Archethic.Metrics.Parser'},
     {delete_module,'Elixir.Archethic.Metrics.Poller'},
     {delete_module,'Elixir.Archethic.OracleChain.Services.UCOPrice.Providers.CoinMarketCapUniris'},
+    {apply,{supervisor, terminate_child, ['Elixir.Archethic.OracleChain.Supervisor', 'Elixir.Archethic.OracleChain.ServiceCacheSupervisor']}},
+    {apply,{supervisor, restart_child, ['Elixir.Archethic.OracleChain.Supervisor', 'Elixir.Archethic.OracleChain.ServiceCacheSupervisor']}},
     {apply,{supervisor,terminate_child,
                        ['Elixir.Archethic.Telemetry',prometheus_metrics]}},
     {apply,{supervisor,restart_child,
