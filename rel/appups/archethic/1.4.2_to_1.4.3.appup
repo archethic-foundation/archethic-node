@@ -451,6 +451,8 @@
     {apply,{supervisor, restart_child, ['Elixir.ArchethicWeb.Supervisor', 'Elixir.ArchethicWeb.DashboardMetricsAggregator']}},
     {apply, {supervisor, terminate_child, ['Elixir.Archethic.Metrics.MetricSupervisor', 'Elixir.Archethic.Metrics.Poller']}},
     {apply, {supervisor, delete_child, ['Elixir.Archethic.Metrics.MetricSupervisor', 'Elixir.Archethic.Metrics.Poller']}},
+    {apply,{supervisor, terminate_child, ['Elixir.Archethic.BeaconChain.SubsetSupervisor', 'Elixir.Archethic.BeaconChain.Subset.StatsCollector']}},
+    {apply,{supervisor, restart_child, ['Elixir.Archethic.BeaconChain.SubsetSupervisor', 'Elixir.Archethic.BeaconChain.Subset.StatsCollector']}},
     {apply,{supervisor,terminate_child,
                        ['Elixir.Archethic.Telemetry',prometheus_metrics]}},
     {apply,{supervisor,restart_child,
