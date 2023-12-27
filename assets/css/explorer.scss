@@ -3,26 +3,11 @@ body {
   color: #fff;
   min-height: 100vh;
   font-family: 'PPTelegraf Regular';
-  background-image: url('/images/background-mainscreen.png');
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  position: relative;
+  background: #3D1D63;
+  background: radial-gradient(circle, rgba(122, 58, 198, 1) 0%, rgba(0, 0, 0, 1) 95%);
 }
 
 
-body::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background: url('/images/background-mainscreen.png') center center no-repeat;
-  background-size: cover;
-  opacity: 0.8;
-  pointer-events: none;
-}
 
 .text_title {
   position: relative;
@@ -35,6 +20,7 @@ body::after {
   padding-top: 50px;
   padding-bottom: 1px;
   font-family: 'PPTelegraf Regular' !important;
+  line-height: 1;
 }
 
 .text_subtitle {
@@ -111,24 +97,20 @@ pre {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-}
-
-.input-container {
-  width: 100%;
-  max-width: 400px;
-  margin-bottom: 20px;
+  margin: 1em 0;
 }
 
 .input-field {
-  width: 100%;
-  padding: 10px;
+  width: 720px;
+  padding: 1.5em;
   border-radius: 10px;
   border: 0.5px solid #4027A2;
   background: linear-gradient(90deg, rgba(19, 19, 19, 1) 0%, rgba(19, 19, 19, 0.3) 100%);
   color: white;
-  font-size: 14px;
+  font-size: 1em;
   outline: none;
   box-shadow: none;
+  font-family: 'RobotoMono Regular';
 }
 
 .input-field::placeholder {
@@ -180,11 +162,14 @@ pre {
   max-height: 600px;
   background: linear-gradient(to bottom right, #4027A2, #4027A2);
   border-radius: 24px;
-  box-shadow: 1px 10px 40px 10px $color-neutral-900;
   padding: 20px;
   margin: 20px auto;
   overflow: hidden;
   position: relative;
+}
+
+.shadow {
+  box-shadow: 0px 5px 10px $color-neutral-900;
 }
 
 .box::before {
@@ -250,8 +235,7 @@ pre {
 .list-card {
   background: linear-gradient(180deg, #4027A2 0%, #4027A2 100%);
   border-radius: 24px;
-  box-shadow: 1px 10px 40px #131313;
-  padding: 10px;
+  padding: 1.5em;
   color: white;
 }
 
@@ -296,8 +280,6 @@ pre {
   color: white;
   font-size: 16px;
   cursor: pointer;
-  box-shadow: 0 5px 7px rgba(0, 0, 0, 0.5);
-  transition: background-color 0.3s, box-shadow 0.3s;
 }
 
 hr {
@@ -307,4 +289,12 @@ hr {
   border: none;
   border-bottom: 1px solid $color-neutral-0;
   opacity: 0.2;
+}
+
+.tag:not(body).is-gradient {
+  color: white;
+  background-color: #202020;
+  padding: 1em;
+  border: 1px solid #D55CFF;
+  border-radius: 14px;
 }
