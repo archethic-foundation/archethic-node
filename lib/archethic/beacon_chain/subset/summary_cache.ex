@@ -39,6 +39,11 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     {:ok, %{}}
   end
 
+  def code_change("1.4.2", state, _extra) do
+    PubSub.register_to_self_repair()
+    {:ok, state}
+  end
+
   def code_change(_version, state, _extra), do: {:ok, state}
 
   def handle_info(:self_repair_sync, state) do
