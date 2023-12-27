@@ -355,19 +355,15 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransactionChain{address: _}, _ ->
-          {:ok,
-           %TransactionList{
-             transactions: [
-               %Transaction{address: "Alice2"}
-             ]
-           }}
-      end)
+      |> expect(
+        :send_message,
+        fn _, %GetTransactionChain{address: _, paging_state: "Alice1"}, _ ->
+          {:ok, %TransactionList{transactions: [%Transaction{address: "Alice2"}]}}
+        end
+      )
 
       assert ["Alice1", "Alice2"] =
-               TransactionChain.fetch("Alice2", nodes)
-               |> Enum.map(& &1.address)
+               TransactionChain.fetch("Alice2", nodes) |> Enum.map(& &1.address)
     end
 
     test "should resolve the longest chain" do

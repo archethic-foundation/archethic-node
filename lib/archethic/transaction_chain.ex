@@ -398,7 +398,7 @@ defmodule Archethic.TransactionChain do
           nil ->
             {[], {paging_address, true, false}}
 
-          _ ->
+          %Transaction{address: next_paging_address} ->
             {transactions, {next_paging_address, true, false}}
         end
       end
