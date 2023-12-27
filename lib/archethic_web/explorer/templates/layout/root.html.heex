@@ -35,8 +35,11 @@
               </a>
             <% end %>
             <div class="navbar-item has-dropdown is-hoverable" >
-              <a class="navbar-link" href={Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionChainLive)}>Chains</a>
+              <span class="navbar-link">Chains</span>
               <div class="navbar-dropdown is-boxed">
+              <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionChainLive)}>
+                  Transaction
+                </a>
                 <a class="navbar-item" href={Routes.live_path(@conn, ArchethicWeb.Explorer.OracleChainLive)}>
                   Oracle
                 </a>
@@ -55,10 +58,11 @@
               </div>
             </div>
             <div class="navbar-item has-dropdown is-hoverable" >
-              <a class="navbar-link" href={Routes.live_path(@conn, ArchethicWeb.Explorer.NodeListLive)}>
-                Nodes
-              </a>
+              <a class="navbar-link" >Nodes</a>
               <div class="navbar-dropdown is-boxed">
+              <a class="navbar-item"  href={Routes.live_path(@conn, ArchethicWeb.Explorer.NodeListLive)}>
+                  List
+                </a>
                 <a class="navbar-item"  href={Routes.live_path(@conn, ArchethicWeb.Explorer.WorldMapLive)}>
                   Map
                 </a>
