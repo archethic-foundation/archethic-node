@@ -1,15 +1,50 @@
-
-<div class="text_title">Search a transaction chain</div>
-<form action={Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive)}>
-    <label for="address" class="input-label">Transaction address</label>
-    <div class="input-container">
-        <input type="text" required id="address" name="address" class="input-field" maxlength="68" placeholder="Enter transaction address" required value={@address}>
+<div class="box">
+    <div class="columns">
+        <div class="column">
+            <h1 class="subtitle has-text-black">Search a transaction chain</h1>
+        </div>
     </div>
-    <%= if assigns[:error] != nil do %>
-        <p class="help is-danger"><%= @error %></p>
-    <% end %>
-    <button class="app-button">Search Transaction Chain</button>
-</form>
+    <div class="columns">
+        <div class="column">
+            <form action={Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive)}>
+                <div class="field is-horizontal">
+                    <div class="field-label">
+                        <label class="label" for="address">Transaction address</label>
+                    </div>
+                    <div class="field-body">
+                        <div class="field">
+                            <div class="control">
+                                <input id="address" name="address" class="input" type="text" placeholder="Enter transaction address" required value={@address} />
+                            </div>
+                            <%= if assigns[:error] != nil do %>
+                                <p class="help is-danger"><%= @error %></p>
+                            <% end %>
+                        </div>
+                    </div>
+                </div>
+                <div class="field is-horizontal">
+                    <div class="field-label">
+                        <!-- Left empty for spacing -->
+                    </div>
+                    <div class="field-body">
+                        <div class="field">
+                            <div class="control">
+                                <div class="columns">
+                                    <div class="column is-2-desktop">
+                                        <button class="button is-primary is-outlined is-fullwidth">
+                                        Search
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <%= if @address != "" and assigns[:error] == nil do %>
     <div class="box">
         <%= if Enum.count(@transaction_chain) == 0 do %>
@@ -35,51 +70,41 @@
                             </div>
                     </div>
                     </nav>
+                </div>
+            </div>
 
-                </div>
+            <div phx-hook="InfiniteScroll" data-page={@page} id="infinite_scroll">
+                <%= for tx <- @transaction_chain do %>
+                    <div class="columns">
+                        <div class="column is-half-desktop">
+                            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+                                <span class="is-hidden-mobile"><%= Base.encode16(tx.address) %></span>
+                                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(tx.address, 0, 13)) %>...</span>
+                            <% end %>
+                        </div>
+                        <div class="column">
+                            <%= format_transaction_type(tx.type) %>
+                        </div>
+                        <div class="column is-2-desktop">
+                                <%= format_date(tx.validation_stamp.timestamp) %>
+                        </div>
+                        <div class="column is-2-desktop">
+                            <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %> Unspent outputs
+                        </div>
+                        <div class="column is-1-desktop">
+                            <%= if length(tx.validation_stamp.ledger_operations.transaction_movements) > 1 do %>
+                                <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %> transfers
+                            <% else %>
+                                <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %> transfer
+                            <% end %>
+                        </div>
+                    </div>
+                    <hr class="hr">
+                <% end %>
+                <%= if length(@transaction_chain) < @chain_size do %>
+                    <div style="text-align: center"><a href="#" phx-click="load-more">Load next transactions</a></div>
+                <% end %>
             </div>
-            <div class="column is-3">
-            <div class="box1 has-text-centered">
-                <h1>UCO Balance</h1>
-                <h2><%= to_float(@uco_balance) %> UCO
-                            <%= if @uco_balance > 0 do %>
-                            (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
-                            <% end %></h2>
-            </div>
-        </div>
-    </div>
-    <br/>
-    <div phx-hook="InfiniteScroll" data-page={@page} id="infinite_scroll">
-        <%= for tx <- @transaction_chain do %>
-            <div class="columns list-card is-multiline">
-                <div class="column list-card-item-address is-12-mobile is-6-tablet is-5-desktop">
-                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
-                        <span class="is-hidden-mobile"><%= Base.encode16(tx.address) %></span>
-                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(tx.address, 0, 13)) %>...</span>
-                    <% end %>
-                </div>
-                <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
-                    <%= format_transaction_type(tx.type) %>
-                </div>
-                <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
-                        <%= format_date(tx.validation_stamp.timestamp) %>
-                </div>
-                <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
-                    <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %> Unspent outputs
-                </div>
-                <div class="column list-card-item is-6-mobile is-3-tablet is-1-desktop">
-                    <%= if length(tx.validation_stamp.ledger_operations.transaction_movements) > 1 do %>
-                        <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %> transfers
-                    <% else %>
-                        <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %> transfer
-                    <% end %>
-                </div>
-            </div>
-            <div style="height: 20px;"></div>
-        <% end %>
-        <%= if length(@transaction_chain) < @chain_size do %>
-            <div style="text-align: center"><a href="#" phx-click="load-more">Load next transactions</a></div>
         <% end %>
     </div>
-    <% end %>
 <% end %>
