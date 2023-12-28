@@ -232,30 +232,34 @@ pre {
   background-repeat: no-repeat;
 }
 
-.list-card {
-  background: linear-gradient(180deg, #4027A2 0%, #4027A2 100%);
+
+
+.ae-box {
   border-radius: 24px;
   padding: 1.5em;
   color: white;
+  margin: 1em 0;
 }
 
-.list-card a {
+.ae-box a {
   color: white;
   text-decoration: none;
-  transition: color 0.3s;
+  transition: color 0.1s;
 }
 
-.list-card a:hover {
+.ae-box a:hover {
   color: #fbfbfb75;
 }
 
-.list-card-item {
-  color: white;
-  font-family: 'PPTelegraf Regular' !important;
+.ae-box.ae-purple {
+  background: #4027A2;
 }
 
-.list-card-item-address {
-  color: white;
+.ae-box.ae-gray {
+  background: #201844;
+}
+
+.address {
   font-family: 'RobotoMono Regular' !important;
   word-break: break-all;
   overflow-wrap: break-word;

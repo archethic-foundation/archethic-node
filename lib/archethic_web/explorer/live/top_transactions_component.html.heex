@@ -1,7 +1,7 @@
-<div class="list-card shadow">
+<div class="ae-box ae-purple shadow">
   <%= for tx <- @transactions do %>
     <div class="columns">
-      <div class="column list-card-item-address is-12-mobile is-6-tablet is-8-desktop">
+      <div class="column address is-12-mobile is-6-tablet is-8-desktop">
         <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
           <%= Base.encode16(tx.address) %>
         <% end %>
