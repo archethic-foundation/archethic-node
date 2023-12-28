@@ -10,7 +10,7 @@
         <%= format_date(tx.timestamp) %>
       </div>
       <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
-        <div class="tag is-gradient"><%= tx.type %></div>
+        <%= format_transaction_type(tx.type) %>
       </div>
     </div>
   <% end %>

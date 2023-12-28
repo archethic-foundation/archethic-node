@@ -35,7 +35,7 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
       |> Naming.humanize()
       |> String.upcase()
 
-    content_tag("span", formatted_type, class: "tag is-warning is-light")
+    content_tag("span", formatted_type, class: "tag is-gradient")
   end
 
   def format_transaction_content(:node, content) do

@@ -66,7 +66,7 @@ $color-system-positive-500: #4EB46A;
 $color-system-positive-800: #3C8550;
 
 // Gradients
-$gradient-pink-purple-500: var(--gradient-1, linear-gradient(209deg, #562FED 0%, #D55CFF 100%));
+$gradient-pink-purple-500: var(--gradient-1, linear-gradient(209deg, $color-brand-blue-400 0%, $color-brand-raspberry-300 100%));
 $gradient-light-to-dark-blue: linear-gradient(180deg, $color-brand-purple-800 0.52%, $color-brand-purple-400 100%);
 $gradient-dark-to-light-blue: linear-gradient(180deg, $color-brand-purple-400 0%, #121229 100%);
 
@@ -84,3 +84,9 @@ $card-header-background-color: #fff;
 
 $pagination-color: #fff;
 $pagination-hover-color: #e6e6e6;
+
+$table-background-color: none;
+$table-color: $color-neutral-0;
+$table-head-cell-color: $color-neutral-0;
+$table-foot-cell-color: $color-neutral-0;
+$table-row-hover-background-color: $color-brand-purple-300;

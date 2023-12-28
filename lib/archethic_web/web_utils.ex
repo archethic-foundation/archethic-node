@@ -31,18 +31,27 @@ defmodule ArchethicWeb.WebUtils do
     %{"remote_ip" => conn.remote_ip}
   end
 
-  def format_date(%DateTime{
-        year: year,
-        month: month,
-        day: day,
-        hour: hour,
-        minute: minute,
-        second: second
-      }) do
-    "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC"
+  def format_date(datetime, opts \\ [])
+
+  def format_date(
+        %DateTime{
+          year: year,
+          month: month,
+          day: day,
+          hour: hour,
+          minute: minute,
+          second: second
+        },
+        opts
+      ) do
+    if Keyword.get(opts, :display_utc, true) do
+      "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC"
+    else
+      "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)}"
+    end
   end
 
-  def format_date(nil), do: ""
+  def format_date(nil, _opts), do: ""
 
   def zero_pad(number, amount \\ 2) do
     number
