@@ -11,10 +11,8 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
   alias Archethic.PubSub
 
   alias Archethic.TransactionChain.TransactionSummary
-  alias ArchethicWeb.Explorer.ExplorerView
   alias ArchethicWeb.Explorer.TransactionCache
-
-  alias Phoenix.View
+  alias ArchethicWeb.Explorer.Components.TransactionsList
 
   require Logger
 
