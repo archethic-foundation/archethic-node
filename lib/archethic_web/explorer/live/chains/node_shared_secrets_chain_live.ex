@@ -10,11 +10,10 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
   alias Archethic.PubSub
   alias Archethic.SharedSecrets
 
-  alias ArchethicWeb.Explorer.ExplorerView
   alias ArchethicWeb.WebUtils
+  alias ArchethicWeb.Explorer.Components.TransactionsList
 
   alias Phoenix.LiveView
-  alias Phoenix.View
 
   @display_limit 10
   @txn_type :node_shared_secrets
@@ -54,11 +53,6 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
       end
 
     {:ok, socket}
-  end
-
-  @spec render(assigns :: LiveView.Socket.assigns()) :: LiveView.Rendered.t()
-  def render(assigns) do
-    View.render(ExplorerView, "node_shared_secrets_chain_index.html", assigns)
   end
 
   @spec handle_params(_params :: map(), _uri :: binary(), socket :: LiveView.Socket.t()) ::
