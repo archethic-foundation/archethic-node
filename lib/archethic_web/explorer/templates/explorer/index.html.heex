@@ -5,7 +5,14 @@
     <div class="level">
       <div class="level-left">
         <div class="level-item">
-          <input type="text" required name="address" class="input-field" maxlength="68" placeholder="Enter transaction address">
+          <input
+            type="text"
+            required
+            name="address"
+            class="input-field"
+            maxlength="68"
+            placeholder="Enter transaction address"
+          />
         </div>
         <div class="level-item">
           <button class="app-button shadow">Search transaction</button>
@@ -14,14 +21,15 @@
     </div>
   </form>
 
-
   <div class="text_regular my-4 is-size-4">Latest transactions</div>
-  <.live_component module={ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent} id="last_ten_transactions" />
-
+  <.live_component
+    module={ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent}
+    id="last_ten_transactions"
+  />
 
   <div class="text_regular my-4 is-size-4">Last beacon chain summary statistics</div>
   <div class="columns">
-   <div class="column is-3">
+    <div class="column is-3">
       <div class="box2 has-text-centered shadow">
         <h1>Last TPS</h1>
         <h2><%= Float.floor(@tps, 3) %></h2>
@@ -34,5 +42,4 @@
       </div>
     </div>
   </div>
-
 </div>

@@ -1,26 +1,46 @@
-
-<div class="body" >
+<div class="body">
   <div class="text_title">Live dashboard</div>
-  <div class="text_subtitle">Metrics are updated every minutes to give an 1 hour overview of the entire network</div>
+  <div class="text_subtitle">
+    Metrics are updated every minutes to give an 1 hour overview of the entire network
+  </div>
   <div class="ae-box ae-purple shadow">
     <div class="columns">
-      <div class="column is-6" phx-hook="network_transactions_count_chart" phx-update="ignore" id="network_transactions_count_chart">
+      <div
+        class="column is-6"
+        phx-hook="network_transactions_count_chart"
+        phx-update="ignore"
+        id="network_transactions_count_chart"
+      >
         <div class="chart" style="height: 300px"></div>
       </div>
-      <div class="column is-6" phx-hook="network_transactions_avg_duration_chart" phx-update="ignore" id="network_transactions_avg_duration_chart">
+      <div
+        class="column is-6"
+        phx-hook="network_transactions_avg_duration_chart"
+        phx-update="ignore"
+        id="network_transactions_avg_duration_chart"
+      >
         <div class="chart" style="height: 300px"></div>
       </div>
     </div>
 
     <div class="columns">
-      <div class="column is-6" phx-hook="node_transactions_count_chart" phx-update="ignore" id="node_transactions_count_chart">
+      <div
+        class="column is-6"
+        phx-hook="node_transactions_count_chart"
+        phx-update="ignore"
+        id="node_transactions_count_chart"
+      >
         <div class="chart" style="height: 300px"></div>
       </div>
-      <div class="column is-6" phx-hook="boxplot_transactions_avg_duration" phx-update="ignore" id="boxplot_transactions_avg_duration">
+      <div
+        class="column is-6"
+        phx-hook="boxplot_transactions_avg_duration"
+        phx-update="ignore"
+        id="boxplot_transactions_avg_duration"
+      >
         <div class="chart" style="height: 300px"></div>
       </div>
     </div>
-
 
     <p class="mt-6 heading">Version: <%= @version %></p>
   </div>

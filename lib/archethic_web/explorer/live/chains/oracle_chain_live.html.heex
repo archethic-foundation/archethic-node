@@ -1,23 +1,28 @@
 <div class="text_title">Oracle chain</div>
 <div class="text_regular">Last changes from <%= format_date(@update_time) %></div>
-<br/>
+<br />
 <div class="box1 has-text-centered">
   <h1>UCO Price</h1>
   <h2>
     <%= if Enum.empty?(@last_oracle_data) do %>
-    N/A
+      N/A
     <% else %>
-    <%= get_in(@last_oracle_data, ["uco", "usd"]) %> $
+      <%= get_in(@last_oracle_data, ["uco", "usd"]) %> $
     <% end %>
   </h2>
 </div>
-<ArchethicWeb.Explorer.Pagination.previous_next current_page={@current_date_page} total_pages={Enum.count(@dates)} />
-<div class="text_regular">Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %></div>
-<br/><br/>
+<ArchethicWeb.Explorer.Pagination.previous_next
+  current_page={@current_date_page}
+  total_pages={Enum.count(@dates)}
+/>
+<div class="text_regular">
+  Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %>
+</div>
+<br /><br />
 <%= for tx <- @transactions do %>
   <div class="columns list-card is-multiline">
     <div class="column list-card-item-address is-12-mobile is-6-tablet is-7-desktop">
-      <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+      <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
         <%= Base.encode16(tx.address) %>
       <% end %>
     </div>
@@ -28,5 +33,5 @@
       <div class="tag is-light is-info"><%= tx.type %></div>
     </div>
   </div>
-    <div style="height: 20px;"></div>
+  <div style="height: 20px;"></div>
 <% end %>

@@ -1,172 +1,214 @@
 <html>
-<head>
-    <meta charset="UTF-8">
-    <title>Index of <%=@cwd %></title>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Index of <%= @cwd %></title>
     <style>
-    html {
-        background-color: #f6f6f6;
-        font-family: sans-serif;
-    }
-    body {
-        border: 1px solid #cdcdcd;
-        border-radius: 10px;
-        padding: 3em;
-        min-width: 30em;
-        max-width: 65em;
-        margin: 4em auto;
-        background-color: #fff;
-        color: #000;
-    }
+      html {
+          background-color: #f6f6f6;
+          font-family: sans-serif;
+      }
+      body {
+          border: 1px solid #cdcdcd;
+          border-radius: 10px;
+          padding: 3em;
+          min-width: 30em;
+          max-width: 65em;
+          margin: 4em auto;
+          background-color: #fff;
+          color: #000;
+      }
 
-    a {
-        text-decoration: none;
-    }
+      a {
+          text-decoration: none;
+      }
 
-    table.index {
-        width: 90%;
-        margin: 0 auto;
-    }
-    table.index thead {
-        font-size: 130%;
-    }
-    table.index thead th {
-        text-align: start;
-    }
-    table.index .transaction {
-        text-align: end;
-        padding-inline-end: 1rem;
-    }
-    table.index .last-modified {
+      table.index {
+          width: 90%;
+          margin: 0 auto;
+      }
+      table.index thead {
+          font-size: 130%;
+      }
+      table.index thead th {
+          text-align: start;
+      }
+      table.index .transaction {
+          text-align: end;
+          padding-inline-end: 1rem;
+      }
+      table.index .last-modified {
+          width: 1px;
+          white-space: nowrap;
+      }
+      table.index .name {
+          white-space: nowrap;
+      }
+
+      .comma:not(:empty) ~ .comma:not(:empty):before {
+          content: ", ";
+      }
+      table.index .size{
         width: 1px;
         white-space: nowrap;
-    }
-    table.index .name {
-        white-space: nowrap;
-    }
+      }
 
-    .comma:not(:empty) ~ .comma:not(:empty):before {
-        content: ", ";
-    }
-    table.index .size{
-      width: 1px;
-      white-space: nowrap;
-    }
+      i.icon {
+          width: 16px;
+          height: 16px;
+          display: inline-block;
+      }
+      i.file {
+          background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABxUlEQVR42mNkQABNPj6+NE4ggAn8+/ef4c/fvww/f/5k+Pb1yzSg0CUGNMAIpXmio6PvTZw8RRQk9B+k+e8/hm8/fjI8f/WW4dGzlwx7Ni5/M2fOHBeg1EVsBpiuXrP2lIm5JYrp//79Y/j+4xfDh89fGZRlJRhqqytBhjgjuwRmgNmatetOWljZoLsQbMinL98Z+Hg4weyWpvq3c2bPdgVKnUczYO1JWzsHBmzgx8/fDD9//2FgZgJ67/9/hvy83LdbN63XB0o9hRsA9MJJJ2cXBlzgLyhMvv9geP76HcOq1WsY+tvrzYHCp1AMcHNzx2nAfyAExQooYDds2MiQk5GCagDQ1JNeXl4MhMBfYDhs2rSZITY6EtWAlUAD/Hx9CBoADAKwARHhoWgGrFp9MiDAn6ABIADyQngYmgErVq46GRwURJQBa9etA7ogDNWA5StWngwLDSHKAFAsREaEoxqwdPmKk5HhYUQZsHzlKoboyAgUA0wXLl56Ki4miigDFi1ZxhAfG20GZJ6GZyb/gMB702fMFOXgYMer+QcwHWRmpL/euGG9EpD7hRFJTpOHhyeNgwORnbEb8P37ly9fZgGZ10F8AL8PzRGGBrLfAAAAAElFTkSuQmCC')
+      }
+      i.dir {
+          background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABAklEQVR42mNkoBAwAjEXEAcCMTsW+U9AvB6I/+I0gJ2Noe3QJoZKASEgjwkq+h+C795lYPCKZMgC8mZg0fsfbICIIMOcF6cZkrGZ/v8fA0PndIa/7z8BXfAPqgVKv//A8GPeZoYERmE+hjmP1+AwAOgiTjOIP7HZLyjLMJNRmB/ogjMMyYzsUC8wIhQwsgCFWHAHoKAy0AARIYY5r69idwEhIKgBMgAYBq8vkGmALsyAU2QaYAwz4CiZBliADBAAGnCATANsYQbsJtMAJ5ABwGh8uZE8A4R9gAYwMzHkT8hl6Bfgxp5ecIH3Xxj+F05hyIdpUmXAnpnwge9AfJckW7EBAC/gSzisxsnmAAAAAElFTkSuQmCC')
+      }
+      i.up {
+          background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABZUlEQVR42mNkwAN8DrpUMbMzsW+02FWPSw0jLgmTNj0T5Uj5YyA1Dzc9tTuRf+440QZIOIpx2s4xPcfAyKgBFbp9PPeswZOtz78RZYDPCeeJHKLsechivz78nrrJeHcOQQPMJxs4S3tK7gIymdCk/r3Y/8rjWOrZ3TgNkPWX5Dfp1bsMYuIImsfnqq7qPVz15ANWA7zOOi5i5WONxRczf778WbzVcF8chgGWC4yCRa2EVuOLGSj4//b0+5Cj0WfXoRjgvMN6IiMTowqrMIsyMy+zOladv/+/+vns1zkmJsa7u5wP52ANRNPZ+pVidkJt2Az4+/Pflh16B33xxoLJbL1KUVvsBvwDGrBT/xB+A4xn61aK2ghid8Gvf1t26x/Bb4DRLJ1KEVtBnC7YY3AUvwGGM7UqhaEGoEuCwmCf4XH8BhjM1KwUtsHtgv1GJ/AboN2iFiPqKjQJm9yfd38WH/E8g5JHABnvhRHOvy3zAAAAAElFTkSuQmCC')
+      }
 
-    i.icon {
-        width: 16px;
-        height: 16px;
-        display: inline-block;
-    }
-    i.file {
-        background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABxUlEQVR42mNkQABNPj6+NE4ggAn8+/ef4c/fvww/f/5k+Pb1yzSg0CUGNMAIpXmio6PvTZw8RRQk9B+k+e8/hm8/fjI8f/WW4dGzlwx7Ni5/M2fOHBeg1EVsBpiuXrP2lIm5JYrp//79Y/j+4xfDh89fGZRlJRhqqytBhjgjuwRmgNmatetOWljZoLsQbMinL98Z+Hg4weyWpvq3c2bPdgVKnUczYO1JWzsHBmzgx8/fDD9//2FgZgJ67/9/hvy83LdbN63XB0o9hRsA9MJJJ2cXBlzgLyhMvv9geP76HcOq1WsY+tvrzYHCp1AMcHNzx2nAfyAExQooYDds2MiQk5GCagDQ1JNeXl4MhMBfYDhs2rSZITY6EtWAlUAD/Hx9CBoADAKwARHhoWgGrFp9MiDAn6ABIADyQngYmgErVq46GRwURJQBa9etA7ogDNWA5StWngwLDSHKAFAsREaEoxqwdPmKk5HhYUQZsHzlKoboyAgUA0wXLl56Ki4miigDFi1ZxhAfG20GZJ6GZyb/gMB702fMFOXgYMer+QcwHWRmpL/euGG9EpD7hRFJTpOHhyeNgwORnbEb8P37ly9fZgGZ10F8AL8PzRGGBrLfAAAAAElFTkSuQmCC')
-    }
-    i.dir {
-        background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABAklEQVR42mNkoBAwAjEXEAcCMTsW+U9AvB6I/+I0gJ2Noe3QJoZKASEgjwkq+h+C795lYPCKZMgC8mZg0fsfbICIIMOcF6cZkrGZ/v8fA0PndIa/7z8BXfAPqgVKv//A8GPeZoYERmE+hjmP1+AwAOgiTjOIP7HZLyjLMJNRmB/ogjMMyYzsUC8wIhQwsgCFWHAHoKAy0AARIYY5r69idwEhIKgBMgAYBq8vkGmALsyAU2QaYAwz4CiZBliADBAAGnCATANsYQbsJtMAJ5ABwGh8uZE8A4R9gAYwMzHkT8hl6Bfgxp5ecIH3Xxj+F05hyIdpUmXAnpnwge9AfJckW7EBAC/gSzisxsnmAAAAAElFTkSuQmCC')
-    }
-    i.up {
-        background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABZUlEQVR42mNkwAN8DrpUMbMzsW+02FWPSw0jLgmTNj0T5Uj5YyA1Dzc9tTuRf+440QZIOIpx2s4xPcfAyKgBFbp9PPeswZOtz78RZYDPCeeJHKLsechivz78nrrJeHcOQQPMJxs4S3tK7gIymdCk/r3Y/8rjWOrZ3TgNkPWX5Dfp1bsMYuIImsfnqq7qPVz15ANWA7zOOi5i5WONxRczf778WbzVcF8chgGWC4yCRa2EVuOLGSj4//b0+5Cj0WfXoRjgvMN6IiMTowqrMIsyMy+zOladv/+/+vns1zkmJsa7u5wP52ANRNPZ+pVidkJt2Az4+/Pflh16B33xxoLJbL1KUVvsBvwDGrBT/xB+A4xn61aK2ghid8Gvf1t26x/Bb4DRLJ1KEVtBnC7YY3AUvwGGM7UqhaEGoEuCwmCf4XH8BhjM1KwUtsHtgv1GJ/AboN2iFiPqKjQJm9yfd38WH/E8g5JHABnvhRHOvy3zAAAAAElFTkSuQmCC')
-    }
-
-    h1 {
-        display: flex;
-        align-items: center;
-    }
-    h1 svg {
-        padding-right: 1rem;
-    }
+      h1 {
+          display: flex;
+          align-items: center;
+      }
+      h1 svg {
+          padding-right: 1rem;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <h1>
-        <a {@reference_transaction_href}>
-        <svg width="32px" height="32p" viewBox="0 0 218 218" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-            <title>Hosted on the Archethic public blockchain</title>
-            <defs>
-                <linearGradient x1="-8.15998999%" y1="58.450506%" x2="66.0973524%" y2="37.2317255%" id="linearGradient-1">
-                    <stop stop-color="#00A4DB" offset="0%"></stop>
-                    <stop stop-color="#CC00FF" offset="100%"></stop>
-                </linearGradient>
-                <linearGradient x1="13.7694298%" y1="70.2946817%" x2="60.0277915%" y2="19.3357929%" id="linearGradient-2">
-                    <stop stop-color="#00A4DB" offset="0%"></stop>
-                    <stop stop-color="#CC00FF" offset="100%"></stop>
-                </linearGradient>
-                <linearGradient x1="16.65189%" y1="70.2946817%" x2="59.2299926%" y2="19.3357929%" id="linearGradient-3">
-                    <stop stop-color="#00A4DB" offset="0%"></stop>
-                    <stop stop-color="#CC00FF" offset="100%"></stop>
-                </linearGradient>
-            </defs>
-            <g id="Validated-logos" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-                <g id="Validated-Logo" transform="translate(-1151.000000, -1309.000000)" fill-rule="nonzero">
-                    <g id="Archethic-Logo-alone---Gradient" transform="translate(1151.000000, 1309.000000)">
-                        <path d="M55.9717452,30.2949953 C58.277079,29.8243265 65.4163912,28.4555553 74.5139146,28.5490061 C89.4316778,28.7024124 100.98782,32.6922297 108.068945,35.2014331 C116.253298,38.101278 134.390369,45.4666645 152.733815,62.0157094 C159.656388,68.2608302 164.81779,74.1989492 168.327323,78.6046457 C169.964273,75.2228617 171.37137,71.7537392 172.514589,68.2790329 C174.017362,63.7111362 175.12528,58.9891156 175.807186,54.2455009 L176.885965,46.7441695 C172.516684,42.3747523 166.643523,36.9839067 159.253369,31.4276591 C155.737674,28.7844904 144.550448,20.5939625 130.238404,13.9885802 C118.88985,8.7508255 92.4862729,-3.43530867 58.5307129,0.924794254 C33.3292264,4.16081425 15.6139852,15.0162154 11.5230985,17.6098707 C8.53981908,19.5010955 5.64646187,21.5349769 2.92238625,23.6560074 L1.04831512,25.1150272 L0.769616759,27.531395 C0.365209392,31.035456 0.11704668,34.6576851 0.0315105267,38.2952067 C-0.247180173,50.2677741 1.19223628,68.7749081 9.63331195,88.9492658 C12.0697426,94.7738778 14.991245,100.500378 18.3168742,105.969799 C19.2381942,107.48484 21.0852053,110.396159 23.8264914,114.141509 C23.5437181,112.02193 23.2974525,109.900489 23.0926574,107.808498 C21.8931398,95.5725432 21.901396,83.0760867 23.1158323,70.667379 C24.1207991,60.4006965 25.7914713,52.1547558 26.9904881,46.948848 C27.5354475,44.5832318 28.040416,42.603312 28.4211553,41.1633151 C31.6726839,39.1740889 35.7936053,36.9469019 40.7310209,34.9254186 C43.7633286,33.683696 49.0819767,31.7020174 55.9717452,30.2949953 Z" id="Path" fill="url(#linearGradient-1)"></path>
-                        <path d="M135.687247,175.467609 C126.491554,179.685898 118.667316,182.298453 113.654435,183.818261 C111.37656,184.509155 109.445167,185.043083 108.033833,185.419353 C104.70029,183.492309 100.724186,180.903073 96.5075524,177.47858 C93.9178507,175.375218 89.5412585,171.588065 84.8534403,166.104031 C83.2848761,164.26886 78.5027411,158.541683 73.9633554,150.326804 C66.5204227,136.856728 64.0294757,124.491123 62.5573549,116.88206 C60.8559983,108.087575 57.8798298,88.1295066 62.5680641,63.4061312 C64.3374812,54.0761606 66.7408756,46.4804094 68.6865072,41.1320755 C64.9944792,41.3488233 61.3453646,41.8159434 57.8252983,42.5224924 C53.1980674,43.4514693 48.6411235,44.8118809 44.2816965,46.5653747 L37.3879084,49.3380738 C35.9095239,55.4403879 34.3302508,63.4025281 33.3813186,72.8086841 C32.929927,77.283536 31.6799619,91.4129414 33.3573811,107.557344 C34.6873253,120.358932 37.7815402,150.142853 58.7073874,178.454878 C74.2383399,199.468041 92.4150357,209.959298 96.6858932,212.338608 C99.800201,214.073851 102.990042,215.657193 106.166956,217.045053 L108.352624,218 L110.538309,217.045053 C113.708042,215.660277 116.898392,214.076934 120.019172,212.339332 C130.289317,206.618339 145.215584,196.095424 157.99797,178.454469 C161.688596,173.361873 165.050107,167.882779 167.988909,162.169101 C168.802922,160.586168 170.328373,157.475558 172.105263,153.146627 C170.455618,154.457546 168.785957,155.737013 167.119948,156.964005 C157.377337,164.143678 146.801406,170.369019 135.687247,175.467609 Z" id="Path" fill="url(#linearGradient-2)"></path>
-                        <path d="M217.972525,38.0088274 C217.887479,34.3932609 217.638113,30.7867503 217.230351,27.289059 L216.949992,24.8826949 L215.064572,23.4297153 C212.330223,21.3225159 209.418882,19.2965364 206.41257,17.4084052 C196.516153,11.1971579 180.277677,3.27186689 159.119499,0.793126672 C153.011295,0.0768354488 146.741198,-0.155930281 140.483606,0.101536825 C138.74991,0.173088203 135.380162,0.379079121 130.861778,0.97102332 C132.780695,1.77307401 134.683017,2.60858339 136.539593,3.46694842 C147.400523,8.4843247 157.871801,14.7138956 167.663141,21.9812676 C175.764408,27.9941346 181.836379,33.5976979 185.597384,37.2645285 C187.306269,38.9308112 188.712164,40.3694805 189.727521,41.4276631 C189.759524,45.3328123 189.553612,50.1354559 188.76481,55.5677043 C188.280309,58.904087 187.266142,64.6581516 184.979803,71.5343238 C184.214788,73.8354816 181.771031,80.9160974 177.116176,89.0243355 C169.483699,102.319599 160.326263,110.691172 154.660952,115.789163 C148.113075,121.681382 132.815125,134.271468 109.714883,142.473281 C100.997333,145.568557 93.4233036,147.238649 87.9649123,148.190588 C89.9762048,151.34166 92.1765979,154.330291 94.5140873,157.085326 C97.587657,160.706547 100.98863,164.050863 104.622035,167.024242 L110.367902,171.726415 C116.228849,169.985698 123.702213,167.405247 132.077045,163.547867 C136.061596,161.712648 148.555053,155.762984 161.291677,146.223499 C171.39112,138.659129 194.888008,121.059883 208.313472,88.4524744 C218.277711,64.2517146 218.088901,42.967321 217.972525,38.0088274 Z" id="Path" fill="url(#linearGradient-3)"></path>
-                    </g>
-                </g>
+      <a {@reference_transaction_href}>
+        <svg
+          width="32px"
+          height="32p"
+          viewBox="0 0 218 218"
+          version="1.1"
+          xmlns="http://www.w3.org/2000/svg"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+        >
+          <title>Hosted on the Archethic public blockchain</title>
+          <defs>
+            <linearGradient
+              x1="-8.15998999%"
+              y1="58.450506%"
+              x2="66.0973524%"
+              y2="37.2317255%"
+              id="linearGradient-1"
+            >
+              <stop stop-color="#00A4DB" offset="0%"></stop>
+              <stop stop-color="#CC00FF" offset="100%"></stop>
+            </linearGradient>
+            <linearGradient
+              x1="13.7694298%"
+              y1="70.2946817%"
+              x2="60.0277915%"
+              y2="19.3357929%"
+              id="linearGradient-2"
+            >
+              <stop stop-color="#00A4DB" offset="0%"></stop>
+              <stop stop-color="#CC00FF" offset="100%"></stop>
+            </linearGradient>
+            <linearGradient
+              x1="16.65189%"
+              y1="70.2946817%"
+              x2="59.2299926%"
+              y2="19.3357929%"
+              id="linearGradient-3"
+            >
+              <stop stop-color="#00A4DB" offset="0%"></stop>
+              <stop stop-color="#CC00FF" offset="100%"></stop>
+            </linearGradient>
+          </defs>
+          <g id="Validated-logos" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+            <g
+              id="Validated-Logo"
+              transform="translate(-1151.000000, -1309.000000)"
+              fill-rule="nonzero"
+            >
+              <g
+                id="Archethic-Logo-alone---Gradient"
+                transform="translate(1151.000000, 1309.000000)"
+              >
+                <path
+                  d="M55.9717452,30.2949953 C58.277079,29.8243265 65.4163912,28.4555553 74.5139146,28.5490061 C89.4316778,28.7024124 100.98782,32.6922297 108.068945,35.2014331 C116.253298,38.101278 134.390369,45.4666645 152.733815,62.0157094 C159.656388,68.2608302 164.81779,74.1989492 168.327323,78.6046457 C169.964273,75.2228617 171.37137,71.7537392 172.514589,68.2790329 C174.017362,63.7111362 175.12528,58.9891156 175.807186,54.2455009 L176.885965,46.7441695 C172.516684,42.3747523 166.643523,36.9839067 159.253369,31.4276591 C155.737674,28.7844904 144.550448,20.5939625 130.238404,13.9885802 C118.88985,8.7508255 92.4862729,-3.43530867 58.5307129,0.924794254 C33.3292264,4.16081425 15.6139852,15.0162154 11.5230985,17.6098707 C8.53981908,19.5010955 5.64646187,21.5349769 2.92238625,23.6560074 L1.04831512,25.1150272 L0.769616759,27.531395 C0.365209392,31.035456 0.11704668,34.6576851 0.0315105267,38.2952067 C-0.247180173,50.2677741 1.19223628,68.7749081 9.63331195,88.9492658 C12.0697426,94.7738778 14.991245,100.500378 18.3168742,105.969799 C19.2381942,107.48484 21.0852053,110.396159 23.8264914,114.141509 C23.5437181,112.02193 23.2974525,109.900489 23.0926574,107.808498 C21.8931398,95.5725432 21.901396,83.0760867 23.1158323,70.667379 C24.1207991,60.4006965 25.7914713,52.1547558 26.9904881,46.948848 C27.5354475,44.5832318 28.040416,42.603312 28.4211553,41.1633151 C31.6726839,39.1740889 35.7936053,36.9469019 40.7310209,34.9254186 C43.7633286,33.683696 49.0819767,31.7020174 55.9717452,30.2949953 Z"
+                  id="Path"
+                  fill="url(#linearGradient-1)"
+                >
+                </path>
+                <path
+                  d="M135.687247,175.467609 C126.491554,179.685898 118.667316,182.298453 113.654435,183.818261 C111.37656,184.509155 109.445167,185.043083 108.033833,185.419353 C104.70029,183.492309 100.724186,180.903073 96.5075524,177.47858 C93.9178507,175.375218 89.5412585,171.588065 84.8534403,166.104031 C83.2848761,164.26886 78.5027411,158.541683 73.9633554,150.326804 C66.5204227,136.856728 64.0294757,124.491123 62.5573549,116.88206 C60.8559983,108.087575 57.8798298,88.1295066 62.5680641,63.4061312 C64.3374812,54.0761606 66.7408756,46.4804094 68.6865072,41.1320755 C64.9944792,41.3488233 61.3453646,41.8159434 57.8252983,42.5224924 C53.1980674,43.4514693 48.6411235,44.8118809 44.2816965,46.5653747 L37.3879084,49.3380738 C35.9095239,55.4403879 34.3302508,63.4025281 33.3813186,72.8086841 C32.929927,77.283536 31.6799619,91.4129414 33.3573811,107.557344 C34.6873253,120.358932 37.7815402,150.142853 58.7073874,178.454878 C74.2383399,199.468041 92.4150357,209.959298 96.6858932,212.338608 C99.800201,214.073851 102.990042,215.657193 106.166956,217.045053 L108.352624,218 L110.538309,217.045053 C113.708042,215.660277 116.898392,214.076934 120.019172,212.339332 C130.289317,206.618339 145.215584,196.095424 157.99797,178.454469 C161.688596,173.361873 165.050107,167.882779 167.988909,162.169101 C168.802922,160.586168 170.328373,157.475558 172.105263,153.146627 C170.455618,154.457546 168.785957,155.737013 167.119948,156.964005 C157.377337,164.143678 146.801406,170.369019 135.687247,175.467609 Z"
+                  id="Path"
+                  fill="url(#linearGradient-2)"
+                >
+                </path>
+                <path
+                  d="M217.972525,38.0088274 C217.887479,34.3932609 217.638113,30.7867503 217.230351,27.289059 L216.949992,24.8826949 L215.064572,23.4297153 C212.330223,21.3225159 209.418882,19.2965364 206.41257,17.4084052 C196.516153,11.1971579 180.277677,3.27186689 159.119499,0.793126672 C153.011295,0.0768354488 146.741198,-0.155930281 140.483606,0.101536825 C138.74991,0.173088203 135.380162,0.379079121 130.861778,0.97102332 C132.780695,1.77307401 134.683017,2.60858339 136.539593,3.46694842 C147.400523,8.4843247 157.871801,14.7138956 167.663141,21.9812676 C175.764408,27.9941346 181.836379,33.5976979 185.597384,37.2645285 C187.306269,38.9308112 188.712164,40.3694805 189.727521,41.4276631 C189.759524,45.3328123 189.553612,50.1354559 188.76481,55.5677043 C188.280309,58.904087 187.266142,64.6581516 184.979803,71.5343238 C184.214788,73.8354816 181.771031,80.9160974 177.116176,89.0243355 C169.483699,102.319599 160.326263,110.691172 154.660952,115.789163 C148.113075,121.681382 132.815125,134.271468 109.714883,142.473281 C100.997333,145.568557 93.4233036,147.238649 87.9649123,148.190588 C89.9762048,151.34166 92.1765979,154.330291 94.5140873,157.085326 C97.587657,160.706547 100.98863,164.050863 104.622035,167.024242 L110.367902,171.726415 C116.228849,169.985698 123.702213,167.405247 132.077045,163.547867 C136.061596,161.712648 148.555053,155.762984 161.291677,146.223499 C171.39112,138.659129 194.888008,121.059883 208.313472,88.4524744 C218.277711,64.2517146 218.088901,42.967321 217.972525,38.0088274 Z"
+                  id="Path"
+                  fill="url(#linearGradient-3)"
+                >
+                </path>
+              </g>
             </g>
+          </g>
         </svg>
-        </a>
-        Index of <%=@cwd %>
+      </a>
+      Index of <%= @cwd %>
     </h1>
 
-    <%= if @parent_dir_href do  %>
-        <p><a {@parent_dir_href}><i class="up icon"></i> Up to higher level directory</a></p>
-    <% else  %>
-        <p>&nbsp;</p>
+    <%= if @parent_dir_href do %>
+      <p><a {@parent_dir_href}><i class="up icon"></i> Up to higher level directory</a></p>
+    <% else %>
+      <p>&nbsp;</p>
     <% end %>
 
     <table class="index">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th class="size">Size(Bytes)</th>
-                <th class="transaction">Transactions</th>
-                <th class="last-modified">Last Modified</th>
-            </tr>
-        </thead>
-        <tbody>
-            <%= for dir <- @dirs do %>
-                <tr>
-                    <td class="name">
-                        <table>
-                            <tbody>
-                                <tr>
-                                    <td><a {dir.href}><i class="dir icon"></i> <%= dir.name %></a></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </td>
-                    <td class="size"></td>
-                    <td class="transaction"></td>
-                    <td class="last-modified"><%= format_date(dir.last_modified) %></td>
-                </tr>
-            <% end %>
-            <%= for file <- @files do %>
-                <tr>
-                    <td class="name">
-                        <table>
-                            <tbody>
-                                <tr>
-                                    <td><a {file.href}><i class="file icon"></i> <%= file.name %></a></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </td>
-                    <td class="size"><%= file.size %></td>
-                    <td class="transaction">
-                    <%= for address <- prepare_addresses(file.addresses) do %>
-                        <a class="address comma"{address.href}><%= address.text %></a>
-                    <% end %>
-                    </td>
-                    <td class="last-modified"><%= format_date(file.last_modified) %></td>
-                </tr>
-            <% end %>
-
-        </tbody>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th class="size">Size(Bytes)</th>
+          <th class="transaction">Transactions</th>
+          <th class="last-modified">Last Modified</th>
+        </tr>
+      </thead>
+      <tbody>
+        <%= for dir <- @dirs do %>
+          <tr>
+            <td class="name">
+              <table>
+                <tbody>
+                  <tr>
+                    <td><a {dir.href}><i class="dir icon"></i> <%= dir.name %></a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+            <td class="size"></td>
+            <td class="transaction"></td>
+            <td class="last-modified"><%= format_date(dir.last_modified) %></td>
+          </tr>
+        <% end %>
+        <%= for file <- @files do %>
+          <tr>
+            <td class="name">
+              <table>
+                <tbody>
+                  <tr>
+                    <td><a {file.href}><i class="file icon"></i> <%= file.name %></a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+            <td class="size"><%= file.size %></td>
+            <td class="transaction">
+              <%= for address <- prepare_addresses(file.addresses) do %>
+                <a class="address comma" {address.href}><%= address.text %></a>
+              <% end %>
+            </td>
+            <td class="last-modified"><%= format_date(file.last_modified) %></td>
+          </tr>
+        <% end %>
+      </tbody>
     </table>
-
-
-
-</body>
+  </body>
 </html>

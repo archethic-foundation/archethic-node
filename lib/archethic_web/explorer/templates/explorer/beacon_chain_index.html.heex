@@ -1,21 +1,26 @@
 <div class="text_title">Beacon chain</div>
 <div class="text_regular">
-    Beacon Chains are the entire summary of all the transactions based on time slots of the Archethic P2P network.
-    Since no node has the physical ability to know the status of each transaction in an unlimited network, Beacon Chains are a specific set of transaction chains responsible for the global synchronization of the network.
+  Beacon Chains are the entire summary of all the transactions based on time slots of the Archethic P2P network.
+  Since no node has the physical ability to know the status of each transaction in an unlimited network, Beacon Chains are a specific set of transaction chains responsible for the global synchronization of the network.
 </div>
-<br/>
+<br />
 <div class="text_regular">Last Changes From <%= format_date(@update_time) %></div>
-<br/><br/>
-<ArchethicWeb.Explorer.Pagination.previous_next current_page={@current_date_page} total_pages={Enum.count(@dates)} />
-<div class="text_regular">Transaction chain for <%=format_date(Enum.at(@dates, @current_date_page - 1))%></div>
+<br /><br />
+<ArchethicWeb.Explorer.Pagination.previous_next
+  current_page={@current_date_page}
+  total_pages={Enum.count(@dates)}
+/>
+<div class="text_regular">
+  Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %>
+</div>
 <%= if @fetching do %>
   <div class="text_regular">Loading transaction chain...</div>
 <% end %>
-<br/><br/>
+<br /><br />
 <%= for tx <- @transactions do %>
   <div class="columns list-card is-multiline">
     <div class="column list-card-item-address is-12-mobile is-6-tablet is-8-desktop">
-      <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+      <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
         <%= Base.encode16(tx.address) %>
       <% end %>
     </div>

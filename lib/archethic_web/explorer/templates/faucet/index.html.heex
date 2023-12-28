@@ -3,22 +3,30 @@
   <div class="text_subtitle">Claim up to 300 Testnet UCOs per hour. No question asked.</div>
 
   <form action={Routes.faucet_path(@conn, :create_transfer)} method="post" class="form-container">
-      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
 
-      <div class="level">
-        <div class="level-left">
-          <div class="level-item">
-            <input type="text" value={@address} required name="address" class="input-field" maxlength="68" placeholder="Enter address">
-          </div>
-          <div class="level-item">
-            <button type="submit" class="app-button shadow">Claim 100 UCO</button>
-          </div>
+    <div class="level">
+      <div class="level-left">
+        <div class="level-item">
+          <input
+            type="text"
+            value={@address}
+            required
+            name="address"
+            class="input-field"
+            maxlength="68"
+            placeholder="Enter address"
+          />
+        </div>
+        <div class="level-item">
+          <button type="submit" class="app-button shadow">Claim 100 UCO</button>
         </div>
       </div>
+    </div>
   </form>
-    <%= if info = get_flash(@conn, :info) do %>
-    <%= link to: Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionDetailsLive, @link_address) do%>
-    <div class="text_regular_positive"><%= info %></div>
+  <%= if info = get_flash(@conn, :info) do %>
+    <%= link to: Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionDetailsLive, @link_address) do %>
+      <div class="text_regular_positive"><%= info %></div>
     <% end %>
   <% end %>
 
@@ -30,4 +38,3 @@
     <div class="text_regular">NOTE: <%= faucet_rate_limit_message() %></div>
   </div>
 </div>
-

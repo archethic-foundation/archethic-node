@@ -1,150 +1,154 @@
 <div class="text_title">Nodes List</div>
-  <div class="text_subtitle">Nb of nodes: (<%= @nb_nodes %>)</div>
-<br/><br/>
+<div class="text_subtitle">Nb of nodes: (<%= @nb_nodes %>)</div>
+<br /><br />
 <div class="columns">
   <div class="column">
+    <div class="text_subtitle">Authorized nodes (<%= Enum.count(@authorized_nodes) %>)</div>
 
-       <div class="text_subtitle">Authorized nodes (<%= Enum.count(@authorized_nodes) %>)</div>
-        
-              <div class="text_regular">
-                 Contains the list of nodes which have been authorized during the node shared secrets renewal and will participate in the transaction validation
-      </div>
-      <br/><br/>
-      <%= for node <- @authorized_nodes do %>
-    
-          <div class="columns list-card">
-            <div class="column">
-                <div>
-                    <p class="heading">First public key</p>
-                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.last_public_key)) do%>
-                      <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...</span>
-                      <span class="is-hidden-tablet"><%= Base.encode16(:binary.part(node.first_public_key, 0, 10)) %>...</span>
-                    <% end %>
-                </div>
-            </div>
-            <div class="column">
-                <div>
-                    <p class="heading">Global availability</p>
-                    <%= if node.available? do %>
-                      <span class="tag is-success">Online</span>
-                    <% else %>
-                      <span class="tag is-warning">Offline</span>
-                    <% end %>
-                </div>
-            </div>
-            <div class="column">
-                <div>
-                    <p class="heading">Local availability</p>
-                    <%= if Archethic.P2P.node_connected?(node) do %>
-                      <span class="tag is-success">Online</span>
-                    <% else %>
-                      <span class="tag is-warning">Offline</span>
-                    <% end %>
-                </div>
-            </div>
-            <div class="column">
-                <div>
-                    <p class="heading">Geo Patch</p>
-                    <span><%= node.geo_patch %></span>
-                </div>
-            </div>
+    <div class="text_regular">
+      Contains the list of nodes which have been authorized during the node shared secrets renewal and will participate in the transaction validation
+    </div>
+    <br /><br />
+    <%= for node <- @authorized_nodes do %>
+      <div class="columns list-card">
+        <div class="column">
+          <div>
+            <p class="heading">First public key</p>
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.last_public_key)) do %>
+              <span class="is-hidden-mobile">
+                <%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...
+              </span>
+              <span class="is-hidden-tablet">
+                <%= Base.encode16(:binary.part(node.first_public_key, 0, 10)) %>...
+              </span>
+            <% end %>
           </div>
-       <div style="height: 20px;"></div>
-      <% end %>
-  
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Global availability</p>
+            <%= if node.available? do %>
+              <span class="tag is-success">Online</span>
+            <% else %>
+              <span class="tag is-warning">Offline</span>
+            <% end %>
+          </div>
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Local availability</p>
+            <%= if Archethic.P2P.node_connected?(node) do %>
+              <span class="tag is-success">Online</span>
+            <% else %>
+              <span class="tag is-warning">Offline</span>
+            <% end %>
+          </div>
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Geo Patch</p>
+            <span><%= node.geo_patch %></span>
+          </div>
+        </div>
+      </div>
+      <div style="height: 20px;"></div>
+    <% end %>
   </div>
 </div>
 
 <div class="columns">
   <div class="column">
+    <div class="text_subtitle">Pending nodes (<%= Enum.count(@pending_nodes) %>)</div>
 
-        <div class="text_subtitle">Pending nodes (<%= Enum.count(@pending_nodes) %>)</div>
-      
-        <div class="text_regular">
-                     Contains the list of nodes which have been marked available by the network but not yet authorized, because the network didn't make the authorized node renewal or the network doesn't require more validation nodes 
-        </div>
-        <%= for node <- @pending_nodes do %>
-        
-            <div class="columns list-card">
-              <div class="column">
-                  <div>
-                      <p class="heading">First public key</p>
-                      <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.last_public_key)) do%>
-                        <span class="is-hidden-touch"><%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...</span>
-                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...</span>
-                      <% end %>
-                  </div>
-              </div>
-              <div class="column">
-                  <div>
-                      <p class="heading">Global availability</p>
-                      <%= if node.available? do %>
-                        <span class="tag is-success">Online</span>
-                      <% else %>
-                        <span class="tag is-warning">Offline</span>
-                      <% end %>
-                  </div>
-              </div>
-              <div class="column">
-                  <div>
-                      <p class="heading">Local availability</p>
-                      <%= if Archethic.P2P.node_connected?(node) do %>
-                        <span class="tag is-success">Online</span>
-                      <% else %>
-                        <span class="tag is-warning">Offline</span>
-                      <% end %>
-                  </div>
-              </div>
-              <div class="column">
-                  <div>
-                      <p class="heading">Geo Patch</p>
-                      <span><%= node.geo_patch %></span>
-                  </div>
-              </div>
-         </div>
-    <div style="height: 20px;"></div>
-        <% end %>
+    <div class="text_regular">
+      Contains the list of nodes which have been marked available by the network but not yet authorized, because the network didn't make the authorized node renewal or the network doesn't require more validation nodes
     </div>
+    <%= for node <- @pending_nodes do %>
+      <div class="columns list-card">
+        <div class="column">
+          <div>
+            <p class="heading">First public key</p>
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.last_public_key)) do %>
+              <span class="is-hidden-touch">
+                <%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...
+              </span>
+              <span class="is-hidden-desktop">
+                <%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...
+              </span>
+            <% end %>
+          </div>
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Global availability</p>
+            <%= if node.available? do %>
+              <span class="tag is-success">Online</span>
+            <% else %>
+              <span class="tag is-warning">Offline</span>
+            <% end %>
+          </div>
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Local availability</p>
+            <%= if Archethic.P2P.node_connected?(node) do %>
+              <span class="tag is-success">Online</span>
+            <% else %>
+              <span class="tag is-warning">Offline</span>
+            <% end %>
+          </div>
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Geo Patch</p>
+            <span><%= node.geo_patch %></span>
+          </div>
+        </div>
+      </div>
+      <div style="height: 20px;"></div>
+    <% end %>
   </div>
-
+</div>
 
 <div class="columns">
   <div class="column">
- 
-        <div class="text_subtitle">New nodes (<%= Enum.count(@new_nodes) %>)</div>
-               <div class="text_regular">
-                   Contains the list of nodes which recently joined the network but not yet recognized available globally (usually an entire self-repair cycle is required to become globally available)                </div>
-        <%= for node <- @new_nodes do %>
-        
-            <div class="columns list-card">
-              <div class="column">
-                  <div>
-                      <p class="heading">First public key</p>
-                      <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.last_public_key)) do%>
-                        <span class="is-hidden-touch"><%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...</span>
-                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...</span>
-                      <% end %>
-                  </div>
-              </div>
-              <div class="column">
-                  <div>
-                      <p class="heading">Local availability</p>
-                      <%= if Archethic.P2P.node_connected?(node) do %>
-                        <span class="tag is-success">Online</span>
-                      <% else %>
-                        <span class="tag is-warning">Offline</span>
-                      <% end %>
-                  </div>
-              </div>
-              <div class="column">
-                  <div>
-                      <p class="heading">Geo Patch</p>
-                      <span><%= node.geo_patch %></span>
-                  </div>
-              </div>
-            </div>
-          <div style="height: 20px;"></div>
-        <% end %>
-
+    <div class="text_subtitle">New nodes (<%= Enum.count(@new_nodes) %>)</div>
+    <div class="text_regular">
+      Contains the list of nodes which recently joined the network but not yet recognized available globally (usually an entire self-repair cycle is required to become globally available)
+    </div>
+    <%= for node <- @new_nodes do %>
+      <div class="columns list-card">
+        <div class="column">
+          <div>
+            <p class="heading">First public key</p>
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.last_public_key)) do %>
+              <span class="is-hidden-touch">
+                <%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...
+              </span>
+              <span class="is-hidden-desktop">
+                <%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...
+              </span>
+            <% end %>
+          </div>
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Local availability</p>
+            <%= if Archethic.P2P.node_connected?(node) do %>
+              <span class="tag is-success">Online</span>
+            <% else %>
+              <span class="tag is-warning">Offline</span>
+            <% end %>
+          </div>
+        </div>
+        <div class="column">
+          <div>
+            <p class="heading">Geo Patch</p>
+            <span><%= node.geo_patch %></span>
+          </div>
+        </div>
+      </div>
+      <div style="height: 20px;"></div>
+    <% end %>
   </div>
 </div>
