@@ -16,6 +16,7 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
+  alias ArchethicWeb.Explorer.Components.TransactionsList
 
   def mount(_params, _session, socket) do
     if connected?(socket) do

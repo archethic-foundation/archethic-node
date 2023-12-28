@@ -6,7 +6,7 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
   use ArchethicWeb.Explorer, :live_component
 
   alias ArchethicWeb.Explorer.ExplorerLive.TopTransactionsCache
-  import ArchethicWeb.Explorer.ExplorerView
+  alias ArchethicWeb.Explorer.Components.TransactionsList
 
   def mount(socket) do
     socket =
