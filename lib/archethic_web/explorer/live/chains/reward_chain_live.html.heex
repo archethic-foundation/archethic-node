@@ -1,0 +1,12 @@
+<div class="text_title">Reward Chain</div>
+<div class="text_subtitle">
+  The Reward chain is the chain that distribute the miners' remuneration once a day.
+</div>
+
+<ArchethicWeb.Explorer.Pagination.previous_next
+  current_page={@current_page}
+  total_pages={@nb_pages}
+/>
+<div class="text_regular my-4 is-size-4">Transactions</div>
+
+<TransactionsList.display_all transactions={@transactions} socket={@socket} />

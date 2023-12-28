@@ -7,10 +7,8 @@ defmodule ArchethicWeb.Explorer.RewardChainLive do
   alias Archethic.PubSub
   alias Archethic.Reward
 
-  alias ArchethicWeb.Explorer.ExplorerView
   alias ArchethicWeb.WebUtils
-
-  alias Phoenix.View
+  alias ArchethicWeb.Explorer.Components.TransactionsList
 
   @display_limit 10
 
@@ -34,11 +32,6 @@ defmodule ArchethicWeb.Explorer.RewardChainLive do
       |> assign(:transactions, transactions_from_page(1, tx_count))
 
     {:ok, socket}
-  end
-
-  @spec render(Phoenix.LiveView.Socket.assigns()) :: Phoenix.LiveView.Rendered.t()
-  def render(assigns) do
-    View.render(ExplorerView, "reward_chain_index.html", assigns)
   end
 
   @spec handle_params(map(), binary(), Phoenix.LiveView.Socket.t()) ::

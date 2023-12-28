@@ -1,6 +1,8 @@
 <div class="text_title">Oracle chain</div>
-<div class="text_regular">Last changes from <%= format_date(@update_time) %></div>
-<br />
+<div class="text_subtitle">
+  The Oracle chain contains data from the outside of the Archethic blockchain. Such as the UCO's price.
+</div>
+
 <div class="box1 has-text-centered">
   <h1>UCO Price</h1>
   <h2>
@@ -20,3 +22,4 @@
 </div>
 
 <TransactionsList.display_all transactions={@transactions} socket={@socket} />
+<div class="text_regular">Last changes from <%= format_date(@update_time) %></div>
