@@ -13,9 +13,7 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
   alias Archethic.Crypto
   alias Archethic.OracleChain
 
-  alias ArchethicWeb.Explorer.{ExplorerView}
-
-  alias Phoenix.{View}
+  import ArchethicWeb.Explorer.ExplorerView
 
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
@@ -35,11 +33,6 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
       address ->
         {:ok, assign(socket, get_paginated_transaction_chain(address))}
     end
-  end
-
-  @spec render(Phoenix.LiveView.Socket.assigns()) :: Phoenix.LiveView.Rendered.t()
-  def render(assigns) do
-    View.render(ExplorerView, "chain.html", assigns)
   end
 
   @doc """
