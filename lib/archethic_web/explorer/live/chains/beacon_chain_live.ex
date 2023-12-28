@@ -50,10 +50,6 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
     {:ok, new_assign}
   end
 
-  def render(assigns) do
-    View.render(ExplorerView, "beacon_chain_index.html", assigns)
-  end
-
   def handle_params(params, _uri, socket = %{assigns: %{dates: dates}}) do
     page = Map.get(params, "page", "1")
 
