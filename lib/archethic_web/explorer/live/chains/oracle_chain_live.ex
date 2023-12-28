@@ -17,10 +17,6 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
-  alias ArchethicWeb.Explorer.ExplorerView
-
-  alias Phoenix.View
-
   def mount(_params, _session, socket) do
     if connected?(socket) do
       PubSub.register_to_new_transaction_by_type(:oracle)
@@ -64,10 +60,6 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
       |> assign(:transactions, list_transactions_by_date(next_summary_date))
 
     {:ok, new_assign}
-  end
-
-  def render(assigns) do
-    View.render(ExplorerView, "oracle_chain_index.html", assigns)
   end
 
   def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates}}) do
