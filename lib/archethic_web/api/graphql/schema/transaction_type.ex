@@ -170,6 +170,7 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
   - token id: It is the id for a token which is allocated when the token is minted.
   - Timestamp: Date time when the UTXO created/manipulated
   - Version: Version of the UTXO data structure
+  - State: It is the state of a smart contract
   """
   object :unspent_output do
     field(:from, :address)
@@ -179,6 +180,14 @@ defmodule ArchethicWeb.API.GraphQL.Schema.TransactionType do
     field(:token_id, :integer)
     field(:timestamp, :timestamp)
     field(:version, :integer)
+    field(:state, :state)
+  end
+
+  @desc """
+    [State] represents the smart contract state
+  """
+  scalar :state do
+    serialize(& &1)
   end
 
   @desc """
