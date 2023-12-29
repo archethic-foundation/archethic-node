@@ -7,6 +7,10 @@ body {
   background: radial-gradient(circle, $color-brand-plum-400 0%, #000000 95%);
 }
 
+dt {
+  color: $color-brand-raspberry-300;
+}
+
 .text_title {
   position: relative;
   font-size: 4rem;
