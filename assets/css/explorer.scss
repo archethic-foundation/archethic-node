@@ -304,6 +304,26 @@ pre {
   cursor: pointer;
 }
 
+a.simple-button {
+  transition: background-color .8s cubic-bezier(.22, 1, .36, 1);
+  display: flex;
+  padding: 20px 24px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 16px;
+  background-color: hsla(0, 0%, 100%, .1);
+  line-height: 1;
+  width: -moz-fit-content;
+  width: fit-content;
+}
+
+a.simple-button:hover {
+  color: $color-neutral-0;
+  background-color: hsla(0, 0%, 100%, .3);
+}
+
 hr {
   border: none;
   height: 1px;

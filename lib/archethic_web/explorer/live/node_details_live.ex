@@ -8,16 +8,8 @@ defmodule ArchethicWeb.Explorer.NodeDetailsLive do
   alias Archethic.P2P.Node
   alias Archethic.PubSub
 
-  alias ArchethicWeb.Explorer.NodeView
-
-  alias Phoenix.View
-
   def mount(_params, _session, socket) do
     {:ok, socket}
-  end
-
-  def render(assigns) do
-    View.render(NodeView, "details.html", assigns)
   end
 
   def handle_params(_params = %{"public_key" => public_key}, _uri, socket) do
