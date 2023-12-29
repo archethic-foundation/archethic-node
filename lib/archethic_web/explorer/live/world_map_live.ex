@@ -3,8 +3,6 @@ defmodule ArchethicWeb.Explorer.WorldMapLive do
 
   use ArchethicWeb.Explorer, :live_view
 
-  alias Phoenix.View
-  alias ArchethicWeb.Explorer.NodeView
   alias Archethic.P2P
   alias Archethic.PubSub
   alias Archethic.P2P.Node
@@ -55,10 +53,6 @@ defmodule ArchethicWeb.Explorer.WorldMapLive do
     end
 
     {:ok, socket |> push_event("worldmap_init_datas", %{worldmap_datas: get_nodes_data()})}
-  end
-
-  def render(assigns) do
-    View.render(NodeView, "worldmap.html", assigns)
   end
 
   def handle_info({:node_update, _}, socket) do
