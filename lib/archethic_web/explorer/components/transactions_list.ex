@@ -14,15 +14,15 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
     <div class="ae-box ae-purple shadow">
       <%= for tx <- @transactions do %>
         <div class="columns">
-          <div class="column address is-12-mobile is-6-tablet is-8-desktop">
-            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
+          <div class="column">
+            <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
               <%= Base.encode16(tx.address) %>
             <% end %>
           </div>
-          <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
+          <div class="column mono">
             <%= format_date(tx.timestamp) %>
           </div>
-          <div class="column list-card-item is-6-mobile is-3-tablet is-2-desktop">
+          <div class="column">
             <%= format_transaction_type(tx.type) %>
           </div>
         </div>

@@ -17,9 +17,9 @@
   current_page={@current_date_page}
   total_pages={Enum.count(@dates)}
 />
-<div class="text_regular">
+<div>
   Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %>
 </div>
 
 <TransactionsList.display_all transactions={@transactions} socket={@socket} />
-<div class="text_regular">Last changes from <%= format_date(@update_time) %></div>
+<div>Last changes from <%= format_date(@update_time) %></div>

@@ -1,0 +1,770 @@
+<% inputs_count = Enum.count(@inputs) %>
+<div class="body">
+  <nav class="level">
+    <div class="level-left">
+      <div class="level-item">
+        <div>
+          <p class="text_title">Transaction information</p>
+          <p class="text_subtitle mono">
+            <%= Base.encode16(@address) %>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="level-right">
+      <%= if @previous_address != nil do %>
+        <div class="level-item">
+          <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@previous_address)) do %>
+            <span>Previous transaction</span>
+          <% end %>
+        </div>
+      <% end %>
+      <div class="level-item">
+        <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@address)) do %>
+          <span>Explore chain</span>
+        <% end %>
+      </div>
+    </div>
+  </nav>
+
+  <div class="ae-box ae-purple shadow">
+    <%= cond do %>
+      <% assigns[:error] != nil and @error == :not_exists -> %>
+        <p>
+          This transaction does not exist. This means, either the transaction has not be validated yet, or it is a genesis address.
+        </p>
+
+        <%= if inputs_count > 0 do %>
+          <div class="columns mt-4">
+            <div class="column has-text-right heading is-2">Inputs (<%= inputs_count %>)</div>
+            <div class="column">
+              <table class="table ae-table is-fullwidth is-hoverable">
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Amount</th>
+                    <th>From</th>
+                    <th>Date (UTC)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for input <- @inputs do %>
+                    <tr>
+                      <td>
+                        <%= case input.type do %>
+                          <% :UCO -> %>
+                            <span class="tag is-gradient">UCO</span>
+                            <%= if input.reward? do %>
+                              <span class="tag is-gradient">MUCO</span>
+                            <% end %>
+                          <% {:token, token_address, token_id} -> %>
+                            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                              <span class="tag is-gradient">
+                                <%= if token_id >= 1 do %>
+                                  Token #<%= token_id %>
+                                <% else %>
+                                  <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
+                                    <% nil -> %>
+                                      <%= WebUtils.short_address(token_address) %>
+                                    <% symbol -> %>
+                                      <span class="mono"><%= symbol %></span>
+                                  <% end %>
+                                <% end %>
+                              </span>
+                            <% end %>
+                        <% end %>
+                      </td>
+                      <td>
+                        <%= case input.type do
+                          {:token, token_address, _} ->
+                            decimals =
+                              Map.get(@token_properties, token_address, %{})
+                              |> Map.get(:decimals, 8)
+
+                            from_bigint(input.amount, decimals)
+
+                          _ ->
+                            from_bigint(input.amount)
+                        end %>
+                      </td>
+
+                      <td>
+                        <%= link(WebUtils.short_address(input.from),
+                          to:
+                            Routes.live_path(
+                              @socket,
+                              ArchethicWeb.Explorer.TransactionDetailsLive,
+                              Base.encode16(input.from)
+                            )
+                        ) %>
+                      </td>
+
+                      <td><%= format_date(input.timestamp, display_utc: false) %></td>
+                      <td>
+                        <%= if input.spent? do %>
+                          <span class="tag is-danger">Spent</span>
+                        <% else %>
+                          <span class="tag is-success">Unspent</span>
+                        <% end %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        <% end %>
+      <% assigns[:error] != nil and @error == :invalid_address -> %>
+        <p>The given transaction address is invalid.</p>
+        <small>Please check the transaction address validity.</small>
+      <% true -> %>
+        <div class="is-2" x-data="{tab_panel: 'tx'}">
+          <%= cond do %>
+            <% @address == burning_address() -> %>
+              <p class="subtitle is-size-5">
+                This address is not owned by any user being the burn address
+              </p>
+            <% assigns[:error] != nil and @error == :not_exists -> %>
+              <p>The transaction does not exists yet.</p>
+              <hr />
+              <div class="mt-4 box has-background-warning-light">
+                <small>
+                  It may appear later. <br />Please retry when the transaction will be processed.
+                </small>
+              </div>
+            <% true -> %>
+              <div>
+                <%!-------------------------------- TYPE --------------------------------%>
+                <div class="columns">
+                  <div class="column has-text-right heading is-2">Type</div>
+                  <div class="column">
+                    <%= format_transaction_type(@transaction.type) %>
+                  </div>
+                </div>
+
+                <%!---------------------------- VALIDATION TIME ----------------------------%>
+                <div class="columns">
+                  <div class="column has-text-right heading is-2">Validation date</div>
+                  <div class="column">
+                    <%= format_date(@transaction.validation_stamp.timestamp) %>
+                  </div>
+                </div>
+
+                <%!---------------------------- FEE ----------------------------%>
+                <div class="columns">
+                  <div class="column has-text-right heading is-2">Fee</div>
+                  <div class="column">
+                    <%= link(WebUtils.short_address(burning_address()),
+                      to:
+                        Routes.live_path(
+                          @socket,
+                          ArchethicWeb.Explorer.TransactionDetailsLive,
+                          Base.encode16(
+                            Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.burning_address()
+                          )
+                        )
+                    ) %>
+
+                    <span class="px-4">←</span>
+                    <%= from_bigint(@transaction.validation_stamp.ledger_operations.fee) %>
+                    <span class="tag is-gradient">UCO</span>
+                    <%= if @transaction.validation_stamp.ledger_operations.fee > 0 do %>
+                      (<%= format_full_usd_amount(
+                        @transaction.validation_stamp.ledger_operations.fee,
+                        @uco_price_at_time[:usd],
+                        @uco_price_now[:usd]
+                      ) %>)
+                    <% end %>
+                  </div>
+                </div>
+
+                <%!-------------------------------- CODE --------------------------------%>
+                <div class="columns" x-data="{show: true}">
+                  <% code_bytes = byte_size(@transaction.data.code) %>
+                  <div class="column has-text-right heading is-2">
+                    <p>Code (<%= format_bytes(code_bytes) %>)</p>
+                    <%= if code_bytes > 0 do %>
+                      <p>
+                        <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
+                        <a
+                          id="copy-code-button"
+                          phx-hook="CopyToClipboard"
+                          data-target="#copy-code"
+                        >
+                          COPY
+                        </a>
+                      </p>
+                    <% end %>
+                  </div>
+                  <div class="column">
+                    <%= if code_bytes == 0 do %>
+                      <div></div>
+                    <% else %>
+                      <div x-show="show" class="is-relative">
+                        <pre id="copy-code"><%= @transaction.data.code %></pre>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+
+                <%!-------------------------------- CONTENT --------------------------------%>
+                <div class="columns" x-data="{show: true}">
+                  <% content_bytes = byte_size(@transaction.data.content) %>
+                  <div class="column has-text-right heading is-2">
+                    <p>Content (<%= format_bytes(content_bytes) %>)</p>
+                    <%= if content_bytes > 0 do %>
+                      <p>
+                        <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
+                        <a
+                          id="copy-content-button"
+                          phx-hook="CopyToClipboard"
+                          data-target="#copy-content"
+                        >
+                          COPY
+                        </a>
+                      </p>
+                    <% end %>
+                  </div>
+                  <div class="column">
+                    <%= if content_bytes == 0 do %>
+                      <div></div>
+                    <% else %>
+                      <div x-show="show" class="is-relative">
+                        <pre id="copy-content"><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+
+                <%!-------------------------------- STATE --------------------------------%>
+                <div class="columns" x-data="{show: true}">
+                  <% state_utxo =
+                    Enum.find(
+                      @transaction.validation_stamp.ledger_operations.unspent_outputs,
+                      &(&1.type == :state)
+                    )
+
+                  state_bytes =
+                    case state_utxo do
+                      nil -> 0
+                      _ -> byte_size(state_utxo.encoded_payload)
+                    end %>
+                  <div class="column has-text-right heading is-2">
+                    <p>State (<%= format_bytes(state_bytes) %>)</p>
+
+                    <%= if state_utxo != nil do %>
+                      <p><a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a></p>
+                    <% end %>
+                  </div>
+                  <div class="column">
+                    <%= if state_utxo == nil do %>
+                      <div></div>
+                    <% else %>
+                      <pre x-show="show"><%= ArchethicWeb.Explorer.TransactionDetailsLive.print_state(state_utxo) %></pre>
+                    <% end %>
+                  </div>
+                </div>
+
+                <%!----------------------------- UCO TRANSFERS --------------------------------%>
+                <div class="columns">
+                  <% ucos_transfers_count = Enum.count(@transaction.data.ledger.uco.transfers) %>
+                  <div class="column has-text-right heading is-2">
+                    UCO transfers (<%= ucos_transfers_count %>)
+                  </div>
+                  <div class="column">
+                    <ul>
+                      <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
+                        <li>
+                          <%= link(WebUtils.short_address(transfer.to),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(transfer.to)
+                              )
+                          ) %>
+                          <span class="px-4">←</span>
+                          <span>
+                            <%= from_bigint(transfer.amount) %>
+                            <span class="tag is-gradient">UCO</span>
+                            (<%= format_full_usd_amount(
+                              transfer.amount,
+                              @uco_price_at_time[:usd],
+                              @uco_price_now[:usd]
+                            ) %>)
+                          </span>
+                        </li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+
+                <%!----------------------------- TOKENS TRANSFERS --------------------------------%>
+                <div class="columns">
+                  <% tokens_transfers_count = Enum.count(@transaction.data.ledger.token.transfers) %>
+                  <div class="column has-text-right heading is-2">
+                    Tokens transfers (<%= tokens_transfers_count %>)
+                  </div>
+                  <div class="column">
+                    <ul>
+                      <%= for transfer <- @transaction.data.ledger.token.transfers do %>
+                        <li>
+                          <%= link(WebUtils.short_address(transfer.to),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(transfer.to)
+                              )
+                          ) %>
+
+                          <span class="px-4">←</span>
+                          <span>
+                            <% decimals =
+                              Map.get(@token_properties, transfer.token_address, %{})
+                              |> Map.get(:decimals, 8) %>
+
+                            <%= from_bigint(transfer.amount, decimals) %>
+                            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(transfer.token_address)) do %>
+                              <span class="tag is-gradient">
+                                <%= case Map.get(
+                                           @token_properties,
+                                           transfer.token_address,
+                                           %{}
+                                         )
+                                         |> Map.get(:symbol) do
+                                  nil -> WebUtils.short_address(transfer.token_address)
+                                  symbol -> symbol
+                                end %>
+                                <%= if transfer.token_id > 0 do %>
+                                  (#<%= transfer.token_id %>)
+                                <% end %>
+                              </span>
+                            <% end %>
+                          </span>
+                        </li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+                <%!----------------------------- MOVEMENTS --------------------------------%>
+                <div class="columns">
+                  <% movements_count =
+                    Enum.count(
+                      @transaction.validation_stamp.ledger_operations.transaction_movements
+                    ) %>
+                  <div class="column has-text-right heading is-2">
+                    Movements (<%= movements_count %>)
+                  </div>
+                  <div class="column">
+                    <ul>
+                      <%= for movement <- @transaction.validation_stamp.ledger_operations.transaction_movements do %>
+                        <%= case movement.type do %>
+                          <% :UCO -> %>
+                            <li>
+                              <%= link(WebUtils.short_address(movement.to),
+                                to:
+                                  Routes.live_path(
+                                    @socket,
+                                    ArchethicWeb.Explorer.TransactionDetailsLive,
+                                    Base.encode16(movement.to)
+                                  )
+                              ) %>
+                              <span class="px-4">←</span>
+                              <span>
+                                <%= from_bigint(movement.amount) %>
+                                <span class="tag is-gradient">UCO</span>
+                                (<%= format_full_usd_amount(
+                                  movement.amount,
+                                  @uco_price_at_time[:usd],
+                                  @uco_price_now[:usd]
+                                ) %>)
+                              </span>
+                            </li>
+                          <% {:token, token_address, token_id} -> %>
+                            <li>
+                              <%= link(WebUtils.short_address(movement.to),
+                                to:
+                                  Routes.live_path(
+                                    @socket,
+                                    ArchethicWeb.Explorer.TransactionDetailsLive,
+                                    Base.encode16(movement.to)
+                                  )
+                              ) %>
+
+                              <span class="px-4">←</span>
+                              <span>
+                                <% decimals =
+                                  Map.get(@token_properties, token_address, %{})
+                                  |> Map.get(:decimals, 8) %>
+
+                                <%= from_bigint(movement.amount, decimals) %>
+                                <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                  <span class="tag is-gradient">
+                                    <%= case Map.get(
+                                               @token_properties,
+                                               token_address,
+                                               %{}
+                                             )
+                                             |> Map.get(:symbol) do
+                                      nil -> WebUtils.short_address(token_address)
+                                      symbol -> symbol
+                                    end %>
+                                    <%= if token_id > 0 do %>
+                                      (#<%= token_id %>)
+                                    <% end %>
+                                  </span>
+                                <% end %>
+                              </span>
+                            </li>
+                        <% end %>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+
+                <%!----------------------------- OWNERSHIPS --------------------------------%>
+                <div class="columns" x-data="{show: false}">
+                  <% ownerships_count = Enum.count(@transaction.data.ownerships) %>
+                  <div class="column has-text-right heading is-2">
+                    <p>Ownerships (<%= ownerships_count %>)</p>
+                    <%= if ownerships_count > 0 do %>
+                      <p>
+                        <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
+                      </p>
+                    <% end %>
+                  </div>
+                  <div class="column">
+                    <ul>
+                      <%= for ownership <- @transaction.data.ownerships do %>
+                        <% authorized_keys_count = Enum.count(ownership.authorized_keys) %>
+                        <li>
+                          <p>
+                            Secret shared with <%= authorized_keys_count %> keys
+                          </p>
+                          <div class="box" x-show="show">
+                            <p class="heading">Encoded secret</p>
+                            <p class="mono"><%= Base.encode16(ownership.secret) %></p>
+
+                            <p class="heading mt-3">Authorized keys</p>
+                            <ul>
+                              <%= for { key, _enc_key} <- ownership.authorized_keys do %>
+                                <li class="mono"><%= Base.encode16(key) %></li>
+                              <% end %>
+                            </ul>
+                          </div>
+                        </li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+
+                <%!----------------------------- RECIPIENTS --------------------------------%>
+                <div class="columns" x-data="{show: false}">
+                  <% recipients_count = Enum.count(@transaction.data.recipients) %>
+
+                  <div class="column has-text-right heading is-2">
+                    <p>Contract recipients (<%= recipients_count %>)</p>
+                    <%= if recipients_count > 0 do %>
+                      <p>
+                        <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
+                      </p>
+                    <% end %>
+                  </div>
+
+                  <div class="column">
+                    <ul>
+                      <%= for {recipient, resolved_address} <- Enum.zip(@transaction.data.recipients, @transaction.validation_stamp.recipients) do %>
+                        <li>
+                          <%= link(WebUtils.short_address(recipient.address),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(recipient.address)
+                              )
+                          ) %> (resolved to <%= link(WebUtils.short_address(resolved_address),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(resolved_address)
+                              )
+                          ) %> ) <span class="px-4">←</span>
+                          <%= case recipient.action do %>
+                            <% nil -> %>
+                              <span class="tag is-gradient">N/A</span>
+                            <% action -> %>
+                              <span class="tag is-gradient"><%= action %></span>
+                              <pre x-show="show">
+                                  <%= raw(
+                                    Jason.encode!(recipient.args,
+                                      pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"]
+                                    )
+                                  ) %>
+                                </pre>
+                          <% end %>
+                        </li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+
+                <%!----------------------------- CALLS --------------------------------%>
+                <div class="columns">
+                  <% calls_count = Enum.count(@calls) %>
+
+                  <div class="column has-text-right heading is-2">
+                    <p>Contract inputs (<%= calls_count %>)</p>
+                  </div>
+
+                  <div class="column">
+                    <%= if calls_count > 0 do %>
+                      <ul>
+                        <%= for call <- @calls do %>
+                          <li>
+                            <%= link(WebUtils.short_address(call.from),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(call.from)
+                                )
+                            ) %>
+                          </li>
+                        <% end %>
+                      </ul>
+                    <% else %>
+                      <div></div>
+                    <% end %>
+                  </div>
+                </div>
+
+                <%!----------------------------- INPUTS --------------------------------%>
+                <div class="columns">
+                  <div class="column has-text-right heading is-2">
+                    <p>Inputs (<%= inputs_count %>)</p>
+                  </div>
+
+                  <div class="column">
+                    <%= if inputs_count == 0 do %>
+                      <div></div>
+                    <% else %>
+                      <table class="table ae-table is-fullwidth is-hoverable">
+                        <thead>
+                          <tr>
+                            <th>Asset</th>
+                            <th>Amount</th>
+                            <th>From</th>
+                            <th>Date (UTC)</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <%= for input <- @inputs do %>
+                            <tr>
+                              <td>
+                                <%= case input.type do %>
+                                  <% :UCO -> %>
+                                    <span class="tag is-gradient">UCO</span>
+                                    <%= if input.reward? do %>
+                                      <span class="tag is-gradient">MUCO</span>
+                                    <% end %>
+                                  <% {:token, token_address, token_id} -> %>
+                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                      <span class="tag is-gradient">
+                                        <%= if token_id >= 1 do %>
+                                          Token #<%= token_id %>
+                                        <% else %>
+                                          <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
+                                            <% nil -> %>
+                                              <%= WebUtils.short_address(token_address) %>
+                                            <% symbol -> %>
+                                              <span class="mono"><%= symbol %></span>
+                                          <% end %>
+                                        <% end %>
+                                      </span>
+                                    <% end %>
+                                <% end %>
+                              </td>
+                              <td>
+                                <%= case input.type do
+                                  {:token, token_address, _} ->
+                                    decimals =
+                                      Map.get(@token_properties, token_address, %{})
+                                      |> Map.get(:decimals, 8)
+
+                                    from_bigint(input.amount, decimals)
+
+                                  _ ->
+                                    from_bigint(input.amount)
+                                end %>
+                              </td>
+
+                              <td>
+                                <%= link(WebUtils.short_address(input.from),
+                                  to:
+                                    Routes.live_path(
+                                      @socket,
+                                      ArchethicWeb.Explorer.TransactionDetailsLive,
+                                      Base.encode16(input.from)
+                                    )
+                                ) %>
+                              </td>
+
+                              <td><%= format_date(input.timestamp, display_utc: false) %></td>
+                              <td>
+                                <%= if input.spent? do %>
+                                  <span class="tag is-danger">Spent</span>
+                                <% else %>
+                                  <span class="tag is-success">Unspent</span>
+                                <% end %>
+                              </td>
+                            </tr>
+                          <% end %>
+                        </tbody>
+                      </table>
+                    <% end %>
+                  </div>
+                </div>
+
+                <%!----------------------------- OUTPUTS --------------------------------%>
+                <div class="columns">
+                  <% utxos_count =
+                    Enum.count(@transaction.validation_stamp.ledger_operations.unspent_outputs) %>
+
+                  <div class="column has-text-right heading is-2">
+                    <p>Outputs (<%= utxos_count %>)</p>
+                  </div>
+
+                  <div class="column">
+                    <table class="table ae-table is-fullwidth is-hoverable">
+                      <thead>
+                        <tr>
+                          <th>Asset</th>
+                          <th>Amount</th>
+                          <th>From</th>
+                          <th>Date (UTC)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <%= for utxo <- @transaction.validation_stamp.ledger_operations.unspent_outputs, utxo.type != :state do %>
+                          <tr>
+                            <td>
+                              <%= case utxo.type do %>
+                                <% :UCO -> %>
+                                  <span class="tag is-gradient">UCO</span>
+                                <% {:token, token_address, token_id} -> %>
+                                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                    <span class="tag is-gradient">
+                                      <%= if token_id >= 1 do %>
+                                        Token #<%= token_id %>
+                                      <% else %>
+                                        <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
+                                          <% nil -> %>
+                                            <%= WebUtils.short_address(token_address) %>
+                                          <% symbol -> %>
+                                            <span class="mono"><%= symbol %></span>
+                                        <% end %>
+                                      <% end %>
+                                    </span>
+                                  <% end %>
+                              <% end %>
+                            </td>
+                            <td>
+                              <%= case utxo.type do
+                                {:token, token_address, _} ->
+                                  decimals =
+                                    Map.get(@token_properties, token_address, %{})
+                                    |> Map.get(:decimals, 8)
+
+                                  from_bigint(utxo.amount, decimals)
+
+                                _ ->
+                                  from_bigint(utxo.amount)
+                              end %>
+                            </td>
+
+                            <td>
+                              <%= link(WebUtils.short_address(utxo.from),
+                                to:
+                                  Routes.live_path(
+                                    @socket,
+                                    ArchethicWeb.Explorer.TransactionDetailsLive,
+                                    Base.encode16(utxo.from)
+                                  )
+                              ) %>
+                            </td>
+
+                            <td><%= format_date(utxo.timestamp, display_utc: false) %></td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <%!----------------------------- CRYPTO --------------------------------%>
+                <div class="columns" x-data="{show: false}">
+                  <div class="column has-text-right heading is-2">
+                    <p>Proofs and signatures</p>
+                    <p><a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a></p>
+                  </div>
+
+                  <div class="column">
+                    <div x-show="show">
+                      <p class="heading">Previous public key</p>
+                      <p class="mono"><%= Base.encode16(@transaction.previous_public_key) %></p>
+
+                      <p class="heading mt-3">Previous signature</p>
+                      <p class="mono">
+                        <%= Base.encode16(@transaction.previous_signature) %>
+                      </p>
+
+                      <p class="heading mt-3">Origin signature</p>
+                      <p class="mono">
+                        <%= Base.encode16(@transaction.origin_signature) %>
+                      </p>
+
+                      <p class="heading mt-3">Proof of work</p>
+                      <p class="mono">
+                        <%= Base.encode16(@transaction.validation_stamp.proof_of_work) %>
+                      </p>
+
+                      <p class="heading mt-3">Proof of integrity</p>
+                      <p class="mono">
+                        <%= Base.encode16(@transaction.validation_stamp.proof_of_integrity) %>
+                      </p>
+
+                      <p class="heading mt-3">Coordinator signature</p>
+                      <p class="mono">
+                        <%= Base.encode16(@transaction.validation_stamp.signature) %>
+                      </p>
+
+                      <%= for {cross_validation_stamp, i} <- Enum.with_index(@transaction.cross_validation_stamps) do %>
+                        <p class="heading mt-3">Validator #<%= i + 1 %> public key</p>
+                        <p class="mono">
+                          <%= link(Base.encode16(cross_validation_stamp.node_public_key),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.NodeDetailsLive,
+                                Base.encode16(cross_validation_stamp.node_public_key)
+                              )
+                          ) %>
+                        </p>
+                        <p class="heading mt-3">Validator #<%= i + 1 %> signature</p>
+                        <p class="mono">
+                          <%= Base.encode16(cross_validation_stamp.signature) %>
+                        </p>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+          <% end %>
+        </div>
+    <% end %>
+  </div>
+</div>

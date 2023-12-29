@@ -34,20 +34,20 @@
       <% nil -> %>
         <div class="mb-3 py-3">
           <p class="heading">First public key</p>
-          <p class="address is-hidden-mobile">
+          <p class="mono is-hidden-mobile">
             <%= Base.encode16(@node.first_public_key) %>
           </p>
-          <p class="address is-hidden-desktop">
+          <p class="mono is-hidden-desktop">
             <%= Base.encode16(:binary.part(@node.first_public_key, 0, 13)) %>...
           </p>
         </div>
 
         <div class="mb-3 py-3">
           <p class="heading">Last public key</p>
-          <p class="address is-hidden-mobile">
+          <p class="mono is-hidden-mobile">
             <%= Base.encode16(@node.last_public_key) %>
           </p>
-          <p class="address is-hidden-desktop">
+          <p class="mono is-hidden-desktop">
             <%= Base.encode16(:binary.part(@node.last_public_key, 0, 13)) %>...
           </p>
         </div>
@@ -95,7 +95,7 @@
             <div>
               <p class="heading">Reward address</p>
               <span>
-                <%= link class: "address", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
+                <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
                   <%= Base.encode16(@node.reward_address) %>
                 <% end %>
               </span>

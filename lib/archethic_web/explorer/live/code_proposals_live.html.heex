@@ -5,7 +5,7 @@
   </div>
   <div class="ae-box ae-purple shadow">
     <%= if Enum.count(@proposals) == 0 do %>
-      <div class="text_regular">There is no code proposals yet !</div>
+      <div>There is no code proposals yet !</div>
     <% else %>
       <%= for proposal <- @proposals do %>
         <table class="table ae-table is-fullwidth is-hoverable">
@@ -18,19 +18,10 @@
               <th>Approvals</th>
             </tr>
           </thead>
-          <tfoot>
-            <tr>
-              <th>Address</th>
-              <th>Date (UTC)</th>
-              <th>Version</th>
-              <th><abbr title="Semantic versionning">Semver.</abbr></th>
-              <th>Approvals</th>
-            </tr>
-          </tfoot>
           <tbody>
             <tr>
               <td>
-                <%= link class: "address", to: Routes.live_path(@socket, ArchethicWeb.Explorer.CodeProposalDetailsLive, Base.encode16(proposal.address)) do %>
+                <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.CodeProposalDetailsLive, Base.encode16(proposal.address)) do %>
                   <%= Base.encode16(proposal.address) %>
                 <% end %>
               </td>

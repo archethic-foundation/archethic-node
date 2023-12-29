@@ -74,25 +74,16 @@
               <th>Transfers</th>
             </tr>
           </thead>
-          <tfoot>
-            <tr>
-              <th>Address</th>
-              <th>Type</th>
-              <th>Date (UTC)</th>
-              <th><abbr title="Unspent Outputs">Utxos</abbr></th>
-              <th>Transfers</th>
-            </tr>
-          </tfoot>
           <tbody>
             <%= for tx <- @transaction_chain do %>
               <tr>
                 <td>
                   <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <span class="address is-block-widescreen" style="display: none">
+                    <span class="mono is-block-widescreen" style="display: none">
                       <%= Base.encode16(tx.address) %>
                     </span>
                     <span
-                      class="address is-block-desktop-only is-block-mobile is-block-tablet-only"
+                      class="mono is-block-desktop-only is-block-mobile is-block-tablet-only"
                       style="display: none"
                     >
                       <%= Base.encode16(:binary.part(tx.address, 0, 13)) %>...

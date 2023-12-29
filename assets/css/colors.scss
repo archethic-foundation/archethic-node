@@ -91,8 +91,23 @@ $table-head-cell-color: $color-neutral-0;
 $table-foot-cell-color: $color-neutral-0;
 $table-row-hover-background-color: $color-brand-purple-300;
 
-
+$menu-label-color: $color-brand-raspberry-200;
 $menu-item-color: $color-neutral-0;
-$menu-item-hover-color: $color-neutral-0;
-$menu-item-hover-background-color: $color-brand-raspberry-300;
+$menu-item-hover-color: $color-brand-raspberry-300;
+$menu-item-hover-background-color: none;
 $menu-item-active-color: $color-brand-raspberry-300;
+$menu-item-active-background-color: none;
+
+$tabs-link-color: $color-neutral-400;
+$tabs-border-bottom-color: $color-neutral-400;
+$tabs-link-active-border-bottom-color: $color-brand-raspberry-300;
+$tabs-link-active-color: $color-brand-raspberry-300;
+$tabs-link-hover-border-bottom-color: $color-neutral-0;
+$tabs-link-hover-color: $color-neutral-0;
+
+$box-color: $color-neutral-0;
+$box-background-color: $color-neutral-800;
+$box-radius: 15px;
+
+$font-mono: 'RobotoMono Regular';
+$font-default: 'PPTelegraf Regular';

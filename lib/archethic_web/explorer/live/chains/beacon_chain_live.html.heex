@@ -12,15 +12,15 @@
 <% summary_time = Enum.at(@dates, @current_date_page - 1)
 previous_summary_time = Archethic.BeaconChain.previous_summary_time(summary_time) %>
 
-<div class="text_regular">
+<div>
   Transactions that were validated between <%= format_date(previous_summary_time) %> and <%= format_date(
     summary_time
   ) %>
 </div>
 
 <%= if @fetching do %>
-  <div class="text_regular">Loading transactions...</div>
+  <div>Loading transactions...</div>
 <% else %>
   <TransactionsList.display_all transactions={@transactions} socket={@socket} />
-  <div class="text_regular">Last changes from <%= format_date(@update_time) %></div>
+  <div>Last changes from <%= format_date(@update_time) %></div>
 <% end %>

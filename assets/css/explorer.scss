@@ -1,5 +1,6 @@
 * {
-  font-family: 'PPTelegraf Regular';
+  font-family: $font-default;
+  color: $color-neutral-0;
 }
 
 body {
@@ -22,9 +23,8 @@ dt {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  padding-top: 50px;
   padding-bottom: 1px;
-  font-family: 'PPTelegraf Regular' !important;
+  font-family: $font-default !important;
   line-height: 1;
 }
 
@@ -37,29 +37,18 @@ dt {
   font-family: 'PPTelegraf UltraLight';
 }
 
-.text_regular {
-  color: #fff;
-  font-family: 'PPTelegraf Regular';
-}
 
-.text_regular_address {
-  color: #fff;
-  font-family: 'RobotoMono Regular';
-}
 
 .text_regular_positive {
   color: $color-system-positive-500;
-  font-family: 'PPTelegraf Regular';
 }
 
 .text_regular_error {
   color: $color-system-danger-500;
-  font-family: 'PPTelegraf Regular';
 }
 
 .text_regular_info {
   color: $color-system-info-500;
-  font-family: 'PPTelegraf Regular';
 }
 
 
@@ -74,15 +63,19 @@ dt {
   color: #fff !important;
 }
 
+code,
 pre {
-  border: thin solid #eae8e8;
+  padding: 0.75rem;
+  background: $color-neutral-800 !important;
+  color: $color-neutral-0 !important;
+  border: thin solid $color-neutral-900 !important;
+  border-left-color: $color-neutral-600 !important;
+  border-top-color: $color-neutral-600 !important;
+  border-radius: 14px;
+  font-family: 'RobotoMono Regular' !important;
 }
 
-.text_wrap {
-  word-break: break-word;
-  display: block;
-  margin-bottom: 5px;
-}
+
 
 .modal-content {
   background: transparent !important;
@@ -108,7 +101,7 @@ pre {
 .input-field {
   width: 720px;
   padding: 1.5em;
-  border-radius: 10px;
+  border-radius: $box-radius;
   border: 0.5px solid $color-brand-purple-400;
   background: linear-gradient(90deg, rgba(19, 19, 19, 1) 0%, rgba(19, 19, 19, 0.3) 100%);
   color: white;
@@ -121,7 +114,7 @@ pre {
 .input-field::placeholder {
   color: white;
   opacity: 1;
-  font-family: 'PPTelegraf Regular';
+  font-family: $font-default;
   font-weight: 400;
 }
 
@@ -132,10 +125,20 @@ pre {
 }
 
 
+
 .title_row {
   display: flex;
   align-items: center;
-  color: #CCC1FA;
+}
+
+.title_row .title_text-large {
+  color: $color-brand-blue-200;
+}
+
+.title_row .title_text-medium {
+  font-size: 12px;
+  padding-bottom: 30px;
+  color: $color-neutral-0;
 }
 
 .title_row .text-large {
@@ -144,7 +147,8 @@ pre {
 }
 
 .title_row img {
-  height: 20px;
+  height: 60px;
+  max-height: 60px !important;
   padding-right: 10px;
 }
 
@@ -160,37 +164,19 @@ pre {
   width: 16px;
 }
 
-.box {
-  color: #FFF;
-  width: 650px;
-  min-height: 400px;
-  max-height: 600px;
-  background: $color-brand-purple-400;
-  border-radius: 24px;
-  padding: 20px;
-  margin: 20px auto;
-  overflow: hidden;
-  position: relative;
-}
-
 .shadow {
   box-shadow: 0px 5px 10px $color-neutral-900;
 }
 
-.box::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  bottom: -2px;
-  left: -2px;
-  z-index: -1;
-  background: linear-gradient(to bottom right, rgba(19, 19, 19, 0.7), #131313);
-  border-radius: 26px;
-}
 
 .menu-list {
   color: #FFF;
+}
+
+.box {
+  border: thin solid $color-neutral-900;
+  border-left-color: $color-neutral-600;
+  border-top-color: $color-neutral-600;
 }
 
 .box1 {
@@ -212,7 +198,7 @@ pre {
   margin-top: 40px;
   margin-left: 40px;
   font-size: 1.75rem;
-  font-family: 'PPTelegraf Regular' !important;
+  font-family: $font-default !important;
 }
 
 .box1 h2,
@@ -257,33 +243,15 @@ pre {
 }
 
 .ae-box.ae-purple {
-  background: $color-brand-purple-400;
+  background: radial-gradient(24.45% 47.58% at 9.96% 24%, rgba(213, 92, 255, .3) 0, rgba(213, 92, 255, 0) 100%) $color-brand-purple-400;
 }
 
 .ae-box.ae-gray {
   background: #201844;
 }
 
-.ae-table td {
-  padding: 0 0.75em;
-}
-
-.ae-table td>a {
-  padding: 0.5em 0em;
-  display: block;
-}
-
-.ae-table td>a:hover {
-  color: white;
-}
-
-.address {
+.mono {
   font-family: 'RobotoMono Regular' !important;
-  word-break: break-all;
-  overflow-wrap: break-word;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
 
@@ -295,7 +263,7 @@ pre {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'PPTelegraf Regular';
+  font-family: $font-default;
   font-weight: 400;
   height: 44px;
   padding: 0 20px;
@@ -315,11 +283,17 @@ a.simple-button {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  border-radius: 16px;
+  border-radius: $box-radius;
   background-color: hsla(0, 0%, 100%, .1);
   line-height: 1;
   width: -moz-fit-content;
   width: fit-content;
+  font-weight: 400;
+  font-size: 1.375rem;
+}
+
+a.simple-button>span {
+  padding-top: 4px;
 }
 
 a.simple-button:hover {
@@ -327,10 +301,10 @@ a.simple-button:hover {
   background-color: hsla(0, 0%, 100%, .3);
 }
 
-a.simple-button>span {
-  font-weight: 400;
-  font-size: 1.375rem;
-  padding-top: 4px;
+a.simple-button.sm {
+  font-weight: normal;
+  padding: 4px;
+  font-size: 11px;
 }
 
 hr {
@@ -345,9 +319,17 @@ hr {
 .tag:not(body).is-gradient {
   color: white;
   background-color: #202020;
-  padding: 1em;
   border: 1px solid $color-brand-raspberry-300;
-  border-radius: 14px;
+  border-radius: $box-radius;
+  font-family: $font-mono !important;
+}
+
+.tag:not(body).is-success {
+  background-color: $color-system-positive-800 !important;
+}
+
+.tag:not(body).is-danger {
+  background-color: $color-system-danger-800 !important;
 }
 
 .kpi {
@@ -361,4 +343,15 @@ hr {
   background-color: white;
   color: black;
   padding: 1em;
+}
+
+.navbar {
+  margin-bottom: 2em;
+  border-bottom: 1px solid hsla(0, 0%, 100%, .2);
+}
+
+.navbar-item {
+  font-size: 1.125rem;
+  line-height: 140%;
+  font-weight: 400;
 }

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= assigns[:page_title] || "Archethic - Explorer" %></title>
+    <title><%= assigns[:page_title] || "aeExplorer" %></title>
     <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")} />
     <%= csrf_meta_tag() %>
   </head>
@@ -18,8 +18,12 @@
           >
             <div class="title_row">
               <div class="title_spacer"></div>
-              <img src={Routes.static_path(@conn, "/images/logo_alone.svg")} alt="archethic_logo" />
+              <img
+                src={Routes.static_path(@conn, "/images/logo_crystal.png")}
+                alt="archethic_logo"
+              />
               <div class="title_text-large">aeExplorer</div>
+              <div class="title_text-medium">Beta</div>
             </div>
           </a>
 
@@ -41,7 +45,7 @@
               class="navbar-item"
               href={Routes.live_path(@conn, ArchethicWeb.Explorer.DashboardLive)}
             >
-              Dashboard 
+              Dashboard
             </a>
             <%= if faucet?() do %>
               <a class="navbar-item" href={Routes.faucet_path(@conn, :index)}>

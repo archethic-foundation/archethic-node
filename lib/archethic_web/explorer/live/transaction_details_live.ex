@@ -19,8 +19,8 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionInput
-  alias ArchethicWeb.Explorer.ExplorerView
-  alias Phoenix.View
+  alias ArchethicWeb.WebUtils
+  import ArchethicWeb.Explorer.ExplorerView
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -84,14 +84,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   def handle_info(_, socket) do
     {:noreply, socket}
-  end
-
-  def render(assigns = %{ko?: true}) do
-    View.render(ExplorerView, "ko_transaction.html", assigns)
-  end
-
-  def render(assigns) do
-    View.render(ExplorerView, "transaction_details.html", assigns)
   end
 
   defp get_transaction(address, %{"address" => "true"}) do

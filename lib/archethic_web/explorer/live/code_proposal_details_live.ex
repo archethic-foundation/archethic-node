@@ -3,12 +3,9 @@ defmodule ArchethicWeb.Explorer.CodeProposalDetailsLive do
   use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Crypto
-
   alias Archethic.Governance
   alias Archethic.Governance.Code.Proposal
-
   alias Archethic.PubSub
-
   import ArchethicWeb.Explorer.CodeView
 
   def mount(%{"address" => address}, _params, socket) do

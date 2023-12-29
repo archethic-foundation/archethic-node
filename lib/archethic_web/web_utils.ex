@@ -1,6 +1,10 @@
 defmodule ArchethicWeb.WebUtils do
   @moduledoc false
+
+  use Phoenix.HTML
+
   @display_limit 10
+
   @doc """
    Nb of pages required to display all the transactions.
 
@@ -31,6 +35,14 @@ defmodule ArchethicWeb.WebUtils do
     %{"remote_ip" => conn.remote_ip}
   end
 
+  def short_address(address) do
+    hex = Base.encode16(address)
+
+    content_tag("span", String.slice(hex, 4..7) <> "..." <> String.slice(hex, -4, 4),
+      class: "mono"
+    )
+  end
+
   def format_date(datetime, opts \\ [])
 
   def format_date(
@@ -45,9 +57,9 @@ defmodule ArchethicWeb.WebUtils do
         opts
       ) do
     if Keyword.get(opts, :display_utc, true) do
-      "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC"
+      "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC"
     else
-      "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)}"
+      "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)}"
     end
   end
 

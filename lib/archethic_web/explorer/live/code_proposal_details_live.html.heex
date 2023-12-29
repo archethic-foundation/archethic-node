@@ -24,7 +24,7 @@
       <% true -> %>
         <div class="mb-3 py-3">
           <p class="heading">Address</p>
-          <%= link class: "address", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@address)) do %>
+          <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@address)) do %>
             <%= Base.encode16(@address) %>
           <% end %>
         </div>
@@ -46,7 +46,7 @@
 
         <div class="mb-3 py-3">
           <p class="heading">Description</p>
-          <div class="text_wrap">
+          <div>
             <%= raw(format_description(@description)) %>
           </div>
         </div>
@@ -63,8 +63,8 @@
           <%= for approval <- @approvals do %>
             <div class="columns">
               <div class="column">
-                <%= link class: "address", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(approval)) do %>
-                  <span class="text_wrap"><%= Base.encode16(approval) %></span>
+                <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(approval)) do %>
+                  <%= Base.encode16(approval) %>
                 <% end %>
               </div>
             </div>

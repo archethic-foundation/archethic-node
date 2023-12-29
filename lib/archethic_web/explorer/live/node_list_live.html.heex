@@ -41,27 +41,17 @@
           <th>Network patch</th>
         </tr>
       </thead>
-      <tfoot>
-        <tr>
-          <th>Public key</th>
-          <th>Status</th>
-          <th><abbr title="Global availability">Global avail.</abbr></th>
-          <th><abbr title="Global availability">Local avail.</abbr></th>
-          <th>Geo patch</th>
-          <th>Network patch</th>
-        </tr>
-      </tfoot>
       <tbody>
         <%= for {status, nodes} <- [{:authorized, @authorized_nodes}, {:pending, @pending_nodes}, {:new, @new_nodes}]  do %>
           <%= for node <- nodes do %>
             <tr>
               <td>
                 <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.first_public_key)) do %>
-                  <span class="address is-block-widescreen" style="display: none">
+                  <span class="mono is-block-widescreen" style="display: none">
                     <%= Base.encode16(node.first_public_key) %>
                   </span>
                   <span
-                    class="address is-block-desktop-only is-block-mobile is-block-tablet-only"
+                    class="mono is-block-desktop-only is-block-mobile is-block-tablet-only"
                     style="display: none"
                   >
                     <%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...
@@ -101,7 +91,7 @@
     </table>
 
     <div class="content">
-      <div class="text_regular my-4 is-size-4">Glossary</div>
+      <div class="my-4 is-size-4">Glossary</div>
       <dl>
         <dt>Status: Authorized</dt>
         <dd>
