@@ -2,8 +2,6 @@ defmodule ArchethicWeb.Explorer.CodeProposalDetailsLive do
   @moduledoc false
   use ArchethicWeb.Explorer, :live_view
 
-  alias Phoenix.View
-
   alias Archethic.Crypto
 
   alias Archethic.Governance
@@ -11,7 +9,7 @@ defmodule ArchethicWeb.Explorer.CodeProposalDetailsLive do
 
   alias Archethic.PubSub
 
-  alias ArchethicWeb.Explorer.CodeView
+  import ArchethicWeb.Explorer.CodeView
 
   def mount(%{"address" => address}, _params, socket) do
     if connected?(socket) do
@@ -23,6 +21,7 @@ defmodule ArchethicWeb.Explorer.CodeProposalDetailsLive do
          true <- Crypto.valid_address?(addr),
          {:ok,
           %Proposal{
+            timestamp: timestamp,
             description: description,
             version: version,
             changes: changes,
@@ -30,6 +29,7 @@ defmodule ArchethicWeb.Explorer.CodeProposalDetailsLive do
           }} <- Governance.get_code_proposal(addr) do
       new_socket =
         socket
+        |> assign(:timestamp, timestamp)
         |> assign(:description, description)
         |> assign(:version, version)
         |> assign(:changes, changes)
@@ -52,10 +52,6 @@ defmodule ArchethicWeb.Explorer.CodeProposalDetailsLive do
       _ ->
         {:ok, assign(socket, :error, :invalid_address)}
     end
-  end
-
-  def render(assigns) do
-    View.render(CodeView, "proposal_details.html", assigns)
   end
 
   def handle_info(

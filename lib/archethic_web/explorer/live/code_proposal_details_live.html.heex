@@ -1,0 +1,75 @@
+<div class="body">
+  <link
+    rel="stylesheet"
+    type="text/css"
+    href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css"
+  />
+
+  <div class="text_title">Code proposal information</div>
+  <div class="text_subtitle">
+    This is a proposed change to the node's code.
+  </div>
+  <div class="ae-box ae-purple shadow">
+    <%= cond do %>
+      <% assigns[:error] != nil and @error == :invalid_address -> %>
+        <p>The proposal address is invalid.</p>
+        <hr />
+        <small>Please check the transaction address validity.</small>
+      <% !@exists? -> %>
+        <p>There is no transaction at this address yet.</p>
+        <hr />
+        <small>
+          It may appear later. <br />Please retry when the proposal will be processed.
+        </small>
+      <% true -> %>
+        <div class="mb-3 py-3">
+          <p class="heading">Address</p>
+          <%= link class: "address", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@address)) do %>
+            <%= Base.encode16(@address) %>
+          <% end %>
+        </div>
+
+        <div class="columns">
+          <div class="column">
+            <p class="heading">Date</p>
+            <span><%= @timestamp %></span>
+          </div>
+          <div class="column">
+            <p class="heading">Version</p>
+            <span><%= @version %></span>
+          </div>
+          <div class="column">
+            <p class="heading">Semver</p>
+            <span><%= version_tag(Version.parse!(@version)) %></span>
+          </div>
+        </div>
+
+        <div class="mb-3 py-3">
+          <p class="heading">Description</p>
+          <div class="text_wrap">
+            <%= raw(format_description(@description)) %>
+          </div>
+        </div>
+
+        <div class="mb-3 py-3">
+          <p class="heading">Changes</p>
+          <div id="diff_src" style="display: none" phx-hook="Diff">
+            <%= @changes %>
+          </div>
+        </div>
+
+        <div class="mb-3 py-3">
+          <p class="heading"><%= "Approvals (#{Enum.count(@approvals)})" %></p>
+          <%= for approval <- @approvals do %>
+            <div class="columns">
+              <div class="column">
+                <%= link class: "address", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(approval)) do %>
+                  <span class="text_wrap"><%= Base.encode16(approval) %></span>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+    <% end %>
+  </div>
+</div>
