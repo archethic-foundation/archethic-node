@@ -658,7 +658,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
               }
             ],
             consumed_inputs: [
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO}
             ]
           }
         },
@@ -673,7 +673,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
       with_mock(Election,
         chain_storage_nodes: fn
-          _, _ -> [%Node{first_public_key: Crypto.first_node_public_key()}] end
+          _, _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
+        end
       ) do
         MemTablesLoader.load_transaction(tx, io_transaction?: false)
 

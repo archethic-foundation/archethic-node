@@ -332,7 +332,7 @@ defmodule Archethic.AccountTest do
       MockDB
       |> stub(:list_io_transactions, fn _ -> [] end)
       |> stub(:list_transactions, fn _ -> [] end)
-      
+
       MemTablesLoader.start_link()
 
       encoded_state = :crypto.strong_rand_bytes(10)
@@ -349,7 +349,6 @@ defmodule Archethic.AccountTest do
         type: :UCO,
         timestamp: DateTime.utc_now()
       }
-      
 
       tx = TransactionFactory.create_valid_transaction([uco_utxo], state: encoded_state)
       Account.load_transaction(tx, io_transaction?: false)

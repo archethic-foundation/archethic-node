@@ -120,7 +120,6 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     end)
     |> stub(:list_io_transactions, fn _ -> [] end)
 
-
     start_supervised!(RewardMemTable)
     start_supervised!(RewardTableLoader)
     start_supervised!(AccountMemTableLoader)

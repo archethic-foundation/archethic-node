@@ -208,7 +208,12 @@ defmodule Archethic.BootstrapTest do
          # This Replication is for the node that received the StartMining message
          # expecting the transaction has been validated and replicated by all other nodes
          :ok = TransactionChain.write_transaction(validated_tx)
-         :ok = Replication.ingest_transaction(validated_tx, io_transaction?: false, self_repair?: false)
+
+         :ok =
+           Replication.ingest_transaction(validated_tx,
+             io_transaction?: false,
+             self_repair?: false
+           )
 
          {:ok, validated_tx}
        end},
