@@ -131,6 +131,6 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
 
   # DESC pagination
   defp paginate_chain(address, paging_address) do
-    Archethic.get_transaction_chain_by_paging_address(address, paging_address, :desc)
+    Archethic.get_pagined_transaction_chain(address, paging_address, :desc)
   end
 end

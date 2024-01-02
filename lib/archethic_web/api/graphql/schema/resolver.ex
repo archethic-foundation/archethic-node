@@ -107,8 +107,15 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
     }
   end
 
-  def transaction_chain_by_paging_address(address, paging_address, order) do
-    case Archethic.get_transaction_chain_by_paging_address(address, paging_address, order) do
+  def transaction_chain_by_paging_address(_, paging_address, from, _)
+      when paging_address != nil and from != nil do
+    {:error, "Cannot use from and paging address in same request"}
+  end
+
+  def transaction_chain_by_paging_address(address, paging_address, from, order) do
+    paging_state = paging_address || from
+
+    case Archethic.get_pagined_transaction_chain(address, paging_state, order) do
       {:ok, chain} ->
         chain = Enum.map(chain, &Transaction.to_map(&1))
         {:ok, chain}

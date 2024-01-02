@@ -354,9 +354,13 @@ defmodule Archethic do
   Retrieve a transaction chain based on an address from the closest nodes
   by setting `paging_address as an offset address.
   """
-  @spec get_transaction_chain_by_paging_address(binary(), binary() | nil, :asc | :desc) ::
+  @spec get_pagined_transaction_chain(
+          address :: Crypto.prepended_hash(),
+          paging_state :: Crypto.prepended_hash() | DateTime.t() | nil,
+          order :: :asc | :desc
+        ) ::
           {:ok, list(Transaction.t())} | {:error, :network_issue}
-  def get_transaction_chain_by_paging_address(address, paging_address, order) do
+  def get_pagined_transaction_chain(address, paging_state, order) do
     case get_last_transaction_address(address) do
       {:ok, last_address} ->
         storage_nodes =
@@ -364,7 +368,7 @@ defmodule Archethic do
 
         transactions =
           TransactionChain.fetch(last_address, storage_nodes,
-            paging_address: paging_address,
+            paging_state: paging_state,
             order: order
           )
           |> Enum.take(10)
