@@ -167,7 +167,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec get_transaction_chain(address :: binary(), fields :: list(), opts :: list()) ::
           {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
-           paging_state :: nil | binary()}
+           paging_address :: nil | binary()}
   def get_transaction_chain(address, fields \\ [], opts \\ [])
       when is_binary(address) and is_list(fields) and is_list(opts) do
     ChainReader.get_transaction_chain(address, fields, opts, db_path())

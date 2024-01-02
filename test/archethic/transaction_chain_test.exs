@@ -402,9 +402,12 @@ defmodule Archethic.TransactionChainTest do
       |> expect(:get_genesis_address, fn ^address3 -> genesis_address end)
       |> expect(:list_chain_addresses, fn ^genesis_address -> chain_addresses end)
       |> expect(:transaction_exists?, fn ^address1, _ -> true end)
-      |> expect(:get_transaction_chain, fn ^address1, _, [paging_state: ^address1, order: :asc] ->
-        {[%Transaction{address: address2}, %Transaction{address: address3}], false, nil}
-      end)
+      |> expect(
+        :get_transaction_chain,
+        fn ^address1, _, [paging_address: ^address1, order: :asc] ->
+          {[%Transaction{address: address2}, %Transaction{address: address3}], false, nil}
+        end
+      )
 
       assert [^address2, ^address3] =
                TransactionChain.fetch(address3, nodes, paging_state: date2)
