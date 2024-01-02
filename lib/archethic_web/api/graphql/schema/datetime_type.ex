@@ -22,7 +22,10 @@ defmodule ArchethicWeb.API.GraphQL.Schema.DateTimeType do
   end
 
   defp parse_datetime(%Absinthe.Blueprint.Input.Integer{value: value}) do
-    DateTime.from_unix(value)
+    case DateTime.from_unix(value) do
+      {:ok, datetime} -> {:ok, datetime}
+      _ -> :error
+    end
   end
 
   defp parse_datetime(_), do: :error
