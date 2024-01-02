@@ -1006,4 +1006,129 @@ defmodule Archethic.TransactionChainTest do
       assert {:ok, "addr1"} = TransactionChain.fetch_genesis_address("addr2", nodes)
     end
   end
+
+  describe "resolve_paging_state/3" do
+    setup do
+      date = ~U[2024-01-02 11:55:17.153Z]
+
+      genesis_address = random_address()
+
+      chain_addresses = [
+        {random_address(), date},
+        {random_address(), DateTime.add(date, 2, :second)},
+        {random_address(), DateTime.add(date, 4, :second)}
+      ]
+
+      MockDB
+      |> stub(:get_genesis_address, fn _ -> genesis_address end)
+      |> stub(:list_chain_addresses, fn ^genesis_address -> chain_addresses end)
+
+      %{chain_addresses: chain_addresses, genesis_address: genesis_address}
+    end
+
+    test "should return paging address", %{
+      chain_addresses: chain_addresses
+    } do
+      [{paging_address, _}, _, {address3, _}] = chain_addresses
+
+      MockDB
+      |> expect(:get_genesis_address, 0, fn _ -> :ok end)
+      |> expect(:list_chain_addresses, 0, fn _ -> :ok end)
+
+      assert {:ok, paging_address} ==
+               TransactionChain.resolve_paging_state(address3, paging_address, :asc)
+
+      assert {:ok, paging_address} ==
+               TransactionChain.resolve_paging_state(address3, paging_address, :desc)
+
+      assert {:ok, nil} == TransactionChain.resolve_paging_state(address3, nil, :asc)
+
+      assert {:ok, nil} == TransactionChain.resolve_paging_state(address3, nil, :desc)
+    end
+
+    test "should resolve address using from date in asc order", %{
+      chain_addresses: chain_addresses
+    } do
+      [{address1, date1}, {address2, date2}, {address3, date3}] = chain_addresses
+
+      assert {:ok, nil} ==
+               TransactionChain.resolve_paging_state(address3, date1, :asc)
+
+      assert {:ok, address1} ==
+               TransactionChain.resolve_paging_state(address3, date2, :asc)
+
+      assert {:ok, address2} ==
+               TransactionChain.resolve_paging_state(address3, date3, :asc)
+
+      date = DateTime.add(date1, 1, :second)
+
+      assert {:ok, address1} ==
+               TransactionChain.resolve_paging_state(address3, date, :asc)
+    end
+
+    test "should resolve address using from date in desc order", %{
+      chain_addresses: chain_addresses
+    } do
+      [{_, date1}, {address2, date2}, {address3, date3}] = chain_addresses
+
+      assert {:ok, address2} ==
+               TransactionChain.resolve_paging_state(address3, date1, :desc)
+
+      assert {:ok, address3} ==
+               TransactionChain.resolve_paging_state(address3, date2, :desc)
+
+      assert {:ok, nil} ==
+               TransactionChain.resolve_paging_state(address3, date3, :desc)
+
+      date = DateTime.add(date1, 1, :second)
+
+      assert {:ok, address2} ==
+               TransactionChain.resolve_paging_state(address3, date, :desc)
+    end
+
+    test "should return address when time is same second but over in millisecond", %{
+      chain_addresses: chain_addresses
+    } do
+      [{address1, _}, {_, date2}, {address3, _}] = chain_addresses
+
+      date = DateTime.truncate(date2, :second)
+
+      assert DateTime.compare(date, date2) == :lt
+
+      assert {:ok, address1} ==
+               TransactionChain.resolve_paging_state(address3, date, :asc)
+
+      assert {:ok, address3} ==
+               TransactionChain.resolve_paging_state(address3, date, :desc)
+    end
+
+    test "should return {:error, :not_in_local} when node does not know genesis_address", %{
+      chain_addresses: chain_addresses
+    } do
+      [_, _, {address3, date3}] = chain_addresses
+
+      MockDB
+      |> expect(:get_genesis_address, 2, fn ^address3 -> address3 end)
+
+      assert {:error, :not_in_local} ==
+               TransactionChain.resolve_paging_state(address3, date3, :asc)
+
+      assert {:error, :not_in_local} ==
+               TransactionChain.resolve_paging_state(address3, date3, :desc)
+    end
+
+    test "should return {:error, :not_exists} if requested from is out of chain range", %{
+      chain_addresses: chain_addresses
+    } do
+      [{_, date1}, _, {address3, date3}] = chain_addresses
+
+      date = DateTime.add(date3, 1, :second)
+
+      assert {:error, :not_exists} = TransactionChain.resolve_paging_state(address3, date, :asc)
+
+      date = DateTime.add(date1, -1, :second)
+
+      assert {:error, :not_exists} = TransactionChain.resolve_paging_state(address3, date, :desc)
+    end
+  end
 end

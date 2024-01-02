@@ -821,6 +821,60 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Resolve the paging address using requested paging address or from date
+  """
+  @spec resolve_paging_state(
+          last_chain_address :: Crypto.prepended_hash(),
+          paging_state :: Crypto.prepended_hash() | DateTime.t() | nil,
+          order :: :asc | :desc
+        ) ::
+          {:ok, paging_address :: Crypto.prepended_hash() | nil}
+          | {:error, :not_exists}
+          | {:error, :not_in_local}
+  def resolve_paging_state(_, nil, _), do: {:ok, nil}
+
+  def resolve_paging_state(_, paging_state, _) when is_binary(paging_state),
+    do: {:ok, paging_state}
+
+  def resolve_paging_state(last_chain_address, paging_state = %DateTime{}, order) do
+    genesis_address = get_genesis_address(last_chain_address)
+
+    if genesis_address != last_chain_address,
+      do: do_resolve_paging_state(genesis_address, paging_state, order),
+      else: {:error, :not_in_local}
+  end
+
+  defp do_resolve_paging_state(genesis_address, from, :asc) do
+    # list_chain_addresses is already sorted by date in asc order
+    genesis_address
+    |> list_chain_addresses()
+    |> Enum.reduce_while(
+      %{res: {:error, :not_exists}, previous_address: nil},
+      fn {address, date}, acc = %{previous_address: previous_address} ->
+        if DateTime.compare(date, from) != :lt,
+          do: {:halt, Map.put(acc, :res, {:ok, previous_address})},
+          else: {:cont, Map.put(acc, :previous_address, address)}
+      end
+    )
+    |> Map.get(:res)
+  end
+
+  defp do_resolve_paging_state(genesis_address, from, :desc) do
+    chain_addresses = list_chain_addresses(genesis_address)
+    {_, first_date} = Enum.at(chain_addresses, 0)
+
+    if first_date |> DateTime.truncate(:second) |> DateTime.compare(from) == :gt do
+      {:error, :not_exists}
+    else
+      Enum.find_value(chain_addresses, {:ok, nil}, fn {address, date} ->
+        if date |> DateTime.truncate(:second) |> DateTime.compare(from) == :gt,
+          do: {:ok, address},
+          else: nil
+      end)
+    end
+  end
+
+  @doc """
   Register a last address from a genesis address at a given date
   """
   @spec register_last_address(binary(), binary(), DateTime.t()) :: :ok
