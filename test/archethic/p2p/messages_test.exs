@@ -110,8 +110,9 @@ defmodule Archethic.P2P.MessageTest do
     end
 
     test "GetTransactionChain message" do
-      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
-      paging_state = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = random_address()
+      paging_address = random_address()
+      from = DateTime.utc_now() |> DateTime.truncate(:second)
 
       assert %GetTransactionChain{address: address} ==
                %GetTransactionChain{address: address}
@@ -119,8 +120,8 @@ defmodule Archethic.P2P.MessageTest do
                |> Message.decode()
                |> elem(0)
 
-      assert %GetTransactionChain{address: address, paging_state: paging_state} ==
-               %GetTransactionChain{address: address, paging_state: paging_state}
+      assert %GetTransactionChain{address: address, paging_state: paging_address} ==
+               %GetTransactionChain{address: address, paging_state: paging_address}
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
@@ -131,8 +132,8 @@ defmodule Archethic.P2P.MessageTest do
                |> Message.decode()
                |> elem(0)
 
-      assert %GetTransactionChain{address: address, order: :asc} ==
-               %GetTransactionChain{address: address, order: :asc}
+      assert %GetTransactionChain{address: address, order: :asc, paging_state: from} ==
+               %GetTransactionChain{address: address, order: :asc, paging_state: from}
                |> Message.encode()
                |> Message.decode()
                |> elem(0)

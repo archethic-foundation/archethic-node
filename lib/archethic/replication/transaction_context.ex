@@ -41,7 +41,7 @@ defmodule Archethic.Replication.TransactionContext do
            TransactionChain.fetch_genesis_address(address, storage_nodes),
          paging_address when paging_address != address <-
            TransactionChain.get_last_stored_address(genesis_address) do
-      TransactionChain.fetch(address, storage_nodes, paging_address: paging_address)
+      TransactionChain.fetch(address, storage_nodes, paging_state: paging_address)
       |> Stream.take_while(&(Transaction.previous_address(&1) != address))
     else
       _ -> []

@@ -370,20 +370,22 @@ defmodule Archethic.TransactionChain do
   @spec fetch(Crypto.prepended_hash(), list(Node.t()), list()) ::
           Enumerable.t() | list(Transaction.t())
   def fetch(last_chain_address, nodes, opts \\ []) do
-    paging_address = Keyword.get(opts, :paging_address, nil)
+    paging_state = Keyword.get(opts, :paging_state, nil)
     order = Keyword.get(opts, :order, :asc)
 
-    do_fetch(last_chain_address, nodes, paging_address, order)
+    case resolve_paging_state(last_chain_address, paging_state, order) do
+      {:ok, paging_address} -> do_fetch(last_chain_address, nodes, paging_address, order)
+      {:error, :not_in_local} -> do_fetch(last_chain_address, nodes, paging_state, order)
+      {:error, :not_exists} -> []
+    end
   end
 
-  defp do_fetch(last_chain_address, nodes, paging_address, order = :asc) do
+  defp do_fetch(last_chain_address, nodes, paging_state, order = :asc) do
     in_db? =
-      case paging_address do
-        nil ->
-          not (get_genesis_address(last_chain_address) == last_chain_address)
-
-        paging_address ->
-          transaction_exists?(paging_address)
+      case paging_state do
+        %DateTime{} -> false
+        nil -> get_genesis_address(last_chain_address) != last_chain_address
+        paging_address -> transaction_exists?(paging_address)
       end
 
     next_iteration = fn transactions, more?, next_paging_address ->
@@ -396,7 +398,7 @@ defmodule Archethic.TransactionChain do
             {transactions, {nil, false, true}}
 
           nil ->
-            {[], {paging_address, true, false}}
+            {[], {next_paging_address, true, false}}
 
           %Transaction{address: next_paging_address} ->
             {transactions, {next_paging_address, true, false}}
@@ -405,22 +407,19 @@ defmodule Archethic.TransactionChain do
     end
 
     Stream.resource(
-      fn -> {paging_address, true, in_db?} end,
+      fn -> {paging_state, true, in_db?} end,
       fn
-        {paging_address, _more? = true, _in_db? = false} ->
+        {paging_state, _more? = true, _in_db? = false} ->
           # More to fetch but not in db
           {transactions, more?, next_paging_address} =
-            request_transaction_chain(last_chain_address, nodes, paging_address, order)
+            request_transaction_chain(last_chain_address, nodes, paging_state, order)
 
           {transactions, {next_paging_address, more?, false}}
 
-        {paging_address = nil, _more? = true, _in_db? = true} ->
+        {_paging_state = nil, _more? = true, _in_db? = true} ->
           # More to fetch from DB using last_chain address as it is first time requesting the DB
           {transactions, more?, next_paging_address} =
-            DB.get_transaction_chain(last_chain_address, [],
-              paging_state: paging_address,
-              order: order
-            )
+            DB.get_transaction_chain(last_chain_address, [], order: order)
 
           next_iteration.(transactions, more?, next_paging_address)
 
@@ -442,19 +441,21 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  defp do_fetch(last_chain_address, nodes, paging_address, order = :desc) do
+  defp do_fetch(last_chain_address, nodes, paging_state, order = :desc) do
     in_db? =
-      if paging_address == nil,
-        do: transaction_exists?(last_chain_address),
-        else: transaction_exists?(paging_address)
+      case paging_state do
+        %DateTime{} -> false
+        nil -> transaction_exists?(last_chain_address)
+        paging_address -> transaction_exists?(paging_address)
+      end
 
     Stream.resource(
-      fn -> {paging_address, true, in_db?} end,
+      fn -> {paging_state, true, in_db?} end,
       fn
-        {paging_address, _more? = true, _in_db? = false} ->
+        {paging_state, _more? = true, _in_db? = false} ->
           # More to fetch but not in db
           {transactions, more?, next_paging_address} =
-            request_transaction_chain(last_chain_address, nodes, paging_address, order)
+            request_transaction_chain(last_chain_address, nodes, paging_state, order)
 
           next_in_db? =
             if next_paging_address != nil,
@@ -463,13 +464,10 @@ defmodule Archethic.TransactionChain do
 
           {transactions, {next_paging_address, more?, next_in_db?}}
 
-        {paging_address = nil, _more? = true, _in_db? = true} ->
+        {_paging_state = nil, _more? = true, _in_db? = true} ->
           # More to fetch from DB using last_chain address as it is first time requesting the DB
           {transactions, more?, next_paging_address} =
-            DB.get_transaction_chain(last_chain_address, [],
-              paging_state: paging_address,
-              order: order
-            )
+            DB.get_transaction_chain(last_chain_address, [], order: order)
 
           {transactions, {next_paging_address, more?, true}}
 
@@ -491,7 +489,7 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  defp request_transaction_chain(last_chain_address, nodes, paging_address, order) do
+  defp request_transaction_chain(last_chain_address, nodes, paging_state, order) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort(
@@ -530,7 +528,7 @@ defmodule Archethic.TransactionChain do
            nodes,
            %GetTransactionChain{
              address: last_chain_address,
-             paging_state: paging_address,
+             paging_state: paging_state,
              order: order
            },
            conflict_resolver,

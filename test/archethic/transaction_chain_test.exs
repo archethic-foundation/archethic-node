@@ -280,7 +280,7 @@ defmodule Archethic.TransactionChainTest do
   end
 
   describe "fetch/3" do
-    test "should get the transaction chain" do
+    setup do
       nodes = [
         %Node{
           first_public_key: "node1",
@@ -307,92 +307,45 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetTransactionChain{address: _}, _ ->
-          {:ok,
-           %TransactionList{
-             transactions: [
-               %Transaction{}
-             ]
-           }}
-      end)
-
-      assert 1 = TransactionChain.fetch("Alice1", nodes) |> Enum.count()
+      %{nodes: nodes}
     end
 
-    test "should get transactions from db and remote" do
-      nodes = [
-        %Node{
-          first_public_key: "node1",
-          last_public_key: "node1",
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          available?: true
-        },
-        %Node{
-          first_public_key: "node2",
-          last_public_key: "node2",
-          ip: {127, 0, 0, 1},
-          port: 3001,
-          available?: true
-        },
-        %Node{
-          first_public_key: "node3",
-          last_public_key: "node3",
-          ip: {127, 0, 0, 1},
-          port: 3002,
-          available?: true
-        }
-      ]
+    test "should get the transaction chain", %{nodes: nodes} do
+      address = random_address()
 
-      Enum.each(nodes, &P2P.add_and_connect_node/1)
+      MockClient
+      |> expect(:send_message, fn
+        _, %GetTransactionChain{address: ^address}, _ ->
+          {:ok, %TransactionList{transactions: [%Transaction{}]}}
+      end)
+
+      assert 1 = TransactionChain.fetch(address, nodes) |> Enum.count()
+    end
+
+    test "should get transactions from db and remote", %{nodes: nodes} do
+      genesis_address = random_address()
+      address1 = random_address()
+      address2 = random_address()
 
       MockDB
-      |> expect(:get_genesis_address, fn _ -> "Alice0" end)
-      |> expect(:get_transaction_chain, fn _, _, _ ->
-        {[%Transaction{address: "Alice1"}], false, nil}
+      |> expect(:get_genesis_address, fn ^address2 -> genesis_address end)
+      |> expect(:get_transaction_chain, fn ^address2, _, _ ->
+        {[%Transaction{address: address1}], false, nil}
       end)
 
       MockClient
       |> expect(
         :send_message,
-        fn _, %GetTransactionChain{address: _, paging_state: "Alice1"}, _ ->
-          {:ok, %TransactionList{transactions: [%Transaction{address: "Alice2"}]}}
+        fn _, %GetTransactionChain{address: _, paging_state: ^address1}, _ ->
+          {:ok, %TransactionList{transactions: [%Transaction{address: address2}]}}
         end
       )
 
-      assert ["Alice1", "Alice2"] =
-               TransactionChain.fetch("Alice2", nodes) |> Enum.map(& &1.address)
+      assert [^address1, ^address2] =
+               TransactionChain.fetch(address2, nodes) |> Enum.map(& &1.address)
     end
 
-    test "should resolve the longest chain" do
-      nodes = [
-        %Node{
-          first_public_key: "node1",
-          last_public_key: "node1",
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          available?: true
-        },
-        %Node{
-          first_public_key: "node2",
-          last_public_key: "node2",
-          ip: {127, 0, 0, 1},
-          port: 3001,
-          available?: true
-        },
-        %Node{
-          first_public_key: "node3",
-          last_public_key: "node3",
-          ip: {127, 0, 0, 1},
-          port: 3002,
-          available?: true
-        }
-      ]
-
-      Enum.each(nodes, &P2P.add_and_connect_node/1)
-
+    test "should resolve the longest chain", %{nodes: nodes} do
       validation_stamp = %ValidationStamp{timestamp: DateTime.utc_now()}
 
       MockClient
@@ -430,6 +383,52 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       assert 5 = TransactionChain.fetch("Alice1", nodes) |> Enum.count()
+    end
+
+    test "should resolve paging state as a date", %{nodes: nodes} do
+      now = DateTime.utc_now()
+
+      genesis_address = random_address()
+
+      chain_addresses = [
+        {random_address(), now},
+        {random_address(), DateTime.add(now, 2, :second)},
+        {random_address(), DateTime.add(now, 4, :second)}
+      ]
+
+      [{address1, _date1}, {address2, date2}, {address3, _date3}] = chain_addresses
+
+      MockDB
+      |> expect(:get_genesis_address, fn ^address3 -> genesis_address end)
+      |> expect(:list_chain_addresses, fn ^genesis_address -> chain_addresses end)
+      |> expect(:transaction_exists?, fn ^address1, _ -> true end)
+      |> expect(:get_transaction_chain, fn ^address1, _, [paging_state: ^address1, order: :asc] ->
+        {[%Transaction{address: address2}, %Transaction{address: address3}], false, nil}
+      end)
+
+      assert [^address2, ^address3] =
+               TransactionChain.fetch(address3, nodes, paging_state: date2)
+               |> Enum.map(& &1.address)
+    end
+
+    test "should request other with unresolved paging date", %{nodes: nodes} do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      address = random_address()
+
+      MockDB
+      |> expect(:get_genesis_address, fn ^address -> address end)
+
+      MockClient
+      |> expect(
+        :send_message,
+        fn _, %GetTransactionChain{address: ^address, paging_state: ^now}, _ ->
+          {:ok, %TransactionList{transactions: [%Transaction{address: random_address()}]}}
+        end
+      )
+
+      assert [%Transaction{}] =
+               TransactionChain.fetch(address, nodes, paging_state: now) |> Enum.to_list()
     end
   end
 
