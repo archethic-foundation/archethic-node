@@ -223,7 +223,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
   def self_replication(tx = %Transaction{}) do
     :ok = Replication.sync_transaction_chain(tx)
 
-    tx_summary = TransactionSummary.from_transaction(tx)
+    genesis_address = Transaction.previous_address(tx)
+    tx_summary = TransactionSummary.from_transaction(tx, genesis_address)
 
     attestation = %ReplicationAttestation{
       transaction_summary: tx_summary,

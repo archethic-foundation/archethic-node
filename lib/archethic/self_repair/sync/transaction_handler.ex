@@ -65,7 +65,12 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   def download_transaction(
         %ReplicationAttestation{
           transaction_summary:
-            expected_summary = %TransactionSummary{address: address, type: type}
+            expected_summary = %TransactionSummary{
+              version: version,
+              address: address,
+              type: type,
+              genesis_address: genesis_address
+            }
         },
         node_list
       ) do

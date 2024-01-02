@@ -9,6 +9,7 @@ defmodule Archethic.SelfRepair.Sync do
     PubSub,
     SelfRepair,
     TaskSupervisor,
+    TransactionChain,
     Utils
   }
 
@@ -290,7 +291,12 @@ defmodule Archethic.SelfRepair.Sync do
 
     attestations_to_sync =
       attestations
-      |> Enum.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
+      |> Task.async_stream(&adjust_attestation(&1, download_nodes))
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.filter(fn {:ok, attestation} ->
+        TransactionHandler.download_transaction?(attestation, nodes_including_self)
+      end)
+      |> Enum.map(fn {:ok, attestation} -> attestation end)
 
     synchronize_transactions(attestations_to_sync, download_nodes)
 
@@ -342,6 +348,26 @@ defmodule Archethic.SelfRepair.Sync do
     store_aggregate(aggregate, new_available_nodes)
     store_last_sync_date(summary_time)
   end
+
+  # To avoid beacon chain database migration we have to support both summaries with genesis address and without
+  # Hence, we need to adjust or revised the attestation to include the genesis address
+  # which is not present in the version 1 of transaction's summary
+  defp adjust_attestation(
+         attestation = %ReplicationAttestation{
+           transaction_summary: %TransactionSummary{
+             address: tx_address,
+             version: 1
+           }
+         },
+         download_nodes
+       ) do
+    storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
+    {:ok, genesis_address} = TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
+
+    put_in(attestation, [Access.key(:transaction_summary), Access.key(:genesis_address)], genesis_address)
+  end
+
+  defp adjust_attestation(attestation, _), do: attestation
 
   defp synchronize_transactions([], _), do: :ok
 
