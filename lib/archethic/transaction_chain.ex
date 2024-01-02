@@ -427,7 +427,7 @@ defmodule Archethic.TransactionChain do
           # More to fetch from DB using paging address
           {transactions, more?, next_paging_address} =
             DB.get_transaction_chain(paging_address, [],
-              paging_state: paging_address,
+              paging_address: paging_address,
               order: order
             )
 
@@ -475,7 +475,7 @@ defmodule Archethic.TransactionChain do
           # More to fetch from DB using paging address
           {transactions, more?, next_paging_address} =
             DB.get_transaction_chain(paging_address, [],
-              paging_state: paging_address,
+              paging_address: paging_address,
               order: order
             )
 
@@ -538,7 +538,7 @@ defmodule Archethic.TransactionChain do
        %TransactionList{
          transactions: transactions,
          more?: more?,
-         paging_state: next_paging_address
+         paging_address: next_paging_address
        }} ->
         {transactions, more?, next_paging_address}
 

@@ -30,7 +30,7 @@ defmodule Archethic.DB do
               binary(),
               fields :: list(),
               opts :: [
-                paging_state: nil | binary(),
+                paging_address: nil | binary(),
                 after: DateTime.t(),
                 order: :asc | :desc
               ]

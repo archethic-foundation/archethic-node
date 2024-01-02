@@ -305,16 +305,16 @@ defmodule Archethic.DB.EmbeddedTest do
           tx
         end)
 
-      {page, true, paging_state} =
+      {page, true, paging_address} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address)
 
       assert length(page) == 10
       assert page == Enum.take(transactions, 10)
-      assert paging_state == List.last(page).address
+      assert paging_address == List.last(page).address
 
       {page2, false, nil} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
-          paging_state: paging_state
+          paging_address: paging_address
         )
 
       assert length(page2) == 10
@@ -335,16 +335,16 @@ defmodule Archethic.DB.EmbeddedTest do
           tx
         end)
 
-      {page, true, paging_state} =
+      {page, true, paging_address} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address)
 
       assert length(page) == 10
       assert page == Enum.take(transactions, 10)
-      assert paging_state == List.last(page).address
+      assert paging_address == List.last(page).address
 
       assert {[], false, nil} =
                EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
-                 paging_state: :crypto.strong_rand_bytes(32)
+                 paging_address: :crypto.strong_rand_bytes(32)
                )
     end
   end
@@ -392,24 +392,24 @@ defmodule Archethic.DB.EmbeddedTest do
           tx
         end)
 
-      {page1, true, paging_state1} =
+      {page1, true, paging_address1} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
 
       assert length(page1) == 10
-      assert paging_state1 == List.last(page1).address
+      assert paging_address1 == List.last(page1).address
 
-      {page2, true, paging_state2} =
+      {page2, true, paging_address2} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
-          paging_state: paging_state1,
+          paging_address: paging_address1,
           order: :desc
         )
 
       assert length(page2) == 10
-      assert paging_state2 == List.last(page2).address
+      assert paging_address2 == List.last(page2).address
 
       {page3, false, nil} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
-          paging_state: paging_state2,
+          paging_address: paging_address2,
           order: :desc
         )
 
@@ -431,24 +431,24 @@ defmodule Archethic.DB.EmbeddedTest do
           tx
         end)
 
-      {page1, true, paging_state1} =
+      {page1, true, paging_address1} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
 
       assert length(page1) == 10
-      assert paging_state1 == List.last(page1).address
+      assert paging_address1 == List.last(page1).address
 
-      {page2, true, paging_state2} =
+      {page2, true, paging_address2} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
-          paging_state: paging_state1,
+          paging_address: paging_address1,
           order: :desc
         )
 
       assert length(page2) == 10
-      assert paging_state2 == List.last(page2).address
+      assert paging_address2 == List.last(page2).address
 
       {page3, false, nil} =
         EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
-          paging_state: paging_state2,
+          paging_address: paging_address2,
           order: :desc
         )
 

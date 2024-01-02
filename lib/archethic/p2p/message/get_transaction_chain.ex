@@ -20,10 +20,10 @@ defmodule Archethic.P2P.Message.GetTransactionChain do
   # paging_state received contains binary offset for next page, to be used for query
   @spec process(__MODULE__.t(), Crypto.key()) :: TransactionList.t()
   def process(%__MODULE__{address: tx_address, paging_state: paging_state, order: order}, _) do
-    {chain, more?, paging_state} =
+    {chain, more?, paging_address} =
       case TransactionChain.resolve_paging_state(tx_address, paging_state, order) do
         {:ok, paging_address} ->
-          DB.get_transaction_chain(tx_address, [], paging_state: paging_address, order: order)
+          DB.get_transaction_chain(tx_address, [], paging_address: paging_address, order: order)
 
         {:error, _} ->
           {[], false, nil}
@@ -31,7 +31,7 @@ defmodule Archethic.P2P.Message.GetTransactionChain do
 
     # empty list for fields/cols to be processed
     # new_page_state contains binary offset for the next page
-    %TransactionList{transactions: chain, paging_state: paging_state, more?: more?}
+    %TransactionList{transactions: chain, paging_address: paging_address, more?: more?}
   end
 
   @spec serialize(t()) :: bitstring()

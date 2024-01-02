@@ -264,7 +264,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %NotFound{}}
 
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_address: nil}}
 
       _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: []}}
@@ -319,7 +319,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %NotFound{}}
 
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_address: nil}}
 
       _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: []}}
@@ -367,7 +367,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %NotFound{}}
 
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_address: nil}}
 
       _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: []}}
@@ -414,7 +414,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
         {:ok, %NotFound{}}
 
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_address: nil}}
 
       _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: []}}

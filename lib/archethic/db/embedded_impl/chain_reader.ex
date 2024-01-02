@@ -114,7 +114,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   By default, order is chronological (ASC)
 
   Opts:
-    paging_state :: binary()
+    paging_address :: binary()
     order :: :asc | :desc
   """
   @spec get_transaction_chain(
@@ -124,7 +124,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           db_path :: String.t()
         ) ::
           {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
-           paging_state :: nil | binary()}
+           paging_address :: nil | binary()}
   def get_transaction_chain(address, fields, opts, db_path) do
     start = System.monotonic_time()
 
@@ -134,7 +134,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     if File.exists?(filepath) do
       fd = File.open!(filepath, [:binary, :read])
 
-      {transactions, more?, paging_state} =
+      {transactions, more?, paging_address} =
         case Keyword.get(opts, :order, :asc) do
           :asc ->
             process_get_chain(fd, fields, opts, db_path)
@@ -154,7 +154,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           end
       })
 
-      {transactions, more?, paging_state}
+      {transactions, more?, paging_address}
     else
       {[], false, nil}
     end
@@ -176,12 +176,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         Stream.resource(
           fn -> process_get_chain(fd, fields, [], db_path) end,
           fn
-            {transactions, true, paging_state} ->
+            {transactions, true, paging_address} ->
               next_transactions =
                 process_get_chain(
                   fd,
                   fields,
-                  [paging_state: paging_state],
+                  [paging_address: paging_address],
                   db_path
                 )
 
@@ -272,7 +272,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
   defp process_get_chain(fd, fields, opts, db_path) do
     # Set the file cursor position to the paging state
-    case Keyword.get(opts, :paging_state) do
+    case Keyword.get(opts, :paging_address) do
       nil ->
         :file.position(fd, 0)
         do_process_get_chain(fd, fields)
@@ -310,21 +310,21 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
       end
 
     # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-    {transactions, more?, paging_state} = get_paginated_chain(fd, column_names)
+    {transactions, more?, paging_address} = get_paginated_chain(fd, column_names)
 
-    {transactions, more?, paging_state}
+    {transactions, more?, paging_address}
   end
 
   # in order to read the file sequentially in DESC (faster than random access)
-  # we have to determine the correct paging_state and limit_address
+  # we have to determine the correct paging_address and limit_address
   # then we can use the process_get_chain that does the ASC read
   defp process_get_chain_desc(fd, genesis_address, fields, opts, db_path) do
     all_addresses_asc =
       ChainIndex.list_chain_addresses(genesis_address, db_path)
       |> Enum.map(&elem(&1, 0))
 
-    {nb_to_take, paging_state, more?, new_paging_state} =
-      case Keyword.get(opts, :paging_state) do
+    {nb_to_take, paging_address, more?, new_paging_address} =
+      case Keyword.get(opts, :paging_address) do
         nil ->
           chain_length = Enum.count(all_addresses_asc)
 
@@ -333,36 +333,36 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           else
             idx = chain_length - 1 - @page_size
 
-            paging_state = all_addresses_asc |> Enum.at(idx)
-            new_paging_state = all_addresses_asc |> Enum.at(idx + 1)
+            paging_address = all_addresses_asc |> Enum.at(idx)
+            new_paging_address = all_addresses_asc |> Enum.at(idx + 1)
 
-            {@page_size, paging_state, true, new_paging_state}
+            {@page_size, paging_address, true, new_paging_address}
           end
 
-        paging_state ->
-          paging_state_idx =
+        paging_address ->
+          paging_address_idx =
             all_addresses_asc
-            |> Enum.find_index(&(&1 == paging_state))
+            |> Enum.find_index(&(&1 == paging_address))
 
-          if paging_state_idx <= @page_size do
-            {paging_state_idx, nil, false, nil}
+          if paging_address_idx <= @page_size do
+            {paging_address_idx, nil, false, nil}
           else
-            idx = paging_state_idx - 1 - @page_size
+            idx = paging_address_idx - 1 - @page_size
 
-            paging_state = all_addresses_asc |> Enum.at(idx)
-            new_paging_state = all_addresses_asc |> Enum.at(idx + 1)
+            paging_address = all_addresses_asc |> Enum.at(idx)
+            new_paging_address = all_addresses_asc |> Enum.at(idx + 1)
 
-            {@page_size, paging_state, true, new_paging_state}
+            {@page_size, paging_address, true, new_paging_address}
           end
       end
 
-    # call the ASC function and ignore the more? and paging_state
-    {transactions, _more?, _paging_state} =
-      process_get_chain(fd, fields, [paging_state: paging_state], db_path)
+    # call the ASC function and ignore the more? and paging_address
+    {transactions, _more?, _paging_address} =
+      process_get_chain(fd, fields, [paging_address: paging_address], db_path)
 
     transactions = Enum.take(transactions, nb_to_take)
 
-    {Enum.reverse(transactions), more?, new_paging_state}
+    {Enum.reverse(transactions), more?, new_paging_address}
   end
 
   defp get_paginated_chain(fd, fields, acc \\ []) do

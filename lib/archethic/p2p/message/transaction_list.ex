@@ -2,14 +2,14 @@ defmodule Archethic.P2P.Message.TransactionList do
   @moduledoc """
   Represents a message with a list of transactions
   """
-  defstruct transactions: [], more?: false, paging_state: nil
+  defstruct transactions: [], more?: false, paging_address: nil
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
           transactions: list(Transaction.t()),
-          paging_state: nil | binary(),
+          paging_address: nil | binary(),
           more?: boolean()
         }
 
@@ -26,7 +26,11 @@ defmodule Archethic.P2P.Message.TransactionList do
     <<encoded_transactions_length::binary, transaction_bin::bitstring, 0::1>>
   end
 
-  def serialize(%__MODULE__{transactions: transactions, more?: true, paging_state: paging_state}) do
+  def serialize(%__MODULE__{
+        transactions: transactions,
+        more?: true,
+        paging_address: paging_address
+      }) do
     transaction_bin =
       transactions
       |> Stream.map(&Transaction.serialize/1)
@@ -36,7 +40,7 @@ defmodule Archethic.P2P.Message.TransactionList do
     encoded_transactions_length = Enum.count(transactions) |> VarInt.from_value()
 
     <<encoded_transactions_length::binary, transaction_bin::bitstring, 1::1,
-      byte_size(paging_state)::8, paging_state::binary>>
+      byte_size(paging_address)::8, paging_address::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring}
@@ -51,10 +55,10 @@ defmodule Archethic.P2P.Message.TransactionList do
           rest
         }
 
-      <<1::1, paging_state_size::8, paging_state::binary-size(paging_state_size),
+      <<1::1, paging_address_size::8, paging_address::binary-size(paging_address_size),
         rest::bitstring>> ->
         {
-          %__MODULE__{transactions: transactions, more?: true, paging_state: paging_state},
+          %__MODULE__{transactions: transactions, more?: true, paging_address: paging_address},
           rest
         }
     end
