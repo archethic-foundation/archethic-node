@@ -19,6 +19,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   alias Archethic.TransactionFactory
 
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -122,7 +123,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     end)
 
     attestation = %ReplicationAttestation{
-      transaction_summary: TransactionSummary.from_transaction(tx)
+      transaction_summary:
+        TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
     }
 
     assert ^tx =
@@ -153,7 +155,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     end)
 
     attestation = %ReplicationAttestation{
-      transaction_summary: TransactionSummary.from_transaction(tx)
+      transaction_summary:
+        TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
     }
 
     message = "Transaction downloaded is different than expected"
@@ -231,7 +234,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     end)
 
     attestation = %ReplicationAttestation{
-      transaction_summary: TransactionSummary.from_transaction(tx)
+      transaction_summary:
+        TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
     }
 
     assert ^tx =
@@ -265,7 +269,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
     start_supervised!(AccountMemTableLoader)
 
-    tx_summary = TransactionSummary.from_transaction(tx)
+    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
 
     index =
       ReplicationAttestation.get_node_index(
@@ -320,7 +324,6 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     tx =
       TransactionFactory.create_valid_transaction(inputs, timestamp: ~U[2022-01-02 00:00:00.000Z])
 
-
     MockDB
     |> stub(:write_transaction, fn ^tx, _ ->
       send(me, :transaction_replicated)
@@ -331,7 +334,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
     start_supervised!(AccountMemTableLoader)
 
-    tx_summary = TransactionSummary.from_transaction(tx)
+    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
 
     attestation = %ReplicationAttestation{
       version: 1,
@@ -375,7 +378,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
         timestamp: ~U[2022-01-02 00:00:00.000Z]
       )
 
-    tx_summary = TransactionSummary.from_transaction(tx)
+    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
 
     attestation = %ReplicationAttestation{
       version: 1,
@@ -403,7 +406,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
     tx = TransactionFactory.create_valid_transaction(inputs)
 
-    tx_summary = TransactionSummary.from_transaction(tx)
+    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
 
     index =
       ReplicationAttestation.get_node_index(

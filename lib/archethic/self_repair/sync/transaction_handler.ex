@@ -65,7 +65,11 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   def download_transaction(
         %ReplicationAttestation{
           transaction_summary:
-            expected_summary = %TransactionSummary{address: address, type: type}
+            expected_summary = %TransactionSummary{
+              address: address,
+              type: type,
+              genesis_address: genesis_address
+            }
         },
         node_list
       ) do
@@ -92,7 +96,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
            acceptance_resolver: acceptance_resolver
          ) do
       {:ok, tx = %Transaction{}} ->
-        summary = TransactionSummary.from_transaction(tx)
+        summary = TransactionSummary.from_transaction(tx, genesis_address)
 
         # Control if the downloaded transaction is the expected one
         if summary != expected_summary do
