@@ -90,13 +90,15 @@ defmodule ArchethicWeb.API.GraphQL.Schema do
     field :transaction_chain, list_of(:transaction) do
       arg(:address, non_null(:address))
       arg(:paging_address, :address)
+      arg(:from, :timestamp)
       arg(:order, :sort_order)
 
       resolve(fn args = %{address: address}, _ ->
         paging_address = Map.get(args, :paging_address)
+        from = Map.get(args, :from)
         order = Map.get(args, :order, :asc)
 
-        Resolver.transaction_chain_by_paging_address(address, paging_address, order)
+        Resolver.transaction_chain_by_paging_address(address, paging_address, from, order)
       end)
     end
 
