@@ -16,11 +16,12 @@ defmodule Archethic.BeaconChain.SlotTest do
         %ReplicationAttestation{
           transaction_summary: %TransactionSummary{
             address: ArchethicCase.random_address(),
-            timestamp: ~U[2020-06-25 15:11:53Z],
+            timestamp: ~U[2020-06-25 15:11:53.000Z],
             type: :transfer,
             movements_addresses: [],
             fee: 10_000_000,
-            validation_stamp_checksum: :crypto.strong_rand_bytes(32)
+            validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+            genesis_address: ArchethicCase.random_address()
           },
           confirmations: [{0, :crypto.strong_rand_bytes(32)}]
         }

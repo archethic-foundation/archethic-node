@@ -10,8 +10,12 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   alias Archethic.Crypto
 
+  alias Archethic.Election
+
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetGenesisAddress
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Node
 
   alias Archethic.SelfRepair.Sync.TransactionHandler
@@ -26,6 +30,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   doctest TransactionHandler
 
   import Mox
+  import Mock
 
   setup do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
@@ -90,406 +95,563 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
      }}
   end
 
-  test "download_transaction?/1 should return true when the node is a chain storage node" do
-    nodes = [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
+  describe "download_transaction?/2" do
+    test "should return true when the node is a chain storage node" do
+      nodes = [P2P.get_node_info() | P2P.authorized_and_available_nodes()] |> P2P.distinct_nodes()
 
-    attestation = %ReplicationAttestation{
-      transaction_summary: %TransactionSummary{address: "@Alice2"}
-    }
-
-    assert true =
-             TransactionHandler.download_transaction?(
-               attestation,
-               nodes
-             )
-  end
-
-  test "download_transaction/2 should download the transaction" do
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now()
+      attestation = %ReplicationAttestation{
+        transaction_summary: %TransactionSummary{
+          address: "@Alice2",
+          version: 1,
+          genesis_address: "@Alice0"
+        }
       }
-    ]
 
-    tx = TransactionFactory.create_valid_transaction(inputs)
+      assert true =
+               TransactionHandler.download_transaction?(
+                 attestation,
+                 nodes
+               )
+    end
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetTransaction{}, _ ->
-        {:ok, tx}
-    end)
+    test "should return true when the node only a chain genesis storage node" do
+      with_mock(Election, [:passthrough],
+        chain_storage_nodes: fn
+          "@Alice1", _ ->
+            [%Node{first_public_key: ArchethicCase.random_public_key()}]
 
-    attestation = %ReplicationAttestation{
-      transaction_summary:
-        TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
-    }
+          "@Alice0", _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key()}]
+        end
+      ) do
+        attestation = %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{
+            address: "@Alice1",
+            genesis_address: "@Alice0"
+          }
+        }
 
-    assert ^tx =
-             TransactionHandler.download_transaction(
-               attestation,
-               P2P.authorized_and_available_nodes()
-             )
-  end
+        assert true =
+                 TransactionHandler.download_transaction?(
+                   attestation,
+                   []
+                 )
+      end
+    end
 
-  test "download_transaction/2 should be able to download the transaction even if there are split",
-       %{
-         welcome_node: welcome_node,
-         coordinator_node: coordinator_node,
-         storage_nodes: storage_nodes
-       } do
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now()
-      }
-    ]
+    test "should return true when the node only a I/O storage node" do
+      with_mock(Election, [:passthrough],
+        chain_storage_nodes: fn
+          "@Bob3", _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key()}]
 
-    welcome_node_pkey = welcome_node.first_public_key
-    coordinator_node_pkey = coordinator_node.first_public_key
-    storage_node_pkey = Enum.at(storage_nodes, 0).first_public_key
+          _, _ ->
+            [%Node{first_public_key: ArchethicCase.random_public_key()}]
+        end
+      ) do
+        attestation = %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{
+            address: "@Alice1",
+            genesis_address: "@Alice0",
+            movements_addresses: ["@Bob3"]
+          }
+        }
 
-    tx = TransactionFactory.create_valid_transaction(inputs)
+        assert true =
+                 TransactionHandler.download_transaction?(
+                   attestation,
+                   []
+                 )
+      end
+    end
 
-    MockClient
-    |> stub(:send_message, fn
-      %Node{first_public_key: ^welcome_node_pkey}, %GetTransaction{}, _ ->
-        {:ok, tx}
+    test "should return true when the node only a genesis I/O storage node without genesis fetching" do
+      with_mock(Election, [:passthrough],
+        chain_storage_nodes: fn
+          "@Bob0", _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key(), network_patch: "AAA"}]
 
-      %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
-        # split
-        {:ok, %Transaction{tx | type: :data}}
+          _, _ ->
+            [%Node{first_public_key: ArchethicCase.random_public_key(), network_patch: "AAA"}]
+        end
+      ) do
+        attestation = %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{
+            address: "@Alice1",
+            genesis_address: "@Alice0",
+            movements_addresses: ["@Bob0"]
+          }
+        }
 
-      %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
-        # split
-        {:ok, %Transaction{tx | type: :data}}
-    end)
+        assert true =
+                 TransactionHandler.download_transaction?(
+                   attestation,
+                   []
+                 )
+      end
+    end
 
-    assert ^tx =
-             TransactionHandler.download_transaction(
-               %ReplicationAttestation{
-                 transaction_summary: TransactionSummary.from_transaction(tx)
-               },
-               P2P.authorized_and_available_nodes()
-             )
-  end
+    test "should return true when the node only a genesis I/O storage node with genesis fetching" do
+      MockClient
+      |> stub(:send_message, fn _, %GetGenesisAddress{address: "@Bob3"}, _ ->
+        {:ok, %GenesisAddress{address: "@Bob0", timestamp: DateTime.utc_now()}}
+      end)
 
-  test "download_transaction/2 should raise an error if no one has the expected transaction",
-       %{
-         welcome_node: welcome_node,
-         coordinator_node: coordinator_node,
-         storage_nodes: storage_nodes
-       } do
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now()
-      }
-    ]
+      with_mock(Election, [:passthrough],
+        chain_storage_nodes: fn
+          "@Bob0", _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key(), network_patch: "AAA"}]
 
-    welcome_node_pkey = welcome_node.first_public_key
-    coordinator_node_pkey = coordinator_node.first_public_key
-    storage_node_pkey = Enum.at(storage_nodes, 0).first_public_key
+          _, _ ->
+            [%Node{first_public_key: ArchethicCase.random_public_key(), network_patch: "AAA"}]
+        end
+      ) do
+        attestation = %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{
+            address: "@Alice1",
+            genesis_address: "@Alice0",
+            movements_addresses: ["@Bob3"],
+            version: 1
+          }
+        }
 
-    tx = TransactionFactory.create_valid_transaction(inputs)
-
-    MockClient
-    |> stub(:send_message, fn
-      %Node{first_public_key: ^welcome_node_pkey}, %GetTransaction{}, _ ->
-        # split
-        {:ok, %Transaction{tx | type: :data}}
-
-      %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
-        # split
-        {:ok, %Transaction{tx | type: :data}}
-
-      %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
-        # split
-        {:ok, %Transaction{tx | type: :data}}
-    end)
-
-    attestation = %ReplicationAttestation{
-      transaction_summary:
-        TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
-    }
-
-    assert_raise RuntimeError, "Error downloading transaction", fn ->
-      TransactionHandler.download_transaction(
-        attestation,
-        P2P.authorized_and_available_nodes()
-      )
+        assert true =
+                 TransactionHandler.download_transaction?(
+                   attestation,
+                   []
+                 )
+      end
     end
   end
 
-  test "download_transaction/2 should download the transaction even after a first failure" do
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now()
+  describe "download_transaction/2" do
+    test "should download the transaction" do
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      tx = TransactionFactory.create_valid_transaction(inputs)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{}, _ ->
+          {:ok, tx}
+      end)
+
+      attestation = %ReplicationAttestation{
+        transaction_summary:
+          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
       }
-    ]
 
-    tx = TransactionFactory.create_valid_transaction(inputs)
+      assert ^tx =
+               TransactionHandler.download_transaction(
+                 attestation,
+                 P2P.authorized_and_available_nodes()
+               )
+    end
 
-    pb_key1 = Crypto.derive_keypair("key101", 0) |> elem(0)
-    pb_key2 = Crypto.derive_keypair("key202", 0) |> elem(0)
-    pb_key3 = Crypto.derive_keypair("key303", 0) |> elem(0)
+    test "download_transaction/2 should be able to download the transaction even if there are split",
+         %{
+           welcome_node: welcome_node,
+           coordinator_node: coordinator_node,
+           storage_nodes: storage_nodes
+         } do
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
 
-    nodes = [
-      %Node{
-        first_public_key: pb_key1,
-        last_public_key: pb_key1,
-        authorized?: true,
-        available?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        reward_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: DateTime.utc_now()
-      },
-      %Node{
-        first_public_key: pb_key2,
-        last_public_key: pb_key2,
-        authorized?: true,
-        available?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        reward_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: DateTime.utc_now()
-      },
-      %Node{
-        first_public_key: pb_key3,
-        last_public_key: pb_key3,
-        authorized?: true,
-        available?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        reward_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: DateTime.utc_now()
+      welcome_node_pkey = welcome_node.first_public_key
+      coordinator_node_pkey = coordinator_node.first_public_key
+      storage_node_pkey = Enum.at(storage_nodes, 0).first_public_key
+
+      tx = TransactionFactory.create_valid_transaction(inputs)
+
+      MockClient
+      |> stub(:send_message, fn
+        %Node{first_public_key: ^welcome_node_pkey}, %GetTransaction{}, _ ->
+          {:ok, tx}
+
+        %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
+          # split
+          {:ok, %Transaction{tx | type: :data}}
+
+        %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
+          # split
+          {:ok, %Transaction{tx | type: :data}}
+      end)
+
+      assert ^tx =
+               TransactionHandler.download_transaction(
+                 %ReplicationAttestation{
+                   transaction_summary:
+                     TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+                 },
+                 P2P.authorized_and_available_nodes()
+               )
+    end
+
+    test "download_transaction/2 should raise an error if no one has the expected transaction",
+         %{
+           welcome_node: welcome_node,
+           coordinator_node: coordinator_node,
+           storage_nodes: storage_nodes
+         } do
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      welcome_node_pkey = welcome_node.first_public_key
+      coordinator_node_pkey = coordinator_node.first_public_key
+      storage_node_pkey = Enum.at(storage_nodes, 0).first_public_key
+
+      tx = TransactionFactory.create_valid_transaction(inputs)
+
+      MockClient
+      |> stub(:send_message, fn
+        %Node{first_public_key: ^welcome_node_pkey}, %GetTransaction{}, _ ->
+          # split
+          {:ok, %Transaction{tx | type: :data}}
+
+        %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
+          # split
+          {:ok, %Transaction{tx | type: :data}}
+
+        %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
+          # split
+          {:ok, %Transaction{tx | type: :data}}
+      end)
+
+      attestation = %ReplicationAttestation{
+        transaction_summary:
+          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
       }
-    ]
 
-    Enum.each(nodes, &P2P.add_and_connect_node(&1))
+      assert_raise RuntimeError, "Error downloading transaction", fn ->
+        TransactionHandler.download_transaction(
+          attestation,
+          P2P.authorized_and_available_nodes()
+        )
+      end
+    end
 
-    MockClient
-    |> expect(:send_message, 4, fn
-      _, %GetTransaction{}, _ ->
-        {:error, :network_issue}
-    end)
-    |> expect(:send_message, fn
-      _, %GetTransaction{}, _ ->
-        {:ok, tx}
-    end)
+    test "should raise an error if the downloaded transaction is not the expected one" do
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
 
-    attestation = %ReplicationAttestation{
-      transaction_summary:
-        TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
-    }
+      tx = TransactionFactory.create_valid_transaction(inputs)
 
-    assert ^tx =
-             TransactionHandler.download_transaction(
-               attestation,
-               P2P.authorized_and_available_nodes()
-             )
-  end
+      modified_tx = %{tx | type: :oracle}
 
-  test "process_transaction/3 should handle the transaction and replicate it" do
-    me = self()
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{}, _ ->
+          {:ok, modified_tx}
+      end)
 
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now()
+      attestation = %ReplicationAttestation{
+        transaction_summary:
+          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
       }
-    ]
 
-    tx = TransactionFactory.create_valid_transaction(inputs)
+      message = "Transaction downloaded is different than expected"
 
-    MockDB
-    |> stub(:write_transaction, fn ^tx, _ ->
-      send(me, :transaction_replicated)
-      :ok
-    end)
-    |> stub(:list_io_transactions, fn _fields -> [] end)
-    |> stub(:list_transactions, fn _fields -> [] end)
+      assert_raise RuntimeError, message, fn ->
+        TransactionHandler.download_transaction(
+          attestation,
+          P2P.authorized_and_available_nodes()
+        )
+      end
+    end
 
-    start_supervised!(AccountMemTableLoader)
+    test "should download the transaction even after a first failure" do
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
 
-    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      tx = TransactionFactory.create_valid_transaction(inputs)
 
-    index =
-      ReplicationAttestation.get_node_index(
-        Crypto.first_node_public_key(),
-        tx_summary.timestamp
-      )
+      pb_key1 = Crypto.derive_keypair("key101", 0) |> elem(0)
+      pb_key2 = Crypto.derive_keypair("key202", 0) |> elem(0)
+      pb_key3 = Crypto.derive_keypair("key303", 0) |> elem(0)
 
-    signature =
-      tx_summary
-      |> TransactionSummary.serialize()
-      |> Crypto.sign_with_first_node_key()
+      nodes = [
+        %Node{
+          first_public_key: pb_key1,
+          last_public_key: pb_key1,
+          authorized?: true,
+          available?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          reward_address: :crypto.strong_rand_bytes(32),
+          enrollment_date: DateTime.utc_now()
+        },
+        %Node{
+          first_public_key: pb_key2,
+          last_public_key: pb_key2,
+          authorized?: true,
+          available?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          reward_address: :crypto.strong_rand_bytes(32),
+          enrollment_date: DateTime.utc_now()
+        },
+        %Node{
+          first_public_key: pb_key3,
+          last_public_key: pb_key3,
+          authorized?: true,
+          available?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+          geo_patch: "AAA",
+          network_patch: "AAA",
+          reward_address: :crypto.strong_rand_bytes(32),
+          enrollment_date: DateTime.utc_now()
+        }
+      ]
 
-    attestation = %ReplicationAttestation{
-      transaction_summary: tx_summary,
-      confirmations: [{index, signature}]
-    }
+      Enum.each(nodes, &P2P.add_and_connect_node(&1))
 
-    assert :ok =
-             TransactionHandler.process_transaction(
-               attestation,
-               tx,
-               P2P.authorized_and_available_nodes()
-             )
+      MockClient
+      |> expect(:send_message, 4, fn
+        _, %GetTransaction{}, _ ->
+          {:error, :network_issue}
+      end)
+      |> expect(:send_message, fn
+        _, %GetTransaction{}, _ ->
+          {:ok, tx}
+      end)
 
-    assert_receive :transaction_replicated
-  end
-
-  test "process_transaction/3 should handle the transaction and replicate it on attestation V1" do
-    P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: true,
-      authorization_date: ~U[2022-01-01 00:00:00.000Z],
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      reward_address: :crypto.strong_rand_bytes(32),
-      enrollment_date: ~U[2022-01-01 00:00:00.000Z]
-    })
-
-    me = self()
-
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: ~U[2022-01-02 00:00:00.000Z]
+      attestation = %ReplicationAttestation{
+        transaction_summary:
+          TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
       }
-    ]
 
-    tx =
-      TransactionFactory.create_valid_transaction(inputs, timestamp: ~U[2022-01-02 00:00:00.000Z])
-
-    MockDB
-    |> stub(:write_transaction, fn ^tx, _ ->
-      send(me, :transaction_replicated)
-      :ok
-    end)
-    |> stub(:list_io_transactions, fn _fields -> [] end)
-    |> stub(:list_transactions, fn _fields -> [] end)
-
-    start_supervised!(AccountMemTableLoader)
-
-    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
-
-    attestation = %ReplicationAttestation{
-      version: 1,
-      transaction_summary: tx_summary
-    }
-
-    assert :ok =
-             TransactionHandler.process_transaction(
-               attestation,
-               tx,
-               P2P.authorized_and_available_nodes()
-             )
-
-    assert_receive :transaction_replicated
-  end
-
-  test "process_transaction/3 should raise an error if transaction is invalid on attestation V1" do
-    P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      authorized?: true,
-      available?: true,
-      authorization_date: ~U[2022-01-01 00:00:00.000Z],
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      reward_address: :crypto.strong_rand_bytes(32),
-      enrollment_date: ~U[2022-01-01 00:00:00.000Z]
-    })
-
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: ~U[2022-01-02 00:00:00.000Z]
-      }
-    ]
-
-    tx =
-      TransactionFactory.create_transaction_with_invalid_validation_stamp_signature(inputs,
-        timestamp: ~U[2022-01-02 00:00:00.000Z]
-      )
-
-    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
-
-    attestation = %ReplicationAttestation{
-      version: 1,
-      transaction_summary: tx_summary
-    }
-
-    assert_raise RuntimeError, "Transaction signature error in self repair", fn ->
-      TransactionHandler.process_transaction(
-        attestation,
-        tx,
-        P2P.authorized_and_available_nodes()
-      )
+      assert ^tx =
+               TransactionHandler.download_transaction(
+                 attestation,
+                 P2P.authorized_and_available_nodes()
+               )
     end
   end
 
-  test "process_transaction/3 should handle raise an error when attestation is invalid" do
-    inputs = [
-      %UnspentOutput{
-        from: "@Alice2",
-        amount: 1_000_000_000,
-        type: :UCO,
-        timestamp: DateTime.utc_now()
+  describe "process_transaction/3" do
+    test "should handle the transaction and replicate it" do
+      me = self()
+
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      tx = TransactionFactory.create_valid_transaction(inputs)
+
+      MockDB
+      |> stub(:write_transaction, fn ^tx, _ ->
+        send(me, :transaction_replicated)
+        :ok
+      end)
+      |> stub(:list_io_transactions, fn _fields -> [] end)
+      |> stub(:list_transactions, fn _fields -> [] end)
+
+      start_supervised!(AccountMemTableLoader)
+
+      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+
+      index =
+        ReplicationAttestation.get_node_index(
+          Crypto.first_node_public_key(),
+          tx_summary.timestamp
+        )
+
+      signature =
+        tx_summary
+        |> TransactionSummary.serialize()
+        |> Crypto.sign_with_first_node_key()
+
+      attestation = %ReplicationAttestation{
+        transaction_summary: tx_summary,
+        confirmations: [{index, signature}]
       }
-    ]
 
-    tx = TransactionFactory.create_valid_transaction(inputs)
+      assert :ok =
+               TransactionHandler.process_transaction(
+                 attestation,
+                 tx,
+                 P2P.authorized_and_available_nodes()
+               )
 
-    tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+      assert_receive :transaction_replicated
+    end
 
-    index =
-      ReplicationAttestation.get_node_index(
-        Crypto.first_node_public_key(),
-        tx_summary.timestamp
-      )
+    test "should handle the transaction and replicate it on attestation V1" do
+      P2P.add_and_connect_node(%Node{
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        authorized?: true,
+        available?: true,
+        authorization_date: ~U[2022-01-01 00:00:00.000Z],
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: ~U[2022-01-01 00:00:00.000Z]
+      })
 
-    signature =
-      tx_summary
-      |> TransactionSummary.serialize()
-      |> Crypto.sign(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+      me = self()
 
-    attestation = %ReplicationAttestation{
-      transaction_summary: tx_summary,
-      confirmations: [{index, signature}]
-    }
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-01-02 00:00:00.000Z]
+        }
+      ]
 
-    message = "Attestation error in self repair"
+      tx =
+        TransactionFactory.create_valid_transaction(inputs,
+          timestamp: ~U[2022-01-02 00:00:00.000Z]
+        )
 
-    assert_raise RuntimeError, message, fn ->
-      TransactionHandler.process_transaction(
-        attestation,
-        tx,
-        P2P.authorized_and_available_nodes()
-      )
+      MockDB
+      |> stub(:write_transaction, fn ^tx, _ ->
+        send(me, :transaction_replicated)
+        :ok
+      end)
+      |> stub(:list_io_transactions, fn _fields -> [] end)
+      |> stub(:list_transactions, fn _fields -> [] end)
+
+      start_supervised!(AccountMemTableLoader)
+
+      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+
+      attestation = %ReplicationAttestation{
+        version: 1,
+        transaction_summary: tx_summary
+      }
+
+      assert :ok =
+               TransactionHandler.process_transaction(
+                 attestation,
+                 tx,
+                 P2P.authorized_and_available_nodes()
+               )
+
+      assert_receive :transaction_replicated
+    end
+
+    test "should raise an error if transaction is invalid on attestation V1" do
+      P2P.add_and_connect_node(%Node{
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        authorized?: true,
+        available?: true,
+        authorization_date: ~U[2022-01-01 00:00:00.000Z],
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        reward_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: ~U[2022-01-01 00:00:00.000Z]
+      })
+
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-01-02 00:00:00.000Z]
+        }
+      ]
+
+      tx =
+        TransactionFactory.create_transaction_with_invalid_validation_stamp_signature(inputs,
+          timestamp: ~U[2022-01-02 00:00:00.000Z]
+        )
+
+      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+
+      attestation = %ReplicationAttestation{
+        version: 1,
+        transaction_summary: tx_summary
+      }
+
+      assert_raise RuntimeError, "Transaction signature error in self repair", fn ->
+        TransactionHandler.process_transaction(
+          attestation,
+          tx,
+          P2P.authorized_and_available_nodes()
+        )
+      end
+    end
+
+    test "should handle raise an error when attestation is invalid" do
+      inputs = [
+        %UnspentOutput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      tx = TransactionFactory.create_valid_transaction(inputs)
+
+      tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
+
+      index =
+        ReplicationAttestation.get_node_index(
+          Crypto.first_node_public_key(),
+          tx_summary.timestamp
+        )
+
+      signature =
+        tx_summary
+        |> TransactionSummary.serialize()
+        |> Crypto.sign(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+
+      attestation = %ReplicationAttestation{
+        transaction_summary: tx_summary,
+        confirmations: [{index, signature}]
+      }
+
+      message = "Attestation error in self repair"
+
+      assert_raise RuntimeError, message, fn ->
+        TransactionHandler.process_transaction(
+          attestation,
+          tx,
+          P2P.authorized_and_available_nodes()
+        )
+      end
     end
   end
 end

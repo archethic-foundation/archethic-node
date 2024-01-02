@@ -364,7 +364,11 @@ defmodule Archethic.SelfRepair.Sync do
     storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
     {:ok, genesis_address} = TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
 
-    put_in(attestation, [Access.key(:transaction_summary), Access.key(:genesis_address)], genesis_address)
+    put_in(
+      attestation,
+      [Access.key(:transaction_summary), Access.key(:genesis_address)],
+      genesis_address
+    )
   end
 
   defp adjust_attestation(attestation, _), do: attestation

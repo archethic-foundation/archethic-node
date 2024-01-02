@@ -35,18 +35,44 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
           transaction_summary: %TransactionSummary{
             address: address,
             type: type,
-            movements_addresses: mvt_addresses
+            movements_addresses: mvt_addresses,
+            genesis_address: genesis_address,
+            version: summary_version
           }
         },
         node_list
       ) do
-    chain_storage_nodes = Election.chain_storage_nodes_with_type(address, type, node_list)
+    last_chain_storage_nodes = Election.chain_storage_nodes_with_type(address, type, node_list)
+    genesis_chain_storage_nodes = Election.chain_storage_nodes(genesis_address, node_list)
+    node_key = Crypto.first_node_public_key()
 
-    if Utils.key_in_node_list?(chain_storage_nodes, Crypto.first_node_public_key()) do
+    if Utils.key_in_node_list?(last_chain_storage_nodes, node_key) or
+         Utils.key_in_node_list?(genesis_chain_storage_nodes, node_key) do
       not TransactionChain.transaction_exists?(address)
     else
       io_node? =
-        Enum.any?(mvt_addresses, fn address ->
+        mvt_addresses
+        |> Task.async_stream(fn address ->
+          case summary_version do
+            # Before AEIP-21, we fetch the genesis address to avoid multiple beacon chain's data changes
+            1 ->
+              storage_nodes = Election.chain_storage_nodes(address, node_list)
+
+              case TransactionChain.fetch_genesis_address(address, storage_nodes) do
+                {:ok, genesis_address} ->
+                  [genesis_address, address]
+
+                _ ->
+                  [address]
+              end
+
+            _ ->
+              [address]
+          end
+        end)
+        |> Stream.filter(&match?({:ok, _}, &1))
+        |> Stream.flat_map(fn {:ok, res} -> res end)
+        |> Enum.any?(fn address ->
           address
           |> Election.chain_storage_nodes(node_list)
           |> Utils.key_in_node_list?(Crypto.first_node_public_key())
