@@ -68,9 +68,21 @@ defmodule Archethic.Account.MemTables.GenesisInputLedger do
       Enum.filter(unspent_outputs, fn %UnspentOutput{type: type} ->
         phase2? or Enum.any?(consumed_inputs, &(&1.type == type))
       end)
-      |> Enum.map(fn %UnspentOutput{from: from, type: type, timestamp: timestamp, amount: amount} ->
+      |> Enum.map(fn %UnspentOutput{
+                       from: from,
+                       type: type,
+                       timestamp: timestamp,
+                       amount: amount,
+                       encoded_payload: encoded_payload
+                     } ->
         %VersionedTransactionInput{
-          input: %TransactionInput{from: from, type: type, timestamp: timestamp, amount: amount},
+          input: %TransactionInput{
+            from: from,
+            type: type,
+            timestamp: timestamp,
+            amount: amount,
+            encoded_payload: encoded_payload
+          },
           protocol_version: protocol_version
         }
       end)

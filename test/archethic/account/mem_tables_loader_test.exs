@@ -124,7 +124,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       tx = %Transaction{
         address: transaction_address,
         validation_stamp: %ValidationStamp{
-          timestamp: ~U[2023-09-10 05:00:00Z],
+          timestamp: ~U[2023-09-10 05:00:00.000Z],
           protocol_version: ArchethicCase.current_protocol_version(),
           ledger_operations: %LedgerOperations{
             transaction_movements: [
@@ -135,7 +135,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                 from: transaction_address,
                 amount: 300_000_000,
                 type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00Z]
+                timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
             consumed_inputs: [
@@ -194,7 +194,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         address: transaction_address,
         validation_stamp: %ValidationStamp{
           protocol_version: ArchethicCase.current_protocol_version(),
-          timestamp: ~U[2023-09-10 05:00:00Z],
+          timestamp: ~U[2023-09-10 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
               %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
@@ -204,7 +204,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                 from: transaction_address,
                 amount: 300_000_000,
                 type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00Z]
+                timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
             consumed_inputs: [
@@ -242,7 +242,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                    input: %TransactionInput{
                      from: ^transaction_address,
                      type: :UCO,
-                     timestamp: ~U[2023-09-10 05:00:00Z],
+                     timestamp: ~U[2023-09-10 05:00:00.000Z],
                      amount: 300_000_000
                    }
                  }
@@ -271,7 +271,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         address: destination_address,
         validation_stamp: %ValidationStamp{
           protocol_version: ArchethicCase.current_protocol_version(),
-          timestamp: ~U[2023-09-10 05:00:00Z],
+          timestamp: ~U[2023-09-10 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
               %TransactionMovement{
@@ -285,7 +285,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                 from: destination_address,
                 amount: 300_000_000,
                 type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00Z]
+                timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
             consumed_inputs: [
@@ -301,7 +301,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         address: transaction_address,
         validation_stamp: %ValidationStamp{
           protocol_version: ArchethicCase.current_protocol_version(),
-          timestamp: ~U[2023-09-12 05:00:00Z],
+          timestamp: ~U[2023-09-12 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
               %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
@@ -311,7 +311,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                 from: transaction_address,
                 amount: 300_000_000,
                 type: :UCO,
-                timestamp: ~U[2023-09-12 05:00:00Z]
+                timestamp: ~U[2023-09-12 05:00:00.000Z]
               }
             ],
             consumed_inputs: [
@@ -319,13 +319,13 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                 from: transaction_previous_address,
                 amount: 400_000_000,
                 type: :UCO,
-                timestamp: ~U[2023-09-08 05:00:00Z]
+                timestamp: ~U[2023-09-08 05:00:00.000Z]
               },
               %UnspentOutput{
                 from: destination_address,
                 amount: 100_000_000,
                 type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00Z]
+                timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ]
           }
@@ -360,7 +360,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                    input: %TransactionInput{
                      from: ^destination_address,
                      type: :UCO,
-                     timestamp: ~U[2023-09-10 05:00:00Z],
+                     timestamp: ~U[2023-09-10 05:00:00.000Z],
                      amount: 100_000_000
                    }
                  }
@@ -381,7 +381,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                      from: ^transaction_address,
                      amount: 300_000_000,
                      type: :UCO,
-                     timestamp: ~U[2023-09-12 05:00:00Z]
+                     timestamp: ~U[2023-09-12 05:00:00.000Z]
                    }
                  }
                ] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
@@ -643,7 +643,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       tx = %Transaction{
         address: transaction_address,
         validation_stamp: %ValidationStamp{
-          timestamp: ~U[2023-09-10 05:00:00Z],
+          timestamp: ~U[2023-09-10 05:00:00.000Z],
           protocol_version: ArchethicCase.current_protocol_version(),
           ledger_operations: %LedgerOperations{
             transaction_movements: [
@@ -654,11 +654,11 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                 from: transaction_address,
                 amount: 100_000_000,
                 type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00Z]
+                timestamp: ~U[2023-09-10 05:00:00.000Z]
               }
             ],
             consumed_inputs: [
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO},
+              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO}
             ]
           }
         },
@@ -673,7 +673,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
       with_mock(Election,
         chain_storage_nodes: fn
-          _, _ -> [%Node{first_public_key: Crypto.first_node_public_key()}] end
+          _, _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
+        end
       ) do
         MemTablesLoader.load_transaction(tx, io_transaction?: false)
 
