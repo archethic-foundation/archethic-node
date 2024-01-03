@@ -25,13 +25,16 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   import ArchethicWeb.Explorer.ExplorerView
 
   def mount(_params, _session, socket) do
+    uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
+
     {:ok,
      assign(socket, %{
        exists: false,
        previous_address: nil,
        transaction: nil,
        inputs: [],
-       calls: []
+       calls: [],
+       uco_price_now: uco_price_now
      })}
   end
 
@@ -111,7 +114,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     previous_address = Transaction.previous_address(tx)
 
     uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
-    uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
 
     async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers)
 
@@ -120,7 +122,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:previous_address, previous_address)
     |> assign(:address, address)
     |> assign(:uco_price_at_time, uco_price_at_time)
-    |> assign(:uco_price_now, uco_price_now)
     |> assign(:inputs, [])
     |> assign(:calls, [])
     |> assign(:token_properties, %{})

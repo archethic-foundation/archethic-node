@@ -11,6 +11,10 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
   import ArchethicWeb.WebUtils
 
   def display_all(assigns) do
+    # uco_price_at_time is optional because sometimes we do not have the time context
+    # example: on a genesis page, there is no time
+    assigns = assign(assigns, :uco_price_at_time, Map.get(assigns, :uco_price_at_time))
+
     ~H"""
     <table class="table ae-table is-fullwidth is-hoverable">
       <thead>

@@ -4,7 +4,7 @@
     <div class="level-left">
       <div class="level-item">
         <div>
-          <p class="text_title">Transaction information</p>
+          <p class="text_title">Transaction details</p>
           <p class="text_subtitle mono">
             <%= Base.encode16(@address) %>
           </p>
@@ -38,7 +38,6 @@
           <InputsList.display_all
             inputs={@inputs}
             socket={@socket}
-            uco_price_at_time={@uco_price_at_time}
             uco_price_now={@uco_price_now}
             token_properties={@token_properties}
           />
@@ -53,7 +52,6 @@
           <InputsList.display_all
             inputs={@inputs}
             socket={@socket}
-            uco_price_at_time={@uco_price_at_time}
             uco_price_now={@uco_price_now}
             token_properties={@token_properties}
           />
@@ -62,7 +60,7 @@
         <p>The given transaction address is invalid.</p>
         <small>Please check the transaction address validity.</small>
       <% true -> %>
-        <div class="is-2" x-data="{tab_panel: 'tx'}">
+        <div class="is-2">
           <div>
             <%!-------------------------------- TYPE --------------------------------%>
             <div class="columns">
@@ -84,18 +82,6 @@
             <div class="columns">
               <div class="column has-text-right heading is-2">Fee</div>
               <div class="column">
-                <%= link(WebUtils.short_address(burning_address()),
-                  to:
-                    Routes.live_path(
-                      @socket,
-                      ArchethicWeb.Explorer.TransactionDetailsLive,
-                      Base.encode16(
-                        Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.burning_address()
-                      )
-                    )
-                ) %>
-
-                <span class="px-4">←</span>
                 <Amount.uco
                   amount={@transaction.validation_stamp.ledger_operations.fee}
                   uco_price_at_time={@uco_price_at_time}
@@ -197,6 +183,12 @@
                 <ul>
                   <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
                     <li>
+                      <Amount.uco
+                        amount={transfer.amount}
+                        uco_price_at_time={@uco_price_at_time}
+                        uco_price_now={@uco_price_now}
+                      />
+                      <span class="px-4">→</span>
                       <%= link(WebUtils.short_address(transfer.to),
                         to:
                           Routes.live_path(
@@ -205,12 +197,6 @@
                             Base.encode16(transfer.to)
                           )
                       ) %>
-                      <span class="px-4">←</span>
-                      <Amount.uco
-                        amount={transfer.amount}
-                        uco_price_at_time={@uco_price_at_time}
-                        uco_price_now={@uco_price_now}
-                      />
                     </li>
                   <% end %>
                 </ul>
@@ -227,6 +213,14 @@
                 <ul>
                   <%= for transfer <- @transaction.data.ledger.token.transfers do %>
                     <li>
+                      <Amount.token
+                        amount={transfer.amount}
+                        token_address={transfer.token_address}
+                        token_id={transfer.token_id}
+                        token_properties={@token_properties}
+                        socket={@socket}
+                      />
+                      <span class="px-4">→</span>
                       <%= link(WebUtils.short_address(transfer.to),
                         to:
                           Routes.live_path(
@@ -235,16 +229,6 @@
                             Base.encode16(transfer.to)
                           )
                       ) %>
-
-                      <span class="px-4">←</span>
-
-                      <Amount.token
-                        amount={transfer.amount}
-                        token_address={transfer.token_address}
-                        token_id={transfer.token_id}
-                        token_properties={@token_properties}
-                        socket={@socket}
-                      />
                     </li>
                   <% end %>
                 </ul>
@@ -263,23 +247,12 @@
                     <%= case movement.type do %>
                       <% :UCO -> %>
                         <li>
-                          <%= link(WebUtils.short_address(movement.to),
-                            to:
-                              Routes.live_path(
-                                @socket,
-                                ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(movement.to)
-                              )
-                          ) %>
-                          <span class="px-4">←</span>
                           <Amount.uco
                             amount={movement.amount}
                             uco_price_at_time={@uco_price_at_time}
                             uco_price_now={@uco_price_now}
                           />
-                        </li>
-                      <% {:token, token_address, token_id} -> %>
-                        <li>
+                          <span class="px-4">→</span>
                           <%= link(WebUtils.short_address(movement.to),
                             to:
                               Routes.live_path(
@@ -288,8 +261,9 @@
                                 Base.encode16(movement.to)
                               )
                           ) %>
-
-                          <span class="px-4">←</span>
+                        </li>
+                      <% {:token, token_address, token_id} -> %>
+                        <li>
                           <Amount.token
                             amount={movement.amount}
                             token_address={token_address}
@@ -297,6 +271,15 @@
                             token_properties={@token_properties}
                             socket={@socket}
                           />
+                          <span class="px-4">→</span>
+                          <%= link(WebUtils.short_address(movement.to),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(movement.to)
+                              )
+                          ) %>
                         </li>
                     <% end %>
                   <% end %>
@@ -321,7 +304,9 @@
                     <% authorized_keys_count = Enum.count(ownership.authorized_keys) %>
                     <li>
                       <p>
-                        Secret shared with <%= authorized_keys_count %> keys
+                        Secret shared with <%= authorized_keys_count %> key<%= if authorized_keys_count >
+                                                                                    1,
+                                                                                  do: "s" %>
                       </p>
                       <div class="box" x-show="show">
                         <p class="heading">Encoded secret</p>
@@ -357,6 +342,13 @@
                 <ul>
                   <%= for {recipient, resolved_address} <- Enum.zip(@transaction.data.recipients, @transaction.validation_stamp.recipients) do %>
                     <li>
+                      <%= case recipient.action do %>
+                        <% nil -> %>
+                          <span class="tag is-gradient">N/A</span>
+                        <% action -> %>
+                          <span class="tag is-gradient"><%= action %></span>
+                      <% end %>
+                      <span class="px-4">→</span>
                       <%= link(WebUtils.short_address(recipient.address),
                         to:
                           Routes.live_path(
@@ -371,19 +363,12 @@
                             ArchethicWeb.Explorer.TransactionDetailsLive,
                             Base.encode16(resolved_address)
                           )
-                      ) %> ) <span class="px-4">←</span>
-                      <%= case recipient.action do %>
-                        <% nil -> %>
-                          <span class="tag is-gradient">N/A</span>
-                        <% action -> %>
-                          <span class="tag is-gradient"><%= action %></span>
-                          <pre x-show="show">
-                                  <%= raw(
-                                    Jason.encode!(recipient.args,
-                                      pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"]
-                                    )
-                                  ) %>
-                                </pre>
+                      ) %> )
+                      <%= case Jason.encode(recipient.args, pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"]) do %>
+                        <% {:ok, str} -> %>
+                          <pre x-show="show"> <%= raw(str) %> </pre>
+                        <% _ -> %>
+                          <div></div>
                       <% end %>
                     </li>
                   <% end %>
@@ -448,7 +433,7 @@
                 Enum.count(@transaction.validation_stamp.ledger_operations.unspent_outputs) %>
 
               <div class="column has-text-right heading is-2">
-                <p>Outputs (<%= utxos_count %>)</p>
+                <p>Unspent outputs (<%= utxos_count %>)</p>
               </div>
 
               <div class="column">
@@ -458,6 +443,7 @@
                       <th>Amount</th>
                       <th>From</th>
                       <th>Date (UTC)</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -494,6 +480,7 @@
                         </td>
 
                         <td><%= format_date(utxo.timestamp, display_utc: false) %></td>
+                        <td>TODO</td>
                       </tr>
                     <% end %>
                   </tbody>
@@ -509,7 +496,7 @@
               </div>
 
               <div class="column">
-                <div x-show="show">
+                <div class="box" x-show="show">
                   <p class="heading">Previous public key</p>
                   <p class="mono"><%= Base.encode16(@transaction.previous_public_key) %></p>
 

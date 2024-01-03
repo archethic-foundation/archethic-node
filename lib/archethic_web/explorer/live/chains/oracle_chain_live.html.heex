@@ -21,5 +21,9 @@
   Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %>
 </div>
 
-<TransactionsList.display_all transactions={@transactions} socket={@socket} />
+<TransactionsList.display_all
+  transactions={@transactions}
+  socket={@socket}
+  uco_price_now={@uco_price_now}
+/>
 <div>Last changes from <%= format_date(@update_time) %></div>

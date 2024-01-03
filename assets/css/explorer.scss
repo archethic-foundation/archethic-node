@@ -80,6 +80,9 @@ pre {
   border-top-color: $color-neutral-600 !important;
   border-radius: 14px;
   font-family: 'RobotoMono Regular' !important;
+  max-height: 600px;
+  overflow: auto;
+  word-break: normal;
 }
 
 

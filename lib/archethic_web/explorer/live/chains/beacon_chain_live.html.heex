@@ -21,6 +21,10 @@ previous_summary_time = Archethic.BeaconChain.previous_summary_time(summary_time
 <%= if @fetching do %>
   <div>Loading transactions...</div>
 <% else %>
-  <TransactionsList.display_all transactions={@transactions} socket={@socket} />
+  <TransactionsList.display_all
+    transactions={@transactions}
+    socket={@socket}
+    uco_price_now={@uco_price_now}
+  />
   <div>Last changes from <%= format_date(@update_time) %></div>
 <% end %>

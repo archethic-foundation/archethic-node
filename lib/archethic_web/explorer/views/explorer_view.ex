@@ -17,42 +17,16 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias Archethic.Utils
 
   alias Archethic.Crypto
 
   alias Phoenix.Naming
-  alias ArchethicWeb.WebUtils
 
   def roles_to_string(roles) do
     roles
     |> Enum.map(&Atom.to_string/1)
     |> Enum.map_join(", ", &String.replace(&1, "_", " "))
-  end
-
-  @doc """
-  Approximates a bigint to 3 decimals, useful when precision is not required
-  """
-  def approx_bigint_amount(amount, decimal \\ 8) do
-    str = WebUtils.from_bigint(amount, decimal)
-
-    case String.split(str, ".") do
-      [int, decimal] -> "~" <> int <> "." <> String.slice(decimal, 0..2)
-      _ -> str
-    end
-  end
-
-  def uco_moved(movements) do
-    movements
-    |> Enum.reduce(0, fn
-      %TransactionMovement{type: :UCO, amount: amount}, acc ->
-        acc + amount
-
-      _, acc ->
-        acc
-    end)
   end
 
   def format_transaction_type(type, opts \\ []) do
@@ -249,7 +223,12 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
     end
   end
 
-  def format_transaction_content(_, content), do: content
+  def format_transaction_content(_, content) do
+    case Jason.decode(content) do
+      {:ok, _} -> Jason.Formatter.pretty_print_to_iodata(content)
+      _ -> content
+    end
+  end
 
   @spec format_origin_content(tuple()) :: String.t()
   defp format_origin_content({family, key, key_certificate}) do

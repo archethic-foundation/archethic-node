@@ -5,6 +5,7 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
 
   use ArchethicWeb.Explorer, :live_component
 
+  alias Archethic.OracleChain
   alias ArchethicWeb.Explorer.ExplorerLive.TopTransactionsCache
   alias ArchethicWeb.Explorer.Components.TransactionsList
 
@@ -12,6 +13,7 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
     socket =
       socket
       |> assign(:transactions, [])
+      |> assign(:uco_price_now, DateTime.utc_now() |> OracleChain.get_uco_price())
 
     {:ok, socket}
   end

@@ -70,7 +70,6 @@
               <th>Address</th>
               <th>Type</th>
               <th>Date (UTC)</th>
-              <th><abbr title="UCO Movements">UCO mov.</abbr></th>
               <th>Fee</th>
             </tr>
           </thead>
@@ -99,14 +98,7 @@
                 </td>
                 <td>
                   <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <%= approx_bigint_amount(
-                      uco_moved(tx.validation_stamp.ledger_operations.transaction_movements)
-                    ) %>
-                  <% end %>
-                </td>
-                <td>
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <%= approx_bigint_amount(tx.validation_stamp.ledger_operations.fee) %>
+                    <%= from_bigint(tx.validation_stamp.ledger_operations.fee) %>
                   <% end %>
                 </td>
               </tr>

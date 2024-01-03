@@ -2,6 +2,7 @@ defmodule ArchethicWeb.Explorer.OriginChainLive do
   @moduledoc false
   use ArchethicWeb.Explorer, :live_view
 
+  alias Archethic.OracleChain
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -9,10 +10,8 @@ defmodule ArchethicWeb.Explorer.OriginChainLive do
   alias Archethic.PubSub
   alias Archethic.SharedSecrets
   alias Archethic.Utils
-
   alias ArchethicWeb.WebUtils
   alias ArchethicWeb.Explorer.Components.TransactionsList
-
   alias Phoenix.LiveView
 
   @display_limit 10
@@ -33,6 +32,7 @@ defmodule ArchethicWeb.Explorer.OriginChainLive do
       |> assign(:nb_pages, WebUtils.total_pages(tx_count))
       |> assign(:current_page, 1)
       |> assign(:transactions, transactions_from_page(1, tx_count))
+      |> assign(:uco_price_now, DateTime.utc_now() |> OracleChain.get_uco_price())
 
     {:ok, socket}
   end

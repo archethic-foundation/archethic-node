@@ -3,16 +3,15 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
 
   use ArchethicWeb.Explorer, :live_view
 
+  alias Archethic.OracleChain
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.PubSub
   alias Archethic.SharedSecrets
-
   alias ArchethicWeb.WebUtils
   alias ArchethicWeb.Explorer.Components.TransactionsList
-
   alias Phoenix.LiveView
 
   @display_limit 10
@@ -50,6 +49,7 @@ defmodule ArchethicWeb.Explorer.NodeSharedSecretsChainLive do
           |> assign(:nb_authorized_nodes, nb_authorized_nodes)
           |> assign(:current_page, 1)
           |> assign(:transactions, transactions_from_page(1, tx_count))
+          |> assign(:uco_price_now, DateTime.utc_now() |> OracleChain.get_uco_price())
       end
 
     {:ok, socket}

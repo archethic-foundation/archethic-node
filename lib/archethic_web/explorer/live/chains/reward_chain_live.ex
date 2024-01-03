@@ -3,10 +3,10 @@ defmodule ArchethicWeb.Explorer.RewardChainLive do
 
   use ArchethicWeb.Explorer, :live_view
 
+  alias Archethic.OracleChain
   alias Archethic.TransactionChain
   alias Archethic.PubSub
   alias Archethic.Reward
-
   alias ArchethicWeb.WebUtils
   alias ArchethicWeb.Explorer.Components.TransactionsList
 
@@ -30,6 +30,7 @@ defmodule ArchethicWeb.Explorer.RewardChainLive do
       |> assign(:nb_pages, WebUtils.total_pages(tx_count))
       |> assign(:current_page, 1)
       |> assign(:transactions, transactions_from_page(1, tx_count))
+      |> assign(:uco_price_now, DateTime.utc_now() |> OracleChain.get_uco_price())
 
     {:ok, socket}
   end

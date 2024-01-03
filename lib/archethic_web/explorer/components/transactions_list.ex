@@ -2,6 +2,7 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
   @moduledoc false
 
   alias ArchethicWeb.ExplorerRouter.Helpers, as: Routes
+  alias ArchethicWeb.Explorer.Components.Amount
 
   use Phoenix.Component
   use Phoenix.HTML
@@ -36,7 +37,9 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
               </td>
               <td><%= format_transaction_type(tx.type) %></td>
               <td><%= format_date(tx.timestamp, display_utc: false) %></td>
-              <td><%= approx_bigint_amount(Map.get(tx, :fee, 0)) %></td>
+              <td>
+                <Amount.uco amount={Map.get(tx, :fee, 0)} />
+              </td>
             </tr>
           <% end %>
         </tbody>

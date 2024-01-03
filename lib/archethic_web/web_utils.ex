@@ -45,9 +45,8 @@ defmodule ArchethicWeb.WebUtils do
 
   def short_address(address) do
     hex = Base.encode16(address)
-    trimmed = String.trim_leading(hex, "0")
 
-    short = String.slice(trimmed, 0..3) <> "..." <> String.slice(trimmed, -4, 4)
+    short = String.slice(hex, 0..7) <> "..." <> String.slice(hex, -4, 4)
 
     content_tag(
       "span",
@@ -93,7 +92,7 @@ defmodule ArchethicWeb.WebUtils do
       Decimal.new(int),
       Decimal.new(trunc(:math.pow(10, decimals)))
     )
-    |> Decimal.to_string()
+    |> Decimal.to_string(:normal)
   end
 
   def format_usd_amount(uco_amount, uco_price) do
@@ -102,7 +101,7 @@ defmodule ArchethicWeb.WebUtils do
     |> Decimal.div(Decimal.new(100_000_000))
     |> Decimal.mult(Decimal.from_float(uco_price))
     |> Decimal.round(2)
-    |> Decimal.to_string()
+    |> Decimal.to_string(:normal)
     |> then(fn usd_price -> "#{usd_price}$" end)
   end
 

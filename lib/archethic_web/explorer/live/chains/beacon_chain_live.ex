@@ -4,12 +4,10 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.SummaryAggregate
-
+  alias Archethic.OracleChain
   alias Archethic.P2P
   alias Archethic.P2P.Node
-
   alias Archethic.PubSub
-
   alias Archethic.TransactionChain.TransactionSummary
   alias ArchethicWeb.Explorer.TransactionCache
   alias ArchethicWeb.Explorer.Components.TransactionsList
@@ -44,6 +42,7 @@ defmodule ArchethicWeb.Explorer.BeaconChainLive do
       |> assign(:update_time, DateTime.utc_now())
       |> assign(:transactions, [])
       |> assign(:fetching, true)
+      |> assign(:uco_price_now, DateTime.utc_now() |> OracleChain.get_uco_price())
 
     {:ok, new_assign}
   end

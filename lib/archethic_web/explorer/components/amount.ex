@@ -12,7 +12,7 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
 
   def uco(assigns = %{amount: 0}) do
     ~H"""
-    <span>0 UCO</span>
+    <span data-tooltip="at time: 0$, now: 0$">0 <span class="tag is-gradient">UCO</span></span>
     """
   end
 
@@ -23,16 +23,24 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
         %{
           amount: from_bigint(assigns.amount),
           tooltip:
-            format_full_usd_amount(
-              assigns.amount,
-              assigns.uco_price_at_time[:usd],
-              assigns.uco_price_now[:usd]
-            )
+            if assigns.uco_price_at_time == nil do
+              "at time: " <>
+                format_usd_amount(
+                  assigns.amount,
+                  assigns.uco_price_now[:usd]
+                )
+            else
+              format_full_usd_amount(
+                assigns.amount,
+                assigns.uco_price_at_time[:usd],
+                assigns.uco_price_now[:usd]
+              )
+            end
         }
       )
 
     ~H"""
-    <span data-tooltip={@tooltip}><%= @amount %> UCO</span>
+    <span data-tooltip={@tooltip}><%= @amount %> <span class="tag is-gradient">UCO</span></span>
     """
   end
 
@@ -54,9 +62,19 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
 
               symbol ->
                 if String.length(symbol) > @max_symbol_len do
-                  String.slice(symbol, 0..(@max_symbol_len - 1)) <> "..."
+                  content_tag(
+                    "span",
+                    String.slice(symbol, 0..(@max_symbol_len - 1)) <> "...",
+                    "data-tooltip":
+                      symbol <> " declared at " <> Base.encode16(assigns.token_address)
+                  )
                 else
-                  symbol
+                  content_tag(
+                    "span",
+                    symbol,
+                    "data-tooltip":
+                      symbol <> " declared at " <> Base.encode16(assigns.token_address)
+                  )
                 end
             end
           end
@@ -66,14 +84,15 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
     <span>
       <%= @amount %>
 
-      <%= link(@token_name,
-        to:
+      <%= link(      to:
           Routes.live_path(
             @socket,
             ArchethicWeb.Explorer.TransactionDetailsLive,
             Base.encode16(@token_address)
           )
-      ) %>
+      ) do %>
+        <span class="tag is-gradient"><%= @token_name %></span>
+      <% end %>
     </span>
     """
   end

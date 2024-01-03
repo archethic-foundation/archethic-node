@@ -60,6 +60,7 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
       |> assign(:dates, oracle_dates)
       |> assign(:current_date_page, 1)
       |> assign(:transactions, list_transactions_by_date(next_summary_date))
+      |> assign(:uco_price_now, DateTime.utc_now() |> OracleChain.get_uco_price())
 
     {:ok, new_assign}
   end
