@@ -21,6 +21,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.TransactionChain.TransactionInput
   alias ArchethicWeb.WebUtils
   alias ArchethicWeb.Explorer.Components.InputsList
+  alias ArchethicWeb.Explorer.Components.Amount
   import ArchethicWeb.Explorer.ExplorerView
 
   def mount(_params, _session, socket) do

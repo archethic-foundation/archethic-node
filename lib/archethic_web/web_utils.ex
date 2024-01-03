@@ -47,7 +47,7 @@ defmodule ArchethicWeb.WebUtils do
     hex = Base.encode16(address)
     trimmed = String.trim_leading(hex, "0")
 
-    short = String.slice(trimmed, 0..4) <> "..." <> String.slice(trimmed, -4, 4)
+    short = String.slice(trimmed, 0..3) <> "..." <> String.slice(trimmed, -4, 4)
 
     content_tag(
       "span",

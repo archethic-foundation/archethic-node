@@ -6,6 +6,8 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
   use Phoenix.Component
   use Phoenix.HTML
 
+  alias ArchethicWeb.Explorer.Components.Amount
+
   import ArchethicWeb.WebUtils
 
   def display_all(assigns) do
@@ -13,7 +15,6 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
     <table class="table ae-table is-fullwidth is-hoverable">
       <thead>
         <tr>
-          <th>Asset</th>
           <th>Amount</th>
           <th>From</th>
           <th>Date (UTC)</th>
@@ -26,39 +27,20 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
             <td>
               <%= case input.type do %>
                 <% :UCO -> %>
-                  <span class="tag is-gradient">UCO</span>
-                  <%= if input.reward? do %>
-                    <span class="tag is-gradient">MUCO</span>
-                  <% end %>
+                  <Amount.uco
+                    amount={input.amount}
+                    uco_price_at_time={@uco_price_at_time}
+                    uco_price_now={@uco_price_now}
+                  />
                 <% {:token, token_address, token_id} -> %>
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
-                    <span class="tag is-gradient">
-                      <%= if token_id >= 1 do %>
-                        Token #<%= token_id %>
-                      <% else %>
-                        <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
-                          <% nil -> %>
-                            <%= short_address(token_address) %>
-                          <% symbol -> %>
-                            <span class="mono"><%= symbol %></span>
-                        <% end %>
-                      <% end %>
-                    </span>
-                  <% end %>
+                  <Amount.token
+                    amount={input.amount}
+                    token_address={token_address}
+                    token_id={token_id}
+                    token_properties={@token_properties}
+                    socket={@socket}
+                  />
               <% end %>
-            </td>
-            <td>
-              <%= case input.type do
-                {:token, token_address, _} ->
-                  decimals =
-                    Map.get(@token_properties, token_address, %{})
-                    |> Map.get(:decimals, 8)
-
-                  from_bigint(input.amount, decimals)
-
-                _ ->
-                  from_bigint(input.amount)
-              end %>
             </td>
 
             <td>

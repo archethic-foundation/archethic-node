@@ -35,7 +35,13 @@
         <p>This address is not owned by any user being the burn address.</p>
         <%= if inputs_count > 0 do %>
           <div class="my-4 is-size-4">Inputs (<%= inputs_count %>)</div>
-          <InputsList.display_all inputs={@inputs} socket={@socket} />
+          <InputsList.display_all
+            inputs={@inputs}
+            socket={@socket}
+            uco_price_at_time={@uco_price_at_time}
+            uco_price_now={@uco_price_now}
+            token_properties={@token_properties}
+          />
         <% end %>
       <% assigns[:error] != nil and @error == :not_exists -> %>
         <p>
@@ -44,7 +50,13 @@
 
         <%= if inputs_count > 0 do %>
           <div class="my-4 is-size-4">Inputs (<%= inputs_count %>)</div>
-          <InputsList.display_all inputs={@inputs} socket={@socket} />
+          <InputsList.display_all
+            inputs={@inputs}
+            socket={@socket}
+            uco_price_at_time={@uco_price_at_time}
+            uco_price_now={@uco_price_now}
+            token_properties={@token_properties}
+          />
         <% end %>
       <% assigns[:error] != nil and @error == :invalid_address -> %>
         <p>The given transaction address is invalid.</p>
@@ -84,15 +96,11 @@
                 ) %>
 
                 <span class="px-4">←</span>
-                <%= from_bigint(@transaction.validation_stamp.ledger_operations.fee) %>
-                <span class="tag is-gradient">UCO</span>
-                <%= if @transaction.validation_stamp.ledger_operations.fee > 0 do %>
-                  (<%= format_full_usd_amount(
-                    @transaction.validation_stamp.ledger_operations.fee,
-                    @uco_price_at_time[:usd],
-                    @uco_price_now[:usd]
-                  ) %>)
-                <% end %>
+                <Amount.uco
+                  amount={@transaction.validation_stamp.ledger_operations.fee}
+                  uco_price_at_time={@uco_price_at_time}
+                  uco_price_now={@uco_price_now}
+                />
               </div>
             </div>
 
@@ -198,15 +206,11 @@
                           )
                       ) %>
                       <span class="px-4">←</span>
-                      <span>
-                        <%= from_bigint(transfer.amount) %>
-                        <span class="tag is-gradient">UCO</span>
-                        (<%= format_full_usd_amount(
-                          transfer.amount,
-                          @uco_price_at_time[:usd],
-                          @uco_price_now[:usd]
-                        ) %>)
-                      </span>
+                      <Amount.uco
+                        amount={transfer.amount}
+                        uco_price_at_time={@uco_price_at_time}
+                        uco_price_now={@uco_price_now}
+                      />
                     </li>
                   <% end %>
                 </ul>
@@ -233,29 +237,14 @@
                       ) %>
 
                       <span class="px-4">←</span>
-                      <span>
-                        <% decimals =
-                          Map.get(@token_properties, transfer.token_address, %{})
-                          |> Map.get(:decimals, 8) %>
 
-                        <%= from_bigint(transfer.amount, decimals) %>
-                        <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(transfer.token_address)) do %>
-                          <span class="tag is-gradient">
-                            <%= case Map.get(
-                                       @token_properties,
-                                       transfer.token_address,
-                                       %{}
-                                     )
-                                     |> Map.get(:symbol) do
-                              nil -> WebUtils.short_address(transfer.token_address)
-                              symbol -> symbol
-                            end %>
-                            <%= if transfer.token_id > 0 do %>
-                              (#<%= transfer.token_id %>)
-                            <% end %>
-                          </span>
-                        <% end %>
-                      </span>
+                      <Amount.token
+                        amount={transfer.amount}
+                        token_address={transfer.token_address}
+                        token_id={transfer.token_id}
+                        token_properties={@token_properties}
+                        socket={@socket}
+                      />
                     </li>
                   <% end %>
                 </ul>
@@ -283,15 +272,11 @@
                               )
                           ) %>
                           <span class="px-4">←</span>
-                          <span>
-                            <%= from_bigint(movement.amount) %>
-                            <span class="tag is-gradient">UCO</span>
-                            (<%= format_full_usd_amount(
-                              movement.amount,
-                              @uco_price_at_time[:usd],
-                              @uco_price_now[:usd]
-                            ) %>)
-                          </span>
+                          <Amount.uco
+                            amount={movement.amount}
+                            uco_price_at_time={@uco_price_at_time}
+                            uco_price_now={@uco_price_now}
+                          />
                         </li>
                       <% {:token, token_address, token_id} -> %>
                         <li>
@@ -305,29 +290,13 @@
                           ) %>
 
                           <span class="px-4">←</span>
-                          <span>
-                            <% decimals =
-                              Map.get(@token_properties, token_address, %{})
-                              |> Map.get(:decimals, 8) %>
-
-                            <%= from_bigint(movement.amount, decimals) %>
-                            <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
-                              <span class="tag is-gradient">
-                                <%= case Map.get(
-                                           @token_properties,
-                                           token_address,
-                                           %{}
-                                         )
-                                         |> Map.get(:symbol) do
-                                  nil -> WebUtils.short_address(token_address)
-                                  symbol -> symbol
-                                end %>
-                                <%= if token_id > 0 do %>
-                                  (#<%= token_id %>)
-                                <% end %>
-                              </span>
-                            <% end %>
-                          </span>
+                          <Amount.token
+                            amount={movement.amount}
+                            token_address={token_address}
+                            token_id={token_id}
+                            token_properties={@token_properties}
+                            socket={@socket}
+                          />
                         </li>
                     <% end %>
                   <% end %>
@@ -462,7 +431,13 @@
                 <%= if inputs_count == 0 do %>
                   <div></div>
                 <% else %>
-                  <InputsList.display_all inputs={@inputs} socket={@socket} />
+                  <InputsList.display_all
+                    inputs={@inputs}
+                    socket={@socket}
+                    uco_price_at_time={@uco_price_at_time}
+                    uco_price_now={@uco_price_now}
+                    token_properties={@token_properties}
+                  />
                 <% end %>
               </div>
             </div>
@@ -480,7 +455,6 @@
                 <table class="table ae-table is-fullwidth is-hoverable">
                   <thead>
                     <tr>
-                      <th>Asset</th>
                       <th>Amount</th>
                       <th>From</th>
                       <th>Date (UTC)</th>
@@ -492,36 +466,20 @@
                         <td>
                           <%= case utxo.type do %>
                             <% :UCO -> %>
-                              <span class="tag is-gradient">UCO</span>
+                              <Amount.uco
+                                amount={utxo.amount}
+                                uco_price_at_time={@uco_price_at_time}
+                                uco_price_now={@uco_price_now}
+                              />
                             <% {:token, token_address, token_id} -> %>
-                              <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(token_address)) do %>
-                                <span class="tag is-gradient">
-                                  <%= if token_id >= 1 do %>
-                                    Token #<%= token_id %>
-                                  <% else %>
-                                    <%= case Map.get(@token_properties, token_address, %{}) |> Map.get(:symbol) do %>
-                                      <% nil -> %>
-                                        <%= WebUtils.short_address(token_address) %>
-                                      <% symbol -> %>
-                                        <span class="mono"><%= symbol %></span>
-                                    <% end %>
-                                  <% end %>
-                                </span>
-                              <% end %>
+                              <Amount.token
+                                amount={utxo.amount}
+                                token_address={token_address}
+                                token_id={token_id}
+                                token_properties={@token_properties}
+                                socket={@socket}
+                              />
                           <% end %>
-                        </td>
-                        <td>
-                          <%= case utxo.type do
-                            {:token, token_address, _} ->
-                              decimals =
-                                Map.get(@token_properties, token_address, %{})
-                                |> Map.get(:decimals, 8)
-
-                              from_bigint(utxo.amount, decimals)
-
-                            _ ->
-                              from_bigint(utxo.amount)
-                          end %>
                         </td>
 
                         <td>
