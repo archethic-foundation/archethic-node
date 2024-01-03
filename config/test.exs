@@ -11,6 +11,7 @@ config :archethic, Archethic.Account.MemTablesLoader, enabled: false
 config :archethic, Archethic.Account.MemTables.TokenLedger, enabled: false
 config :archethic, Archethic.Account.MemTables.UCOLedger, enabled: false
 config :archethic, Archethic.Account.MemTables.GenesisInputLedger, enabled: false
+config :archethic, Archethic.Account.GenesisSupervisor, enabled: false
 
 config :archethic, Archethic.BeaconChain.Subset, enabled: false
 

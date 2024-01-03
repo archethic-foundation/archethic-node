@@ -1,5 +1,5 @@
 defmodule Archethic.Account.GenesisStateTest do
-  use ExUnit.Case
+  use ArchethicCase
 
   alias Archethic.Account.GenesisState
   alias Archethic.TransactionChain.TransactionInput

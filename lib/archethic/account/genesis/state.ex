@@ -1,6 +1,8 @@
 defmodule Archethic.Account.GenesisState do
   @moduledoc false
 
+  alias Archethic.DB
+
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
   alias Archethic.TransactionChain.VersionedTransactionInput
@@ -27,11 +29,12 @@ defmodule Archethic.Account.GenesisState do
   Returns the base path of all pending logs
   """
   @spec base_path() :: binary()
-  def base_path, do: Utils.mut_dir("genesis/state")
+  def base_path(), do: Path.join([DB.filepath(), "genesis", "state"])
 
   @doc """
   Determines the state filename for a given address
   """
+  @spec file_path(binary()) :: binary()
   def file_path(genesis_address) do
     Path.join(base_path(), Base.encode16(genesis_address))
   end

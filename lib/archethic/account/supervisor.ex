@@ -3,6 +3,7 @@ defmodule Archethic.Account.Supervisor do
 
   use Supervisor
 
+  alias Archethic.Account.GenesisSupervisor
   alias Archethic.Account.MemTables.GenesisInputLedger
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
@@ -21,6 +22,7 @@ defmodule Archethic.Account.Supervisor do
       UCOLedger,
       StateLedger,
       GenesisInputLedger,
+      GenesisSupervisor,
       MemTablesLoader
     ]
 

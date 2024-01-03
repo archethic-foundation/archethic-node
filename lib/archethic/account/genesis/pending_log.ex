@@ -8,6 +8,7 @@ defmodule Archethic.Account.GenesisPendingLog do
   This log is cleared when the targetted transaction chain makes a new transaction and then serialize its pending state into a aggregated one.
   """
 
+  alias Archethic.DB
   alias Archethic.Utils
   alias Archethic.TransactionChain.VersionedTransactionInput
 
@@ -42,27 +43,30 @@ defmodule Archethic.Account.GenesisPendingLog do
   """
   @spec stream(binary()) :: Enumerable.t() | list(VersionedTransactionInput.t())
   def stream(genesis_address) do
-    case File.open(file_path(genesis_address), [:binary, :read]) do
-      {:ok, fd} ->
-        Stream.resource(
-          fn -> fd end,
-          fn fd ->
-            with {:ok, <<size::32>>} <- :file.read(fd, 4),
-                 {:ok, binary} <- :file.read(fd, size) do
-              {input, _} = VersionedTransactionInput.deserialize(binary)
-
-              {[input], fd}
-            else
-              :eof -> {:halt, fd}
-            end
-          end,
-          fn fd -> :file.close(fd) end
-        )
-
-      {:error, _} ->
-        []
-    end
+    genesis_address
+    |> file_path()
+    |> File.open([:binary, :read])
+    |> do_stream()
   end
+
+  defp do_stream({:ok, fd}) do
+    Stream.resource(
+      fn -> fd end,
+      fn fd ->
+        with {:ok, <<size::32>>} <- :file.read(fd, 4),
+             {:ok, binary} <- :file.read(fd, size) do
+          {input, _} = VersionedTransactionInput.deserialize(binary)
+
+          {[input], fd}
+        else
+          :eof -> {:halt, fd}
+        end
+      end,
+      fn fd -> :file.close(fd) end
+    )
+  end
+
+  defp do_stream({:error, _}), do: []
 
   @doc """
   Determines the pending log filename for a given address
@@ -77,6 +81,6 @@ defmodule Archethic.Account.GenesisPendingLog do
   """
   @spec base_path() :: binary()
   def base_path() do
-    Utils.mut_dir("genesis/pending")
+    Path.join([DB.filepath(), "genesis", "pending"])
   end
 end

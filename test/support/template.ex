@@ -31,6 +31,7 @@ defmodule ArchethicCase do
     File.rm_rf!(Utils.mut_dir())
 
     MockDB
+    |> stub(:filepath, fn -> Utils.mut_dir() end)
     |> stub(:list_transactions, fn _ -> [] end)
     |> stub(:write_transaction, fn _, _ -> :ok end)
     |> stub(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)

@@ -6,17 +6,18 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTables.GenesisInputLedger
   alias Archethic.Account.MemTablesLoader
+  alias Archethic.Account.GenesisLoader
   alias Archethic.Account.GenesisPendingLog
   alias Archethic.Account.GenesisState
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
-
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -124,7 +125,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
       assert :ok =
                MemTablesLoader.load_transaction(create_transaction(timestamp, "@Charlie3"),
-                 io_transaction?: false
+                 io_transaction?: false,
+                 load_genesis?: false
                )
 
       assert [
@@ -348,8 +350,6 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       |> stub(:list_io_transactions, fn _fields -> [] end)
       |> stub(:list_transactions, fn _fields -> [] end)
 
-      assert {:ok, pid} = MemTablesLoader.start_link()
-
       destination_address = ArchethicCase.random_address()
       destination_genesis_address = ArchethicCase.random_address()
 
@@ -357,7 +357,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       transaction_previous_address = ArchethicCase.random_address()
       transaction_genesis_address = ArchethicCase.random_address()
 
-      tx = %Transaction{
+      %Transaction{
         address: transaction_address,
         validation_stamp: %ValidationStamp{
           timestamp: ~U[2023-09-10 05:00:00.000Z],
@@ -382,33 +382,40 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         previous_public_key: ArchethicCase.random_public_key()
       }
 
-      MockDB
-      |> stub(:find_genesis_address, fn
-        ^destination_address -> {:ok, destination_genesis_address}
-        _ -> {:ok, transaction_genesis_address}
-      end)
+      GenesisLoader.setup_folders!()
 
-      with_mock(Election,
-        chain_storage_nodes: fn
-          _, _ -> [%Node{first_public_key: Crypto.first_node_public_key()}]
-        end
-      ) do
-        MemTablesLoader.load_transaction(tx, io_transaction?: false)
+      GenesisPendingLog.append(destination_genesis_address, %VersionedTransactionInput{
+        input: %TransactionInput{
+          from: transaction_address,
+          type: :UCO,
+          timestamp: ~U[2023-09-10 05:00:00.000Z],
+          amount: 100_000_000
+        },
+        protocol_version: ArchethicCase.current_protocol_version()
+      })
 
-        pending_log = GenesisPendingLog.stream(destination_genesis_address) |> Enum.to_list()
-        genesis_state = GenesisState.fetch(transaction_genesis_address)
+      GenesisState.persist(transaction_genesis_address, [
+        %VersionedTransactionInput{
+          input: %TransactionInput{
+            from: transaction_address,
+            type: :UCO,
+            timestamp: ~U[2023-09-10 05:00:00.000Z],
+            amount: 100_000_000
+          },
+          protocol_version: ArchethicCase.current_protocol_version()
+        }
+      ])
 
-        refute pending_log |> Enum.empty?()
-        refute genesis_state |> Enum.empty?()
-        refute GenesisInputLedger.get_unspent_inputs(destination_genesis_address) |> Enum.empty?()
-        refute GenesisInputLedger.get_unspent_inputs(transaction_genesis_address) |> Enum.empty?()
+      pending_log = GenesisPendingLog.stream(destination_genesis_address) |> Enum.to_list()
+      genesis_state = GenesisState.fetch(transaction_genesis_address)
 
-        GenServer.stop(pid)
-        assert {:ok, _} = MemTablesLoader.start_link()
+      refute pending_log |> Enum.empty?()
+      refute genesis_state |> Enum.empty?()
 
-        assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) == pending_log
-        assert GenesisInputLedger.get_unspent_inputs(transaction_genesis_address) == genesis_state
-      end
+      assert {:ok, _} = MemTablesLoader.start_link()
+
+      assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) == pending_log
+      assert GenesisInputLedger.get_unspent_inputs(transaction_genesis_address) == genesis_state
     end
   end
 
