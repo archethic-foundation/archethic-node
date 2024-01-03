@@ -32,8 +32,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Return the path of the database folder
   """
-  @spec db_path() :: String.t()
-  def db_path do
+  @spec filepath() :: String.t()
+  def filepath do
     try do
       :persistent_term.get(:archethic_db_path)
     rescue
@@ -51,13 +51,13 @@ defmodule Archethic.DB.EmbeddedImpl do
   def write_transaction(tx, storage_type \\ :chain)
 
   def write_transaction(tx = %Transaction{}, :chain) do
-    if ChainIndex.transaction_exists?(tx.address, db_path()) do
+    if ChainIndex.transaction_exists?(tx.address, filepath()) do
       {:error, :transaction_already_exists}
     else
       previous_address = Transaction.previous_address(tx)
 
       genesis_address =
-        case ChainIndex.get_tx_entry(previous_address, db_path()) do
+        case ChainIndex.get_tx_entry(previous_address, filepath()) do
           {:ok, %{genesis_address: genesis_address}} ->
             genesis_address
 
@@ -73,15 +73,15 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   def write_transaction(tx = %Transaction{}, :io) do
-    if ChainIndex.transaction_exists?(tx.address, :io, db_path()) do
+    if ChainIndex.transaction_exists?(tx.address, :io, filepath()) do
       {:error, :transaction_already_exists}
     else
-      ChainWriter.write_io_transaction(tx, db_path())
+      ChainWriter.write_io_transaction(tx, filepath())
     end
   end
 
   defp delete_io_transaction(address) do
-    ChainWriter.io_path(db_path(), address) |> File.rm()
+    ChainWriter.io_path(filepath(), address) |> File.rm()
     :ok
   end
 
@@ -90,7 +90,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec write_beacon_summary(Summary.t()) :: :ok
   def write_beacon_summary(summary = %Summary{}) do
-    ChainWriter.write_beacon_summary(summary, db_path())
+    ChainWriter.write_beacon_summary(summary, filepath())
   end
 
   @doc """
@@ -98,7 +98,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec clear_beacon_summaries() :: :ok
   def clear_beacon_summaries do
-    db_path()
+    filepath()
     |> ChainWriter.base_beacon_path()
     |> Path.join("*")
     |> Path.wildcard()
@@ -110,7 +110,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec write_beacon_summaries_aggregate(SummaryAggregate.t()) :: :ok
   def write_beacon_summaries_aggregate(aggregate = %SummaryAggregate{}) do
-    ChainWriter.write_beacon_summaries_aggregate(aggregate, db_path())
+    ChainWriter.write_beacon_summaries_aggregate(aggregate, filepath())
   end
 
   @doc """
@@ -118,7 +118,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec transaction_exists?(address :: binary(), storage_type :: DB.storage_type()) :: boolean()
   def transaction_exists?(address, storage_type) when is_binary(address) do
-    ChainIndex.transaction_exists?(address, storage_type, db_path())
+    ChainIndex.transaction_exists?(address, storage_type, filepath())
   end
 
   @doc """
@@ -129,13 +129,13 @@ defmodule Archethic.DB.EmbeddedImpl do
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields \\ [], storage_type \\ :chain)
       when is_binary(address) and is_list(fields) do
-    case ChainReader.get_transaction(address, fields, db_path()) do
+    case ChainReader.get_transaction(address, fields, filepath()) do
       {:ok, transaction} ->
         {:ok, transaction}
 
       {:error, :transaction_not_exists} ->
         if storage_type == :io do
-          ChainReader.get_io_transaction(address, fields, db_path())
+          ChainReader.get_io_transaction(address, fields, filepath())
         else
           {:error, :transaction_not_exists}
         end
@@ -148,7 +148,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec get_beacon_summary(summary_address :: binary()) ::
           {:ok, Summary.t()} | {:error, :summary_not_exists}
   def get_beacon_summary(summary_address) when is_binary(summary_address) do
-    ChainReader.get_beacon_summary(summary_address, db_path())
+    ChainReader.get_beacon_summary(summary_address, filepath())
   end
 
   @doc """
@@ -157,7 +157,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec get_beacon_summaries_aggregate(DateTime.t()) ::
           {:ok, SummaryAggregate.t()} | {:error, :not_exists}
   def get_beacon_summaries_aggregate(date = %DateTime{}) do
-    ChainReader.get_beacon_summaries_aggregate(date, db_path())
+    ChainReader.get_beacon_summaries_aggregate(date, filepath())
   end
 
   @doc """
@@ -170,7 +170,7 @@ defmodule Archethic.DB.EmbeddedImpl do
            paging_address :: nil | binary()}
   def get_transaction_chain(address, fields \\ [], opts \\ [])
       when is_binary(address) and is_list(fields) and is_list(opts) do
-    ChainReader.get_transaction_chain(address, fields, opts, db_path())
+    ChainReader.get_transaction_chain(address, fields, opts, filepath())
   end
 
   @doc """
@@ -178,7 +178,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec chain_size(address :: binary()) :: non_neg_integer()
   def chain_size(address) when is_binary(address) do
-    ChainIndex.chain_size(address, db_path())
+    ChainIndex.chain_size(address, filepath())
   end
 
   @doc """
@@ -188,7 +188,7 @@ defmodule Archethic.DB.EmbeddedImpl do
           Enumerable.t() | list(Transaction.t())
   def list_transactions_by_type(type, fields \\ []) when is_atom(type) and is_list(fields) do
     type
-    |> ChainIndex.get_addresses_by_type(db_path())
+    |> ChainIndex.get_addresses_by_type(filepath())
     |> Stream.map(fn address ->
       {:ok, tx} = get_transaction(address, fields)
       tx
@@ -200,7 +200,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec list_addresses_by_type(Transaction.transaction_type()) :: Enumerable.t() | list(binary())
   def list_addresses_by_type(type) when is_atom(type) do
-    ChainIndex.get_addresses_by_type(type, db_path())
+    ChainIndex.get_addresses_by_type(type, filepath())
   end
 
   @doc """
@@ -209,7 +209,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec list_chain_addresses(binary()) ::
           Enumerable.t() | list({binary(), DateTime.t()})
   def list_chain_addresses(address) when is_binary(address) do
-    ChainIndex.list_chain_addresses(address, db_path())
+    ChainIndex.list_chain_addresses(address, filepath())
   end
 
   @doc """
@@ -218,7 +218,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec list_chain_public_keys(binary(), DateTime.t()) ::
           Enumerable.t() | list({binary(), DateTime.t()})
   def list_chain_public_keys(public_key, until) when is_binary(public_key) do
-    ChainIndex.list_chain_public_keys(public_key, until, db_path())
+    ChainIndex.list_chain_public_keys(public_key, until, filepath())
   end
 
   @doc """
@@ -235,7 +235,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec get_last_chain_address_stored(genesis_address :: Crypto.prepended_hash()) ::
           Crypto.prepended_hash() | nil
   def get_last_chain_address_stored(genesis_address) when is_binary(genesis_address) do
-    ChainIndex.get_last_chain_address_stored(genesis_address, db_path())
+    ChainIndex.get_last_chain_address_stored(genesis_address, filepath())
   end
 
   @doc """
@@ -245,7 +245,7 @@ defmodule Archethic.DB.EmbeddedImpl do
           {address :: binary(), last_address_timestamp :: DateTime.t()}
   def get_last_chain_address(address, date = %DateTime{} \\ DateTime.utc_now())
       when is_binary(address) do
-    ChainIndex.get_last_chain_address(address, date, db_path())
+    ChainIndex.get_last_chain_address(address, date, filepath())
   end
 
   @doc """
@@ -254,7 +254,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec get_last_chain_public_key(public_key :: binary(), until :: DateTime.t()) :: Crypto.key()
   def get_last_chain_public_key(public_key, date = %DateTime{} \\ DateTime.utc_now())
       when is_binary(public_key) do
-    ChainIndex.get_last_chain_public_key(public_key, date, db_path())
+    ChainIndex.get_last_chain_public_key(public_key, date, filepath())
   end
 
   @doc """
@@ -267,7 +267,7 @@ defmodule Archethic.DB.EmbeddedImpl do
         ) :: :ok
   def add_last_transaction_address(genesis_address, address, date = %DateTime{})
       when is_binary(genesis_address) and is_binary(address) do
-    ChainIndex.set_last_chain_address(genesis_address, address, date, db_path())
+    ChainIndex.set_last_chain_address(genesis_address, address, date, filepath())
   end
 
   @doc """
@@ -275,7 +275,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec get_genesis_address(address :: binary()) :: binary()
   def get_genesis_address(address) when is_binary(address) do
-    ChainIndex.get_genesis_address(address, db_path())
+    ChainIndex.get_genesis_address(address, filepath())
   end
 
   @doc """
@@ -291,7 +291,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec get_first_public_key(public_key :: Crypto.key()) :: Crypto.key()
   def get_first_public_key(public_key) when is_binary(public_key) do
-    ChainIndex.get_first_public_key(public_key, db_path())
+    ChainIndex.get_first_public_key(public_key, filepath())
   end
 
   @doc """
@@ -300,7 +300,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec list_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_transactions(fields \\ []) when is_list(fields) do
     ChainIndex.list_genesis_addresses()
-    |> Stream.flat_map(&ChainReader.stream_chain(&1, fields, db_path()))
+    |> Stream.flat_map(&ChainReader.stream_chain(&1, fields, filepath()))
   end
 
   @doc """
@@ -308,8 +308,8 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec stream_chain(binary(), list()) :: Enumerable.t() | list(Transaction.t())
   def stream_chain(address, fields) do
-    genesis = ChainIndex.get_genesis_address(address, db_path())
-    ChainReader.stream_chain(genesis, fields, db_path())
+    genesis = ChainIndex.get_genesis_address(address, filepath())
+    ChainReader.stream_chain(genesis, fields, filepath())
   end
 
   @doc """
@@ -317,7 +317,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   """
   @spec list_io_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_io_transactions(fields \\ []) do
-    ChainReader.list_io_transactions(fields, db_path())
+    ChainReader.list_io_transactions(fields, filepath())
   end
 
   @doc """

@@ -102,4 +102,6 @@ defmodule Archethic.DB do
   @callback list_first_addresses() :: Enumerable.t() | list(Crypto.prepended_hash())
 
   @callback find_genesis_address(binary()) :: {:ok, binary()} | {:error, :not_found}
+
+  @callback filepath() :: binary()
 end

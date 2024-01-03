@@ -41,7 +41,7 @@ defmodule Archethic.DB.EmbeddedImpl.InputsWriter do
         :call -> "call"
       end
 
-    Path.join([EmbeddedImpl.db_path(), "inputs", prefix, Base.encode16(address)])
+    Path.join([EmbeddedImpl.filepath(), "inputs", prefix, Base.encode16(address)])
   end
 
   def init(opts) do
