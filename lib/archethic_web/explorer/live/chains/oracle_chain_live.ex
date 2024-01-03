@@ -15,6 +15,7 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionData
   alias ArchethicWeb.Explorer.Components.TransactionsList
 
@@ -169,13 +170,20 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
 
   defp list_transactions_by_date(date = %DateTime{}) do
     Crypto.derive_oracle_address(date, 0)
-    |> TransactionChain.get([:address, :type, validation_stamp: [:timestamp]])
+    |> TransactionChain.get([
+      :address,
+      :type,
+      validation_stamp: [:timestamp, ledger_operations: [:fee]]
+    ])
     |> Enum.map(fn %Transaction{
                      address: address,
                      type: type,
-                     validation_stamp: %ValidationStamp{timestamp: timestamp}
+                     validation_stamp: %ValidationStamp{
+                       timestamp: timestamp,
+                       ledger_operations: %LedgerOperations{fee: fee}
+                     }
                    } ->
-      %{address: address, type: type, timestamp: timestamp}
+      %{address: address, type: type, timestamp: timestamp, fee: fee}
     end)
     |> Enum.reverse()
   end

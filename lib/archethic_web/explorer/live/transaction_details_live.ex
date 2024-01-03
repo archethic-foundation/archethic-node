@@ -20,6 +20,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionInput
   alias ArchethicWeb.WebUtils
+  alias ArchethicWeb.Explorer.Components.InputsList
   import ArchethicWeb.Explorer.ExplorerView
 
   def mount(_params, _session, socket) do

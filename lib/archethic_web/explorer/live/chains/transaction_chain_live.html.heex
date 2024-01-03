@@ -70,8 +70,8 @@
               <th>Address</th>
               <th>Type</th>
               <th>Date (UTC)</th>
-              <th><abbr title="Unspent Outputs">Utxos</abbr></th>
-              <th>Transfers</th>
+              <th><abbr title="UCO Movements">UCO mov.</abbr></th>
+              <th>Fee</th>
             </tr>
           </thead>
           <tbody>
@@ -99,12 +99,14 @@
                 </td>
                 <td>
                   <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %>
+                    <%= approx_bigint_amount(
+                      uco_moved(tx.validation_stamp.ledger_operations.transaction_movements)
+                    ) %>
                   <% end %>
                 </td>
                 <td>
                   <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %>
+                    <%= approx_bigint_amount(tx.validation_stamp.ledger_operations.fee) %>
                   <% end %>
                 </td>
               </tr>

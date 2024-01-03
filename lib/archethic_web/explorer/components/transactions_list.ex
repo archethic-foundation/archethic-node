@@ -12,26 +12,35 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
   def display_all(assigns) do
     ~H"""
     <div class="ae-box ae-purple shadow">
-      <%= for tx <- @transactions do %>
-        <div class="columns">
-          <div class="column">
-            <%= link(short_address(tx.address),
-              to:
-                Routes.live_path(
-                  @socket,
-                  ArchethicWeb.Explorer.TransactionDetailsLive,
-                  Base.encode16(tx.address)
-                )
-            ) %>
-          </div>
-          <div class="column mono">
-            <%= format_date(tx.timestamp) %>
-          </div>
-          <div class="column">
-            <%= format_transaction_type(tx.type) %>
-          </div>
-        </div>
-      <% end %>
+      <table class="table ae-table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Address</th>
+            <th>Type</th>
+            <th>Date (UTC)</th>
+            <th>Fee</th>
+          </tr>
+        </thead>
+        <tbody>
+          <%= for tx <- @transactions do %>
+            <tr>
+              <td>
+                <%= link(short_address(tx.address),
+                  to:
+                    Routes.live_path(
+                      @socket,
+                      ArchethicWeb.Explorer.TransactionDetailsLive,
+                      Base.encode16(tx.address)
+                    )
+                ) %>
+              </td>
+              <td><%= format_transaction_type(tx.type) %></td>
+              <td><%= format_date(tx.timestamp, display_utc: false) %></td>
+              <td><%= approx_bigint_amount(Map.get(tx, :fee, 0)) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
     """
   end

@@ -36,15 +36,11 @@ defmodule ArchethicWeb.WebUtils do
   end
 
   def short_address(<<0::8, 0::8, 0::256>>) do
-    content_tag("span", [
-      content_tag(
-        "span",
-        "🔥 00000000000000000000000000000000000000000000000000000000000000000000",
-        class: "mono is-hidden-touch",
-        style: "word-break: normal"
-      ),
-      content_tag("span", "🔥 0000...0000", class: "mono is-hidden-desktop")
-    ])
+    content_tag(
+      "span",
+      "0000...0000",
+      "data-tooltip": "00000000000000000000000000000000000000000000000000000000000000000000"
+    )
   end
 
   def short_address(address) do
@@ -53,13 +49,11 @@ defmodule ArchethicWeb.WebUtils do
 
     short = String.slice(trimmed, 0..4) <> "..." <> String.slice(trimmed, -4, 4)
 
-    content_tag("span", [
-      content_tag("span", hex,
-        class: "mono is-hidden-touch",
-        style: "word-break: normal"
-      ),
-      content_tag("span", short, class: "mono is-hidden-desktop")
-    ])
+    content_tag(
+      "span",
+      short,
+      "data-tooltip": hex
+    )
   end
 
   def format_date(datetime, opts \\ [])

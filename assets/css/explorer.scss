@@ -363,3 +363,10 @@ hr {
   line-height: 140%;
   font-weight: 400;
 }
+
+[data-tooltip]:not(.is-loading),
+[data-tooltip]:not(.is-disabled),
+[data-tooltip]:not([disabled]) {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
