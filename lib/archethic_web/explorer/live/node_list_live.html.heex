@@ -46,17 +46,14 @@
           <%= for node <- nodes do %>
             <tr>
               <td>
-                <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.NodeDetailsLive, Base.encode16(node.first_public_key)) do %>
-                  <span class="mono is-block-widescreen" style="display: none">
-                    <%= Base.encode16(node.first_public_key) %>
-                  </span>
-                  <span
-                    class="mono is-block-desktop-only is-block-mobile is-block-tablet-only"
-                    style="display: none"
-                  >
-                    <%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...
-                  </span>
-                <% end %>
+                <%= link(WebUtils.short_address(node.first_public_key),
+                  to:
+                    Routes.live_path(
+                      @socket,
+                      ArchethicWeb.Explorer.NodeDetailsLive,
+                      Base.encode16(node.first_public_key)
+                    )
+                ) %>
               </td>
               <td>
                 <%= case status do %>
@@ -103,7 +100,7 @@
         </dd>
         <dt>Status: New</dt>
         <dd>
-          Nodes which recently joined the network but not yet recognized available globally.
+          Nodes which recently joined the network since the last node renewal transaction.
         </dd>
         <dt>Global availability</dt>
         <dd>
@@ -119,7 +116,7 @@
         </dd>
         <dt>Network patch</dt>
         <dd>
-          The position of the node in a graph were the distance between the nodes is their latency
+          The position of the node in a graph were the distance between the nodes is their latency.
         </dd>
       </dl>
     </div>

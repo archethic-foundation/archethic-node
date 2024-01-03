@@ -3,6 +3,11 @@
   color: $color-neutral-0;
 }
 
+html {
+  overflow: auto !important;
+}
+
+
 body {
   background: #000000;
   color: $color-neutral-0;
@@ -14,6 +19,8 @@ body {
 dt {
   color: $color-brand-raspberry-300;
 }
+
+
 
 .text_title {
   position: relative;
@@ -230,6 +237,7 @@ pre {
   padding: 1.5em;
   color: white;
   margin: 1em 0;
+  word-break: break-all;
 }
 
 .ae-box a {

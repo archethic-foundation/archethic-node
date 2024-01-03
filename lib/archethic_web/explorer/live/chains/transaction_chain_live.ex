@@ -12,6 +12,7 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
 
   alias Archethic.Crypto
   alias Archethic.OracleChain
+  alias ArchethicWeb.WebUtils
 
   import ArchethicWeb.Explorer.ExplorerView
 

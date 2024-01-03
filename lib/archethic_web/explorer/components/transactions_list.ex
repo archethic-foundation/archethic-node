@@ -15,9 +15,14 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
       <%= for tx <- @transactions do %>
         <div class="columns">
           <div class="column">
-            <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-              <%= Base.encode16(tx.address) %>
-            <% end %>
+            <%= link(short_address(tx.address),
+              to:
+                Routes.live_path(
+                  @socket,
+                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                  Base.encode16(tx.address)
+                )
+            ) %>
           </div>
           <div class="column mono">
             <%= format_date(tx.timestamp) %>

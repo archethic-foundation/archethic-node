@@ -78,17 +78,14 @@
             <%= for tx <- @transaction_chain do %>
               <tr>
                 <td>
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <span class="mono is-block-widescreen" style="display: none">
-                      <%= Base.encode16(tx.address) %>
-                    </span>
-                    <span
-                      class="mono is-block-desktop-only is-block-mobile is-block-tablet-only"
-                      style="display: none"
-                    >
-                      <%= Base.encode16(:binary.part(tx.address, 0, 13)) %>...
-                    </span>
-                  <% end %>
+                  <%= link(WebUtils.short_address(tx.address),
+                    to:
+                      Routes.live_path(
+                        @socket,
+                        ArchethicWeb.Explorer.TransactionDetailsLive,
+                        Base.encode16(tx.address)
+                      )
+                  ) %>
                 </td>
                 <td>
                   <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>

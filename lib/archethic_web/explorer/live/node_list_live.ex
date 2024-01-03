@@ -5,6 +5,7 @@ defmodule ArchethicWeb.Explorer.NodeListLive do
 
   alias Archethic.P2P
   alias Archethic.PubSub
+  alias ArchethicWeb.WebUtils
 
   def mount(_params, _session, socket) do
     nodes = P2P.list_nodes()
