@@ -320,7 +320,6 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     tx =
       TransactionFactory.create_valid_transaction(inputs, timestamp: ~U[2022-01-02 00:00:00.000Z])
 
-
     MockDB
     |> stub(:write_transaction, fn ^tx, _ ->
       send(me, :transaction_replicated)
