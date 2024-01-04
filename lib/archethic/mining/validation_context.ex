@@ -799,7 +799,8 @@ defmodule Archethic.Mining.ValidationContext do
          %__MODULE__{
            transaction: tx = %Transaction{address: address, type: tx_type},
            unspent_outputs: unspent_outputs,
-           resolved_addresses: resolved_addresses
+           resolved_addresses: resolved_addresses,
+           contract_context: contract_context
          },
          fee,
          validation_time,
