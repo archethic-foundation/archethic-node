@@ -64,7 +64,6 @@ defmodule Archethic.Account.MemTables.UCOLedger do
           unspent_output: %UnspentOutput{
             from: from,
             amount: amount,
-            reward?: reward?,
             timestamp: %DateTime{} = timestamp
           },
           protocol_version: protocol_version
@@ -83,7 +82,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
     true =
       :ets.insert(
         @ledger_table,
-        {{to, from}, amount, spent?, timestamp, reward?, protocol_version}
+        {{to, from}, amount, spent?, timestamp, nil, protocol_version}
       )
 
     true = :ets.insert(@unspent_output_index_table, {to, from})
@@ -104,14 +103,13 @@ defmodule Archethic.Account.MemTables.UCOLedger do
     |> :ets.lookup(address)
     |> Enum.reduce([], fn {_, from}, acc ->
       case :ets.lookup(@ledger_table, {address, from}) do
-        [{{^address, ^from}, amount, false, timestamp, reward?, protocol_version}] ->
+        [{{^address, ^from}, amount, false, timestamp, _reward?, protocol_version}] ->
           [
             %VersionedUnspentOutput{
               unspent_output: %UnspentOutput{
                 from: from,
                 amount: amount,
                 type: :UCO,
-                reward?: reward?,
                 timestamp: timestamp
               },
               protocol_version: protocol_version
@@ -138,7 +136,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
         {:ok, pid} = DB.start_inputs_writer(:UCO, address)
 
         Enum.each(utxos, fn {to, from} ->
-          [{_, amount, _, timestamp, reward?, protocol_version}] =
+          [{_, amount, _, timestamp, _reward?, protocol_version}] =
             :ets.lookup(@ledger_table, {to, from})
 
           DB.append_input(pid, %VersionedTransactionInput{
@@ -147,7 +145,6 @@ defmodule Archethic.Account.MemTables.UCOLedger do
               from: from,
               amount: amount,
               spent?: true,
-              reward?: reward?,
               timestamp: timestamp,
               type: :UCO
             }
@@ -173,7 +170,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
 
       inputs ->
         Enum.map(inputs, fn {_, from} ->
-          [{_, amount, spent?, timestamp, reward?, protocol_version}] =
+          [{_, amount, spent?, timestamp, _reward?, protocol_version}] =
             :ets.lookup(@ledger_table, {address, from})
 
           %VersionedTransactionInput{
@@ -182,8 +179,7 @@ defmodule Archethic.Account.MemTables.UCOLedger do
               amount: amount,
               spent?: spent?,
               type: :UCO,
-              timestamp: timestamp,
-              reward?: reward?
+              timestamp: timestamp
             },
             protocol_version: protocol_version
           }

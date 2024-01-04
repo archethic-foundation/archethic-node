@@ -4,11 +4,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
-  alias Archethic.Account.MemTables.GenesisInputLedger
   alias Archethic.Account.MemTablesLoader
-  alias Archethic.Account.GenesisLoader
-  alias Archethic.Account.GenesisPendingLog
-  alias Archethic.Account.GenesisState
 
   alias Archethic.Crypto
 
@@ -16,13 +12,10 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -235,7 +228,6 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                  unspent_output: %UnspentOutput{
                    amount: 100_000_000,
                    from: "@Rob1",
-                   reward?: false,
                    timestamp: ^timestamp,
                    type: {:token, "@WeatherNFT", 1}
                  }
@@ -344,79 +336,6 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                }
              ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
-
-    test "should refill the genesis state" do
-      MockDB
-      |> stub(:list_io_transactions, fn _fields -> [] end)
-      |> stub(:list_transactions, fn _fields -> [] end)
-
-      destination_address = ArchethicCase.random_address()
-      destination_genesis_address = ArchethicCase.random_address()
-
-      transaction_address = ArchethicCase.random_address()
-      transaction_previous_address = ArchethicCase.random_address()
-      transaction_genesis_address = ArchethicCase.random_address()
-
-      %Transaction{
-        address: transaction_address,
-        validation_stamp: %ValidationStamp{
-          timestamp: ~U[2023-09-10 05:00:00.000Z],
-          protocol_version: ArchethicCase.current_protocol_version(),
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [
-              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
-            ],
-            unspent_outputs: [
-              %UnspentOutput{
-                from: transaction_address,
-                amount: 100_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-10 05:00:00.000Z]
-              }
-            ],
-            consumed_inputs: [
-              %UnspentOutput{from: transaction_previous_address, amount: 200_000_000, type: :UCO}
-            ]
-          }
-        },
-        previous_public_key: ArchethicCase.random_public_key()
-      }
-
-      GenesisLoader.setup_folders!()
-
-      GenesisPendingLog.append(destination_genesis_address, %VersionedTransactionInput{
-        input: %TransactionInput{
-          from: transaction_address,
-          type: :UCO,
-          timestamp: ~U[2023-09-10 05:00:00.000Z],
-          amount: 100_000_000
-        },
-        protocol_version: ArchethicCase.current_protocol_version()
-      })
-
-      GenesisState.persist(transaction_genesis_address, [
-        %VersionedTransactionInput{
-          input: %TransactionInput{
-            from: transaction_address,
-            type: :UCO,
-            timestamp: ~U[2023-09-10 05:00:00.000Z],
-            amount: 100_000_000
-          },
-          protocol_version: ArchethicCase.current_protocol_version()
-        }
-      ])
-
-      pending_log = GenesisPendingLog.stream(destination_genesis_address) |> Enum.to_list()
-      genesis_state = GenesisState.fetch(transaction_genesis_address)
-
-      refute pending_log |> Enum.empty?()
-      refute genesis_state |> Enum.empty?()
-
-      assert {:ok, _} = MemTablesLoader.start_link()
-
-      assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) == pending_log
-      assert GenesisInputLedger.get_unspent_inputs(transaction_genesis_address) == genesis_state
-    end
   end
 
   defp create_transaction(timestamp, address) do
@@ -504,21 +423,18 @@ defmodule Archethic.Account.MemTablesLoaderTest do
               from: "@RewardToken1",
               amount: 5_000_000_000,
               type: {:token, "@RewardToken1", 0},
-              reward?: true,
               timestamp: validation_time
             },
             %UnspentOutput{
               from: "@RewardToken2",
               amount: 5_000_000_000,
               type: {:token, "@RewardToken2", 0},
-              reward?: true,
               timestamp: validation_time
             },
             %UnspentOutput{
               from: "@Rob1",
               amount: 100_000_000,
               type: {:token, "@WeatherNFT", 1},
-              reward?: true,
               timestamp: timestamp
             }
           ]

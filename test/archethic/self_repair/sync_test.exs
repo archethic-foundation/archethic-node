@@ -27,7 +27,7 @@ defmodule Archethic.SelfRepair.SyncTest do
 
   alias Archethic.TransactionFactory
 
-  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -156,10 +156,9 @@ defmodule Archethic.SelfRepair.SyncTest do
       P2P.add_and_connect_node(coordinator_node)
 
       inputs = [
-        %TransactionInput{
+        %UnspentOutput{
           from: "@Alice2",
           amount: 1_000_000_000,
-          spent?: true,
           type: :UCO,
           timestamp: DateTime.utc_now()
         }
@@ -439,7 +438,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       create_p2p_context()
 
       inputs = [
-        %TransactionInput{
+        %UnspentOutput{
           from: "@Alice2",
           amount: 1_000_000_000,
           type: :UCO,

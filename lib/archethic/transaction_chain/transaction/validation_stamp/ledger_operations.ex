@@ -236,11 +236,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       }}
 
       iex> %LedgerOperations{
-      ...>   transaction_movements: []
+      ...>   transaction_movements: [],
+      ...>   fee: 10_000_000,
       ...> }
       ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Charlie0", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
-      ...>    %UnspentOutput{from: "@SC1", amount: 0, type: :call, timestamp: ~U[2023-09-04 00:05:00Z]}
+      ...>    %UnspentOutput{from: "@Alice1", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
+      ...>    %UnspentOutput{from: "@SC1", amount: 0, type: :call, timestamp: ~U[2023-09-04 00:04:00Z]}
       ...>], ~U[2023-09-04 00:10:00Z], %Archethic.Contracts.Contract.Context{
       ...>    trigger: {:transaction, "@SC1", ""},
       ...>    status: :tx_output,
@@ -248,11 +249,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> })
       {true, %LedgerOperations{
         transaction_movements: [],
+        fee: 10_000_000,
         unspent_outputs: [
-          %UnspentOutput{amount: 100_000_000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]},
+          %UnspentOutput{amount: 90_000_000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]},
         ],
         consumed_inputs: [
-          %UnspentOutput{from: "@SC1", amount: 0, type: :call, timestamp: ~U[2023-09-04 00:05:00Z]}
+          %UnspentOutput{from: "@Alice1", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z]},
+          %UnspentOutput{from: "@SC1", amount: 0, type: :call, timestamp: ~U[2023-09-04 00:04:00Z]}
         ]
       }}
 
@@ -424,8 +427,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     include_uco? = uco_to_spend > 0
 
     inputs
-    # Sanitize data format (UTXO or Input)
-    |> Enum.map(&UnspentOutput.cast/1)
     # We group by type to count them and determine if we need to consume the inputs
     |> Enum.group_by(& &1.type)
     |> Enum.filter(fn

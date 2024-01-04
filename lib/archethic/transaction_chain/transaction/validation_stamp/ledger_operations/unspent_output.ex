@@ -2,7 +2,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @moduledoc """
   Represents an unspent output from a transaction.
   """
-  defstruct [:amount, :from, :type, :timestamp, :encoded_payload, reward?: false]
+  defstruct [:amount, :from, :type, :timestamp, :encoded_payload]
 
   alias Archethic.Contracts.Contract.State
 
@@ -17,7 +17,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @type t :: %__MODULE__{
           amount: nil | non_neg_integer(),
           from: nil | Crypto.versioned_hash(),
-          type: TransactionMovementType.t() | :state,
+          type: TransactionMovementType.t() | :state | :call,
           timestamp: nil | DateTime.t(),
           encoded_payload: nil | binary()
         }
@@ -48,18 +48,41 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   # protocol_version 4+
   def serialize(
         %__MODULE__{type: :state, encoded_payload: encoded_payload},
-        _protocol_version
-      ) do
+        protocol_version
+      )
+      when protocol_version < 5 do
     encoded_payload_size = encoded_payload |> bit_size() |> Utils.VarInt.from_value()
 
     <<0::8, encoded_payload_size::binary, encoded_payload::bitstring>>
   end
 
   def serialize(
+        %__MODULE__{
+          type: :state,
+          encoded_payload: encoded_payload,
+          timestamp: timestamp,
+          from: from
+        },
+        _protocol_version
+      ) do
+    encoded_payload_size = encoded_payload |> bit_size() |> Utils.VarInt.from_value()
+
+    <<0::8, from::binary, DateTime.to_unix(timestamp, :millisecond)::64,
+      encoded_payload_size::binary, encoded_payload::bitstring>>
+  end
+
+  def serialize(
+        %__MODULE__{from: from, type: :call, timestamp: timestamp},
+        _protocol_version
+      ) do
+    <<1::8, from::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
+  end
+
+  def serialize(
         %__MODULE__{from: from, amount: amount, type: type, timestamp: timestamp},
         _protocol_version
       ) do
-    <<1::8, from::binary, VarInt.from_value(amount)::binary,
+    <<2::8, from::binary, VarInt.from_value(amount)::binary,
       DateTime.to_unix(timestamp, :millisecond)::64,
       TransactionMovementType.serialize(type)::binary>>
   end
@@ -101,14 +124,38 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   end
 
   # protocol version 4+
-  def deserialize(<<0::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
+  def deserialize(<<0::8, rest::bitstring>>, protocol_version)
+      when is_bitstring(rest) and protocol_version < 5 do
     {encoded_payload_size, rest} = Utils.VarInt.get_value(rest)
     <<encoded_payload::bitstring-size(encoded_payload_size), rest::bitstring>> = rest
 
     {%__MODULE__{type: :state, encoded_payload: encoded_payload}, rest}
   end
 
+  def deserialize(<<0::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
+    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {encoded_payload_size, rest} = Utils.VarInt.get_value(rest)
+    <<encoded_payload::bitstring-size(encoded_payload_size), rest::bitstring>> = rest
+
+    {%__MODULE__{
+       type: :state,
+       encoded_payload: encoded_payload,
+       from: address,
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
+     }, rest}
+  end
+
   def deserialize(<<1::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
+    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
+
+    {%__MODULE__{
+       type: :call,
+       from: address,
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
+     }, rest}
+  end
+
+  def deserialize(<<2::8, rest::bitstring>>, _protocol_version) when is_bitstring(rest) do
     {address, rest} = Utils.deserialize_address(rest)
     {amount, <<timestamp::64, rest::bitstring>>} = VarInt.get_value(rest)
     {type, rest} = TransactionMovementType.deserialize(rest)
@@ -140,7 +187,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
         type: :UCO,
-        reward?: false,
         timestamp: ~U[2022-10-11 07:27:22.815Z],
       }
 
@@ -155,7 +201,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
         type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0 },
-        reward?: false,
         timestamp: nil
       }
   """
@@ -179,14 +224,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...> amount: 1_050_000_000,
       ...> type: :UCO,
-      ...> reward?: false,
       ...> timestamp: ~U[2022-10-11 07:27:22.815Z],
       ...> }|> UnspentOutput.to_map()
       %{
         from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
         type: "UCO",
-        reward?: false,
         timestamp: ~U[2022-10-11 07:27:22.815Z]
       }
 
@@ -205,7 +248,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         token_address: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71,
         140,74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
         token_id: 0,
-        reward?: false,
         timestamp: nil
       }
   """
@@ -214,14 +256,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         from: from,
         amount: amount,
         type: :UCO,
-        reward?: reward,
         timestamp: timestamp
       }) do
     %{
       from: from,
       amount: amount,
       type: "UCO",
-      reward?: reward,
       timestamp: timestamp
     }
   end
@@ -230,7 +270,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         from: from,
         amount: amount,
         type: {:token, token_address, token_id},
-        reward?: reward,
         timestamp: timestamp
       }) do
     %{
@@ -239,18 +278,21 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       type: "token",
       token_address: token_address,
       token_id: token_id,
-      reward?: reward,
       timestamp: timestamp
     }
   end
 
   def to_map(%__MODULE__{
+        from: from,
         type: :state,
-        encoded_payload: encoded_payload
+        encoded_payload: encoded_payload,
+        timestamp: timestamp
       }) do
     %{
+      from: from,
       type: "state",
-      state: State.deserialize(encoded_payload) |> elem(0)
+      state: State.deserialize(encoded_payload) |> elem(0),
+      timestamp: timestamp
     }
   end
 end

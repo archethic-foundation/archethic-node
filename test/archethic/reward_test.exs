@@ -229,14 +229,12 @@ defmodule Archethic.RewardTest do
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
@@ -289,14 +287,12 @@ defmodule Archethic.RewardTest do
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
@@ -333,28 +329,24 @@ defmodule Archethic.RewardTest do
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken3",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken3", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken4",
                   amount: 200_000_000,
                   type: {:token, "@RewardToken4", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
@@ -423,14 +415,12 @@ defmodule Archethic.RewardTest do
                 from: "@RewardToken1",
                 amount: 1_000_000_000,
                 type: {:token, "@RewardToken1", 0},
-                reward?: true,
                 timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
               },
               %UnspentOutput{
                 from: "@RewardToken2",
                 amount: 2_000_000_000,
                 type: {:token, "@RewardToken2", 0},
-                reward?: true,
                 timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
               }
             ]

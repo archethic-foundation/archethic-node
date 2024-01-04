@@ -7,7 +7,7 @@ defmodule ArchethicCase do
   alias Archethic.{Crypto, Crypto.ECDSA, Mining, Utils, SharedSecrets, TransactionChain}
   alias Archethic.{Account, Election.Constraints}
 
-  alias Account.MemTables.{TokenLedger, UCOLedger, GenesisInputLedger}
+  alias Account.MemTables.{TokenLedger, UCOLedger}
   alias SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
   alias TransactionChain.{Transaction, MemTables.KOLedger, MemTables.PendingLedger}
 
@@ -18,6 +18,8 @@ defmodule ArchethicCase do
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
+
+  alias Archethic.UTXO.MemoryLedger
 
   import Mox
 
@@ -81,6 +83,12 @@ defmodule ArchethicCase do
     |> stub(:get_inputs, fn _, _ -> [] end)
     |> stub(:get_last_chain_address_stored, fn addr -> addr end)
     |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
+    MockUTXOLedger
+    |> stub(:list_genesis_addresses, fn -> [] end)
+    |> stub(:append, fn _, _ -> :ok end)
+    |> stub(:flush, fn _, _ -> :ok end)
+    |> stub(:stream, fn _ -> [] end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
@@ -214,7 +222,7 @@ defmodule ArchethicCase do
     start_supervised!(NetworkLookup)
     start_supervised!(OracleMemTable)
     start_supervised!(TransactionSubscriber)
-    start_supervised!(GenesisInputLedger)
+    start_supervised!(MemoryLedger)
     :ok
   end
 

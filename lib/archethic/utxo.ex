@@ -1,50 +1,50 @@
-defmodule Archethic.Account.GenesisLoader do
-  @moduledoc false
-
-  use GenServer
-  @vsn Mix.Project.config()[:version]
-
-  alias Archethic.Account.GenesisPendingLog
-  alias Archethic.Account.GenesisLoaderSupervisor
-  alias Archethic.Account.GenesisState
-  alias Archethic.Account.MemTables.GenesisInputLedger
+defmodule Archethic.UTXO do
+  alias Archethic.DB
 
   alias Archethic.Crypto
-  alias Archethic.DB
+
   alias Archethic.Election
 
   alias Archethic.P2P
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   alias Archethic.Utils
 
-  def start_link(arg \\ [], opts \\ []) do
-    GenServer.start_link(__MODULE__, arg, opts)
-  end
+  alias Archethic.UTXO.DBLedger
+  alias Archethic.UTXO.Loader
+  alias Archethic.UTXO.MemoryLedger
 
-  def setup_folders!() do
-    File.mkdir_p!(GenesisPendingLog.base_path())
-    File.mkdir_p!(GenesisState.base_path())
-  end
+  require Logger
 
-  def load_transaction(tx = %Transaction{}, io_transaction?) do
+  @type load_opts :: [io_transaction?: boolean()]
+
+  @spec load_transaction(Transcation.t(), load_opts()) :: :ok
+  def load_transaction(tx = %Transaction{}, opts \\ []) do
+    io_transaction? = Keyword.get(opts, :io_transaction?, false)
     authorized_nodes = P2P.authorized_and_available_nodes()
 
     # Ingest all the movements to fill up the UTXO list
-    ingest_genesis_input(tx, authorized_nodes)
+    ingest_utxo(tx, authorized_nodes)
 
-    consume_genesis_inputs(tx, io_transaction?, authorized_nodes)
+    consume_utxo(tx, io_transaction?, authorized_nodes)
+
+    Logger.info("Loaded into in memory UTXO tables",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
   end
 
-  defp ingest_genesis_input(
+  defp ingest_utxo(
          %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{
@@ -68,8 +68,8 @@ defmodule Archethic.Account.GenesisLoader do
               to
           end
 
-        tx_input = %VersionedTransactionInput{
-          input: %TransactionInput{
+        utxo = %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
             from: address,
             amount: amount,
             timestamp: timestamp,
@@ -79,14 +79,13 @@ defmodule Archethic.Account.GenesisLoader do
         }
 
         if genesis_node?(genesis_address, authorized_nodes) do
-          via_tuple = {:via, PartitionSupervisor, {GenesisLoaderSupervisor, genesis_address}}
-          GenServer.call(via_tuple, {:add_input, tx_input, genesis_address})
+          Loader.add_utxo(utxo, genesis_address)
         end
       end
     )
   end
 
-  defp consume_genesis_inputs(
+  defp consume_utxo(
          tx = %Transaction{
            validation_stamp: %ValidationStamp{
              ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
@@ -104,42 +103,13 @@ defmodule Archethic.Account.GenesisLoader do
 
         # In case, this transaction is one of the genesis chains, we have to consume inputs
         if chain_transaction? and length(consumed_inputs) > 0 do
-          via_tuple = {:via, PartitionSupervisor, {GenesisLoaderSupervisor, genesis_address}}
-          GenServer.call(via_tuple, {:consumed_inputs, tx, genesis_address})
+          Loader.consume_inputs(tx, genesis_address)
         end
 
       _ ->
         # ignore if genesis's address is not found
         :ok
     end
-  end
-
-  def init(_) do
-    {:ok, %{}}
-  end
-
-  def handle_call(
-        {:add_input, tx_input = %VersionedTransactionInput{}, genesis_address},
-        _,
-        state
-      ) do
-    GenesisPendingLog.append(genesis_address, tx_input)
-    GenesisInputLedger.add_chain_input(genesis_address, tx_input)
-    {:reply, :ok, state}
-  end
-
-  def handle_call({:consumed_inputs, tx = %Transaction{}, genesis_address}, _, state) do
-    # We update the UTXOs by using the consumed inputs by the transaction
-    GenesisInputLedger.update_chain_inputs(tx, genesis_address)
-    utxos = GenesisInputLedger.get_unspent_inputs(genesis_address)
-
-    # We flush the serialized state of the genesis UTXOs
-    GenesisState.persist(genesis_address, utxos)
-
-    # Once the state have been serialized, we can clean the pending log of inputs
-    GenesisPendingLog.clear(genesis_address)
-
-    {:reply, :ok, state}
   end
 
   defp find_genesis_address(tx = %Transaction{address: address}) do
@@ -157,5 +127,19 @@ defmodule Archethic.Account.GenesisLoader do
   defp genesis_node?(genesis_address, nodes) do
     genesis_nodes = Election.chain_storage_nodes(genesis_address, nodes)
     Utils.key_in_node_list?(genesis_nodes, Crypto.first_node_public_key())
+  end
+
+  @doc """
+  Returns the list of all the inputs which have not been consumed for the given chain's address
+  """
+  @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
+  def get_unspent_outputs(address) do
+    case MemoryLedger.get_unspent_outputs(address) do
+      [] ->
+        DBLedger.stream(address)
+
+      unspent_outputs ->
+        unspent_outputs
+    end
   end
 end

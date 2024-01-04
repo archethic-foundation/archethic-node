@@ -24,7 +24,7 @@ defmodule Archethic.DB.EmbeddedTest do
   setup do
     EmbeddedImpl.Supervisor.start_link()
 
-    db_path = EmbeddedImpl.db_path()
+    db_path = EmbeddedImpl.filepath()
 
     %{db_path: db_path}
   end

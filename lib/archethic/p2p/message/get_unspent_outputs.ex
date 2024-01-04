@@ -3,16 +3,18 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
   Represents a message to request the list of unspent outputs from a transaction
   """
   @enforce_keys [:address]
-  defstruct [:address, offset: 0]
+  defstruct [:address, offset: 0, limit: 0]
 
   alias Archethic.Crypto
   alias Archethic.Account
+  alias Archethic.Contracts
   alias Archethic.P2P.Message.UnspentOutputList
 
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   @threshold Keyword.get(
                Application.compile_env(:archethic, __MODULE__, []),
@@ -22,12 +24,31 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
-          offset: non_neg_integer()
+          offset: non_neg_integer(),
+          limit: non_neg_integer()
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: UnspentOutputList.t()
-  def process(%__MODULE__{address: tx_address, offset: offset}, _) do
-    utxos = Account.get_unspent_outputs(tx_address)
+  def process(%__MODULE__{address: tx_address, offset: offset, limit: limit}, _) do
+    contract_inputs =
+      tx_address
+      |> Contracts.list_contract_transactions()
+      |> Enum.map(fn {address, timestamp, protocol_version} ->
+        %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: address,
+            type: :call,
+            timestamp: timestamp
+          },
+          protocol_version: protocol_version
+        }
+      end)
+
+    utxos =
+      tx_address
+      |> Account.get_unspent_outputs()
+      |> Enum.concat(contract_inputs)
+
     utxos_length = length(utxos)
 
     %{utxos: utxos, offset: offset, more?: more?} =

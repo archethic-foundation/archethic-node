@@ -189,7 +189,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
   test "self_replication/1 should insert the transaction and add to the beacon chain" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         amount: 499_999_000_000,
         from: "genesis",
         type: :UCO,
@@ -208,10 +208,16 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionInputs{}, _ ->
         {:ok,
          %TransactionInputList{
-           inputs:
-             Enum.map(inputs, fn input ->
-               %VersionedTransactionInput{input: input, protocol_version: 1}
-             end)
+           inputs: [
+             %VersionedTransactionInput{
+               input: %TransactionInput{
+                 amount: 499_999_000_000,
+                 from: "genesis",
+                 type: :UCO,
+                 timestamp: DateTime.utc_now()
+               }
+             }
+           ]
          }}
 
       _, %GetTransactionChainLength{}, _ ->

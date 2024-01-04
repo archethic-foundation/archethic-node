@@ -144,7 +144,7 @@ defmodule Archethic.Replication.TransactionContextTest do
       authorization_date: DateTime.utc_now()
     })
 
-    assert [%TransactionInput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
+    assert [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
              TransactionContext.fetch_transaction_inputs("@Alice1", DateTime.utc_now())
   end
 end

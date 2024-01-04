@@ -85,6 +85,7 @@ config :archethic, Archethic.Crypto,
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
 config :archethic, Archethic.DB, Archethic.DB.EmbeddedImpl
+config :archethic, Archethic.UTXO.DBLedger, Archethic.UTXO.DBLedger.FileImpl
 
 config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_seed:

@@ -514,8 +514,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    amount: 700_000_000,
                    from: "@Tom1",
                    type: {:token, "@CharlieToken", 0},
-                   timestamp: nil,
-                   reward?: false
+                   timestamp: nil
                  }
                ]
              } =

@@ -19,7 +19,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   alias Archethic.TransactionFactory
 
-  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionSummary
 
   doctest TransactionHandler
@@ -105,7 +105,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "download_transaction/2 should download the transaction" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -134,7 +134,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "download_transaction/2 should raise an error if the downloaded transaction is not the expected one" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -168,7 +168,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "download_transaction/2 should download the transaction even after a first failure" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -245,7 +245,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     me = self()
 
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -309,7 +309,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     me = self()
 
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -361,7 +361,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     })
 
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -392,7 +392,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "process_transaction/3 should handle raise an error when attestation is invalid" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,

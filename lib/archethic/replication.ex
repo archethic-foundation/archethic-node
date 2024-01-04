@@ -32,6 +32,7 @@ defmodule Archethic.Replication do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.Utils
+  alias Archethic.UTXO
 
   require Logger
 
@@ -560,6 +561,7 @@ defmodule Archethic.Replication do
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx, io_transaction?: io_transaction?)
+    UTXO.load_transaction(tx, io_transaction?: io_transaction?)
 
     Contracts.load_transaction(tx,
       execute_contract?: not self_repair?,

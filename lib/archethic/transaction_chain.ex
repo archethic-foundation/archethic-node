@@ -623,7 +623,7 @@ defmodule Archethic.TransactionChain do
   @spec fetch_unspent_outputs(
           address :: Crypto.prepended_hash(),
           list(Node.t())
-        ) :: Enumerable.t() | list(UnspentOutput.t())
+        ) :: Enumerable.t() | list(TransactionInput.t())
   def fetch_unspent_outputs(_, []), do: []
 
   def fetch_unspent_outputs(address, nodes)

@@ -1,20 +1,16 @@
-defmodule Archethic.Account.GenesisLoaderTest do
+defmodule Archethic.UTXOTest do
   use ArchethicCase
 
-  alias Archethic.Account.{
-    GenesisLoader,
-    GenesisState,
-    GenesisPendingLog,
-    MemTables.GenesisInputLedger
-  }
+  alias Archethic.UTXO
+  alias Archethic.UTXO.MemoryLedger
 
   alias Archethic.Crypto
   alias Archethic.Election
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionInput
-  alias Archethic.TransactionChain.VersionedTransactionInput
+  alias Archethic.TransactionChain.UnspentOutput
+  alias Archethic.TransactionChain.VersionedUnspentOutput
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -22,16 +18,13 @@ defmodule Archethic.Account.GenesisLoaderTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
+
   import Mox
   import Mock
 
   describe "load_transaction/2" do
-    setup do
-      {:ok, _} = Archethic.Account.GenesisSupervisor.start_link()
-      :ok
-    end
-
-    test "should load genesis inputs as io storage nodes but not for chain" do
+    test "should load outputs as io storage nodes but not for chain" do
       destination_address = ArchethicCase.random_address()
       destination_previous_address = ArchethicCase.random_address()
       destination_genesis_address = ArchethicCase.random_address()
@@ -72,6 +65,13 @@ defmodule Archethic.Account.GenesisLoaderTest do
         _ -> {:ok, transaction_genesis_address}
       end)
 
+      me = self()
+
+      MockUTXOLedger
+      |> stub(:append, fn genesis_address, utxo ->
+        send(me, {:append_utxo, genesis_address, utxo})
+      end)
+
       with_mock(Election,
         chain_storage_nodes: fn
           ^destination_genesis_address, _ ->
@@ -81,26 +81,32 @@ defmodule Archethic.Account.GenesisLoaderTest do
             []
         end
       ) do
-        GenesisLoader.load_transaction(tx, true)
+        UTXO.load_transaction(tx, io_transaction?: true)
 
         assert [
-                 %VersionedTransactionInput{
-                   input: %TransactionInput{
+                 %VersionedUnspentOutput{
+                   unspent_output: %UnspentOutput{
                      from: ^transaction_address,
                      amount: 100_000_000,
                      type: :UCO
                    }
                  }
-               ] = GenesisInputLedger.get_unspent_inputs(destination_genesis_address)
+               ] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
 
-        assert [] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+        assert [] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
-        assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) ==
-                 GenesisPendingLog.stream(destination_genesis_address) |> Enum.to_list()
+        assert_receive {:append_utxo, ^destination_genesis_address,
+                        %VersionedUnspentOutput{
+                          unspent_output: %UnspentOutput{
+                            from: ^transaction_address,
+                            amount: 100_000_000,
+                            type: :UCO
+                          }
+                        }}
       end
     end
 
-    test "should load genesis inputs as chain storage node" do
+    test "should load outputs as chain storage node" do
       destination_address = ArchethicCase.random_address()
       destination_previous_address = ArchethicCase.random_address()
       destination_genesis_address = ArchethicCase.random_address()
@@ -145,6 +151,13 @@ defmodule Archethic.Account.GenesisLoaderTest do
         _ -> 0
       end)
 
+      me = self()
+
+      MockUTXOLedger
+      |> stub(:flush, fn genesis_address, utxos ->
+        send(me, {:flush_outputs, genesis_address, utxos})
+      end)
+
       with_mock(Election,
         chain_storage_nodes: fn
           ^transaction_genesis_address, _ ->
@@ -154,30 +167,34 @@ defmodule Archethic.Account.GenesisLoaderTest do
             []
         end
       ) do
-        GenesisLoader.load_transaction(tx, false)
+        UTXO.load_transaction(tx, io_transaction?: false)
 
         assert [
-                 %VersionedTransactionInput{
-                   input: %TransactionInput{
+                 %VersionedUnspentOutput{
+                   unspent_output: %UnspentOutput{
                      from: ^transaction_address,
                      type: :UCO,
                      timestamp: ~U[2023-09-10 05:00:00.000Z],
                      amount: 300_000_000
                    }
                  }
-               ] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
-        assert GenesisInputLedger.get_unspent_inputs(destination_genesis_address) |> Enum.empty?()
-        assert GenesisPendingLog.stream(destination_genesis_address) |> Enum.empty?()
+        assert [] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
 
-        assert GenesisPendingLog.stream(transaction_genesis_address) |> Enum.empty?()
-
-        assert GenesisState.fetch(transaction_genesis_address) ==
-                 GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+        assert_receive {:flush_outputs, ^transaction_genesis_address,
+                        [
+                          %VersionedUnspentOutput{
+                            unspent_output: %UnspentOutput{
+                              from: ^transaction_address,
+                              amount: 300_000_000
+                            }
+                          }
+                        ]}
       end
     end
 
-    test "should load genesis inputs as IO and then as chain storage node to consume inputs" do
+    test "should load genesis outputs as IO and then as chain storage node to consume outputs" do
       destination_address = ArchethicCase.random_address()
       destination_previous_address = ArchethicCase.random_address()
       destination_genesis_address = ArchethicCase.random_address()
@@ -263,6 +280,16 @@ defmodule Archethic.Account.GenesisLoaderTest do
         _ -> 0
       end)
 
+      me = self()
+
+      MockUTXOLedger
+      |> stub(:append, fn genesis_address, utxo ->
+        send(me, {:add_utxo, genesis_address, utxo})
+      end)
+      |> stub(:flush, fn genesis_address, outputs ->
+        send(me, {:flush_outputs, genesis_address, outputs})
+      end)
+
       with_mock(Election,
         chain_storage_nodes: fn
           ^transaction_genesis_address, _ ->
@@ -272,42 +299,73 @@ defmodule Archethic.Account.GenesisLoaderTest do
             []
         end
       ) do
-        GenesisLoader.load_transaction(tx1, true)
+        UTXO.load_transaction(tx1, io_transaction?: true)
 
         assert [
-                 %VersionedTransactionInput{
-                   input: %TransactionInput{
+                 %VersionedUnspentOutput{
+                   unspent_output: %UnspentOutput{
                      from: ^destination_address,
                      type: :UCO,
                      timestamp: ~U[2023-09-10 05:00:00.000Z],
                      amount: 100_000_000
                    }
                  }
-               ] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
-        assert transaction_genesis_address
-               |> GenesisPendingLog.stream()
-               |> Enum.to_list() ==
-                 GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
-
-        GenesisLoader.load_transaction(tx2, false)
-
-        assert GenesisPendingLog.stream(transaction_genesis_address) |> Enum.empty?()
+        UTXO.load_transaction(tx2, io_transaction?: false)
 
         assert [
-                 %VersionedTransactionInput{
-                   input: %TransactionInput{
+                 %VersionedUnspentOutput{
+                   unspent_output: %UnspentOutput{
                      from: ^transaction_address,
                      amount: 300_000_000,
                      type: :UCO,
                      timestamp: ~U[2023-09-12 05:00:00.000Z]
                    }
                  }
-               ] = GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
-
-        assert GenesisState.fetch(transaction_genesis_address) ==
-                 GenesisInputLedger.get_unspent_inputs(transaction_genesis_address)
+               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
       end
+    end
+  end
+
+  describe("get_unspent_outputs/1") do
+    test "should return empty if there is nothing" do
+      assert [] == UTXO.get_unspent_outputs(ArchethicCase.random_address())
+    end
+
+    test "should be able to return unspent outputs" do
+      MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: "@Bob0",
+          type: :UCO,
+          amount: 100_000_000,
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+        },
+        protocol_version: ArchethicCase.current_protocol_version()
+      })
+
+      assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob0"}}] =
+               UTXO.get_unspent_outputs("@Alice0")
+    end
+
+    test "should be able to return unspent outputs from disk if not in memory" do
+      MockUTXOLedger
+      |> stub(:stream, fn "@Alice0" ->
+        [
+          %VersionedUnspentOutput{
+            unspent_output: %UnspentOutput{
+              from: "@Bob0",
+              type: :UCO,
+              amount: 100_000_000,
+              timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+            },
+            protocol_version: ArchethicCase.current_protocol_version()
+          }
+        ]
+      end)
+
+      assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob0"}}] =
+               UTXO.get_unspent_outputs("@Alice0")
     end
   end
 end

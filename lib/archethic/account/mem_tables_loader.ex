@@ -4,18 +4,11 @@ defmodule Archethic.Account.MemTablesLoader do
   use GenServer
   @vsn 1
 
-  alias Archethic.Account.GenesisLoader
-  alias Archethic.Account.MemTables.GenesisInputLedger
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTables.StateLedger
 
-  alias Archethic.Account.GenesisPendingLog
-  alias Archethic.Account.GenesisState
-
   alias Archethic.Crypto
-
-  alias Archethic.DB
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -77,10 +70,6 @@ defmodule Archethic.Account.MemTablesLoader do
     )
     |> Stream.run()
 
-    # After AEIP-21 phase2 all the lines above could be truncated, as the listing will come from the genesis states & logs
-    # Reducing the time of node's startup
-    load_genesis_ledger()
-
     {:ok, %{}}
   end
 
@@ -94,7 +83,7 @@ defmodule Archethic.Account.MemTablesLoader do
   """
   @spec load_transaction(Transaction.t(), load_options()) :: :ok
   def load_transaction(
-        tx = %Transaction{
+        %Transaction{
           address: address,
           type: tx_type,
           previous_public_key: previous_public_key,
@@ -111,7 +100,6 @@ defmodule Archethic.Account.MemTablesLoader do
       )
       when is_list(opts) do
     io_transaction? = Keyword.get(opts, :io_transaction?, false)
-    load_genesis? = Keyword.get(opts, :load_genesis?, true)
 
     unless io_transaction? do
       previous_address = Crypto.derive_address(previous_public_key)
@@ -131,10 +119,6 @@ defmodule Archethic.Account.MemTablesLoader do
       )
 
     :ok = set_unspent_outputs(address, unspent_outputs, protocol_version)
-
-    if load_genesis? do
-      GenesisLoader.load_transaction(tx, io_transaction?)
-    end
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
@@ -320,36 +304,5 @@ defmodule Archethic.Account.MemTablesLoader do
 
         Map.put(acc, {to, token_address, token_id}, new_utxo)
     end
-  end
-
-  defp load_genesis_ledger() do
-    DB.filepath()
-    |> Path.join("genesis/*{state,pending}/*")
-    |> Path.wildcard()
-    |> Task.async_stream(fn file ->
-      genesis_address = file |> Path.basename() |> Base.decode16!()
-
-      if String.match?(file, ~r/genesis\/state.*/) do
-        load_genesis_state(genesis_address)
-      end
-
-      if String.match?(file, ~r/genesis\/pending.*/) do
-        load_genesis_log(genesis_address)
-      end
-    end)
-    |> Stream.run()
-  end
-
-  defp load_genesis_state(genesis_address) do
-    inputs = GenesisState.fetch(genesis_address)
-    GenesisInputLedger.load_inputs(genesis_address, inputs)
-  end
-
-  defp load_genesis_log(genesis_address) do
-    genesis_address
-    |> GenesisPendingLog.stream()
-    |> Enum.each(fn input ->
-      GenesisInputLedger.add_chain_input(genesis_address, input)
-    end)
   end
 end
