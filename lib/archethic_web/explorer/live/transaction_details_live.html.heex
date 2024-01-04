@@ -64,7 +64,7 @@
           <div>
             <%!-------------------------------- TYPE --------------------------------%>
             <div class="columns">
-              <div class="column has-text-right heading is-2">Type</div>
+              <div class="column ae-left-heading is-2">Type</div>
               <div class="column">
                 <%= format_transaction_type(@transaction.type, tag: false) %>
               </div>
@@ -72,7 +72,7 @@
 
             <%!---------------------------- VALIDATION TIME ----------------------------%>
             <div class="columns">
-              <div class="column has-text-right heading is-2">Validation date</div>
+              <div class="column ae-left-heading is-2">Validation date</div>
               <div class="column">
                 <%= format_date(@transaction.validation_stamp.timestamp) %>
               </div>
@@ -80,7 +80,7 @@
 
             <%!---------------------------- FEE ----------------------------%>
             <div class="columns">
-              <div class="column has-text-right heading is-2">Fee</div>
+              <div class="column ae-left-heading is-2">Fee</div>
               <div class="column">
                 <Amount.uco
                   amount={@transaction.validation_stamp.ledger_operations.fee}
@@ -93,7 +93,7 @@
             <%!-------------------------------- CODE --------------------------------%>
             <div class="columns" x-data="{show: true}">
               <% code_bytes = byte_size(@transaction.data.code) %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Code (<%= format_bytes(code_bytes) %>)</p>
                 <%= if code_bytes > 0 do %>
                   <p>
@@ -118,7 +118,7 @@
             <%!-------------------------------- CONTENT --------------------------------%>
             <div class="columns" x-data="{show: true}">
               <% content_bytes = byte_size(@transaction.data.content) %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Content (<%= format_bytes(content_bytes) %>)</p>
                 <%= if content_bytes > 0 do %>
                   <p>
@@ -157,7 +157,7 @@
                   nil -> 0
                   _ -> byte_size(state_utxo.encoded_payload)
                 end %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>State (<%= format_bytes(state_bytes) %>)</p>
 
                 <%= if state_utxo != nil do %>
@@ -176,7 +176,7 @@
             <%!----------------------------- UCO TRANSFERS --------------------------------%>
             <div class="columns">
               <% ucos_transfers_count = Enum.count(@transaction.data.ledger.uco.transfers) %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 UCO transfers (<%= ucos_transfers_count %>)
               </div>
               <div class="column">
@@ -206,7 +206,7 @@
             <%!----------------------------- TOKENS TRANSFERS --------------------------------%>
             <div class="columns">
               <% tokens_transfers_count = Enum.count(@transaction.data.ledger.token.transfers) %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 Tokens transfers (<%= tokens_transfers_count %>)
               </div>
               <div class="column">
@@ -238,7 +238,7 @@
             <div class="columns">
               <% movements_count =
                 Enum.count(@transaction.validation_stamp.ledger_operations.transaction_movements) %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 Movements (<%= movements_count %>)
               </div>
               <div class="column">
@@ -290,7 +290,7 @@
             <%!----------------------------- OWNERSHIPS --------------------------------%>
             <div class="columns" x-data="{show: false}">
               <% ownerships_count = Enum.count(@transaction.data.ownerships) %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Ownerships (<%= ownerships_count %>)</p>
                 <%= if ownerships_count > 0 do %>
                   <p>
@@ -329,7 +329,7 @@
             <div class="columns" x-data="{show: false}">
               <% recipients_count = Enum.count(@transaction.data.recipients) %>
 
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Contract recipients (<%= recipients_count %>)</p>
                 <%= if recipients_count > 0 do %>
                   <p>
@@ -380,7 +380,7 @@
             <div class="columns">
               <% calls_count = Enum.count(@calls) %>
 
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Contract inputs (<%= calls_count %>)</p>
               </div>
 
@@ -411,7 +411,7 @@
               <% utxos_count =
                 Enum.count(@transaction.validation_stamp.ledger_operations.unspent_outputs) %>
 
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Unspent outputs (<%= utxos_count %>)</p>
               </div>
 
@@ -476,7 +476,7 @@
             <%!----------------------------- INPUTS --------------------------------%>
             <div class="columns">
               <% inputs_filtered_count = Enum.count(@inputs_filtered) %>
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Inputs (<%= inputs_filtered_count %>)</p>
               </div>
 
@@ -497,7 +497,7 @@
 
             <%!----------------------------- CRYPTO --------------------------------%>
             <div class="columns" x-data="{show: false}">
-              <div class="column has-text-right heading is-2">
+              <div class="column ae-left-heading is-2">
                 <p>Proofs and signatures</p>
                 <p><a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a></p>
               </div>

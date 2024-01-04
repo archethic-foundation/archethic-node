@@ -287,8 +287,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
            }
          }
        ) do
-    IO.inspect(inputs: inputs, utxos: utxos)
-
     Enum.reject(inputs, fn input ->
       Enum.any?(utxos, &similar?(input, &1))
     end)

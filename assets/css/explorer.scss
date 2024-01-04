@@ -262,6 +262,22 @@ pre {
   background: #201844;
 }
 
+
+.ae-left-heading {
+  text-transform: uppercase;
+
+  @include mobile {
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+
+  @include tablet {
+    font-size: 11px;
+    padding-top: 15px;
+    text-align: right;
+  }
+}
+
 .mono {
   font-family: 'RobotoMono Regular' !important;
 }
