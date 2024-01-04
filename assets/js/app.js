@@ -143,6 +143,7 @@ Hooks.CopyToClipboard = {
     this.el.addEventListener("click", (e) => {
       const clipboardId = e.target.getAttribute("data-target");
       const textToCopy = document.querySelector(clipboardId).innerHTML;
+      const originalText = e.target.innerText
 
       navigator.clipboard
         .writeText(textToCopy)
@@ -156,9 +157,9 @@ Hooks.CopyToClipboard = {
         })
         .finally(() => {
           setTimeout(() => {
-            e.target.innerText = "Copy";
+            e.target.innerText = originalText;
             e.target.disabled = false;
-          }, 3000);
+          }, 2000);
         });
     });
   },

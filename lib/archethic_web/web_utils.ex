@@ -45,12 +45,20 @@ defmodule ArchethicWeb.WebUtils do
 
   def short_address(address) do
     hex = Base.encode16(address)
-
+    # we prefix the id because it's forbidden that they start with an integer
+    uuid = "_" <> Ecto.UUID.generate()
+    uuid2 = "_" <> Ecto.UUID.generate()
     short = String.slice(hex, 0..7) <> "..." <> String.slice(hex, -4, 4)
 
     content_tag(
       "span",
-      short,
+      [
+        # invisible tag that is used for the copy hook
+        content_tag("span", hex, id: uuid, style: "display: none"),
+        short,
+        " ",
+        content_tag("a", "✄", id: uuid2, "phx-hook": "CopyToClipboard", "data-target": "##{uuid}")
+      ],
       "data-tooltip": hex
     )
   end
@@ -93,6 +101,7 @@ defmodule ArchethicWeb.WebUtils do
       Decimal.new(trunc(:math.pow(10, decimals)))
     )
     |> Decimal.to_string(:normal)
+    |> format_number_with_thousand_separator()
   end
 
   def format_usd_amount(uco_amount, uco_price) do
@@ -102,6 +111,7 @@ defmodule ArchethicWeb.WebUtils do
     |> Decimal.mult(Decimal.from_float(uco_price))
     |> Decimal.round(2)
     |> Decimal.to_string(:normal)
+    |> format_number_with_thousand_separator()
     |> then(fn usd_price -> "#{usd_price}$" end)
   end
 
@@ -125,5 +135,35 @@ defmodule ArchethicWeb.WebUtils do
       {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
     end)
+  end
+
+  @doc """
+  Format a string that represent a number
+  to add thousand separators.
+  """
+  @spec format_number_with_thousand_separator(String.t()) :: String.t()
+  def format_number_with_thousand_separator(str) when is_binary(str) do
+    # the algorithm applies only on the integer part
+    {int, dec} =
+      case String.split(str, ".") do
+        [int] -> {int |> String.to_charlist(), nil}
+        [int, dec] -> {int |> String.to_charlist(), dec}
+      end
+
+    {h, t} = Enum.split(int, rem(length(int), 3))
+    t = t |> Enum.chunk_every(3) |> Enum.join(",")
+
+    formatted_int =
+      case {h, t} do
+        {'', _} -> t
+        {_, ""} -> "#{h}"
+        _ -> "#{h}," <> t
+      end
+
+    if dec == nil do
+      formatted_int
+    else
+      formatted_int <> "." <> dec
+    end
   end
 end
