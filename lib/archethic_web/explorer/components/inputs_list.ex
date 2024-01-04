@@ -16,60 +16,50 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
     assigns = assign(assigns, :uco_price_at_time, Map.get(assigns, :uco_price_at_time))
 
     ~H"""
-    <table class="table ae-table is-fullwidth is-hoverable">
-      <thead>
-        <tr>
-          <th>Amount</th>
-          <th>From</th>
-          <th>Date (UTC)</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <%= for input <- @inputs do %>
-          <tr>
-            <td>
-              <%= case input.type do %>
-                <% :UCO -> %>
-                  <Amount.uco
-                    amount={input.amount}
-                    uco_price_at_time={@uco_price_at_time}
-                    uco_price_now={@uco_price_now}
-                  />
-                <% {:token, token_address, token_id} -> %>
-                  <Amount.token
-                    amount={input.amount}
-                    token_address={token_address}
-                    token_id={token_id}
-                    token_properties={@token_properties}
-                    socket={@socket}
-                  />
-              <% end %>
-            </td>
+    <ul>
+      <%= for input <- @inputs do %>
+        <li class="columns is-mobile is-multiline">
+          <div class="column is-3-tablet is-6-mobile">
+            <%= case input.type do %>
+              <% :UCO -> %>
+                <Amount.uco
+                  amount={input.amount}
+                  uco_price_at_time={@uco_price_at_time}
+                  uco_price_now={@uco_price_now}
+                />
+              <% {:token, token_address, token_id} -> %>
+                <Amount.token
+                  amount={input.amount}
+                  token_address={token_address}
+                  token_id={token_id}
+                  token_properties={@token_properties}
+                  socket={@socket}
+                />
+            <% end %>
+          </div>
 
-            <td>
-              <%= link(short_address(input.from),
-                to:
-                  Routes.live_path(
-                    @socket,
-                    ArchethicWeb.Explorer.TransactionDetailsLive,
-                    Base.encode16(input.from)
-                  )
-              ) %>
-            </td>
+          <div class="column is-narrow-tablet is-6-mobile">
+            <%= link(short_address(input.from),
+              to:
+                Routes.live_path(
+                  @socket,
+                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                  Base.encode16(input.from)
+                )
+            ) %>
+          </div>
 
-            <td><%= format_date(input.timestamp, display_utc: false) %></td>
-            <td>
-              <%= if input.spent? do %>
-                <span class="tag is-danger">Spent</span>
-              <% else %>
-                <span class="tag is-success">Unspent</span>
-              <% end %>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+          <div class="column is-narrow-tablet is-6-mobile"><%= format_date(input.timestamp) %></div>
+          <div class="column is-narrow-tablet is-6-mobile">
+            <%= if input.spent? do %>
+              <span class="tag is-danger">Spent</span>
+            <% else %>
+              <span class="tag is-success">Unspent</span>
+            <% end %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
     """
   end
 end

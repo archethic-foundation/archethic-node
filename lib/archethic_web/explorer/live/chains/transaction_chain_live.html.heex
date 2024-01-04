@@ -35,85 +35,37 @@
 </div>
 
 <%= if @address != "" and assigns[:error] == nil do %>
-  <div class="ae-box ae-purple shadow">
-    <%= if Enum.count(@transaction_chain) == 0 do %>
+  <%= if Enum.count(@transaction_chain) == 0 do %>
+    <div class="ae-box ae-purple shadow">
       <p class="heading">No transaction yet existing for this chain</p>
-    <% else %>
-      <div class="columns">
-        <div class="column">
-          <nav class="level">
-            <div class="level-item has-text-centered">
-              <div>
-                <p class="heading">Transactions</p>
-                <p class="kpi"><%= @chain_size %></p>
-              </div>
-            </div>
-            <div class="level-item has-text-centered">
-              <div>
-                <p class="heading">UCO Balance</p>
-                <p class="kpi">
-                  <%= from_bigint(@uco_balance) %> UCO
-                  <%= if @uco_balance > 0 do %>
-                    (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
-                  <% end %>
-                </p>
-              </div>
-            </div>
-          </nav>
+    </div>
+  <% else %>
+    <div class="columns">
+      <div class="column">
+        <div class="box1 my-4 has-text-centered">
+          <h1>Transactions count</h1>
+          <h2><%= @chain_size %></h2>
         </div>
       </div>
-
-      <div phx-hook="InfiniteScroll" data-page={@page} id="infinite_scroll">
-        <table class="table ae-table is-fullwidth is-hoverable">
-          <thead>
-            <tr>
-              <th>Address</th>
-              <th>Type</th>
-              <th>Date (UTC)</th>
-              <th>Fee</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%= for tx <- @transaction_chain do %>
-              <tr>
-                <td>
-                  <%= link(WebUtils.short_address(tx.address),
-                    to:
-                      Routes.live_path(
-                        @socket,
-                        ArchethicWeb.Explorer.TransactionDetailsLive,
-                        Base.encode16(tx.address)
-                      )
-                  ) %>
-                </td>
-                <td>
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <%= format_transaction_type(tx.type) %>
-                  <% end %>
-                </td>
-                <td>
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <%= format_date(tx.validation_stamp.timestamp, display_utc: false) %>
-                  <% end %>
-                </td>
-                <td>
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do %>
-                    <%= from_bigint(tx.validation_stamp.ledger_operations.fee) %>
-                  <% end %>
-                </td>
-              </tr>
+      <div class="column">
+        <div class="box2 my-4 has-text-centered">
+          <h1>UCO Balance</h1>
+          <h2>
+            <%= from_bigint(@uco_balance) %> UCO
+            <%= if @uco_balance > 0 do %>
+              (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
             <% end %>
-
-            <%= if length(@transaction_chain) < @chain_size do %>
-              <tr>
-                <td colspan="5" style="text-align: center" phx-click="load-more">
-                  Load more transactions
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+          </h2>
+        </div>
       </div>
-    <% end %>
-  </div>
+    </div>
+
+    <TransactionsList.display_all
+      transactions={@transaction_chain}
+      page={@page}
+      total={@chain_size}
+      socket={@socket}
+      uco_price_now={@uco_price}
+    />
+  <% end %>
 <% end %>

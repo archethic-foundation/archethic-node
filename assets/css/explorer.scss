@@ -117,7 +117,14 @@ pre {
 }
 
 .input-field {
-  width: 720px;
+  @include tablet {
+    width: 720px;
+  }
+
+  @include mobile {
+    width: 360px;
+  }
+
   padding: 1.5em;
   border-radius: $box-radius;
   border: 0.5px solid $color-brand-purple-400;
@@ -269,6 +276,11 @@ pre {
   background: #201844;
 }
 
+.ae-box .columns {
+  margin-bottom: 0;
+}
+
+
 
 .ae-left-heading {
   text-transform: uppercase;
@@ -326,6 +338,12 @@ a.simple-button:hover {
   background-color: hsla(0, 0%, 100%, .3);
 }
 
+li.th {
+  font-weight: 600;
+  margin-bottom: 1em !important;
+  border-bottom: 1px solid $color-neutral-0;
+}
+
 
 hr {
   border: none;
@@ -338,7 +356,7 @@ hr {
 
 .tag:not(body).is-gradient {
   color: white;
-  background-color: #202020;
+  background-color: $color-neutral-800;
   border: 1px solid $color-brand-raspberry-300;
   border-bottom-color: $color-brand-raspberry-400;
   border-right-color: $color-brand-raspberry-400;
@@ -409,4 +427,15 @@ hr {
   height: 14px;
   background: url(/images/show_icon.svg);
   background-size: cover;
+}
+
+
+
+.tx-details li.columns,
+.nodes-list li.columns {
+  @include mobile {
+    border-radius: $box-radius;
+    border: 1px dotted $color-brand-blue-200;
+    margin-bottom: 1em;
+  }
 }

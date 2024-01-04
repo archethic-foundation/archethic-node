@@ -12,9 +12,7 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
 
   alias Archethic.Crypto
   alias Archethic.OracleChain
-  alias ArchethicWeb.WebUtils
-
-  import ArchethicWeb.Explorer.ExplorerView
+  alias ArchethicWeb.Explorer.Components.TransactionsList
 
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}

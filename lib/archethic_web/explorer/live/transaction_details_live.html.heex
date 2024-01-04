@@ -1,5 +1,5 @@
 <% inputs_count = Enum.count(@inputs) %>
-<div class="body">
+<div class="body tx-details">
   <nav class="level">
     <div class="level-left">
       <div class="level-item">
@@ -185,16 +185,18 @@
               <div class="column ae-left-heading is-2">
                 UCO transfers (<%= ucos_transfers_count %>)
               </div>
-              <div class="column">
-                <ul>
-                  <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
-                    <li>
+              <ul class="column">
+                <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
+                  <li class="columns is-mobile">
+                    <div class="column is-3-tablet is-6-mobile">
                       <Amount.uco
                         amount={transfer.amount}
                         uco_price_at_time={@uco_price_at_time}
                         uco_price_now={@uco_price_now}
                       />
-                      <span class="px-4">→</span>
+                    </div>
+
+                    <div class="column is-6-mobile">
                       <%= link(WebUtils.short_address(transfer.to),
                         to:
                           Routes.live_path(
@@ -203,10 +205,10 @@
                             Base.encode16(transfer.to)
                           )
                       ) %>
-                    </li>
-                  <% end %>
-                </ul>
-              </div>
+                    </div>
+                  </li>
+                <% end %>
+              </ul>
             </div>
 
             <%!----------------------------- TOKENS TRANSFERS --------------------------------%>
@@ -215,10 +217,10 @@
               <div class="column ae-left-heading is-2">
                 Tokens transfers (<%= tokens_transfers_count %>)
               </div>
-              <div class="column">
-                <ul>
-                  <%= for transfer <- @transaction.data.ledger.token.transfers do %>
-                    <li>
+              <ul class="column">
+                <%= for transfer <- @transaction.data.ledger.token.transfers do %>
+                  <li class="columns is-mobile">
+                    <div class="column is-3-tablet is-6-mobile">
                       <Amount.token
                         amount={transfer.amount}
                         token_address={transfer.token_address}
@@ -226,7 +228,8 @@
                         token_properties={@token_properties}
                         socket={@socket}
                       />
-                      <span class="px-4">→</span>
+                    </div>
+                    <div class="column is-6-mobile">
                       <%= link(WebUtils.short_address(transfer.to),
                         to:
                           Routes.live_path(
@@ -235,10 +238,10 @@
                             Base.encode16(transfer.to)
                           )
                       ) %>
-                    </li>
-                  <% end %>
-                </ul>
-              </div>
+                    </div>
+                  </li>
+                <% end %>
+              </ul>
             </div>
             <%!----------------------------- MOVEMENTS --------------------------------%>
             <div class="columns">
@@ -247,18 +250,19 @@
               <div class="column ae-left-heading is-2">
                 Movements (<%= movements_count %>)
               </div>
-              <div class="column">
-                <ul>
-                  <%= for movement <- @transaction.validation_stamp.ledger_operations.transaction_movements do %>
-                    <%= case movement.type do %>
-                      <% :UCO -> %>
-                        <li>
+              <ul class="column">
+                <%= for movement <- @transaction.validation_stamp.ledger_operations.transaction_movements do %>
+                  <%= case movement.type do %>
+                    <% :UCO -> %>
+                      <li class="columns is-mobile">
+                        <div class="column is-3-tablet is-6-mobile">
                           <Amount.uco
                             amount={movement.amount}
                             uco_price_at_time={@uco_price_at_time}
                             uco_price_now={@uco_price_now}
                           />
-                          <span class="px-4">→</span>
+                        </div>
+                        <div class="column">
                           <%= link(WebUtils.short_address(movement.to),
                             to:
                               Routes.live_path(
@@ -267,9 +271,11 @@
                                 Base.encode16(movement.to)
                               )
                           ) %>
-                        </li>
-                      <% {:token, token_address, token_id} -> %>
-                        <li>
+                        </div>
+                      </li>
+                    <% {:token, token_address, token_id} -> %>
+                      <li class="columns is-mobile">
+                        <div class="column is-3-tablet is-6-mobile">
                           <Amount.token
                             amount={movement.amount}
                             token_address={token_address}
@@ -277,7 +283,8 @@
                             token_properties={@token_properties}
                             socket={@socket}
                           />
-                          <span class="px-4">→</span>
+                        </div>
+                        <div class="column  is-6-mobile">
                           <%= link(WebUtils.short_address(movement.to),
                             to:
                               Routes.live_path(
@@ -286,11 +293,11 @@
                                 Base.encode16(movement.to)
                               )
                           ) %>
-                        </li>
-                    <% end %>
+                        </div>
+                      </li>
                   <% end %>
-                </ul>
-              </div>
+                <% end %>
+              </ul>
             </div>
 
             <%!----------------------------- OWNERSHIPS --------------------------------%>
@@ -344,42 +351,50 @@
                 <% end %>
               </div>
 
-              <div class="column">
-                <ul>
-                  <%= for {recipient, resolved_address} <- Enum.zip(@transaction.data.recipients, @transaction.validation_stamp.recipients) do %>
-                    <li>
+              <ul class="column">
+                <%= for {recipient, resolved_address} <- Enum.zip(@transaction.data.recipients, @transaction.validation_stamp.recipients) do %>
+                  <li class="columns">
+                    <div class="column is-3">
                       <%= case recipient.action do %>
                         <% nil -> %>
                           <span class="tag is-gradient">N/A</span>
                         <% action -> %>
                           <span class="tag is-gradient"><%= action %></span>
                       <% end %>
-                      <span class="px-4">→</span>
-                      <%= link(WebUtils.short_address(recipient.address),
-                        to:
-                          Routes.live_path(
-                            @socket,
-                            ArchethicWeb.Explorer.TransactionDetailsLive,
-                            Base.encode16(recipient.address)
-                          )
-                      ) %> (resolved to <%= link(WebUtils.short_address(resolved_address),
+                    </div>
+                    <div class="column is-narrow">
+                      <%= link(WebUtils.short_address(resolved_address),
                         to:
                           Routes.live_path(
                             @socket,
                             ArchethicWeb.Explorer.TransactionDetailsLive,
                             Base.encode16(resolved_address)
                           )
-                      ) %> )
-                      <%= case Jason.encode(recipient.args, pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"]) do %>
-                        <% {:ok, str} -> %>
-                          <pre x-show="show"> <%= raw(str) %> </pre>
-                        <% _ -> %>
-                          <div></div>
-                      <% end %>
-                    </li>
+                      ) %>
+                    </div>
+                    <div class="column is-narrow">
+                      resolved from <%= link(WebUtils.short_address(recipient.address),
+                        to:
+                          Routes.live_path(
+                            @socket,
+                            ArchethicWeb.Explorer.TransactionDetailsLive,
+                            Base.encode16(recipient.address)
+                          )
+                      ) %>
+                    </div>
+                  </li>
+                  <%= case Jason.encode(recipient.args, pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"]) do %>
+                    <% {:ok, str} -> %>
+                      <li class="columns" x-show="show">
+                        <div class="column">
+                          <pre> <%= raw(str) %> </pre>
+                        </div>
+                      </li>
+                    <% _ -> %>
+                      <li></li>
                   <% end %>
-                </ul>
-              </div>
+                <% end %>
+              </ul>
             </div>
 
             <%!----------------------------- CALLS --------------------------------%>
@@ -421,62 +436,50 @@
                 <p>Unspent outputs (<%= utxos_count %>)</p>
               </div>
 
-              <div class="column">
-                <table class="table ae-table is-fullwidth is-hoverable">
-                  <thead>
-                    <tr>
-                      <th>Amount</th>
-                      <th>From</th>
-                      <th>Date (UTC)</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for utxo <- @transaction.validation_stamp.ledger_operations.unspent_outputs, utxo.type != :state do %>
-                      <tr>
-                        <td>
-                          <%= case utxo.type do %>
-                            <% :UCO -> %>
-                              <Amount.uco
-                                amount={utxo.amount}
-                                uco_price_at_time={@uco_price_at_time}
-                                uco_price_now={@uco_price_now}
-                              />
-                            <% {:token, token_address, token_id} -> %>
-                              <Amount.token
-                                amount={utxo.amount}
-                                token_address={token_address}
-                                token_id={token_id}
-                                token_properties={@token_properties}
-                                socket={@socket}
-                              />
-                          <% end %>
-                        </td>
-
-                        <td>
-                          <%= link(WebUtils.short_address(utxo.from),
-                            to:
-                              Routes.live_path(
-                                @socket,
-                                ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(utxo.from)
-                              )
-                          ) %>
-                        </td>
-
-                        <td><%= format_date(utxo.timestamp, display_utc: false) %></td>
-                        <td>
-                          <%= if ArchethicWeb.Explorer.TransactionDetailsLive.utxo_spent?(utxo, @inputs) do %>
-                            <span class="tag is-danger">Spent</span>
-                          <% else %>
-                            <span class="tag is-success">Unspent</span>
-                          <% end %>
-                        </td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
-              </div>
+              <ul class="column">
+                <%= for utxo <- @transaction.validation_stamp.ledger_operations.unspent_outputs, utxo.type != :state do %>
+                  <li class="columns is-mobile is-multiline">
+                    <div class="column is-3-tablet is-6-mobile">
+                      <%= case utxo.type do %>
+                        <% :UCO -> %>
+                          <Amount.uco
+                            amount={utxo.amount}
+                            uco_price_at_time={@uco_price_at_time}
+                            uco_price_now={@uco_price_now}
+                          />
+                        <% {:token, token_address, token_id} -> %>
+                          <Amount.token
+                            amount={utxo.amount}
+                            token_address={token_address}
+                            token_id={token_id}
+                            token_properties={@token_properties}
+                            socket={@socket}
+                          />
+                      <% end %>
+                    </div>
+                    <div class="column is-narrow-tablet is-6-mobile">
+                      <%= link(WebUtils.short_address(utxo.from),
+                        to:
+                          Routes.live_path(
+                            @socket,
+                            ArchethicWeb.Explorer.TransactionDetailsLive,
+                            Base.encode16(utxo.from)
+                          )
+                      ) %>
+                    </div>
+                    <div class="column is-narrow-tablet is-6-mobile">
+                      <%= format_date(utxo.timestamp) %>
+                    </div>
+                    <div class="column is-narrow-tablet is-6-mobile">
+                      <%= if ArchethicWeb.Explorer.TransactionDetailsLive.utxo_spent?(utxo, @inputs) do %>
+                        <span class="tag is-danger">Spent</span>
+                      <% else %>
+                        <span class="tag is-success">Unspent</span>
+                      <% end %>
+                    </div>
+                  </li>
+                <% end %>
+              </ul>
             </div>
 
             <%!----------------------------- INPUTS --------------------------------%>
