@@ -78,9 +78,17 @@ defmodule ArchethicWeb.WebUtils do
         opts
       ) do
     if Keyword.get(opts, :display_utc, true) do
-      "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC"
+      content_tag(
+        "span",
+        "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC",
+        class: "mono"
+      )
     else
-      "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)}"
+      content_tag(
+        "span",
+        "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)}",
+        class: "mono"
+      )
     end
   end
 

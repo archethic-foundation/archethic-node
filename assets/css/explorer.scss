@@ -9,6 +9,7 @@ html {
 
 
 body {
+  font-size: 0.9rem;
   background: #000000;
   color: $color-neutral-0;
   min-height: 100vh;
@@ -23,25 +24,31 @@ dt {
 
 
 .text_title {
-  position: relative;
-  font-size: 4rem;
   font-weight: 600;
+  line-height: 1;
   background: var(--gradient-1, linear-gradient(209deg, $color-brand-blue-400 0%, $color-brand-raspberry-300 100%));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  padding-bottom: 1px;
-  font-family: $font-default !important;
-  line-height: 1;
+
+
+  @include mobile {
+    font-size: 1rem;
+  }
+
+  @include tablet {
+    font-size: 1.2rem;
+  }
 }
 
 .text_subtitle {
   color: $color-neutral-0;
-  position: relative;
-  font-size: 20px;
   font-weight: 600;
-  padding-bottom: 1px;
-  font-family: 'PPTelegraf UltraLight';
+  font-family: $font-light;
+
+  @include tablet {
+    font-size: 1rem;
+  }
 }
 
 
@@ -279,7 +286,8 @@ pre {
 }
 
 .mono {
-  font-family: 'RobotoMono Regular' !important;
+  font-family: $font-mono !important;
+  word-break: break-all;
 }
 
 
@@ -298,26 +306,16 @@ pre {
   background-image: linear-gradient(20deg, $color-brand-blue-400, $color-brand-raspberry-300);
   border: none;
   border-radius: 9999px;
-  color: white;
+  color: $color-neutral-0;
   font-size: 16px;
   cursor: pointer;
 }
 
 a.simple-button {
   transition: background-color .8s cubic-bezier(.22, 1, .36, 1);
-  display: flex;
-  padding: 20px 24px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  padding: 0.5em 1em;
   border-radius: $box-radius;
   background-color: hsla(0, 0%, 100%, .1);
-  line-height: 1;
-  width: -moz-fit-content;
-  width: fit-content;
-  font-weight: 400;
-  font-size: 1.375rem;
 }
 
 a.simple-button>span {
@@ -325,15 +323,9 @@ a.simple-button>span {
 }
 
 a.simple-button:hover {
-  color: $color-neutral-0;
   background-color: hsla(0, 0%, 100%, .3);
 }
 
-a.simple-button.sm {
-  font-weight: normal;
-  padding: 4px;
-  font-size: 11px;
-}
 
 hr {
   border: none;
@@ -348,6 +340,8 @@ hr {
   color: white;
   background-color: #202020;
   border: 1px solid $color-brand-raspberry-300;
+  border-bottom-color: $color-brand-raspberry-400;
+  border-right-color: $color-brand-raspberry-400;
   border-radius: $box-radius;
   font-family: $font-mono !important;
 }
