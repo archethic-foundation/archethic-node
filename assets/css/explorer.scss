@@ -384,9 +384,35 @@ hr {
   font-weight: 400;
 }
 
-[data-tooltip]:not(.is-loading),
-[data-tooltip]:not(.is-disabled),
-[data-tooltip]:not([disabled]) {
-  text-decoration: underline;
-  text-decoration-style: dotted;
+
+.copy-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/copy_icon.svg);
+  background-size: cover;
+}
+
+.check-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/check_icon.svg);
+  background-size: cover;
+}
+
+.hide-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/hide_icon.svg);
+  background-size: cover;
+}
+
+.show-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/show_icon.svg);
+  background-size: cover;
 }

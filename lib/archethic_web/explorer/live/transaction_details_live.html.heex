@@ -97,9 +97,13 @@
                 <p>Code (<%= format_bytes(code_bytes) %>)</p>
                 <%= if code_bytes > 0 do %>
                   <p>
-                    <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
-                    <a id="copy-code-button" phx-hook="CopyToClipboard" data-target="#copy-code">
-                      COPY
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                    <a
+                      id="copy-code-button"
+                      phx-hook="CopyToClipboard"
+                      data-target="#copy-code"
+                      class="copy-icon"
+                    >
                     </a>
                   </p>
                 <% end %>
@@ -122,13 +126,13 @@
                 <p>Content (<%= format_bytes(content_bytes) %>)</p>
                 <%= if content_bytes > 0 do %>
                   <p>
-                    <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
                     <a
                       id="copy-content-button"
                       phx-hook="CopyToClipboard"
                       data-target="#copy-content"
+                      class="copy-icon"
                     >
-                      COPY
                     </a>
                   </p>
                 <% end %>
@@ -161,7 +165,9 @@
                 <p>State (<%= format_bytes(state_bytes) %>)</p>
 
                 <%= if state_utxo != nil do %>
-                  <p><a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a></p>
+                  <p>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                  </p>
                 <% end %>
               </div>
               <div class="column">
@@ -294,7 +300,7 @@
                 <p>Ownerships (<%= ownerships_count %>)</p>
                 <%= if ownerships_count > 0 do %>
                   <p>
-                    <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
                   </p>
                 <% end %>
               </div>
@@ -333,7 +339,7 @@
                 <p>Contract recipients (<%= recipients_count %>)</p>
                 <%= if recipients_count > 0 do %>
                   <p>
-                    <a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
                   </p>
                 <% end %>
               </div>
@@ -499,7 +505,9 @@
             <div class="columns" x-data="{show: false}">
               <div class="column ae-left-heading is-2">
                 <p>Proofs and signatures</p>
-                <p><a @click="show = !show" x-text="show ? 'HIDE' : 'SHOW'"></a></p>
+                <p>
+                  <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                </p>
               </div>
 
               <div class="column">

@@ -12,7 +12,9 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
 
   def uco(assigns = %{amount: 0}) do
     ~H"""
-    <span data-tooltip="at time: 0$, now: 0$">0 <span class="tag is-gradient">UCO</span></span>
+    <span class="mono" data-tooltip="at time: 0$, now: 0$">
+      0 <span class="tag is-gradient mono">UCO</span>
+    </span>
     """
   end
 
@@ -40,7 +42,9 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
       )
 
     ~H"""
-    <span data-tooltip={@tooltip}><%= @amount %> <span class="tag is-gradient">UCO</span></span>
+    <span class="mono" data-tooltip={@tooltip}>
+      <%= @amount %> <span class="tag is-gradient mono">UCO</span>
+    </span>
     """
   end
 
@@ -66,14 +70,16 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
                     "span",
                     String.slice(symbol, 0..(@max_symbol_len - 1)) <> "...",
                     "data-tooltip":
-                      symbol <> " declared at " <> Base.encode16(assigns.token_address)
+                      symbol <> " declared at " <> Base.encode16(assigns.token_address),
+                    class: "mono"
                   )
                 else
                   content_tag(
                     "span",
                     symbol,
                     "data-tooltip":
-                      symbol <> " declared at " <> Base.encode16(assigns.token_address)
+                      symbol <> " declared at " <> Base.encode16(assigns.token_address),
+                    class: "mono"
                   )
                 end
             end
@@ -81,7 +87,7 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
       })
 
     ~H"""
-    <span>
+    <span class="mono">
       <%= @amount %>
 
       <%= link(      to:
@@ -91,7 +97,7 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
             Base.encode16(@token_address)
           )
       ) do %>
-        <span class="tag is-gradient"><%= @token_name %></span>
+        <span class="tag is-gradient mono"><%= @token_name %></span>
       <% end %>
     </span>
     """

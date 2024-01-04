@@ -35,14 +35,6 @@ defmodule ArchethicWeb.WebUtils do
     %{"remote_ip" => conn.remote_ip}
   end
 
-  def short_address(<<0::8, 0::8, 0::256>>) do
-    content_tag(
-      "span",
-      "0000...0000",
-      "data-tooltip": "00000000000000000000000000000000000000000000000000000000000000000000"
-    )
-  end
-
   def short_address(address) do
     hex = Base.encode16(address)
     # we prefix the id because it's forbidden that they start with an integer
@@ -57,9 +49,18 @@ defmodule ArchethicWeb.WebUtils do
         content_tag("span", hex, id: uuid, style: "display: none"),
         short,
         " ",
-        content_tag("a", "✄", id: uuid2, "phx-hook": "CopyToClipboard", "data-target": "##{uuid}")
+        # an anchor to be able to wrap this with an anchor without messing with the copy
+        content_tag(
+          "a",
+          nil,
+          class: "copy-icon",
+          id: uuid2,
+          "phx-hook": "CopyToClipboard",
+          "data-target": "##{uuid}"
+        )
       ],
-      "data-tooltip": hex
+      "data-tooltip": hex,
+      class: "mono"
     )
   end
 
