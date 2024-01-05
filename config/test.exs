@@ -178,6 +178,8 @@ config :archethic, ArchethicWeb.TransactionSubscriber, enabled: false
 config :archethic, ArchethicWeb.DashboardMetrics, enabled: false
 config :archethic, ArchethicWeb.DashboardMetricsAggregator, enabled: false
 
+config :archethic, Archethic.UTXO.MemoryLedger, size_threshold: 2000
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :archethic, ArchethicWeb.Endpoint,

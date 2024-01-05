@@ -119,6 +119,13 @@ config :archethic,
        Archethic.DB.ChainIndex.MaxCacheSize,
        String.to_integer(System.get_env("ARCHETHIC.CHAIN_INDEX_MAX_CACHE_SIZE", "300000000"))
 
+config :archethic, Archethic.UTXO.MemoryLedger, [
+  # Default threshold size for the utxo input into memory is around 50KB
+  # For an average of UTXO: ~ 650B (token's type) to have 100 inputs, it represents 65KB
+  # To reach around 1GB of cache for this memory table, we can target around 15 000 genesis's input into memory
+  size_threshold: String.to_integer(System.get_env("ARCHETHIC.UTXO_SIZE_THRESHOLD", "50000"))
+]
+
 # Configure the endpoint
 config :archethic, ArchethicWeb.Endpoint,
   secret_key_base: "5mFu4p5cPMY5Ii0HvjkLfhYZYtC0JAJofu70bzmi5x3xzFIJNlXFgIY5g8YdDPMf",

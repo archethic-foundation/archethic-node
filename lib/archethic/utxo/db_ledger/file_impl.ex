@@ -96,6 +96,7 @@ defmodule Archethic.UTXO.DBLedger.FileImpl do
     case File.ls(base_path()) do
       {:ok, files} ->
         Enum.map(files, &Base.decode16/1)
+
       _ ->
         []
     end

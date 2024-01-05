@@ -95,4 +95,50 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
              ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
     end
   end
+
+  describe "add_chain_utxo/2" do
+    setup do
+      MockUTXOLedger
+      |> stub(:list_genesis_addresses, fn -> [] end)
+
+      MemoryLedger.start_link()
+
+      :ok
+    end
+
+    test "should add new unspent output into the genesis's ledger" do
+      MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{
+          from: ArchethicCase.random_address(),
+          timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
+          type: :UCO,
+          amount: 100_000_000
+        }
+      })
+
+      assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO}}] =
+               MemoryLedger.get_unspent_outputs("@Alice0")
+    end
+
+    test "should evict unspent outputs from memory if the size threshold is reached" do
+      for i <- 1..4 do
+        MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: ArchethicCase.random_address(),
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
+            type: :UCO,
+            amount: 100_000_000
+          }
+        })
+
+        unspent_outputs = MemoryLedger.get_unspent_outputs("@Alice0")
+
+        if i < 4 do
+          assert i == "@Alice0" |> MemoryLedger.get_unspent_outputs() |> length()
+        else
+          assert [] = MemoryLedger.get_unspent_outputs("@Alice0")
+        end
+      end
+    end
+  end
 end

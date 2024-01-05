@@ -8,6 +8,9 @@ defmodule Archethic.UTXO.MemoryLedger do
   @vsn Mix.Project.config()[:version]
 
   @table_name :archethic_utxo_ledger
+  @table_stats_name :archethic_utxo_ledger_stats
+
+  @threshold Application.compile_env(:archethic, __MODULE__) |> Keyword.fetch!(:size_threshold)
 
   require Logger
 
@@ -30,6 +33,7 @@ defmodule Archethic.UTXO.MemoryLedger do
     Logger.info("Initialize InMemory UTXO Ledger...")
 
     :ets.new(@table_name, [:bag, :named_table, :public, read_concurrency: true])
+    :ets.new(@table_stats_name, [:set, :named_table, :public, read_concurrency: true])
     load()
 
     {:ok, %{table_name: @table_name}}
@@ -40,9 +44,7 @@ defmodule Archethic.UTXO.MemoryLedger do
     |> Task.async_stream(fn genesis_address ->
       genesis_address
       |> DBLedger.stream()
-      |> Enum.each(fn utxo ->
-        :ets.insert(@table_name, {genesis_address, utxo})
-      end)
+      |> Enum.each(&add_chain_utxo(genesis_address, &1))
     end)
     |> Stream.run()
   end
@@ -59,13 +61,24 @@ defmodule Archethic.UTXO.MemoryLedger do
         utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: from, type: type}}
       )
       when is_binary(genesis_address) do
+    size = :erlang.external_size(utxo)
     :ets.insert(@table_name, {genesis_address, utxo})
 
-    Logger.debug(
-      "UTXO #{Base.encode16(from)}@#{inspect(type)} added for genesis #{inspect(genesis_address)}"
-    )
+    case :ets.lookup(@table_stats_name, genesis_address) do
+      [{_, previous_size}] when previous_size + size >= @threshold ->
+        :ets.delete(@table_stats_name, genesis_address)
+        :ets.delete(@table_name, genesis_address)
+        Logger.debug("UTXO ledger for #{Base.encode16(genesis_address)} evicted from memory")
 
-    :ok
+      _ ->
+        :ets.update_counter(@table_stats_name, genesis_address, {2, size}, {genesis_address, 0})
+
+        Logger.debug(
+          "UTXO #{Base.encode16(from)}@#{inspect(type)} added for genesis #{inspect(genesis_address)}"
+        )
+
+        :ok
+    end
   end
 
   @doc """
@@ -126,6 +139,8 @@ defmodule Archethic.UTXO.MemoryLedger do
       end
     )
 
+    # Reset size stats for this genesis's address
+    :ets.delete(@table_stats_name, genesis_address)
     Enum.each(updated_unspent_outputs, &add_chain_utxo(genesis_address, &1))
   end
 

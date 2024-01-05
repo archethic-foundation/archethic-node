@@ -1,4 +1,5 @@
 defmodule Archethic.UTXO do
+  @moduledoc false
   alias Archethic.DB
 
   alias Archethic.Crypto
