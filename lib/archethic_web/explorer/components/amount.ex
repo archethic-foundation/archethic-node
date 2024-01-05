@@ -72,7 +72,7 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
                     "span",
                     String.slice(symbol, 0..(@max_symbol_len - 1)) <> "...",
                     "data-tooltip":
-                      symbol <> " declared at " <> Base.encode16(assigns.token_address),
+                      symbol <> " minted at " <> Base.encode16(assigns.token_address),
                     class: "mono"
                   )
                 else
@@ -80,7 +80,7 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
                     "span",
                     symbol,
                     "data-tooltip":
-                      symbol <> " declared at " <> Base.encode16(assigns.token_address),
+                      symbol <> " minted at " <> Base.encode16(assigns.token_address),
                     class: "mono"
                   )
                 end
