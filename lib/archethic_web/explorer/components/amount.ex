@@ -25,16 +25,18 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
         %{
           amount: from_bigint(assigns.amount),
           tooltip:
-            if Map.has_key?(assigns, :uco_price_at_time) do
-              format_full_usd_amount(
-                assigns.amount,
-                assigns.uco_price_at_time[:usd],
-                assigns.uco_price_now[:usd]
-              )
-            else
-              "now: " <>
-                format_usd_amount(
+            case Map.get(assigns, :uco_price_at_time) do
+              nil ->
+                "now: " <>
+                  format_usd_amount(
+                    assigns.amount,
+                    assigns.uco_price_now[:usd]
+                  )
+
+              _ ->
+                format_full_usd_amount(
                   assigns.amount,
+                  assigns.uco_price_at_time[:usd],
                   assigns.uco_price_now[:usd]
                 )
             end
