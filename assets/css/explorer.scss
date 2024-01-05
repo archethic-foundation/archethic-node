@@ -15,6 +15,7 @@ body {
   min-height: 100vh;
   background: $color-brand-plum-800;
   background: radial-gradient(circle, $color-brand-plum-400 0%, #000000 95%);
+  overflow-x: hidden;
 }
 
 dt {
