@@ -1,0 +1,555 @@
+<% inputs_count = Enum.count(@inputs) %>
+<div class="body tx-details">
+  <nav class="level">
+    <div class="level-left">
+      <div class="level-item">
+        <div>
+          <p class="text_title">Transaction details</p>
+          <p class="text_subtitle mono">
+            <%= Base.encode16(@address) %>
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="level-right">
+      <%= if @previous_address != nil do %>
+        <div class="level-item">
+          <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@previous_address)) do %>
+            <span>Previous transaction</span>
+          <% end %>
+        </div>
+      <% end %>
+      <%= if @address != burning_address() do %>
+        <div class="level-item">
+          <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@address)) do %>
+            <span>Explore chain</span>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </nav>
+
+  <div class="ae-box ae-purple shadow">
+    <%= cond do %>
+      <% @address == burning_address() -> %>
+        <p>This address is not owned by any user being the burn address.</p>
+        <%= if inputs_count > 0 do %>
+          <div class="my-4 is-size-4">Inputs (<%= inputs_count %>)</div>
+          <InputsList.display_all
+            inputs={@inputs}
+            socket={@socket}
+            uco_price_now={@uco_price_now}
+            token_properties={@token_properties}
+          />
+        <% end %>
+      <% assigns[:error] != nil and @error == :not_exists -> %>
+        <p>
+          This transaction does not exist. This means, either the transaction has not be validated yet, or it is a genesis address.
+        </p>
+
+        <%= if inputs_count > 0 do %>
+          <div class="my-4 is-size-4">Inputs (<%= inputs_count %>)</div>
+          <InputsList.display_all
+            inputs={@inputs}
+            socket={@socket}
+            uco_price_now={@uco_price_now}
+            token_properties={@token_properties}
+          />
+        <% end %>
+      <% assigns[:error] != nil and @error == :invalid_address -> %>
+        <p>The given transaction address is invalid.</p>
+        <small>Please check the transaction address validity.</small>
+      <% true -> %>
+        <div class="is-2">
+          <div>
+            <%!-------------------------------- TYPE --------------------------------%>
+            <div class="columns">
+              <div class="column ae-left-heading is-2">Type</div>
+              <div class="column">
+                <%= format_transaction_type(@transaction.type, tag: false) %>
+              </div>
+            </div>
+
+            <%!---------------------------- VALIDATION TIME ----------------------------%>
+            <div class="columns">
+              <div class="column ae-left-heading is-2">Validation date</div>
+              <div class="column">
+                <%= format_date(@transaction.validation_stamp.timestamp) %>
+              </div>
+            </div>
+
+            <%!---------------------------- FEE ----------------------------%>
+            <div class="columns">
+              <div class="column ae-left-heading is-2">Fee</div>
+              <div class="column">
+                <Amount.uco
+                  amount={@transaction.validation_stamp.ledger_operations.fee}
+                  uco_price_at_time={@uco_price_at_time}
+                  uco_price_now={@uco_price_now}
+                />
+              </div>
+            </div>
+
+            <%!-------------------------------- CODE --------------------------------%>
+            <div class="columns" x-data="{show: true}">
+              <% code_bytes = byte_size(@transaction.data.code) %>
+              <div class="column ae-left-heading is-2">
+                <p>Code (<%= format_bytes(code_bytes) %>)</p>
+                <%= if code_bytes > 0 do %>
+                  <p>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                    <a
+                      id="copy-code-button"
+                      phx-hook="CopyToClipboard"
+                      data-target="#copy-code"
+                      class="copy-icon"
+                    >
+                    </a>
+                  </p>
+                <% end %>
+              </div>
+              <div class="column">
+                <%= if code_bytes == 0 do %>
+                  <div></div>
+                <% else %>
+                  <div x-show="show" class="is-relative">
+                    <pre id="copy-code"><%= @transaction.data.code %></pre>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <%!-------------------------------- CONTENT --------------------------------%>
+            <div class="columns" x-data="{show: true}">
+              <% content_bytes = byte_size(@transaction.data.content) %>
+              <div class="column ae-left-heading is-2">
+                <p>Content (<%= format_bytes(content_bytes) %>)</p>
+                <%= if content_bytes > 0 do %>
+                  <p>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                    <a
+                      id="copy-content-button"
+                      phx-hook="CopyToClipboard"
+                      data-target="#copy-content"
+                      class="copy-icon"
+                    >
+                    </a>
+                  </p>
+                <% end %>
+              </div>
+              <div class="column">
+                <%= if content_bytes == 0 do %>
+                  <div></div>
+                <% else %>
+                  <div x-show="show" class="is-relative">
+                    <pre id="copy-content"><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <%!-------------------------------- STATE --------------------------------%>
+            <div class="columns" x-data="{show: true}">
+              <% state_utxo =
+                Enum.find(
+                  @transaction.validation_stamp.ledger_operations.unspent_outputs,
+                  &(&1.type == :state)
+                )
+
+              state_bytes =
+                case state_utxo do
+                  nil -> 0
+                  _ -> byte_size(state_utxo.encoded_payload)
+                end %>
+              <div class="column ae-left-heading is-2">
+                <p>State (<%= format_bytes(state_bytes) %>)</p>
+
+                <%= if state_utxo != nil do %>
+                  <p>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                  </p>
+                <% end %>
+              </div>
+              <div class="column">
+                <%= if state_utxo == nil do %>
+                  <div></div>
+                <% else %>
+                  <pre x-show="show"><%= ArchethicWeb.Explorer.TransactionDetailsLive.print_state(state_utxo) %></pre>
+                <% end %>
+              </div>
+            </div>
+
+            <%!----------------------------- MOVEMENTS --------------------------------%>
+            <div class="columns">
+              <% movements_count = Enum.count(@movements_zipped) %>
+              <div class="column ae-left-heading is-2">
+                Movements (<%= movements_count %>)
+              </div>
+              <ul class="column">
+                <%= for {movement, transfer_address} <- @movements_zipped do %>
+                  <%= case movement.type do %>
+                    <% :UCO -> %>
+                      <li class="columns">
+                        <div class="column is-narrow">
+                          <span class="ae-label">To</span>
+
+                          <%= link(WebUtils.short_address(transfer_address),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(transfer_address)
+                              )
+                          ) %>
+                        </div>
+
+                        <div class="column is-narrow">
+                          <%= if transfer_address == nil do %>
+                            <span class="tag is-success mono">MINTED</span>
+                          <% else %>
+                            <span class="ae-label">Resolved</span>
+
+                            <%= link(WebUtils.short_address(movement.to),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(movement.to)
+                                )
+                            ) %>
+                          <% end %>
+                        </div>
+
+                        <div class="column is-narrow">
+                          <span class="ae-label">Amount</span>
+                          <Amount.uco
+                            amount={movement.amount}
+                            uco_price_at_time={@uco_price_at_time}
+                            uco_price_now={@uco_price_now}
+                          />
+                        </div>
+                      </li>
+                    <% {:token, token_address, token_id} -> %>
+                      <li class="columns">
+                        <div class="column is-narrow">
+                          <span class="ae-label">To</span>
+
+                          <%= link(WebUtils.short_address(transfer_address),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(transfer_address)
+                              )
+                          ) %>
+                        </div>
+
+                        <div class="column is-narrow">
+                          <%= if transfer_address == nil do %>
+                            <span class="tag is-success mono">MINTED</span>
+                          <% else %>
+                            <span class="ae-label">Resolved</span>
+                            <%= link(WebUtils.short_address(movement.to),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(movement.to)
+                                )
+                            ) %>
+                          <% end %>
+                        </div>
+
+                        <div class="column is-narrow">
+                          <span class="ae-label">Amount</span>
+                          <Amount.token
+                            amount={movement.amount}
+                            token_address={token_address}
+                            token_id={token_id}
+                            token_properties={@token_properties}
+                            socket={@socket}
+                          />
+                        </div>
+                      </li>
+                  <% end %>
+                <% end %>
+              </ul>
+            </div>
+
+            <%!----------------------------- OWNERSHIPS --------------------------------%>
+            <div class="columns" x-data="{show: false}">
+              <% ownerships_count = Enum.count(@transaction.data.ownerships) %>
+              <div class="column ae-left-heading is-2">
+                <p>Ownerships (<%= ownerships_count %>)</p>
+                <%= if ownerships_count > 0 do %>
+                  <p>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                  </p>
+                <% end %>
+              </div>
+              <div class="column">
+                <ul>
+                  <%= for ownership <- @transaction.data.ownerships do %>
+                    <% authorized_keys_count = Enum.count(ownership.authorized_keys) %>
+                    <li>
+                      <p>
+                        Secret shared with <%= authorized_keys_count %> key<%= if authorized_keys_count >
+                                                                                    1,
+                                                                                  do: "s" %>
+                      </p>
+                      <div class="box" x-show="show">
+                        <p class="heading">Encoded secret</p>
+                        <p class="mono"><%= Base.encode16(ownership.secret) %></p>
+
+                        <p class="heading mt-3">Authorized keys</p>
+                        <ul>
+                          <%= for { key, _enc_key} <- ownership.authorized_keys do %>
+                            <li class="mono"><%= Base.encode16(key) %></li>
+                          <% end %>
+                        </ul>
+                      </div>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            </div>
+
+            <%!----------------------------- RECIPIENTS --------------------------------%>
+            <div class="columns" x-data="{show: true}">
+              <% recipients_count = Enum.count(@transaction.data.recipients) %>
+
+              <div class="column ae-left-heading is-2">
+                <p>Contract recipients (<%= recipients_count %>)</p>
+                <%= if recipients_count > 0 do %>
+                  <p>
+                    <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                  </p>
+                <% end %>
+              </div>
+
+              <ul class="column">
+                <%= for {recipient, resolved_address} <- Enum.zip(@transaction.data.recipients, @transaction.validation_stamp.recipients) do %>
+                  <li class="columns is-multiline">
+                    <div class="column is-narrow">
+                      <span class="ae-label">To</span>
+                      <%= link(WebUtils.short_address(recipient.address),
+                        to:
+                          Routes.live_path(
+                            @socket,
+                            ArchethicWeb.Explorer.TransactionDetailsLive,
+                            Base.encode16(recipient.address)
+                          )
+                      ) %>
+                    </div>
+
+                    <div class="column is-narrow">
+                      <span class="ae-label">Resolved</span>
+                      <%= link(WebUtils.short_address(resolved_address),
+                        to:
+                          Routes.live_path(
+                            @socket,
+                            ArchethicWeb.Explorer.TransactionDetailsLive,
+                            Base.encode16(resolved_address)
+                          )
+                      ) %>
+                    </div>
+
+                    <div class="column is-narrow">
+                      <%= case recipient.action do %>
+                        <% nil -> %>
+                          <span class="tag is-gradient">N/A</span>
+                        <% action -> %>
+                          <span class="tag is-gradient"><%= action %></span>
+                      <% end %>
+                    </div>
+
+                    <%= case Jason.encode(recipient.args, pretty: [line_separator: "<br />", indent: "&nbsp;&nbsp;"]) do %>
+                      <% {:ok, str} -> %>
+                        <div class="column is-12" x-show="show">
+                          <pre> <%= raw(str) %> </pre>
+                        </div>
+                      <% _ -> %>
+                        <div></div>
+                    <% end %>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+
+            <%!----------------------------- CALLS --------------------------------%>
+            <div class="columns">
+              <% calls_count = Enum.count(@calls) %>
+
+              <div class="column ae-left-heading is-2">
+                <p>Contract inputs (<%= calls_count %>)</p>
+              </div>
+
+              <div class="column">
+                <%= if calls_count > 0 do %>
+                  <ul>
+                    <%= for call <- @calls do %>
+                      <li>
+                        <%= link(WebUtils.short_address(call.from),
+                          to:
+                            Routes.live_path(
+                              @socket,
+                              ArchethicWeb.Explorer.TransactionDetailsLive,
+                              Base.encode16(call.from)
+                            )
+                        ) %>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% else %>
+                  <div></div>
+                <% end %>
+              </div>
+            </div>
+
+            <%!----------------------------- OUTPUTS --------------------------------%>
+            <div class="columns">
+              <% utxos_count =
+                Enum.count(@transaction.validation_stamp.ledger_operations.unspent_outputs) %>
+
+              <div class="column ae-left-heading is-2">
+                <p>Unspent outputs (<%= utxos_count %>)</p>
+              </div>
+
+              <ul class="column">
+                <%= for utxo <- @transaction.validation_stamp.ledger_operations.unspent_outputs, utxo.type != :state do %>
+                  <li class="columns">
+                    <div class="column is-narrow">
+                      <span class="ae-label">From</span>
+                      <%= link(WebUtils.short_address(utxo.from),
+                        to:
+                          Routes.live_path(
+                            @socket,
+                            ArchethicWeb.Explorer.TransactionDetailsLive,
+                            Base.encode16(utxo.from)
+                          )
+                      ) %>
+                    </div>
+
+                    <div class="column is-narrow">
+                      <span class="ae-label">At</span>
+                      <%= format_date(utxo.timestamp) %>
+                    </div>
+
+                    <div class="column is-narrow">
+                      <span class="ae-label">Amount</span>
+                      <%= case utxo.type do %>
+                        <% :UCO -> %>
+                          <Amount.uco
+                            amount={utxo.amount}
+                            uco_price_at_time={@uco_price_at_time}
+                            uco_price_now={@uco_price_now}
+                          />
+                        <% {:token, token_address, token_id} -> %>
+                          <Amount.token
+                            amount={utxo.amount}
+                            token_address={token_address}
+                            token_id={token_id}
+                            token_properties={@token_properties}
+                            socket={@socket}
+                          />
+                      <% end %>
+                    </div>
+
+                    <div class="column is-narrow">
+                      <%= if ArchethicWeb.Explorer.TransactionDetailsLive.utxo_spent?(utxo, @inputs) do %>
+                        <span class="tag is-danger mono">Spent&nbsp;&nbsp;</span>
+                      <% else %>
+                        <span class="tag is-success mono">Unspent</span>
+                      <% end %>
+                    </div>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+
+            <%!----------------------------- INPUTS --------------------------------%>
+            <div class="columns">
+              <% inputs_filtered_count = Enum.count(@inputs_filtered) %>
+              <div class="column ae-left-heading is-2">
+                <p>Inputs (<%= inputs_filtered_count %>)</p>
+              </div>
+
+              <div class="column">
+                <%= if inputs_filtered_count == 0 do %>
+                  <div></div>
+                <% else %>
+                  <InputsList.display_all
+                    inputs={@inputs_filtered}
+                    socket={@socket}
+                    uco_price_at_time={@uco_price_at_time}
+                    uco_price_now={@uco_price_now}
+                    token_properties={@token_properties}
+                  />
+                <% end %>
+              </div>
+            </div>
+
+            <%!----------------------------- CRYPTO --------------------------------%>
+            <div class="columns" x-data="{show: false}">
+              <div class="column ae-left-heading is-2">
+                <p>Proofs and signatures</p>
+                <p>
+                  <a @click="show = !show" x-bind:class="show ? 'hide-icon' : 'show-icon'"></a>
+                </p>
+              </div>
+
+              <div class="column">
+                <div class="box" x-show="show">
+                  <p class="heading">Previous public key</p>
+                  <p class="mono"><%= Base.encode16(@transaction.previous_public_key) %></p>
+
+                  <p class="heading mt-3">Previous signature</p>
+                  <p class="mono">
+                    <%= Base.encode16(@transaction.previous_signature) %>
+                  </p>
+
+                  <p class="heading mt-3">Origin signature</p>
+                  <p class="mono">
+                    <%= Base.encode16(@transaction.origin_signature) %>
+                  </p>
+
+                  <p class="heading mt-3">Proof of work</p>
+                  <p class="mono">
+                    <%= Base.encode16(@transaction.validation_stamp.proof_of_work) %>
+                  </p>
+
+                  <p class="heading mt-3">Proof of integrity</p>
+                  <p class="mono">
+                    <%= Base.encode16(@transaction.validation_stamp.proof_of_integrity) %>
+                  </p>
+
+                  <p class="heading mt-3">Coordinator signature</p>
+                  <p class="mono">
+                    <%= Base.encode16(@transaction.validation_stamp.signature) %>
+                  </p>
+
+                  <%= for {cross_validation_stamp, i} <- Enum.with_index(@transaction.cross_validation_stamps) do %>
+                    <p class="heading mt-3">Validator #<%= i + 1 %> public key</p>
+                    <p class="mono">
+                      <%= link(Base.encode16(cross_validation_stamp.node_public_key),
+                        to:
+                          Routes.live_path(
+                            @socket,
+                            ArchethicWeb.Explorer.NodeDetailsLive,
+                            Base.encode16(cross_validation_stamp.node_public_key)
+                          )
+                      ) %>
+                    </p>
+                    <p class="heading mt-3">Validator #<%= i + 1 %> signature</p>
+                    <p class="mono">
+                      <%= Base.encode16(cross_validation_stamp.signature) %>
+                    </p>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+    <% end %>
+  </div>
+</div>

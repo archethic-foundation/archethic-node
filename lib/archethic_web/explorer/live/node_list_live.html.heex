@@ -1,0 +1,121 @@
+<div class="body nodes-list">
+  <div class="text_title">Nodes list</div>
+  <div class="text_subtitle">
+    Nodes are elected for storing and validating transactions. They are the network.
+  </div>
+
+  <div class="columns">
+    <div class="column">
+      <div class="box1 my-4 has-text-centered">
+        <h1>Authorized nodes</h1>
+        <h2><%= Enum.count(@authorized_nodes) %></h2>
+      </div>
+    </div>
+    <div class="column">
+      <div class="box2 my-4 has-text-centered">
+        <h1>Pending nodes</h1>
+        <h2><%= Enum.count(@pending_nodes) %></h2>
+      </div>
+    </div>
+    <div class="column">
+      <div class="box1 my-4 has-text-centered">
+        <h1>New nodes</h1>
+        <h2><%= Enum.count(@new_nodes) %></h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="ae-box ae-purple shadow">
+    <ul>
+      <li class="columns is-hidden-mobile th">
+        <div class="column is-3-tablet is-6-mobile">First public key</div>
+        <div class="column">Status</div>
+        <div class="column">
+          <abbr title="Global availability">Global avail.</abbr>
+        </div>
+        <div class="column">
+          <abbr title="Global availability">Local avail.</abbr>
+        </div>
+        <div class="column">Geo patch</div>
+        <div class="column">Network patch</div>
+      </li>
+
+      <%= for {status, nodes} <- [{:authorized, @authorized_nodes}, {:pending, @pending_nodes}, {:new, @new_nodes}]  do %>
+        <%= for node <- nodes do %>
+          <li class="columns is-mobile is-multiline">
+            <div class="column is-3-tablet is-12-mobile" title="Node first public key">
+              <%= link(WebUtils.short_address(node.first_public_key),
+                to:
+                  Routes.live_path(
+                    @socket,
+                    ArchethicWeb.Explorer.NodeDetailsLive,
+                    Base.encode16(node.first_public_key)
+                  )
+              ) %>
+            </div>
+            <div class="column" title="Node status">
+              <%= case status do %>
+                <% :authorized -> %>
+                  <span class="tag is-success">Authorized</span>
+                <% :pending -> %>
+                  <span class="tag is-warning">Pending</span>
+                <% :new -> %>
+                  <span class="tag is-danger">New</span>
+              <% end %>
+            </div>
+            <div class="column" title="Global availability">
+              <%= if node.available? do %>
+                <span class="tag is-success">YES</span>
+              <% else %>
+                <span class="tag is-danger">NO</span>
+              <% end %>
+            </div>
+            <div class="column" title="Local availability">
+              <%= if Archethic.P2P.node_connected?(node) do %>
+                <span class="tag is-success">YES</span>
+              <% else %>
+                <span class="tag is-danger">NO</span>
+              <% end %>
+            </div>
+            <div class="column mono" title="Geo patch"><%= node.geo_patch %></div>
+            <div class="column mono" title="Network patch"><%= node.network_patch %></div>
+          </li>
+        <% end %>
+      <% end %>
+    </ul>
+
+    <div class="content">
+      <div class="my-4 is-size-4">Glossary</div>
+      <dl>
+        <dt>Status: Authorized</dt>
+        <dd>
+          Nodes which have been authorized during the node shared secrets renewal and will participate in the transaction validation.
+        </dd>
+        <dt>Status: Pending</dt>
+        <dd>
+          Nodes which have been marked available by the network but not yet authorized, because the network didn't make the authorized node renewal or the network doesn't require more validation nodes.
+        </dd>
+        <dt>Status: New</dt>
+        <dd>
+          Nodes which recently joined the network since the last node renewal transaction.
+        </dd>
+        <dt>Global availability</dt>
+        <dd>
+          Is the node uptime good enough for the network?
+        </dd>
+        <dt>Local availability</dt>
+        <dd>
+          Is the node currently connected?
+        </dd>
+        <dt>Geo patch</dt>
+        <dd>
+          The geographical position of the node on earth.
+        </dd>
+        <dt>Network patch</dt>
+        <dd>
+          The position of the node in a graph were the distance between the nodes is their latency.
+        </dd>
+      </dl>
+    </div>
+  </div>
+</div>

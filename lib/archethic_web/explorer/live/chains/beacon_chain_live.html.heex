@@ -1,0 +1,30 @@
+<div class="text_title">Beacon chain</div>
+<div class="text_subtitle">
+  The Beacon chain contains the list of all transactions that were validated in a specific time interval.<br />
+  It is responsible for the global synchronization of the network.
+</div>
+
+<ArchethicWeb.Explorer.Pagination.previous_next
+  current_page={@current_date_page}
+  total_pages={Enum.count(@dates)}
+/>
+
+<% summary_time = Enum.at(@dates, @current_date_page - 1)
+previous_summary_time = Archethic.BeaconChain.previous_summary_time(summary_time) %>
+
+<div>
+  Transactions that were validated between <%= format_date(previous_summary_time) %> and <%= format_date(
+    summary_time
+  ) %>
+</div>
+
+<%= if @fetching do %>
+  <div>Loading transactions...</div>
+<% else %>
+  <TransactionsList.display_all
+    transactions={@transactions}
+    socket={@socket}
+    uco_price_now={@uco_price_now}
+  />
+  <div>Last changes from <%= format_date(@update_time) %></div>
+<% end %>

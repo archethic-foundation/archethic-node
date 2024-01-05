@@ -83,15 +83,19 @@ defmodule ArchethicWeb.Explorer.CodeView do
 
       patch > current_patch ->
         content_tag(:span, ["Patch"], class: "tag is-primary is-light")
+
+      true ->
+        # happens when version is X.X.X-rcX
+        content_tag(:span, ["Patch"], class: "tag is-primary is-light")
     end
   end
 
-  defp current_version do
+  def current_version do
     {:ok, vsn} = :application.get_key(:archethic, :vsn)
     Version.parse!(List.to_string(vsn))
   end
 
-  defp format_description(content) do
+  def format_description(content) do
     {:ok, html, _} = Earmark.as_html(content, gfm: true, breaks: true)
     html
   end

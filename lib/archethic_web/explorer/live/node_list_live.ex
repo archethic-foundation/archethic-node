@@ -5,10 +5,7 @@ defmodule ArchethicWeb.Explorer.NodeListLive do
 
   alias Archethic.P2P
   alias Archethic.PubSub
-
-  alias ArchethicWeb.Explorer.NodeView
-
-  alias Phoenix.View
+  alias ArchethicWeb.WebUtils
 
   def mount(_params, _session, socket) do
     nodes = P2P.list_nodes()
@@ -30,10 +27,6 @@ defmodule ArchethicWeb.Explorer.NodeListLive do
       |> assign(:nb_nodes, length(nodes))
 
     {:ok, new_socket}
-  end
-
-  def render(assigns) do
-    View.render(NodeView, "list.html", assigns)
   end
 
   def handle_info({:node_update, _}, socket) do

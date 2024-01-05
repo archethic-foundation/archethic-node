@@ -18,18 +18,27 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.TransactionInput
-  alias ArchethicWeb.Explorer.ExplorerView
-  alias Phoenix.View
+  alias ArchethicWeb.WebUtils
+  alias ArchethicWeb.Explorer.Components.InputsList
+  alias ArchethicWeb.Explorer.Components.Amount
+  import ArchethicWeb.Explorer.ExplorerView
 
   def mount(_params, _session, socket) do
+    uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
+
     {:ok,
      assign(socket, %{
        exists: false,
        previous_address: nil,
        transaction: nil,
        inputs: [],
-       calls: []
+       inputs_filtered: [],
+       movements_zipped: [],
+       calls: [],
+       uco_price_now: uco_price_now
      })}
   end
 
@@ -75,7 +84,16 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
       ) do
     async_assign_token_properties(assigns[:inputs], transaction_movements, token_transfers)
 
-    {:noreply, assign(socket, assigns)}
+    inputs_filtered = filter_inputs(Keyword.get(assigns, :inputs, []), socket.assigns.transaction)
+
+    movements_zipped =
+      zip_movements_with_transfers(transaction_movements, socket.assigns.transaction)
+
+    {:noreply,
+     socket
+     |> assign(assigns)
+     |> assign(:inputs_filtered, inputs_filtered)
+     |> assign(:movements_zipped, movements_zipped)}
   end
 
   def handle_info({:async_assign_token_properties, assigns}, socket) do
@@ -84,14 +102,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   def handle_info(_, socket) do
     {:noreply, socket}
-  end
-
-  def render(assigns = %{ko?: true}) do
-    View.render(ExplorerView, "ko_transaction.html", assigns)
-  end
-
-  def render(assigns) do
-    View.render(ExplorerView, "transaction_details.html", assigns)
   end
 
   defp get_transaction(address, %{"address" => "true"}) do
@@ -117,7 +127,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     previous_address = Transaction.previous_address(tx)
 
     uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
-    uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
 
     async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers)
 
@@ -126,7 +135,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:previous_address, previous_address)
     |> assign(:address, address)
     |> assign(:uco_price_at_time, uco_price_at_time)
-    |> assign(:uco_price_now, uco_price_now)
     |> assign(:inputs, [])
     |> assign(:calls, [])
     |> assign(:token_properties, %{})
@@ -268,5 +276,87 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   def print_state(%UnspentOutput{encoded_payload: encoded_state}) do
     encoded_state |> State.deserialize() |> elem(0) |> Jason.encode!(pretty: true)
+  end
+
+  # loop through the inputs to detect if a UTXO is spent or not
+  def utxo_spent?(utxo, inputs) do
+    case Enum.find(inputs, &similar?(&1, utxo)) do
+      nil -> false
+      input -> input.spent?
+    end
+  end
+
+  defp zip_movements_with_transfers(movements, %Transaction{
+         data: %TransactionData{
+           ledger: %Ledger{
+             uco: %UCOLedger{
+               transfers: uco_transfers
+             },
+             token: %TokenLedger{
+               transfers: token_transfers
+             }
+           }
+         }
+       }) do
+    # movements are inserted in this order: 1: uco 2: token 3: mint
+    uco_transfers_count = length(uco_transfers)
+    token_transfers_count = length(token_transfers)
+
+    {uco_movements, rest} = Enum.split(movements, uco_transfers_count)
+    {token_movements, mint_movements} = Enum.split(rest, token_transfers_count)
+
+    List.flatten([
+      uco_movements
+      |> Enum.zip_with(uco_transfers, fn movement, %UCOTransfer{to: address} ->
+        {movement, address}
+      end),
+      token_movements
+      |> Enum.zip_with(token_transfers, fn movement, %TokenTransfer{to: address} ->
+        {movement, address}
+      end),
+      mint_movements
+      |> Enum.map(&{&1, nil})
+    ])
+  end
+
+  defp filter_inputs(
+         inputs,
+         %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{unspent_outputs: utxos}
+           }
+         }
+       ) do
+    Enum.reject(inputs, fn input ->
+      Enum.any?(utxos, &similar?(input, &1))
+    end)
+  end
+
+  defp filter_inputs(inputs, _), do: inputs
+
+  defp similar?(
+         %TransactionInput{
+           type: in_type,
+           from: in_from,
+           amount: in_amount,
+           timestamp: in_timestamp
+         },
+         %UnspentOutput{
+           type: out_type,
+           from: out_from,
+           amount: out_amount,
+           timestamp: out_timestamp
+         }
+       ) do
+    # sometimes inputs' dates are rounded to second but not always
+    # this means we need to truncate to compare
+    in_type == out_type &&
+      in_from == out_from &&
+      in_amount == out_amount &&
+      DateTime.truncate(in_timestamp, :second) == DateTime.truncate(out_timestamp, :second)
+  end
+
+  defp similar?(_, _) do
+    false
   end
 end

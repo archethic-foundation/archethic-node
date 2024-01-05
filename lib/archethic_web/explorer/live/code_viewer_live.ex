@@ -3,9 +3,7 @@ defmodule ArchethicWeb.Explorer.CodeViewerLive do
   use ArchethicWeb.Explorer, :live_view
 
   alias Archethic.Governance
-  alias ArchethicWeb.Explorer.CodeView
-
-  alias Phoenix.View
+  import ArchethicWeb.Explorer.CodeView
 
   # @root_dir Application.compile_env(:archethic, :src_dir)
 
@@ -23,10 +21,6 @@ defmodule ArchethicWeb.Explorer.CodeViewerLive do
 
       put_in(acc, path, %{})
     end)
-  end
-
-  def render(assigns) do
-    View.render(CodeView, "viewer.html", assigns)
   end
 
   def handle_event("view", %{"filename" => filename}, socket) do

@@ -1,0 +1,38 @@
+<div class="body">
+  <div class="text_title">Code proposals</div>
+  <div class="text_subtitle">
+    These are proposed changes to the node's code by the community. The Archethic Foundation governance will accept or reject them.
+  </div>
+  <div class="ae-box ae-purple shadow">
+    <%= if Enum.count(@proposals) == 0 do %>
+      <div>There is no code proposals yet !</div>
+    <% else %>
+      <%= for proposal <- @proposals do %>
+        <table class="table ae-table is-fullwidth is-hoverable">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>Date (UTC)</th>
+              <th>Version</th>
+              <th><abbr title="Semantic versionning">Semver.</abbr></th>
+              <th>Approvals</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.CodeProposalDetailsLive, Base.encode16(proposal.address)) do %>
+                  <%= Base.encode16(proposal.address) %>
+                <% end %>
+              </td>
+              <td><%= format_date(proposal.timestamp, display_utc: false) %></td>
+              <td><%= proposal.version %></td>
+              <td><%= version_tag(Version.parse!(proposal.version)) %></td>
+              <td><%= Enum.count(proposal.approvals) %></td>
+            </tr>
+          </tbody>
+        </table>
+      <% end %>
+    <% end %>
+  </div>
+</div>

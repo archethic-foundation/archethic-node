@@ -1,0 +1,107 @@
+<div class="body">
+  <div class="text_title">Node information</div>
+  <div class="text_subtitle">
+    A node is a computer that is participating in the network.
+  </div>
+  <div class="ae-box ae-purple shadow">
+    <div class="columns">
+      <%= if assigns[:error] == nil do %>
+        <div class="column">
+          <nav class="level">
+            <div class="level-left">
+              <div class="level-item">
+                <%= link class: "simple-button", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive, address: Base.encode16(@node_address)) do %>
+                  <span>Explore node's chain</span>
+                <% end %>
+              </div>
+            </div>
+          </nav>
+        </div>
+      <% end %>
+    </div>
+
+    <%= case assigns[:error] do %>
+      <% :invalid_public_key -> %>
+        <p>The node public key is invalid.</p>
+        <div class="mt-4 box has-background-warning-light">
+          <small>Please check the public key validity.</small>
+        </div>
+      <% :not_exists -> %>
+        <p>The requested node does not exists.</p>
+        <div class="mt-4 box has-background-warning-light">
+          <small>Please check the node public key.</small>
+        </div>
+      <% nil -> %>
+        <div class="mb-3 py-3">
+          <p class="heading">First public key</p>
+          <p class="mono is-hidden-mobile">
+            <%= Base.encode16(@node.first_public_key) %>
+          </p>
+          <p class="mono is-hidden-desktop">
+            <%= Base.encode16(:binary.part(@node.first_public_key, 0, 13)) %>...
+          </p>
+        </div>
+
+        <div class="mb-3 py-3">
+          <p class="heading">Last public key</p>
+          <p class="mono is-hidden-mobile">
+            <%= Base.encode16(@node.last_public_key) %>
+          </p>
+          <p class="mono is-hidden-desktop">
+            <%= Base.encode16(:binary.part(@node.last_public_key, 0, 13)) %>...
+          </p>
+        </div>
+
+        <div class="columns">
+          <div class="column">
+            <p class="heading">IP</p>
+            <%= :inet_parse.ntoa(@node.ip) %>
+          </div>
+          <div class="column">
+            <p class="heading">Port</p>
+            <span><%= @node.port %></span>
+          </div>
+          <div class="column">
+            <p class="heading">Geo Patch</p>
+            <span><%= @node.geo_patch %></span>
+          </div>
+          <div class="column">
+            <p class="heading">Network Patch</p>
+            <span><%= @node.network_patch %></span>
+          </div>
+          <div class="column">
+            <p class="heading">Average availability</p>
+            <span><%= @node.average_availability %></span>
+          </div>
+          <div class="column">
+            <p class="heading">Authorized</p>
+            <span><%= @node.authorized? %></span>
+          </div>
+        </div>
+        <div class="columns">
+          <div class="column is-2-desktop">
+            <div>
+              <p class="heading">Authorization date</p>
+              <span><%= format_date(@node.authorization_date) %></span>
+            </div>
+          </div>
+          <div class="column is-2-desktop">
+            <div>
+              <p class="heading">Enrollment date</p>
+              <span><%= format_date(@node.enrollment_date) %></span>
+            </div>
+          </div>
+          <div class="column">
+            <div>
+              <p class="heading">Reward address</p>
+              <span>
+                <%= link class: "mono", to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
+                  <%= Base.encode16(@node.reward_address) %>
+                <% end %>
+              </span>
+            </div>
+          </div>
+        </div>
+    <% end %>
+  </div>
+</div>

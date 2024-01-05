@@ -6,9 +6,6 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
 
   alias Archethic.Utils
   alias ArchethicWeb.DashboardMetricsAggregator
-  alias ArchethicWeb.Explorer.DashboardView
-
-  alias Phoenix.View
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -28,10 +25,6 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
      |> push_event("network_transactions_count", network_transactions_count(stats))
      |> push_event("network_transactions_avg_duration", network_transactions_avg_duration(stats))
      |> push_event("node_transactions_count", node_transactions_count(stats))}
-  end
-
-  def render(assigns) do
-    View.render(DashboardView, "dashboard.html", assigns)
   end
 
   def handle_info(:tick, socket) do
@@ -89,7 +82,7 @@ defmodule ArchethicWeb.Explorer.DashboardLive do
       durations_length = length(durations)
 
       sorted = Enum.sort(durations)
-      min = hd(sorted)
+      min = List.first(sorted)
       max = List.last(sorted)
       q2 = Utils.median(sorted, sorted: true)
       q1 = Utils.median(Enum.take(sorted, div(durations_length, 2)), sorted: true)

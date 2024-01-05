@@ -1,49 +1,45 @@
-<div class="hero is-medium is-bold is-large explorer-main">
-  <div class="hero-body">
-      <div class="container">
-          <h1 class="title main_title">Archethic Explorer</h1>
-          <h2 class="subtitle main_subtitle">
-            <div class="columns">
-              <div class="column">
-                Discover the most decentralized and unlimited P2P network
-              </div>
-            </div>
-            <form class="columns" phx-submit="search">
-              <div class="column is-half-desktop">
-                <input class="input main_input" type="text" placeholder="Enter transaction address" required name="address">
-              </div>
-              <div class="column is-2-desktop">
-                <button class="button is-fullwidth is-light is-outlined">
-                  Search transaction
-                </button>
-              </div>
-            </form>
-            <div class="mt-6">
-              <.live_component module={ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent} id="last_ten_transactions" />
-            </div>
-            <div class="mt-6">
-              <div class="columns">
-                <div class="column">
-                  <p class="heading is-size-7">Last beacon chain summary statistics</p>
-                </div>
-              </div>
-              <div class="columns">
-
-                <div class="column is-3">
-                  <div class="box has-text-centered">
-                    <p class="heading">Last TPS</p>
-                    <p class="title"><%= Float.floor(@tps, 3) %></p>
-                  </div>
-                </div>
-                <div class="column is-3">
-                  <div class="box has-text-centered">
-                    <p class="heading">Total Transactions</p>
-                    <p class="title"><%= @nb_transactions %></p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </h2>
+<div class="body">
+  <div class="text_title">Archethic Explorer</div>
+  <div class="text_subtitle">Discover the most decentralized and unlimited P2P network</div>
+  <form class="form-container" phx-submit="search">
+    <div class="level">
+      <div class="level-left">
+        <div class="level-item">
+          <input
+            type="text"
+            required
+            name="address"
+            class="input-field"
+            maxlength="68"
+            placeholder="Enter transaction address"
+          />
+        </div>
+        <div class="level-item">
+          <button class="app-button shadow">Search transaction</button>
+        </div>
       </div>
+    </div>
+  </form>
+
+  <div class="my-4 is-size-4">Latest transactions</div>
+  <.live_component
+    module={ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent}
+    id="last_ten_transactions"
+  />
+
+  <div class="my-4 is-size-4">Last beacon chain summary statistics</div>
+  <div class="columns">
+    <div class="column is-3">
+      <div class="box2 has-text-centered shadow">
+        <h1>Last TPS</h1>
+        <h2><%= Float.floor(@tps, 3) %></h2>
+      </div>
+    </div>
+    <div class="column is-3">
+      <div class="box1 has-text-centered shadow">
+        <h1>Total Transactions</h1>
+        <h2><%= @nb_transactions %></h2>
+      </div>
+    </div>
   </div>
 </div>

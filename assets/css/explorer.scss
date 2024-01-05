@@ -1,12 +1,71 @@
-body {
-  background: $explorer_bg;
-  min-height: 100vh;
+* {
+  font-family: $font-default;
+  color: $color-neutral-0;
 }
 
-.main_title,
-.main_subtitle {
-  color: #fff;
+html {
+  overflow: auto !important;
 }
+
+
+body {
+  font-size: 0.9rem;
+  background: #000000;
+  color: $color-neutral-0;
+  min-height: 100vh;
+  background: $color-brand-plum-800;
+  background: radial-gradient(circle, $color-brand-plum-400 0%, #000000 95%);
+  overflow-x: hidden;
+}
+
+dt {
+  color: $color-brand-raspberry-300;
+}
+
+
+
+.text_title {
+  font-weight: 600;
+  line-height: 1;
+  background: var(--gradient-1, linear-gradient(209deg, $color-brand-blue-400 0%, $color-brand-raspberry-300 100%));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+
+  @include mobile {
+    font-size: 1rem;
+  }
+
+  @include tablet {
+    font-size: 1.2rem;
+  }
+}
+
+.text_subtitle {
+  color: $color-neutral-0;
+  font-weight: 600;
+  font-family: $font-light;
+
+  @include tablet {
+    font-size: 1rem;
+  }
+}
+
+
+
+.text_regular_positive {
+  color: $color-system-positive-500;
+}
+
+.text_regular_error {
+  color: $color-system-danger-500;
+}
+
+.text_regular_info {
+  color: $color-system-info-500;
+}
+
 
 .main_input {
   box-shadow: none !important;
@@ -19,13 +78,23 @@ body {
   color: #fff !important;
 }
 
+code,
 pre {
-  border: thin solid #eae8e8;
+  padding: 0.75rem;
+  background: $color-neutral-800 !important;
+  color: $color-neutral-0 !important;
+  border: thin solid $color-neutral-900 !important;
+  border-left-color: $color-neutral-600 !important;
+  border-top-color: $color-neutral-600 !important;
+  border-radius: 14px;
+  font-family: 'RobotoMono Regular' !important;
+  max-height: 600px;
+  overflow: auto;
+  word-break: break-all;
+  white-space: pre-wrap !important;
 }
 
-.text_wrap {
-  word-break: break-word;
-}
+
 
 .modal-content {
   background: transparent !important;
@@ -34,8 +103,342 @@ pre {
 
 .is-absolute {
   position: absolute;
+
   &.on-top-right {
     top: 5px;
     right: 5px;
+  }
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 1em 0;
+}
+
+.input-field {
+  @include tablet {
+    width: 720px;
+  }
+
+  @include mobile {
+    width: 360px;
+  }
+
+  padding: 1.5em;
+  border-radius: $box-radius;
+  border: 0.5px solid $color-brand-purple-400;
+  background: linear-gradient(90deg, rgba(19, 19, 19, 1) 0%, rgba(19, 19, 19, 0.3) 100%);
+  color: white;
+  font-size: 1em;
+  outline: none;
+  box-shadow: none;
+  font-family: 'RobotoMono Regular';
+}
+
+.input-field::placeholder {
+  color: white;
+  opacity: 1;
+  font-family: $font-default;
+  font-weight: 400;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 5px;
+  color: white;
+}
+
+
+
+.title_row {
+  display: flex;
+  align-items: center;
+}
+
+.title_row .title_text-large {
+  color: $color-brand-blue-200;
+}
+
+.title_row .title_text-medium {
+  font-size: 12px;
+  padding-bottom: 30px;
+  color: $color-neutral-0;
+}
+
+.title_row .text-large {
+  font-size: 20px;
+  margin-left: 20px;
+}
+
+.title_row img {
+  height: 60px;
+  max-height: 60px !important;
+  padding-right: 10px;
+}
+
+
+.title_row .title_text-medium {
+  font-size: 12px;
+  margin-left: 4px;
+  padding-bottom: 30px;
+  color: #FFFFFF;
+}
+
+.title_spacer {
+  width: 16px;
+}
+
+.shadow {
+  box-shadow: 0px 5px 10px $color-neutral-900;
+}
+
+
+.menu-list {
+  color: #FFF;
+}
+
+.box {
+  border: thin solid $color-neutral-900;
+  border-left-color: $color-neutral-600;
+  border-top-color: $color-neutral-600;
+}
+
+.box1 {
+  background: $color-neutral-900;
+  color: white;
+  max-width: 550px;
+  height: 200px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-image: url('/images/embrace-journey-card-invest-bg.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.box1 h1,
+.box2 h1 {
+  margin-top: 40px;
+  margin-left: 40px;
+  font-size: 1.75rem;
+  font-family: $font-default !important;
+}
+
+.box1 h2,
+.box2 h2 {
+  font-size: 1.125rem;
+  margin-left: 40px;
+  font-family: $font-bold;
+  font-weight: 800;
+}
+
+.box2 {
+  background: $color-brand-raspberry-400;
+  color: white;
+  max-width: 550px;
+  height: 200px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-image: url('/images/embrace-journey-card-building-bg.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.ae-label {
+  font-weight: 600;
+  color: $color-brand-plum-200;
+}
+
+.ae-box {
+  border-radius: 24px;
+  padding: 1em;
+  color: white;
+  margin: 1em 0;
+}
+
+.ae-box a {
+  color: white;
+  text-decoration: none;
+  transition: color 0.1s;
+}
+
+.ae-box a:hover {
+  color: #fbfbfb75;
+}
+
+.ae-box.ae-purple {
+  background: radial-gradient(24.45% 47.58% at 9.96% 24%, rgba(213, 92, 255, .3) 0, rgba(213, 92, 255, 0) 100%) $color-brand-purple-400;
+}
+
+.ae-box.ae-gray {
+  background: #201844;
+}
+
+.ae-box .columns {
+  margin-bottom: 0;
+}
+
+
+
+.ae-left-heading {
+  text-transform: uppercase;
+
+  @include mobile {
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+
+  @include tablet {
+    font-size: 11px;
+    padding-top: 15px;
+    text-align: right;
+  }
+}
+
+.mono {
+  font-family: $font-mono !important;
+  word-break: break-all;
+}
+
+
+.spacer {
+  height: 20px !important;
+}
+
+.app-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: $font-default;
+  font-weight: 400;
+  height: 44px;
+  padding: 0 20px;
+  background-image: linear-gradient(20deg, $color-brand-blue-400, $color-brand-raspberry-300);
+  border: none;
+  border-radius: 9999px;
+  color: $color-neutral-0;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+a.simple-button {
+  transition: background-color .8s cubic-bezier(.22, 1, .36, 1);
+  padding: 0.5em 1em;
+  border-radius: $box-radius;
+  background-color: hsla(0, 0%, 100%, .1);
+}
+
+a.simple-button>span {
+  padding-top: 4px;
+}
+
+a.simple-button:hover {
+  background-color: hsla(0, 0%, 100%, .3);
+}
+
+li.th {
+  font-weight: 600;
+  margin-bottom: 1em !important;
+  border-bottom: 1px solid $color-neutral-0;
+}
+
+
+hr {
+  border: none;
+  height: 1px;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid $color-neutral-0;
+  opacity: 0.2;
+}
+
+.tag:not(body).is-gradient {
+  color: white;
+  background-color: $color-neutral-800;
+  border: 1px solid $color-brand-raspberry-300;
+  border-bottom-color: $color-brand-raspberry-400;
+  border-right-color: $color-brand-raspberry-400;
+  border-radius: $box-radius;
+  font-family: $font-mono !important;
+}
+
+.tag:not(body).is-success {
+  background-color: $color-system-positive-800 !important;
+}
+
+.tag:not(body).is-danger {
+  background-color: $color-system-danger-800 !important;
+}
+
+.kpi {
+  color: #CCA4FB;
+  font-size: 3rem;
+  line-height: 120%;
+  font-weight: 600;
+}
+
+#diff_src {
+  background-color: white;
+  color: black;
+  padding: 1em;
+}
+
+.navbar {
+  margin-bottom: 2em;
+  border-bottom: 1px solid hsla(0, 0%, 100%, .2);
+}
+
+.navbar-item {
+  font-size: 1.125rem;
+  line-height: 140%;
+  font-weight: 400;
+}
+
+
+.copy-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/copy_icon.svg);
+  background-size: cover;
+}
+
+.check-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/check_icon.svg);
+  background-size: cover;
+}
+
+.hide-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/hide_icon.svg);
+  background-size: cover;
+}
+
+.show-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: url(/images/show_icon.svg);
+  background-size: cover;
+}
+
+
+
+.tx-details li.columns,
+.nodes-list li.columns {
+  @include mobile {
+    border-radius: $box-radius;
+    border: 1px dotted $color-brand-blue-200;
+    margin-bottom: 1em;
   }
 }

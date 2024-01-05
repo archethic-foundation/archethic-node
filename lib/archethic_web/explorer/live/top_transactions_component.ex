@@ -5,12 +5,15 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
 
   use ArchethicWeb.Explorer, :live_component
 
+  alias Archethic.OracleChain
   alias ArchethicWeb.Explorer.ExplorerLive.TopTransactionsCache
+  alias ArchethicWeb.Explorer.Components.TransactionsList
 
   def mount(socket) do
     socket =
       socket
       |> assign(:transactions, [])
+      |> assign(:uco_price_now, DateTime.utc_now() |> OracleChain.get_uco_price())
 
     {:ok, socket}
   end
@@ -44,35 +47,6 @@ defmodule ArchethicWeb.Explorer.ExplorerIndexLive.TopTransactionsComponent do
 
     socket = socket |> assign(assigns) |> assign(transactions: transactions)
     {:ok, socket}
-  end
-
-  def render(assigns) do
-    ~H"""
-    <div class="box mb-2">
-      <div class="columns">
-        <div class="column"><span class="heading is-size-7">Latest transactions</span></div>
-      </div>
-      <div class="columns">
-        <div class="column">
-            <%= for tx <- @transactions do %>
-              <div class="columns">
-                <div class="column is-7-desktop">
-                  <%= link to: Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionDetailsLive, Base.encode16(tx.address)) do%>
-                    <span class="text_wrap has-text-primary is-size-6"><%= Base.encode16(tx.address) %></span>
-                    <% end %>
-                </div>
-                <div class="column is-2-desktop is-size-6">
-                  <%= format_date(tx.timestamp) %>
-                </div>
-                <div class="column is-2-desktop is-size-6">
-                  <span class="tag is-light is-info"><%= tx.type %></span>
-                </div>
-              </div>
-            <% end %>
-        </div>
-      </div>
-    </div>
-    """
   end
 
   defp push_txns_to_cache(txns) when is_list(txns) do

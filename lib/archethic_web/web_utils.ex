@@ -1,6 +1,10 @@
 defmodule ArchethicWeb.WebUtils do
   @moduledoc false
+
+  use Phoenix.HTML
+
   @display_limit 10
+
   @doc """
    Nb of pages required to display all the transactions.
 
@@ -31,18 +35,64 @@ defmodule ArchethicWeb.WebUtils do
     %{"remote_ip" => conn.remote_ip}
   end
 
-  def format_date(%DateTime{
-        year: year,
-        month: month,
-        day: day,
-        hour: hour,
-        minute: minute,
-        second: second
-      }) do
-    "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC"
+  def short_address(address) do
+    hex = Base.encode16(address)
+    # we prefix the id because it's forbidden that they start with an integer
+    uuid = "_" <> Ecto.UUID.generate()
+    uuid2 = "_" <> Ecto.UUID.generate()
+    short = String.slice(hex, 0..7) <> "..." <> String.slice(hex, -4, 4)
+
+    content_tag(
+      "span",
+      [
+        # invisible tag that is used for the copy hook
+        content_tag("span", hex, id: uuid, style: "display: none"),
+        short,
+        " ",
+        # an anchor to be able to wrap this with an anchor without messing with the copy
+        content_tag(
+          "a",
+          nil,
+          class: "copy-icon",
+          id: uuid2,
+          "phx-hook": "CopyToClipboard",
+          "data-target": "##{uuid}"
+        )
+      ],
+      "data-tooltip": hex,
+      class: "mono"
+    )
   end
 
-  def format_date(nil), do: ""
+  def format_date(datetime, opts \\ [])
+
+  def format_date(
+        %DateTime{
+          year: year,
+          month: month,
+          day: day,
+          hour: hour,
+          minute: minute,
+          second: second
+        },
+        opts
+      ) do
+    if Keyword.get(opts, :display_utc, true) do
+      content_tag(
+        "span",
+        "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)} UTC",
+        class: "mono"
+      )
+    else
+      content_tag(
+        "span",
+        "#{year}-#{zero_pad(month)}-#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)}",
+        class: "mono"
+      )
+    end
+  end
+
+  def format_date(nil, _opts), do: ""
 
   def zero_pad(number, amount \\ 2) do
     number
@@ -59,7 +109,8 @@ defmodule ArchethicWeb.WebUtils do
       Decimal.new(int),
       Decimal.new(trunc(:math.pow(10, decimals)))
     )
-    |> Decimal.to_string()
+    |> Decimal.to_string(:normal)
+    |> format_number_with_thousand_separator()
   end
 
   def format_usd_amount(uco_amount, uco_price) do
@@ -68,7 +119,8 @@ defmodule ArchethicWeb.WebUtils do
     |> Decimal.div(Decimal.new(100_000_000))
     |> Decimal.mult(Decimal.from_float(uco_price))
     |> Decimal.round(2)
-    |> Decimal.to_string()
+    |> Decimal.to_string(:normal)
+    |> format_number_with_thousand_separator()
     |> then(fn usd_price -> "#{usd_price}$" end)
   end
 
@@ -92,5 +144,33 @@ defmodule ArchethicWeb.WebUtils do
       {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
     end)
+  end
+
+  @doc """
+  Format a string that represent a number
+  to add thousand separators.
+  """
+  @spec format_number_with_thousand_separator(String.t()) :: String.t()
+  def format_number_with_thousand_separator(str) when is_binary(str) do
+    # the algorithm applies only on the integer part
+    {int, dec} =
+      case String.split(str, ".") do
+        [int] -> {int, nil}
+        [int, dec] -> {int, dec}
+      end
+
+    formatted_int =
+      int
+      |> String.reverse()
+      |> String.codepoints()
+      |> Enum.chunk_every(3)
+      |> Enum.join(",")
+      |> String.reverse()
+
+    if dec == nil do
+      formatted_int
+    else
+      formatted_int <> "." <> dec
+    end
   end
 end

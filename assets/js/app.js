@@ -141,24 +141,23 @@ Hooks.worldmap = {
 Hooks.CopyToClipboard = {
   mounted() {
     this.el.addEventListener("click", (e) => {
+      e.target.disabled = true;
+
       const clipboardId = e.target.getAttribute("data-target");
-      const textToCopy = document.querySelector(clipboardId).innerHTML;
+      const textToCopy = document.querySelector(clipboardId).innerText;
 
       navigator.clipboard
         .writeText(textToCopy)
         .then(() => {
-          e.target.innerText = "Copied !";
-          e.target.disabled = true;
-        })
-        .catch(() => {
-          e.target.innerText = "Failed !";
-          e.target.disabled = true;
+          e.target.classList.add('check-icon');
+          e.target.classList.remove('copy-icon');
         })
         .finally(() => {
           setTimeout(() => {
-            e.target.innerText = "Copy";
+            e.target.classList.remove('check-icon');
+            e.target.classList.add('copy-icon');
             e.target.disabled = false;
-          }, 3000);
+          }, 1000);
         });
     });
   },

@@ -1,8 +1,21 @@
 import * as echarts from "echarts";
 
+const TITLE_STYLE = {
+  color: 'white',
+  fontSize: 14,
+};
+const AXIS_STYLE = {
+  color: 'white',
+  fontSize: 14,
+};
+const COLOR_PALETTE = [
+  "#CCA4FB"
+];
+
 export function initBoxPlotTransactionsAvgDurationChart(el) {
-  let chart = echarts.init(el);
+  let chart = echarts.init(el,);
   chart.setOption({
+    color: COLOR_PALETTE,
     grid: {
       left: "10%",
       right: "5%",
@@ -12,28 +25,30 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
     title: {
       left: "center",
       text: "Average validation time",
-      textStyle: {
-        fontSize: 14,
-      },
+      textStyle: TITLE_STYLE,
     },
     tooltip: {
       trigger: 'axis'
     },
     xAxis: {
-      type: "category"
+      type: "category",
+      axisLabel: {
+        textStyle: AXIS_STYLE,
+      },
     },
     yAxis: {
       type: "value",
       axisLabel: {
         formatter: '{value} ms',
-        textStyle: {
-          fontSize: 14,
-        },
+        textStyle: AXIS_STYLE,
       },
     },
     series: [
       {
         type: 'boxplot',
+        itemStyle: {
+          color: COLOR_PALETTE[0]
+        },
         tooltip: {
           valueFormatter: value => {
             if (value == 0) return "-"
@@ -57,6 +72,7 @@ export function initBoxPlotTransactionsAvgDurationChart(el) {
 export function initNetworkTransactionsCountChart(el) {
   let chart = echarts.init(el);
   chart.setOption({
+    color: COLOR_PALETTE,
     grid: {
       left: "10%",
       right: "5%",
@@ -66,22 +82,21 @@ export function initNetworkTransactionsCountChart(el) {
     title: {
       left: "center",
       text: "Transactions count",
-      textStyle: {
-        fontSize: 14,
-      },
+      textStyle: TITLE_STYLE,
     },
     tooltip: {
       trigger: 'axis'
     },
     xAxis: {
-      type: "category"
+      type: "category",
+      axisLabel: {
+        textStyle: AXIS_STYLE,
+      },
     },
     yAxis: {
       type: "value",
       axisLabel: {
-        textStyle: {
-          fontSize: 14,
-        },
+        textStyle: AXIS_STYLE,
       },
     },
     series: [
@@ -111,6 +126,7 @@ export function initNetworkTransactionsCountChart(el) {
 export function initNetworkTransactionsAvgDurationChart(el) {
   let chart = echarts.init(el);
   chart.setOption({
+    color: COLOR_PALETTE,
     legend: {
       bottom: 0,
       type: 'scroll',
@@ -124,23 +140,22 @@ export function initNetworkTransactionsAvgDurationChart(el) {
     title: {
       left: "center",
       text: "Average validation time",
-      textStyle: {
-        fontSize: 14,
-      },
+      textStyle: TITLE_STYLE,
     },
     tooltip: {
       trigger: 'axis'
     },
     xAxis: {
-      type: "category"
+      type: "category",
+      axisLabel: {
+        textStyle: AXIS_STYLE
+      }
     },
     yAxis: {
       type: "value",
       axisLabel: {
         formatter: '{value} ms',
-        textStyle: {
-          fontSize: 14,
-        },
+        textStyle: AXIS_STYLE,
       },
     },
     series: [{
@@ -169,6 +184,7 @@ export function initNetworkTransactionsAvgDurationChart(el) {
 export function initNodeTransactionsCountChart(el) {
   let chart = echarts.init(el);
   chart.setOption({
+    color: COLOR_PALETTE,
     legend: {
       bottom: 0,
       type: 'scroll',
@@ -182,9 +198,7 @@ export function initNodeTransactionsCountChart(el) {
     title: {
       left: "center",
       text: "Transactions count by node (last 60min)",
-      textStyle: {
-        fontSize: 14,
-      },
+      textStyle: TITLE_STYLE,
     },
     tooltip: {
       trigger: 'axis'
@@ -196,9 +210,7 @@ export function initNodeTransactionsCountChart(el) {
     yAxis: {
       type: "value",
       axisLabel: {
-        textStyle: {
-          fontSize: 14,
-        },
+        textStyle: AXIS_STYLE
       },
     },
     series: [{
@@ -221,6 +233,7 @@ export function initNodeTransactionsCountChart(el) {
 
 export function updateBoxPlotTransactionsAvgDurationChart(chart, stats) {
   chart.setOption({
+    darkMode: true,
     xAxis: {
       data: Object.keys(stats)
         .map(timestampToString)
@@ -234,6 +247,7 @@ export function updateBoxPlotTransactionsAvgDurationChart(chart, stats) {
 
 export function updateNetworkTransactionsCountChart(chart, stats) {
   chart.setOption({
+    darkMode: true,
     xAxis: {
       data: Object.keys(stats)
         .map(timestampToString)
@@ -246,6 +260,7 @@ export function updateNetworkTransactionsCountChart(chart, stats) {
 
 export function updateNetworkTransactionsAvgDurationChart(chart, stats) {
   chart.setOption({
+    darkMode: true,
     xAxis: {
       data: Object.keys(stats)
         .map(timestampToString)
@@ -259,6 +274,7 @@ export function updateNetworkTransactionsAvgDurationChart(chart, stats) {
 
 export function updateNodeTransactionsCountChart(chart, stats) {
   chart.setOption({
+    darkMode: true,
     xAxis: {
       data: Object.keys(stats)
         .map(format_public_key)

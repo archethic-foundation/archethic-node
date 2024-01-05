@@ -1,0 +1,251 @@
+/* fonts.css */
+
+
+
+@font-face {
+  font-family: 'RobotoMono Regular';
+  src: url('/fonts/RobotoMono-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'PPTelegraf UltraLight';
+  src: url('/fonts/PPTelegraf-Ultralight.otf') format('opentype');
+  font-weight: 200;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PPTelegraf Light';
+  src: url('/fonts/PPTelegraf-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PPTelegraf Regular';
+  src: url('/fonts/PPTelegraf-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+
+@font-face {
+  font-family: 'PPTelegraf Medium';
+  src: url('/fonts/PPTelegraf-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PPTelegraf Semibold';
+  src: url('/fonts/PPTelegraf-Semibold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PPTelegraf Bold';
+  src: url('/fonts/PPTelegraf-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PPTelegraf UltraBold';
+  src: url('/fonts/PPTelegraf-Ultrabold.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+}
+
+
+/*
+ * Helpers
+ */
+@function toRem($value) {
+  $remValue: (
+    $value / 16) + rem;
+  @return $remValue;
+}
+
+@mixin toText($size: 15, $height: 140%, $weight: normal) {
+  @if index(300 400 500 600 700, $weight) {
+    font-size: toRem($size
+    );
+  line-height: $height;
+  font-weight: $weight;
+}
+
+@else {
+  @error "Invalid font-weight value: '#{$weight}'. Allowed values are: 100, normal, 600.";
+}
+}
+
+@mixin text-inherit() {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+/*
+ * Font Weight
+ */
+$typography-font-weight-light: 300;
+$typography-font-weight-normal: 400;
+$typography-font-weight-medium: 500;
+$typography-font-weight-semibold: 600;
+$typography-font-weight-bold: 700;
+
+/*
+ * Font Sizes
+ */
+// - 120
+@mixin text-display-extralarge($font-weight: $typography-font-weight-normal) {
+  @include toText(110, 110%, $font-weight);
+
+  @include medium() {
+    font-size: toRem(80);
+    line-height: 120%;
+  }
+
+  @include small() {
+    font-size: toRem(44);
+    line-height: 120%;
+  }
+
+  @include maxHeightScreen(550px) {
+    font-size: toRem(80);
+  }
+}
+
+// - 64
+@mixin text-display-large($font-weight: $typography-font-weight-semibold) {
+  @include toText(64, 110%, $font-weight);
+
+  @include medium() {
+    font-size: toRem(50);
+  }
+
+  @include small() {
+    font-size: toRem(30);
+    font-weight: $typography-font-weight-normal;
+  }
+
+  @include maxHeightScreen(550px) {
+    font-size: toRem(48);
+    font-weight: $typography-font-weight-normal;
+  }
+}
+
+// - 48
+@mixin text-display-medium($font-weight: $typography-font-weight-semibold) {
+  @include toText(48, 120%, $font-weight);
+
+  @include medium() {
+    font-size: toRem(40);
+  }
+
+  @include small() {
+    font-size: toRem(28);
+  }
+
+}
+
+// - 40
+@mixin text-display-small($font-weight: $typography-font-weight-semibold) {
+  @include toText(40, 120%, $font-weight);
+
+  @include small() {
+    font-size: toRem(24);
+  }
+}
+
+// - 32
+@mixin text-display-extrasmall($font-weight: $typography-font-weight-bold) {
+  @include toText(32, 120%, $font-weight);
+
+  @include medium() {
+    font-size: toRem(28);
+  }
+
+  @include small() {
+    font-size: toRem(24);
+  }
+}
+
+// - 28
+@mixin text-headline-heavy($font-weight: $typography-font-weight-semibold) {
+  @include toText(28, 140%, $font-weight);
+
+  @include medium() {
+    font-size: toRem(24);
+  }
+
+  @include small() {
+    font-size: toRem(22);
+  }
+}
+
+// - 24
+@mixin text-headline-large($font-weight: $typography-font-weight-bold) {
+  @include toText(24, 140%, $font-weight);
+
+  @include small() {
+    font-size: toRem(20);
+  }
+}
+
+// - 22
+@mixin text-headline-medium($font-weight: $typography-font-weight-medium) {
+  @include toText(22, 140%, $font-weight);
+
+  @include small() {
+    font-size: toRem(18);
+  }
+}
+
+// - 18
+@mixin text-headline-medium-small($font-weight: $typography-font-weight-normal) {
+  @include toText(18, 140%, $font-weight);
+
+  @include small() {
+    font-size: toRem(18);
+  }
+}
+
+// - 18
+@mixin text-headline-regular($font-weight: $typography-font-weight-normal) {
+  @include toText(18, 140%, $font-weight);
+
+  @include small() {
+    font-size: toRem(18);
+  }
+}
+
+// - 16
+@mixin text-text-large($font-weight: $typography-font-weight-normal) {
+  @include toText(16, 140%, $font-weight);
+
+  @include small() {
+    font-size: toRem(16);
+  }
+}
+
+// - 14
+@mixin text-text-medium($font-weight: $typography-font-weight-normal) {
+  @include toText(14, 140%, $font-weight);
+
+  @include small() {
+    font-size: toRem(14);
+  }
+}
+
+// - 14
+@mixin text-label-regular($font-weight: $typography-font-weight-normal) {
+  @include toText(14, 140%, $font-weight);
+  text-transform: uppercase;
+
+  @include small() {
+    font-size: toRem(14);
+  }
+}

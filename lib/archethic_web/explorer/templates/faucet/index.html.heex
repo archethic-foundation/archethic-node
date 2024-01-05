@@ -1,53 +1,40 @@
-<div class="container is-max-widescreen">
-    <%= if info = get_flash(@conn, :info) do %>
-      <div class="notification is-info is-link has-text-centered"> 
-        <div class="delete"></div>
-      <%= link to: Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionDetailsLive, @link_address) do%>
-        <%= info %>
-      <% end %>
+<div class="body">
+  <div class="text_title">Faucet</div>
+  <div class="text_subtitle">Claim up to 300 Testnet UCOs per hour. No question asked.</div>
+
+  <form action={Routes.faucet_path(@conn, :create_transfer)} method="post" class="form-container">
+    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+
+    <div class="level">
+      <div class="level-left">
+        <div class="level-item">
+          <input
+            type="text"
+            value={@address}
+            required
+            name="address"
+            class="input-field"
+            maxlength="68"
+            placeholder="Enter address"
+          />
+        </div>
+        <div class="level-item">
+          <button type="submit" class="app-button shadow">Claim 100 UCO</button>
+        </div>
       </div>
+    </div>
+  </form>
+  <%= if info = get_flash(@conn, :info) do %>
+    <%= link to: Routes.live_path(@conn, ArchethicWeb.Explorer.TransactionDetailsLive, @link_address) do %>
+      <div class="text_regular_positive"><%= info %></div>
     <% end %>
+  <% end %>
 
   <%= if error = get_flash(@conn, :error) do %>
-    <div class="notification is-danger has-text-centered"> 
-      <div class="delete"></div>
-      <%= error %>
-    </div>
+    <div class="text_regular_error"><%= error %></div>
   <% end %>
-</div>
 
-<div class="hero is-medium is-bold is-large explorer-main">
-  <div class="hero-body">
-    <div class="container is-max-widescreen">
-      <h1 class="title main_title">Archethic Faucet</h1>
-      <h2 class="subtitle main_subtitle">
-        <div class="columns">
-          <div class="column">
-            Discover the most decentralized and unlimited P2P network
-          </div>
-        </div>
-        <form class="columns" action={Routes.faucet_path(@conn, :create_transfer)} method="post">
-          <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
-          <div class="column is-half-desktop">
-            <input class="input main_input" type="text" placeholder="Enter address" name="address" value={@address} required>
-          </div>
-          <div class="column is-2-desktop">
-            <button type="submit" class="button is-fullwidth is-light is-outlined">
-              Transfer 100 UCO
-            </button>
-          </div>
-        </form>
-        <div>
-          <small class="has-text-warning" > <b>NOTE : </b> <%= faucet_rate_limit_message() %></small>
-        </div>
-        <br>
-              Don't have a wallet address? Learn how to create a new one!
-              <br>
-              <br>
-              <a href="https://blog.archethic.net/introducing-archethic-testnet-faucet/" target="_blank" ><button class="button is-light " >
-              Read Blog
-          </button></a>
-      </h2>
-    </div>
+  <div>
+    <div>NOTE: <%= faucet_rate_limit_message() %></div>
   </div>
 </div>

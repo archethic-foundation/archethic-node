@@ -29,13 +29,17 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
     |> Enum.map_join(", ", &String.replace(&1, "_", " "))
   end
 
-  def format_transaction_type(type) do
+  def format_transaction_type(type, opts \\ []) do
     formatted_type =
       type
       |> Naming.humanize()
       |> String.upcase()
 
-    content_tag("span", formatted_type, class: "tag is-warning is-light")
+    if Keyword.get(opts, :tag, true) do
+      content_tag("span", formatted_type, class: "tag is-gradient")
+    else
+      content_tag("span", formatted_type)
+    end
   end
 
   def format_transaction_content(:node, content) do
@@ -219,7 +223,12 @@ defmodule ArchethicWeb.Explorer.ExplorerView do
     end
   end
 
-  def format_transaction_content(_, content), do: content
+  def format_transaction_content(_, content) do
+    case Jason.decode(content) do
+      {:ok, _} -> Jason.Formatter.pretty_print_to_iodata(content)
+      _ -> content
+    end
+  end
 
   @spec format_origin_content(tuple()) :: String.t()
   defp format_origin_content({family, key, key_certificate}) do

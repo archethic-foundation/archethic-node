@@ -1,0 +1,71 @@
+<div class="body">
+  <div class="text_title">Transaction chain</div>
+  <div class="text_subtitle">Explore the transactions of a single chain.</div>
+
+  <form
+    action={Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive)}
+    class="form-container"
+  >
+    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+
+    <div class="level">
+      <div class="level-left">
+        <div class="level-item">
+          <input
+            id="address"
+            name="address"
+            class="input-field"
+            type="text"
+            maxlength="68"
+            placeholder="Enter transaction address"
+            required
+            value={@address}
+          />
+
+          <%= if assigns[:error] != nil do %>
+            <p class="help is-danger"><%= @error %></p>
+          <% end %>
+        </div>
+        <div class="level-item">
+          <button type="submit" class="app-button shadow">Search</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<%= if @address != "" and assigns[:error] == nil do %>
+  <%= if Enum.count(@transaction_chain) == 0 do %>
+    <div class="ae-box ae-purple shadow">
+      <p class="heading">No transaction yet existing for this chain</p>
+    </div>
+  <% else %>
+    <div class="columns">
+      <div class="column">
+        <div class="box1 my-4 has-text-centered">
+          <h1>Transactions count</h1>
+          <h2><%= @chain_size %></h2>
+        </div>
+      </div>
+      <div class="column">
+        <div class="box2 my-4 has-text-centered">
+          <h1>UCO Balance</h1>
+          <h2>
+            <%= from_bigint(@uco_balance) %> UCO
+            <%= if @uco_balance > 0 do %>
+              (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
+            <% end %>
+          </h2>
+        </div>
+      </div>
+    </div>
+
+    <TransactionsList.display_all
+      transactions={@transaction_chain}
+      page={@page}
+      total={@chain_size}
+      socket={@socket}
+      uco_price_now={@uco_price}
+    />
+  <% end %>
+<% end %>
