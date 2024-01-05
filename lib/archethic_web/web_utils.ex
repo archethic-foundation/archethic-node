@@ -155,19 +155,17 @@ defmodule ArchethicWeb.WebUtils do
     # the algorithm applies only on the integer part
     {int, dec} =
       case String.split(str, ".") do
-        [int] -> {int |> String.to_charlist(), nil}
-        [int, dec] -> {int |> String.to_charlist(), dec}
+        [int] -> {int, nil}
+        [int, dec] -> {int, dec}
       end
-
-    {h, t} = Enum.split(int, rem(length(int), 3))
-    t = t |> Enum.chunk_every(3) |> Enum.join(",")
 
     formatted_int =
-      case {h, t} do
-        {'', _} -> t
-        {_, ""} -> "#{h}"
-        _ -> "#{h}," <> t
-      end
+      int
+      |> String.reverse()
+      |> String.codepoints()
+      |> Enum.chunk_every(3)
+      |> Enum.join(",")
+      |> String.reverse()
 
     if dec == nil do
       formatted_int
