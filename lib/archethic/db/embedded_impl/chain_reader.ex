@@ -344,7 +344,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             all_addresses_asc
             |> Enum.find_index(&(&1 == paging_state))
 
-          if paging_state_idx < @page_size do
+          if paging_state_idx <= @page_size do
             {paging_state_idx, nil, false, nil}
           else
             idx = paging_state_idx - 1 - @page_size

@@ -271,7 +271,7 @@ defmodule Archethic.DB.EmbeddedTest do
     end
   end
 
-  describe "get_transaction_chain/2" do
+  describe "get_transaction_chain/1-3 order: :asc" do
     test "should return an empty list when the transaction chain is not found" do
       assert {[], false, nil} = EmbeddedImpl.get_transaction_chain(:crypto.strong_rand_bytes(32))
     end
@@ -349,7 +349,7 @@ defmodule Archethic.DB.EmbeddedTest do
     end
   end
 
-  describe "get_transaction_chain/4 order: :desc" do
+  describe "get_transaction_chain/1-3 order: :desc" do
     test "should return empty when there is no transactions" do
       {pub_key, _} = Crypto.generate_deterministic_keypair("SEED")
       address = Crypto.derive_address(pub_key)
@@ -414,6 +414,45 @@ defmodule Archethic.DB.EmbeddedTest do
         )
 
       assert length(page3) == 8
+      assert page1 ++ page2 ++ page3 == Enum.reverse(transactions)
+    end
+
+    test "should be able to load the last page if there are 10 transactions (for a page_size=10)" do
+      transactions =
+        Enum.map(1..30, fn i ->
+          tx =
+            TransactionFactory.create_valid_transaction([],
+              index: i,
+              timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+            )
+
+          EmbeddedImpl.write_transaction(tx)
+
+          tx
+        end)
+
+      {page1, true, paging_state1} =
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [], order: :desc)
+
+      assert length(page1) == 10
+      assert paging_state1 == List.last(page1).address
+
+      {page2, true, paging_state2} =
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
+          paging_state: paging_state1,
+          order: :desc
+        )
+
+      assert length(page2) == 10
+      assert paging_state2 == List.last(page2).address
+
+      {page3, false, nil} =
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
+          paging_state: paging_state2,
+          order: :desc
+        )
+
+      assert length(page3) == 10
       assert page1 ++ page2 ++ page3 == Enum.reverse(transactions)
     end
   end
