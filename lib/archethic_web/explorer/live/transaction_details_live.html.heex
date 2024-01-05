@@ -192,12 +192,13 @@
                       <li class="columns">
                         <div class="column is-narrow">
                           <span class="ae-label">To</span>
-                          <%= link(WebUtils.short_address(movement.to),
+
+                          <%= link(WebUtils.short_address(transfer_address),
                             to:
                               Routes.live_path(
                                 @socket,
                                 ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(movement.to)
+                                Base.encode16(transfer_address)
                               )
                           ) %>
                         </div>
@@ -207,12 +208,13 @@
                             <span class="tag is-success mono">MINTED</span>
                           <% else %>
                             <span class="ae-label">Resolved</span>
-                            <%= link(WebUtils.short_address(transfer_address),
+
+                            <%= link(WebUtils.short_address(movement.to),
                               to:
                                 Routes.live_path(
                                   @socket,
                                   ArchethicWeb.Explorer.TransactionDetailsLive,
-                                  Base.encode16(transfer_address)
+                                  Base.encode16(movement.to)
                                 )
                             ) %>
                           <% end %>
@@ -231,12 +233,13 @@
                       <li class="columns">
                         <div class="column is-narrow">
                           <span class="ae-label">To</span>
-                          <%= link(WebUtils.short_address(movement.to),
+
+                          <%= link(WebUtils.short_address(transfer_address),
                             to:
                               Routes.live_path(
                                 @socket,
                                 ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(movement.to)
+                                Base.encode16(transfer_address)
                               )
                           ) %>
                         </div>
@@ -246,12 +249,12 @@
                             <span class="tag is-success mono">MINTED</span>
                           <% else %>
                             <span class="ae-label">Resolved</span>
-                            <%= link(WebUtils.short_address(transfer_address),
+                            <%= link(WebUtils.short_address(movement.to),
                               to:
                                 Routes.live_path(
                                   @socket,
                                   ArchethicWeb.Explorer.TransactionDetailsLive,
-                                  Base.encode16(transfer_address)
+                                  Base.encode16(movement.to)
                                 )
                             ) %>
                           <% end %>

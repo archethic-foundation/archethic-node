@@ -301,25 +301,22 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     # movements are inserted in this order: 1: uco 2: token 3: mint
     uco_transfers_count = length(uco_transfers)
     token_transfers_count = length(token_transfers)
-    movements_count = length(movements)
 
-    uco_movements =
-      Enum.slice(movements, 0, uco_transfers_count)
+    {uco_movements, rest} = Enum.split(movements, uco_transfers_count)
+    {token_movements, mint_movements} = Enum.split(rest, token_transfers_count)
+
+    List.flatten([
+      uco_movements
       |> Enum.zip_with(uco_transfers, fn movement, %UCOTransfer{to: address} ->
         {movement, address}
-      end)
-
-    token_movements =
-      Enum.slice(movements, uco_transfers_count, token_transfers_count)
+      end),
+      token_movements
       |> Enum.zip_with(token_transfers, fn movement, %TokenTransfer{to: address} ->
         {movement, address}
-      end)
-
-    mint_movements =
-      Enum.slice(movements, uco_transfers_count + token_transfers_count, movements_count)
+      end),
+      mint_movements
       |> Enum.map(&{&1, nil})
-
-    List.flatten([uco_movements, token_movements, mint_movements])
+    ])
   end
 
   defp filter_inputs(
