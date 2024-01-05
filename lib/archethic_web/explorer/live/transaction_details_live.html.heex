@@ -179,84 +179,14 @@
               </div>
             </div>
 
-            <%!----------------------------- UCO TRANSFERS --------------------------------%>
-            <div class="columns">
-              <% ucos_transfers_count = Enum.count(@transaction.data.ledger.uco.transfers) %>
-              <div class="column ae-left-heading is-2">
-                UCO transfers (<%= ucos_transfers_count %>)
-              </div>
-              <ul class="column">
-                <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
-                  <li class="columns">
-                    <div class="column is-narrow">
-                      <span class="ae-label">To</span>
-                      <%= link(WebUtils.short_address(transfer.to),
-                        to:
-                          Routes.live_path(
-                            @socket,
-                            ArchethicWeb.Explorer.TransactionDetailsLive,
-                            Base.encode16(transfer.to)
-                          )
-                      ) %>
-                    </div>
-
-                    <div class="column is-narrow">
-                      <span class="ae-label">Amount</span>
-                      <Amount.uco
-                        amount={transfer.amount}
-                        uco_price_at_time={@uco_price_at_time}
-                        uco_price_now={@uco_price_now}
-                      />
-                    </div>
-                  </li>
-                <% end %>
-              </ul>
-            </div>
-
-            <%!----------------------------- TOKENS TRANSFERS --------------------------------%>
-            <div class="columns">
-              <% tokens_transfers_count = Enum.count(@transaction.data.ledger.token.transfers) %>
-              <div class="column ae-left-heading is-2">
-                Tokens transfers (<%= tokens_transfers_count %>)
-              </div>
-              <ul class="column">
-                <%= for transfer <- @transaction.data.ledger.token.transfers do %>
-                  <li class="columns">
-                    <div class="column is-narrow">
-                      <span class="ae-label">To</span>
-                      <%= link(WebUtils.short_address(transfer.to),
-                        to:
-                          Routes.live_path(
-                            @socket,
-                            ArchethicWeb.Explorer.TransactionDetailsLive,
-                            Base.encode16(transfer.to)
-                          )
-                      ) %>
-                    </div>
-
-                    <div class="column is-narrow">
-                      <span class="ae-label">Amount</span>
-                      <Amount.token
-                        amount={transfer.amount}
-                        token_address={transfer.token_address}
-                        token_id={transfer.token_id}
-                        token_properties={@token_properties}
-                        socket={@socket}
-                      />
-                    </div>
-                  </li>
-                <% end %>
-              </ul>
-            </div>
             <%!----------------------------- MOVEMENTS --------------------------------%>
             <div class="columns">
-              <% movements_count =
-                Enum.count(@transaction.validation_stamp.ledger_operations.transaction_movements) %>
+              <% movements_count = Enum.count(@movements_zipped) %>
               <div class="column ae-left-heading is-2">
                 Movements (<%= movements_count %>)
               </div>
               <ul class="column">
-                <%= for movement <- @transaction.validation_stamp.ledger_operations.transaction_movements do %>
+                <%= for {movement, transfer_address} <- @movements_zipped do %>
                   <%= case movement.type do %>
                     <% :UCO -> %>
                       <li class="columns">
@@ -270,6 +200,22 @@
                                 Base.encode16(movement.to)
                               )
                           ) %>
+                        </div>
+
+                        <div class="column is-narrow">
+                          <%= if transfer_address == nil do %>
+                            <span class="tag is-success mono">MINTED</span>
+                          <% else %>
+                            <span class="ae-label">Resolved</span>
+                            <%= link(WebUtils.short_address(transfer_address),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(transfer_address)
+                                )
+                            ) %>
+                          <% end %>
                         </div>
 
                         <div class="column is-narrow">
@@ -293,6 +239,22 @@
                                 Base.encode16(movement.to)
                               )
                           ) %>
+                        </div>
+
+                        <div class="column is-narrow">
+                          <%= if transfer_address == nil do %>
+                            <span class="tag is-success mono">MINTED</span>
+                          <% else %>
+                            <span class="ae-label">Resolved</span>
+                            <%= link(WebUtils.short_address(transfer_address),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(transfer_address)
+                                )
+                            ) %>
+                          <% end %>
                         </div>
 
                         <div class="column is-narrow">
