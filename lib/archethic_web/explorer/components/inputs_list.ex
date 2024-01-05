@@ -18,8 +18,25 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
     ~H"""
     <ul>
       <%= for input <- @inputs do %>
-        <li class="columns is-mobile is-multiline">
-          <div class="column is-3-tablet is-6-mobile">
+        <li class="columns">
+          <div class="column is-narrow">
+            <span class="ae-label">From</span>
+            <%= link(short_address(input.from),
+              to:
+                Routes.live_path(
+                  @socket,
+                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                  Base.encode16(input.from)
+                )
+            ) %>
+          </div>
+
+          <div class="column is-narrow">
+            <span class="ae-label">At</span><%= format_date(input.timestamp) %>
+          </div>
+
+          <div class="column is-narrow">
+            <span class="ae-label">Amount</span>
             <%= case input.type do %>
               <% :UCO -> %>
                 <Amount.uco
@@ -38,23 +55,11 @@ defmodule ArchethicWeb.Explorer.Components.InputsList do
             <% end %>
           </div>
 
-          <div class="column is-narrow-tablet is-6-mobile">
-            <%= link(short_address(input.from),
-              to:
-                Routes.live_path(
-                  @socket,
-                  ArchethicWeb.Explorer.TransactionDetailsLive,
-                  Base.encode16(input.from)
-                )
-            ) %>
-          </div>
-
-          <div class="column is-narrow-tablet is-6-mobile"><%= format_date(input.timestamp) %></div>
-          <div class="column is-narrow-tablet is-6-mobile">
+          <div class="column is-narrow">
             <%= if input.spent? do %>
-              <span class="tag is-danger">Spent</span>
+              <span class="tag is-danger mono">Spent&nbsp;&nbsp;</span>
             <% else %>
-              <span class="tag is-success">Unspent</span>
+              <span class="tag is-success mono">Unspent</span>
             <% end %>
           </div>
         </li>
