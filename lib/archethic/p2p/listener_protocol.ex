@@ -8,6 +8,7 @@ defmodule Archethic.P2P.ListenerProtocol do
   require Logger
 
   alias Archethic.Crypto
+  alias Archethic.P2P
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
   alias Archethic.TaskSupervisor
@@ -36,12 +37,12 @@ defmodule Archethic.P2P.ListenerProtocol do
 
   def handle_info(
         {_transport, socket, err},
-        state = %{transport: transport, ip: ip, port: port}
+        state = %{transport: transport, ip: ip}
       )
       when is_atom(err) do
-    Logger.warning(
-      "Received an error from tcp listener (ip: #{inspect(ip)}, port: #{port}): #{inspect(err)}"
-    )
+    if node_ip?(ip) do
+      Logger.error("Received an error from tcp listener (ip: #{inspect(ip)}: #{inspect(err)}")
+    end
 
     transport.close(socket)
     {:noreply, state}
@@ -49,12 +50,12 @@ defmodule Archethic.P2P.ListenerProtocol do
 
   def handle_info(
         {_transport, socket, msg},
-        state = %{transport: transport}
+        state = %{transport: transport, ip: ip}
       ) do
     :inet.setopts(socket, active: :once)
 
     Task.Supervisor.start_child(TaskSupervisor, fn ->
-      do_handle_message(msg, transport, socket)
+      handle_message(msg, transport, socket, ip)
     end)
 
     {:noreply, state}
@@ -65,54 +66,61 @@ defmodule Archethic.P2P.ListenerProtocol do
     {:stop, :normal, state}
   end
 
-  defp do_handle_message(msg, transport, socket) do
-    case do_decode_msg(msg) do
-      nil ->
-        transport.close(socket)
-
-      %MessageEnvelop{
-        message_id: message_id,
-        message: message,
-        sender_public_key: sender_pkey,
-        signature: signature
-      } ->
+  defp handle_message(msg, transport, socket, ip) do
+    case decode_msg(msg) do
+      {:ok,
+       %MessageEnvelop{
+         message_id: message_id,
+         message: message,
+         sender_public_key: sender_pkey,
+         signature: signature
+       }} ->
         valid_signature? =
           Crypto.verify?(
             signature,
-            Message.encode(message) |> Utils.wrap_binary(),
+            message |> Message.encode() |> Utils.wrap_binary(),
             sender_pkey
           )
 
         if valid_signature? do
-          do_process_msg(message, sender_pkey)
-          |> do_encode_response(message_id, sender_pkey)
-          |> do_reply(transport, socket, message)
+          message
+          |> process_msg(sender_pkey)
+          |> encode_response(message_id, sender_pkey)
+          |> reply(transport, socket, message)
         else
           transport.close(socket)
         end
+
+      {:error, reason} ->
+        if node_ip?(ip) do
+          Logger.error(reason)
+        end
+
+        transport.close(socket)
     end
   end
 
   # msg is the bytes coming from TCP
   # message is the struct
-  defp do_decode_msg(msg) do
+  defp decode_msg(msg) do
     start_decode_time = System.monotonic_time()
 
     MessageEnvelop.decode(msg)
-    |> tap(fn %MessageEnvelop{message: message} ->
+    |> then(fn res = %MessageEnvelop{message: message} ->
       :telemetry.execute(
         [:archethic, :p2p, :decode_message],
         %{duration: System.monotonic_time() - start_decode_time},
         %{message: Message.name(message)}
       )
+
+      {:ok, res}
     end)
   rescue
-    _ ->
-      Logger.warning("Received an invalid message")
-      nil
+    err ->
+      {:error, Exception.format(:error, err, __STACKTRACE__)}
   end
 
-  defp do_process_msg(message, sender_pkey) do
+  defp process_msg(message, sender_pkey) do
     start_processing_time = System.monotonic_time()
 
     Message.process(message, sender_pkey)
@@ -127,7 +135,7 @@ defmodule Archethic.P2P.ListenerProtocol do
     end)
   end
 
-  defp do_encode_response(response, message_id, sender_pkey) do
+  defp encode_response(response, message_id, sender_pkey) do
     start_encode_time = System.monotonic_time()
 
     response_signature =
@@ -152,7 +160,7 @@ defmodule Archethic.P2P.ListenerProtocol do
     end)
   end
 
-  defp do_reply(encoded_response, transport, socket, message) do
+  defp reply(encoded_response, transport, socket, message) do
     start_sending_time = System.monotonic_time()
 
     transport.send(socket, encoded_response)
@@ -163,5 +171,9 @@ defmodule Archethic.P2P.ListenerProtocol do
         %{message: Message.name(message)}
       )
     end)
+  end
+
+  defp node_ip?(ip) do
+    P2P.list_nodes() |> Enum.map(& &1.ip) |> Enum.member?(ip)
   end
 end
