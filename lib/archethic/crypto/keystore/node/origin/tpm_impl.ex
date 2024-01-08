@@ -12,7 +12,7 @@ defmodule Archethic.Crypto.NodeKeystore.Origin.TPMImpl do
   require Logger
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)

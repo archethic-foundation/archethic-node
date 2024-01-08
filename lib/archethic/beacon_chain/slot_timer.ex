@@ -4,7 +4,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
   """
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   alias Archethic.BeaconChain.SummaryTimer
 

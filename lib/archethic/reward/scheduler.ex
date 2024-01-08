@@ -2,7 +2,7 @@ defmodule Archethic.Reward.Scheduler do
   @moduledoc false
 
   use GenStateMachine, callback_mode: [:handle_event_function]
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   alias Archethic
 

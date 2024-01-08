@@ -15,7 +15,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   alias Archethic.TransactionChain.TransactionData.Ownership
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 

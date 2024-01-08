@@ -10,7 +10,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   Jobs are also started by the get/fetch function if needed
   """
 
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
   @timeout :archethic
            |> Application.compile_env(__MODULE__, [])
            |> Keyword.get(:timeout, :timer.minutes(1))

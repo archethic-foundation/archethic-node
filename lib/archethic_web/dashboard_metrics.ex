@@ -14,7 +14,7 @@ defmodule ArchethicWeb.DashboardMetrics do
   alias Archethic.Utils
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
   @clean_interval_seconds 60
   @history_seconds 3600
 

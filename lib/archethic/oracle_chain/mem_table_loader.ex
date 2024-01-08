@@ -12,7 +12,7 @@ defmodule Archethic.OracleChain.MemTableLoader do
   alias Archethic.TransactionChain.TransactionData
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 

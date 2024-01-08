@@ -2,7 +2,7 @@ defmodule Archethic.OracleChain.MemTable do
   @moduledoc false
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   @oracle_data :archethic_oracle
   @oracle_gen_addr :archethic_oracle_gen_addr

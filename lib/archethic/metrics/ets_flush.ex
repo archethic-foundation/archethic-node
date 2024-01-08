@@ -8,7 +8,7 @@ defmodule Archethic.Metrics.ETSFlush do
   alias TelemetryMetricsPrometheus.Core
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)

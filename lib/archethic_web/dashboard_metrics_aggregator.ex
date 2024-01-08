@@ -15,7 +15,7 @@ defmodule ArchethicWeb.DashboardMetricsAggregator do
   alias Archethic.TaskSupervisor
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
   @timeout_seconds 2
   @request_interval_seconds 60
   @clean_interval_seconds 60

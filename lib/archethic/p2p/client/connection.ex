@@ -21,7 +21,7 @@ defmodule Archethic.P2P.Client.Connection do
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
   @table_name :connection_status
 
   @doc """
