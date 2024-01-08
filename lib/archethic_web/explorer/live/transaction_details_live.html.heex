@@ -204,20 +204,16 @@
                         </div>
 
                         <div class="column is-narrow">
-                          <%= if transfer_address == nil do %>
-                            <span class="tag is-success mono">MINTED</span>
-                          <% else %>
-                            <span class="ae-label">Resolved</span>
+                          <span class="ae-label">Resolved</span>
 
-                            <%= link(WebUtils.short_address(movement.to),
-                              to:
-                                Routes.live_path(
-                                  @socket,
-                                  ArchethicWeb.Explorer.TransactionDetailsLive,
-                                  Base.encode16(movement.to)
-                                )
-                            ) %>
-                          <% end %>
+                          <%= link(WebUtils.short_address(movement.to),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(movement.to)
+                              )
+                          ) %>
                         </div>
 
                         <div class="column is-narrow">
@@ -231,24 +227,10 @@
                       </li>
                     <% {:token, token_address, token_id} -> %>
                       <li class="columns">
-                        <div class="column is-narrow">
-                          <span class="ae-label">To</span>
-
-                          <%= link(WebUtils.short_address(transfer_address),
-                            to:
-                              Routes.live_path(
-                                @socket,
-                                ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(transfer_address)
-                              )
-                          ) %>
-                        </div>
-
-                        <div class="column is-narrow">
-                          <%= if transfer_address == nil do %>
-                            <span class="tag is-success mono">MINTED</span>
-                          <% else %>
-                            <span class="ae-label">Resolved</span>
+                        <%= if transfer_address == nil do %>
+                          <div class="column is-narrow">
+                            <span class="ae-label">To</span>
+                            <%!-- This is a movement that comes from a mint of this transaction --%>
                             <%= link(WebUtils.short_address(movement.to),
                               to:
                                 Routes.live_path(
@@ -257,7 +239,31 @@
                                   Base.encode16(movement.to)
                                 )
                             ) %>
-                          <% end %>
+                          </div>
+                        <% else %>
+                          <div class="column is-narrow">
+                            <span class="ae-label">To</span>
+
+                            <%= link(WebUtils.short_address(transfer_address),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(transfer_address)
+                                )
+                            ) %>
+                          </div>
+                        <% end %>
+                        <div class="column is-narrow">
+                          <span class="ae-label">Resolved</span>
+                          <%= link(WebUtils.short_address(movement.to),
+                            to:
+                              Routes.live_path(
+                                @socket,
+                                ArchethicWeb.Explorer.TransactionDetailsLive,
+                                Base.encode16(movement.to)
+                              )
+                          ) %>
                         </div>
 
                         <div class="column is-narrow">
