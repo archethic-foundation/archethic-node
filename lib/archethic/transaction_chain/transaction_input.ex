@@ -4,6 +4,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
   """
   defstruct [:from, :amount, :type, :timestamp, :encoded_payload, spent?: false, reward?: false]
 
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
@@ -256,7 +257,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       type: :state,
       spent: spent?,
       timestamp: timestamp,
-      encoded_payload: encoded_payload
+      encoded_payload: encoded_payload |> State.deserialize() |> elem(0)
     }
   end
 end
