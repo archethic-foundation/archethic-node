@@ -791,6 +791,7 @@ defmodule Archethic.TransactionChain do
       |> Transaction.get_movements()
       |> Enum.map(& &1.to)
       |> Enum.concat(recipient_addresses)
+      |> Enum.uniq()
 
     authorized_nodes = P2P.authorized_and_available_nodes()
 
