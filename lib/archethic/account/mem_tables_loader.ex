@@ -64,8 +64,7 @@ defmodule Archethic.Account.MemTablesLoader do
     |> Stream.reject(&(&1.type in @excluded_types))
     |> Stream.each(
       &load_transaction(&1,
-        io_transaction?: false,
-        load_genesis?: false
+        io_transaction?: false
       )
     )
     |> Stream.run()
@@ -74,8 +73,7 @@ defmodule Archethic.Account.MemTablesLoader do
   end
 
   @type load_options :: [
-          io_transaction?: boolean(),
-          load_genesis?: boolean()
+          io_transaction?: boolean()
         ]
 
   @doc """
