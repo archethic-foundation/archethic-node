@@ -16,14 +16,28 @@ defmodule Archethic.UTXO.Loader do
     GenServer.start_link(__MODULE__, arg, opts)
   end
 
+  @doc """
+  Ingest a new UTXO as input to the chain
+  """
+  @spec add_utxo(VersionedUnspentOutput.t(), binary()) :: :ok
   def add_utxo(utxo = %VersionedUnspentOutput{}, genesis_address) do
-    via_tuple = {:via, PartitionSupervisor, {LoaderSupervisor, genesis_address}}
-    GenServer.call(via_tuple, {:add_utxo, utxo, genesis_address})
+    genesis_address
+    |> via_tuple()
+    |> GenServer.call({:add_utxo, utxo, genesis_address})
   end
 
+  @doc """
+  Ingest the transaction to consumed inputs and allocate the new unspent outputs
+  """
+  @spec consume_inputs(Transaction.t(), binary()) :: :ok
   def consume_inputs(tx = %Transaction{}, genesis_address) do
-    via_tuple = {:via, PartitionSupervisor, {LoaderSupervisor, genesis_address}}
-    GenServer.call(via_tuple, {:consume_inputs, tx, genesis_address})
+    genesis_address
+    |> via_tuple()
+    |> GenServer.call({:consume_inputs, tx, genesis_address})
+  end
+
+  defp via_tuple(genesis_address) do
+    {:via, PartitionSupervisor, {LoaderSupervisor, genesis_address}}
   end
 
   def init(_) do
