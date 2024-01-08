@@ -100,8 +100,7 @@ defmodule Archethic.Mining.ValidationContext do
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
           valid_pending_transaction?: boolean(),
-          storage_nodes_confirmations:
-            list({node_public_key :: Crypto.key(), signature :: binary()}),
+          storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
           pending_transaction_error_detail: binary(),
           sub_replication_tree_validations: list(Crypto.key()),
           contract_context: nil | Contract.Context.t()
@@ -1328,14 +1327,18 @@ defmodule Archethic.Mining.ValidationContext do
 
   @doc """
   Return the list of nodes which confirmed the transaction replication
+
+  We use the authorized_and_available_nodes as a common reference between the nodes
   """
   @spec get_confirmed_replication_nodes(t()) :: list(Node.t())
   def get_confirmed_replication_nodes(%__MODULE__{
-        chain_storage_nodes: chain_storage_nodes,
+        validation_time: validation_time,
         storage_nodes_confirmations: storage_nodes_confirmations
       }) do
+    nodes = P2P.authorized_and_available_nodes(validation_time)
+
     Enum.map(storage_nodes_confirmations, fn {index, _} ->
-      Enum.at(chain_storage_nodes, index)
+      Enum.at(nodes, index)
     end)
   end
 

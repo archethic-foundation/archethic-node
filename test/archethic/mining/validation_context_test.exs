@@ -279,6 +279,30 @@ defmodule Archethic.Mining.ValidationContextTest do
     end
   end
 
+  describe "get_confirmed_replication_nodes/1" do
+    test "should return the correct nodes" do
+      ctx = create_context()
+      chain_storage_nodes = [ctx.welcome_node, ctx.coordinator_node]
+
+      node1_ctx = %ValidationContext{
+        ctx
+        | chain_storage_nodes: chain_storage_nodes
+      }
+
+      storage_nodes_confirmations =
+        chain_storage_nodes
+        |> Enum.map(&ValidationContext.get_chain_storage_position(node1_ctx, &1.first_public_key))
+        |> Enum.map(fn {:ok, idx} -> {idx, :fake_confirmation} end)
+
+      node2_ctx = %ValidationContext{
+        ctx
+        | storage_nodes_confirmations: storage_nodes_confirmations
+      }
+
+      assert ^chain_storage_nodes = ValidationContext.get_confirmed_replication_nodes(node2_ctx)
+    end
+  end
+
   defp create_context(validation_time \\ DateTime.utc_now() |> DateTime.truncate(:millisecond)) do
     welcome_node = %Node{
       last_public_key: "key1",
@@ -288,6 +312,7 @@ defmodule Archethic.Mining.ValidationContextTest do
       port: 3000,
       reward_address: :crypto.strong_rand_bytes(32),
       authorized?: true,
+      available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-2)
     }
 
@@ -296,55 +321,38 @@ defmodule Archethic.Mining.ValidationContextTest do
       last_public_key: Crypto.last_node_public_key(),
       geo_patch: "AAA",
       ip: {127, 0, 0, 1},
-      port: 3000,
+      port: 3001,
       reward_address: :crypto.strong_rand_bytes(32),
       authorized?: true,
+      available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-2)
     }
 
-    cross_validation_nodes = [
-      %Node{
-        first_public_key: "key2",
-        last_public_key: "key2",
-        geo_patch: "AAA",
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        reward_address: :crypto.strong_rand_bytes(32),
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-      },
-      %Node{
-        first_public_key: "key3",
-        last_public_key: "key3",
-        geo_patch: "AAA",
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        reward_address: :crypto.strong_rand_bytes(32),
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-      }
-    ]
-
-    previous_storage_nodes = [
-      %Node{
-        last_public_key: "key2",
-        first_public_key: "key2",
-        geo_patch: "AAA",
-        available?: true,
-        reward_address: :crypto.strong_rand_bytes(32),
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-      },
-      %Node{
-        last_public_key: "key3",
-        first_public_key: "key3",
-        geo_patch: "DEA",
-        available?: true,
-        reward_address: :crypto.strong_rand_bytes(32),
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-      }
-    ]
+    previous_storage_nodes =
+      cross_validation_nodes = [
+        %Node{
+          first_public_key: "key2",
+          last_public_key: "key2",
+          geo_patch: "AAA",
+          ip: {127, 0, 0, 1},
+          port: 3002,
+          reward_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          available?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+        },
+        %Node{
+          first_public_key: "key3",
+          last_public_key: "key3",
+          geo_patch: "AAA",
+          ip: {127, 0, 0, 1},
+          port: 3003,
+          reward_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          available?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+        }
+      ]
 
     P2P.add_and_connect_node(welcome_node)
     P2P.add_and_connect_node(coordinator_node)
