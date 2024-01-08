@@ -1335,7 +1335,9 @@ defmodule Archethic.Mining.ValidationContext do
         validation_time: validation_time,
         storage_nodes_confirmations: storage_nodes_confirmations
       }) do
-    nodes = P2P.authorized_and_available_nodes(validation_time)
+    nodes =
+      P2P.authorized_and_available_nodes(validation_time)
+      |> Enum.sort_by(& &1.first_public_key)
 
     Enum.map(storage_nodes_confirmations, fn {index, _} ->
       Enum.at(nodes, index)
