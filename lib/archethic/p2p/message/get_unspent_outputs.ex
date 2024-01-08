@@ -30,7 +30,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
 
   @spec process(__MODULE__.t(), Crypto.key()) :: UnspentOutputList.t()
   def process(%__MODULE__{address: tx_address, offset: offset, limit: limit}, _) do
-    contract_inputs =
+    contract_utxos =
       tx_address
       |> Contracts.list_contract_transactions()
       |> Enum.map(fn {address, timestamp, protocol_version} ->
@@ -44,11 +44,9 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
         }
       end)
 
-    utxos =
-      tx_address
-      |> Account.get_unspent_outputs()
-      |> Enum.concat(contract_inputs)
+    ledger_utxos = Account.get_unspent_outputs(tx_address)
 
+    utxos = ledger_utxos ++ contract_utxos
     utxos_length = length(utxos)
 
     %{utxos: utxos, offset: offset, more?: more?} =

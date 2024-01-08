@@ -312,7 +312,7 @@ defmodule Archethic.Replication do
     )
 
     previous_address
-    |> TransactionContext.fetch_transaction_inputs(tx_time)
+    |> TransactionContext.fetch_transaction_unspent_outputs(tx_time)
     |> tap(fn inputs ->
       Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
         transaction_address: Base.encode16(tx.address),

@@ -145,6 +145,6 @@ defmodule Archethic.Replication.TransactionContextTest do
     })
 
     assert [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
-             TransactionContext.fetch_transaction_inputs("@Alice1", DateTime.utc_now())
+             TransactionContext.fetch_transaction_unspent_outputs("@Alice1", DateTime.utc_now())
   end
 end

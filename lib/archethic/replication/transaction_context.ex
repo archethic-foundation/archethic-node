@@ -49,11 +49,11 @@ defmodule Archethic.Replication.TransactionContext do
   end
 
   @doc """
-  Fetch the transaction inputs for a transaction address at a given time
+  Fetch the transaction unspent outputs for a transaction address at a given time
   """
-  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), DateTime.t()) ::
+  @spec fetch_transaction_unspent_outputs(address :: Crypto.versioned_hash(), DateTime.t()) ::
           list(UnspentOutput.t())
-  def fetch_transaction_inputs(address, timestamp = %DateTime{})
+  def fetch_transaction_unspent_outputs(address, timestamp = %DateTime{})
       when is_binary(address) do
     storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
