@@ -9,6 +9,9 @@ defmodule Archethic.UTXO.Loader do
   alias Archethic.UTXO.MemoryLedger
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
@@ -54,14 +57,51 @@ defmodule Archethic.UTXO.Loader do
     {:reply, :ok, state}
   end
 
-  def handle_call({:consume_inputs, tx = %Transaction{}, genesis_address}, _, state) do
-    # We update the unspent outputs by using the consumed inputs by the transaction
-    MemoryLedger.update_chain_unspent_outputs(tx, genesis_address)
-    utxos = MemoryLedger.get_unspent_outputs(genesis_address)
+  def handle_call(
+        {:consume_inputs,
+         %Transaction{
+           validation_stamp:
+             stamp = %ValidationStamp{
+               ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
+             }
+         }, genesis_address},
+        _,
+        state
+      ) do
+    new_unspent_outputs = get_new_unspent_outputs(stamp)
 
     # We compact all the unspent outputs into new ones, cleaning the previous unspent outputs
-    DBLedger.flush(genesis_address, utxos)
+    DBLedger.flush(genesis_address, new_unspent_outputs)
+
+    # We remove the consumed inputs from the memory ledger
+    Enum.each(consumed_inputs, &MemoryLedger.remove_consumed_input(genesis_address, &1))
+    MemoryLedger.reset_genesis_stats(genesis_address)
+
+    # We try to re-insert the new unspent outputs into memory
+    Enum.each(new_unspent_outputs, &MemoryLedger.add_chain_utxo(genesis_address, &1))
 
     {:reply, :ok, state}
+  end
+
+  def get_new_unspent_outputs(
+        %ValidationStamp{
+          protocol_version: protocol_version,
+          ledger_operations: %LedgerOperations{
+            unspent_outputs: unspent_outputs,
+            consumed_inputs: consumed_inputs
+          }
+        },
+        phase2? \\ false
+      ) do
+    # Filter unspent outputs which have been consumed and updated (required in the AEIP21 Phase 1)
+    Enum.filter(unspent_outputs, fn %UnspentOutput{type: type} ->
+      phase2? or Enum.any?(consumed_inputs, &(&1.type == type))
+    end)
+    |> Enum.map(fn utxo = %UnspentOutput{} ->
+      %VersionedUnspentOutput{
+        unspent_output: utxo,
+        protocol_version: protocol_version
+      }
+    end)
   end
 end

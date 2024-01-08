@@ -14,10 +14,6 @@ defmodule Archethic.UTXO.MemoryLedger do
 
   require Logger
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
@@ -62,19 +58,22 @@ defmodule Archethic.UTXO.MemoryLedger do
       )
       when is_binary(genesis_address) do
     size = :erlang.external_size(utxo)
-    :ets.insert(@table_name, {genesis_address, utxo})
 
     case :ets.lookup(@table_stats_name, genesis_address) do
+      [{_, previous_size}] when previous_size > @threshold ->
+        :ets.insert(@table_stats_name, {genesis_address, previous_size + size})
+
       [{_, previous_size}] when previous_size + size >= @threshold ->
-        :ets.delete(@table_stats_name, genesis_address)
+        :ets.insert(@table_stats_name, {genesis_address, previous_size + size})
         :ets.delete(@table_name, genesis_address)
         Logger.debug("UTXO ledger for #{Base.encode16(genesis_address)} evicted from memory")
 
       _ ->
+        :ets.insert(@table_name, {genesis_address, utxo})
         :ets.update_counter(@table_stats_name, genesis_address, {2, size}, {genesis_address, 0})
 
         Logger.debug(
-          "UTXO #{Base.encode16(from)}@#{inspect(type)} added for genesis #{inspect(genesis_address)}"
+          "UTXO #{Base.encode16(from)}@#{inspect(type)} added for genesis #{Base.encode16(genesis_address)}"
         )
 
         :ok
@@ -82,66 +81,34 @@ defmodule Archethic.UTXO.MemoryLedger do
   end
 
   @doc """
-  Update the chain unspent outputs after reduce of the consumed transaction inputs
+  Remove of the consumed input from the memory ledger for the given genesis
   """
-  @spec update_chain_unspent_outputs(Transaction.t(), genesis_address :: binary()) :: :ok
-  def update_chain_unspent_outputs(
-        %Transaction{
-          validation_stamp: %ValidationStamp{
-            ledger_operations: %LedgerOperations{
-              consumed_inputs: consumed_inputs,
-              unspent_outputs: unspent_outputs
-            },
-            protocol_version: protocol_version
-          }
-        },
+  @spec remove_consumed_input(binary(), UnspentOutput.t()) :: :ok
+  def remove_consumed_input(
         genesis_address,
-        phase2? \\ false
-      )
-      when is_binary(genesis_address) do
-    # Filter unspent outputs which have been consumed and updated (required in the AEIP21 Phase 1)
-    updated_unspent_outputs =
-      Enum.filter(unspent_outputs, fn %UnspentOutput{type: type} ->
-        phase2? or Enum.any?(consumed_inputs, &(&1.type == type))
-      end)
-      |> Enum.map(fn utxo = %UnspentOutput{} ->
-        %VersionedUnspentOutput{
-          unspent_output: utxo,
-          protocol_version: protocol_version
+        %UnspentOutput{
+          from: from,
+          type: type,
+          amount: amount,
+          timestamp: timestamp
         }
-      end)
+      ) do
+    Logger.debug("Consuming #{Base.encode16(from)} - for #{Base.encode16(genesis_address)}")
 
-    # Remove the consumed inputs
-    Enum.each(
-      consumed_inputs,
-      fn %UnspentOutput{
-           from: from,
-           type: type,
+    pattern =
+      {genesis_address,
+       %{
+         __struct__: VersionedUnspentOutput,
+         unspent_output: %{
+           __struct__: UnspentOutput,
            amount: amount,
-           timestamp: timestamp
-         } ->
-        Logger.debug("Consuming #{Base.encode16(from)} - for #{inspect(genesis_address)}")
+           from: from,
+           timestamp: timestamp,
+           type: type
+         }
+       }}
 
-        pattern =
-          {genesis_address,
-           %{
-             __struct__: VersionedUnspentOutput,
-             unspent_output: %{
-               __struct__: UnspentOutput,
-               amount: amount,
-               from: from,
-               timestamp: timestamp,
-               type: type
-             }
-           }}
-
-        :ets.match_delete(@table_name, pattern)
-      end
-    )
-
-    # Reset size stats for this genesis's address
-    :ets.delete(@table_stats_name, genesis_address)
-    Enum.each(updated_unspent_outputs, &add_chain_utxo(genesis_address, &1))
+    :ets.match_delete(@table_name, pattern)
   end
 
   @doc """
@@ -152,5 +119,16 @@ defmodule Archethic.UTXO.MemoryLedger do
     @table_name
     |> :ets.lookup(genesis_address)
     |> Enum.map(&elem(&1, 1))
+  end
+
+  @spec get_genesis_stats(binary()) :: %{size: non_neg_integer()}
+  def get_genesis_stats(genesis_address) do
+    case :ets.lookup(@table_stats_name, genesis_address) do
+      [] ->
+        %{size: 0}
+
+      [{_, size}] ->
+        %{size: size}
+    end
   end
 end
