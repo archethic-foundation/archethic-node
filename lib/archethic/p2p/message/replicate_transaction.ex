@@ -74,14 +74,9 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         io_genesis_node? =
           transaction_movements
           |> Enum.flat_map(fn %TransactionMovement{to: to} ->
-            case DB.find_genesis_address(to) do
-              {:ok, genesis_address} ->
-                Election.chain_storage_nodes(genesis_address, authorized_nodes)
-
-              _ ->
-                # Support when the resolved address is the genesis address
-                Election.chain_storage_nodes(to, authorized_nodes)
-            end
+            to
+            |> DB.get_genesis_address()
+            |> Election.chain_storage_nodes(authorized_nodes)
           end)
           |> P2P.distinct_nodes()
           |> Utils.key_in_node_list?(node_public_key)

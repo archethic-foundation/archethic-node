@@ -81,7 +81,7 @@ defmodule Archethic.UTXOTest do
             []
         end
       ) do
-        UTXO.load_transaction(tx, io_transaction?: true)
+        UTXO.load_transaction(tx)
 
         assert [
                  %VersionedUnspentOutput{
@@ -167,7 +167,7 @@ defmodule Archethic.UTXOTest do
             []
         end
       ) do
-        UTXO.load_transaction(tx, io_transaction?: false)
+        UTXO.load_transaction(tx)
 
         assert [
                  %VersionedUnspentOutput{
@@ -299,7 +299,7 @@ defmodule Archethic.UTXOTest do
             []
         end
       ) do
-        UTXO.load_transaction(tx1, io_transaction?: true)
+        UTXO.load_transaction(tx1)
 
         assert [
                  %VersionedUnspentOutput{
@@ -312,7 +312,7 @@ defmodule Archethic.UTXOTest do
                  }
                ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
 
-        UTXO.load_transaction(tx2, io_transaction?: false)
+        UTXO.load_transaction(tx2)
 
         assert [
                  %VersionedUnspentOutput{

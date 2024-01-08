@@ -8,7 +8,6 @@ defmodule Archethic.UTXO do
 
   alias Archethic.P2P
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -27,17 +26,15 @@ defmodule Archethic.UTXO do
 
   require Logger
 
-  @type load_opts :: [io_transaction?: boolean()]
-
-  @spec load_transaction(Transcation.t(), load_opts()) :: :ok
-  def load_transaction(tx = %Transaction{}, opts \\ []) do
-    io_transaction? = Keyword.get(opts, :io_transaction?, false)
+  @spec load_transaction(Transaction.t()) :: :ok
+  def load_transaction(tx = %Transaction{}) do
     authorized_nodes = P2P.authorized_and_available_nodes()
 
     # Ingest all the movements to fill up the UTXO list
     ingest_utxo(tx, authorized_nodes)
 
-    consume_utxo(tx, io_transaction?, authorized_nodes)
+    # Consume the transaction to update the unspent outputs from the consumed inputs
+    consume_utxo(tx, authorized_nodes)
 
     Logger.info("Loaded into in memory UTXO tables",
       transaction_address: Base.encode16(tx.address),
@@ -59,51 +56,29 @@ defmodule Archethic.UTXO do
     Enum.each(
       transaction_movements,
       fn %TransactionMovement{to: to, amount: amount, type: type} ->
-        genesis_address =
-          case DB.find_genesis_address(to) do
-            {:ok, address} ->
-              address
-
-            _ ->
-              # Support when the resolved address is the genesis address
-              to
-          end
-
-        utxo = %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: address,
-            amount: amount,
-            timestamp: timestamp,
-            type: type
-          },
-          protocol_version: protocol_version
-        }
+        genesis_address = DB.get_genesis_address(to)
 
         if genesis_node?(genesis_address, authorized_nodes) do
+          utxo = %VersionedUnspentOutput{
+            unspent_output: %UnspentOutput{
+              from: address,
+              amount: amount,
+              timestamp: timestamp,
+              type: type
+            },
+            protocol_version: protocol_version
+          }
+
           Loader.add_utxo(utxo, genesis_address)
         end
       end
     )
   end
 
-  defp consume_utxo(
-         tx = %Transaction{
-           validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
-           }
-         },
-         io_transaction?,
-         authorized_nodes
-       ) do
+  defp consume_utxo(tx = %Transaction{}, authorized_nodes) do
     case find_genesis_address(tx) do
       {:ok, genesis_address} ->
-        # We need to determine whether the node is responsible of the chain genesis pool as the transaction have been received as an I/O transaction.
-        chain_transaction? =
-          (not io_transaction? or TransactionChain.get_size(genesis_address) > 0) and
-            genesis_node?(genesis_address, authorized_nodes)
-
-        # In case, this transaction is one of the genesis chains, we have to consume inputs
-        if chain_transaction? and length(consumed_inputs) > 0 do
+        if genesis_node?(genesis_address, authorized_nodes) do
           Loader.consume_inputs(tx, genesis_address)
         end
 
