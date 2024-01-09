@@ -7,6 +7,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   alias Archethic.Crypto
   alias Archethic.OracleChain
   alias Archethic.PubSub
+  alias Archethic.Reward
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -305,18 +306,29 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     {uco_movements, rest} = Enum.split(movements, uco_transfers_count)
     {token_movements, mint_movements} = Enum.split(rest, token_transfers_count)
 
-    List.flatten([
-      uco_movements
-      |> Enum.zip_with(uco_transfers, fn movement, %UCOTransfer{to: address} ->
-        {movement, address}
-      end),
-      token_movements
-      |> Enum.zip_with(token_transfers, fn movement, %TokenTransfer{to: address} ->
-        {movement, address}
-      end),
-      mint_movements
-      |> Enum.map(&{&1, nil})
-    ])
+    zipped_uco_movements =
+      Enum.zip_with(uco_movements, uco_transfers, fn movement, %UCOTransfer{to: address} ->
+        {movement, address, nil}
+      end)
+
+    zipped_token_movements =
+      Enum.zip_with(
+        token_movements,
+        token_transfers,
+        fn movement, %TokenTransfer{to: address, token_address: token_address} ->
+          reward_token_address =
+            if Reward.is_reward_token?(token_address), do: token_address, else: nil
+
+          {movement, address, reward_token_address}
+        end
+      )
+
+    [
+      zipped_uco_movements,
+      zipped_token_movements,
+      Enum.map(mint_movements, &{&1, nil, nil})
+    ]
+    |> List.flatten()
   end
 
   defp filter_inputs(
