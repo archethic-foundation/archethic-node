@@ -2,7 +2,7 @@ defmodule Archethic.UTXO.Loader do
   @moduledoc false
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   alias Archethic.UTXO.DBLedger
   alias Archethic.UTXO.LoaderSupervisor

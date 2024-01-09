@@ -5,7 +5,7 @@ defmodule Archethic.UTXO.MemoryLedger do
   """
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   @table_name :archethic_utxo_ledger
   @table_stats_name :archethic_utxo_ledger_stats
