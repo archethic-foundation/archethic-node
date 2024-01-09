@@ -96,7 +96,9 @@ defmodule Archethic.UTXO do
 
       {:error, :not_found} ->
         # This might happens when the transaction haven't been yet synchronized but the previous transaction is already in the system (i.e genesis's chain)
-        DB.find_genesis_address(Transaction.previous_address(tx))
+        tx
+        |> Transaction.previous_address()
+        |> DB.find_genesis_address()
     end
   end
 

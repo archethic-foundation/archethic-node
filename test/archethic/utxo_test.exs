@@ -60,9 +60,9 @@ defmodule Archethic.UTXOTest do
       }
 
       MockDB
-      |> stub(:find_genesis_address, fn
-        ^destination_address -> {:ok, destination_genesis_address}
-        _ -> {:ok, transaction_genesis_address}
+      |> stub(:get_genesis_address, fn
+        ^destination_address -> destination_genesis_address
+        addr -> addr
       end)
 
       me = self()
@@ -143,12 +143,8 @@ defmodule Archethic.UTXOTest do
 
       MockDB
       |> stub(:find_genesis_address, fn
-        ^destination_address -> {:ok, destination_genesis_address}
-        _ -> {:ok, transaction_genesis_address}
-      end)
-      |> stub(:chain_size, fn
-        ^transaction_genesis_address -> 1
-        _ -> 0
+        ^transaction_address -> {:ok, transaction_genesis_address}
+        _addr -> {:error, :not_found}
       end)
 
       me = self()
@@ -240,23 +236,17 @@ defmodule Archethic.UTXOTest do
           timestamp: ~U[2023-09-12 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
+              %TransactionMovement{to: destination_address, amount: 50_000_000, type: :UCO}
             ],
             unspent_outputs: [
               %UnspentOutput{
                 from: transaction_address,
-                amount: 300_000_000,
+                amount: 50_000_000,
                 type: :UCO,
                 timestamp: ~U[2023-09-12 05:00:00.000Z]
               }
             ],
             consumed_inputs: [
-              %UnspentOutput{
-                from: transaction_previous_address,
-                amount: 400_000_000,
-                type: :UCO,
-                timestamp: ~U[2023-09-08 05:00:00.000Z]
-              },
               %UnspentOutput{
                 from: destination_address,
                 amount: 100_000_000,
@@ -270,14 +260,14 @@ defmodule Archethic.UTXOTest do
       }
 
       MockDB
-      |> stub(:find_genesis_address, fn
-        ^destination_address -> {:ok, destination_genesis_address}
-        _ -> {:ok, transaction_genesis_address}
+      |> stub(:get_genesis_address, fn
+        ^destination_address -> destination_genesis_address
+        ^transaction_address -> transaction_genesis_address
+        ^transaction_previous_address -> transaction_genesis_address
       end)
-      |> stub(:chain_size, fn
-        ^transaction_genesis_address -> 1
-        ^destination_address -> 1
-        _ -> 0
+      |> stub(:find_genesis_address, fn
+        ^transaction_address -> {:ok, transaction_genesis_address}
+        _addr -> {:error, :not_found}
       end)
 
       me = self()
@@ -318,7 +308,7 @@ defmodule Archethic.UTXOTest do
                  %VersionedUnspentOutput{
                    unspent_output: %UnspentOutput{
                      from: ^transaction_address,
-                     amount: 300_000_000,
+                     amount: 50_000_000,
                      type: :UCO,
                      timestamp: ~U[2023-09-12 05:00:00.000Z]
                    }

@@ -68,22 +68,39 @@ defmodule Archethic.UTXO.Loader do
         _,
         state
       ) do
-    new_unspent_outputs = get_new_unspent_outputs(stamp)
+    transaction_unspent_outputs = stamp_unspent_outputs(stamp)
+
+    new_unspent_outputs =
+      genesis_address
+      |> get_unspent_outputs()
+      |> Stream.reject(fn %VersionedUnspentOutput{unspent_output: utxo} ->
+        utxo in consumed_inputs
+      end)
+      |> Enum.concat(transaction_unspent_outputs)
 
     # We compact all the unspent outputs into new ones, cleaning the previous unspent outputs
     DBLedger.flush(genesis_address, new_unspent_outputs)
 
     # We remove the consumed inputs from the memory ledger
     Enum.each(consumed_inputs, &MemoryLedger.remove_consumed_input(genesis_address, &1))
-    MemoryLedger.reset_genesis_stats(genesis_address)
 
     # We try to re-insert the new unspent outputs into memory
-    Enum.each(new_unspent_outputs, &MemoryLedger.add_chain_utxo(genesis_address, &1))
+    Enum.each(transaction_unspent_outputs, &MemoryLedger.add_chain_utxo(genesis_address, &1))
 
     {:reply, :ok, state}
   end
 
-  def get_new_unspent_outputs(
+  def get_unspent_outputs(genesis_address) do
+    case MemoryLedger.get_unspent_outputs(genesis_address) do
+      [] ->
+        DBLedger.stream(genesis_address)
+
+      unspent_outputs ->
+        unspent_outputs
+    end
+  end
+
+  def stamp_unspent_outputs(
         %ValidationStamp{
           protocol_version: protocol_version,
           ledger_operations: %LedgerOperations{
