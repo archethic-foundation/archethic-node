@@ -15,6 +15,7 @@ defmodule Archethic.UTXO.MemoryLedger do
   require Logger
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.UTXO.DBLedger

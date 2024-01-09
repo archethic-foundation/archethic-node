@@ -92,7 +92,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       if Transaction.network_type?(tx.type) do
         P2P.list_nodes()
       else
-        targets_resolved_addresses = resolved_addresses |> Enum.into(%{}) |> Map.values() 
+        targets_resolved_addresses = resolved_addresses |> Enum.into(%{}) |> Map.values()
 
         Task.Supervisor.async_stream_nolink(
           Archethic.TaskSupervisor,
