@@ -95,7 +95,7 @@ defmodule Archethic.UTXO.DBLedger.FileImpl do
   def list_genesis_addresses do
     case File.ls(base_path()) do
       {:ok, files} ->
-        Enum.map(files, &Base.decode16/1)
+        Enum.map(files, &Base.decode16!/1)
 
       _ ->
         []
