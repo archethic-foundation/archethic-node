@@ -7,7 +7,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   doctest TransactionMovement
 
-  describe "resolve_movements/2" do
+  describe "resolve_addresses/2" do
     test "should resolve the movements" do
       transfer1_address = random_address()
       transfer2_address = random_address()
@@ -45,7 +45,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  type: {:token, ^token_address, 0}
                }
              ] =
-               TransactionMovement.resolve_movements(
+               TransactionMovement.resolve_addresses(
                  [
                    %TransactionMovement{
                      to: transfer1_address,
@@ -108,7 +108,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  type: {:token, ^token_address, 0}
                }
              ] =
-               TransactionMovement.resolve_movements(
+               TransactionMovement.resolve_addresses(
                  [
                    %TransactionMovement{
                      to: transfer1_address,
@@ -149,7 +149,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       resolved_addresses = %{}
 
       assert [] =
-               TransactionMovement.resolve_movements(
+               TransactionMovement.resolve_addresses(
                  [
                    %TransactionMovement{
                      to: transfer1_address,

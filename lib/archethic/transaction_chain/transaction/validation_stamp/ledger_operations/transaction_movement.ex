@@ -224,9 +224,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   Resolve the addresses of given movements
   If a movement does not have a resolved address, it is dropped
   """
-  @spec resolve_movements(list(t()), %{Crypto.prepended_hash() => Crypto.prepended_hash()}) ::
+  @spec resolve_addresses(list(t()), %{Crypto.prepended_hash() => Crypto.prepended_hash()}) ::
           list(t())
-  def resolve_movements(movements, resolved_addresses) do
+  def resolve_addresses(movements, resolved_addresses) do
     movements
     |> Enum.reduce([], fn mvt = %__MODULE__{to: to}, acc ->
       case Map.get(resolved_addresses, to) do

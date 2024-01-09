@@ -318,7 +318,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   def build_resolved_movements(ops, movements, resolved_addresses, tx_type) do
     resolved_movements =
       movements
-      |> TransactionMovement.resolve_movements(resolved_addresses)
+      |> TransactionMovement.resolve_addresses(resolved_addresses)
       |> Enum.map(fn
         movement = %TransactionMovement{type: :UCO} ->
           movement
