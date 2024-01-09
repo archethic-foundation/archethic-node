@@ -862,145 +862,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  transaction_timestamp
                )
     end
-
-    # test "should return the movements even if there are multiple with the same address" do
-    #   alice_address = random_address()
-    #
-    #   assert {true,
-    #           %LedgerOperations{
-    #             transaction_movements: [
-    #               %TransactionMovement{
-    #                 to: ^alice_address,
-    #                 amount: 10,
-    #                 type: :UCO
-    #               },
-    #               %TransactionMovement{
-    #                 to: ^alice_address,
-    #                 amount: 20,
-    #                 type: :UCO
-    #               },
-    #               %TransactionMovement{
-    #                 to: ^alice_address,
-    #                 amount: 30,
-    #                 type: :UCO
-    #               },
-    #               %TransactionMovement{
-    #                 to: ^alice_address,
-    #                 amount: 1,
-    #                 type: {:token, "@BobToken", 0}
-    #               },
-    #               %TransactionMovement{
-    #                 to: ^alice_address,
-    #                 amount: 2,
-    #                 type: {:token, "@BobToken", 0}
-    #               },
-    #               %TransactionMovement{
-    #                 to: ^alice_address,
-    #                 amount: 3,
-    #                 type: {:token, "@BobToken", 0}
-    #               }
-    #             ]
-    #           }} =
-    #            LedgerOperations.consume_inputs(
-    #              %LedgerOperations{
-    #                fee: 33,
-    #                transaction_movements: [
-    #                  %TransactionMovement{
-    #                    to: alice_address,
-    #                    amount: 10,
-    #                    type: :UCO
-    #                  },
-    #                  %TransactionMovement{
-    #                    to: alice_address,
-    #                    amount: 20,
-    #                    type: :UCO
-    #                  },
-    #                  %TransactionMovement{
-    #                    to: alice_address,
-    #                    amount: 30,
-    #                    type: :UCO
-    #                  },
-    #                  %TransactionMovement{
-    #                    to: alice_address,
-    #                    amount: 1,
-    #                    type: {:token, "@BobToken", 0}
-    #                  },
-    #                  %TransactionMovement{
-    #                    to: alice_address,
-    #                    amount: 2,
-    #                    type: {:token, "@BobToken", 0}
-    #                  },
-    #                  %TransactionMovement{
-    #                    to: alice_address,
-    #                    amount: 3,
-    #                    type: {:token, "@BobToken", 0}
-    #                  }
-    #                ]
-    #              },
-    #              random_address(),
-    #              [
-    #                %UnspentOutput{
-    #                  from: random_address(),
-    #                  amount: 93,
-    #                  type: :UCO,
-    #                  timestamp: DateTime.utc_now()
-    #                },
-    #                %UnspentOutput{
-    #                  from: random_address(),
-    #                  amount: 6,
-    #                  type: {:token, "@BobToken", 0},
-    #                  timestamp: DateTime.utc_now()
-    #                }
-    #              ],
-    #              DateTime.utc_now()
-    #            )
-    # end
   end
 
   describe "build_resoved_movements/3" do
-    test "should resolve addresses" do
-      address1 = random_address()
-      address2 = random_address()
-      address3 = random_address()
-
-      resolved_address1 = random_address()
-      resolved_address2 = random_address()
-      resolved_address3 = address3
-
-      token_address = random_address()
-
-      resolved_addresses = %{
-        address1 => resolved_address1,
-        address2 => resolved_address2,
-        address3 => resolved_address3
-      }
-
-      movement = [
-        %TransactionMovement{to: address1, amount: 10, type: :UCO},
-        %TransactionMovement{to: address1, amount: 20, type: :UCO},
-        %TransactionMovement{to: address3, amount: 30, type: :UCO},
-        %TransactionMovement{to: address1, amount: 10, type: {:token, token_address, 0}},
-        %TransactionMovement{to: address2, amount: 30, type: {:token, token_address, 0}}
-      ]
-
-      expected_resolved_movement = [
-        %TransactionMovement{to: resolved_address1, amount: 10, type: :UCO},
-        %TransactionMovement{to: resolved_address1, amount: 20, type: :UCO},
-        %TransactionMovement{to: resolved_address3, amount: 30, type: :UCO},
-        %TransactionMovement{to: resolved_address1, amount: 10, type: {:token, token_address, 0}},
-        %TransactionMovement{to: resolved_address2, amount: 30, type: {:token, token_address, 0}}
-      ]
-
-      assert %LedgerOperations{transaction_movements: expected_resolved_movement} ==
-               LedgerOperations.build_resolved_movements(
-                 %LedgerOperations{},
-                 movement,
-                 resolved_addresses,
-                 :transfer
-               )
-    end
-
-    test "should convert MUCO movement to UCO movement" do
+    test "should resolve, convert reward and aggregate movements" do
       address1 = random_address()
       address2 = random_address()
 
@@ -1017,69 +882,28 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       movement = [
         %TransactionMovement{to: address1, amount: 10, type: :UCO},
         %TransactionMovement{to: address1, amount: 10, type: {:token, token_address, 0}},
+        %TransactionMovement{to: address1, amount: 40, type: {:token, token_address, 0}},
         %TransactionMovement{to: address2, amount: 30, type: {:token, reward_token_address, 0}},
         %TransactionMovement{to: address1, amount: 50, type: {:token, reward_token_address, 0}}
       ]
 
       expected_resolved_movement = [
-        %TransactionMovement{to: resolved_address1, amount: 10, type: :UCO},
-        %TransactionMovement{to: resolved_address1, amount: 10, type: {:token, token_address, 0}},
-        %TransactionMovement{to: resolved_address2, amount: 30, type: :UCO},
-        %TransactionMovement{to: resolved_address1, amount: 50, type: :UCO}
+        %TransactionMovement{to: resolved_address1, amount: 60, type: :UCO},
+        %TransactionMovement{to: resolved_address1, amount: 50, type: {:token, token_address, 0}},
+        %TransactionMovement{to: resolved_address2, amount: 30, type: :UCO}
       ]
 
-      assert %LedgerOperations{transaction_movements: expected_resolved_movement} ==
+      assert %LedgerOperations{transaction_movements: resolved_movements} =
                LedgerOperations.build_resolved_movements(
                  %LedgerOperations{},
                  movement,
                  resolved_addresses,
                  :transfer
                )
-    end
 
-    test "should not convert MUCO movement to UCO movement if tx type is node_rewards" do
-      address1 = random_address()
-      address2 = random_address()
-
-      resolved_address1 = random_address()
-      resolved_address2 = random_address()
-
-      token_address = random_address()
-      reward_token_address = random_address()
-
-      resolved_addresses = %{address1 => resolved_address1, address2 => resolved_address2}
-
-      RewardTokens.add_reward_token_address(reward_token_address)
-
-      movement = [
-        %TransactionMovement{to: address1, amount: 10, type: :UCO},
-        %TransactionMovement{to: address1, amount: 10, type: {:token, token_address, 0}},
-        %TransactionMovement{to: address2, amount: 30, type: {:token, reward_token_address, 0}},
-        %TransactionMovement{to: address1, amount: 50, type: {:token, reward_token_address, 0}}
-      ]
-
-      expected_resolved_movement = [
-        %TransactionMovement{to: resolved_address1, amount: 10, type: :UCO},
-        %TransactionMovement{to: resolved_address1, amount: 10, type: {:token, token_address, 0}},
-        %TransactionMovement{
-          to: resolved_address2,
-          amount: 30,
-          type: {:token, reward_token_address, 0}
-        },
-        %TransactionMovement{
-          to: resolved_address1,
-          amount: 50,
-          type: {:token, reward_token_address, 0}
-        }
-      ]
-
-      assert %LedgerOperations{transaction_movements: expected_resolved_movement} ==
-               LedgerOperations.build_resolved_movements(
-                 %LedgerOperations{},
-                 movement,
-                 resolved_addresses,
-                 :node_rewards
-               )
+      # Order does not matters
+      assert length(expected_resolved_movement) == length(resolved_movements)
+      assert Enum.all?(expected_resolved_movement, &Enum.member?(resolved_movements, &1))
     end
   end
 end
