@@ -328,6 +328,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             do: %TransactionMovement{movement | type: :UCO},
             else: movement
       end)
+      |> TransactionMovement.aggregate()
 
     %__MODULE__{ops | transaction_movements: resolved_movements}
   end

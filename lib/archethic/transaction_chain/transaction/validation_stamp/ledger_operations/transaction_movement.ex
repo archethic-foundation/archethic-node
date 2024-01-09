@@ -236,4 +236,19 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end)
     |> Enum.reverse()
   end
+
+  @doc """
+  Aggreggate movement by type and recipient address
+  """
+  @spec aggregate(list(t())) :: list(t())
+  def aggregate(movements) do
+    Enum.reduce(
+      movements,
+      %{},
+      fn movement = %__MODULE__{to: to, type: type, amount: amount}, acc ->
+        Map.update(acc, {to, type}, movement, &%__MODULE__{&1 | amount: &1.amount + amount})
+      end
+    )
+    |> Map.values()
+  end
 end

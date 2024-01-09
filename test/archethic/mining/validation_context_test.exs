@@ -60,23 +60,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           resolved_addresses: %{transfer_address => resolved_address}
       }
 
-      expected_movements = [
-        %TransactionMovement{
-          to: resolved_address,
-          amount: 10,
-          type: :UCO
-        },
-        %TransactionMovement{
-          to: resolved_address,
-          amount: 20,
-          type: :UCO
-        },
-        %TransactionMovement{
-          to: resolved_address,
-          amount: 30,
-          type: :UCO
-        }
-      ]
+      expected_movements = [%TransactionMovement{to: resolved_address, amount: 60, type: :UCO}]
 
       assert %ValidationContext{
                validation_stamp: %ValidationStamp{
