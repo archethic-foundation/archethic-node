@@ -186,7 +186,7 @@
                 Movements (<%= movements_count %>)
               </div>
               <ul class="column">
-                <%= for {movement, transfer_address} <- @movements_zipped do %>
+                <%= for {movement, transfer_address, reward_token_address} <- @movements_zipped do %>
                   <%= case movement.type do %>
                     <% :UCO -> %>
                       <li class="columns">
@@ -216,14 +216,28 @@
                           ) %>
                         </div>
 
-                        <div class="column is-narrow">
-                          <span class="ae-label">Amount</span>
-                          <Amount.uco
-                            amount={movement.amount}
-                            uco_price_at_time={@uco_price_at_time}
-                            uco_price_now={@uco_price_now}
-                          />
-                        </div>
+                        <%= if reward_token_address != nil do %>
+                          <div class="column is-narrow">
+                            <span class="ae-label">Amount</span>
+                            <Amount.reward
+                              amount={movement.amount}
+                              token_address={reward_token_address}
+                              token_properties={@token_properties}
+                              socket={@socket}
+                              uco_price_at_time={@uco_price_at_time}
+                              uco_price_now={@uco_price_now}
+                            />
+                          </div>
+                        <% else %>
+                          <div class="column is-narrow">
+                            <span class="ae-label">Amount</span>
+                            <Amount.uco
+                              amount={movement.amount}
+                              uco_price_at_time={@uco_price_at_time}
+                              uco_price_now={@uco_price_now}
+                            />
+                          </div>
+                        <% end %>
                       </li>
                     <% {:token, token_address, token_id} -> %>
                       <li class="columns">
