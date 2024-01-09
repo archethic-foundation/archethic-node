@@ -54,8 +54,7 @@ defmodule Archethic.Account.MemTablesLoader do
     TransactionChain.list_io_transactions(@query_fields)
     |> Stream.each(
       &load_transaction(&1,
-        io_transaction?: true,
-        load_genesis?: false
+        io_transaction?: true
       )
     )
     |> Stream.run()

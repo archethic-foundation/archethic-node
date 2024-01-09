@@ -15,7 +15,6 @@ defmodule Archethic.UTXO.MemoryLedger do
   require Logger
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.UTXO.DBLedger
@@ -109,12 +108,13 @@ defmodule Archethic.UTXO.MemoryLedger do
        }}
 
     :ets.match_delete(@table_name, pattern)
+    :ok
   end
 
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
   """
-  @spec get_unspent_outputs(binary()) :: list(VersionedTransactionInput.t())
+  @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
   def get_unspent_outputs(genesis_address) do
     @table_name
     |> :ets.lookup(genesis_address)
