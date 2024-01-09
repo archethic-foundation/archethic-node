@@ -179,17 +179,25 @@ defmodule Archethic.Bootstrap.NetworkInit do
   end
 
   @spec self_validation(Transaction.t(), list(UnspentOutput.t())) :: Transaction.t()
-  def self_validation(tx = %Transaction{}, unspent_outputs \\ []) do
+  def self_validation(tx = %Transaction{address: address, type: tx_type}, unspent_outputs \\ []) do
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+    fee = Mining.get_transaction_fee(tx, nil, 0.07, timestamp, nil)
+    movements = Transaction.get_movements(tx)
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     operations =
-      %LedgerOperations{
-        fee: Mining.get_transaction_fee(tx, nil, 0.07, timestamp, nil),
-        transaction_movements: Transaction.get_movements(tx),
-        tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-      }
-      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        address,
+        unspent_outputs,
+        Transaction.get_movements(tx),
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
 
     validation_stamp =
       %ValidationStamp{

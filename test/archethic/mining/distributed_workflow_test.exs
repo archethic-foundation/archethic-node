@@ -1267,28 +1267,31 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
+    fee =
+      Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, ArchethicCase.current_protocol_version())
+
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee:
-            Fee.calculate(
-              tx,
-              nil,
-              0.07,
-              timestamp,
-              nil,
-              0,
-              ArchethicCase.current_protocol_version()
-            ),
-          transaction_movements: Transaction.get_movements(tx),
-          tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-        |> elem(1),
+      ledger_operations: ledger_operations,
       protocol_version: ArchethicCase.current_protocol_version()
     }
   end

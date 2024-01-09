@@ -1,4 +1,6 @@
 defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperationsTest do
+  alias Archethic.Reward.MemTables.RewardTokens
+
   alias Archethic.TransactionFactory
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
@@ -10,6 +12,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   import ArchethicCase
 
   doctest LedgerOperations
+
+  setup do
+    start_supervised!(RewardTokens)
+    :ok
+  end
 
   describe "serialization" do
     test "should be able to serialize and deserialize" do
@@ -331,10 +338,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   describe "consume_inputs/4" do
     test "When a single unspent output is sufficient to satisfy the transaction movements" do
       assert %LedgerOperations{
-               transaction_movements: [
-                 %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-                 %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-               ],
                fee: 40_000_000,
                unspent_outputs: [
                  %UnspentOutput{
@@ -346,13 +349,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                ]
              } =
                LedgerOperations.consume_inputs(
-                 %LedgerOperations{
-                   transaction_movements: [
-                     %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-                     %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-                   ],
-                   fee: 40_000_000
-                 },
+                 %LedgerOperations{fee: 40_000_000},
                  "@Alice2",
                  [
                    %UnspentOutput{
@@ -362,6 +359,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+                   %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
+                 ],
+                 [],
+                 nil,
                  ~U[2022-10-10 10:44:38.983Z]
                )
                |> elem(1)
@@ -369,10 +372,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     test "When multiple little unspent output are sufficient to satisfy the transaction movements" do
       assert %LedgerOperations{
-               transaction_movements: [
-                 %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-                 %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-               ],
                fee: 40_000_000,
                unspent_outputs: [
                  %UnspentOutput{
@@ -383,13 +382,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ]
              } =
-               %LedgerOperations{
-                 transaction_movements: [
-                   %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
-                   %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-                 ],
-                 fee: 40_000_000
-               }
+               %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
                  [
@@ -398,6 +391,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO},
                    %UnspentOutput{from: "@Hugo", amount: 800_000_000, type: :UCO}
                  ],
+                 [
+                   %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+                   %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
+                 ],
+                 [],
+                 nil,
                  ~U[2022-10-10 10:44:38.983Z]
                )
                |> elem(1)
@@ -405,13 +404,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     test "When using Token unspent outputs are sufficient to satisfy the transaction movements" do
       assert %LedgerOperations{
-               transaction_movements: [
-                 %TransactionMovement{
-                   to: "@Bob4",
-                   amount: 1_000_000_000,
-                   type: {:token, "@CharlieToken", 0}
-                 }
-               ],
                fee: 40_000_000,
                unspent_outputs: [
                  %UnspentOutput{
@@ -428,16 +420,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ]
              } =
-               %LedgerOperations{
-                 transaction_movements: [
-                   %TransactionMovement{
-                     to: "@Bob4",
-                     amount: 1_000_000_000,
-                     type: {:token, "@CharlieToken", 0}
-                   }
-                 ],
-                 fee: 40_000_000
-               }
+               %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
                  [
@@ -454,6 +437,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@Bob4",
+                     amount: 1_000_000_000,
+                     type: {:token, "@CharlieToken", 0}
+                   }
+                 ],
+                 [],
+                 nil,
                  ~U[2022-10-10 10:44:38.983Z]
                )
                |> elem(1)
@@ -461,13 +453,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     test "When multiple Token unspent outputs are sufficient to satisfy the transaction movements" do
       assert %LedgerOperations{
-               transaction_movements: [
-                 %TransactionMovement{
-                   to: "@Bob4",
-                   amount: 1_000_000_000,
-                   type: {:token, "@CharlieToken", 0}
-                 }
-               ],
                fee: 40_000_000,
                unspent_outputs: [
                  %UnspentOutput{
@@ -484,16 +469,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ]
              } =
-               %LedgerOperations{
-                 transaction_movements: [
-                   %TransactionMovement{
-                     to: "@Bob4",
-                     amount: 1_000_000_000,
-                     type: {:token, "@CharlieToken", 0}
-                   }
-                 ],
-                 fee: 40_000_000
-               }
+               %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
                  [
@@ -514,6 +490,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@CharlieToken", 0}
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@Bob4",
+                     amount: 1_000_000_000,
+                     type: {:token, "@CharlieToken", 0}
+                   }
+                 ],
+                 [],
+                 nil,
                  ~U[2022-10-10 10:44:38.983Z]
                )
                |> elem(1)
@@ -522,13 +507,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "When non-fungible tokens are used as input but want to consume only a single input" do
       assert %LedgerOperations{
                fee: 40_000_000,
-               transaction_movements: [
-                 %TransactionMovement{
-                   to: "@Bob4",
-                   amount: 100_000_000,
-                   type: {:token, "@CharlieToken", 2}
-                 }
-               ],
                unspent_outputs: [
                  %UnspentOutput{
                    from: "@Alice2",
@@ -550,16 +528,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ]
              } =
-               %LedgerOperations{
-                 transaction_movements: [
-                   %TransactionMovement{
-                     to: "@Bob4",
-                     amount: 100_000_000,
-                     type: {:token, "@CharlieToken", 2}
-                   }
-                 ],
-                 fee: 40_000_000
-               }
+               %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
                  [
@@ -588,6 +557,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@Bob4",
+                     amount: 100_000_000,
+                     type: {:token, "@CharlieToken", 2}
+                   }
+                 ],
+                 [],
+                 nil,
                  ~U[2022-10-10 10:44:38.983Z]
                )
                |> elem(1)
@@ -595,20 +573,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     test "should return insufficient funds when not enough uco" do
       ops = %LedgerOperations{fee: 1_000}
-      assert {false, _} = LedgerOperations.consume_inputs(ops, "@Alice", [], DateTime.utc_now())
+
+      assert {false, _} =
+               LedgerOperations.consume_inputs(ops, "@Alice", [], [], [], nil, DateTime.utc_now())
     end
 
     test "should return insufficient funds when not enough tokens" do
-      ops = %LedgerOperations{
-        fee: 1_000,
-        transaction_movements: [
-          %TransactionMovement{
-            to: "@JeanClaude",
-            amount: 100_000_000,
-            type: {:token, "@CharlieToken", 0}
-          }
-        ]
-      }
+      ops = %LedgerOperations{fee: 1_000}
 
       assert {false, _} =
                LedgerOperations.consume_inputs(
@@ -622,6 +593,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@JeanClaude",
+                     amount: 100_000_000,
+                     type: {:token, "@CharlieToken", 0}
+                   }
+                 ],
+                 [],
+                 nil,
                  DateTime.utc_now()
                )
     end
@@ -629,24 +609,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "should be able to pay with the minted fungible tokens" do
       now = DateTime.utc_now()
 
-      ops = %LedgerOperations{
-        fee: 1_000,
-        tokens_to_mint: [
-          %UnspentOutput{
-            from: "@Bob",
-            amount: 100_000_000,
-            type: {:token, "@Token", 0},
-            timestamp: ~U[2022-10-09 08:39:10.463Z]
-          }
-        ],
-        transaction_movements: [
-          %TransactionMovement{
-            to: "@JeanClaude",
-            amount: 50_000_000,
-            type: {:token, "@Token", 0}
-          }
-        ]
-      }
+      ops = %LedgerOperations{fee: 1_000}
 
       assert {true, ops_result} =
                LedgerOperations.consume_inputs(
@@ -660,6 +623,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@JeanClaude",
+                     amount: 50_000_000,
+                     type: {:token, "@Token", 0}
+                   }
+                 ],
+                 [
+                   %UnspentOutput{
+                     from: "@Bob",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 0},
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 nil,
                  now
                )
 
@@ -683,24 +662,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "should be able to pay with the minted non-fungible tokens" do
       now = DateTime.utc_now()
 
-      ops = %LedgerOperations{
-        fee: 1_000,
-        tokens_to_mint: [
-          %UnspentOutput{
-            from: "@Bob",
-            amount: 100_000_000,
-            type: {:token, "@Token", 1},
-            timestamp: ~U[2022-10-09 08:39:10.463Z]
-          }
-        ],
-        transaction_movements: [
-          %TransactionMovement{
-            to: "@JeanClaude",
-            amount: 100_000_000,
-            type: {:token, "@Token", 1}
-          }
-        ]
-      }
+      ops = %LedgerOperations{fee: 1_000}
 
       assert {true, ops_result} =
                LedgerOperations.consume_inputs(
@@ -714,6 +676,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@JeanClaude",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 1}
+                   }
+                 ],
+                 [
+                   %UnspentOutput{
+                     from: "@Bob",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 1},
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 nil,
                  now
                )
 
@@ -731,30 +709,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "should be able to pay with the minted non-fungible tokens (collection)" do
       now = DateTime.utc_now()
 
-      ops = %LedgerOperations{
-        fee: 1_000,
-        tokens_to_mint: [
-          %UnspentOutput{
-            from: "@Bob",
-            amount: 100_000_000,
-            type: {:token, "@Token", 1},
-            timestamp: ~U[2022-10-09 08:39:10.463Z]
-          },
-          %UnspentOutput{
-            from: "@Bob",
-            amount: 100_000_000,
-            type: {:token, "@Token", 2},
-            timestamp: ~U[2022-10-09 08:39:10.463Z]
-          }
-        ],
-        transaction_movements: [
-          %TransactionMovement{
-            to: "@JeanClaude",
-            amount: 100_000_000,
-            type: {:token, "@Token", 2}
-          }
-        ]
-      }
+      ops = %LedgerOperations{fee: 1_000}
 
       assert {true, ops_result} =
                LedgerOperations.consume_inputs(
@@ -768,6 +723,28 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@JeanClaude",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 2}
+                   }
+                 ],
+                 [
+                   %UnspentOutput{
+                     from: "@Bob",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 1},
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   },
+                   %UnspentOutput{
+                     from: "@Bob",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 2},
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 nil,
                  now
                )
 
@@ -791,29 +768,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "should not be able to pay with the same non-fungible token twice" do
       now = DateTime.utc_now()
 
-      ops = %LedgerOperations{
-        fee: 1_000,
-        tokens_to_mint: [
-          %UnspentOutput{
-            from: "@Bob",
-            amount: 100_000_000,
-            type: {:token, "@Token", 1},
-            timestamp: ~U[2022-10-09 08:39:10.463Z]
-          }
-        ],
-        transaction_movements: [
-          %TransactionMovement{
-            to: "@JeanClaude",
-            amount: 100_000_000,
-            type: {:token, "@Token", 1}
-          },
-          %TransactionMovement{
-            to: "@JeanBob",
-            amount: 100_000_000,
-            type: {:token, "@Token", 1}
-          }
-        ]
-      }
+      ops = %LedgerOperations{fee: 1_000}
 
       assert {false, _} =
                LedgerOperations.consume_inputs(
@@ -827,6 +782,27 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
                  ],
+                 [
+                   %TransactionMovement{
+                     to: "@JeanClaude",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 1}
+                   },
+                   %TransactionMovement{
+                     to: "@JeanBob",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 1}
+                   }
+                 ],
+                 [
+                   %UnspentOutput{
+                     from: "@Bob",
+                     amount: 100_000_000,
+                     type: {:token, "@Token", 1},
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                 ],
+                 nil,
                  now
                )
     end
@@ -841,7 +817,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       assert {true,
               %LedgerOperations{
-                transaction_movements: [],
                 unspent_outputs: [
                   %UnspentOutput{
                     from: ^transaction_address,
@@ -859,10 +834,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                 fee: 40_000_000
               }} =
                LedgerOperations.consume_inputs(
-                 %LedgerOperations{
-                   transaction_movements: [],
-                   fee: 40_000_000
-                 },
+                 %LedgerOperations{fee: 40_000_000},
                  transaction_address,
                  [
                    %UnspentOutput{
@@ -884,100 +856,229 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      timestamp: old_timestamp
                    }
                  ],
+                 [],
+                 [],
+                 nil,
                  transaction_timestamp
                )
     end
 
-    test "should return the movements even if there are multiple with the same address" do
-      alice_address = random_address()
+    # test "should return the movements even if there are multiple with the same address" do
+    #   alice_address = random_address()
+    #
+    #   assert {true,
+    #           %LedgerOperations{
+    #             transaction_movements: [
+    #               %TransactionMovement{
+    #                 to: ^alice_address,
+    #                 amount: 10,
+    #                 type: :UCO
+    #               },
+    #               %TransactionMovement{
+    #                 to: ^alice_address,
+    #                 amount: 20,
+    #                 type: :UCO
+    #               },
+    #               %TransactionMovement{
+    #                 to: ^alice_address,
+    #                 amount: 30,
+    #                 type: :UCO
+    #               },
+    #               %TransactionMovement{
+    #                 to: ^alice_address,
+    #                 amount: 1,
+    #                 type: {:token, "@BobToken", 0}
+    #               },
+    #               %TransactionMovement{
+    #                 to: ^alice_address,
+    #                 amount: 2,
+    #                 type: {:token, "@BobToken", 0}
+    #               },
+    #               %TransactionMovement{
+    #                 to: ^alice_address,
+    #                 amount: 3,
+    #                 type: {:token, "@BobToken", 0}
+    #               }
+    #             ]
+    #           }} =
+    #            LedgerOperations.consume_inputs(
+    #              %LedgerOperations{
+    #                fee: 33,
+    #                transaction_movements: [
+    #                  %TransactionMovement{
+    #                    to: alice_address,
+    #                    amount: 10,
+    #                    type: :UCO
+    #                  },
+    #                  %TransactionMovement{
+    #                    to: alice_address,
+    #                    amount: 20,
+    #                    type: :UCO
+    #                  },
+    #                  %TransactionMovement{
+    #                    to: alice_address,
+    #                    amount: 30,
+    #                    type: :UCO
+    #                  },
+    #                  %TransactionMovement{
+    #                    to: alice_address,
+    #                    amount: 1,
+    #                    type: {:token, "@BobToken", 0}
+    #                  },
+    #                  %TransactionMovement{
+    #                    to: alice_address,
+    #                    amount: 2,
+    #                    type: {:token, "@BobToken", 0}
+    #                  },
+    #                  %TransactionMovement{
+    #                    to: alice_address,
+    #                    amount: 3,
+    #                    type: {:token, "@BobToken", 0}
+    #                  }
+    #                ]
+    #              },
+    #              random_address(),
+    #              [
+    #                %UnspentOutput{
+    #                  from: random_address(),
+    #                  amount: 93,
+    #                  type: :UCO,
+    #                  timestamp: DateTime.utc_now()
+    #                },
+    #                %UnspentOutput{
+    #                  from: random_address(),
+    #                  amount: 6,
+    #                  type: {:token, "@BobToken", 0},
+    #                  timestamp: DateTime.utc_now()
+    #                }
+    #              ],
+    #              DateTime.utc_now()
+    #            )
+    # end
+  end
 
-      assert {true,
-              %LedgerOperations{
-                transaction_movements: [
-                  %TransactionMovement{
-                    to: ^alice_address,
-                    amount: 10,
-                    type: :UCO
-                  },
-                  %TransactionMovement{
-                    to: ^alice_address,
-                    amount: 20,
-                    type: :UCO
-                  },
-                  %TransactionMovement{
-                    to: ^alice_address,
-                    amount: 30,
-                    type: :UCO
-                  },
-                  %TransactionMovement{
-                    to: ^alice_address,
-                    amount: 1,
-                    type: {:token, "@BobToken", 0}
-                  },
-                  %TransactionMovement{
-                    to: ^alice_address,
-                    amount: 2,
-                    type: {:token, "@BobToken", 0}
-                  },
-                  %TransactionMovement{
-                    to: ^alice_address,
-                    amount: 3,
-                    type: {:token, "@BobToken", 0}
-                  }
-                ]
-              }} =
-               LedgerOperations.consume_inputs(
-                 %LedgerOperations{
-                   fee: 33,
-                   transaction_movements: [
-                     %TransactionMovement{
-                       to: alice_address,
-                       amount: 10,
-                       type: :UCO
-                     },
-                     %TransactionMovement{
-                       to: alice_address,
-                       amount: 20,
-                       type: :UCO
-                     },
-                     %TransactionMovement{
-                       to: alice_address,
-                       amount: 30,
-                       type: :UCO
-                     },
-                     %TransactionMovement{
-                       to: alice_address,
-                       amount: 1,
-                       type: {:token, "@BobToken", 0}
-                     },
-                     %TransactionMovement{
-                       to: alice_address,
-                       amount: 2,
-                       type: {:token, "@BobToken", 0}
-                     },
-                     %TransactionMovement{
-                       to: alice_address,
-                       amount: 3,
-                       type: {:token, "@BobToken", 0}
-                     }
-                   ]
-                 },
-                 random_address(),
-                 [
-                   %UnspentOutput{
-                     from: random_address(),
-                     amount: 93,
-                     type: :UCO,
-                     timestamp: DateTime.utc_now()
-                   },
-                   %UnspentOutput{
-                     from: random_address(),
-                     amount: 6,
-                     type: {:token, "@BobToken", 0},
-                     timestamp: DateTime.utc_now()
-                   }
-                 ],
-                 DateTime.utc_now()
+  describe "build_resoved_movements/3" do
+    test "should resolve addresses" do
+      address1 = random_address()
+      address2 = random_address()
+      address3 = random_address()
+
+      resolved_address1 = random_address()
+      resolved_address2 = random_address()
+      resolved_address3 = address3
+
+      token_address = random_address()
+
+      resolved_addresses = %{
+        address1 => resolved_address1,
+        address2 => resolved_address2,
+        address3 => resolved_address3
+      }
+
+      movement = [
+        %TransactionMovement{to: address1, amount: 10, type: :UCO},
+        %TransactionMovement{to: address1, amount: 20, type: :UCO},
+        %TransactionMovement{to: address3, amount: 30, type: :UCO},
+        %TransactionMovement{to: address1, amount: 10, type: {:token, token_address, 0}},
+        %TransactionMovement{to: address2, amount: 30, type: {:token, token_address, 0}}
+      ]
+
+      expected_resolved_movement = [
+        %TransactionMovement{to: resolved_address1, amount: 10, type: :UCO},
+        %TransactionMovement{to: resolved_address1, amount: 20, type: :UCO},
+        %TransactionMovement{to: resolved_address3, amount: 30, type: :UCO},
+        %TransactionMovement{to: resolved_address1, amount: 10, type: {:token, token_address, 0}},
+        %TransactionMovement{to: resolved_address2, amount: 30, type: {:token, token_address, 0}}
+      ]
+
+      assert %LedgerOperations{transaction_movements: expected_resolved_movement} ==
+               LedgerOperations.build_resolved_movements(
+                 %LedgerOperations{},
+                 movement,
+                 resolved_addresses,
+                 :transfer
+               )
+    end
+
+    test "should convert MUCO movement to UCO movement" do
+      address1 = random_address()
+      address2 = random_address()
+
+      resolved_address1 = random_address()
+      resolved_address2 = random_address()
+
+      token_address = random_address()
+      reward_token_address = random_address()
+
+      resolved_addresses = %{address1 => resolved_address1, address2 => resolved_address2}
+
+      RewardTokens.add_reward_token_address(reward_token_address)
+
+      movement = [
+        %TransactionMovement{to: address1, amount: 10, type: :UCO},
+        %TransactionMovement{to: address1, amount: 10, type: {:token, token_address, 0}},
+        %TransactionMovement{to: address2, amount: 30, type: {:token, reward_token_address, 0}},
+        %TransactionMovement{to: address1, amount: 50, type: {:token, reward_token_address, 0}}
+      ]
+
+      expected_resolved_movement = [
+        %TransactionMovement{to: resolved_address1, amount: 10, type: :UCO},
+        %TransactionMovement{to: resolved_address1, amount: 10, type: {:token, token_address, 0}},
+        %TransactionMovement{to: resolved_address2, amount: 30, type: :UCO},
+        %TransactionMovement{to: resolved_address1, amount: 50, type: :UCO}
+      ]
+
+      assert %LedgerOperations{transaction_movements: expected_resolved_movement} ==
+               LedgerOperations.build_resolved_movements(
+                 %LedgerOperations{},
+                 movement,
+                 resolved_addresses,
+                 :transfer
+               )
+    end
+
+    test "should not convert MUCO movement to UCO movement if tx type is node_rewards" do
+      address1 = random_address()
+      address2 = random_address()
+
+      resolved_address1 = random_address()
+      resolved_address2 = random_address()
+
+      token_address = random_address()
+      reward_token_address = random_address()
+
+      resolved_addresses = %{address1 => resolved_address1, address2 => resolved_address2}
+
+      RewardTokens.add_reward_token_address(reward_token_address)
+
+      movement = [
+        %TransactionMovement{to: address1, amount: 10, type: :UCO},
+        %TransactionMovement{to: address1, amount: 10, type: {:token, token_address, 0}},
+        %TransactionMovement{to: address2, amount: 30, type: {:token, reward_token_address, 0}},
+        %TransactionMovement{to: address1, amount: 50, type: {:token, reward_token_address, 0}}
+      ]
+
+      expected_resolved_movement = [
+        %TransactionMovement{to: resolved_address1, amount: 10, type: :UCO},
+        %TransactionMovement{to: resolved_address1, amount: 10, type: {:token, token_address, 0}},
+        %TransactionMovement{
+          to: resolved_address2,
+          amount: 30,
+          type: {:token, reward_token_address, 0}
+        },
+        %TransactionMovement{
+          to: resolved_address1,
+          amount: 50,
+          type: {:token, reward_token_address, 0}
+        }
+      ]
+
+      assert %LedgerOperations{transaction_movements: expected_resolved_movement} ==
+               LedgerOperations.build_resolved_movements(
+                 %LedgerOperations{},
+                 movement,
+                 resolved_addresses,
+                 :node_rewards
                )
     end
   end

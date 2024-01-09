@@ -383,19 +383,30 @@ defmodule Archethic.Mining.ValidationContextTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
-          transaction_movements: Transaction.get_movements(tx),
-          tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-        |> elem(1),
+      ledger_operations: ledger_operations,
       signature: :crypto.strong_rand_bytes(32),
       protocol_version: current_protocol_version()
     }
@@ -406,19 +417,30 @@ defmodule Archethic.Mining.ValidationContextTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
-          transaction_movements: Transaction.get_movements(tx),
-          tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-        |> elem(1),
+      ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
@@ -429,19 +451,30 @@ defmodule Archethic.Mining.ValidationContextTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
-          transaction_movements: Transaction.get_movements(tx),
-          tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp)
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-        |> elem(1),
+      ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
@@ -452,18 +485,28 @@ defmodule Archethic.Mining.ValidationContextTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{fee: 1}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: 1,
-          transaction_movements: Transaction.get_movements(tx)
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-        |> elem(1),
+      ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
@@ -476,28 +519,27 @@ defmodule Archethic.Mining.ValidationContextTest do
        }) do
     fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
 
+    ledger_operations = %LedgerOperations{
+      fee: fee,
+      transaction_movements: [
+        %TransactionMovement{to: "@Bob3", amount: 200_000_000_000, type: :UCO}
+      ],
+      unspent_outputs: [
+        %UnspentOutput{
+          amount: Enum.reduce(unspent_outputs, 0, &(&1.amount + &2)) - fee,
+          from: tx.address,
+          type: :UCO,
+          timestamp: timestamp
+        }
+      ]
+    }
+
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: fee,
-          transaction_movements: [
-            %TransactionMovement{to: "@Bob3", amount: 200_000_000_000, type: :UCO}
-          ],
-          unspent_outputs: [
-            %UnspentOutput{
-              amount: Enum.reduce(unspent_outputs, 0, &(&1.amount + &2)) - fee,
-              from: tx.address,
-              type: :UCO,
-              timestamp: timestamp
-            }
-          ]
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-        |> elem(1),
+      ledger_operations: ledger_operations,
       protocol_version: current_protocol_version()
     }
     |> ValidationStamp.sign()
@@ -535,18 +577,29 @@ defmodule Archethic.Mining.ValidationContextTest do
          unspent_outputs: unspent_outputs,
          validation_time: timestamp
        }) do
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    movements = Transaction.get_movements(tx)
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
+    ledger_operations =
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
+      |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
+
     %ValidationStamp{
       timestamp: timestamp,
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
-          transaction_movements: Transaction.get_movements(tx)
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs, timestamp)
-        |> elem(1),
+      ledger_operations: ledger_operations,
       error: :invalid_pending_transaction,
       protocol_version: current_protocol_version()
     }

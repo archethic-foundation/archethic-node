@@ -6,12 +6,18 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidatorTest do
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ConditionInterpreter
   alias Archethic.Contracts.Interpreter.ConditionValidator
+  alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionFactory
+
+  setup do
+    start_supervised!(RewardTokens)
+    :ok
+  end
 
   describe "execute_condition/2" do
     test "should return ok if the transaction's conditions are valid" do

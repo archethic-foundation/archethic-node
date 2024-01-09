@@ -64,8 +64,6 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -799,7 +797,7 @@ defmodule Archethic.Mining.ValidationContext do
 
   defp get_ledger_operations(
          %__MODULE__{
-           transaction: tx,
+           transaction: tx = %Transaction{address: address, type: tx_type},
            unspent_outputs: unspent_outputs,
            resolved_addresses: resolved_addresses
          },
@@ -807,22 +805,23 @@ defmodule Archethic.Mining.ValidationContext do
          validation_time,
          encoded_state
        ) do
-    resolved_movements =
-      tx
-      |> Transaction.get_movements()
-      |> TransactionMovement.resolve_movements(resolved_addresses)
+    movements = Transaction.get_movements(tx)
 
-    %LedgerOperations{
-      fee: fee,
-      transaction_movements: resolved_movements,
-      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, validation_time),
-      encoded_state: encoded_state
-    }
-    |> LedgerOperations.consume_inputs(
-      tx.address,
-      unspent_outputs,
-      validation_time |> DateTime.truncate(:millisecond)
-    )
+    {sufficient_funds?, ops} =
+      LedgerOperations.consume_inputs(
+        %LedgerOperations{fee: fee},
+        address,
+        unspent_outputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, validation_time),
+        encoded_state,
+        validation_time |> DateTime.truncate(:millisecond)
+      )
+
+    new_ops =
+      LedgerOperations.build_resolved_movements(ops, movements, resolved_addresses, tx_type)
+
+    {sufficient_funds?, new_ops}
   end
 
   @spec get_validation_error(
@@ -1228,12 +1227,16 @@ defmodule Archethic.Mining.ValidationContext do
                transaction_movements: transaction_movements
              }
          },
-         %__MODULE__{transaction: tx, resolved_addresses: resolved_addresses}
+         %__MODULE__{
+           transaction: tx = %Transaction{type: tx_type},
+           resolved_addresses: resolved_addresses
+         }
        ) do
-    resolved_movements =
-      tx
-      |> Transaction.get_movements()
-      |> TransactionMovement.resolve_movements(resolved_addresses)
+    movements = Transaction.get_movements(tx)
+
+    %LedgerOperations{transaction_movements: resolved_movements} =
+      %LedgerOperations{}
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
 
     length(resolved_movements) == length(transaction_movements) and
       Enum.all?(resolved_movements, &(&1 in transaction_movements))

@@ -5,6 +5,7 @@ defmodule Archethic.TransactionChain.TransactionTest do
   import ArchethicCase
 
   alias Archethic.Crypto
+  alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
 
@@ -18,6 +19,11 @@ defmodule Archethic.TransactionChain.TransactionTest do
   alias Archethic.TransactionFactory
 
   doctest Archethic.TransactionChain.Transaction
+
+  setup do
+    start_supervised!(RewardTokens)
+    :ok
+  end
 
   describe "new/2" do
     test "with type ':node' create a new transaction using the node keys" do
