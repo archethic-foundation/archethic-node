@@ -5,6 +5,8 @@ defmodule Archethic.Contracts.ConstantsTest do
 
   alias Archethic.Contracts.Constants
 
+  alias Archethic.Reward.MemTables.RewardTokens
+
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
@@ -19,6 +21,11 @@ defmodule Archethic.Contracts.ConstantsTest do
 
   alias Archethic.ContractFactory
   alias Archethic.TransactionFactory
+
+  setup do
+    start_supervised!(RewardTokens)
+    :ok
+  end
 
   describe "from_transaction/1" do
     test "should return a map" do

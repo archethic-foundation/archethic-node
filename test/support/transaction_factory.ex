@@ -86,15 +86,23 @@ defmodule Archethic.TransactionFactory do
         index
       )
 
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, encoded_state, 0, current_protocol_version())
+    movements = Transaction.get_movements(tx)
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
     ledger_operations =
-      %LedgerOperations{
-        fee:
-          Fee.calculate(tx, nil, 0.07, timestamp, encoded_state, 0, current_protocol_version()),
-        transaction_movements: Transaction.get_movements(tx),
-        encoded_state: encoded_state
-      }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        inputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        encoded_state,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)
 
     poi =
       case prev_tx do
@@ -139,12 +147,23 @@ defmodule Archethic.TransactionFactory do
 
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    movements = Transaction.get_movements(tx)
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
     ledger_operations =
-      %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
-      }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        inputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
 
     validation_stamp =
       %ValidationStamp{
@@ -170,16 +189,25 @@ defmodule Archethic.TransactionFactory do
   def create_transaction_with_invalid_proof_of_work(inputs \\ []) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
-    timestamp =
-      DateTime.utc_now()
-      |> DateTime.truncate(:millisecond)
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
+
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    movements = Transaction.get_movements(tx)
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
 
     ledger_operations =
-      %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
-      }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        inputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -210,12 +238,23 @@ defmodule Archethic.TransactionFactory do
 
     tx = Transaction.new(type, %TransactionData{}, seed, index)
 
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    movements = Transaction.get_movements(tx)
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
     ledger_operations =
-      %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
-      }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        inputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)
 
     validation_stamp = %ValidationStamp{
       timestamp: timestamp,
@@ -240,12 +279,22 @@ defmodule Archethic.TransactionFactory do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
+    movements = Transaction.get_movements(tx)
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
     ledger_operations =
-      %LedgerOperations{
-        fee: 1_000_000_000
-      }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      %LedgerOperations{fee: 1_000_000_000}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        inputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
 
     validation_stamp =
       %ValidationStamp{
@@ -272,15 +321,23 @@ defmodule Archethic.TransactionFactory do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
     timestamp = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    movements = [%TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}]
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
     ledger_operations =
-      %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
-        transaction_movements: [
-          %TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}
-        ]
-      }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        inputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
 
     validation_stamp =
       %ValidationStamp{
@@ -324,13 +381,23 @@ defmodule Archethic.TransactionFactory do
         index
       )
 
+    fee = Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version())
+    movements = Transaction.get_movements(tx)
+
+    resolved_addresses = Enum.map(movements, &{&1.to, &1.to}) |> Map.new()
+
     ledger_operations =
-      %LedgerOperations{
-        fee: Fee.calculate(tx, nil, 0.07, timestamp, nil, 0, current_protocol_version()),
-        transaction_movements: Transaction.get_movements(tx)
-      }
-      |> LedgerOperations.consume_inputs(tx.address, inputs, timestamp)
+      %LedgerOperations{fee: fee}
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        inputs,
+        movements,
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        nil,
+        timestamp
+      )
       |> elem(1)
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
 
     validation_stamp =
       %ValidationStamp{

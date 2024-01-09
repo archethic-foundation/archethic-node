@@ -9,6 +9,8 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   alias Archethic.Contracts.Interpreter.ActionInterpreter
   alias Archethic.Contracts.Interpreter.FunctionKeys
 
+  alias Archethic.Reward.MemTables.RewardTokens
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
@@ -20,6 +22,11 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
   alias Archethic.TransactionFactory
 
   doctest ActionInterpreter
+
+  setup do
+    start_supervised!(RewardTokens)
+    :ok
+  end
 
   # ----------------------------------------------
   # parse/1

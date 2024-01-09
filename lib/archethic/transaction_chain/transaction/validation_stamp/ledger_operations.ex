@@ -8,15 +8,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @unit_uco 100_000_000
 
-  defstruct transaction_movements: [],
-            unspent_outputs: [],
-            tokens_to_mint: [],
-            encoded_state: nil,
-            fee: 0
+  defstruct transaction_movements: [], unspent_outputs: [], fee: 0
 
   alias Archethic.Contracts.Contract.State
 
   alias Archethic.Crypto
+
+  alias Archethic.Reward
 
   alias Archethic.TransactionChain.Transaction
 
@@ -36,8 +34,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @type t() :: %__MODULE__{
           transaction_movements: list(TransactionMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
-          tokens_to_mint: list(UnspentOutput.t()),
-          encoded_state: State.encoded() | nil,
           fee: non_neg_integer()
         }
 
@@ -154,8 +150,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   defp get_token_utxos(_, _, _), do: []
 
-  defp total_to_spend(%__MODULE__{transaction_movements: transaction_movements, fee: fee}) do
-    ledger_balances(transaction_movements, %{uco: fee, token: %{}})
+  defp total_to_spend(fee, movements) do
+    ledger_balances(movements, %{uco: fee, token: %{}})
   end
 
   defp ledger_balances(movements, acc \\ %{uco: 0, token: %{}}) do
@@ -203,13 +199,19 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           ledger_operations :: t(),
           change_address :: binary(),
           inputs :: list(UnspentOutput.t() | TransactionInput.t()),
+          movements :: list(TransactionMovement.t()),
+          token_to_mint :: list(UnspentOutput.t()),
+          encoded_state :: State.encoded() | nil,
           timestamp :: DateTime.t()
         ) ::
           {boolean(), t()}
   def consume_inputs(
-        ops = %__MODULE__{tokens_to_mint: tokens_to_mint, encoded_state: encoded_state},
+        ops = %__MODULE__{fee: fee},
         change_address,
         inputs,
+        movements,
+        tokens_to_mint,
+        encoded_state,
         timestamp
       )
       when is_binary(change_address) and is_list(inputs) and not is_nil(timestamp) do
@@ -217,7 +219,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     inputs = inputs ++ tokens_to_mint
 
     %{uco: uco_balance, token: tokens_balance} = ledger_balances(inputs)
-    %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(ops)
+    %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
 
     if sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
       tokens_utxos =
@@ -244,10 +246,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           [uco_utxo, state_utxo | tokens_utxos]
         end
 
-      {true,
-       ops
-       |> Map.put(:unspent_outputs, utxos)
-       |> Map.put(:tokens_to_mint, [])}
+      {true, %__MODULE__{ops | unspent_outputs: utxos}}
     else
       {false, ops}
     end
@@ -305,6 +304,33 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   # We prevent part of non-fungible token to be spent
   defp trunc_token_amount(0, amount), do: amount
   defp trunc_token_amount(_token_id, amount), do: trunc(amount / @unit_uco) * @unit_uco
+
+  @doc """
+  Build the resolved view of the movement, with the resolved address
+  and convert MUCO movement to UCO movement
+  """
+  @spec build_resolved_movements(
+          ops :: t(),
+          movements :: list(TransactionMovement.t()),
+          resolved_addresses :: %{Crypto.prepended_hash() => Crypto.prepended_hash()},
+          tx_type :: Transaction.transaction_type()
+        ) :: t()
+  def build_resolved_movements(ops, movements, resolved_addresses, tx_type) do
+    resolved_movements =
+      movements
+      |> TransactionMovement.resolve_movements(resolved_addresses)
+      |> Enum.map(fn
+        movement = %TransactionMovement{type: :UCO} ->
+          movement
+
+        movement = %TransactionMovement{type: {:token, token_address, _token_id}} ->
+          if Reward.is_reward_token?(token_address) and tx_type != :node_rewards,
+            do: %TransactionMovement{movement | type: :UCO},
+            else: movement
+      end)
+
+    %__MODULE__{ops | transaction_movements: resolved_movements}
+  end
 
   @doc """
   List all the addresses from transaction movements

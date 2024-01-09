@@ -14,7 +14,9 @@ defmodule Archethic.TransactionChain.Transaction do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   alias Archethic.Utils
 
@@ -476,22 +478,28 @@ defmodule Archethic.TransactionChain.Transaction do
           }
         }
       }) do
-    List.flatten([
-      Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}),
-      Enum.map(
-        token_transfers,
-        &%TransactionMovement{
-          to: &1.to,
-          amount: &1.amount,
-          type: {:token, &1.token_address, &1.token_id}
-        }
-      ),
+    [
+      Enum.map(uco_transfers, &cast_transfer_to_movement/1),
+      Enum.map(token_transfers, &cast_transfer_to_movement/1),
       case type do
         :token -> get_movements_from_token_transaction(tx_address, content)
         :mint_reward -> get_movements_from_token_transaction(tx_address, content)
         _ -> []
       end
-    ])
+    ]
+    |> List.flatten()
+  end
+
+  defp cast_transfer_to_movement(%UCOTransfer{to: to, amount: amount}),
+    do: %TransactionMovement{to: to, amount: amount, type: :UCO}
+
+  defp cast_transfer_to_movement(%TokenTransfer{
+         to: to,
+         amount: amount,
+         token_address: token_address,
+         token_id: token_id
+       }) do
+    %TransactionMovement{to: to, amount: amount, type: {:token, token_address, token_id}}
   end
 
   @doc """

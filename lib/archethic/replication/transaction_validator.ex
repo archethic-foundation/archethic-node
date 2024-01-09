@@ -17,8 +17,6 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
   alias Archethic.TransactionChain.TransactionInput
@@ -311,6 +309,7 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp validate_transaction_movements(
          tx = %Transaction{
+           type: tx_type,
            validation_stamp: %ValidationStamp{
              timestamp: timestamp,
              ledger_operations:
@@ -319,11 +318,11 @@ defmodule Archethic.Replication.TransactionValidator do
          }
        ) do
     resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, timestamp)
+    movements = Transaction.get_movements(tx)
 
-    resolved_movements =
-      tx
-      |> Transaction.get_movements()
-      |> TransactionMovement.resolve_movements(resolved_addresses)
+    %LedgerOperations{transaction_movements: resolved_movements} =
+      %LedgerOperations{}
+      |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)
 
     with true <- length(resolved_movements) == length(transaction_movements),
          true <- Enum.all?(resolved_movements, &(&1 in transaction_movements)) do
@@ -373,44 +372,42 @@ defmodule Archethic.Replication.TransactionValidator do
            address: address,
            validation_stamp: %ValidationStamp{
              timestamp: timestamp,
-             ledger_operations: %LedgerOperations{
-               unspent_outputs: next_unspent_outputs,
-               fee: fee,
-               transaction_movements: transaction_movements
-             }
+             ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs, fee: fee}
            }
          },
          inputs,
          encoded_state
        ) do
-    ops = %LedgerOperations{
-      fee: fee,
-      transaction_movements: transaction_movements,
-      tokens_to_mint: LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-      encoded_state: encoded_state
-    }
+    {sufficient_funds?, %LedgerOperations{unspent_outputs: expected_unspent_outputs}} =
+      LedgerOperations.consume_inputs(
+        %LedgerOperations{fee: fee},
+        address,
+        inputs,
+        Transaction.get_movements(tx),
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
+        encoded_state,
+        timestamp
+      )
 
-    case LedgerOperations.consume_inputs(ops, address, inputs, timestamp) do
-      {false, _} ->
-        {:error, :insufficient_funds}
+    if sufficient_funds? do
+      same? =
+        Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
+          Enum.any?(expected_unspent_outputs, &(&1.from == from and &1.amount >= amount))
+        end)
 
-      {true, %LedgerOperations{unspent_outputs: expected_unspent_outputs}} ->
-        same? =
-          Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
-            Enum.any?(expected_unspent_outputs, &(&1.from == from and &1.amount >= amount))
-          end)
+      if same? do
+        :ok
+      else
+        Logger.error(
+          "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
-        if same? do
-          :ok
-        else
-          Logger.error(
-            "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
-
-          {:error, :invalid_unspent_outputs}
-        end
+        {:error, :invalid_unspent_outputs}
+      end
+    else
+      {:error, :insufficient_funds}
     end
   end
 end

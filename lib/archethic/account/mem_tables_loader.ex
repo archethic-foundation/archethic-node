@@ -233,6 +233,9 @@ defmodule Archethic.Account.MemTablesLoader do
         )
 
       %TransactionMovement{to: to, amount: amount, type: {:token, token_address, 0}} ->
+        # Since issue #1368 Reward token are converted to UCO directly in validation
+        # but to keep retrocompatibility with old transaction we need to keep this
+        # control when loading UTXO mainly for self repair
         if Reward.is_reward_token?(token_address) && tx_type != :node_rewards do
           new_utxo = %UnspentOutput{
             amount: amount,
