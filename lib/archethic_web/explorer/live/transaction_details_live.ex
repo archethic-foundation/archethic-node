@@ -248,7 +248,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
           {:ok, map} ->
             properties = %{
               decimals: Map.get(map, "decimals", 8),
-              symbol: Map.get(map, "symbol")
+              symbol: Map.get(map, "symbol", Map.get(map, "name"))
             }
 
             Map.put(acc, token_address, properties)
