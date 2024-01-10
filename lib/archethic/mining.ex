@@ -28,7 +28,7 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @protocol_version 4
+  @protocol_version 5
 
   def protocol_version, do: @protocol_version
 
