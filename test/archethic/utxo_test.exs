@@ -35,6 +35,7 @@ defmodule Archethic.UTXOTest do
 
       tx = %Transaction{
         address: transaction_address,
+        type: :transfer,
         validation_stamp: %ValidationStamp{
           timestamp: ~U[2023-09-10 05:00:00.000Z],
           protocol_version: ArchethicCase.current_protocol_version(),
@@ -117,6 +118,7 @@ defmodule Archethic.UTXOTest do
 
       tx = %Transaction{
         address: transaction_address,
+        type: :transfer,
         validation_stamp: %ValidationStamp{
           protocol_version: ArchethicCase.current_protocol_version(),
           timestamp: ~U[2023-09-10 05:00:00.000Z],
@@ -201,6 +203,7 @@ defmodule Archethic.UTXOTest do
 
       tx1 = %Transaction{
         address: destination_address,
+        type: :transfer,
         validation_stamp: %ValidationStamp{
           protocol_version: ArchethicCase.current_protocol_version(),
           timestamp: ~U[2023-09-10 05:00:00.000Z],
@@ -231,6 +234,7 @@ defmodule Archethic.UTXOTest do
 
       tx2 = %Transaction{
         address: transaction_address,
+        type: :transfer,
         validation_stamp: %ValidationStamp{
           protocol_version: ArchethicCase.current_protocol_version(),
           timestamp: ~U[2023-09-12 05:00:00.000Z],

@@ -45,6 +45,7 @@ defmodule Archethic.UTXO do
   defp ingest_utxo(
          %Transaction{
            address: address,
+           type: tx_type,
            validation_stamp: %ValidationStamp{
              protocol_version: protocol_version,
              timestamp: timestamp,
@@ -53,26 +54,26 @@ defmodule Archethic.UTXO do
          },
          authorized_nodes
        ) do
-    Enum.each(
-      transaction_movements,
-      fn %TransactionMovement{to: to, amount: amount, type: type} ->
-        genesis_address = DB.get_genesis_address(to)
+    transaction_movements
+    |> Enum.map(&TransactionMovement.maybe_convert_reward_to_uco(&1, tx_type))
+    # |> TransactionMovements.aggregate() after PR about aggregation
+    |> Enum.each(fn %TransactionMovement{to: to, amount: amount, type: type} ->
+      genesis_address = DB.get_genesis_address(to)
 
-        if genesis_node?(genesis_address, authorized_nodes) do
-          utxo = %VersionedUnspentOutput{
-            unspent_output: %UnspentOutput{
-              from: address,
-              amount: amount,
-              timestamp: timestamp,
-              type: type
-            },
-            protocol_version: protocol_version
-          }
+      if genesis_node?(genesis_address, authorized_nodes) do
+        utxo = %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: address,
+            amount: amount,
+            timestamp: timestamp,
+            type: type
+          },
+          protocol_version: protocol_version
+        }
 
-          Loader.add_utxo(utxo, genesis_address)
-        end
+        Loader.add_utxo(utxo, genesis_address)
       end
-    )
+    end)
   end
 
   defp consume_utxo(tx = %Transaction{}, authorized_nodes) do
