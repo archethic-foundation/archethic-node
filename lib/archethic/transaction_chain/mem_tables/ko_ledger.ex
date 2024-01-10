@@ -9,7 +9,7 @@ defmodule Archethic.TransactionChain.MemTables.KOLedger do
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 

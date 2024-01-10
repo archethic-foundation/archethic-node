@@ -2,7 +2,7 @@ defmodule Archethic.BeaconChain.Update do
   @moduledoc false
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   alias Archethic.Crypto
 

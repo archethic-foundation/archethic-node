@@ -2,7 +2,7 @@ defmodule Archethic.Reward.MemTables.RewardTokens do
   @moduledoc false
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   @reward_token_addresses_table :archethic_reward_token_addresses
 

@@ -2,7 +2,7 @@ defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
   @moduledoc false
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)

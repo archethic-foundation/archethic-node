@@ -13,7 +13,7 @@ defmodule Archethic.Election.HypergeometricDistribution do
   """
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   alias Archethic.P2P
   alias Archethic.P2P.Node

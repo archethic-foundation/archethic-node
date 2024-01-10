@@ -2,7 +2,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   @moduledoc false
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   alias Archethic.Crypto
   alias Archethic.Utils

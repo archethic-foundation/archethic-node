@@ -7,7 +7,7 @@ defmodule Archethic.SelfRepair.RepairWorker do
   alias Archethic.SelfRepair.NotifierSupervisor
 
   use GenServer, restart: :transient
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 

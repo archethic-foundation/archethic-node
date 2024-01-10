@@ -9,7 +9,7 @@ defmodule Archethic.OracleChain.Scheduler do
   alias TransactionChain.{Transaction, TransactionData}
 
   use GenStateMachine, callback_mode: [:handle_event_function]
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 

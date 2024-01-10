@@ -10,7 +10,7 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
   alias Archethic.TransactionChain
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
   require Logger
 
   def start_link(address, max_retry, replaying_fn, timeout \\ @default_timeout) do

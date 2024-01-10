@@ -3,7 +3,7 @@ defmodule ArchethicWeb.Explorer.ExplorerLive.TopTransactionsCache do
 
   @moduledoc false
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
   require Logger
 
   def start_link(opts) do

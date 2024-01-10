@@ -10,7 +10,7 @@ defmodule Archethic.Account.MemTables.StateLedger do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 

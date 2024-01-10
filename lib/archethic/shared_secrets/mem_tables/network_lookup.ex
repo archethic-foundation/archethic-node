@@ -5,7 +5,7 @@ defmodule Archethic.SharedSecrets.MemTables.NetworkLookup do
   alias Archethic.Crypto
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   @table_name :archethic_shared_secrets_network
 

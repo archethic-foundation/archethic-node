@@ -14,7 +14,7 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
   alias Archethic.Utils.VarInt
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   @table_name :archethic_summary_cache
 
@@ -37,11 +37,6 @@ defmodule Archethic.BeaconChain.Subset.SummaryCache do
     PubSub.register_to_self_repair()
 
     {:ok, %{}}
-  end
-
-  def code_change("1.4.2", state, _extra) do
-    PubSub.register_to_self_repair()
-    {:ok, state}
   end
 
   def code_change(_version, state, _extra), do: {:ok, state}

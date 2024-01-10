@@ -2,7 +2,7 @@ defmodule ArchethicWeb.Explorer.FaucetRateLimiter do
   @moduledoc false
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   @faucet_rate_limit Application.compile_env!(:archethic, :faucet_rate_limit)
   @faucet_rate_limit_expiry Application.compile_env!(:archethic, :faucet_rate_limit_expiry)

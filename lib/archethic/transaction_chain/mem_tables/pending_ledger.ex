@@ -7,7 +7,7 @@ defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   @table_name :archethic_pending_ledger
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 

@@ -14,7 +14,7 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   alias Archethic.TransactionChain.VersionedTransactionInput
 
   use GenServer
-  @vsn Mix.Project.config()[:version]
+  @vsn 1
 
   require Logger
 
