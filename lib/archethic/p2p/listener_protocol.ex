@@ -9,6 +9,7 @@ defmodule Archethic.P2P.ListenerProtocol do
 
   alias Archethic.Crypto
 
+  alias Archethic.P2P.Client.Connection
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
 
@@ -35,6 +36,19 @@ defmodule Archethic.P2P.ListenerProtocol do
       ip: ip,
       port: port
     })
+  end
+
+  def handle_info(
+        {_transport, socket, "hb"},
+        state = %{transport: transport}
+      ) do
+    :inet.setopts(socket, active: :once)
+
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      transport.send(socket, "hb")
+    end)
+
+    {:noreply, state}
   end
 
   def handle_info(
@@ -69,6 +83,9 @@ defmodule Archethic.P2P.ListenerProtocol do
 
         start_processing_time = System.monotonic_time()
         response = Message.process(message, sender_public_key)
+
+        # we may attempt to wakeup a connection that offline
+        Connection.wake_up(sender_public_key)
 
         :telemetry.execute(
           [:archethic, :p2p, :handle_message],
