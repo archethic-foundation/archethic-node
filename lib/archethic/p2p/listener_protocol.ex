@@ -41,7 +41,7 @@ defmodule Archethic.P2P.ListenerProtocol do
       )
       when is_atom(err) do
     if node_ip?(ip) do
-      Logger.error("Received an error from tcp listener (ip: #{inspect(ip)}: #{inspect(err)}")
+      Logger.error("Received an error from tcp listener (ip: #{:inet.ntoa(ip)}): #{inspect(err)}")
     end
 
     transport.close(socket)
@@ -88,6 +88,12 @@ defmodule Archethic.P2P.ListenerProtocol do
           |> encode_response(message_id, sender_pkey)
           |> reply(transport, socket, message)
         else
+          if node_ip?(ip) do
+            Logger.error("Received a message with an invalid signature",
+              node: Base.encode16(sender_pkey)
+            )
+          end
+
           transport.close(socket)
         end
 
