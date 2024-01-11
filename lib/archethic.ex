@@ -352,7 +352,7 @@ defmodule Archethic do
 
   @doc """
   Retrieve a transaction chain based on an address from the closest nodes
-  by setting `paging_address as an offset address.
+  by setting paging_state as an offset address or a date.
   """
   @spec get_pagined_transaction_chain(
           address :: Crypto.prepended_hash(),
