@@ -16,7 +16,6 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.TransactionData
   alias ArchethicWeb.Explorer.Components.TransactionsList
 
   def mount(_params, _session, socket) do
@@ -26,23 +25,8 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
     end
 
     next_summary_date = OracleChain.next_summary_date(DateTime.utc_now())
-    next_first_oracle_address = Crypto.derive_oracle_address(next_summary_date, 0)
 
-    {last_oracle_data, update_time} =
-      case TransactionChain.get_last_transaction(next_first_oracle_address,
-             data: [:content],
-             validation_stamp: [:timestamp]
-           ) do
-        {:ok,
-         %Transaction{
-           data: %TransactionData{content: content},
-           validation_stamp: %ValidationStamp{timestamp: timestamp}
-         }} ->
-          {Jason.decode!(content), timestamp}
-
-        {:error, :transaction_not_exists} ->
-          {%{}, nil}
-      end
+    uco_prices = OracleChain.get_uco_price(DateTime.utc_now())
 
     oracle_dates =
       case get_oracle_dates() |> Enum.to_list() do
@@ -55,8 +39,7 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
 
     new_assign =
       socket
-      |> assign(:last_oracle_data, last_oracle_data)
-      |> assign(:update_time, update_time || next_summary_date)
+      |> assign(:last_oracle_data, %{uco: uco_prices})
       |> assign(:dates, oracle_dates)
       |> assign(:current_date_page, 1)
       |> assign(:transactions, list_transactions_by_date(next_summary_date))
@@ -104,15 +87,11 @@ defmodule ArchethicWeb.Explorer.OracleChainLive do
         {:new_transaction, address, :oracle, timestamp},
         socket = %{assigns: assigns = %{current_date_page: current_page}}
       ) do
-    {:ok, %Transaction{data: %TransactionData{content: content}}} =
-      TransactionChain.get_transaction(address, data: [:content])
-
-    last_oracle_data = Jason.decode!(content)
+    uco_prices = OracleChain.get_uco_price(timestamp)
 
     new_assign =
       socket
-      |> assign(:last_oracle_data, last_oracle_data)
-      |> assign(:update_time, timestamp)
+      |> assign(:last_oracle_data, %{uco: uco_prices})
 
     if current_page == 1 do
       # Only update the transaction listed when you are on the first page
