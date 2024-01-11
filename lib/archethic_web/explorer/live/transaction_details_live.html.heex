@@ -569,17 +569,17 @@
 
             <%!----------------------------- INPUTS --------------------------------%>
             <div class="columns">
-              <% inputs_filtered_count = Enum.count(@inputs_filtered) %>
+              <% inputs_count = Enum.count(@inputs) %>
               <div class="column ae-left-heading is-2">
-                <p>Inputs (<%= inputs_filtered_count %>)</p>
+                <p>Inputs (<%= inputs_count %>)</p>
               </div>
 
               <div class="column">
-                <%= if inputs_filtered_count == 0 do %>
+                <%= if inputs_count == 0 do %>
                   <div></div>
                 <% else %>
                   <InputsList.display_all
-                    inputs={@inputs_filtered}
+                    inputs={@inputs}
                     socket={@socket}
                     uco_price_at_time={@uco_price_at_time}
                     uco_price_now={@uco_price_now}

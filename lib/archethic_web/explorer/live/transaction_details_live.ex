@@ -36,7 +36,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
        previous_address: nil,
        transaction: nil,
        inputs: [],
-       inputs_filtered: [],
        calls: [],
        uco_price_now: uco_price_now,
        linked_movements: []
@@ -74,27 +73,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     {:noreply, new_socket}
   end
 
-  def handle_info(
-        {:async_assign_inputs,
-         [
-           assigns: assigns,
-           transaction_movements: transaction_movements,
-           token_transfers: token_transfers
-         ]},
-        socket
-      ) do
-    async_assign_token_properties(assigns[:inputs], transaction_movements, token_transfers)
-
-    inputs_filtered = filter_inputs(Keyword.get(assigns, :inputs, []), socket.assigns.transaction)
-
-    {:noreply, socket |> assign(assigns) |> assign(:inputs_filtered, inputs_filtered)}
-  end
-
-  def handle_info({:async_assign_token_properties, assigns}, socket) do
-    {:noreply, assign(socket, assigns)}
-  end
-
-  def handle_info({:async_assign_movements, assigns}, socket) do
+  def handle_info({:async_assign, assigns}, socket) do
     {:noreply, assign(socket, assigns)}
   end
 
@@ -114,22 +93,15 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
          socket,
          tx = %Transaction{
            address: address,
-           data: %TransactionData{
-             ledger: %Ledger{
-               token: %TokenLedger{transfers: token_transfers}
-             }
-           },
-           validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
-           }
+           validation_stamp: %ValidationStamp{timestamp: timestamp}
          }
        ) do
     previous_address = Transaction.previous_address(tx)
 
-    uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
+    uco_price_at_time = OracleChain.get_uco_price(timestamp)
 
     async_assign_resolved_movements(tx)
-    async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers)
+    async_assign_inputs_and_token_properties(tx)
 
     socket
     |> assign(:transaction, tx)
@@ -175,7 +147,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
         |> resolve_genesis_addresses()
         |> link_movement_to_transfers(transfers, movements, protocol_version)
 
-      send(me, {:async_assign_movements, [linked_movements: linked_movements]})
+      send(me, {:async_assign, [linked_movements: linked_movements]})
     end)
   end
 
@@ -252,7 +224,16 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     {movement, filtered_transfers}
   end
 
-  defp async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers) do
+  defp async_assign_inputs_and_token_properties(%Transaction{
+         address: address,
+         data: %TransactionData{ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}},
+         validation_stamp: %ValidationStamp{
+           ledger_operations: %LedgerOperations{
+             transaction_movements: transaction_movements,
+             unspent_outputs: unspent_outputs
+           }
+         }
+       }) do
     me = self()
 
     Task.Supervisor.async_nolink(
@@ -262,46 +243,29 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
         ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
         contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
-        assigns = [
-          inputs: ledger_inputs,
-          calls: contract_inputs
-        ]
+        inputs = filter_inputs(ledger_inputs, unspent_outputs)
 
-        send(
-          me,
-          {:async_assign_inputs,
-           [
-             assigns: assigns,
-             transaction_movements: transaction_movements,
-             token_transfers: token_transfers
-           ]}
-        )
+        assigns = [inputs: inputs, calls: contract_inputs]
+
+        send(me, {:async_assign, assigns})
+
+        get_token_addresses([], inputs)
+        |> get_token_addresses(transaction_movements)
+        |> get_token_addresses(token_transfers)
+        |> Enum.uniq()
+        |> async_assign_token_properties(me)
       end,
       timeout: 20_000
     )
   end
 
-  defp async_assign_token_properties(ledger_inputs, transaction_movements, token_transfers) do
-    me = self()
-
+  defp async_assign_token_properties(token_addresses, pid) do
     Task.Supervisor.async_nolink(
       TaskSupervisor,
       fn ->
-        token_properties =
-          get_token_addresses([], ledger_inputs)
-          |> get_token_addresses(transaction_movements)
-          |> get_token_addresses(token_transfers)
-          |> Enum.uniq()
-          |> get_token_properties()
+        assigns = [token_properties: get_token_properties(token_addresses)]
 
-        assigns = [
-          token_properties: token_properties
-        ]
-
-        send(
-          me,
-          {:async_assign_token_properties, assigns}
-        )
+        send(pid, {:async_assign, assigns})
       end,
       timeout: 20_000
     )
@@ -312,17 +276,14 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
     contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
-    token_properties =
-      get_token_addresses([], ledger_inputs)
-      |> Enum.uniq()
-      |> get_token_properties()
+    get_token_addresses([], ledger_inputs) |> Enum.uniq() |> async_assign_token_properties(self())
 
     socket
     |> assign(:address, address)
     |> assign(:inputs, ledger_inputs)
     |> assign(:calls, contract_inputs)
     |> assign(:error, :not_exists)
-    |> assign(:token_properties, token_properties)
+    |> assign(:token_properties, [])
   end
 
   defp get_token_addresses(acc, [%TransactionMovement{type: {:token, token_address, _}} | rest]) do
@@ -398,20 +359,11 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     end
   end
 
-  defp filter_inputs(
-         inputs,
-         %Transaction{
-           validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{unspent_outputs: utxos}
-           }
-         }
-       ) do
+  defp filter_inputs(inputs, utxos) do
     Enum.reject(inputs, fn input ->
       Enum.any?(utxos, &similar?(input, &1))
     end)
   end
-
-  defp filter_inputs(inputs, _), do: inputs
 
   defp similar?(
          %TransactionInput{
