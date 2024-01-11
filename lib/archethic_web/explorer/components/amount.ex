@@ -63,41 +63,6 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
     """
   end
 
-  def reward(
-        assigns = %{
-          amount: amount,
-          token_properties: token_properties,
-          token_address: token_address
-        }
-      ) do
-    token_properties = Map.get(token_properties, token_address, %{})
-    decimals = Map.get(token_properties, :decimals, 8)
-
-    assigns =
-      assign(assigns, %{
-        amount: from_bigint(amount, decimals),
-        token_name: get_token_name(token_properties, token_address, 0),
-        tooltip: get_uco_tooltip(assigns)
-      })
-
-    ~H"""
-    <span class="mono">
-      <%= @amount %>
-
-      <%= link(to:
-          Routes.live_path(
-            @socket,
-            ArchethicWeb.Explorer.TransactionDetailsLive,
-            Base.encode16(@token_address)
-          )
-      ) do %>
-        <span class="tag is-gradient mono"><%= @token_name %></span>
-      <% end %>
-    </span>
-    ⟶ <span class="tag is-gradient mono" data-tooltip={@tooltip}> UCO </span>
-    """
-  end
-
   defp get_token_name(_, _, token_id) when token_id > 0, do: "NFT ##{token_id}"
 
   defp get_token_name(token_properties, token_address, _token_id) do
