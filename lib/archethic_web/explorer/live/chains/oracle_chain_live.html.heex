@@ -9,7 +9,7 @@
     <%= if Enum.empty?(@last_oracle_data) do %>
       N/A
     <% else %>
-      <%= get_in(@last_oracle_data, ["uco", "usd"]) %> $
+      <%= get_in(@last_oracle_data, [:uco, :usd]) %> $
     <% end %>
   </h2>
 </div>
@@ -26,4 +26,3 @@
   socket={@socket}
   uco_price_now={@uco_price_now}
 />
-<div>Last changes from <%= format_date(@update_time) %></div>
