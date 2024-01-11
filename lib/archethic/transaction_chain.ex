@@ -365,7 +365,7 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Stream a transaction chain from the paging address
+  Stream a transaction chain from the paging state
   """
   @spec fetch(Crypto.prepended_hash(), list(Node.t()), list()) ::
           Enumerable.t() | list(Transaction.t())
