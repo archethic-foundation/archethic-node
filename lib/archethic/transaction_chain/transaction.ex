@@ -1002,7 +1002,14 @@ defmodule Archethic.TransactionChain.Transaction do
     }
   end
 
-  defp get_movements_from_token_transaction(tx_address, tx_content) do
+  @doc """
+  Return the movements created by a the definition of a token
+  """
+  @spec get_movements_from_token_transaction(
+          tx_address :: Crypto.prepended_hash(),
+          tx_content :: binary()
+        ) :: list(TransactionMovement.t())
+  def get_movements_from_token_transaction(tx_address, tx_content) do
     case Jason.decode(tx_content) do
       {:ok, json} ->
         cond do

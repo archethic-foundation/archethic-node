@@ -7,7 +7,6 @@ html {
   overflow: auto !important;
 }
 
-
 body {
   font-size: 0.9rem;
   background: #000000;
@@ -21,8 +20,6 @@ body {
 dt {
   color: $color-brand-raspberry-300;
 }
-
-
 
 .text_title {
   font-weight: 600;
@@ -52,8 +49,6 @@ dt {
   }
 }
 
-
-
 .text_regular_positive {
   color: $color-system-positive-500;
 }
@@ -65,7 +60,6 @@ dt {
 .text_regular_info {
   color: $color-system-info-500;
 }
-
 
 .main_input {
   box-shadow: none !important;
@@ -93,8 +87,6 @@ pre {
   word-break: break-all;
   white-space: pre-wrap !important;
 }
-
-
 
 .modal-content {
   background: transparent !important;
@@ -150,8 +142,6 @@ pre {
   color: white;
 }
 
-
-
 .title_row {
   display: flex;
   align-items: center;
@@ -178,7 +168,6 @@ pre {
   padding-right: 10px;
 }
 
-
 .title_row .title_text-medium {
   font-size: 12px;
   margin-left: 4px;
@@ -193,7 +182,6 @@ pre {
 .shadow {
   box-shadow: 0px 5px 10px $color-neutral-900;
 }
-
 
 .menu-list {
   color: #FFF;
@@ -252,6 +240,7 @@ pre {
 .ae-label {
   font-weight: 600;
   color: $color-brand-plum-200;
+  padding-right: 5px;
 }
 
 .ae-box {
@@ -283,8 +272,6 @@ pre {
   margin-bottom: 0;
 }
 
-
-
 .ae-left-heading {
   text-transform: uppercase;
 
@@ -304,7 +291,6 @@ pre {
   font-family: $font-mono !important;
   word-break: break-all;
 }
-
 
 .spacer {
   height: 20px !important;
@@ -346,7 +332,6 @@ li.th {
   margin-bottom: 1em !important;
   border-bottom: 1px solid $color-neutral-0;
 }
-
 
 hr {
   border: none;
@@ -399,7 +384,6 @@ hr {
   font-weight: 400;
 }
 
-
 .copy-icon {
   display: inline-block;
   width: 14px;
@@ -432,8 +416,6 @@ hr {
   background-size: cover;
 }
 
-
-
 .tx-details li.columns,
 .nodes-list li.columns {
   @include mobile {
@@ -441,4 +423,28 @@ hr {
     border: 1px dotted $color-brand-blue-200;
     margin-bottom: 1em;
   }
+}
+
+.caret {
+  font-size: 0.7em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.caret::before {
+  content: "\25B6";
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.caret-down::before {
+  transform: rotate(90deg);
+}
+
+.nested {
+  display: none;
+}
+
+.active {
+  display: block;
 }

@@ -37,9 +37,9 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
        transaction: nil,
        inputs: [],
        inputs_filtered: [],
-       movements_zipped: [],
        calls: [],
-       uco_price_now: uco_price_now
+       uco_price_now: uco_price_now,
+       linked_movements: []
      })}
   end
 
@@ -87,17 +87,14 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
     inputs_filtered = filter_inputs(Keyword.get(assigns, :inputs, []), socket.assigns.transaction)
 
-    movements_zipped =
-      zip_movements_with_transfers(transaction_movements, socket.assigns.transaction)
-
-    {:noreply,
-     socket
-     |> assign(assigns)
-     |> assign(:inputs_filtered, inputs_filtered)
-     |> assign(:movements_zipped, movements_zipped)}
+    {:noreply, socket |> assign(assigns) |> assign(:inputs_filtered, inputs_filtered)}
   end
 
   def handle_info({:async_assign_token_properties, assigns}, socket) do
+    {:noreply, assign(socket, assigns)}
+  end
+
+  def handle_info({:async_assign_movements, assigns}, socket) do
     {:noreply, assign(socket, assigns)}
   end
 
@@ -118,7 +115,9 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
          tx = %Transaction{
            address: address,
            data: %TransactionData{
-             ledger: %Ledger{token: %TokenLedger{transfers: token_transfers}}
+             ledger: %Ledger{
+               token: %TokenLedger{transfers: token_transfers}
+             }
            },
            validation_stamp: %ValidationStamp{
              ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
@@ -129,6 +128,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
     uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
 
+    async_assign_resolved_movements(tx)
     async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers)
 
     socket
@@ -139,6 +139,117 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:inputs, [])
     |> assign(:calls, [])
     |> assign(:token_properties, %{})
+    |> assign(:linked_movements, [])
+  end
+
+  defp async_assign_resolved_movements(%Transaction{
+         address: address,
+         type: type,
+         data: %TransactionData{
+           content: content,
+           ledger: %Ledger{
+             token: %TokenLedger{transfers: token_transfers},
+             uco: %UCOLedger{transfers: uco_transfers}
+           }
+         },
+         validation_stamp: %ValidationStamp{
+           ledger_operations: %LedgerOperations{transaction_movements: movements},
+           protocol_version: protocol_version
+         }
+       }) do
+    me = self()
+
+    Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+      transfers_from_content =
+        if type in [:mint_rewards, :token],
+          do: get_transfers_from_token_tx(address, content),
+          else: []
+
+      transfers = uco_transfers ++ token_transfers ++ transfers_from_content
+
+      linked_movements =
+        transfers
+        |> Enum.concat(movements)
+        |> Enum.map(& &1.to)
+        |> Enum.uniq()
+        |> resolve_genesis_addresses()
+        |> link_movement_to_transfers(transfers, movements, protocol_version)
+
+      send(me, {:async_assign_movements, [linked_movements: linked_movements]})
+    end)
+  end
+
+  defp get_transfers_from_token_tx(address, content) do
+    address
+    |> Transaction.get_movements_from_token_transaction(content)
+    |> Enum.map(fn %TransactionMovement{
+                     to: to,
+                     type: {:token, token_address, token_id},
+                     amount: amount
+                   } ->
+      %TokenTransfer{to: to, token_address: token_address, token_id: token_id, amount: amount}
+    end)
+  end
+
+  defp resolve_genesis_addresses(addresses) do
+    Task.Supervisor.async_stream_nolink(TaskSupervisor, addresses, fn address ->
+      case Archethic.fetch_genesis_address(address) do
+        {:ok, genesis} -> {address, genesis}
+        _ -> {address, address}
+      end
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.map(fn {:ok, resolution} -> resolution end)
+    |> Map.new()
+  end
+
+  defp link_movement_to_transfers(resolved_genesis, transfers, movements, protocol_version) do
+    Enum.map(movements, &find_transfers(&1, resolved_genesis, transfers, protocol_version))
+  end
+
+  defp find_transfers(
+         movement = %TransactionMovement{to: movement_recipient, type: :UCO},
+         resolved_genesis,
+         transfers,
+         protocol_version
+       ) do
+    movement_genesis = Map.get(resolved_genesis, movement_recipient)
+
+    filtered_transfers =
+      Enum.filter(transfers, fn
+        %UCOTransfer{to: transfer_recipient} ->
+          movement_genesis == Map.get(resolved_genesis, transfer_recipient)
+
+        %TokenTransfer{to: transfer_recipient, token_address: token_address} ->
+          # Before protocol version 5, rewards where not converted to UCO movement
+          Reward.is_reward_token?(token_address) and protocol_version >= 5 and
+            movement_genesis == Map.get(resolved_genesis, transfer_recipient)
+      end)
+
+    {movement, filtered_transfers}
+  end
+
+  defp find_transfers(
+         movement = %TransactionMovement{
+           to: movement_recipient,
+           type: {:token, token_address, token_id}
+         },
+         resolved_genesis,
+         transfers,
+         _protocol_version
+       ) do
+    movement_genesis = Map.get(resolved_genesis, movement_recipient)
+
+    filtered_transfers =
+      Enum.filter(transfers, fn
+        %TokenTransfer{to: transfer_recipient, token_address: ^token_address, token_id: ^token_id} ->
+          movement_genesis == Map.get(resolved_genesis, transfer_recipient)
+
+        _ ->
+          false
+      end)
+
+    {movement, filtered_transfers}
   end
 
   defp async_assign_inputs_and_token_properties(address, transaction_movements, token_transfers) do
@@ -285,50 +396,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
       nil -> false
       input -> input.spent?
     end
-  end
-
-  defp zip_movements_with_transfers(movements, %Transaction{
-         data: %TransactionData{
-           ledger: %Ledger{
-             uco: %UCOLedger{
-               transfers: uco_transfers
-             },
-             token: %TokenLedger{
-               transfers: token_transfers
-             }
-           }
-         }
-       }) do
-    # movements are inserted in this order: 1: uco 2: token 3: mint
-    uco_transfers_count = length(uco_transfers)
-    token_transfers_count = length(token_transfers)
-
-    {uco_movements, rest} = Enum.split(movements, uco_transfers_count)
-    {token_movements, mint_movements} = Enum.split(rest, token_transfers_count)
-
-    zipped_uco_movements =
-      Enum.zip_with(uco_movements, uco_transfers, fn movement, %UCOTransfer{to: address} ->
-        {movement, address, nil}
-      end)
-
-    zipped_token_movements =
-      Enum.zip_with(
-        token_movements,
-        token_transfers,
-        fn movement, %TokenTransfer{to: address, token_address: token_address} ->
-          reward_token_address =
-            if Reward.is_reward_token?(token_address), do: token_address, else: nil
-
-          {movement, address, reward_token_address}
-        end
-      )
-
-    [
-      zipped_uco_movements,
-      zipped_token_movements,
-      Enum.map(mint_movements, &{&1, nil, nil})
-    ]
-    |> List.flatten()
   end
 
   defp filter_inputs(

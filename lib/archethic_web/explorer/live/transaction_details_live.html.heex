@@ -181,70 +181,28 @@
 
             <%!----------------------------- MOVEMENTS --------------------------------%>
             <div class="columns">
-              <% movements_count = Enum.count(@movements_zipped) %>
+              <% movements_count = Enum.count(@linked_movements) %>
               <div class="column ae-left-heading is-2">
                 Movements (<%= movements_count %>)
               </div>
               <ul class="column">
-                <%= for {movement, transfer_address, reward_token_address} <- @movements_zipped do %>
+                <%= for {movement, transfers} <- @linked_movements do %>
                   <%= case movement.type do %>
                     <% :UCO -> %>
-                      <li class="columns">
-                        <div class="column is-narrow">
-                          <span class="ae-label">To</span>
-
-                          <%= link(WebUtils.short_address(transfer_address),
-                            to:
-                              Routes.live_path(
-                                @socket,
-                                ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(transfer_address)
-                              )
-                          ) %>
-                        </div>
-
-                        <div class="column is-narrow">
-                          <span class="ae-label">Resolved</span>
-
-                          <%= link(WebUtils.short_address(movement.to),
-                            to:
-                              Routes.live_path(
-                                @socket,
-                                ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(movement.to)
-                              )
-                          ) %>
-                        </div>
-
-                        <%= if reward_token_address != nil do %>
-                          <div class="column is-narrow">
-                            <span class="ae-label">Amount</span>
-                            <Amount.reward
-                              amount={movement.amount}
-                              token_address={reward_token_address}
-                              token_properties={@token_properties}
-                              socket={@socket}
-                              uco_price_at_time={@uco_price_at_time}
-                              uco_price_now={@uco_price_now}
-                            />
+                      <div x-data="{show: false}">
+                        <li class="columns is-mobile is-multiline">
+                          <div class="column is-narrow is-hidden-mobile pr-0">
+                            <span
+                              class="caret"
+                              @click="show = !show"
+                              x-bind:class="show ? 'caret-down' : 'caret'"
+                            >
+                            </span>
                           </div>
-                        <% else %>
-                          <div class="column is-narrow">
-                            <span class="ae-label">Amount</span>
-                            <Amount.uco
-                              amount={movement.amount}
-                              uco_price_at_time={@uco_price_at_time}
-                              uco_price_now={@uco_price_now}
-                            />
-                          </div>
-                        <% end %>
-                      </li>
-                    <% {:token, token_address, token_id} -> %>
-                      <li class="columns">
-                        <%= if transfer_address == nil do %>
-                          <div class="column is-narrow">
+
+                          <div class="column is-narrow is-hidden-mobile">
                             <span class="ae-label">To</span>
-                            <%!-- This is a movement that comes from a mint of this transaction --%>
+
                             <%= link(WebUtils.short_address(movement.to),
                               to:
                                 Routes.live_path(
@@ -254,43 +212,165 @@
                                 )
                             ) %>
                           </div>
-                        <% else %>
-                          <div class="column is-narrow">
+
+                          <div class="column is-12-mobile is-hidden-tablet">
                             <span class="ae-label">To</span>
 
-                            <%= link(WebUtils.short_address(transfer_address),
+                            <%= link(WebUtils.short_address(movement.to),
                               to:
                                 Routes.live_path(
                                   @socket,
                                   ArchethicWeb.Explorer.TransactionDetailsLive,
-                                  Base.encode16(transfer_address)
+                                  Base.encode16(movement.to)
                                 )
                             ) %>
                           </div>
-                        <% end %>
-                        <div class="column is-narrow">
-                          <span class="ae-label">Resolved</span>
-                          <%= link(WebUtils.short_address(movement.to),
-                            to:
-                              Routes.live_path(
-                                @socket,
-                                ArchethicWeb.Explorer.TransactionDetailsLive,
-                                Base.encode16(movement.to)
-                              )
-                          ) %>
-                        </div>
 
-                        <div class="column is-narrow">
-                          <span class="ae-label">Amount</span>
-                          <Amount.token
-                            amount={movement.amount}
-                            token_address={token_address}
-                            token_id={token_id}
-                            token_properties={@token_properties}
-                            socket={@socket}
-                          />
+                          <div class="column is-narrow">
+                            <span class="ae-label">Amount</span>
+                            <Amount.uco
+                              amount={movement.amount}
+                              uco_price_at_time={@uco_price_at_time}
+                              uco_price_now={@uco_price_now}
+                            />
+                          </div>
+
+                          <div class="column is-narrow is-hidden-tablet">
+                            <span
+                              class="caret"
+                              @click="show = !show"
+                              x-bind:class="show ? 'caret-down' : 'caret'"
+                            >
+                            </span>
+                          </div>
+                        </li>
+
+                        <div x-show="show">
+                          <%= for transfer <- transfers do %>
+                            <li class="columns">
+                              <div class="column is-narrow">
+                                <span class="ae-label">Resolved from</span>
+
+                                <%= link(WebUtils.short_address(transfer.to),
+                                  to:
+                                    Routes.live_path(
+                                      @socket,
+                                      ArchethicWeb.Explorer.TransactionDetailsLive,
+                                      Base.encode16(transfer.to)
+                                    )
+                                ) %>
+                              </div>
+                              <%= case transfer do %>
+                                <% %UCOTransfer{} -> %>
+                                  <div class="column is-narrow-mobile">
+                                    <span class="ae-label">Amount</span>
+                                    <Amount.uco
+                                      amount={transfer.amount}
+                                      uco_price_at_time={@uco_price_at_time}
+                                      uco_price_now={@uco_price_now}
+                                    />
+                                  </div>
+                                <% %TokenTransfer{} -> %>
+                                  <div class="column is-narrow-mobile">
+                                    <span class="ae-label">Amount</span>
+                                    <Amount.token
+                                      amount={transfer.amount}
+                                      token_address={transfer.token_address}
+                                      token_id={transfer.token_id}
+                                      token_properties={@token_properties}
+                                      socket={@socket}
+                                    />
+                                  </div>
+                              <% end %>
+                            </li>
+                          <% end %>
                         </div>
-                      </li>
+                      </div>
+                    <% {:token, token_address, token_id} -> %>
+                      <div x-data="{show: false}">
+                        <li class="columns is-mobile is-multiline">
+                          <div class="column is-narrow is-hidden-mobile pr-0">
+                            <span
+                              class="caret"
+                              @click="show = !show"
+                              x-bind:class="show ? 'caret-down' : 'caret'"
+                            >
+                            </span>
+                          </div>
+
+                          <div class="column is-narrow is-hidden-mobile">
+                            <span class="ae-label">To</span>
+                            <%= link(WebUtils.short_address(movement.to),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(movement.to)
+                                )
+                            ) %>
+                          </div>
+
+                          <div class="column is-12-mobile is-hidden-tablet">
+                            <span class="ae-label">To</span>
+                            <%= link(WebUtils.short_address(movement.to),
+                              to:
+                                Routes.live_path(
+                                  @socket,
+                                  ArchethicWeb.Explorer.TransactionDetailsLive,
+                                  Base.encode16(movement.to)
+                                )
+                            ) %>
+                          </div>
+
+                          <div class="column is-narrow">
+                            <span class="ae-label">Amount</span>
+                            <Amount.token
+                              amount={movement.amount}
+                              token_address={token_address}
+                              token_id={token_id}
+                              token_properties={@token_properties}
+                              socket={@socket}
+                            />
+                          </div>
+
+                          <div class="column is-narrow is-hidden-tablet">
+                            <span
+                              class="caret"
+                              @click="show = !show"
+                              x-bind:class="show ? 'caret-down' : 'caret'"
+                            >
+                            </span>
+                          </div>
+                        </li>
+                        <div x-show="show">
+                          <%= for transfer <- transfers do %>
+                            <li class="columns">
+                              <div class="column is-narrow">
+                                <span class="ae-label">Resolved from</span>
+
+                                <%= link(WebUtils.short_address(transfer.to),
+                                  to:
+                                    Routes.live_path(
+                                      @socket,
+                                      ArchethicWeb.Explorer.TransactionDetailsLive,
+                                      Base.encode16(transfer.to)
+                                    )
+                                ) %>
+                              </div>
+                              <div class="column is-narrow-mobile">
+                                <span class="ae-label">Amount</span>
+                                <Amount.token
+                                  amount={transfer.amount}
+                                  token_address={transfer.token_address}
+                                  token_id={transfer.token_id}
+                                  token_properties={@token_properties}
+                                  socket={@socket}
+                                />
+                              </div>
+                            </li>
+                          <% end %>
+                        </div>
+                      </div>
                   <% end %>
                 <% end %>
               </ul>
