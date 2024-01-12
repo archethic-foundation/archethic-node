@@ -43,6 +43,7 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
       |> assign(:error, nil)
       |> assign(:sending, false)
       |> assign(:notification, "")
+      |> assign(:notification_data, "")
       |> assign(:notification_status, "")
 
     {:ok, new_socket}
@@ -84,7 +85,7 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
     end
   end
 
-  def handle_info({:new_transaction, _tx_address}, socket) do
+  def handle_info({:new_transaction, tx_address}, socket) do
     %Node{reward_address: reward_address} = P2P.get_node_info()
 
     new_socket =
@@ -92,6 +93,7 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
       |> assign(:sending, false)
       |> assign(:reward_address, Base.encode16(reward_address))
       |> assign(:notification, "Change applied!")
+      |> assign(:notification_data, Base.encode16(tx_address))
       |> assign(:notification_status, "success")
 
     {:noreply, new_socket}
@@ -102,66 +104,10 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
       socket
       |> assign(:sending, false)
       |> assign(:notification, "Transaction is invalid - #{reason}")
+      |> assign(:notification_data, "")
       |> assign(:notification_status, "error")
 
     {:noreply, new_socket}
-  end
-
-  def render(assigns) do
-    ~H"""
-    <div>
-      <%= if @notification != "" do %>
-        <div
-          class={[
-            if(@notification_status == "success", do: "is-success", else: "is-danger"),
-            "notification",
-            "is-light"
-          ]}
-          x-data="{ open: true }"
-          x-init="() => { setTimeout(() => open = false, 3000)}"
-          x-show="open"
-        >
-          <button class="delete"></button>
-          <%= @notification %>
-        </div>
-      <% end %>
-      <div class="box">
-        <div class="columns">
-          <div class="column">
-            <h1 class="subtitle is-5">Node's settings</h1>
-          </div>
-        </div>
-
-        <form class="columns" phx-submit="save" phx-change="validate">
-          <div class="column is-5-desktop">
-            <div class="field">
-              <label class="label">Reward's address</label>
-              <div class="control">
-                <input
-                  class={[if(@error, do: "is-danger"), "input"]}
-                  type="text"
-                  placeholder="Enter your new reward address"
-                  value={@reward_address}
-                  name="reward_address"
-                />
-              </div>
-              <p class="help is-danger"><%= @error %></p>
-            </div>
-
-            <div class="field">
-              <div class="control">
-                <%= if @sending do %>
-                  <button class="button is-link is-loading" disabled>Save</button>
-                <% else %>
-                  <button class="button is-link">Save</button>
-                <% end %>
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-    """
   end
 
   defp send_new_transaction(next_reward_address) do
