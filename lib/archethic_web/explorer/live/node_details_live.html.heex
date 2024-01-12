@@ -14,6 +14,15 @@
                   <span>Explore node's chain</span>
                 <% end %>
               </div>
+              <div class="level-item">
+                <%= link target: "_blank", class: "simple-button", to: URI.to_string(%URI{
+                   scheme: "http",
+                   host: :inet_parse.ntoa(@node.ip) |> String.Chars.to_string(),
+                   port: @node.http_port,
+                   path: "/explorer"}) do %>
+                  <span>Open node's explorer</span>
+                <% end %>
+              </div>
             </div>
           </nav>
         </div>
