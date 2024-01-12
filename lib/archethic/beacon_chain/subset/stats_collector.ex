@@ -11,9 +11,6 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   """
 
   @vsn 1
-  @timeout :archethic
-           |> Application.compile_env(__MODULE__, [])
-           |> Keyword.get(:timeout, :timer.minutes(1))
 
   use GenServer
 
@@ -43,12 +40,12 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   Get the local stats if current node is beacon storage node
   """
   @spec get(DateTime.t(), pos_integer()) :: %{binary() => Nx.Tensor.t()}
-  def get(summary_time, timeout \\ @timeout) do
+  def get(summary_time, timeout) do
     JobCache.get!(
       {:get, summary_time},
       function: fn ->
         get_current_node_subsets(summary_time)
-        |> do_get_stats()
+        |> do_get_stats(timeout)
       end,
       timeout: timeout
     )
@@ -60,10 +57,10 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
   Fetch the stats of given summary from beacon_nodes
   """
   @spec fetch(DateTime.t(), pos_integer()) :: Nx.Tensor.t()
-  def fetch(summary_time, timeout \\ @timeout) do
+  def fetch(summary_time, timeout) do
     JobCache.get!(
       {:fetch, summary_time},
-      function: fn -> do_fetch_stats(summary_time) end,
+      function: fn -> do_fetch_stats(summary_time, timeout) end,
       timeout: timeout
     )
   catch
@@ -122,10 +119,10 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
           function: fn ->
             case action do
               :get ->
-                do_get_stats(subsets)
+                do_get_stats(subsets, NetworkCoordinates.timeout())
 
               :fetch ->
-                do_fetch_stats(summary_time)
+                do_fetch_stats(summary_time, NetworkCoordinates.timeout())
             end
           end
         )
@@ -136,7 +133,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
     JobCache.stop(key)
   end
 
-  defp do_get_stats(subsets) do
+  defp do_get_stats(subsets, timeout) do
     subsets
     |> Task.async_stream(
       fn subset ->
@@ -144,7 +141,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
 
         {subset, stats}
       end,
-      timeout: 10_000,
+      timeout: timeout,
       on_timeout: :kill_task,
       ordered: false,
       max_concurrency: 256
@@ -164,9 +161,9 @@ defmodule Archethic.BeaconChain.Subset.StatsCollector do
     end)
   end
 
-  defp do_fetch_stats(summary_time) do
+  defp do_fetch_stats(summary_time, timeout) do
     start_time = System.monotonic_time()
-    stats = NetworkCoordinates.fetch_network_stats(summary_time)
+    stats = NetworkCoordinates.fetch_network_stats(summary_time, timeout)
 
     :telemetry.execute(
       [:archethic, :beacon_chain, :network_coordinates, :collect_stats],

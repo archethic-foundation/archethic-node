@@ -18,9 +18,24 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   alias Archethic.P2P.Message.GetNetworkStats
   alias Archethic.P2P.Message.NetworkStats
 
+  alias Archethic.SelfRepair
   alias Archethic.Utils
 
   alias Archethic.TaskSupervisor
+
+  @doc """
+  Return the timeout to determine network patches
+  It is equivalent to 4m30s in production. 4.5s in dev.
+  It must be called only when creating the beacon summary
+  """
+  def timeout() do
+    SelfRepair.next_repair_time()
+    |> DateTime.diff(DateTime.utc_now())
+    # We take 10% of the next repair time to determine the timeout
+    |> Kernel.*(0.9)
+    |> Kernel.*(1000)
+    |> round()
+  end
 
   @doc """
   Compute the network patch based on the matrix latencies
@@ -224,8 +239,8 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
   This requests all the beacon nodes their aggregated network stats.
   A NxN latency matrix is then computed based on the network stats origins and targets
   """
-  @spec fetch_network_stats(DateTime.t()) :: Nx.Tensor.t()
-  def fetch_network_stats(summary_time = %DateTime{}) do
+  @spec fetch_network_stats(DateTime.t(), pos_integer()) :: Nx.Tensor.t()
+  def fetch_network_stats(summary_time = %DateTime{}, timeout) do
     authorized_nodes = P2P.authorized_and_available_nodes(summary_time, true)
 
     sorted_node_list = P2P.list_nodes() |> Enum.sort_by(& &1.first_public_key)
@@ -234,7 +249,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
 
     matrix = Nx.broadcast(0, {nb_nodes, nb_nodes})
 
-    stream_network_stats(summary_time, beacon_nodes)
+    stream_network_stats(summary_time, beacon_nodes, timeout)
     # Aggregate stats per node to identify the sampling nodes
     |> aggregate_stats_per_subset()
     |> update_matrix_from_stats(matrix, sorted_node_list)
@@ -250,14 +265,14 @@ defmodule Archethic.BeaconChain.NetworkCoordinates do
     |> MapSet.to_list()
   end
 
-  defp stream_network_stats(summary_time, beacon_nodes) do
+  defp stream_network_stats(summary_time, beacon_nodes, timeout) do
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       beacon_nodes,
       fn node ->
-        P2P.send_message(node, %GetNetworkStats{summary_time: summary_time}, 5_000)
+        P2P.send_message(node, %GetNetworkStats{summary_time: summary_time}, timeout)
       end,
-      timeout: 6_000,
+      timeout: timeout + 1_000,
       ordered: false,
       on_timeout: :kill_task,
       max_concurrency: 256

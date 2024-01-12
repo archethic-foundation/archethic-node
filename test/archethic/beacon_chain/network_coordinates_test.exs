@@ -9,6 +9,7 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
   alias Archethic.P2P.Node
 
   doctest NetworkCoordinates
+  @timeout 1_000
 
   import Mox
 
@@ -77,7 +78,9 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
                [100, 110, 90, 0, 0, 0],
                [100, 105, 90, 0, 0, 0],
                [90, 105, 90, 0, 0, 0]
-             ] == NetworkCoordinates.fetch_network_stats(DateTime.utc_now()) |> Nx.to_list()
+             ] ==
+               NetworkCoordinates.fetch_network_stats(DateTime.utc_now(), @timeout)
+               |> Nx.to_list()
     end
 
     test "should filter stats that are different from expected nodes for a subset" do
@@ -134,7 +137,9 @@ defmodule Archethic.BeaconChain.NetworkCoordinatesTest do
                [150, 150, 150, 0, 0, 0],
                [150, 150, 150, 0, 0, 0],
                [150, 150, 150, 0, 0, 0]
-             ] == NetworkCoordinates.fetch_network_stats(DateTime.utc_now()) |> Nx.to_list()
+             ] ==
+               NetworkCoordinates.fetch_network_stats(DateTime.utc_now(), @timeout)
+               |> Nx.to_list()
     end
   end
 end
