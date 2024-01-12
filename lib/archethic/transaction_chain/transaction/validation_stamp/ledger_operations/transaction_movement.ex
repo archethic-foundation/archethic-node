@@ -7,6 +7,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   alias __MODULE__.Type
   alias Archethic.Crypto
+  alias Archethic.Reward
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.Utils
 
   @typedoc """
@@ -236,6 +238,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end)
     |> Enum.reverse()
   end
+
+  @doc """
+  Convert reward token movement to UCO movement
+  """
+  @spec maybe_convert_reward(movement :: t(), tx_type :: Transaction.transaction_type()) ::
+          t()
+  def maybe_convert_reward(
+        movement = %__MODULE__{type: {:token, token_address, _token_id}},
+        tx_type
+      )
+      when tx_type != :node_rewards do
+    if Reward.is_reward_token?(token_address),
+      do: %__MODULE__{movement | type: :UCO},
+      else: movement
+  end
+
+  def maybe_convert_reward(movement, _), do: movement
 
   @doc """
   Aggreggate movement by type and recipient address

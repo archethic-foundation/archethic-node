@@ -3,6 +3,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   import ArchethicCase
 
+  alias Archethic.Reward.MemTables.RewardTokens
+
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   doctest TransactionMovement
@@ -256,6 +258,65 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Order does not matter
       assert length(expected_movements) == length(aggregated_movements)
       assert Enum.all?(expected_movements, &Enum.member?(aggregated_movements, &1))
+    end
+  end
+
+  describe "maybe_convert_reward" do
+    setup do
+      start_supervised!(RewardTokens)
+      :ok
+    end
+
+    test "should convert MUCO movement to UCO movement" do
+      address = random_address()
+      reward_token_address = random_address()
+
+      RewardTokens.add_reward_token_address(reward_token_address)
+
+      movement = %TransactionMovement{
+        to: address,
+        amount: 30,
+        type: {:token, reward_token_address, 0}
+      }
+
+      assert %TransactionMovement{to: address, amount: 30, type: :UCO} ==
+               TransactionMovement.maybe_convert_reward(movement, :transfer)
+    end
+
+    test "should not convert MUCO movement to UCO movement if transaction in node_rewards" do
+      address = random_address()
+      reward_token_address = random_address()
+
+      RewardTokens.add_reward_token_address(reward_token_address)
+
+      movement = %TransactionMovement{
+        to: address,
+        amount: 30,
+        type: {:token, reward_token_address, 0}
+      }
+
+      assert movement == TransactionMovement.maybe_convert_reward(movement, :node_rewards)
+    end
+
+    test "should not convert if token is not reward" do
+      address = random_address()
+      token_address = random_address()
+
+      movement = %TransactionMovement{
+        to: address,
+        amount: 30,
+        type: {:token, token_address, 0}
+      }
+
+      assert movement == TransactionMovement.maybe_convert_reward(movement, :transfer)
+    end
+
+    test "should not convert if movement is UCO" do
+      address = random_address()
+
+      movement = %TransactionMovement{to: address, amount: 30, type: :UCO}
+
+      assert movement == TransactionMovement.maybe_convert_reward(movement, :transfer)
     end
   end
 end

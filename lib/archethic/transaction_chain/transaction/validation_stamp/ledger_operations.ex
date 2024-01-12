@@ -14,8 +14,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   alias Archethic.Crypto
 
-  alias Archethic.Reward
-
   alias Archethic.TransactionChain.Transaction
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
@@ -319,15 +317,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     resolved_movements =
       movements
       |> TransactionMovement.resolve_addresses(resolved_addresses)
-      |> Enum.map(fn
-        movement = %TransactionMovement{type: :UCO} ->
-          movement
-
-        movement = %TransactionMovement{type: {:token, token_address, _token_id}} ->
-          if Reward.is_reward_token?(token_address) and tx_type != :node_rewards,
-            do: %TransactionMovement{movement | type: :UCO},
-            else: movement
-      end)
+      |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
       |> TransactionMovement.aggregate()
 
     %__MODULE__{ops | transaction_movements: resolved_movements}
