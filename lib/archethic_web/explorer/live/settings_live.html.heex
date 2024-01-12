@@ -1,0 +1,60 @@
+<div class="body">
+  <div class="text_title">Node's Settings</div>
+  <div class="text_subtitle">
+    The setting of this current node. Accessible only via 127.0.0.1
+  </div>
+
+  <div class="my-4 is-size-4">Reward address</div>
+  <form class="form-container" phx-submit="save" phx-change="validate">
+    <div class="level">
+      <div class="level-left">
+        <div class="level-item">
+          <input
+            type="text"
+            required
+            name="reward_address"
+            class="input-field"
+            maxlength="68"
+            value={@reward_address}
+          />
+        </div>
+        <div class="level-item">
+          <button class="app-button shadow" disabled={@sending}>Set reward address</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <%= if @notification != "" do %>
+    <div
+      class={[
+        if(@notification_status == "success", do: "is-success", else: "is-danger"),
+        "notification",
+        "is-dark"
+      ]}
+      x-data="{ open: true }"
+      x-init="() => { setTimeout(() => open = false, 3000)}"
+      x-show="open"
+    >
+      <button class="delete"></button>
+      <%= @notification %>
+      <%= if @notification_data != "" do %>
+        <%= link("View the transaction",
+          to:
+            Routes.live_path(
+              @socket,
+              ArchethicWeb.Explorer.TransactionDetailsLive,
+              @notification_data
+            )
+        ) %> or <%= link("View the node's transaction chain",
+          to:
+            Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive,
+              address: @notification_data
+            )
+        ) %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <p class="help is-danger"><%= @error %></p>
+</div>
