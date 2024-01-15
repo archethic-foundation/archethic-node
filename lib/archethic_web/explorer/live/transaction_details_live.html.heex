@@ -31,6 +31,8 @@
 
   <div class="ae-box ae-purple shadow">
     <%= cond do %>
+      <% @ko? -> %>
+        <p>The transaction is invalid.</p>
       <% @address == burning_address() -> %>
         <p>This address is not owned by any user being the burn address.</p>
         <%= if inputs_count > 0 do %>
