@@ -250,6 +250,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
         send(me, {:async_assign, assigns})
 
         get_token_addresses([], inputs)
+        |> get_token_addresses(unspent_outputs)
         |> get_token_addresses(transaction_movements)
         |> get_token_addresses(token_transfers)
         |> Enum.uniq()
@@ -291,6 +292,10 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   defp get_token_addresses(acc, [%TransactionInput{type: {:token, token_address, _}} | rest]) do
+    get_token_addresses([token_address | acc], rest)
+  end
+
+  defp get_token_addresses(acc, [%UnspentOutput{type: {:token, token_address, _}} | rest]) do
     get_token_addresses([token_address | acc], rest)
   end
 
