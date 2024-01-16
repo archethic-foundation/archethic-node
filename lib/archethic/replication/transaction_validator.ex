@@ -383,11 +383,12 @@ defmodule Archethic.Replication.TransactionValidator do
       LedgerOperations.consume_inputs(
         %LedgerOperations{fee: fee},
         address,
+        timestamp,
         inputs,
         Transaction.get_movements(tx),
         LedgerOperations.get_utxos_from_transaction(tx, timestamp),
         encoded_state,
-        timestamp
+        contract_context
       )
 
     if sufficient_funds? do

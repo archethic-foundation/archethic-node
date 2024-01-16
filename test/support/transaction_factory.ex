@@ -95,11 +95,11 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         inputs,
         movements,
         LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        encoded_state,
-        timestamp
+        encoded_state
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)
@@ -156,11 +156,10 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -200,11 +199,10 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -247,11 +245,10 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, type)
@@ -287,11 +284,10 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{fee: 1_000_000_000}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -330,11 +326,10 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -390,11 +385,10 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         inputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)

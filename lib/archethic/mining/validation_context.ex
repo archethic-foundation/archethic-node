@@ -812,11 +812,12 @@ defmodule Archethic.Mining.ValidationContext do
       LedgerOperations.consume_inputs(
         %LedgerOperations{fee: fee},
         address,
+        validation_time |> DateTime.truncate(:millisecond),
         unspent_outputs,
         movements,
         LedgerOperations.get_utxos_from_transaction(tx, validation_time),
         encoded_state,
-        validation_time |> DateTime.truncate(:millisecond)
+        contract_context
       )
 
     new_ops =
