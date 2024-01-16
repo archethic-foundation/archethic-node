@@ -137,7 +137,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
       )
     )
 
-    :ok
+    value
   end
 
   @doc """
@@ -157,7 +157,7 @@ defmodule Archethic.Contracts.Interpreter.Scope do
       )
     )
 
-    :ok
+    value
   end
 
   @doc """
