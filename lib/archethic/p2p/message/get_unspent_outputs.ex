@@ -29,7 +29,7 @@ defmodule Archethic.P2P.Message.GetUnspentOutputs do
         }
 
   @spec process(__MODULE__.t(), Crypto.key()) :: UnspentOutputList.t()
-  def process(%__MODULE__{address: tx_address, offset: offset, limit: limit}, _) do
+  def process(%__MODULE__{address: tx_address, offset: offset}, _) do
     contract_utxos =
       tx_address
       |> Contracts.list_contract_transactions()
