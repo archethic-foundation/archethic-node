@@ -93,23 +93,11 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
       {:error, :timeout, _} ->
         %{"status" => -4001}
 
-      {:error, :request_failure, _} ->
-        %{"status" => -4000}
-
-      {:error, :invalid_url, _} ->
-        %{"status" => -4000}
-
-      {:error, :invalid_method, _} ->
-        %{"status" => -4000}
-
-      {:error, :invalid_headers, _} ->
-        %{"status" => -4000}
-
-      {:error, :invalid_body, _} ->
-        %{"status" => -4000}
-
       {:error, :not_supported_scheme, _} ->
         %{"status" => -4004}
+
+      {:error, _, _} ->
+        %{"status" => -4000}
     end)
   end
 
