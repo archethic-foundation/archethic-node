@@ -12,7 +12,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Http do
   @callback request(String.t(), String.t()) :: map()
   @callback request(String.t(), String.t(), map()) :: map()
   @callback request(String.t(), String.t(), map(), String.t() | nil) :: map()
+  @callback request(String.t(), String.t(), map(), String.t() | nil, boolean()) :: map()
   @callback request_many(list(map())) :: list(map())
+  @callback request_many(list(map()), boolean()) :: list(map())
 
   def check_types(:request, [first]) do
     binary_or_variable_or_function?(first)
@@ -30,8 +32,17 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Http do
     check_types(:request, [first, second, third]) && binary_or_variable_or_function?(fourth)
   end
 
+  def check_types(:request, [first, second, third, fourth, fifth]) do
+    check_types(:request, [first, second, third, fourth]) &&
+      boolean_or_variable_or_function?(fifth)
+  end
+
   def check_types(:request_many, [first]) do
     list_or_variable_or_function?(first)
+  end
+
+  def check_types(:request_many, [first, second]) do
+    check_types(:request_many, [first]) && boolean_or_variable_or_function?(second)
   end
 
   def check_types(_, _), do: false
@@ -46,5 +57,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.Http do
 
   defp map_or_variable_or_function?(arg) do
     AST.is_map?(arg) || AST.is_variable_or_function_call?(arg)
+  end
+
+  defp boolean_or_variable_or_function?(arg) do
+    AST.is_boolean?(arg) || AST.is_variable_or_function_call?(arg)
   end
 end

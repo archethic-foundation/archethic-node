@@ -33,6 +33,24 @@ defmodule Archethic.Contracts.Interpreter.ASTHelper do
   def is_keyword_list?(_), do: false
 
   @doc """
+  Return wether the given ast is a bool
+
+    iex> ast = quote do: true
+    iex> ASTHelper.is_boolean?(ast)
+    true
+
+    iex> ast = quote do: false
+    iex> ASTHelper.is_boolean?(ast)
+    true
+
+    iex> ast = quote do: %{"sum" => 1, "product" => 10}
+    iex> ASTHelper.is_boolean?(ast)
+    false
+  """
+  @spec is_boolean?(Macro.t()) :: boolean()
+  def is_boolean?(arg), do: is_boolean(arg)
+
+  @doc """
   Return wether the given ast is a map
 
     iex> ast = quote do: %{"sum" => 1, "product" => 10}
