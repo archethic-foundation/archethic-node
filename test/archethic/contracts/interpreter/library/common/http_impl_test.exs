@@ -36,7 +36,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
   # ----------------------------------------
   describe "request/4 common behavior" do
     test "should raise if domain does not exist" do
-      assert_raise Library.Error, fn -> HttpImpl.request("https://localhost.local", "GET") end
+      assert_raise Library.Error, fn -> HttpImpl.request("https://non-existing.domain", "GET") end
     end
 
     test "should return a 404 if page does not exist" do
@@ -131,9 +131,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
                HttpImpl.request("https://127.0.0.1:8081", "GET", %{}, nil, false)
     end
 
-    test "should return a -4001 if the domain is inexistant" do
-      assert %{"status" => -4001} =
-               HttpImpl.request("https://localhost.local", "GET", %{}, nil, false)
+    test "should return a -4000 if the domain is inexistant" do
+      assert %{"status" => -4000} =
+               HttpImpl.request("https://non-existing.domain", "GET", %{}, nil, false)
     end
   end
 
@@ -177,7 +177,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
       assert_raise Library.Error, fn ->
         HttpImpl.request_many([
           %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
-          %{"url" => "https://localhost.local", "method" => "GET"}
+          %{"url" => "https://non-existing.domain", "method" => "GET"}
         ])
       end
 
@@ -304,12 +304,12 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImplTest do
                )
     end
 
-    test "should return a -4001 if the domain is inexistant" do
-      assert [%{"status" => 200}, %{"status" => -4001}] =
+    test "should return a -4000 if the domain is inexistant" do
+      assert [%{"status" => 200}, %{"status" => -4000}] =
                HttpImpl.request_many(
                  [
                    %{"url" => "https://127.0.0.1:8081", "method" => "GET"},
-                   %{"url" => "https://localhost.local", "method" => "GET"}
+                   %{"url" => "https://non-existing.domain", "method" => "GET"}
                  ],
                  false
                )
