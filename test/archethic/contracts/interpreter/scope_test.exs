@@ -225,6 +225,21 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
   end
 
   describe "write_at/2" do
+    test "should return assigned value" do
+      # Setup with a single context and a single scope
+      scope = %{
+        "current_context" => %{
+          "only_scope" => %{},
+          scope_hierarchy: ["only_scope"]
+        },
+        context_list: ["current_context"]
+      }
+
+      Process.put(:scope, scope)
+
+      assert 42 == Scope.write_at("my_var", 42)
+    end
+
     test "should write a variable in the current scope of the current context" do
       # Setup with a single context and a single scope
       scope = %{
@@ -312,6 +327,20 @@ defmodule Archethic.Contracts.Interpreter.ScopeTest do
   end
 
   describe "write_cascade/2" do
+    test "should return assigned value" do
+      scope = %{
+        "current_context" => %{
+          "only_scope" => %{},
+          scope_hierarchy: ["only_scope"]
+        },
+        context_list: ["current_context"]
+      }
+
+      Process.put(:scope, scope)
+
+      assert 42 == Scope.write_cascade("my_var", 42)
+    end
+
     test "should write the variable in the current scope if it doesn't exist anywhere" do
       scope = %{
         "current_context" => %{
