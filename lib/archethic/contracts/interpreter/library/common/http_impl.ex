@@ -30,34 +30,87 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
 
   @tag [:io]
   @impl Http
-  def request(uri, method \\ "GET", headers \\ %{}, body \\ nil)
+  def request(uri, method \\ "GET", headers \\ %{}, body \\ nil, throw_on_error \\ true)
 
-  def request(url, method, headers, body) do
-    request = %{"url" => url, "method" => method, "headers" => headers, "body" => body}
-
-    with :ok <- validate_multiple_calls(),
-         task <- do_request(request),
-         results <- await_tasks_result([request], [task]),
-         {:ok, result} <- List.first(results) do
-      result
-    else
-      error -> raise Library.Error, message: format_error_message(error)
-    end
+  def request(url, method, headers, body, throw_on_error) do
+    [%{"url" => url, "method" => method, "headers" => headers, "body" => body}]
+    |> request_many(throw_on_error)
+    |> List.first()
   end
 
   @tag [:io]
   @impl Http
-  def request_many(requests) do
+  def request_many(requests, throw_on_err \\ true)
+
+  def request_many(requests, true) do
     with :ok <- validate_multiple_calls(),
          :ok <- validate_nb_requests(requests),
          requests <- set_request_default(requests),
          tasks <- Enum.map(requests, &do_request/1),
          results <- await_tasks_result(requests, tasks),
-         {:ok, results} <- validate_results(results) do
+         {:ok, results} <- validate_results(results, true) do
       results
     else
       error -> raise Library.Error, message: format_error_message(error)
     end
+  end
+
+  def request_many(requests, false) do
+    case validate_multiple_calls() do
+      {:error, :multiple_calls} ->
+        Enum.map(requests, fn _ -> %{"status" => -4005} end)
+
+      :ok ->
+        {requests_to_handle, requests_not_handled} = Enum.split(requests, 5)
+
+        tasks =
+          requests_to_handle
+          |> set_request_default()
+          |> Enum.map(&do_request/1)
+
+        {:ok, results} =
+          requests_to_handle
+          |> await_tasks_result(tasks)
+          |> validate_results(false)
+
+        transform_results(
+          results ++ Enum.map(requests_not_handled, &{:error, :max_nb_requests, &1})
+        )
+    end
+  end
+
+  defp transform_results(results) do
+    Enum.map(results, fn
+      {:ok, result} ->
+        result
+
+      {:error, :max_nb_requests, _} ->
+        %{"status" => -4003}
+
+      {:error, :threshold_reached, _} ->
+        %{"status" => -4002}
+
+      {:error, :timeout, _} ->
+        %{"status" => -4001}
+
+      {:error, :request_failure, _} ->
+        %{"status" => -4000}
+
+      {:error, :invalid_url, _} ->
+        %{"status" => -4000}
+
+      {:error, :invalid_method, _} ->
+        %{"status" => -4000}
+
+      {:error, :invalid_headers, _} ->
+        %{"status" => -4000}
+
+      {:error, :invalid_body, _} ->
+        %{"status" => -4000}
+
+      {:error, :not_supported_scheme, _} ->
+        %{"status" => -4004}
+    end)
   end
 
   defp validate_multiple_calls() do
@@ -209,28 +262,57 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     end)
   end
 
-  defp validate_results(results) do
+  defp validate_results(results, true) do
     # count the number of bytes to be able to send a error too large
     # this is sub optimal because miners might still download threshold N times before returning the error
     # TODO: improve this
     results
     |> Enum.reduce_while({:ok, 0, []}, fn
-      {:ok, result}, {:ok, total_bytes, results} ->
+      {:ok, result}, {:ok, total_bytes, acc} ->
         bytes = result |> Map.get("body", "") |> byte_size()
         new_total_bytes = total_bytes + bytes
 
         if new_total_bytes > @threshold do
           {:halt, {:error, :threshold_reached, %{}}}
         else
-          {:cont, {:ok, new_total_bytes, [result | results]}}
+          {:cont, {:ok, new_total_bytes, [result | acc]}}
         end
 
       error, _acc ->
         {:halt, error}
     end)
     |> then(fn
-      {:ok, _, results} -> {:ok, Enum.reverse(results)}
+      {:ok, _, acc} -> {:ok, Enum.reverse(acc)}
       error -> error
+    end)
+  end
+
+  defp validate_results(results, false) do
+    # count the number of bytes to be able to send a error too large
+    # this is sub optimal because miners might still download threshold N times before returning the error
+    # TODO: improve this
+    results
+    |> Enum.reduce_while({0, []}, fn
+      {:ok, result}, {total_bytes, acc} ->
+        bytes = result |> Map.get("body", "") |> byte_size()
+        new_total_bytes = total_bytes + bytes
+
+        if new_total_bytes > @threshold do
+          {:halt, {:error, :threshold_reached, %{}}}
+        else
+          {:cont, {new_total_bytes, [{:ok, result} | acc]}}
+        end
+
+      error, {total_bytes, acc} ->
+        {:cont, {total_bytes, [error | acc]}}
+    end)
+    |> then(fn
+      {:error, :threshold_reached, %{}} ->
+        # when threshold_reached we apply this error to all requests
+        {:ok, Enum.map(results, fn _ -> {:error, :threshold_reached, %{}} end)}
+
+      {_bytes, acc} ->
+        {:ok, Enum.reverse(acc)}
     end)
   end
 
@@ -239,7 +321,7 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.HttpImpl do
     do: "Http module got called more than once"
 
   defp format_error_message({:error, :max_nb_requests}),
-    do: "Http.request_many/1 was called with too many requests"
+    do: "Http.request_many was called with too many requests"
 
   defp format_error_message({:error, :invalid_url, %{"url" => url}}),
     do: "Http module received invalid url, got #{inspect(url)}"
