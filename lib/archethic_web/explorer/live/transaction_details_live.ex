@@ -284,7 +284,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     |> assign(:inputs, ledger_inputs)
     |> assign(:calls, contract_inputs)
     |> assign(:error, :not_exists)
-    |> assign(:token_properties, [])
+    |> assign(:token_properties, %{})
   end
 
   defp get_token_addresses(acc, [%TransactionMovement{type: {:token, token_address, _}} | rest]) do
