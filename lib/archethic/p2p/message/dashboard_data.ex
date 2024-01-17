@@ -15,7 +15,10 @@ defmodule Archethic.P2P.Message.DashboardData do
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{buckets: buckets}) do
     buckets_serialized =
-      Enum.reduce(buckets, <<>>, fn {datetime, duration_by_address}, acc ->
+      buckets
+      # do not remove this sort_by because messages are signed
+      |> Enum.sort_by(fn {datetime, _} -> datetime end, {:asc, DateTime})
+      |> Enum.reduce(<<>>, fn {datetime, duration_by_address}, acc ->
         count = VarInt.from_value(length(duration_by_address))
 
         durations_serialized =

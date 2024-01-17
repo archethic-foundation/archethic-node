@@ -132,7 +132,7 @@ defmodule ArchethicWeb.DashboardMetricsTest do
 
     PubSub.notify_mining_completed(
       random_address(),
-      DateTime.add(now, -60, :minute),
+      DateTime.add(now, -61, :minute),
       8_000_000_000,
       true
     )
