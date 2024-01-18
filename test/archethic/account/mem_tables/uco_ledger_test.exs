@@ -58,7 +58,10 @@ defmodule Archethic.Account.MemTables.UCOLedgerTest do
 
     assert Enum.any?(
              ledger_content,
-             &match?({{alice2, charlie10}, 100_000_000, false, ~U[2022-10-11 09:24:01Z], _, 1}, &1)
+             &match?(
+               {{alice2, charlie10}, 100_000_000, false, ~U[2022-10-11 09:24:01Z], _, 1},
+               &1
+             )
            )
 
     index_content = :ets.tab2list(:archethic_uco_unspent_output_index)

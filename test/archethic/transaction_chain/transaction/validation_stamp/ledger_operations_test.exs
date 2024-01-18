@@ -909,24 +909,24 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  transaction_address,
                  transaction_timestamp,
                  [
-                  %UnspentOutput{
-                    from: from,
-                    amount: 200_000_000,
-                    type: :UCO,
-                    timestamp: old_timestamp
-                  },
-                  %UnspentOutput{
-                    from: from,
-                    amount: 100_000_000,
-                    type: {:token, token_address, 0},
-                    timestamp: old_timestamp
-                  },
-                  %UnspentOutput{
-                    from: from,
-                    amount: 100_000_000,
-                    type: {:token, token_address, 0},
-                    timestamp: old_timestamp
-                  }
+                   %UnspentOutput{
+                     from: from,
+                     amount: 200_000_000,
+                     type: :UCO,
+                     timestamp: old_timestamp
+                   },
+                   %UnspentOutput{
+                     from: from,
+                     amount: 100_000_000,
+                     type: {:token, token_address, 0},
+                     timestamp: old_timestamp
+                   },
+                   %UnspentOutput{
+                     from: from,
+                     amount: 100_000_000,
+                     type: {:token, token_address, 0},
+                     timestamp: old_timestamp
+                   }
                  ]
                )
 
@@ -950,12 +950,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    }
                  ],
                  [
-                  %TransactionMovement{
-                    to: "@Bob3",
-                    amount: 100_000_000,
-                    type: {:token, "@Token1", 0}
-                  }
-                ]
+                   %TransactionMovement{
+                     to: "@Bob3",
+                     amount: 100_000_000,
+                     type: {:token, "@Token1", 0}
+                   }
+                 ]
                )
 
       assert %LedgerOperations{

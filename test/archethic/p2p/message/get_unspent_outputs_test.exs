@@ -27,7 +27,6 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
   end
 
   describe "process/2" do
-
     setup do
       MockDB
       |> stub(:get_inputs, fn _, _ -> [] end)

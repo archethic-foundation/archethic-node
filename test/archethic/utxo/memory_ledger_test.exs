@@ -172,5 +172,53 @@ defmodule Archethic.UTXO.MemoryLedgerTest do
       MemoryLedger.remove_consumed_input("@Alice0", utxo)
       assert [] = MemoryLedger.get_unspent_outputs("@Alice0")
     end
+
+    test "should reduce the size of unspent outputs in memory" do
+      utxo1 = %UnspentOutput{
+        from: ArchethicCase.random_address(),
+        type: :UCO,
+        amount: 100_000_000,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      utxo2 = %UnspentOutput{
+        from: ArchethicCase.random_address(),
+        type: :UCO,
+        amount: 200_000_000,
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
+      }
+
+      MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{
+        unspent_output: utxo1,
+        protocol_version: ArchethicCase.current_protocol_version()
+      })
+
+      MemoryLedger.add_chain_utxo("@Alice0", %VersionedUnspentOutput{
+        unspent_output: utxo2,
+        protocol_version: ArchethicCase.current_protocol_version()
+      })
+
+      assert [
+               %VersionedUnspentOutput{unspent_output: ^utxo1},
+               %VersionedUnspentOutput{unspent_output: ^utxo2}
+             ] = MemoryLedger.get_unspent_outputs("@Alice0")
+
+      expected_size = "@Alice0"
+      |> MemoryLedger.get_unspent_outputs()
+      |> Enum.map(&:erlang.external_size/1)
+      |> Enum.sum()
+
+      assert %{
+               size: ^expected_size
+             } = MemoryLedger.get_genesis_stats("@Alice0")
+
+      MemoryLedger.remove_consumed_input("@Alice0", utxo2)
+
+      expected_size = div(expected_size, 2)
+
+      assert %{
+               size: ^expected_size
+             } = MemoryLedger.get_genesis_stats("@Alice0")
+    end
   end
 end

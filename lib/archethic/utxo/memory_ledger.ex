@@ -84,31 +84,20 @@ defmodule Archethic.UTXO.MemoryLedger do
   Remove of the consumed input from the memory ledger for the given genesis
   """
   @spec remove_consumed_input(binary(), UnspentOutput.t()) :: :ok
-  def remove_consumed_input(
-        genesis_address,
-        %UnspentOutput{
-          from: from,
-          type: type,
-          amount: amount,
-          timestamp: timestamp
-        }
-      ) do
+  def remove_consumed_input(genesis_address, utxo = %UnspentOutput{from: from}) do
     Logger.debug("Consuming #{Base.encode16(from)} - for #{Base.encode16(genesis_address)}")
 
-    pattern =
-      {genesis_address,
-       %{
-         __struct__: VersionedUnspentOutput,
-         unspent_output: %{
-           __struct__: UnspentOutput,
-           amount: amount,
-           from: from,
-           timestamp: timestamp,
-           type: type
-         }
-       }}
+    match = [
+      {{genesis_address, %{__struct__: VersionedUnspentOutput, unspent_output: utxo}}, [],
+       [:"$_"]}
+    ]
 
-    :ets.match_delete(@table_name, pattern)
+    Enum.each(:ets.select(@table_name, match), fn elem = {_, utxo} ->
+      size = :erlang.external_size(utxo)
+      :ets.delete_object(@table_name, elem)
+      :ets.update_counter(@table_stats_name, genesis_address, {2, -size})
+    end)
+
     :ok
   end
 

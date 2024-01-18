@@ -552,7 +552,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     {unspent_outputs, rest} =
       reduce_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
 
-      {consumed_inputs, rest} = if protocol_version < 5 do
+    {consumed_inputs, rest} =
+      if protocol_version < 5 do
         {[], rest}
       else
         {nb_consumed_inputs, rest} = rest |> VarInt.get_value()
