@@ -55,8 +55,8 @@ defmodule Archethic.UTXO do
          authorized_nodes
        ) do
     transaction_movements
-    |> Enum.map(&TransactionMovement.maybe_convert_reward_to_uco(&1, tx_type))
-    # |> TransactionMovements.aggregate() after PR about aggregation
+    |> Enum.map(&TransactionMovement.maybe_convert_reward(&1, tx_type))
+    |> TransactionMovement.aggregate()
     |> Enum.each(fn %TransactionMovement{to: to, amount: amount, type: type} ->
       genesis_address = DB.get_genesis_address(to)
 
