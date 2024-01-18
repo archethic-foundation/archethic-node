@@ -6,6 +6,7 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   @enforce_keys [:summary_time]
   defstruct [:summary_time]
 
+  alias Archethic.BeaconChain.NetworkCoordinates
   alias Archethic.BeaconChain.Subset.StatsCollector
   alias Archethic.Crypto
   alias Archethic.P2P.Message.NetworkStats
@@ -40,6 +41,6 @@ defmodule Archethic.P2P.Message.GetNetworkStats do
   """
   @spec process(t(), Crypto.key()) :: NetworkStats.t()
   def process(%__MODULE__{summary_time: summary_time}, _node_public_key) do
-    %NetworkStats{stats: StatsCollector.get(summary_time)}
+    %NetworkStats{stats: StatsCollector.get(summary_time, NetworkCoordinates.timeout())}
   end
 end

@@ -31,9 +31,6 @@ defmodule Archethic.BeaconChain.Subset do
   alias Archethic.P2P.Message.ReplicationAttestationMessage
 
   alias Archethic.PubSub
-
-  alias Archethic.SelfRepair
-
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -387,9 +384,12 @@ defmodule Archethic.BeaconChain.Subset do
       :ok
     else
       Logger.debug("Create beacon summary", beacon_subset: Base.encode16(subset))
+      network_patches_timeout = NetworkCoordinates.timeout()
 
       patch_task =
-        Task.Supervisor.async_nolink(TaskSupervisor, fn -> get_network_patches(time, subset) end)
+        Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+          get_network_patches(time, subset, network_patches_timeout)
+        end)
 
       summary =
         %Summary{subset: subset, summary_time: time}
@@ -397,14 +397,6 @@ defmodule Archethic.BeaconChain.Subset do
           beacon_slots,
           P2PSampling.list_nodes_to_sample(subset)
         )
-
-      network_patches_timeout =
-        SelfRepair.next_repair_time()
-        |> DateTime.diff(DateTime.utc_now())
-        # We take 10% of the next repair time to determine the timeout
-        |> Kernel.*(0.9)
-        |> Kernel.*(1000)
-        |> round()
 
       network_patches =
         case Task.yield(patch_task, network_patches_timeout) || Task.shutdown(patch_task) do
@@ -423,7 +415,7 @@ defmodule Archethic.BeaconChain.Subset do
     end
   end
 
-  defp get_network_patches(summary_time, subset) do
+  defp get_network_patches(summary_time, subset, timeout) do
     with true <- length(P2P.authorized_and_available_nodes()) > 1,
          sampling_nodes when sampling_nodes != [] <- P2PSampling.list_nodes_to_sample(subset) do
       sampling_nodes_indexes =
@@ -435,7 +427,7 @@ defmodule Archethic.BeaconChain.Subset do
         end)
         |> Enum.map(fn {_, index} -> index end)
 
-      StatsCollector.fetch(summary_time)
+      StatsCollector.fetch(summary_time, timeout)
       |> NetworkCoordinates.get_patch_from_latencies()
       |> Enum.with_index()
       |> Enum.filter(fn {_, index} ->
