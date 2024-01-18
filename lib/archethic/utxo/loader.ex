@@ -4,6 +4,7 @@ defmodule Archethic.UTXO.Loader do
   use GenServer
   @vsn 1
 
+  alias Archethic.UTXO
   alias Archethic.UTXO.DBLedger
   alias Archethic.UTXO.LoaderSupervisor
   alias Archethic.UTXO.MemoryLedger
@@ -72,7 +73,7 @@ defmodule Archethic.UTXO.Loader do
 
     new_unspent_outputs =
       genesis_address
-      |> get_unspent_outputs()
+      |> UTXO.get_unspent_outputs()
       |> Stream.reject(fn %VersionedUnspentOutput{unspent_output: utxo} ->
         utxo in consumed_inputs
       end)
@@ -90,17 +91,7 @@ defmodule Archethic.UTXO.Loader do
     {:reply, :ok, state}
   end
 
-  def get_unspent_outputs(genesis_address) do
-    case MemoryLedger.get_unspent_outputs(genesis_address) do
-      [] ->
-        DBLedger.stream(genesis_address)
-
-      unspent_outputs ->
-        unspent_outputs
-    end
-  end
-
-  def stamp_unspent_outputs(
+  defp stamp_unspent_outputs(
         %ValidationStamp{
           protocol_version: protocol_version,
           ledger_operations: %LedgerOperations{
