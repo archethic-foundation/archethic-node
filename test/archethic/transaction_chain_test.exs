@@ -345,6 +345,26 @@ defmodule Archethic.TransactionChainTest do
                TransactionChain.fetch(address2, nodes) |> Enum.map(& &1.address)
     end
 
+    test "should be able to fetch transactions unknown to local node", %{nodes: nodes} do
+      address1 = random_address()
+      address2 = random_address()
+
+      MockDB
+      |> expect(:transaction_exists?, fn ^address1, :chain -> true end)
+
+      MockClient
+      |> stub(
+        :send_message,
+        fn _, %GetTransactionChain{address: _, paging_state: ^address1}, _ ->
+          {:ok, %TransactionList{transactions: [%Transaction{address: address2}]}}
+        end
+      )
+
+      assert [^address2] =
+               TransactionChain.fetch(address1, nodes, paging_state: address1)
+               |> Enum.map(& &1.address)
+    end
+
     test "should resolve the longest chain", %{nodes: nodes} do
       validation_stamp = %ValidationStamp{timestamp: DateTime.utc_now()}
 
