@@ -24,10 +24,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       for protocol_version <- 4..5 do
         assert {^input, _} =
-          UnspentOutput.deserialize(
-            UnspentOutput.serialize(input, protocol_version),
-            4
-          )
+                 UnspentOutput.deserialize(
+                   UnspentOutput.serialize(input, protocol_version),
+                   4
+                 )
       end
     end
 
