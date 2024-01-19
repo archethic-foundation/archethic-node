@@ -104,11 +104,31 @@ defmodule Archethic.UTXO.MemoryLedger do
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
   """
-  @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
-  def get_unspent_outputs(genesis_address) do
-    @table_name
-    |> :ets.lookup(genesis_address)
-    |> Enum.map(&elem(&1, 1))
+  @spec stream_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
+  def stream_unspent_outputs(genesis_address) do
+    match_pattern = [{{:"$1", :"$2"}, [{:==, :"$1", genesis_address}], [:"$2"]}]
+
+    Stream.resource(
+      fn ->
+        # Fix the table to avoid "invalid continuation" error
+        # source: https://www.erlang.org/doc/man/ets#safe_fixtable-2
+        :ets.safe_fixtable(@table_name, true)
+        :ets.select(@table_name, match_pattern, 1)
+      end,
+      &do_stream_genesis_utxo/1,
+      fn _ ->
+        :ets.safe_fixtable(@table_name, false)
+        :ok
+      end
+    )
+  end
+
+  defp do_stream_genesis_utxo(:"$end_of_table") do
+    {:halt, :"$end_of_table"}
+  end
+
+  defp do_stream_genesis_utxo({utxo, continuation}) do
+    {utxo, :ets.select(continuation)}
   end
 
   @spec get_genesis_stats(binary()) :: %{size: non_neg_integer()}

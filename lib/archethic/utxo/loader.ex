@@ -73,7 +73,7 @@ defmodule Archethic.UTXO.Loader do
 
     new_unspent_outputs =
       genesis_address
-      |> UTXO.get_unspent_outputs()
+      |> UTXO.stream_unspent_outputs()
       |> Stream.reject(fn %VersionedUnspentOutput{unspent_output: utxo} ->
         utxo in consumed_inputs
       end)
@@ -92,15 +92,15 @@ defmodule Archethic.UTXO.Loader do
   end
 
   defp stamp_unspent_outputs(
-        %ValidationStamp{
-          protocol_version: protocol_version,
-          ledger_operations: %LedgerOperations{
-            unspent_outputs: unspent_outputs,
-            consumed_inputs: consumed_inputs
-          }
-        },
-        phase2? \\ false
-      ) do
+         %ValidationStamp{
+           protocol_version: protocol_version,
+           ledger_operations: %LedgerOperations{
+             unspent_outputs: unspent_outputs,
+             consumed_inputs: consumed_inputs
+           }
+         },
+         phase2? \\ false
+       ) do
     # Filter unspent outputs which have been consumed and updated (required in the AEIP21 Phase 1)
     Enum.filter(unspent_outputs, fn %UnspentOutput{type: type} ->
       phase2? or Enum.any?(consumed_inputs, &(&1.type == type))

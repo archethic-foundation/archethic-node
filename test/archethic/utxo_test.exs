@@ -92,9 +92,14 @@ defmodule Archethic.UTXOTest do
                      type: :UCO
                    }
                  }
-               ] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
+               ] =
+                 destination_genesis_address
+                 |> MemoryLedger.stream_unspent_outputs()
+                 |> Enum.to_list()
 
-        assert [] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
+        assert transaction_genesis_address
+               |> MemoryLedger.stream_unspent_outputs()
+               |> Enum.empty?()
 
         assert_receive {:append_utxo, ^destination_genesis_address,
                         %VersionedUnspentOutput{
@@ -176,9 +181,14 @@ defmodule Archethic.UTXOTest do
                      amount: 300_000_000
                    }
                  }
-               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
+               ] =
+                 transaction_genesis_address
+                 |> MemoryLedger.stream_unspent_outputs()
+                 |> Enum.to_list()
 
-        assert [] = MemoryLedger.get_unspent_outputs(destination_genesis_address)
+        assert destination_genesis_address
+               |> MemoryLedger.stream_unspent_outputs()
+               |> Enum.empty?()
 
         assert_receive {:flush_outputs, ^transaction_genesis_address,
                         [
@@ -304,7 +314,10 @@ defmodule Archethic.UTXOTest do
                      amount: 100_000_000
                    }
                  }
-               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
+               ] =
+                 transaction_genesis_address
+                 |> MemoryLedger.stream_unspent_outputs()
+                 |> Enum.to_list()
 
         UTXO.load_transaction(tx2)
 
@@ -317,14 +330,17 @@ defmodule Archethic.UTXOTest do
                      timestamp: ~U[2023-09-12 05:00:00.000Z]
                    }
                  }
-               ] = MemoryLedger.get_unspent_outputs(transaction_genesis_address)
+               ] =
+                 transaction_genesis_address
+                 |> MemoryLedger.stream_unspent_outputs()
+                 |> Enum.to_list()
       end
     end
   end
 
-  describe("get_unspent_outputs/1") do
+  describe("stream_unspent_outputs/1") do
     test "should return empty if there is nothing" do
-      assert [] == UTXO.get_unspent_outputs(ArchethicCase.random_address())
+      assert ArchethicCase.random_address() |> UTXO.stream_unspent_outputs() |> Enum.empty?()
     end
 
     test "should be able to return unspent outputs" do
@@ -339,7 +355,7 @@ defmodule Archethic.UTXOTest do
       })
 
       assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob0"}}] =
-               UTXO.get_unspent_outputs("@Alice0")
+               "@Alice0" |> UTXO.stream_unspent_outputs() |> Enum.to_list()
     end
 
     test "should be able to return unspent outputs from disk if not in memory" do
@@ -359,7 +375,9 @@ defmodule Archethic.UTXOTest do
       end)
 
       assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob0"}}] =
-               UTXO.get_unspent_outputs("@Alice0")
+               "@Alice0"
+               |> UTXO.stream_unspent_outputs()
+               |> Enum.to_list()
     end
   end
 end

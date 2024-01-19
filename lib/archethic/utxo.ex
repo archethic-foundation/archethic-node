@@ -111,14 +111,14 @@ defmodule Archethic.UTXO do
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
   """
-  @spec get_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
-  def get_unspent_outputs(address) do
-    case MemoryLedger.get_unspent_outputs(address) do
-      [] ->
-        DBLedger.stream(address)
+  @spec stream_unspent_outputs(binary()) :: list(VersionedUnspentOutput.t())
+  def stream_unspent_outputs(address) do
+    mem_stream = MemoryLedger.stream_unspent_outputs(address)
 
-      unspent_outputs ->
-        unspent_outputs
+    if Enum.empty?(mem_stream) do
+      DBLedger.stream(address)
+    else
+      mem_stream
     end
   end
 end
