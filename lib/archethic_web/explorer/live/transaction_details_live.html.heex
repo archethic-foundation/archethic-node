@@ -571,7 +571,12 @@
 
             <%!----------------------------- INPUTS --------------------------------%>
             <div class="columns">
-              <% inputs_count = Enum.count(@inputs) %>
+              <% filtered_inputs =
+                filter_inputs(
+                  @inputs,
+                  @transaction.validation_stamp.ledger_operations.unspent_outputs
+                ) %>
+              <% inputs_count = Enum.count(filtered_inputs) %>
               <div class="column ae-left-heading is-2">
                 <p>Inputs (<%= inputs_count %>)</p>
               </div>
@@ -581,7 +586,7 @@
                   <div></div>
                 <% else %>
                   <InputsList.display_all
-                    inputs={@inputs}
+                    inputs={filtered_inputs}
                     socket={@socket}
                     uco_price_at_time={@uco_price_at_time}
                     uco_price_now={@uco_price_now}

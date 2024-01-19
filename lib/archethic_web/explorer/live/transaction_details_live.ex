@@ -243,13 +243,11 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
         ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
         contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
-        inputs = filter_inputs(ledger_inputs, unspent_outputs)
-
-        assigns = [inputs: inputs, calls: contract_inputs]
+        assigns = [inputs: ledger_inputs, calls: contract_inputs]
 
         send(me, {:async_assign, assigns})
 
-        get_token_addresses([], inputs)
+        get_token_addresses([], ledger_inputs)
         |> get_token_addresses(unspent_outputs)
         |> get_token_addresses(transaction_movements)
         |> get_token_addresses(token_transfers)
@@ -364,7 +362,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     end
   end
 
-  defp filter_inputs(inputs, utxos) do
+  def filter_inputs(inputs, utxos) do
     Enum.reject(inputs, fn input ->
       Enum.any?(utxos, &similar?(input, &1))
     end)
