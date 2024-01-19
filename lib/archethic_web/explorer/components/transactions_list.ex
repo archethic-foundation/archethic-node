@@ -36,9 +36,16 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
       )
 
     ~H"""
+    <% tx_count = length(@transactions) %>
     <div
       class="ae-box ae-purple shadow"
-      phx-hook="InfiniteScroll"
+      phx-hook={
+        if tx_count < assigns.total do
+          "InfiniteScroll"
+        else
+          ""
+        end
+      }
       data-page={@page}
       id="infinite_scroll"
     >
@@ -73,7 +80,7 @@ defmodule ArchethicWeb.Explorer.Components.TransactionsList do
         <% end %>
       </ul>
 
-      <%= if length(@transactions) < @total do %>
+      <%= if tx_count < @total do %>
         <div phx-click="load-more">Click to load more transactions</div>
       <% end %>
     </div>
