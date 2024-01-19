@@ -60,7 +60,7 @@ defmodule Archethic.UTXO.MemoryLedger do
     size = :erlang.external_size(utxo)
 
     case :ets.lookup(@table_stats_name, genesis_address) do
-      [{_, previous_size}] when previous_size > @threshold ->
+      [{_, previous_size}] when previous_size >= @threshold ->
         :ets.insert(@table_stats_name, {genesis_address, previous_size + size})
 
       [{_, previous_size}] when previous_size + size >= @threshold ->
