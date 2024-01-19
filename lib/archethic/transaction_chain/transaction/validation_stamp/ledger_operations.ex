@@ -504,20 +504,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     encoded_unspent_outputs_len = unspent_outputs |> length() |> VarInt.from_value()
 
     consumed_inputs_bin =
-      if protocol_version < 3 do
-        <<>>
-      else
-        encoded_consumed_inputs_len = consumed_inputs |> length() |> VarInt.from_value()
-
-        bin_consumed_inputs =
-          consumed_inputs
-          |> Enum.map(&UnspentOutput.serialize(&1, protocol_version))
-          |> :erlang.list_to_binary()
-
-        <<encoded_consumed_inputs_len::binary, bin_consumed_inputs::bitstring>>
-      end
-
-    consumed_inputs_bin =
       if protocol_version < 6 do
         <<>>
       else
@@ -541,7 +527,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   """
   @spec deserialize(data :: bitstring(), protocol_version :: non_neg_integer()) ::
           {t(), bitstring()}
-  def deserialize(<<fee::64, rest::bitstring>>, protocol_version) when protocol_version < 3 do
+  def deserialize(<<fee::64, rest::bitstring>>, protocol_version) when protocol_version < 6 do
     {nb_transaction_movements, rest} = VarInt.get_value(rest)
 
     {tx_movements, rest} =
@@ -551,14 +537,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     {unspent_outputs, rest} =
       reduce_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
-
-    {consumed_inputs, rest} =
-      if protocol_version < 6 do
-        {[], rest}
-      else
-        {nb_consumed_inputs, rest} = rest |> VarInt.get_value()
-        reduce_unspent_outputs(rest, nb_consumed_inputs, [], protocol_version)
-      end
 
     {
       %__MODULE__{
