@@ -431,6 +431,9 @@ defmodule Archethic.TransactionChain do
               order: order
             )
 
+          next_paging_address =
+            if Enum.empty?(transactions), do: paging_address, else: next_paging_address
+
           next_iteration.(transactions, more?, next_paging_address)
 
         {_, _more? = false, _} ->
