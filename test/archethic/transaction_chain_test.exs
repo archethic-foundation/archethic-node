@@ -345,7 +345,8 @@ defmodule Archethic.TransactionChainTest do
                TransactionChain.fetch(address2, nodes) |> Enum.map(& &1.address)
     end
 
-    test "should be able to fetch transactions unknown to local node", %{nodes: nodes} do
+    test "should be able to fetch remote transactions when paging_state is the last stored address",
+         %{nodes: nodes} do
       address1 = random_address()
       address2 = random_address()
 
