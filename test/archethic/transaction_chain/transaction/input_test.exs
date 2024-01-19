@@ -17,7 +17,7 @@ defmodule Archethic.TransactionChain.TransactionInputTest do
 
       for protocol_version <- 1..Mining.protocol_version() do
         revised_input =
-          if protocol_version < 5 do
+          if protocol_version < 6 do
             Map.update!(input, :timestamp, &DateTime.truncate(&1, :second))
           else
             Map.update!(input, :timestamp, &DateTime.truncate(&1, :millisecond))

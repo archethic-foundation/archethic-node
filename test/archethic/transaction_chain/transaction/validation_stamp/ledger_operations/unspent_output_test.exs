@@ -15,22 +15,24 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       end
     end
 
-    test "should work for :state in protocol version 4" do
+    test "should work for :state in protocol version 4+ < 6" do
       # state (introduced in v4)
       input = %UnspentOutput{
         type: :state,
         encoded_payload: :crypto.strong_rand_bytes(10)
       }
 
-      assert {^input, _} =
-               UnspentOutput.deserialize(
-                 UnspentOutput.serialize(input, 4),
-                 4
-               )
+      for protocol_version <- 4..5 do
+        assert {^input, _} =
+          UnspentOutput.deserialize(
+            UnspentOutput.serialize(input, protocol_version),
+            4
+          )
+      end
     end
 
-    test "should work for :state in protocol version 5+" do
-      for protocol_version <- 5..Mining.protocol_version() do
+    test "should work for :state in protocol version 6+" do
+      for protocol_version <- 6..Mining.protocol_version() do
         do_test_state(protocol_version)
       end
     end

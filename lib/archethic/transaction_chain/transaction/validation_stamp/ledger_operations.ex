@@ -518,7 +518,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       end
 
     consumed_inputs_bin =
-      if protocol_version < 5 do
+      if protocol_version < 6 do
         <<>>
       else
         encoded_consumed_inputs_len = consumed_inputs |> length() |> VarInt.from_value()
@@ -553,7 +553,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       reduce_unspent_outputs(rest, nb_unspent_outputs, [], protocol_version)
 
     {consumed_inputs, rest} =
-      if protocol_version < 5 do
+      if protocol_version < 6 do
         {[], rest}
       else
         {nb_consumed_inputs, rest} = rest |> VarInt.get_value()

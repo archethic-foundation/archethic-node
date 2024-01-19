@@ -50,7 +50,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         %__MODULE__{type: :state, encoded_payload: encoded_payload},
         protocol_version
       )
-      when protocol_version < 5 do
+      when protocol_version < 6 do
     encoded_payload_size = encoded_payload |> bit_size() |> Utils.VarInt.from_value()
 
     <<0::8, encoded_payload_size::binary, encoded_payload::bitstring>>
@@ -125,7 +125,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   # protocol version 4+
   def deserialize(<<0::8, rest::bitstring>>, protocol_version)
-      when is_bitstring(rest) and protocol_version < 5 do
+      when is_bitstring(rest) and protocol_version < 6 do
     {encoded_payload_size, rest} = Utils.VarInt.get_value(rest)
     <<encoded_payload::bitstring-size(encoded_payload_size), rest::bitstring>> = rest
 

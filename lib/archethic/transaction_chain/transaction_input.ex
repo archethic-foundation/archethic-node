@@ -37,7 +37,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
         },
         protocol_version
       )
-      when protocol_version < 5 do
+      when protocol_version < 6 do
     case type do
       :call ->
         <<from::binary, 0::1, 0::1, DateTime.to_unix(timestamp)::32>>
@@ -88,7 +88,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
   """
   @spec deserialize(bitstring(), protocol_version :: pos_integer()) ::
           {__MODULE__.t(), bitstring()}
-  def deserialize(data, protocol_version) when protocol_version < 5 do
+  def deserialize(data, protocol_version) when protocol_version < 6 do
     {address, <<type_bit::1, spent_bit::1, rest::bitstring>>} = Utils.deserialize_address(data)
 
     spent? = if spent_bit == 1, do: true, else: false
