@@ -187,8 +187,7 @@ defmodule Archethic.Telemetry do
       distribution("archethic.self_repair.fetch_and_aggregate_summaries.duration",
         unit: {:native, :millisecond},
         reporter_options: [buckets: [10, 100, 200, 500, 700, 1000, 2000, 3000, 5000, 10000]],
-        measurement: :duration,
-        tags: [:nb_summaries]
+        measurement: :duration
       ),
       distribution("archethic.self_repair.summaries_fetch.duration",
         unit: {:native, :millisecond},
