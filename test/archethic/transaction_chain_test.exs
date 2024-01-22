@@ -484,6 +484,8 @@ defmodule Archethic.TransactionChainTest do
 
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
+      now = DateTime.utc_now()
+
       MockClient
       |> stub(:send_message, fn _, %GetTransactionInputs{address: _}, _ ->
         {:ok,
@@ -495,7 +497,7 @@ defmodule Archethic.TransactionChainTest do
                  amount: 10,
                  type: :UCO,
                  spent?: false,
-                 timestamp: DateTime.utc_now()
+                 timestamp: now
                },
                protocol_version: 1
              }
@@ -504,8 +506,7 @@ defmodule Archethic.TransactionChainTest do
       end)
 
       assert [%TransactionInput{from: "Alice2", amount: 10, type: :UCO}] =
-               TransactionChain.fetch_inputs("Alice1", nodes, DateTime.utc_now())
-               |> Enum.to_list()
+               TransactionChain.fetch_inputs("Alice1", nodes, now) |> Enum.to_list()
     end
 
     test "should resolve the longest inputs when conflicts" do
