@@ -13,6 +13,7 @@ defmodule Archethic.P2P.Message.Error do
           | :network_chains_sync
           | :p2p_sync
           | :both_sync
+          | :already_locked
 
   @type t :: %__MODULE__{
           reason: reason()
@@ -39,6 +40,7 @@ defmodule Archethic.P2P.Message.Error do
   def serialize_reason(:network_chains_sync), do: 4
   def serialize_reason(:p2p_sync), do: 5
   def serialize_reason(:both_sync), do: 6
+  def serialize_reason(:already_locked), do: 7
 
   @doc """
   Deserialize an error reason
@@ -51,4 +53,5 @@ defmodule Archethic.P2P.Message.Error do
   def deserialize_reason(4), do: :network_chains_sync
   def deserialize_reason(5), do: :p2p_sync
   def deserialize_reason(6), do: :both_sync
+  def deserialize_reason(7), do: :already_locked
 end
