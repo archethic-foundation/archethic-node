@@ -70,7 +70,8 @@ defmodule Archethic.P2P.MessageId do
     SmartContractCallValidation,
     GetDashboardData,
     DashboardData,
-    RequestChainLock
+    RequestChainLock,
+    UnlockChain
   }
 
   alias Archethic.TransactionChain.{
@@ -125,6 +126,7 @@ defmodule Archethic.P2P.MessageId do
     NotifyReplicationValidation => 38,
     GetNetworkStats => 39,
     GetDashboardData => 40,
+    UnlockChain => 41,
 
     # Responses
     DashboardData => 225,
