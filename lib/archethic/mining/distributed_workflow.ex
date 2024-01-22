@@ -1096,7 +1096,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
         &P2P.send_message(&1, message),
         ordered: false,
         on_timeout: :kill_task,
-        timeout: Message.get_timeout(message) + 2000
+        timeout: Message.get_timeout(message) + 2000,
+        max_concurrency: length(storage_nodes)
       )
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
       |> Enum.map(fn {:ok, {:ok, res}} -> res end)
