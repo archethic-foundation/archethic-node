@@ -12,6 +12,7 @@ defmodule ArchethicTest do
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Error
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.GetTransactionInputs
@@ -20,6 +21,7 @@ defmodule ArchethicTest do
   alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.NewTransaction
+  alias Archethic.P2P.Message.ValidationError
 
   alias Archethic.PubSub
 
@@ -173,6 +175,49 @@ defmodule ArchethicTest do
 
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
       assert :ok = Archethic.send_new_transaction(tx)
+    end
+
+    test "should send validation error to welcome node if transaction already locked" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
+      })
+
+      welcome_node_key = ArchethicCase.random_public_key()
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: welcome_node_key,
+        last_public_key: welcome_node_key,
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-20_000)
+      })
+
+      MockClient
+      |> expect(:send_message, 3, fn
+        _, %StartMining{}, _ ->
+          {:ok, %Error{reason: :already_locked}}
+      end)
+      |> expect(
+        :send_message,
+        fn %Node{first_public_key: ^welcome_node_key}, %ValidationError{}, _ ->
+          {:ok, %Ok{}}
+        end
+      )
+
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+      assert :ok = Archethic.send_new_transaction(tx, welcome_node_key: welcome_node_key)
     end
 
     test "should forward Transaction & Start Repair, Current Node Not Synchronized" do
