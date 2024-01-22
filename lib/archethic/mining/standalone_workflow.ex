@@ -30,6 +30,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ValidateTransaction
+  alias Archethic.P2P.Message.UnlockChain
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain
@@ -213,10 +214,11 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   def handle_info(
         {:replication_error, reason},
         state = %{
-          context: %ValidationContext{
-            transaction: %Transaction{address: tx_address},
-            pending_transaction_error_detail: pending_error_detail
-          }
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: tx_address},
+              pending_transaction_error_detail: pending_error_detail
+            }
         }
       ) do
     {error_context, error_reason} =
@@ -254,6 +256,11 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         message
       )
     end)
+
+    # Notify storage nodes to unlock chain
+    message = %UnlockChain{address: tx_address}
+
+    context |> ValidationContext.get_chain_replication_nodes() |> P2P.broadcast_message(message)
 
     {:stop, :normal, state}
   end

@@ -56,7 +56,8 @@ defmodule Archethic.P2P.Message.StartMining do
     with :ok <- check_synchronization(network_chains_view_hash, p2p_view_hash),
          :ok <- check_valid_election(tx, validation_nodes),
          :ok <- check_current_node_is_elected(validation_nodes),
-         :ok <- check_not_already_mining(tx.address) do
+         :ok <- check_not_already_mining(tx.address),
+         :ok <- Mining.request_chain_lock(tx) do
       {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes, contract_context)
       %Ok{}
     else
@@ -91,6 +92,14 @@ defmodule Archethic.P2P.Message.StartMining do
         )
 
         %Error{reason: sync_issue}
+
+      {:error, :already_locked} ->
+        Logger.warning("Transaction address is already locked with different data",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        %Error{reason: :already_locked}
     end
   end
 

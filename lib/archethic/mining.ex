@@ -18,7 +18,9 @@ defmodule Archethic.Mining do
 
   alias Archethic.P2P
   alias Archethic.P2P.Message
+  alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.ReplicationError
+  alias Archethic.P2P.Message.RequestChainLock
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
@@ -29,6 +31,8 @@ defmodule Archethic.Mining do
   use Retry
 
   @protocol_version 5
+
+  @lock_threshold 0.75
 
   def protocol_version, do: @protocol_version
 
@@ -94,6 +98,47 @@ defmodule Archethic.Mining do
       when is_list(validation_node_public_keys) do
     validation_nodes = get_validation_nodes(tx)
     validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
+  end
+
+  @doc """
+  Request storage node to lock the mining of this transaction address and hash
+  """
+  @spec request_chain_lock(tx :: Transaction.t()) :: :ok | {:error, :already_locked}
+  def request_chain_lock(tx = %Transaction{address: address, type: type}) do
+    storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+    nb_storage_nodes = length(storage_nodes)
+
+    hash =
+      tx
+      |> Transaction.to_pending()
+      |> Transaction.serialize()
+      |> Crypto.hash()
+
+    message = %RequestChainLock{address: address, hash: hash}
+
+    aggregated_responses =
+      Task.Supervisor.async_stream_nolink(
+        Archethic.TaskSupervisor,
+        storage_nodes,
+        &P2P.send_message(&1, message),
+        max_concurrency: nb_storage_nodes,
+        timeout: Message.get_timeout(message) + 500,
+        in_timeout: :kill_task,
+        ordered: false
+      )
+      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
+      |> Stream.map(fn {:ok, {:ok, res}} -> res end)
+      |> Enum.frequencies()
+
+    nb_ok = Map.get(aggregated_responses, %Ok{}, 0)
+    total_response = Map.values(aggregated_responses) |> Enum.sum()
+
+    Logger.debug("Received #{nb_ok} lock confirmation on #{total_response}",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
+
+    if nb_ok / total_response >= @lock_threshold, do: :ok, else: {:error, :already_locked}
   end
 
   @doc """
