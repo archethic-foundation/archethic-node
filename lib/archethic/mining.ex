@@ -11,7 +11,6 @@ defmodule Archethic.Mining do
 
   alias __MODULE__.DistributedWorkflow
   alias __MODULE__.Fee
-  alias __MODULE__.PendingTransactionValidation
   alias __MODULE__.StandaloneWorkflow
   alias __MODULE__.WorkerSupervisor
   alias __MODULE__.WorkflowRegistry
@@ -236,12 +235,6 @@ defmodule Archethic.Mining do
         false
     end
   end
-
-  @doc """
-  Validate a pending transaction
-  """
-  @spec validate_pending_transaction(Transaction.t()) :: :ok | {:error, any()}
-  defdelegate validate_pending_transaction(tx), to: PendingTransactionValidation, as: :validate
 
   @doc """
   Get the transaction fee

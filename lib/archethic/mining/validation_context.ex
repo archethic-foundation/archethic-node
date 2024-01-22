@@ -487,63 +487,6 @@ defmodule Archethic.Mining.ValidationContext do
     end)
   end
 
-  @doc """
-  Get the replication nodes from the replication trees for the actual subtree
-
-  ## Examples
-
-    iex> %ValidationContext{
-    ...>   chain_storage_nodes: [
-    ...>     %Node{last_public_key: "key5"},
-    ...>     %Node{last_public_key: "key7"}
-    ...>   ],
-    ...>   beacon_storage_nodes: [
-    ...>     %Node{last_public_key: "key10"},
-    ...>     %Node{last_public_key: "key11"}
-    ...>  ],
-    ...>  io_storage_nodes: [
-    ...>     %Node{last_public_key: "key12"},
-    ...>     %Node{last_public_key: "key5"}
-    ...>  ],
-    ...>   sub_replication_tree: %{
-    ...>     chain: <<1::1, 0::1>>,
-    ...>     beacon: <<1::1, 0::1>>,
-    ...>     IO: <<0::1, 1::1>>
-    ...>   }
-    ...> }
-    ...> |> ValidationContext.get_replication_nodes()
-    %{
-      %Node{last_public_key: "key10"} => [:beacon],
-      %Node{last_public_key: "key5"} => [:chain, :IO]
-    }
-  """
-  @spec get_replication_nodes(t()) :: list(Node.t())
-  def get_replication_nodes(%__MODULE__{
-        sub_replication_tree: %{
-          chain: chain_tree,
-          beacon: beacon_tree,
-          IO: io_tree
-        },
-        chain_storage_nodes: chain_storage_nodes,
-        beacon_storage_nodes: beacon_storage_nodes,
-        io_storage_nodes: io_storage_nodes
-      }) do
-    chain_storage_node_indexes = get_storage_nodes_tree_indexes(chain_tree)
-    beacon_storage_node_indexes = get_storage_nodes_tree_indexes(beacon_tree)
-    io_storage_node_indexes = get_storage_nodes_tree_indexes(io_tree)
-
-    %{
-      chain: Enum.map(chain_storage_node_indexes, &Enum.at(chain_storage_nodes, &1)),
-      beacon: Enum.map(beacon_storage_node_indexes, &Enum.at(beacon_storage_nodes, &1)),
-      IO: Enum.map(io_storage_node_indexes, &Enum.at(io_storage_nodes, &1))
-    }
-    |> Enum.reduce(%{}, fn {role, nodes}, acc ->
-      Enum.reduce(nodes, acc, fn node, acc ->
-        Map.update(acc, node, [role], &[role | &1])
-      end)
-    end)
-  end
-
   defp get_storage_nodes_tree_indexes(tree) do
     tree
     |> Utils.bitstring_to_integer_list()
