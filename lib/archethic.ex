@@ -18,7 +18,8 @@ defmodule Archethic do
     GetBalance,
     NewTransaction,
     Ok,
-    StartMining
+    StartMining,
+    ValidationError
   }
 
   alias Archethic.SelfRepair
@@ -68,12 +69,16 @@ defmodule Archethic do
       P2P.authorized_and_available_node?() and shared_secret_synced?() ->
         validation_nodes = Mining.get_validation_nodes(tx)
 
-        responses = do_send_transaction(tx, validation_nodes, welcome_node_key, contract_context)
+        responses =
+          %{already_locked?: already_locked?} =
+          do_send_transaction(tx, validation_nodes, welcome_node_key, contract_context)
 
         maybe_start_resync(responses)
 
         if forward? and not enough_ack?(responses, length(validation_nodes)),
           do: forward_transaction(tx, welcome_node_key, contract_context)
+
+        if already_locked?, do: notify_welcome_node(welcome_node_key, address, :already_locked)
 
       forward? ->
         forward_transaction(tx, welcome_node_key, contract_context)
@@ -131,7 +136,8 @@ defmodule Archethic do
       %{
         ok: 0,
         network_chains_resync_needed: false,
-        p2p_resync_needed: false
+        p2p_resync_needed: false,
+        already_locked?: false
       },
       &reduce_start_mining_responses/2
     )
@@ -215,6 +221,12 @@ defmodule Archethic do
     %{acc | network_chains_resync_needed: true, p2p_resync_needed: true}
   end
 
+  defp reduce_start_mining_responses({:ok, %Error{reason: :already_locked}}, acc) do
+    # In this case we don't want to forward transaction since one is already being valided.
+    # But we want to notify user that this new transaction is not being mined
+    %{acc | ok: acc.ok + 1, already_locked?: true}
+  end
+
   defp reduce_start_mining_responses(_, acc) do
     acc
   end
@@ -248,6 +260,20 @@ defmodule Archethic do
   end
 
   defp get_welcome_node_public_key(_, key), do: key
+
+  defp notify_welcome_node(welcome_node_key, address, :already_locked) do
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      message = %ValidationError{
+        context: :invalid_transaction,
+        reason: "Transaction already in mining with different data",
+        address: address
+      }
+
+      P2P.send_message(welcome_node_key, message)
+    end)
+
+    :ok
+  end
 
   @doc """
   Retrieve the last transaction for a chain from the closest nodes
