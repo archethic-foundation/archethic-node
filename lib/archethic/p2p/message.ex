@@ -58,6 +58,7 @@ defmodule Archethic.P2P.Message do
     RegisterBeaconUpdates,
     ReplicateTransaction,
     ReplicationError,
+    RequestChainLock,
     ShardRepair,
     StartMining,
     TransactionChainLength,
@@ -131,6 +132,7 @@ defmodule Archethic.P2P.Message do
           | GetNetworkStats.t()
           | ValidateSmartContractCall.t()
           | GetDashboardData.t()
+          | RequestChainLock.t()
 
   @type response ::
           Ok.t()
