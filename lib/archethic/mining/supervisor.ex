@@ -3,6 +3,13 @@ defmodule Archethic.Mining.Supervisor do
 
   use Supervisor
 
+  alias Archethic.Mining.ChainLock
+
+  @mining_timeout Application.compile_env!(:archethic, [
+                    Archethic.Mining.DistributedWorkflow,
+                    :global_timeout
+                  ])
+
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: Archethic.MiningSupervisor)
   end
@@ -13,7 +20,11 @@ defmodule Archethic.Mining.Supervisor do
        name: Archethic.Mining.WorkflowRegistry,
        keys: :unique,
        partitions: System.schedulers_online()},
-      {DynamicSupervisor, strategy: :one_for_one, name: Archethic.Mining.WorkerSupervisor}
+      {DynamicSupervisor, strategy: :one_for_one, name: Archethic.Mining.WorkerSupervisor},
+      {PartitionSupervisor,
+       child_spec: {ChainLock, mining_timeout: @mining_timeout},
+       name: ChainLockSupervisor,
+       partitions: 20}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)
