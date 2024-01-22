@@ -35,6 +35,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ValidateTransaction
   alias Archethic.P2P.Message.ReplicationAttestationMessage
+  alias Archethic.P2P.Message.UnlockChain
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain
@@ -1040,6 +1041,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %GetTransaction{}, _ ->
           {:ok, %Transaction{}}
+
+        _, %UnlockChain{}, _ ->
+          send(me, :unlock_chain)
+          {:ok, %Transaction{}}
       end)
 
       {:ok, coordinator_pid} =
@@ -1081,6 +1086,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       )
 
       assert_receive :validation_error
+      assert_receive :unlock_chain
       refute_receive :ack_replication
       refute_receive :replication_done
       refute Process.alive?(coordinator_pid)
@@ -1111,6 +1117,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {:ok, %NotFound{}}
 
         _, %GetTransaction{}, _ ->
+          {:ok, %Transaction{}}
+
+        _, %UnlockChain{}, _ ->
+          send(me, :unlock_chain)
           {:ok, %Transaction{}}
       end)
 
@@ -1153,6 +1163,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       )
 
       assert_receive :validation_error
+      assert_receive :unlock_chain
       refute_receive :ack_replication
       refute_receive :replication_done
       refute Process.alive?(coordinator_pid)
@@ -1237,8 +1248,20 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       }
     ]
 
+    storage_node = %Node{
+      last_public_key: "key4",
+      first_public_key: "key4",
+      geo_patch: "DEA",
+      network_patch: "DEA",
+      available?: true,
+      reward_address: :crypto.strong_rand_bytes(32),
+      authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+    }
+
     P2P.add_and_connect_node(welcome_node)
     P2P.add_and_connect_node(coordinator_node)
+    P2P.add_and_connect_node(storage_node)
     Enum.each(cross_validation_nodes, &P2P.add_and_connect_node(&1))
     Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
 
@@ -1258,7 +1281,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       cross_validation_nodes: cross_validation_nodes,
       cross_validation_nodes_confirmation: <<1::1, 1::1>>,
       valid_pending_transaction?: true,
-      validation_time: validation_time
+      validation_time: validation_time,
+      sub_replication_tree: %{chain: <<1::1>>},
+      chain_storage_nodes: [storage_node]
     }
   end
 
