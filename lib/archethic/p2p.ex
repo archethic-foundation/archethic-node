@@ -605,6 +605,11 @@ defmodule Archethic.P2P do
   """
   @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
   def broadcast_message(nodes, message) do
+    Task.Supervisor.start_child(TaskSupervisor, fn -> do_broadcast_message(nodes, message) end)
+    :ok
+  end
+
+  defp do_broadcast_message(nodes, message) do
     Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
       ordered: false,
       on_timeout: :kill_task,
