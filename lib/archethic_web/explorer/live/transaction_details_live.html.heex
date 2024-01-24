@@ -115,7 +115,7 @@
                   <div></div>
                 <% else %>
                   <div x-show="show" class="is-relative">
-                    <pre id="copy-code"><%= @transaction.data.code %></pre>
+                    <pre id="copy-code"><%= TransactionData.decompress_code(@transaction.data.code) %></pre>
                   </div>
                 <% end %>
               </div>
