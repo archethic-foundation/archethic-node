@@ -95,7 +95,7 @@ defmodule Archethic.ContractFactory do
       |> Keyword.update(:index, 1, & &1)
       |> Keyword.put(:prev_tx, prev_tx)
 
-    create_valid_contract_tx(code, opts)
+    create_valid_contract_tx(TransactionData.decompress_code(code), opts)
   end
 
   def append_contract_constant(constants, contract_tx) do

@@ -34,11 +34,12 @@ defmodule Archethic.Mining.ProofOfWorkTest do
         Transaction.new(
           :transfer,
           %TransactionData{
-            code: """
-            condition inherit: [
-              origin_family: biometric
-            ]
-            """
+            code:
+              TransactionData.compress_code("""
+              condition inherit: [
+                origin_family: biometric
+              ]
+              """)
           },
           "seed",
           0

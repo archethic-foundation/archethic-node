@@ -138,7 +138,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert {%Transaction{data: %TransactionData{code: "hello"}}, _state} =
+      expected_code = TransactionData.compress_code("hello")
+
+      assert {%Transaction{data: %TransactionData{code: ^expected_code}}, _state} =
                sanitize_parse_execute(code)
     end
 
@@ -150,7 +152,9 @@ defmodule Archethic.Contracts.Interpreter.Library.Common.ContractTest do
       end
       """
 
-      assert {%Transaction{data: %TransactionData{code: "foo"}}, _state} =
+      expected_code = TransactionData.compress_code("foo")
+
+      assert {%Transaction{data: %TransactionData{code: ^expected_code}}, _state} =
                sanitize_parse_execute(code)
     end
   end

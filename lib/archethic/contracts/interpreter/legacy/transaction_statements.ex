@@ -2,6 +2,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
   @moduledoc false
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.Recipient
@@ -152,16 +153,14 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
 
   ## Examples
 
-      iex> TransactionStatements.set_code(%Transaction{data: %TransactionData{}}, "condition origin_family: biometric")
-      %Transaction{
-        data: %TransactionData{
-          code: "condition origin_family: biometric"
-        }
-      }
+      iex> expected_code = TransactionData.compress_code("condition origin_family: biometric")
+      iex> %Transaction{data: %TransactionData{code: code}} = TransactionStatements.set_code(%Transaction{data: %TransactionData{}}, "condition origin_family: biometric")
+      iex> code == expected_code
+      true
   """
   @spec set_code(Transaction.t(), binary()) :: Transaction.t()
   def set_code(tx = %Transaction{}, code) when is_binary(code) do
-    put_in(tx, [Access.key(:data), Access.key(:code)], code)
+    put_in(tx, [Access.key(:data), Access.key(:code)], TransactionData.compress_code(code))
   end
 
   @doc """
@@ -169,7 +168,7 @@ defmodule Archethic.Contracts.Interpreter.Legacy.TransactionStatements do
 
   ## Examples
 
-      iex> public_key = "000178321F76C48F2885A2EE209B2FB28A9FD2C8F1EBABBB6209F47D24BA10B73ED5" 
+      iex> public_key = "000178321F76C48F2885A2EE209B2FB28A9FD2C8F1EBABBB6209F47D24BA10B73ED5"
       ...> %Transaction{data: %TransactionData{ownerships: [%Ownership{authorized_keys: authorized_keys}]}} = TransactionStatements.add_ownership(%Transaction{data: %TransactionData{}}, [
       ...>   {"secret", random_secret()},
       ...>   {"authorized_keys", %{

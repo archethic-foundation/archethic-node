@@ -73,6 +73,8 @@ defmodule Archethic.Contracts.Contract do
   """
   @spec from_transaction(Transaction.t()) :: {:ok, t()} | {:error, String.t()}
   def from_transaction(tx = %Transaction{data: %TransactionData{code: code}}) do
+    code = TransactionData.decompress_code(code)
+
     case Interpreter.parse(code) do
       {:ok, contract} ->
         state = get_state_from_tx(tx)

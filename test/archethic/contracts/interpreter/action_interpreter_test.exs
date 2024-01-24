@@ -1188,7 +1188,9 @@ defmodule Archethic.Contracts.Interpreter.ActionInterpreterTest do
       end
       """
 
-      assert {%Transaction{data: %TransactionData{code: ^code}}, _state} =
+      expected_code = TransactionData.compress_code(code)
+
+      assert {%Transaction{data: %TransactionData{code: ^expected_code}}, _state} =
                sanitize_parse_execute(code)
     end
 

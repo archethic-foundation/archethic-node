@@ -40,8 +40,11 @@ defmodule Archethic.Contracts do
   Parse a smart contract code and return a contract struct
   """
   @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
-  defdelegate parse(contract_code),
-    to: Interpreter
+  def parse(contract_code) do
+    contract_code
+    |> TransactionData.decompress_code()
+    |> Interpreter.parse()
+  end
 
   @doc """
   Same a `parse/1` but raise if the contract is not valid

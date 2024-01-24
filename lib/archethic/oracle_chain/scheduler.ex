@@ -648,23 +648,24 @@ defmodule Archethic.OracleChain.Scheduler do
       :oracle,
       %TransactionData{
         content: Jason.encode!(oracle_data),
-        code: ~S"""
-        condition inherit: [
-          # We need to ensure the type stays consistent
-          # So we can apply specific rules during the transaction validation
-          type: in?([oracle, oracle_summary]),
+        code:
+          TransactionData.compress_code(~S"""
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            # So we can apply specific rules during the transaction validation
+            type: in?([oracle, oracle_summary]),
 
-          # We discard the content and code verification
-          content: true,
+            # We discard the content and code verification
+            content: true,
 
-          # We ensure the code stay the same
-          code: if type == oracle_summary do
-            regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
-          else
-            previous.code
-          end
-        ]
-        """
+            # We ensure the code stay the same
+            code: if type == oracle_summary do
+              regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
+            else
+              previous.code
+            end
+          ]
+          """)
       },
       prev_pv,
       prev_pub,
@@ -691,11 +692,12 @@ defmodule Archethic.OracleChain.Scheduler do
       Transaction.new_with_keys(
         :oracle_summary,
         %TransactionData{
-          code: """
-            # We stop the inheritance of transaction by ensuring no other
-            # summary transaction will continue on this chain
-            condition inherit: [ content: "" ]
-          """,
+          code:
+            TransactionData.compress_code("""
+              # We stop the inheritance of transaction by ensuring no other
+              # summary transaction will continue on this chain
+              condition inherit: [ content: "" ]
+            """),
           content: aggregated_content
         },
         prev_pv,

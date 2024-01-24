@@ -127,7 +127,8 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, pid} = Worker.start_link(contract)
       assert Process.alive?(pid)
@@ -155,14 +156,15 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
       receive do
         {:transaction_sent, tx} ->
           assert tx.address == expected_tx.address
-          assert tx.data.code == code
+          assert TransactionData.decompress_code(tx.data.code) == code
       after
         3_000 ->
           raise "Timeout"
@@ -188,19 +190,20 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
       receive do
         {:transaction_sent, tx} ->
           assert tx.address == expected_tx.address
-          assert tx.data.code == code
+          assert TransactionData.decompress_code(tx.data.code) == code
 
           receive do
             {:transaction_sent, tx} ->
               assert tx.address == expected_tx.address
-              assert tx.data.code == code
+              assert TransactionData.decompress_code(tx.data.code) == code
           after
             5000 ->
               raise "Timeout"
@@ -223,7 +226,8 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -256,7 +260,8 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -268,7 +273,7 @@ defmodule Archethic.Contracts.WorkerTest do
         {:transaction_sent, tx} ->
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
-          assert tx.data.code == code
+          assert TransactionData.decompress_code(tx.data.code) == code
       after
         3_000 ->
           raise "Timeout"
@@ -308,7 +313,8 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -320,7 +326,7 @@ defmodule Archethic.Contracts.WorkerTest do
         {:transaction_sent, tx} ->
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
-          assert tx.data.code == "
+          assert TransactionData.decompress_code(tx.data.code) == "
     condition transaction: []
 
     condition inherit: [
@@ -380,7 +386,8 @@ defmodule Archethic.Contracts.WorkerTest do
       end)
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, pid} = Worker.start_link(contract)
       allow(MockDB, self(), pid)
@@ -442,7 +449,8 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -496,7 +504,8 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, _pid} = Worker.start_link(contract)
 
@@ -547,7 +556,8 @@ defmodule Archethic.Contracts.WorkerTest do
       """
 
       contract =
-        ContractFactory.create_valid_contract_tx(code, seed: seed) |> Contract.from_transaction!()
+        ContractFactory.create_valid_contract_tx(code, seed: seed)
+        |> Contract.from_transaction!()
 
       {:ok, worker_pid} = Worker.start_link(contract)
 

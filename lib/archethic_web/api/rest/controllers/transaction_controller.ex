@@ -28,7 +28,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
         tx =
           changeset
           |> TransactionPayload.to_map()
-          |> Transaction.cast()
+          |> Transaction.cast(code: :decompressed)
 
         tx_address = tx.address
 
@@ -120,7 +120,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
         fee =
           changeset
           |> TransactionPayload.to_map()
-          |> Transaction.cast()
+          |> Transaction.cast(code: :decompressed)
           |> Mining.get_transaction_fee(nil, uco_usd, timestamp, nil)
 
         conn
@@ -155,7 +155,7 @@ defmodule ArchethicWeb.API.REST.TransactionController do
           %Transaction{data: %TransactionData{recipients: recipients}} =
           changeset
           |> TransactionPayload.to_map()
-          |> Transaction.cast()
+          |> Transaction.cast(code: :decompressed)
           |> then(fn tx ->
             # We add a dummy ValidationStamp to the transaction
             # because the Interpreter requires a validated transaction

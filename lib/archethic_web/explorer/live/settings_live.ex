@@ -140,7 +140,7 @@ defmodule ArchethicWeb.Explorer.SettingsLive do
             transfers: token_transfers
           }
         },
-        code: code,
+        code: TransactionData.compress_code(code),
         content:
           Node.encode_transaction_content(
             ip,

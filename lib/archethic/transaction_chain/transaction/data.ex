@@ -29,6 +29,20 @@ defmodule Archethic.TransactionChain.TransactionData do
           content: binary()
         }
 
+  @spec compress_code(String.t()) :: binary()
+  def compress_code(""), do: ""
+
+  def compress_code(code) do
+    :zlib.gzip(code)
+  end
+
+  @spec decompress_code(binary()) :: String.t()
+  def decompress_code(""), do: ""
+
+  def decompress_code(code) do
+    :zlib.gunzip(code)
+  end
+
   @doc """
   Serialize transaction data into binary format
   """
@@ -60,6 +74,13 @@ defmodule Archethic.TransactionChain.TransactionData do
 
     encoded_ownership_len = length(ownerships) |> VarInt.from_value()
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
+
+    code =
+      if mode == :extended do
+        decompress_code(code)
+      else
+        code
+      end
 
     <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary,
@@ -124,11 +145,18 @@ defmodule Archethic.TransactionChain.TransactionData do
     reduce_recipients(rest, nb_recipients, [recipient | acc], version, serialization_mode)
   end
 
-  @spec cast(map()) :: t()
-  def cast(data = %{}) do
+  @spec cast(map(), Keyword.t()) :: t()
+  def cast(data = %{}, opts \\ []) do
     %__MODULE__{
       content: Map.get(data, :content, ""),
-      code: Map.get(data, :code, ""),
+      code:
+        case Keyword.get(opts, :code, :compressed) do
+          :compressed ->
+            Map.get(data, :code, "")
+
+          :decompressed ->
+            compress_code(Map.get(data, :code, ""))
+        end,
       ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.cast(),
       ownerships: Map.get(data, :ownerships, []) |> Enum.map(&Ownership.cast/1),
       recipients: Map.get(data, :recipients, []) |> Enum.map(&Recipient.cast/1)
@@ -155,7 +183,7 @@ defmodule Archethic.TransactionChain.TransactionData do
       }) do
     %{
       content: content,
-      code: code,
+      code: decompress_code(code),
       ledger: Ledger.to_map(ledger),
       ownerships: Enum.map(ownerships, &Ownership.to_map/1),
       recipients: Enum.map(recipients, &Recipient.to_address/1),

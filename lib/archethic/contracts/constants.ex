@@ -64,7 +64,7 @@ defmodule Archethic.Contracts.Constants do
       "address" => Base.encode16(address),
       "type" => Atom.to_string(type),
       "content" => content,
-      "code" => code,
+      "code" => TransactionData.decompress_code(code),
       "ownerships" =>
         Enum.map(ownerships, fn %Ownership{secret: secret, authorized_keys: authorized_keys} ->
           authorized_keys =

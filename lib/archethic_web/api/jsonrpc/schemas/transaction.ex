@@ -85,7 +85,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
     |> decode_hex()
     |> format_ownerships()
     |> put_original_recipients_args(original_recipients)
-    |> Transaction.cast()
+    |> Transaction.cast(code: :decompressed)
   end
 
   defp remove_recipient_args(params) do

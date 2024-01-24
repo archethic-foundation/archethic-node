@@ -37,7 +37,7 @@ defmodule Archethic.TransactionFactory do
       type,
       %TransactionData{
         content: content,
-        code: code,
+        code: TransactionData.compress_code(code),
         ledger: ledger,
         recipients: recipients,
         ownerships: ownerships
@@ -77,7 +77,7 @@ defmodule Archethic.TransactionFactory do
         type,
         %TransactionData{
           content: content,
-          code: code,
+          code: TransactionData.compress_code(code),
           ledger: ledger,
           ownerships: ownerships,
           recipients: recipients

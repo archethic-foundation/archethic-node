@@ -973,8 +973,8 @@ defmodule Archethic.TransactionChain.Transaction do
     }
   end
 
-  @spec cast(map()) :: t()
-  def cast(tx = %{}) do
+  @spec cast(map(), Keyword.t()) :: t()
+  def cast(tx = %{}, opts \\ []) do
     type =
       case Map.get(tx, :type) do
         nil ->
@@ -991,7 +991,7 @@ defmodule Archethic.TransactionChain.Transaction do
       version: Map.get(tx, :version),
       address: Map.get(tx, :address),
       type: type,
-      data: Map.get(tx, :data, %TransactionData{}) |> TransactionData.cast(),
+      data: Map.get(tx, :data, %TransactionData{}) |> TransactionData.cast(opts),
       previous_public_key: Map.get(tx, :previous_public_key),
       previous_signature: Map.get(tx, :previous_signature),
       origin_signature: Map.get(tx, :origin_signature),

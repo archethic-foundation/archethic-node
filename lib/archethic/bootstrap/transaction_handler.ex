@@ -82,16 +82,17 @@ defmodule Archethic.Bootstrap.TransactionHandler do
     origin_public_key_certificate = Crypto.get_key_certificate(origin_public_key)
 
     Transaction.new(:node, %TransactionData{
-      code: """
-        condition inherit: [
-          # We need to ensure the type stays consistent
-          type: node,
+      code:
+        TransactionData.compress_code("""
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            type: node,
 
-          # Content and token transfers will be validated during tx's validation
-          content: true,
-          token_transfers: true
-        ]
-      """,
+            # Content and token transfers will be validated during tx's validation
+            content: true,
+            token_transfers: true
+          ]
+        """),
       content:
         Node.encode_transaction_content(
           ip,

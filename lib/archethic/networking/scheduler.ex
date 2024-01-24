@@ -107,7 +107,7 @@ defmodule Archethic.Networking.Scheduler do
 
       tx =
         Transaction.new(:node, %TransactionData{
-          code: code,
+          code: TransactionData.compress_code(code),
           content:
             Node.encode_transaction_content(
               ip,

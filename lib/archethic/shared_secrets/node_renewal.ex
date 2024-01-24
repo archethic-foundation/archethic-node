@@ -93,18 +93,19 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
     Transaction.new(
       :node_shared_secrets,
       %TransactionData{
-        code: """
-        condition inherit: [
-          # We need to ensure the type stays consistent
-          # So we can apply specific rules during the transaction validation
-          type: node_shared_secrets,
+        code:
+          TransactionData.compress_code("""
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            # So we can apply specific rules during the transaction validation
+            type: node_shared_secrets,
 
-          # We discard the content, authorized_key and secret verification
-          content: true,
-          authorized_keys: true,
-          secrets: true
-        ]
-        """,
+            # We discard the content, authorized_key and secret verification
+            content: true,
+            authorized_keys: true,
+            secrets: true
+          ]
+          """),
         content: <<daily_nonce_public_key::binary, network_pool_address::binary>>,
         ownerships: [
           Ownership.new(secret, secret_key, authorized_node_public_keys)

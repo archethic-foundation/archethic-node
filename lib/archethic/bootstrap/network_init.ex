@@ -105,14 +105,15 @@ defmodule Archethic.Bootstrap.NetworkInit do
     Transaction.new(
       :origin,
       %TransactionData{
-        code: """
-          condition inherit: [
-            # We need to ensure the type stays consistent
-            # So we can apply specific rules during the transaction validation
-            type: origin,
-            content: true
-          ]
-        """,
+        code:
+          TransactionData.compress_code("""
+            condition inherit: [
+              # We need to ensure the type stays consistent
+              # So we can apply specific rules during the transaction validation
+              type: origin,
+              content: true
+            ]
+          """),
         content:
           <<genesis_origin_public_key::binary, byte_size(origin_cert)::16, origin_cert::binary>>
       },

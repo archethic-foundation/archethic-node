@@ -137,7 +137,7 @@ defmodule Archethic.Utils.Regression.Api do
     true =
       Crypto.verify?(
         tx.previous_signature,
-        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(),
+        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(:extended),
         tx.previous_public_key
       )
 
@@ -195,7 +195,7 @@ defmodule Archethic.Utils.Regression.Api do
     true =
       Crypto.verify?(
         tx.previous_signature,
-        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(),
+        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(:extended),
         tx.previous_public_key
       )
 
@@ -462,7 +462,7 @@ defmodule Archethic.Utils.Regression.Api do
     true =
       Crypto.verify?(
         tx.previous_signature,
-        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(),
+        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(:extended),
         tx.previous_public_key
       )
 
