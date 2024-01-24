@@ -4,8 +4,7 @@
   "properties": {
     "code": {
       "type": "string",
-      "description": "Transaction's smart contract code",
-      "maxLength": 24576
+      "description": "Transaction's smart contract code"
     },
     "content": {
       "type": "string",

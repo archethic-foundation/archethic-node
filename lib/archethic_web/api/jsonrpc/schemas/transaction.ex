@@ -4,9 +4,11 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   """
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Utils
 
+  @max_code_bytes 24 * 1024
   @transaction_schema :archethic
                       |> Application.app_dir("priv/json-schemas/transaction.json")
                       |> File.read!()
@@ -31,6 +33,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   @spec validate(params :: map()) :: :ok | {:error, map()} | :error
   def validate(params) when is_map(params) do
     with :ok <- ExJsonSchema.Validator.validate(@transaction_schema, params),
+         :ok <- validate_code_size(params),
          :ok <- validate_recipients_version(params) do
       :ok
     else
@@ -39,6 +42,26 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   end
 
   def validate(_), do: :error
+
+  defp validate_code_size(params) do
+    case get_in(params, ["data", "code"]) do
+      nil ->
+        :ok
+
+      "" ->
+        :ok
+
+      code ->
+        size = TransactionData.compress_code(code) |> byte_size()
+
+        if size <= @max_code_bytes do
+          :ok
+        else
+          {:error,
+           [{"Expected value to have a maximum length of 24576 but was #{size}.", "#/data/code"}]}
+        end
+    end
+  end
 
   defp validate_recipients_version(params = %{"version" => 1}) do
     case get_in(params, ["data", "recipients"]) do
