@@ -27,7 +27,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Counter do
         contract_seed,
         %TransactionData{
           content: "0",
-          code: contract_code()
+          code: contract_code() |> TransactionData.compress_code()
         },
         storage_nonce_pubkey,
         endpoint

@@ -33,7 +33,9 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.Legacy do
       SmartContract.deploy(
         contract_seed,
         %TransactionData{
-          code: contract_code(recipient_address, amount_to_send)
+          code:
+            contract_code(recipient_address, amount_to_send)
+            |> TransactionData.compress_code()
         },
         storage_nonce_pubkey,
         endpoint

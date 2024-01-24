@@ -24,7 +24,7 @@ defmodule Archethic.Utils.Regression.Playbook.SmartContract.UcoAth do
         contract_seed,
         %TransactionData{
           content: Jason.encode!(%{"ucoMaxPrice" => -1}),
-          code: contract_code()
+          code: contract_code() |> TransactionData.compress_code()
         },
         storage_nonce_pubkey,
         endpoint

@@ -552,13 +552,13 @@ defmodule Archethic.Utils.Regression.Api do
                 %{
                   "to" => Base.encode16(to),
                   "amount" => amount,
-                  "token" => token_address,
+                  "token" => Base.encode16(token_address),
                   "token_id" => token_id
                 }
               end)
           }
         },
-        "code" => code,
+        "code" => TransactionData.decompress_code(code),
         "content" => Base.encode16(content),
         "recipients" =>
           Enum.map(recipients, fn %Recipient{address: address, action: action, args: args} ->

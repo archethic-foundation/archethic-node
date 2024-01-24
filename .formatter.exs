@@ -5,7 +5,8 @@
     "{mix,.formatter}.exs",
     "{config,lib,test}/**/*.{ex,exs,heex}",
     "apps/*/{lib,config,test}/**/*.{ex,exs}",
-    "apps/*/mix.exs"
+    "apps/*/mix.exs",
+    "priv/migration_tasks/**/*.exs"
   ],
   import_deps: [:distillery]
 ]
