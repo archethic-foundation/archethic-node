@@ -52,7 +52,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
-  @vsn 1
+  @vsn 2
 
   @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
   @coordinator_timeout_supplement Application.compile_env!(:archethic, [
@@ -982,6 +982,42 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     {:keep_state_and_data, :postpone}
+  end
+
+  def code_change(1, state, data, _extra) do
+    data =
+      if Map.has_key?(data, :context) do
+        data
+        |> update_in(
+          [
+            Access.key!(:context),
+            Access.key!(:transaction),
+            Access.key!(:data),
+            Access.key!(:code)
+          ],
+          &Archethic.TransactionChain.TransactionData.compress_code/1
+        )
+      else
+        data
+      end
+
+    data =
+      if Map.has_key?(data, :context) && not is_nil(data.context.previous_transaction) do
+        data
+        |> update_in(
+          [
+            Access.key!(:context),
+            Access.key!(:previous_transaction),
+            Access.key!(:data),
+            Access.key!(:code)
+          ],
+          &Archethic.TransactionChain.TransactionData.compress_code/1
+        )
+      else
+        data
+      end
+
+    {:ok, state, data}
   end
 
   def code_change(_old_vsn, state, data, _extra), do: {:ok, state, data}

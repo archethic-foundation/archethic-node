@@ -2,7 +2,7 @@ defmodule Archethic.Replication.TransactionPool do
   @moduledoc false
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   require Logger
 
@@ -74,4 +74,24 @@ defmodule Archethic.Replication.TransactionPool do
 
     {:noreply, new_state}
   end
+
+  def code_change(1, state = %{transactions: map}, _extra) do
+    map =
+      map
+      |> Enum.map(fn {address, {tx, expire_at}} ->
+        tx =
+          update_in(
+            tx,
+            [Access.key!(:data), Access.key!(:code)],
+            &Archethic.TransactionChain.TransactionData.compress_code/1
+          )
+
+        {address, {tx, expire_at}}
+      end)
+      |> Enum.into(%{})
+
+    {:ok, %{state | transactions: map}}
+  end
+
+  def code_change(_, state, _extra), do: {:ok, state}
 end

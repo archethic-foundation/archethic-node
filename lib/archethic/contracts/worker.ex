@@ -23,7 +23,7 @@ defmodule Archethic.Contracts.Worker do
   require Logger
 
   use GenServer
-  @vsn 1
+  @vsn 2
 
   def start_link(contract = %Contract{transaction: %Transaction{address: address}}) do
     GenServer.start_link(__MODULE__, contract, name: via_tuple(address))
@@ -111,6 +111,20 @@ defmodule Archethic.Contracts.Worker do
 
   def handle_info({:EXIT, _pid, _}, state) do
     {:noreply, state}
+  end
+
+  def code_change(1, state = %{contract: %Contract{transaction: contract_tx}}, _) do
+    Logger.debug("CODE_CHANGE 1->2 for Contracts.Worker #{inspect(self())}")
+
+    # version 1 used to have non-compressed code in the transaction
+    contract_tx =
+      update_in(
+        contract_tx,
+        [Access.key!(:data), Access.key!(:code)],
+        &Archethic.TransactionChain.TransactionData.compress_code/1
+      )
+
+    {:ok, %{state | contract: Contract.from_transaction!(contract_tx)}}
   end
 
   def code_change(old_version, state = %{contract: %Contract{transaction: contract_tx}}, _) do
