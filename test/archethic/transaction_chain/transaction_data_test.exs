@@ -18,7 +18,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
   describe "serialize/deserialize" do
     test "should work tx_version 1" do
       data = %TransactionData{
-        code: "@version 1\ncondition inherit: []",
+        code: TransactionData.compress_code("@version 1\ncondition inherit: []"),
         content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
         ownerships: [
           %Ownership{
@@ -69,7 +69,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
 
     test "should work tx_version 2" do
       data = %TransactionData{
-        code: "@version 1\ncondition inherit: []",
+        code: TransactionData.compress_code("@version 1\ncondition inherit: []"),
         content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
         ownerships: [
           %Ownership{
@@ -123,9 +123,19 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
                |> TransactionData.deserialize(2)
     end
 
+    test "should be able to deserialize transaction with code not zipped" do
+      data = %TransactionData{
+        code: TransactionData.compress_code("@version 1\ncondition inherit: []")
+      }
+
+      legacy_serialization = TransactionData.serialize(data, 3, :extended)
+      assert {^data, <<>>} = TransactionData.deserialize(legacy_serialization, 3)
+    end
+
     property "symmetric serialization/deserialization of transaction data" do
       check all(
-              code <- StreamData.binary(),
+              zipped_code <-
+                StreamData.map(StreamData.binary(), &TransactionData.compress_code/1),
               content <- StreamData.binary(),
               secret <- StreamData.binary(min_length: 1),
               authorized_public_keys <-
@@ -135,7 +145,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
             ) do
         {tx_data, _} =
           %TransactionData{
-            code: code,
+            code: zipped_code,
             content: content,
             ownerships: [
               Ownership.new(
@@ -154,7 +164,7 @@ defmodule Archethic.TransactionChain.TransactionDataTest do
           |> TransactionData.serialize(current_transaction_version())
           |> TransactionData.deserialize(current_transaction_version())
 
-        assert tx_data.code == code
+        assert tx_data.code == zipped_code
         assert tx_data.content == content
         assert List.first(tx_data.ownerships).secret == secret
 

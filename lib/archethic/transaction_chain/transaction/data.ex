@@ -112,9 +112,25 @@ defmodule Archethic.TransactionChain.TransactionData do
     {recipients, rest} =
       reduce_recipients(rest, nb_recipients, [], tx_version, serialization_mode)
 
+    # until the migration is done, we may have both zipped and unzipped code in the database
+    # may be removed in the next release
+    zipped? =
+      try do
+        decompress_code(code)
+        true
+      rescue
+        _ ->
+          false
+      end
+
     {
       %__MODULE__{
-        code: code,
+        code:
+          if zipped? do
+            code
+          else
+            compress_code(code)
+          end,
         content: content,
         ownerships: ownerships,
         ledger: ledger,
