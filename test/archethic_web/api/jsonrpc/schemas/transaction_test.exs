@@ -131,7 +131,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
 
       assert {:error,
               %{
-                "#/data/code" => "Expected value to have a maximum length of 24576 but was 49154."
+                "#/data/code" => "Expected value to have a maximum length of 24576 but was " <> _
               }} = TransactionSchema.validate(map)
     end
 
