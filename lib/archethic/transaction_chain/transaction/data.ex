@@ -33,14 +33,14 @@ defmodule Archethic.TransactionChain.TransactionData do
   def compress_code(""), do: ""
 
   def compress_code(code) do
-    :zlib.gzip(code)
+    :zlib.zip(code)
   end
 
   @spec decompress_code(binary()) :: String.t()
   def decompress_code(""), do: ""
 
   def decompress_code(code) do
-    :zlib.gunzip(code)
+    :zlib.unzip(code)
   end
 
   @doc """
