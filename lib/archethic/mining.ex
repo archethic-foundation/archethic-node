@@ -105,7 +105,11 @@ defmodule Archethic.Mining do
   """
   @spec request_chain_lock(tx :: Transaction.t()) :: :ok | {:error, :already_locked}
   def request_chain_lock(tx = %Transaction{address: address, type: type}) do
-    storage_nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+    storage_nodes =
+      address
+      |> Election.storage_nodes(P2P.authorized_and_available_nodes())
+      |> Enum.filter(&P2P.node_connected?/1)
+
     nb_storage_nodes = length(storage_nodes)
 
     hash =
@@ -123,7 +127,7 @@ defmodule Archethic.Mining do
         &P2P.send_message(&1, message),
         max_concurrency: nb_storage_nodes,
         timeout: Message.get_timeout(message) + 500,
-        in_timeout: :kill_task,
+        on_timeout: :kill_task,
         ordered: false
       )
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
