@@ -42,10 +42,10 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
      })}
   end
 
-  def handle_params(opts = %{"address" => address}, _uri, socket) do
+  def handle_params(%{"address" => address}, _uri, socket) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(addr) do
-      case get_transaction(addr, opts) do
+      case Archethic.search_transaction(addr) do
         {:ok, tx} ->
           {:noreply, handle_transaction(socket, tx)}
 
@@ -63,7 +63,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   def handle_info({:new_transaction, address}, socket) do
-    {:ok, tx} = get_transaction(address, %{})
+    {:ok, tx} = Archethic.search_transaction(address)
 
     new_socket =
       socket
@@ -79,14 +79,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
 
   def handle_info(_, socket) do
     {:noreply, socket}
-  end
-
-  defp get_transaction(address, %{"address" => "true"}) do
-    Archethic.get_last_transaction(address)
-  end
-
-  defp get_transaction(address, _opts = %{}) do
-    Archethic.search_transaction(address)
   end
 
   defp handle_transaction(
