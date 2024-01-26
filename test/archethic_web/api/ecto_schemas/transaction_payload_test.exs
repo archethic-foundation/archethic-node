@@ -133,14 +133,13 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
         "previousPublicKey" => Base.encode16(random_address()),
         "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
         "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
-        "data" => %{"code" => Base.encode16(:crypto.strong_rand_bytes(24 * 1024 + 1))}
+        "data" => %{"code" => generate_code_that_exceed_limit_when_compressed()}
       }
 
       assert {:ok, %Ecto.Changeset{valid?: false, changes: %{data: %{errors: errors}}}} =
                TransactionPayload.changeset(map)
 
-      {error_message, _} = Keyword.get(errors, :code)
-      assert String.starts_with?(error_message, "code size can't be more than ")
+      assert {"Invalid transaction, code exceed max size", _} = Keyword.get(errors, :code)
     end
 
     test "should return an error if the uco ledger transfer address is invalid" do

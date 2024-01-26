@@ -29,18 +29,25 @@ defmodule Archethic.TransactionChain.TransactionData do
           content: binary()
         }
 
+  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
+
   @spec compress_code(String.t()) :: binary()
   def compress_code(""), do: ""
 
   def compress_code(code) do
-    :zlib.gzip(code)
+    :zlib.zip(code)
   end
 
   @spec decompress_code(binary()) :: String.t()
   def decompress_code(""), do: ""
 
   def decompress_code(code) do
-    :zlib.gunzip(code)
+    :zlib.unzip(code)
+  end
+
+  @spec code_size_valid?(String.t()) :: bool()
+  def code_size_valid?(code) do
+    compress_code(code) |> byte_size() < @code_max_size
   end
 
   @doc """

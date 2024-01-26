@@ -8,7 +8,6 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
 
   alias Archethic.Utils
 
-  @max_code_bytes Application.compile_env(:archethic, :transaction_data_code_max_size, 24 * 1024)
   @transaction_schema :archethic
                       |> Application.app_dir("priv/json-schemas/transaction.json")
                       |> File.read!()
@@ -52,13 +51,13 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
         :ok
 
       code ->
-        size = TransactionData.compress_code(code) |> byte_size()
-
-        if size <= @max_code_bytes do
+        if TransactionData.code_size_valid?(code) do
           :ok
         else
           {:error,
-           [{"Expected value to have a maximum length of 24576 but was #{size}.", "#/data/code"}]}
+           [
+             {"Invalid transaction, code exceed max size.", "#/data/code"}
+           ]}
         end
     end
   end

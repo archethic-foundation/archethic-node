@@ -118,7 +118,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
                TransactionSchema.validate(map)
     end
 
-    test "should return an error if the code length is more than 24KB" do
+    test "should return an error if the code length is more than limit" do
       map = %{
         "version" => current_transaction_version(),
         "address" => Base.encode16(random_address()),
@@ -126,12 +126,12 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchemaTest do
         "previousPublicKey" => Base.encode16(random_address()),
         "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
         "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
-        "data" => %{"code" => Base.encode16(:crypto.strong_rand_bytes(24 * 1024 + 1))}
+        "data" => %{"code" => generate_code_that_exceed_limit_when_compressed()}
       }
 
       assert {:error,
               %{
-                "#/data/code" => "Expected value to have a maximum length of 24576 but was " <> _
+                "#/data/code" => "Invalid transaction, code exceed max size."
               }} = TransactionSchema.validate(map)
     end
 

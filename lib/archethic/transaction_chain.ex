@@ -1068,7 +1068,7 @@ defmodule Archethic.TransactionChain do
   def proof_of_integrity([tx = %Transaction{} | _]) do
     tx
     |> Transaction.to_pending()
-    |> Transaction.serialize(:extended)
+    |> Transaction.serialize()
     |> Crypto.hash()
   end
 

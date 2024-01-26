@@ -9,7 +9,13 @@ defmodule ArchethicCase do
 
   alias Account.MemTables.{TokenLedger, UCOLedger}
   alias SharedSecrets.MemTables.{NetworkLookup, OriginKeyLookup}
-  alias TransactionChain.{Transaction, MemTables.KOLedger, MemTables.PendingLedger}
+
+  alias TransactionChain.{
+    Transaction,
+    TransactionData,
+    MemTables.KOLedger,
+    MemTables.PendingLedger
+  }
 
   alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
   alias Archethic.OracleChain.MemTable, as: OracleMemTable
@@ -281,6 +287,19 @@ defmodule ArchethicCase do
         action_ast,
         constants |> ContractFactory.append_contract_constant(contract_tx),
         contract_tx
+      )
+    end
+  end
+
+  def generate_code_that_exceed_limit_when_compressed(code \\ "") do
+    max_bytes = Application.get_env(:archethic, :transaction_data_code_max_size)
+
+    if code |> TransactionData.compress_code() |> byte_size() > max_bytes do
+      code
+    else
+      # generate 10k*2 bytes on every loop until limit is reached
+      generate_code_that_exceed_limit_when_compressed(
+        code <> Base.encode16(:crypto.strong_rand_bytes(10_000))
       )
     end
   end

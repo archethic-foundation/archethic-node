@@ -27,7 +27,8 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @protocol_version 5
+  # protocol version 5->6 the POI changed and is now done with tx.data.code compressed
+  @protocol_version 6
 
   def protocol_version, do: @protocol_version
 

@@ -158,16 +158,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     end
 
     test "exceeds max code size" do
-      size = Application.get_env(:archethic, :transaction_data_code_max_size)
-      data = :crypto.strong_rand_bytes(size + 1)
+      code = generate_code_that_exceed_limit_when_compressed()
 
-      code = ~s"""
-        condition transaction: [
-         content: hash(#{data}})
-      ]
-      """
-
-      assert {:error, "Invalid contract type transaction , code exceed max size"} =
+      assert {:error, "Invalid transaction, code exceed max size"} =
                ContractFactory.create_valid_contract_tx(code)
                |> PendingTransactionValidation.validate()
     end
