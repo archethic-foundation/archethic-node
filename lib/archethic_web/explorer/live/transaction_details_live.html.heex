@@ -478,36 +478,6 @@
               </ul>
             </div>
 
-            <%!----------------------------- CALLS --------------------------------%>
-            <div class="columns">
-              <% calls_count = Enum.count(@calls) %>
-
-              <div class="column ae-left-heading is-2">
-                <p>Contract inputs (<%= calls_count %>)</p>
-              </div>
-
-              <div class="column">
-                <%= if calls_count > 0 do %>
-                  <ul>
-                    <%= for call <- @calls do %>
-                      <li>
-                        <%= link(WebUtils.short_address(call.from),
-                          to:
-                            Routes.live_path(
-                              @socket,
-                              ArchethicWeb.Explorer.TransactionDetailsLive,
-                              Base.encode16(call.from)
-                            )
-                        ) %>
-                      </li>
-                    <% end %>
-                  </ul>
-                <% else %>
-                  <div></div>
-                <% end %>
-              </div>
-            </div>
-
             <%!----------------------------- CONSUMED INPUTS --------------------------------%>
             <div class="columns">
               <% utxos_count =
@@ -576,6 +546,36 @@
                     uco_price_now={@uco_price_now}
                     token_properties={@token_properties}
                   />
+                <% end %>
+              </div>
+            </div>
+
+            <%!----------------------------- CALLS --------------------------------%>
+            <div class="columns">
+              <% calls_count = Enum.count(@calls) %>
+
+              <div class="column ae-left-heading is-2">
+                <p>Contract inputs (<%= calls_count %>)</p>
+              </div>
+
+              <div class="column">
+                <%= if calls_count > 0 do %>
+                  <ul>
+                    <%= for call <- @calls do %>
+                      <li>
+                        <%= link(WebUtils.short_address(call.from),
+                          to:
+                            Routes.live_path(
+                              @socket,
+                              ArchethicWeb.Explorer.TransactionDetailsLive,
+                              Base.encode16(call.from)
+                            )
+                        ) %>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% else %>
+                  <div></div>
                 <% end %>
               </div>
             </div>
