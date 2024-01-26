@@ -349,7 +349,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   # loop through the inputs to detect if a UTXO is spent or not
   def utxo_spent?(utxo, inputs) do
     case Enum.find(inputs, &similar?(&1, utxo)) do
-      nil -> false
+      nil -> true
       input -> input.spent?
     end
   end
