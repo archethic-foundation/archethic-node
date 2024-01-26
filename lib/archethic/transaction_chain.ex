@@ -622,17 +622,19 @@ defmodule Archethic.TransactionChain do
   """
   @spec fetch_unspent_outputs(
           address :: Crypto.prepended_hash(),
-          list(Node.t())
+          nodes :: list(Node.t()),
+          genesis? :: boolean()
         ) :: Enumerable.t() | list(UnspentOutput.t())
-  def fetch_unspent_outputs(_, []), do: []
+  def fetch_unspent_outputs(address, nodes, genesis? \\ false)
+  def fetch_unspent_outputs(_, [], _), do: []
 
-  def fetch_unspent_outputs(address, nodes)
+  def fetch_unspent_outputs(address, nodes, genesis?)
       when is_binary(address) and is_list(nodes) do
     Stream.resource(
-      fn -> do_fetch_inspent_outputs(address, nodes) end,
+      fn -> do_fetch_inspent_outputs(address, nodes, genesis?) end,
       fn
         {utxos, true, offset} ->
-          {utxos, do_fetch_inspent_outputs(address, nodes, offset)}
+          {utxos, do_fetch_inspent_outputs(address, nodes, genesis?, offset)}
 
         {utxos, false, _} ->
           {utxos, :eof}
@@ -644,9 +646,9 @@ defmodule Archethic.TransactionChain do
     )
   end
 
-  defp do_fetch_inspent_outputs(address, nodes, offset \\ 0)
+  defp do_fetch_inspent_outputs(address, nodes, genesis?, offset \\ 0)
 
-  defp do_fetch_inspent_outputs(address, nodes, offset) do
+  defp do_fetch_inspent_outputs(address, nodes, genesis?, offset) do
     conflict_resolver = fn results ->
       results
       |> Enum.sort_by(&length(&1.unspent_outputs), :desc)
@@ -655,7 +657,7 @@ defmodule Archethic.TransactionChain do
 
     case P2P.quorum_read(
            nodes,
-           %GetUnspentOutputs{address: address, offset: offset},
+           %GetUnspentOutputs{address: address, offset: offset, genesis?: genesis?},
            conflict_resolver
          ) do
       {:ok,
