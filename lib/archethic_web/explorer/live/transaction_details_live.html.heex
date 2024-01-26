@@ -508,65 +508,49 @@
               </div>
             </div>
 
-            <%!----------------------------- OUTPUTS --------------------------------%>
+            <%!----------------------------- CONSUMED INPUTS --------------------------------%>
             <div class="columns">
               <% utxos_count =
-                Enum.count(@transaction.validation_stamp.ledger_operations.unspent_outputs) %>
+                Enum.count(@transaction.validation_stamp.ledger_operations.consumed_inputs) %>
 
               <div class="column ae-left-heading is-2">
-                <p>Unspent outputs (<%= utxos_count %>)</p>
+                <p>Consumed inputs (<%= utxos_count %>)</p>
               </div>
 
-              <ul class="column">
-                <%= for utxo <- @transaction.validation_stamp.ledger_operations.unspent_outputs, utxo.type != :state do %>
-                  <li class="columns">
-                    <div class="column is-narrow">
-                      <span class="ae-label">From</span>
-                      <%= link(WebUtils.short_address(utxo.from),
-                        to:
-                          Routes.live_path(
-                            @socket,
-                            ArchethicWeb.Explorer.TransactionDetailsLive,
-                            Base.encode16(utxo.from)
-                          )
-                      ) %>
-                    </div>
+              <div class="column">
+                <UnspentOutputList.display_all
+                  inputs={@inputs}
+                  utxos={@transaction.validation_stamp.ledger_operations.consumed_inputs}
+                  socket={@socket}
+                  uco_price_at_time={@uco_price_at_time}
+                  uco_price_now={@uco_price_now}
+                  token_properties={@token_properties}
+                  display_status?={false}
+                />
+              </div>
+            </div>
 
-                    <div class="column is-narrow">
-                      <span class="ae-label">At</span>
-                      <%= format_date(utxo.timestamp) %>
-                    </div>
+            <%!----------------------------- OUTPUTS --------------------------------%>
+            <div class="columns">
+              <% utxos =
+                @transaction.validation_stamp.ledger_operations.unspent_outputs
+                |> Enum.reject(&(&1.type == :state)) %>
 
-                    <div class="column is-narrow">
-                      <span class="ae-label">Amount</span>
-                      <%= case utxo.type do %>
-                        <% :UCO -> %>
-                          <Amount.uco
-                            amount={utxo.amount}
-                            uco_price_at_time={@uco_price_at_time}
-                            uco_price_now={@uco_price_now}
-                          />
-                        <% {:token, token_address, token_id} -> %>
-                          <Amount.token
-                            amount={utxo.amount}
-                            token_address={token_address}
-                            token_id={token_id}
-                            token_properties={@token_properties}
-                            socket={@socket}
-                          />
-                      <% end %>
-                    </div>
+              <div class="column ae-left-heading is-2">
+                <p>Unspent outputs (<%= Enum.count(utxos) %>)</p>
+              </div>
 
-                    <div class="column is-narrow">
-                      <%= if ArchethicWeb.Explorer.TransactionDetailsLive.utxo_spent?(utxo, @inputs) do %>
-                        <span class="tag is-danger mono">Spent&nbsp;&nbsp;</span>
-                      <% else %>
-                        <span class="tag is-success mono">Unspent</span>
-                      <% end %>
-                    </div>
-                  </li>
-                <% end %>
-              </ul>
+              <div class="column">
+                <UnspentOutputList.display_all
+                  inputs={@inputs}
+                  utxos={utxos}
+                  socket={@socket}
+                  uco_price_at_time={@uco_price_at_time}
+                  uco_price_now={@uco_price_now}
+                  token_properties={@token_properties}
+                  display_status?={true}
+                />
+              </div>
             </div>
 
             <%!----------------------------- INPUTS --------------------------------%>
