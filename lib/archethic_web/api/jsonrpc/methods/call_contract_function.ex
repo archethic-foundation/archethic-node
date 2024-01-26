@@ -15,7 +15,10 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
   def validate_params(params) do
     case FunctionCallPayload.changeset(params) do
       %{valid?: true, changes: changed_params} ->
-        {:ok, Map.update(changed_params, :args, [], fn val -> val end)}
+        changed_params =
+          changed_params |> Map.update(:args, [], & &1) |> Map.update(:resolve_last, true, & &1)
+
+        {:ok, changed_params}
 
       changeset ->
         reasons =
@@ -35,8 +38,13 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
           {:ok, result :: any()}
           | {:error, reason :: atom(), message :: binary()}
           | {:error, reason :: atom(), message :: binary(), data :: any()}
-  def execute(%{contract: contract_adress, function: function_name, args: args}) do
-    with {:ok, contract_tx} <- Archethic.get_last_transaction(contract_adress),
+  def execute(%{
+        contract: contract_adress,
+        function: function_name,
+        args: args,
+        resolve_last: resolve?
+      }) do
+    with {:ok, contract_tx} <- get_transaction(contract_adress, resolve?),
          {:ok, contract} <- Contracts.from_transaction(contract_tx),
          {:ok, value, _logs} <- Contracts.execute_function(contract, function_name, args) do
       {:ok, value}
@@ -45,6 +53,12 @@ defmodule ArchethicWeb.API.JsonRPC.Method.CallContractFunction do
         format_reason(reason)
     end
   end
+
+  defp get_transaction(contract_address, _resolve? = true),
+    do: Archethic.get_last_transaction(contract_address)
+
+  defp get_transaction(contract_address, _resolve? = false),
+    do: Archethic.search_transaction(contract_address)
 
   # Error must be static (jsonrpc spec), the dynamic part is in the 4th tuple position
   defp format_reason(%Failure{error: error, user_friendly_error: reason}),

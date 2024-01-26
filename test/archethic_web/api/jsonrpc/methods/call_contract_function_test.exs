@@ -17,6 +17,7 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
 
   alias Archethic.ContractFactory
 
+  import ArchethicCase
   import Mox
 
   setup do
@@ -41,20 +42,94 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
     test "should send bad_request response for invalid transaction body" do
       assert {:error,
               %{
-                contract: [
-                  "can't be blank"
-                ],
-                function: [
-                  "can't be blank"
-                ],
-                args: [
-                  "is invalid"
-                ]
-              }} = CallContractFunction.validate_params(%{args: "not a list"})
+                contract: ["can't be blank"],
+                function: ["can't be blank"],
+                args: ["is invalid"],
+                resolve_last: ["is invalid"]
+              }} =
+               CallContractFunction.validate_params(%{
+                 args: "not a list",
+                 resolve_last: "not a boolean"
+               })
+    end
+
+    test "should set default variable" do
+      contract_address = random_address()
+      contract_address_hex = Base.encode16(contract_address)
+
+      assert {:ok,
+              %{
+                contract: ^contract_address,
+                function: "test",
+                args: [],
+                resolve_last: true
+              }} =
+               CallContractFunction.validate_params(%{
+                 contract: contract_address_hex,
+                 function: "test"
+               })
     end
   end
 
   describe "execute" do
+    test "should resolve last contract chain address" do
+      contract_tx =
+        %Transaction{address: contract_address} =
+        """
+        @version 1
+        export fun public() do
+          "hello"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      contract_address_hex = Base.encode16(contract_address)
+
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
+        {:ok, %LastTransactionAddress{address: contract_address}}
+      end)
+      |> expect(:send_message, fn _, %GetTransaction{address: _}, _ -> {:ok, contract_tx} end)
+
+      params = %{
+        contract: contract_address_hex,
+        function: "public",
+        args: [],
+        resolve_last: true
+      }
+
+      assert {:ok, "hello"} = CallContractFunction.execute(params)
+    end
+
+    test "should not resolve last contract chain address" do
+      contract_tx =
+        %Transaction{address: contract_address} =
+        """
+        @version 1
+        export fun public() do
+          "hello"
+        end
+        """
+        |> ContractFactory.create_valid_contract_tx()
+
+      contract_address_hex = Base.encode16(contract_address)
+
+      MockClient
+      |> expect(:send_message, 0, fn _, %GetLastTransactionAddress{}, _ ->
+        {:ok, %LastTransactionAddress{address: contract_address}}
+      end)
+      |> expect(:send_message, fn _, %GetTransaction{address: _}, _ -> {:ok, contract_tx} end)
+
+      params = %{
+        contract: contract_address_hex,
+        function: "public",
+        args: [],
+        resolve_last: false
+      }
+
+      assert {:ok, "hello"} = CallContractFunction.execute(params)
+    end
+
     test "should indicate faillure when failling parsing of contracts" do
       contract_tx =
         %Transaction{address: contract_address} =
@@ -73,18 +148,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{address: _}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{address: _}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "get_content",
-        args: []
+        args: [],
+        resolve_last: false
       }
 
       assert {:error, :parsing_contract, _, _} = CallContractFunction.execute(params)
@@ -111,18 +181,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "get_content",
-        args: []
+        args: [],
+        resolve_last: false
       }
 
       assert {:ok, "I'm a content !"} == CallContractFunction.execute(params)
@@ -153,20 +218,15 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "sum",
         args: [
           [1, 2, 3, 4, 5, 6]
-        ]
+        ],
+        resolve_last: false
       }
 
       assert {:ok, 21.0} == CallContractFunction.execute(params)
@@ -197,18 +257,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "hello",
-        args: []
+        args: [],
+        resolve_last: false
       }
 
       assert {:error, :parsing_contract, _,
@@ -240,18 +295,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "hello",
-        args: []
+        args: [],
+        resolve_last: false
       }
 
       assert {:error, :parsing_contract, _,
@@ -276,18 +326,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "hello",
-        args: []
+        args: [],
+        resolve_last: false
       }
 
       assert {:error, :function_does_not_exist, "There was an error while executing the function",
@@ -315,18 +360,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "hello",
-        args: [1]
+        args: [1],
+        resolve_last: false
       }
 
       assert {:error, :function_does_not_exist, "There was an error while executing the function",
@@ -354,18 +394,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "hello",
-        args: [1, "not a number"]
+        args: [1, "not a number"],
+        resolve_last: false
       }
 
       assert {:error, :function_failure, "There was an error while executing the function",
@@ -392,18 +427,13 @@ defmodule ArchethicWeb.API.JsonRPC.Methods.CallContractFunctionTest do
       contract_address_hex = Base.encode16(contract_address)
 
       MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{}, _ ->
-          {:ok, contract_tx}
-
-        _, %GetLastTransactionAddress{}, _ ->
-          {:ok, %LastTransactionAddress{address: contract_address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{}, _ -> {:ok, contract_tx} end)
 
       params = %{
         contract: contract_address_hex,
         function: "hello",
-        args: [1, 2]
+        args: [1, 2],
+        resolve_last: false
       }
 
       assert {:error, :function_is_private, "There was an error while executing the function",
