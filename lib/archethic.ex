@@ -28,6 +28,7 @@ defmodule Archethic do
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionInput
 
   require Logger
@@ -348,6 +349,16 @@ defmodule Archethic do
     address
     |> TransactionChain.fetch_inputs(nodes, DateTime.utc_now(), paging_offset, limit)
     |> Enum.to_list()
+  end
+
+  @doc """
+  Request to fetch the unspent outputs for a transaction address from the closest nodes
+  """
+  @spec get_unspent_outputs(address :: Crypto.prepended_hash(), genesis? :: boolean()) ::
+          list(UnspentOutput.t())
+  def get_unspent_outputs(address, genesis? \\ false) do
+    nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
+    TransactionChain.fetch_unspent_outputs(address, nodes, genesis?) |> Enum.to_list()
   end
 
   @doc """
