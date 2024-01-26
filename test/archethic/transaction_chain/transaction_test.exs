@@ -34,7 +34,9 @@ defmodule Archethic.TransactionChain.TransactionTest do
 
       assert Crypto.verify?(
                tx.origin_signature,
-               tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
+               tx
+               |> Transaction.extract_for_origin_signature()
+               |> Transaction.serialize(:extended),
                Crypto.origin_node_public_key()
              )
     end
@@ -54,7 +56,9 @@ defmodule Archethic.TransactionChain.TransactionTest do
 
       assert Crypto.verify?(
                tx.origin_signature,
-               tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
+               tx
+               |> Transaction.extract_for_origin_signature()
+               |> Transaction.serialize(:extended),
                Crypto.origin_node_public_key()
              )
     end

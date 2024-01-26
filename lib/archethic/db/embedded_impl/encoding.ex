@@ -103,7 +103,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"address", address},
         {"type", <<Transaction.serialize_type(type)::8>>},
         {"data.content", content},
-        {"data.code", code},
+        {"data.code", TransactionData.compress_code(code)},
         {"data.ledger.uco", UCOLedger.serialize(uco_ledger, tx_version)},
         {"data.ledger.token", TokenLedger.serialize(token_ledger, tx_version)},
         {"data.ownerships", <<encoded_ownerships_len::binary, ownerships_encoding::binary>>},

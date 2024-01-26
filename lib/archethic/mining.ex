@@ -29,7 +29,8 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @protocol_version 5
+  # protocol version 5->6 the POI changed and is now done with tx.data.recipients.args serialized with :extended mode
+  @protocol_version 6
 
   @lock_threshold 0.75
 

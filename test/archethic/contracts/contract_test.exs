@@ -104,7 +104,7 @@ defmodule Archethic.Contracts.ContractTest do
                Contract.sign_next_transaction(contract, next_tx, 1)
 
       tx_payload =
-        Transaction.extract_for_previous_signature(signed_tx) |> Transaction.serialize()
+        Transaction.extract_for_previous_signature(signed_tx) |> Transaction.serialize(:extended)
 
       assert Crypto.verify?(signature, tx_payload, pub)
     end

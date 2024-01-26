@@ -4,6 +4,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   """
 
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Utils
 
@@ -31,6 +32,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   @spec validate(params :: map()) :: :ok | {:error, map()} | :error
   def validate(params) when is_map(params) do
     with :ok <- ExJsonSchema.Validator.validate(@transaction_schema, params),
+         :ok <- validate_code_size(params),
          :ok <- validate_recipients_version(params) do
       :ok
     else
@@ -39,6 +41,26 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
   end
 
   def validate(_), do: :error
+
+  defp validate_code_size(params) do
+    case get_in(params, ["data", "code"]) do
+      nil ->
+        :ok
+
+      "" ->
+        :ok
+
+      code ->
+        if TransactionData.code_size_valid?(code) do
+          :ok
+        else
+          {:error,
+           [
+             {"Invalid transaction, code exceed max size.", "#/data/code"}
+           ]}
+        end
+    end
+  end
 
   defp validate_recipients_version(params = %{"version" => 1}) do
     case get_in(params, ["data", "recipients"]) do

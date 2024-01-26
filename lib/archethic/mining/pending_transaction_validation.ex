@@ -68,8 +68,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
                          |> Jason.decode!()
                          |> ExJsonSchema.Schema.resolve()
 
-  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
-
   @tx_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
 
   @doc """
@@ -143,30 +141,28 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp validate_contract(%Transaction{
          data: %TransactionData{code: code, ownerships: ownerships}
-       })
-       when byte_size(code) <= @code_max_size do
-    case Contracts.parse(code) do
-      {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
-        if Enum.any?(
-             ownerships,
-             &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
-           ) do
+       }) do
+    if TransactionData.code_size_valid?(code) do
+      case Contracts.parse(code) do
+        {:ok, %Contract{triggers: triggers}} when map_size(triggers) > 0 ->
+          if Enum.any?(
+               ownerships,
+               &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
+             ) do
+            :ok
+          else
+            {:error, "Requires storage nonce public key as authorized public keys"}
+          end
+
+        {:ok, %Contract{}} ->
           :ok
-        else
-          {:error, "Requires storage nonce public key as authorized public keys"}
-        end
 
-      {:ok, %Contract{}} ->
-        :ok
-
-      {:error, reason} ->
-        {:error, "Smart contract invalid #{inspect(reason)}"}
+        {:error, reason} ->
+          {:error, "Smart contract invalid #{inspect(reason)}"}
+      end
+    else
+      {:error, "Invalid transaction, code exceed max size"}
     end
-  end
-
-  defp validate_contract(%Transaction{data: %TransactionData{code: code}})
-       when byte_size(code) > @code_max_size do
-    {:error, "Invalid contract type transaction , code exceed max size"}
   end
 
   @spec validate_ownerships(Transaction.t()) :: :ok | {:error, any()}

@@ -94,7 +94,7 @@
 
             <%!-------------------------------- CODE --------------------------------%>
             <div class="columns" x-data="{show: true}">
-              <% code_bytes = byte_size(@transaction.data.code) %>
+              <% code_bytes = byte_size(TransactionData.compress_code(@transaction.data.code)) %>
               <div class="column ae-left-heading is-2">
                 <p>Code (<%= format_bytes(code_bytes) %>)</p>
                 <%= if code_bytes > 0 do %>

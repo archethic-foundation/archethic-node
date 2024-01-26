@@ -29,6 +29,27 @@ defmodule Archethic.TransactionChain.TransactionData do
           content: binary()
         }
 
+  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
+
+  @spec compress_code(String.t()) :: binary()
+  def compress_code(""), do: ""
+
+  def compress_code(code) do
+    :zlib.zip(code)
+  end
+
+  @spec decompress_code(binary()) :: String.t()
+  def decompress_code(""), do: ""
+
+  def decompress_code(code) do
+    :zlib.unzip(code)
+  end
+
+  @spec code_size_valid?(String.t()) :: bool()
+  def code_size_valid?(code) do
+    compress_code(code) |> byte_size() < @code_max_size
+  end
+
   @doc """
   Serialize transaction data into binary format
   """
@@ -61,6 +82,17 @@ defmodule Archethic.TransactionChain.TransactionData do
     encoded_ownership_len = length(ownerships) |> VarInt.from_value()
     encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
+    code =
+      case mode do
+        :compact ->
+          # used when msg passing
+          compress_code(code)
+
+        :extended ->
+          # used when signing
+          code
+      end
+
     <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary,
       Ledger.serialize(ledger, tx_version)::binary, encoded_recipients_len::binary,
@@ -90,6 +122,17 @@ defmodule Archethic.TransactionChain.TransactionData do
 
     {recipients, rest} =
       reduce_recipients(rest, nb_recipients, [], tx_version, serialization_mode)
+
+    # no need to check for serialization_mode because we never deserialize(:extended)
+    code =
+      try do
+        decompress_code(code)
+      rescue
+        _ ->
+          # may happen during upgrade when a V node send msg to a V+1 node (V=version)
+          # try/rescue can be removed on next release
+          code
+      end
 
     {
       %__MODULE__{
@@ -126,9 +169,18 @@ defmodule Archethic.TransactionChain.TransactionData do
 
   @spec cast(map()) :: t()
   def cast(data = %{}) do
+    code = Map.get(data, :code, "")
+
+    code =
+      if String.printable?(code) do
+        code
+      else
+        decompress_code(code)
+      end
+
     %__MODULE__{
       content: Map.get(data, :content, ""),
-      code: Map.get(data, :code, ""),
+      code: code,
       ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.cast(),
       ownerships: Map.get(data, :ownerships, []) |> Enum.map(&Ownership.cast/1),
       recipients: Map.get(data, :recipients, []) |> Enum.map(&Recipient.cast/1)

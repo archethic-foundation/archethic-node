@@ -1,11 +1,11 @@
 defmodule ArchethicWeb.API.Schema.TransactionData do
   @moduledoc false
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
-  @code_max_size Application.compile_env!(:archethic, :transaction_data_code_max_size)
 
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Archethic.TransactionChain.TransactionData
   alias ArchethicWeb.API.Schema.Ledger
   alias ArchethicWeb.API.Schema.Ownership
   alias ArchethicWeb.API.Types.Hex
@@ -29,15 +29,21 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
       message: "content size must be less than content_max_size",
       count: :bytes
     )
-    |> validate_length(:code,
-      max: @code_max_size,
-      message: "code size can't be more than #{Integer.to_string(@code_max_size)} bytes",
-      count: :bytes
-    )
+    |> validate_code_size()
     |> validate_length(:ownerships, max: 255, message: "ownerships can not be more that 255")
     |> validate_length(:recipients,
       max: 255,
       message: "maximum number of recipients can be 255"
     )
+  end
+
+  def validate_code_size(changeset) do
+    validate_change(changeset, :code, fn field, value ->
+      if TransactionData.code_size_valid?(value) do
+        []
+      else
+        [{field, "Invalid transaction, code exceed max size"}]
+      end
+    end)
   end
 end
