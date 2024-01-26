@@ -171,8 +171,6 @@ defmodule Archethic.TransactionChain.TransactionData do
   def cast(data = %{}) do
     code = Map.get(data, :code, "")
 
-    # our database contains both compressed and not compressed code
-    # this can be removed after a migration
     code =
       if String.printable?(code) do
         code
