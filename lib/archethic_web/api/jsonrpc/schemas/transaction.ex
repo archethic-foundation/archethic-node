@@ -8,7 +8,7 @@ defmodule ArchethicWeb.API.JsonRPC.TransactionSchema do
 
   alias Archethic.Utils
 
-  @max_code_bytes 24 * 1024
+  @max_code_bytes Application.compile_env(:archethic, :transaction_data_code_max_size, 24 * 1024)
   @transaction_schema :archethic
                       |> Application.app_dir("priv/json-schemas/transaction.json")
                       |> File.read!()

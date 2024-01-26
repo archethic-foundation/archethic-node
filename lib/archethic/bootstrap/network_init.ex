@@ -206,7 +206,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
         proof_of_work: Crypto.origin_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-        proof_of_integrity: tx |> Transaction.serialize() |> Crypto.hash(),
+        proof_of_integrity: tx |> Transaction.serialize(:extended) |> Crypto.hash(),
         ledger_operations: operations
       }
       |> ValidationStamp.sign()
