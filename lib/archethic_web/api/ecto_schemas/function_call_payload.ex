@@ -9,11 +9,12 @@ defmodule ArchethicWeb.API.FunctionCallPayload do
     field(:contract, Address)
     field(:function, :string)
     field(:args, {:array, :any})
+    field(:resolve_last, :boolean)
   end
 
   def changeset(params = %{}) do
     %__MODULE__{}
-    |> cast(params, [:contract, :function, :args])
+    |> cast(params, [:contract, :function, :args, :resolve_last])
     |> validate_required([:contract, :function])
   end
 end
