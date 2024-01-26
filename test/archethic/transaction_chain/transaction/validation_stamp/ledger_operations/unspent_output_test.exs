@@ -26,7 +26,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         assert {^input, _} =
                  UnspentOutput.deserialize(
                    UnspentOutput.serialize(input, protocol_version),
-                   4
+                   protocol_version
                  )
       end
     end
