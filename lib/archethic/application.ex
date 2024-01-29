@@ -46,6 +46,8 @@ defmodule Archethic.Application do
 
   alias Archethic.Utils
 
+  alias Archethic.UTXO.Supervisor, as: UTXOSupervisor
+
   alias ArchethicWeb.Endpoint, as: WebEndpoint
   alias ArchethicWeb.Supervisor, as: WebSupervisor
 
@@ -88,6 +90,7 @@ defmodule Archethic.Application do
       ReplicationSupervisor,
       RewardSupervisor,
       AccountSupervisor,
+      UTXOSupervisor,
       GovernanceSupervisor,
       SelfRepairSupervisor,
       OracleChainSupervisor,

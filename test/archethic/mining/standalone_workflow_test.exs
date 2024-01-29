@@ -7,6 +7,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   alias Archethic.Mining.StandaloneWorkflow
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.GetUnspentOutputs
@@ -17,6 +18,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   alias Archethic.P2P.Message.ReplicatePendingTransactionChain
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Message.ReplicationAttestationMessage
+  alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
@@ -86,6 +88,9 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
             tx_summary = TransactionSummary.from_transaction(tx)
             {:ok, tx_summary}
         end
+
+      _, %GetGenesisAddress{}, _ ->
+        {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
 
       _, %ValidateTransaction{transaction: tx}, _ ->
         Agent.update(agent_pid, fn _ -> tx end)

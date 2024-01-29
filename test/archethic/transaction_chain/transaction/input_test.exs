@@ -1,8 +1,6 @@
 defmodule Archethic.TransactionChain.TransactionInputTest do
   use ArchethicCase
 
-  import ArchethicCase, only: [current_protocol_version: 0]
-
   alias Archethic.Mining
   alias Archethic.TransactionChain.TransactionInput
   doctest TransactionInput
@@ -12,19 +10,24 @@ defmodule Archethic.TransactionChain.TransactionInputTest do
       input = %TransactionInput{
         amount: 1,
         type: :UCO,
-        from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        reward?: true,
+        from: ArchethicCase.random_address(),
         spent?: true,
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
+        timestamp: DateTime.utc_now()
       }
 
-      protocol_version = Mining.protocol_version()
+      for protocol_version <- 1..Mining.protocol_version() do
+        revised_input =
+          if protocol_version < 7 do
+            Map.update!(input, :timestamp, &DateTime.truncate(&1, :second))
+          else
+            Map.update!(input, :timestamp, &DateTime.truncate(&1, :millisecond))
+          end
 
-      assert {^input, _} =
-               TransactionInput.deserialize(
-                 TransactionInput.serialize(input, protocol_version),
-                 protocol_version
-               )
+        assert {^revised_input, _} =
+                 revised_input
+                 |> TransactionInput.serialize(protocol_version)
+                 |> TransactionInput.deserialize(protocol_version)
+      end
     end
   end
 end

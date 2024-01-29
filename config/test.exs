@@ -10,6 +10,7 @@ config :archethic, :mut_dir, "data_test"
 config :archethic, Archethic.Account.MemTablesLoader, enabled: false
 config :archethic, Archethic.Account.MemTables.TokenLedger, enabled: false
 config :archethic, Archethic.Account.MemTables.UCOLedger, enabled: false
+config :archethic, Archethic.Account.MemTables.GenesisInputLedger, enabled: false
 
 config :archethic, Archethic.BeaconChain.Subset, enabled: false
 
@@ -69,6 +70,9 @@ config :archethic, Archethic.Crypto.SharedSecretsKeystore, MockCrypto.SharedSecr
 
 config :archethic, Archethic.DB, MockDB
 config :archethic, MockDB, enabled: false
+
+config :archethic, Archethic.UTXO.DBLedger, MockUTXOLedger
+config :archethic, MockUTXOLedger, enabled: false
 
 config :archethic, Archethic.Election.Constraints, enabled: false
 
@@ -166,11 +170,15 @@ config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
 
 config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 1_000
 
+config :archethic, Archethic.UTXO.MemoryLedger, enabled: false
+
 config :archethic, ArchethicWeb.Explorer.FaucetController, enabled: true
 config :archethic, ArchethicWeb.Explorer.FaucetRateLimiter, enabled: false
 config :archethic, ArchethicWeb.TransactionSubscriber, enabled: false
 config :archethic, ArchethicWeb.DashboardMetrics, enabled: false
 config :archethic, ArchethicWeb.DashboardMetricsAggregator, enabled: false
+
+config :archethic, Archethic.UTXO.MemoryLedger, size_threshold: 2000
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

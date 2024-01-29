@@ -11,6 +11,9 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   import Mock
+  import Mox
+
+  setup :set_mox_global
 
   test "seriazation/deserialization" do
     address = random_address()
@@ -24,6 +27,13 @@ defmodule Archethic.P2P.Message.GetUnspentOutputsTest do
   end
 
   describe "process/2" do
+    setup do
+      MockDB
+      |> stub(:get_inputs, fn _, _ -> [] end)
+
+      :ok
+    end
+
     test "should return no utxo when account is empty" do
       address = random_address()
 

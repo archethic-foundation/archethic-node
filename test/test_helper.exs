@@ -22,6 +22,8 @@ Mox.defmock(MockCrypto.NodeKeystore.Origin, for: Archethic.Crypto.NodeKeystore.O
 Mox.defmock(MockCrypto.SharedSecretsKeystore, for: Archethic.Crypto.SharedSecretsKeystore)
 
 Mox.defmock(MockDB, for: Archethic.DB)
+Mox.defmock(MockUTXOLedger, for: Archethic.UTXO.DBLedger)
+
 Mox.defmock(MockGeoIP, for: Archethic.P2P.GeoPatch.GeoIP)
 
 # -----Start-of-Networking-Mocks-----

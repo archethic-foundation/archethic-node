@@ -7,6 +7,8 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   alias Archethic.Utils
   alias Archethic.Replication
   alias Archethic.TaskSupervisor
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.P2P
   alias Archethic.P2P.Message.Ok
@@ -20,9 +22,11 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
   @spec process(__MODULE__.t(), Crypto.key()) :: Ok.t() | Error.t()
   def process(%__MODULE__{address: address}, sender_public_key) do
     case Replication.get_transaction_in_commit_pool(address) do
-      {:ok, tx} ->
+      {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: validation_time}}} ->
         Task.Supervisor.start_child(TaskSupervisor, fn ->
-          Replication.sync_transaction_chain(tx)
+          authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+
+          Replication.sync_transaction_chain(tx, authorized_nodes)
           tx_summary = TransactionSummary.from_transaction(tx)
 
           ack = %AcknowledgeStorage{

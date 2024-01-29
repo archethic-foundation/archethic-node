@@ -11,7 +11,7 @@ defmodule Migration_1_1_3 do
   alias Archethic.TransactionChain.Transaction
 
   def run() do
-    db_path = EmbeddedImpl.db_path()
+    db_path = EmbeddedImpl.filepath()
 
     get_genesis_addresses(db_path) |> index_last_addresses(db_path)
   end
