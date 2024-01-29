@@ -198,8 +198,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> %LedgerOperations{}
-      ...> |> LedgerOperations.consume_inputs("@Alice2",  ~U[2023-09-04 00:10:00Z], 
-      ...>  [%UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO}, %UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}], 
+      ...> |> LedgerOperations.consume_inputs("@Alice2",  ~U[2023-09-04 00:10:00Z],
+      ...>  [%UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO}, %UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}],
       ...>  [ %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}]
       ...> )
       {true, %LedgerOperations{
@@ -214,7 +214,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    %UnspentOutput{from: "@Charlie2", amount: 500_000_000, type: {:token, "@token", 0}, timestamp: ~U[2023-09-04 00:03:00Z]},
       ...>    %UnspentOutput{from: "@Charlie3", amount: 1_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:04:00Z]},
       ...>    %UnspentOutput{from: "@Charlie4", amount: 3_000_000, type: {:token, "@michel", 0}, timestamp: ~U[2023-09-04 00:05:00Z]}
-      ...> ], 
+      ...> ],
       ...> [ %TransactionMovement{to: "@Bob3", amount: 50_000_000, type: :UCO} ]
       ...> )
       {true, %LedgerOperations{
@@ -288,15 +288,25 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         contract_context \\ nil
       ) do
     # Since AEIP-19 we can consume from minted tokens
-    inputs = inputs ++ tokens_to_mint
+    consolidated_inputs = tokens_to_mint ++ inputs
 
-    %{uco: uco_balance, token: tokens_balance} = ledger_balances(inputs)
+    %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
     %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
 
     if sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
       consumed_utxos =
-        get_inputs_to_consume(
-          inputs,
+        consolidated_inputs
+        |> Enum.map(fn
+          utxo = %UnspentOutput{from: ^change_address} ->
+            # As the minted tokens are used internally during transaction's validation
+            # and doesn't not exists outside, we use the burning address
+            # to identify inputs coming from the token's minting.
+            %{utxo | from: burning_address()}
+
+          utxo ->
+            utxo
+        end)
+        |> get_inputs_to_consume(
           uco_to_spend,
           tokens_to_spend,
           encoded_state,
@@ -312,7 +322,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           tokens_balance,
           tokens_to_spend,
           change_address,
-          inputs,
+          consolidated_inputs,
           timestamp
         )
 

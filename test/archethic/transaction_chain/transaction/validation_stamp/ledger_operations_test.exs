@@ -685,7 +685,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  ],
                  [
                    %UnspentOutput{
-                     from: "@Bob",
+                     from: "@Alice",
                      amount: 100_000_000,
                      type: {:token, "@Token", 0},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
@@ -702,6 +702,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                }
              ] = ops_result.unspent_outputs
 
+      burn_address = LedgerOperations.burning_address()
+
       assert [
                %UnspentOutput{
                  from: "@Charlie1",
@@ -710,7 +712,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                },
                %UnspentOutput{
-                 from: "@Bob",
+                 from: ^burn_address,
                  amount: 100_000_000,
                  type: {:token, "@Token", 0},
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
@@ -745,7 +747,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  ],
                  [
                    %UnspentOutput{
-                     from: "@Bob",
+                     from: "@Alice",
                      amount: 100_000_000,
                      type: {:token, "@Token", 1},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
@@ -755,6 +757,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       assert [] = ops_result.unspent_outputs
 
+      burn_address = LedgerOperations.burning_address()
+
       assert [
                %UnspentOutput{
                  from: "@Charlie1",
@@ -763,7 +767,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                },
                %UnspentOutput{
-                 from: "@Bob",
+                 from: ^burn_address,
                  amount: 100_000_000,
                  type: {:token, "@Token", 1},
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
@@ -798,13 +802,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  ],
                  [
                    %UnspentOutput{
-                     from: "@Bob",
+                     from: "@Alice",
                      amount: 100_000_000,
                      type: {:token, "@Token", 1},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    },
                    %UnspentOutput{
-                     from: "@Bob",
+                     from: "@Alice",
                      amount: 100_000_000,
                      type: {:token, "@Token", 2},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
@@ -814,12 +818,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       assert [
                %UnspentOutput{
-                 from: "@Bob",
+                 from: "@Alice",
                  amount: 100_000_000,
                  type: {:token, "@Token", 1},
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                }
              ] = ops_result.unspent_outputs
+
+      burn_address = LedgerOperations.burning_address()
 
       assert [
                %UnspentOutput{
@@ -829,7 +835,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
                },
                %UnspentOutput{
-                 from: "@Bob",
+                 from: ^burn_address,
                  amount: 100_000_000,
                  type: {:token, "@Token", 2},
                  timestamp: ~U[2022-10-09 08:39:10.463Z]
@@ -869,7 +875,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  ],
                  [
                    %UnspentOutput{
-                     from: "@Bob",
+                     from: "@Alice",
                      amount: 100_000_000,
                      type: {:token, "@Token", 1},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
