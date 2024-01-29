@@ -359,6 +359,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                LedgerOperations.consume_inputs(
                  %LedgerOperations{fee: 40_000_000},
                  "@Alice2",
+                 ~U[2022-10-10 10:44:38.983Z],
                  [
                    %UnspentOutput{
                      from: "@Bob3",
@@ -370,10 +371,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  [
                    %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
                    %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-                 ],
-                 [],
-                 nil,
-                 ~U[2022-10-10 10:44:38.983Z]
+                 ]
                )
                |> elem(1)
     end
@@ -399,6 +397,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
+                 ~U[2022-10-10 10:44:38.983Z],
                  [
                    %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
                    %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
@@ -408,10 +407,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  [
                    %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
                    %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
-                 ],
-                 [],
-                 nil,
-                 ~U[2022-10-10 10:44:38.983Z]
+                 ]
                )
                |> elem(1)
     end
@@ -451,6 +447,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
+                 ~U[2022-10-10 10:44:38.983Z],
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -471,10 +468,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      amount: 1_000_000_000,
                      type: {:token, "@CharlieToken", 0}
                    }
-                 ],
-                 [],
-                 nil,
-                 ~U[2022-10-10 10:44:38.983Z]
+                 ]
                )
                |> elem(1)
     end
@@ -514,14 +508,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    amount: 700_000_000,
                    from: "@Tom1",
                    type: {:token, "@CharlieToken", 0},
-                   timestamp: nil,
-                   reward?: false
+                   timestamp: nil
                  }
                ]
              } =
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
+                 ~U[2022-10-10 10:44:38.983Z],
                  [
                    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
                    %UnspentOutput{
@@ -546,10 +540,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      amount: 1_000_000_000,
                      type: {:token, "@CharlieToken", 0}
                    }
-                 ],
-                 [],
-                 nil,
-                 ~U[2022-10-10 10:44:38.983Z]
+                 ]
                )
                |> elem(1)
     end
@@ -597,6 +588,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                %LedgerOperations{fee: 40_000_000}
                |> LedgerOperations.consume_inputs(
                  "@Alice2",
+                 ~U[2022-10-10 10:44:38.983Z],
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -629,10 +621,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      amount: 100_000_000,
                      type: {:token, "@CharlieToken", 2}
                    }
-                 ],
-                 [],
-                 nil,
-                 ~U[2022-10-10 10:44:38.983Z]
+                 ]
                )
                |> elem(1)
     end
@@ -640,8 +629,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     test "should return insufficient funds when not enough uco" do
       ops = %LedgerOperations{fee: 1_000}
 
-      assert {false, _} =
-               LedgerOperations.consume_inputs(ops, "@Alice", [], [], [], nil, DateTime.utc_now())
+      assert {false, _} = LedgerOperations.consume_inputs(ops, "@Alice", DateTime.utc_now())
     end
 
     test "should return insufficient funds when not enough tokens" do
@@ -651,6 +639,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
+                 DateTime.utc_now(),
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -665,10 +654,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      amount: 100_000_000,
                      type: {:token, "@CharlieToken", 0}
                    }
-                 ],
-                 [],
-                 nil,
-                 DateTime.utc_now()
+                 ]
                )
     end
 
@@ -681,6 +667,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
+                 now,
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -703,9 +690,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token", 0},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
-                 ],
-                 nil,
-                 now
+                 ]
                )
 
       assert [
@@ -742,6 +727,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
+                 now,
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -764,9 +750,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token", 1},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
-                 ],
-                 nil,
-                 now
+                 ]
                )
 
       assert [] = ops_result.unspent_outputs
@@ -796,6 +780,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
+                 now,
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -824,9 +809,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token", 2},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
-                 ],
-                 nil,
-                 now
+                 ]
                )
 
       assert [
@@ -863,6 +846,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                LedgerOperations.consume_inputs(
                  ops,
                  "@Alice",
+                 now,
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -890,9 +874,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, "@Token", 1},
                      timestamp: ~U[2022-10-09 08:39:10.463Z]
                    }
-                 ],
-                 nil,
-                 now
+                 ]
                )
     end
 
@@ -925,6 +907,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                LedgerOperations.consume_inputs(
                  %LedgerOperations{fee: 40_000_000},
                  transaction_address,
+                 transaction_timestamp,
                  [
                    %UnspentOutput{
                      from: from,
@@ -944,57 +927,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      type: {:token, token_address, 0},
                      timestamp: old_timestamp
                    }
-                 ],
-                 [],
-                 [],
-                 nil,
-                 transaction_timestamp
+                 ]
                )
-    end
-
-    test "should add consumed inputs after input consolidation" do
-      assert {true, ops} =
-               LedgerOperations.consume_inputs(
-                 %LedgerOperations{},
-                 "@Alice2",
-                 [
-                   %UnspentOutput{
-                     from: "@Charlie1",
-                     amount: 300_000_000,
-                     type: {:token, "@Token1", 0},
-                     timestamp: ~U[2022-10-09 08:39:10.463Z]
-                   },
-                   %UnspentOutput{
-                     from: "@Tom5",
-                     amount: 300_000_000,
-                     type: {:token, "@Token1", 0},
-                     timestamp: ~U[2022-10-20 08:00:20.463Z]
-                   }
-                 ],
-                 [],
-                 [],
-                 nil,
-                 DateTime.utc_now()
-               )
-
-      assert %LedgerOperations{
-               unspent_outputs: [
-                 %UnspentOutput{
-                   from: "@Alice2",
-                   amount: 600_000_000,
-                   type: {:token, "@Token1", 0}
-                 }
-               ],
-               consumed_inputs: [
-                 %UnspentOutput{from: "@Charlie1"},
-                 %UnspentOutput{from: "@Tom5"}
-               ]
-             } = ops
 
       assert {true, ops} =
                LedgerOperations.consume_inputs(
                  %LedgerOperations{},
                  "@Alice2",
+                 DateTime.utc_now(),
                  [
                    %UnspentOutput{
                      from: "@Charlie1",
@@ -1015,10 +955,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                      amount: 100_000_000,
                      type: {:token, "@Token1", 0}
                    }
-                 ],
-                 [],
-                 nil,
-                 DateTime.utc_now()
+                 ]
                )
 
       assert %LedgerOperations{

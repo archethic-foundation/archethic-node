@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Archethic.Migrate do
 
   defp do_run(new_version) do
     Logger.info("Start of migration task for version #{new_version}")
-    migration_file_path = EmbeddedImpl.db_path() |> ChainWriter.migration_file_path()
+    migration_file_path = EmbeddedImpl.filepath() |> ChainWriter.migration_file_path()
 
     migrations_to_run =
       if File.exists?(migration_file_path) do

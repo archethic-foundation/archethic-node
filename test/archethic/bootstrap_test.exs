@@ -1,6 +1,7 @@
 defmodule Archethic.BootstrapTest do
   use ArchethicCase
 
+  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
@@ -60,8 +61,6 @@ defmodule Archethic.BootstrapTest do
 
     MockDB
     |> stub(:write_transaction, fn _, _ -> :ok end)
-
-    MockDB
     |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
       [
         %Transaction{
@@ -91,12 +90,14 @@ defmodule Archethic.BootstrapTest do
         }
       ]
     end)
+    |> stub(:list_io_transactions, fn _ -> [] end)
 
     MockCrypto.NodeKeystore
     |> stub(:set_node_key_index, fn _ -> :ok end)
 
     start_supervised!(RewardMemTable)
     start_supervised!(RewardTableLoader)
+    start_supervised!(AccountMemTableLoader)
 
     :ok
   end
@@ -207,7 +208,12 @@ defmodule Archethic.BootstrapTest do
          # This Replication is for the node that received the StartMining message
          # expecting the transaction has been validated and replicated by all other nodes
          :ok = TransactionChain.write_transaction(validated_tx)
-         :ok = Replication.ingest_transaction(validated_tx, false, false)
+
+         :ok =
+           Replication.ingest_transaction(validated_tx,
+             io_transaction?: false,
+             self_repair?: false
+           )
 
          {:ok, validated_tx}
        end},

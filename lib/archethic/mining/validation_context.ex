@@ -63,8 +63,8 @@ defmodule Archethic.Mining.ValidationContext do
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
 
@@ -742,7 +742,8 @@ defmodule Archethic.Mining.ValidationContext do
          %__MODULE__{
            transaction: tx = %Transaction{address: address, type: tx_type},
            unspent_outputs: unspent_outputs,
-           resolved_addresses: resolved_addresses
+           resolved_addresses: resolved_addresses,
+           contract_context: contract_context
          },
          fee,
          validation_time,
@@ -754,11 +755,12 @@ defmodule Archethic.Mining.ValidationContext do
       LedgerOperations.consume_inputs(
         %LedgerOperations{fee: fee},
         address,
+        validation_time |> DateTime.truncate(:millisecond),
         unspent_outputs,
         movements,
         LedgerOperations.get_utxos_from_transaction(tx, validation_time),
         encoded_state,
-        validation_time |> DateTime.truncate(:millisecond)
+        contract_context
       )
 
     new_ops =
