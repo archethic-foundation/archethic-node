@@ -978,6 +978,78 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                ]
              } = ops
     end
+
+    test "should consume state if it's not the same" do
+      inputs = [
+        %UnspentOutput{
+          type: :state,
+          from: ArchethicCase.random_address(),
+          encoded_payload: :crypto.strong_rand_bytes(32),
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      new_state = :crypto.strong_rand_bytes(32)
+
+      assert {true,
+              %LedgerOperations{
+                consumed_inputs: ^inputs,
+                unspent_outputs: [
+                  %UnspentOutput{
+                    type: :state,
+                    encoded_payload: ^new_state
+                  }
+                ]
+              }} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{fee: 0},
+                 "@Alice2",
+                 DateTime.utc_now(),
+                 inputs,
+                 [],
+                 [],
+                 new_state,
+                 nil
+               )
+    end
+
+    test "should not consume state if it's the same" do
+      state = :crypto.strong_rand_bytes(32)
+
+      inputs = [
+        %UnspentOutput{
+          type: :state,
+          from: ArchethicCase.random_address(),
+          encoded_payload: state,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      tx_validation_time = DateTime.utc_now()
+
+      assert {true,
+              %LedgerOperations{
+                consumed_inputs: [],
+                unspent_outputs: [
+                  %UnspentOutput{
+                    type: :state,
+                    from: "@Alice2",
+                    encoded_payload: ^state,
+                    timestamp: ^tx_validation_time
+                  }
+                ]
+              }} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{fee: 0},
+                 "@Alice2",
+                 tx_validation_time,
+                 inputs,
+                 [],
+                 [],
+                 state,
+                 nil
+               )
+    end
   end
 
   describe "symmetric serialization" do
