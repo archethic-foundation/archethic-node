@@ -32,7 +32,7 @@ defmodule Archethic.Account.MemTablesLoader do
     validation_stamp: [
       :timestamp,
       :protocol_version,
-      ledger_operations: [:fee, :unspent_outputs, :transaction_movements]
+      ledger_operations: [:fee, :unspent_outputs, :transaction_movements, :consumed_inputs]
     ]
   ]
 
@@ -41,7 +41,8 @@ defmodule Archethic.Account.MemTablesLoader do
     :oracle_summary,
     :node_shared_secrets,
     :origin,
-    :on_chain_wallet
+    :keychain,
+    :keychain_access
   ]
 
   @spec start_link(args :: list()) :: GenServer.on_start()
@@ -49,24 +50,35 @@ defmodule Archethic.Account.MemTablesLoader do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @spec init(args :: list()) :: {:ok, []}
   def init(_args) do
     TransactionChain.list_io_transactions(@query_fields)
-    |> Stream.each(&load_transaction(&1, true))
+    |> Stream.each(
+      &load_transaction(&1,
+        io_transaction?: true
+      )
+    )
     |> Stream.run()
 
     TransactionChain.list_all(@query_fields)
     |> Stream.reject(&(&1.type in @excluded_types))
-    |> Stream.each(&load_transaction(&1, false))
+    |> Stream.each(
+      &load_transaction(&1,
+        io_transaction?: false
+      )
+    )
     |> Stream.run()
 
-    {:ok, []}
+    {:ok, %{}}
   end
+
+  @type load_options :: [
+          io_transaction?: boolean()
+        ]
 
   @doc """
   Load the transaction into the memory tables
   """
-  @spec load_transaction(Transaction.t(), boolean()) :: :ok
+  @spec load_transaction(Transaction.t(), load_options()) :: :ok
   def load_transaction(
         %Transaction{
           address: address,
@@ -81,8 +93,11 @@ defmodule Archethic.Account.MemTablesLoader do
             }
           }
         },
-        io_transaction?
-      ) do
+        opts \\ []
+      )
+      when is_list(opts) do
+    io_transaction? = Keyword.get(opts, :io_transaction?, false)
+
     unless io_transaction? do
       previous_address = Crypto.derive_address(previous_public_key)
 

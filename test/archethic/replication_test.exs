@@ -4,6 +4,8 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.ContractFactory
   alias Archethic.Contracts.Contract
   alias Archethic.Contracts.Contract.State
+
+  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
   alias Archethic.Crypto
 
   alias Archethic.P2P
@@ -43,6 +45,12 @@ defmodule Archethic.ReplicationTest do
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
+
+    MockDB
+    |> stub(:list_transactions, fn _ -> [] end)
+    |> stub(:list_io_transactions, fn _ -> [] end)
+
+    start_supervised!(AccountMemTableLoader)
 
     :ok
   end

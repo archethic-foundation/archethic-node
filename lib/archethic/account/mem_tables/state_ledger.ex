@@ -33,12 +33,14 @@ defmodule Archethic.Account.MemTables.StateLedger do
       [] ->
         nil
 
-      [{^address, encoded_payload, protocol_version}] ->
+      [{^address, encoded_payload, timestamp, protocol_version}] ->
         %VersionedUnspentOutput{
           protocol_version: protocol_version,
           unspent_output: %UnspentOutput{
             type: :state,
-            encoded_payload: encoded_payload
+            encoded_payload: encoded_payload,
+            from: address,
+            timestamp: timestamp
           }
         }
     end
@@ -51,7 +53,8 @@ defmodule Archethic.Account.MemTables.StateLedger do
   def add_unspent_output(address, %VersionedUnspentOutput{
         unspent_output: %UnspentOutput{
           type: :state,
-          encoded_payload: encoded_payload
+          encoded_payload: encoded_payload,
+          timestamp: timestamp
         },
         protocol_version: protocol_version
       })
@@ -61,7 +64,7 @@ defmodule Archethic.Account.MemTables.StateLedger do
     true =
       :ets.insert(
         @ledger_table,
-        {address, encoded_payload, protocol_version}
+        {address, encoded_payload, timestamp, protocol_version}
       )
 
     :ok

@@ -25,6 +25,8 @@ defmodule ArchethicCase do
   alias Archethic.Contracts.Interpreter
   alias Archethic.Contracts.Interpreter.ActionInterpreter
 
+  alias Archethic.UTXO.MemoryLedger
+
   import Mox
 
   def current_protocol_version(), do: Mining.protocol_version()
@@ -37,6 +39,7 @@ defmodule ArchethicCase do
     File.rm_rf!(Utils.mut_dir())
 
     MockDB
+    |> stub(:filepath, fn -> Utils.mut_dir() end)
     |> stub(:list_transactions, fn _ -> [] end)
     |> stub(:write_transaction, fn _, _ -> :ok end)
     |> stub(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
@@ -85,6 +88,13 @@ defmodule ArchethicCase do
     |> stub(:append_input, fn _, _ -> :ok end)
     |> stub(:get_inputs, fn _, _ -> [] end)
     |> stub(:get_last_chain_address_stored, fn addr -> addr end)
+    |> stub(:find_genesis_address, fn _ -> {:error, :not_found} end)
+
+    MockUTXOLedger
+    |> stub(:list_genesis_addresses, fn -> [] end)
+    |> stub(:append, fn _, _ -> :ok end)
+    |> stub(:flush, fn _, _ -> :ok end)
+    |> stub(:stream, fn _ -> [] end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
@@ -218,7 +228,7 @@ defmodule ArchethicCase do
     start_supervised!(NetworkLookup)
     start_supervised!(OracleMemTable)
     start_supervised!(TransactionSubscriber)
-
+    start_supervised!(MemoryLedger)
     :ok
   end
 
