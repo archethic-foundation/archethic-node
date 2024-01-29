@@ -337,21 +337,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           | unspent_tokens
         ]
         |> Enum.filter(&(&1.amount > 0))
-        |> then(fn utxos ->
-          if encoded_state == nil do
-            utxos
-          else
-            [
-              %UnspentOutput{
-                type: :state,
-                encoded_payload: encoded_state,
-                timestamp: timestamp,
-                from: change_address
-              }
-              | utxos
-            ]
-          end
-        end)
+        |> add_state_utxo(inputs, encoded_state, change_address, timestamp)
 
       {true,
        ops
@@ -434,8 +420,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       {{:token, token_address, token_id}, inputs} ->
         token_used?(tokens_to_spend, token_address, token_id) or consolidate_inputs?(inputs)
 
-      {:state, _} ->
-        encoded_state != nil
+      {:state, [%UnspentOutput{encoded_payload: previous_state}]} ->
+        encoded_state != previous_state
 
       {:call, inputs} ->
         case contract_context do
@@ -455,6 +441,43 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   defp token_used?(tokens_to_spend, token_address, token_id) do
     Map.has_key?(tokens_to_spend, {token_address, token_id})
+  end
+
+  defp add_state_utxo(utxos, _inputs, nil, _change_address, _timestamp), do: utxos
+
+  defp add_state_utxo(utxos, _inputs, encoded_state, change_address, timestamp) do
+    [
+      %UnspentOutput{
+        type: :state,
+        encoded_payload: encoded_state,
+        timestamp: timestamp,
+        from: change_address
+      }
+      | utxos
+    ]
+    # TODO: active during AEIP21 Phase2
+    # include_new_state? =
+    #   case Enum.find(inputs, &(&1.type == :state)) do
+    #     nil ->
+    #       true
+
+    #     %UnspentOutput{encoded_payload: previous_state} ->
+    #       encoded_state != previous_state
+    #   end
+
+    # if include_new_state? do
+    #   [
+    #     %UnspentOutput{
+    #       type: :state,
+    #       encoded_payload: encoded_state,
+    #       timestamp: timestamp,
+    #       from: change_address
+    #     }
+    #     | utxos
+    #   ]
+    # else
+    #   utxos
+    # end
   end
 
   @doc """
