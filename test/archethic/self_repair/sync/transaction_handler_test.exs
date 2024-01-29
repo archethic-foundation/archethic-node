@@ -1,6 +1,8 @@
 defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   use ArchethicCase
 
+  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
+
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
@@ -17,7 +19,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   alias Archethic.TransactionFactory
 
-  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionSummary
 
   doctest TransactionHandler
@@ -103,7 +105,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "download_transaction/2 should download the transaction" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -132,7 +134,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "download_transaction/2 should raise an error if the downloaded transaction is not the expected one" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -166,7 +168,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "download_transaction/2 should download the transaction even after a first failure" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -243,7 +245,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     me = self()
 
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -258,6 +260,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       send(me, :transaction_replicated)
       :ok
     end)
+    |> stub(:list_io_transactions, fn _fields -> [] end)
+    |> stub(:list_transactions, fn _fields -> [] end)
+
+    start_supervised!(AccountMemTableLoader)
 
     tx_summary = TransactionSummary.from_transaction(tx)
 
@@ -303,7 +309,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     me = self()
 
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -319,6 +325,10 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       send(me, :transaction_replicated)
       :ok
     end)
+    |> stub(:list_io_transactions, fn _fields -> [] end)
+    |> stub(:list_transactions, fn _fields -> [] end)
+
+    start_supervised!(AccountMemTableLoader)
 
     tx_summary = TransactionSummary.from_transaction(tx)
 
@@ -351,7 +361,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     })
 
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,
@@ -382,7 +392,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   test "process_transaction/3 should handle raise an error when attestation is invalid" do
     inputs = [
-      %TransactionInput{
+      %UnspentOutput{
         from: "@Alice2",
         amount: 1_000_000_000,
         type: :UCO,

@@ -2,8 +2,9 @@ defmodule Archethic.TransactionChain.TransactionInput do
   @moduledoc """
   Represents an transaction sent to an account either spent or unspent
   """
-  defstruct [:from, :amount, :type, :timestamp, spent?: false, reward?: false]
+  defstruct [:from, :amount, :type, :timestamp, :encoded_payload, spent?: false, reward?: false]
 
+  alias Archethic.Contracts.Contract.State
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
@@ -15,42 +16,14 @@ defmodule Archethic.TransactionChain.TransactionInput do
           from: Crypto.versioned_hash(),
           amount: pos_integer() | nil,
           spent?: boolean(),
-          type: TransactionMovementType.t() | :call,
+          type: TransactionMovementType.t() | :call | :state,
           timestamp: DateTime.t(),
-          reward?: boolean()
+          reward?: boolean(),
+          encoded_payload: nil | binary()
         }
 
   @doc """
   Serialize an account input into binary
-
-  ## Examples
-
-      iex> %TransactionInput{
-      ...>    from:  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
-      ...>       166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
-      ...>    amount: 1_050_000_000,
-      ...>    type: :UCO,
-      ...>    spent?: true,
-      ...>    timestamp: ~U[2021-03-05 11:17:20Z]
-      ...> }
-      ...> |> TransactionInput.serialize(current_protocol_version())
-      <<
-      # From
-      0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
-      166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
-      # Type
-      1::1,
-      # Spent
-      1::1,
-      # Reward
-      0::1,
-      # Amount
-      0, 0, 0, 0, 62, 149, 186, 128,
-      # Input type (UCO)
-      0,
-      # timestamp
-      96, 66, 19, 64
-      >>
   """
   @spec serialize(tx_input :: t(), protocol_version :: pos_integer()) :: bitstring()
   def serialize(
@@ -62,8 +35,9 @@ defmodule Archethic.TransactionChain.TransactionInput do
           reward?: reward?,
           timestamp: timestamp
         },
-        _protocol_version
-      ) do
+        protocol_version
+      )
+      when protocol_version < 6 do
     case type do
       :call ->
         <<from::binary, 0::1, 0::1, DateTime.to_unix(timestamp)::32>>
@@ -77,34 +51,44 @@ defmodule Archethic.TransactionChain.TransactionInput do
     end
   end
 
+  def serialize(
+        %__MODULE__{
+          from: from,
+          type: type,
+          timestamp: timestamp,
+          amount: amount,
+          encoded_payload: encoded_payload,
+          spent?: spent?
+        },
+        _protocol_version
+      ) do
+    spent_bit = if spent?, do: 1, else: 0
+
+    type_bin =
+      case type do
+        :state ->
+          encoded_payload_size = encoded_payload |> bit_size() |> Utils.VarInt.from_value()
+          <<0::8, encoded_payload_size::binary, encoded_payload::binary>>
+
+        :call ->
+          <<1::8>>
+
+        _ ->
+          type_bin = TransactionMovementType.serialize(type)
+          amount_bin = Utils.VarInt.from_value(amount)
+          <<2::8, type_bin::binary, amount_bin::binary>>
+      end
+
+    <<from::binary, DateTime.to_unix(timestamp, :millisecond)::64, spent_bit::1,
+      type_bin::binary>>
+  end
+
   @doc """
   Deserialize an encoded TransactionInput
-
-  ## Examples
-
-      iex>  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
-      ...>  166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
-      ...>  1::1, 1::1, 0::1,
-      ...>  0, 0, 0, 0, 62, 149, 186, 128,
-      ...>  0,
-      ...>  96, 66, 19, 64>>
-      ...> |> TransactionInput.deserialize(current_protocol_version())
-      {
-        %TransactionInput{
-          from:  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
-            166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
-          amount: 1_050_000_000,
-          type: :UCO,
-          spent?: true,
-          reward?: false,
-          timestamp: ~U[2021-03-05 11:17:20Z]
-        },
-        ""
-      }
   """
   @spec deserialize(bitstring(), protocol_version :: pos_integer()) ::
           {__MODULE__.t(), bitstring()}
-  def deserialize(data, _protocol_version) when is_bitstring(data) do
+  def deserialize(data, protocol_version) when protocol_version < 6 do
     {address, <<type_bit::1, spent_bit::1, rest::bitstring>>} = Utils.deserialize_address(data)
 
     spent? = if spent_bit == 1, do: true, else: false
@@ -145,13 +129,48 @@ defmodule Archethic.TransactionChain.TransactionInput do
     end
   end
 
+  def deserialize(data, _protocol_version) do
+    {from, <<timestamp::64, spent_bit::1, rest::bitstring>>} = Utils.deserialize_address(data)
+
+    input = %__MODULE__{
+      from: from,
+      timestamp: DateTime.from_unix!(timestamp, :millisecond),
+      spent?: spent_bit == 1
+    }
+
+    case rest do
+      <<0::8, rest::bitstring>> ->
+        {payload_size, rest} = Utils.VarInt.get_value(rest)
+        <<encoded_payload::binary-size(payload_size), rest::bitstring>> = rest
+
+        {
+          %{input | type: :state, encoded_payload: encoded_payload},
+          rest
+        }
+
+      <<1::8, rest::bitstring>> ->
+        {
+          %{input | type: :call},
+          rest
+        }
+
+      <<2::8, rest::bitstring>> ->
+        {type, rest} = TransactionMovementType.deserialize(rest)
+        {amount, rest} = Utils.VarInt.get_value(rest)
+
+        {
+          %{input | type: type, amount: amount},
+          rest
+        }
+    end
+  end
+
   @spec cast(map()) :: __MODULE__.t()
   def cast(input = %{}) do
     res = %__MODULE__{
       amount: Map.get(input, :amount),
       from: Map.get(input, :from),
       spent?: Map.get(input, :spent),
-      reward?: Map.get(input, :reward),
       timestamp: Map.get(input, :timestamp)
     }
 
@@ -171,7 +190,12 @@ defmodule Archethic.TransactionChain.TransactionInput do
       :call ->
         %{res | type: :call}
 
-      nil ->
+      :state ->
+        res
+        |> Map.put(:type, :state)
+        |> Map.put(:encoded_payload, Map.get(input, :encoded_payload))
+
+      _ ->
         res
     end
   end
@@ -181,14 +205,12 @@ defmodule Archethic.TransactionChain.TransactionInput do
         amount: amount,
         from: from,
         spent?: spent?,
-        reward?: reward?,
         type: :UCO,
         timestamp: timestamp
       }) do
     %{
       amount: amount,
       from: from,
-      reward: reward?,
       type: :UCO,
       spent: spent?,
       timestamp: timestamp
@@ -209,7 +231,6 @@ defmodule Archethic.TransactionChain.TransactionInput do
       token_address: token_address,
       token_id: token_id,
       spent: spent?,
-      reward: false,
       timestamp: timestamp
     }
   end
@@ -219,8 +240,24 @@ defmodule Archethic.TransactionChain.TransactionInput do
       from: from,
       type: :call,
       spent: spent?,
-      reward: false,
       timestamp: timestamp
+    }
+  end
+
+  def to_map(%__MODULE__{
+        amount: _,
+        from: from,
+        spent?: spent?,
+        type: :state,
+        timestamp: timestamp,
+        encoded_payload: encoded_payload
+      }) do
+    %{
+      from: from,
+      type: :state,
+      spent: spent?,
+      timestamp: timestamp,
+      encoded_payload: encoded_payload |> State.deserialize() |> elem(0)
     }
   end
 end

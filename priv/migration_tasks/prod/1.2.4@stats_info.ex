@@ -3,10 +3,10 @@ defmodule Migration_1_2_4 do
   Erase stats file to keep only values of last beacon summary
   """
 
-  alias Archethic.DB.EmbeddedImpl
+  alias Archethic.DB
 
   def run() do
-    db_path = EmbeddedImpl.db_path()
+    db_path = DB.filepath()
     filepath = Path.join(db_path, "stats")
     filepath_backup = Path.join(db_path, "stats.backup")
 

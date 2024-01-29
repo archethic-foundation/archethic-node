@@ -2,6 +2,8 @@ defmodule Archethic.RewardTest do
   use ArchethicCase
   use ExUnitProperties
 
+  alias Archethic.Account.MemTablesLoader, as: AccountMemTableLoader
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
@@ -124,16 +126,19 @@ defmodule Archethic.RewardTest do
           %Transaction{address: "@RewardToken4", type: :mint_rewards}
         ]
       end)
+      |> stub(:list_transactions, fn _ -> [] end)
+      |> stub(:list_io_transactions, fn _ -> [] end)
 
       start_supervised({RewardTokens, []})
       start_supervised({RewardMemTableLoader, []})
       start_supervised(UCOLedger)
       start_supervised(TokenLedger)
+      start_supervised(AccountMemTableLoader)
       :ok
     end
 
     test "Balance Should be updated with UCO ,for reward movements " do
-      Enum.each(get_reward_transactions(), &AccountTablesLoader.load_transaction(&1, false))
+      Enum.each(get_reward_transactions(), &AccountTablesLoader.load_transaction(&1))
 
       # @Ada1
       # from alen2: 2uco, dan2: 19uco, rewardtoken1: 50, rewardtoken2: 50
@@ -224,14 +229,12 @@ defmodule Archethic.RewardTest do
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
@@ -284,14 +287,12 @@ defmodule Archethic.RewardTest do
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
@@ -328,28 +329,24 @@ defmodule Archethic.RewardTest do
                   from: "@RewardToken1",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken1", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken2",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken2", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken3",
                   amount: 5_000_000_000,
                   type: {:token, "@RewardToken3", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 },
                 %UnspentOutput{
                   from: "@RewardToken4",
                   amount: 200_000_000,
                   type: {:token, "@RewardToken4", 0},
-                  reward?: true,
                   timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
                 }
               ]
@@ -360,7 +357,7 @@ defmodule Archethic.RewardTest do
     end
 
     test "Node Rewards Should not be minted" do
-      AccountTablesLoader.load_transaction(get_node_reward_txns(), false)
+      AccountTablesLoader.load_transaction(get_node_reward_txns())
 
       assert %{
                uco: 0,
@@ -418,14 +415,12 @@ defmodule Archethic.RewardTest do
                 from: "@RewardToken1",
                 amount: 1_000_000_000,
                 type: {:token, "@RewardToken1", 0},
-                reward?: true,
                 timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
               },
               %UnspentOutput{
                 from: "@RewardToken2",
                 amount: 2_000_000_000,
                 type: {:token, "@RewardToken2", 0},
-                reward?: true,
                 timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
               }
             ]

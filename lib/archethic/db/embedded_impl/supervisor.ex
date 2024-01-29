@@ -19,7 +19,7 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
   end
 
   def init(_arg) do
-    path = Archethic.DB.EmbeddedImpl.db_path()
+    path = Archethic.DB.EmbeddedImpl.filepath()
     ChainWriter.setup_folders!(path)
 
     children = [
