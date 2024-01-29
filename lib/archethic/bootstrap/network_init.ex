@@ -190,11 +190,10 @@ defmodule Archethic.Bootstrap.NetworkInit do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         address,
+        timestamp,
         unspent_outputs,
         Transaction.get_movements(tx),
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx_type)

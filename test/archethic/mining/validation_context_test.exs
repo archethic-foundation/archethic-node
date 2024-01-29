@@ -376,11 +376,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -410,11 +409,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -444,11 +442,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -476,11 +473,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerOperations{fee: 1}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)
@@ -569,11 +565,10 @@ defmodule Archethic.Mining.ValidationContextTest do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)

@@ -253,10 +253,10 @@ defmodule Archethic.SelfRepair do
            ) do
       # TODO: Also download replication attestation from beacon nodes to ensure validity of the transaction
       if storage? do
-        :ok = Replication.sync_transaction_chain(tx, authorized_nodes, true)
+        :ok = Replication.sync_transaction_chain(tx, authorized_nodes, self_repair?: true)
         update_last_address(address, authorized_nodes)
       else
-        Replication.synchronize_io_transaction(tx, true)
+        Replication.synchronize_io_transaction(tx, self_repair?: true)
       end
     else
       true ->

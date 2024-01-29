@@ -22,6 +22,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.P2P.Message.GenesisAddress
+  alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionSummary
   alias Archethic.P2P.Message.GetUnspentOutputs
@@ -135,6 +137,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %GetTransactionSummary{}, _ ->
           {:ok, %NotFound{}}
 
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
@@ -213,6 +218,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %GetTransactionSummary{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -314,6 +322,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %GetTransactionSummary{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -436,6 +447,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %GetTransactionSummary{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -564,6 +578,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
         _, %GetTransactionSummary{}, _ ->
           {:ok, %NotFound{}}
+
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -800,6 +817,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %GetTransactionSummary{}, _ ->
           {:ok, %NotFound{}}
 
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
 
@@ -1032,6 +1052,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
+
         _, %ValidationError{}, _ ->
           send(me, :validation_error)
           {:ok, %Ok{}}
@@ -1105,6 +1128,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
           {:ok, %Ok{}}
+
+        _, %GetGenesisAddress{}, _ ->
+          {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -1302,11 +1328,10 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
       %LedgerOperations{fee: fee}
       |> LedgerOperations.consume_inputs(
         tx.address,
+        timestamp,
         unspent_outputs,
         movements,
-        LedgerOperations.get_utxos_from_transaction(tx, timestamp),
-        nil,
-        timestamp
+        LedgerOperations.get_utxos_from_transaction(tx, timestamp)
       )
       |> elem(1)
       |> LedgerOperations.build_resolved_movements(movements, resolved_addresses, tx.type)

@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Archethic.MigrateTest do
   describe "run/1" do
     setup do
       EmbeddedImpl.Supervisor.start_link()
-      migration_path = EmbeddedImpl.db_path() |> ChainWriter.migration_file_path()
+      migration_path = EmbeddedImpl.filepath() |> ChainWriter.migration_file_path()
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},

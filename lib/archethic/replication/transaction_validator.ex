@@ -16,10 +16,9 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Recipient
-  alias Archethic.TransactionChain.TransactionInput
 
   require Logger
 
@@ -51,7 +50,7 @@ defmodule Archethic.Replication.TransactionValidator do
   @spec validate(
           tx :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
-          inputs :: list(TransactionInput.t()),
+          inputs :: list(UnspentOutput.t()),
           contract_context :: nil | Contract.Context.t()
         ) ::
           :ok | {:error, error()}
@@ -123,7 +122,7 @@ defmodule Archethic.Replication.TransactionValidator do
          {:ok, encoded_state} <- validate_contract_execution(contract_context, prev_tx, tx),
          :ok <-
            validate_transaction_fee(tx, contract_recipient_fees, contract_context, encoded_state),
-         :ok <- validate_inputs(tx, inputs, encoded_state) do
+         :ok <- validate_inputs(tx, inputs, encoded_state, contract_context) do
       :ok
     else
       {:error, _} = e ->
@@ -357,12 +356,13 @@ defmodule Archethic.Replication.TransactionValidator do
   defp validate_inputs(
          tx = %Transaction{address: address},
          inputs,
-         encoded_state
+         encoded_state,
+         contract_context
        ) do
     if address == Bootstrap.genesis_address() do
       :ok
     else
-      do_validate_inputs(tx, inputs, encoded_state)
+      do_validate_inputs(tx, inputs, encoded_state, contract_context)
     end
   end
 
@@ -376,17 +376,19 @@ defmodule Archethic.Replication.TransactionValidator do
            }
          },
          inputs,
-         encoded_state
+         encoded_state,
+         contract_context
        ) do
     {sufficient_funds?, %LedgerOperations{unspent_outputs: expected_unspent_outputs}} =
       LedgerOperations.consume_inputs(
         %LedgerOperations{fee: fee},
         address,
+        timestamp,
         inputs,
         Transaction.get_movements(tx),
         LedgerOperations.get_utxos_from_transaction(tx, timestamp),
         encoded_state,
-        timestamp
+        contract_context
       )
 
     if sufficient_funds? do
