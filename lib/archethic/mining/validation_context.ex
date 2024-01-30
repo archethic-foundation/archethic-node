@@ -674,8 +674,14 @@ defmodule Archethic.Mining.ValidationContext do
 
     resolved_recipients = resolved_recipients(recipients, resolved_addresses)
 
-    {valid_contract_recipients?, contract_recipients_fee} =
+    validate_contract_recipients_result =
       validate_contract_recipients(tx, resolved_recipients, validation_time)
+
+    contract_recipients_fee =
+      case validate_contract_recipients_result do
+        {:ok, fee} -> fee
+        _ -> 0
+      end
 
     fee =
       calculate_fee(
@@ -707,7 +713,7 @@ defmodule Archethic.Mining.ValidationContext do
             resolved_recipients,
             validation_time,
             valid_contract_execution?,
-            valid_contract_recipients?
+            validate_contract_recipients_result
           )
       }
       |> ValidationStamp.sign()
@@ -775,7 +781,8 @@ defmodule Archethic.Mining.ValidationContext do
           resolved_recipients :: list(Recipient.t()),
           validation_time :: DateTime.t(),
           valid_contract_execution? :: boolean(),
-          valid_contract_recipients? :: boolean()
+          validate_contract_recipients_result ::
+            {:ok, fee :: non_neg_integer()} | {:error, String.t()}
         ) :: nil | ValidationStamp.error()
   defp get_validation_error(
          prev_tx,
@@ -785,7 +792,7 @@ defmodule Archethic.Mining.ValidationContext do
          resolved_recipients,
          validation_time,
          valid_contract_execution?,
-         valid_contract_recipients?
+         validate_contract_recipients_result
        ) do
     cond do
       not valid_pending_transaction? ->
@@ -803,11 +810,11 @@ defmodule Archethic.Mining.ValidationContext do
       not valid_contract_recipients_distinct?(resolved_recipients) ->
         :recipients_not_distinct
 
-      not valid_contract_recipients? ->
-        :invalid_recipients_execution
-
       true ->
-        nil
+        case validate_contract_recipients_result do
+          {:ok, _} -> nil
+          {:error, reason} -> {:invalid_recipients_execution, reason}
+        end
     end
   end
 
@@ -817,7 +824,7 @@ defmodule Archethic.Mining.ValidationContext do
     resolved_recipients_addresses == Enum.uniq(resolved_recipients_addresses)
   end
 
-  defp validate_contract_recipients(_tx, [], _validation_time), do: {true, 0}
+  defp validate_contract_recipients(_tx, [], _validation_time), do: {:ok, 0}
 
   defp validate_contract_recipients(tx, resolved_recipients, validation_time),
     do: SmartContractValidation.validate_contract_calls(resolved_recipients, tx, validation_time)
@@ -1030,8 +1037,14 @@ defmodule Archethic.Mining.ValidationContext do
     {valid_contract_execution?, next_state} =
       SmartContractValidation.valid_contract_execution?(contract_context, prev_tx, tx)
 
-    {valid_contract_recipients?, contract_recipients_fee} =
+    validate_contract_recipients_result =
       validate_contract_recipients(tx, resolved_recipients, validation_time)
+
+    contract_recipients_fee =
+      case validate_contract_recipients_result do
+        {:ok, fee} -> fee
+        _ -> 0
+      end
 
     fee =
       calculate_fee(
@@ -1060,7 +1073,7 @@ defmodule Archethic.Mining.ValidationContext do
           stamp,
           context,
           valid_contract_execution?,
-          valid_contract_recipients?,
+          validate_contract_recipients_result,
           sufficient_funds?,
           resolved_recipients
         )
@@ -1129,7 +1142,7 @@ defmodule Archethic.Mining.ValidationContext do
            valid_pending_transaction?: valid_pending_transaction?
          },
          valid_contract_execution?,
-         valid_contract_recipients?,
+         validate_contract_recipients_result,
          sufficient_funds?,
          resolved_recipients
        ) do
@@ -1142,7 +1155,7 @@ defmodule Archethic.Mining.ValidationContext do
         resolved_recipients,
         validation_time,
         valid_contract_execution?,
-        valid_contract_recipients?
+        validate_contract_recipients_result
       )
 
     error == expected_error

@@ -245,10 +245,10 @@ defmodule Archethic.Replication.TransactionValidatorTest do
         {:ok, %LastTransactionAddress{address: random_address()}}
       end)
       |> expect(:send_message, fn _, %ValidateSmartContractCall{}, _ ->
-        {:ok, %SmartContractCallValidation{valid?: false, fee: 0}}
+        {:ok, %SmartContractCallValidation{valid?: false, reason: "nope", fee: 0}}
       end)
 
-      assert {:error, :invalid_recipients_execution} =
+      assert {:error, {:invalid_recipients_execution, "nope"}} =
                TransactionValidator.validate(tx, nil, unspent_outputs, nil)
     end
   end
