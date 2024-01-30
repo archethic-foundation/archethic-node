@@ -314,79 +314,57 @@ defmodule Archethic.Mining.ValidationContextTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-2)
     }
 
-    previous_storage_nodes =
-      cross_validation_nodes = [
-        %Node{
-          first_public_key: "key2",
-          last_public_key: "key2",
-          geo_patch: "AAA",
-          ip: {127, 0, 0, 1},
-          port: 3002,
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          available?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-        },
-        %Node{
-          first_public_key: "key3",
-          last_public_key: "key3",
-          geo_patch: "AAA",
-          ip: {127, 0, 0, 1},
-          port: 3003,
-          reward_address: :crypto.strong_rand_bytes(32),
-          authorized?: true,
-          available?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-        }
-      ]
+    cross_validation_nodes = [
+      %Node{
+        first_public_key: "key2",
+        last_public_key: "key2",
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      },
+      %Node{
+        first_public_key: "key3",
+        last_public_key: "key3",
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        ip: {127, 0, 0, 1},
+        port: 3001,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      }
+    ]
 
-    # cross_validation_nodes = [
-    #   %Node{
-    #     first_public_key: "key2",
-    #     last_public_key: "key2",
-    #     geo_patch: "AAA",
-    #     network_patch: "AAA",
-    #     ip: {127, 0, 0, 1},
-    #     port: 3000,
-    #     reward_address: :crypto.strong_rand_bytes(32),
-    #     authorized?: true,
-    #     authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    #   },
-    #   %Node{
-    #     first_public_key: "key3",
-    #     last_public_key: "key3",
-    #     geo_patch: "AAA",
-    #     network_patch: "AAA",
-    #     ip: {127, 0, 0, 1},
-    #     port: 3000,
-    #     reward_address: :crypto.strong_rand_bytes(32),
-    #     authorized?: true,
-    #     authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    #   }
-    # ]
-
-    # previous_storage_nodes = [
-    #   %Node{
-    #     last_public_key: "key2",
-    #     first_public_key: "key2",
-    #     geo_patch: "AAA",
-    #     network_patch: "AAA",
-    #     available?: true,
-    #     reward_address: :crypto.strong_rand_bytes(32),
-    #     authorized?: true,
-    #     authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    #   },
-    #   %Node{
-    #     last_public_key: "key3",
-    #     first_public_key: "key3",
-    #     geo_patch: "DEA",
-    #     network_patch: "DEA",
-    #     available?: true,
-    #     reward_address: :crypto.strong_rand_bytes(32),
-    #     authorized?: true,
-    #     authorization_date: DateTime.utc_now() |> DateTime.add(-2)
-    #   }
-    # ]
+    previous_storage_nodes = [
+      %Node{
+        last_public_key: "key4",
+        first_public_key: "key4",
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        ip: {127, 0, 0, 1},
+        port: 3002,
+        available?: true,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      },
+      %Node{
+        last_public_key: "key5",
+        first_public_key: "key5",
+        geo_patch: "DEA",
+        network_patch: "DEA",
+        ip: {127, 0, 0, 1},
+        port: 3003,
+        available?: true,
+        reward_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
+      }
+    ]
 
     P2P.add_and_connect_node(welcome_node)
     P2P.add_and_connect_node(coordinator_node)
