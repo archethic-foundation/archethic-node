@@ -61,6 +61,7 @@ defmodule Archethic.UTXO.Loader do
   def handle_call(
         {:consume_inputs,
          %Transaction{
+           address: transaction_address,
            validation_stamp:
              stamp = %ValidationStamp{
                ledger_operations: %LedgerOperations{consumed_inputs: consumed_inputs}
@@ -69,7 +70,7 @@ defmodule Archethic.UTXO.Loader do
         _,
         state
       ) do
-    transaction_unspent_outputs = stamp_unspent_outputs(stamp)
+    transaction_unspent_outputs = stamp_unspent_outputs(stamp, transaction_address)
 
     new_unspent_outputs =
       genesis_address
@@ -95,16 +96,14 @@ defmodule Archethic.UTXO.Loader do
          %ValidationStamp{
            protocol_version: protocol_version,
            ledger_operations: %LedgerOperations{
-             unspent_outputs: unspent_outputs,
-             consumed_inputs: consumed_inputs
+             unspent_outputs: unspent_outputs
            }
          },
-         phase2? \\ false
+         transaction_address
        ) do
     # Filter unspent outputs which have been consumed and updated (required in the AEIP21 Phase 1)
-    Enum.filter(unspent_outputs, fn %UnspentOutput{type: type} ->
-      phase2? or Enum.any?(consumed_inputs, &(&1.type == type))
-    end)
+    unspent_outputs
+    |> Enum.filter(&match?(%UnspentOutput{from: ^transaction_address}, &1))
     |> Enum.map(fn utxo = %UnspentOutput{} ->
       %VersionedUnspentOutput{
         unspent_output: utxo,
