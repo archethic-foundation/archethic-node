@@ -13,9 +13,36 @@ defmodule Archethic.Contracts.Interpreter.ConditionValidator do
   @doc """
   Determines if the conditions of a contract are valid from the given constants
   """
-  @spec execute_condition(ConditionsSubjects.t(), map()) ::
+  @spec execute_condition(Macro.t() | ConditionsSubjects.t(), map()) ::
           {:ok, list(String.t())} | {:error, String.t(), list(String.t())}
-  def execute_condition(conditions, constants = %{}) do
+  def execute_condition(subjects = %ConditionsSubjects{}, constants = %{}) do
+    # condition triggered_by: <trigger>, as: [ <field>: <expr> ]
+    execute_condition_subjects(subjects, constants)
+  end
+
+  def execute_condition(ast, constants = %{}) do
+    # condition triggered_by: <trigger> do <expr> end
+    execute_condition_block(ast, constants)
+  end
+
+  defp execute_condition_block(ast, constants = %{}) do
+    if evaluate_condition(ast, constants) do
+      # TODO: logs
+      logs = []
+      {:ok, logs}
+    else
+      # TODO: logs
+      logs = []
+      {:error, "N/A", logs}
+    end
+  catch
+    err ->
+      # TODO: logs
+      logs = []
+      {:error, "N/A", err, logs}
+  end
+
+  defp execute_condition_subjects(conditions, constants = %{}) do
     conditions
     |> Map.from_struct()
     |> Enum.reduce_while(
