@@ -130,7 +130,12 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
              )
   end
 
-  test "download_transaction/2 should raise an error if the downloaded transaction is not the expected one" do
+  test "download_transaction/2 should be able to download the transaction even if there are split",
+       %{
+         welcome_node: welcome_node,
+         coordinator_node: coordinator_node,
+         storage_nodes: storage_nodes
+       } do
     inputs = [
       %TransactionInput{
         from: "@Alice2",
@@ -140,23 +145,81 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
       }
     ]
 
-    tx = TransactionFactory.create_valid_transaction(inputs)
+    welcome_node_pkey = welcome_node.first_public_key
+    coordinator_node_pkey = coordinator_node.first_public_key
+    storage_node_pkey = Enum.at(storage_nodes, 0).first_public_key
 
-    modified_tx = %{tx | type: :oracle}
+    tx = TransactionFactory.create_valid_transaction(inputs)
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransaction{}, _ ->
-        {:ok, modified_tx}
+      %Node{first_public_key: ^welcome_node_pkey}, %GetTransaction{}, _ ->
+        {:ok, tx}
+
+      %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
+        # split
+        {:ok,
+         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+
+      %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
+        # split
+        {:ok,
+         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+    end)
+
+    assert ^tx =
+             TransactionHandler.download_transaction(
+               %ReplicationAttestation{
+                 transaction_summary: TransactionSummary.from_transaction(tx)
+               },
+               P2P.authorized_and_available_nodes()
+             )
+  end
+
+  test "download_transaction/2 should raise an error if no one has the expected transaction",
+       %{
+         welcome_node: welcome_node,
+         coordinator_node: coordinator_node,
+         storage_nodes: storage_nodes
+       } do
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+    ]
+
+    welcome_node_pkey = welcome_node.first_public_key
+    coordinator_node_pkey = coordinator_node.first_public_key
+    storage_node_pkey = Enum.at(storage_nodes, 0).first_public_key
+
+    tx = TransactionFactory.create_valid_transaction(inputs)
+
+    MockClient
+    |> stub(:send_message, fn
+      %Node{first_public_key: ^welcome_node_pkey}, %GetTransaction{}, _ ->
+        # split
+        {:ok,
+         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+
+      %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
+        # split
+        {:ok,
+         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+
+      %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
+        # split
+        {:ok,
+         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
     end)
 
     attestation = %ReplicationAttestation{
       transaction_summary: TransactionSummary.from_transaction(tx)
     }
 
-    message = "Transaction downloaded is different than expected"
-
-    assert_raise RuntimeError, message, fn ->
+    assert_raise RuntimeError, "Error downloading transaction", fn ->
       TransactionHandler.download_transaction(
         attestation,
         P2P.authorized_and_available_nodes()

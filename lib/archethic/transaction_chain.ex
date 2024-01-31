@@ -335,14 +335,30 @@ defmodule Archethic.TransactionChain do
         acceptance_resolver = Keyword.get(opts, :acceptance_resolver, fn _ -> true end)
 
         conflict_resolver = fn results ->
-          # Prioritize transactions results over not found
-          with nil <- Enum.find(results, &match?(%Transaction{}, &1)),
-               nil <- Enum.find(results, &match?(%Error{}, &1)) do
-            %NotFound{}
-          else
-            res ->
-              res
-          end
+          Enum.reduce(results, fn
+            %NotFound{}, acc ->
+              acc
+
+            err = %Error{}, %NotFound{} ->
+              # prioritize error over not_found
+              err
+
+            %Error{}, acc ->
+              acc
+
+            tx, %NotFound{} ->
+              tx
+
+            tx1, tx2 ->
+              if acceptance_resolver.(tx1) do
+                tx1
+              else
+                # even if tx2 is not accepted
+                # we let it win this conflict
+                # it'll raise an :acceptance_failed error later
+                tx2
+              end
+          end)
         end
 
         case P2P.quorum_read(
