@@ -22,7 +22,9 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.P2P.Message.GetGenesisAddress
   alias Archethic.P2P.Message.GenesisAddress
   alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.Error
 
+  alias Archethic.TransactionFactory
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -271,11 +273,73 @@ defmodule Archethic.TransactionChainTest do
           {:ok, %Transaction{}}
 
         %Node{port: 3002}, %GetTransaction{address: _}, _ ->
-          {:ok, %NotFound{}}
+          {:ok, %Error{}}
       end)
 
       assert {:ok, %Transaction{}} =
                TransactionChain.fetch_transaction("Alice1", nodes, search_mode: :remote)
+    end
+
+    test "should resolve conflict with acceptance resolver" do
+      nodes = [
+        %Node{
+          first_public_key: "node1",
+          last_public_key: "node1",
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          available?: true
+        },
+        %Node{
+          first_public_key: "node2",
+          last_public_key: "node2",
+          ip: {127, 0, 0, 1},
+          port: 3001,
+          available?: true
+        },
+        %Node{
+          first_public_key: "node3",
+          last_public_key: "node3",
+          ip: {127, 0, 0, 1},
+          port: 3002,
+          available?: true
+        }
+      ]
+
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
+
+      tx = TransactionFactory.create_valid_transaction([])
+
+      MockClient
+      |> stub(:send_message, fn
+        %Node{port: 3000}, %GetTransaction{address: _}, _ ->
+          {:ok, tx}
+
+        %Node{port: 3001}, %GetTransaction{address: _}, _ ->
+          # split
+          {:ok,
+           put_in(
+             tx,
+             [Access.key!(:validation_stamp), Access.key!(:timestamp)],
+             DateTime.utc_now()
+           )}
+
+        %Node{port: 3002}, %GetTransaction{address: _}, _ ->
+          # split
+          {:ok,
+           put_in(
+             tx,
+             [Access.key!(:validation_stamp), Access.key!(:timestamp)],
+             DateTime.utc_now()
+           )}
+      end)
+
+      assert {:ok, ^tx} =
+               TransactionChain.fetch_transaction(tx.address, nodes,
+                 search_mode: :remote,
+                 acceptance_resolver: fn tx1 ->
+                   tx1.validation_stamp.timestamp == tx.validation_stamp.timestamp
+                 end
+               )
     end
   end
 
