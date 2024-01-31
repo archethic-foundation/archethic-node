@@ -408,40 +408,41 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
          encoded_state,
          contract_context
        ) do
-    include_uco? = uco_to_spend > 0
-
     inputs
     # We group by type to count them and determine if we need to consume the inputs
     |> Enum.group_by(& &1.type)
-    |> Enum.filter(fn
+    |> Enum.flat_map(fn
       {:UCO, inputs} ->
-        include_uco? or consolidate_inputs?(inputs)
+        include_uco? = uco_to_spend > 0
+        if include_uco? or consolidate_inputs?(inputs), do: inputs, else: []
 
       {{:token, token_address, token_id}, inputs} ->
-        token_used?(tokens_to_spend, token_address, token_id) or consolidate_inputs?(inputs)
+        token_used? = Map.has_key?(tokens_to_spend, {token_address, token_id})
+        if token_used? or consolidate_inputs?(inputs), do: inputs, else: []
 
-      {:state, [%UnspentOutput{encoded_payload: previous_state}]} ->
-        encoded_state != previous_state
+      {:state, [state_utxo = %UnspentOutput{encoded_payload: previous_state}]} ->
+        if encoded_state != nil && previous_state != encoded_state, do: [state_utxo], else: []
 
       {:call, inputs} ->
-        case contract_context do
-          %ContractContext{trigger: {:transaction, address, _}} ->
-            Enum.find(inputs, &(&1.from == address))
-
-          _ ->
-            []
-        end
+        get_contract_call_input(inputs, contract_context)
     end)
-    |> Enum.flat_map(fn {_type, inputs} -> inputs end)
   end
+
+  defp get_contract_call_input(inputs, %ContractContext{trigger: {:transaction, address, _}}) do
+    case Enum.find(inputs, &(&1.from == address)) do
+      nil ->
+        []
+
+      contract_call_input ->
+        [contract_call_input]
+    end
+  end
+
+  defp get_contract_call_input(_, _), do: []
 
   # The consolidation happens when there are at least more than one UTXO of the same type
   # This reduces the storage size on both genesis's inputs and further transactions
   defp consolidate_inputs?(inputs), do: length(inputs) > 1
-
-  defp token_used?(tokens_to_spend, token_address, token_id) do
-    Map.has_key?(tokens_to_spend, {token_address, token_id})
-  end
 
   defp add_state_utxo(utxos, _inputs, nil, _change_address, _timestamp), do: utxos
 
