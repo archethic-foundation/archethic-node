@@ -10,6 +10,7 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.PubSub
+  alias Archethic.Utils.JobCache
   alias Archethic.Utils.JobCacheRegistry
 
   import ArchethicCase
@@ -51,30 +52,20 @@ defmodule Archethic.BeaconChain.Subset.StatsCollectorTest do
 
   test "should react to events" do
     next_summary_time = DateTime.utc_now()
-    prev_summary_time = BeaconChain.previous_summary_time(next_summary_time)
 
     with_mocks([
+      {JobCache, [], start: fn _ -> :ok end, stop: fn _ -> :ok end},
       {BeaconChain, [:passthrough], get_network_stats: fn _ -> %{} end},
       {NetworkCoordinates, [],
        timeout: fn -> @timeout end, fetch_network_stats: fn _summary_time, _ -> Nx.tensor(0) end}
     ]) do
-      assert [] = Registry.lookup(JobCacheRegistry, {:get, prev_summary_time})
-      assert [] = Registry.lookup(JobCacheRegistry, {:fetch, prev_summary_time})
-
       send(StatsCollector, {:next_summary_time, next_summary_time})
       _ = :sys.get_state(StatsCollector)
-
-      assert [{pid1, _}] = Registry.lookup(JobCacheRegistry, {:get, prev_summary_time})
-      assert [{pid2, _}] = Registry.lookup(JobCacheRegistry, {:fetch, prev_summary_time})
-
-      Process.monitor(pid1)
-      Process.monitor(pid2)
+      assert_called_exactly(JobCache.start(:_), 2)
 
       send(StatsCollector, :self_repair_sync)
       _ = :sys.get_state(StatsCollector)
-
-      assert_receive {:DOWN, _ref, :process, ^pid1, :normal}, 100
-      assert_receive {:DOWN, _ref, :process, ^pid2, :normal}, 100
+      assert_called_exactly(JobCache.stop(:_), 2)
     end
   end
 
