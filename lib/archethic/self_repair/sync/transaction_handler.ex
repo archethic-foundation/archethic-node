@@ -81,9 +81,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
     timeout = Message.get_max_timeout()
 
-    acceptance_resolver = fn
-      %Transaction{address: ^address} -> true
-      _ -> false
+    acceptance_resolver = fn tx ->
+      expected_summary == TransactionSummary.from_transaction(tx)
     end
 
     case TransactionChain.fetch_transaction(address, storage_nodes,
@@ -92,19 +91,6 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
            acceptance_resolver: acceptance_resolver
          ) do
       {:ok, tx = %Transaction{}} ->
-        summary = TransactionSummary.from_transaction(tx)
-
-        # Control if the downloaded transaction is the expected one
-        if summary != expected_summary do
-          Logger.error(
-            "Dowloaded transaction is different than expected one. Expected #{inspect(expected_summary)}, got summary #{inspect(summary)}",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
-
-          raise "Transaction downloaded is different than expected"
-        end
-
         tx
 
       {:error, reason} ->
