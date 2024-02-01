@@ -380,7 +380,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           acc
 
         recv_amount when recv_amount - amount_to_spend > 0 ->
-          remaining_amount = recv_amount - trunc_token_amount(token_id, amount_to_spend)
+          remaining_amount = recv_amount - amount_to_spend
           type = {:token, token_address, token_id}
 
           # Do not create new UTXO if one is already the same in the inputs
@@ -403,10 +403,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       end
     end)
   end
-
-  # We prevent part of non-fungible token to be spent
-  defp trunc_token_amount(0, amount), do: amount
-  defp trunc_token_amount(_token_id, amount), do: trunc(amount / @unit_uco) * @unit_uco
 
   defp get_inputs_to_consume(
          inputs,
