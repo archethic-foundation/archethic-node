@@ -388,10 +388,30 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ],
                consumed_inputs: [
-                 %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
-                 %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
-                 %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO},
-                 %UnspentOutput{from: "@Hugo", amount: 800_000_000, type: :UCO}
+                 %UnspentOutput{
+                   from: "@Bob3",
+                   amount: 500_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
+                 },
+                 %UnspentOutput{
+                   from: "@Christina",
+                   amount: 400_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
+                 },
+                 %UnspentOutput{
+                   from: "@Hugo",
+                   amount: 800_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
+                 },
+                 %UnspentOutput{
+                   from: "@Tom4",
+                   amount: 700_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
+                 }
                ]
              } =
                %LedgerOperations{fee: 40_000_000}
@@ -399,10 +419,30 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  "@Alice2",
                  ~U[2022-10-10 10:44:38.983Z],
                  [
-                   %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
-                   %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
-                   %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO},
-                   %UnspentOutput{from: "@Hugo", amount: 800_000_000, type: :UCO}
+                   %UnspentOutput{
+                     from: "@Bob3",
+                     amount: 500_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
+                   },
+                   %UnspentOutput{
+                     from: "@Tom4",
+                     amount: 700_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
+                   },
+                   %UnspentOutput{
+                     from: "@Christina",
+                     amount: 400_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
+                   },
+                   %UnspentOutput{
+                     from: "@Hugo",
+                     amount: 800_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
+                   }
                  ],
                  [
                    %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
@@ -493,22 +533,29 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  }
                ],
                consumed_inputs: [
-                 %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
+                 %UnspentOutput{
+                   from: "@Charlie1",
+                   amount: 200_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
+                 },
                  %UnspentOutput{
                    from: "@Bob3",
                    amount: 500_000_000,
-                   type: {:token, "@CharlieToken", 0}
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
                  },
                  %UnspentOutput{
                    from: "@Hugo5",
                    amount: 700_000_000,
-                   type: {:token, "@CharlieToken", 0}
+                   type: {:token, "@CharlieToken", 0},
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
                  },
                  %UnspentOutput{
                    amount: 700_000_000,
                    from: "@Tom1",
                    type: {:token, "@CharlieToken", 0},
-                   timestamp: nil
+                   timestamp: ~U[2022-10-10 10:44:38.983Z]
                  }
                ]
              } =
@@ -517,21 +564,29 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  "@Alice2",
                  ~U[2022-10-10 10:44:38.983Z],
                  [
-                   %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
+                   %UnspentOutput{
+                     from: "@Charlie1",
+                     amount: 200_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
+                   },
                    %UnspentOutput{
                      from: "@Bob3",
                      amount: 500_000_000,
-                     type: {:token, "@CharlieToken", 0}
+                     type: {:token, "@CharlieToken", 0},
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
                    },
                    %UnspentOutput{
                      from: "@Hugo5",
                      amount: 700_000_000,
-                     type: {:token, "@CharlieToken", 0}
+                     type: {:token, "@CharlieToken", 0},
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
                    },
                    %UnspentOutput{
                      from: "@Tom1",
                      amount: 700_000_000,
-                     type: {:token, "@CharlieToken", 0}
+                     type: {:token, "@CharlieToken", 0},
+                     timestamp: ~U[2022-10-10 10:44:38.983Z]
                    }
                  ],
                  [
@@ -1049,6 +1104,181 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  state,
                  nil
                )
+    end
+
+    test "should not update utxo if not consumed" do
+      token_address = random_address()
+
+      utxo_not_used = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 200_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 500_000_000,
+          type: {:token, token_address, 0},
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        }
+      ]
+
+      consumed_utxo = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 700_000_000,
+          type: {:token, token_address, 0},
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        },
+        %UnspentOutput{
+          amount: 700_000_000,
+          from: random_address(),
+          type: {:token, token_address, 0},
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        }
+      ]
+
+      assert {true,
+              %LedgerOperations{
+                fee: 0,
+                unspent_outputs: unspent_outputs,
+                consumed_inputs: consumed_inputs
+              }} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{fee: 0},
+                 random_address(),
+                 ~U[2022-10-10 10:44:38.983Z],
+                 utxo_not_used ++ consumed_utxo,
+                 [
+                   %TransactionMovement{
+                     to: random_address(),
+                     amount: 1_400_000_000,
+                     type: {:token, token_address, 0}
+                   }
+                 ]
+               )
+
+      # order does not matter
+      assert Enum.all?(unspent_outputs, &(&1 in utxo_not_used)) and
+               length(unspent_outputs) == length(utxo_not_used)
+
+      assert Enum.all?(consumed_inputs, &(&1 in consumed_utxo)) and
+               length(consumed_inputs) == length(consumed_utxo)
+    end
+
+    test "should optimize consumed utxo to avoid consolidation" do
+      optimized_utxo = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 200_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        }
+      ]
+
+      consumed_utxo = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 10_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 40_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 150_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        }
+      ]
+
+      assert {true,
+              %LedgerOperations{
+                fee: 0,
+                unspent_outputs: unspent_outputs,
+                consumed_inputs: consumed_inputs
+              }} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{fee: 0},
+                 random_address(),
+                 ~U[2022-10-10 10:44:38.983Z],
+                 optimized_utxo ++ consumed_utxo,
+                 [%TransactionMovement{to: random_address(), amount: 200_000_000, type: :UCO}]
+               )
+
+      # order does not matter
+      assert Enum.all?(unspent_outputs, &(&1 in optimized_utxo)) and
+               length(unspent_outputs) == length(optimized_utxo)
+
+      assert Enum.all?(consumed_inputs, &(&1 in consumed_utxo)) and
+               length(consumed_inputs) == length(consumed_utxo)
+    end
+
+    test "should sort utxo to be consistent across nodes" do
+      [lower_address, higher_address] = [random_address(), random_address()] |> Enum.sort()
+
+      optimized_utxo = [
+        %UnspentOutput{
+          from: lower_address,
+          amount: 150_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:07.463Z]
+        }
+      ]
+
+      consumed_utxo = [
+        %UnspentOutput{
+          from: random_address(),
+          amount: 10_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:00.463Z]
+        },
+        %UnspentOutput{
+          from: higher_address,
+          amount: 150_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:07.463Z]
+        },
+        %UnspentOutput{
+          from: random_address(),
+          amount: 150_000_000,
+          type: :UCO,
+          timestamp: ~U[2022-10-09 08:39:10.463Z]
+        }
+      ]
+
+      all_utxo = optimized_utxo ++ consumed_utxo
+
+      Enum.each(1..5, fn _ ->
+        randomized_utxo = Enum.shuffle(all_utxo)
+
+        assert {true,
+                %LedgerOperations{
+                  fee: 0,
+                  unspent_outputs: unspent_outputs,
+                  consumed_inputs: consumed_inputs
+                }} =
+                 LedgerOperations.consume_inputs(
+                   %LedgerOperations{fee: 0},
+                   random_address(),
+                   ~U[2022-10-10 10:44:38.983Z],
+                   randomized_utxo,
+                   [%TransactionMovement{to: random_address(), amount: 310_000_000, type: :UCO}]
+                 )
+
+        # order does not matter
+        assert Enum.all?(unspent_outputs, &(&1 in optimized_utxo)) and
+                 length(unspent_outputs) == length(optimized_utxo)
+
+        assert Enum.all?(consumed_inputs, &(&1 in consumed_utxo)) and
+                 length(consumed_inputs) == length(consumed_utxo)
+      end)
     end
   end
 
