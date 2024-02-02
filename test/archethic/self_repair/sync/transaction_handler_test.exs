@@ -17,6 +17,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
   alias Archethic.TransactionFactory
 
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -158,13 +159,11 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
       %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
         # split
-        {:ok,
-         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+        {:ok, %Transaction{tx | type: :data}}
 
       %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
         # split
-        {:ok,
-         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+        {:ok, %Transaction{tx | type: :data}}
     end)
 
     assert ^tx =
@@ -201,18 +200,15 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
     |> stub(:send_message, fn
       %Node{first_public_key: ^welcome_node_pkey}, %GetTransaction{}, _ ->
         # split
-        {:ok,
-         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+        {:ok, %Transaction{tx | type: :data}}
 
       %Node{first_public_key: ^coordinator_node_pkey}, %GetTransaction{}, _ ->
         # split
-        {:ok,
-         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+        {:ok, %Transaction{tx | type: :data}}
 
       %Node{first_public_key: ^storage_node_pkey}, %GetTransaction{}, _ ->
         # split
-        {:ok,
-         put_in(tx, [Access.key!(:validation_stamp), Access.key!(:timestamp)], DateTime.utc_now())}
+        {:ok, %Transaction{tx | type: :data}}
     end)
 
     attestation = %ReplicationAttestation{
