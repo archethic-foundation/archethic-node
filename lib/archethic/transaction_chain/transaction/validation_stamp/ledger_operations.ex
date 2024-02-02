@@ -309,6 +309,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         |> get_inputs_to_consume(
           uco_to_spend,
           tokens_to_spend,
+          uco_balance,
+          tokens_balance,
           encoded_state,
           contract_context
         )
@@ -405,6 +407,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
          inputs,
          uco_to_spend,
          tokens_to_spend,
+         uco_balance,
+         tokens_balance,
          encoded_state,
          contract_context
        ) do
@@ -413,22 +417,56 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     |> Enum.group_by(& &1.type)
     |> Enum.flat_map(fn
       {:UCO, inputs} ->
-        include_uco? = uco_to_spend > 0
-        if include_uco? or consolidate_inputs?(inputs), do: inputs, else: []
+        get_uco_to_consume(inputs, uco_to_spend, uco_balance)
 
       {{:token, token_address, token_id}, inputs} ->
-        token_used? = Map.has_key?(tokens_to_spend, {token_address, token_id})
-        if token_used? or consolidate_inputs?(inputs), do: inputs, else: []
+        key = {token_address, token_id}
+        get_token_to_consume(inputs, key, tokens_to_spend, tokens_balance)
 
       {:state, [state_utxo = %UnspentOutput{encoded_payload: previous_state}]} ->
         if encoded_state != nil && previous_state != encoded_state, do: [state_utxo], else: []
 
       {:call, inputs} ->
-        get_contract_call_input(inputs, contract_context)
+        get_call_to_consume(inputs, contract_context)
     end)
   end
 
-  defp get_contract_call_input(inputs, %ContractContext{trigger: {:transaction, address, _}}) do
+  defp get_uco_to_consume(inputs, uco_to_spend, uco_balance) do
+    cond do
+      uco_to_spend > 0 -> optimize_inputs_to_consume(inputs, uco_to_spend, uco_balance)
+      consolidate_inputs?(inputs) -> inputs
+      true -> []
+    end
+  end
+
+  defp get_token_to_consume(inputs, key, tokens_to_spend, tokens_balance) do
+    case Map.get(tokens_to_spend, key) do
+      nil ->
+        if consolidate_inputs?(inputs), do: inputs, else: []
+
+      amount_to_spend ->
+        token_balance = Map.get(tokens_balance, key)
+        optimize_inputs_to_consume(inputs, amount_to_spend, token_balance)
+    end
+  end
+
+  defp optimize_inputs_to_consume(inputs, _, _) when length(inputs) == 1, do: inputs
+
+  defp optimize_inputs_to_consume(inputs, amount_to_spend, balance_amount)
+       when balance_amount == amount_to_spend,
+       do: inputs
+
+  defp optimize_inputs_to_consume(inputs, amount_to_spend, balance_amount) do
+    # Search if we can consume all inputs except one. This will avoid doing consolidation
+    remaining_amount = balance_amount - amount_to_spend
+
+    case Enum.find(inputs, &(&1.amount == remaining_amount)) do
+      nil -> inputs
+      input -> Enum.reject(inputs, &(&1 == input))
+    end
+  end
+
+  defp get_call_to_consume(inputs, %ContractContext{trigger: {:transaction, address, _}}) do
     case Enum.find(inputs, &(&1.from == address)) do
       nil ->
         []
@@ -438,7 +476,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
   end
 
-  defp get_contract_call_input(_, _), do: []
+  defp get_call_to_consume(_, _), do: []
 
   # The consolidation happens when there are at least more than one UTXO of the same type
   # This reduces the storage size on both genesis's inputs and further transactions
