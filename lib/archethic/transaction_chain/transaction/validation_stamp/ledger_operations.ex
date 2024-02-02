@@ -198,13 +198,18 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> %LedgerOperations{}
-      ...> |> LedgerOperations.consume_inputs("@Alice2",  ~U[2023-09-04 00:10:00Z],
-      ...>  [%UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO}, %UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}],
-      ...>  [ %TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}]
+      ...> |> LedgerOperations.consume_inputs(
+      ...>      "@Alice2",
+      ...>      ~U[2023-09-04 00:10:00Z],
+      ...>      [
+      ...>        %UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:08:00Z]},
+      ...>        %UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:07:00Z]}
+      ...>      ],
+      ...>      [%TransactionMovement{to: "@Bob3", amount: 100_000_000, type: :UCO}]
       ...> )
       {true, %LedgerOperations{
-        unspent_outputs: [%UnspentOutput{amount: 500_000_000, from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z]}],
-        consumed_inputs: [%UnspentOutput{from: "Charlie5", amount: 500_000_000, type: :UCO}, %UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO}]
+        unspent_outputs: [%UnspentOutput{amount: 500_000_000, from: "Charlie5", type: :UCO, timestamp: ~U[2023-09-04 00:08:00Z]}],
+        consumed_inputs: [%UnspentOutput{from: "Tom5", amount: 100_000_000, type: :UCO, timestamp: ~U[2023-09-04 00:07:00Z]}]
       } }
 
       iex> %LedgerOperations{}
@@ -259,7 +264,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       {true, %LedgerOperations{
         unspent_outputs: [
           %UnspentOutput{from: "@Alice2", type: :state, timestamp: ~U[2023-09-04 00:10:00Z], encoded_payload: <<0, 1, 2, 3>>},
-          %UnspentOutput{from: "@Alice2", type: :UCO, timestamp: ~U[2023-09-04 00:10:00Z], amount: 100_000_000 }
+          %UnspentOutput{from: "@Alice1", type: :UCO, timestamp: ~U[2023-09-04 00:01:00Z], amount: 100_000_000 }
         ],
         consumed_inputs: [
           %UnspentOutput{from: "@Alice1", type: :state, timestamp: ~U[2023-09-04 00:01:00Z]}
