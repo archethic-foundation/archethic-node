@@ -316,28 +316,18 @@ defmodule Archethic.TransactionChainTest do
 
         %Node{port: 3001}, %GetTransaction{address: _}, _ ->
           # split
-          {:ok,
-           put_in(
-             tx,
-             [Access.key!(:validation_stamp), Access.key!(:timestamp)],
-             DateTime.utc_now()
-           )}
+          {:ok, %Transaction{tx | type: :data}}
 
         %Node{port: 3002}, %GetTransaction{address: _}, _ ->
           # split
-          {:ok,
-           put_in(
-             tx,
-             [Access.key!(:validation_stamp), Access.key!(:timestamp)],
-             DateTime.utc_now()
-           )}
+          {:ok, %Transaction{tx | type: :data}}
       end)
 
       assert {:ok, ^tx} =
                TransactionChain.fetch_transaction(tx.address, nodes,
                  search_mode: :remote,
                  acceptance_resolver: fn tx1 ->
-                   tx1.validation_stamp.timestamp == tx.validation_stamp.timestamp
+                   tx1.type == tx.type
                  end
                )
     end
