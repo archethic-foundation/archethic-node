@@ -79,7 +79,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         authorized_nodes
       )
 
-    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
+    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx)
 
     previous_address = Transaction.previous_address(tx)
     previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)

@@ -49,7 +49,7 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
     uco_eur = previous_price |> Keyword.fetch!(:eur)
     uco_usd = previous_price |> Keyword.fetch!(:usd)
 
-    resolved_recipients = resolve_recipient_addresses(tx, timestamp)
+    resolved_recipients = resolve_recipient_addresses(tx)
 
     {_valid?, recipients_fee} =
       SmartContractValidation.validate_contract_calls(resolved_recipients, tx, timestamp)
@@ -62,10 +62,9 @@ defmodule ArchethicWeb.API.JsonRPC.Method.EstimateTransactionFee do
   end
 
   defp resolve_recipient_addresses(
-         tx = %Transaction{data: %TransactionData{recipients: recipients}},
-         timestamp
+         tx = %Transaction{data: %TransactionData{recipients: recipients}}
        ) do
-    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, timestamp)
+    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx)
 
     Enum.reduce(recipients, [], fn r = %Recipient{address: address}, acc ->
       resolved = Map.get(resolved_addresses, address)

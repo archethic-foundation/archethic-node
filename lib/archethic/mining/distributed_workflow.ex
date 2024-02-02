@@ -214,7 +214,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         authorized_nodes
       )
 
-    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
+    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx)
 
     io_storage_nodes =
       if Transaction.network_type?(tx.type) do

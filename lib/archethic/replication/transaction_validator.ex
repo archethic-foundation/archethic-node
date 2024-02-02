@@ -312,13 +312,12 @@ defmodule Archethic.Replication.TransactionValidator do
          tx = %Transaction{
            type: tx_type,
            validation_stamp: %ValidationStamp{
-             timestamp: timestamp,
              ledger_operations:
                ops = %LedgerOperations{transaction_movements: transaction_movements}
            }
          }
        ) do
-    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, timestamp)
+    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx)
     movements = Transaction.get_movements(tx)
 
     %LedgerOperations{transaction_movements: resolved_movements} =

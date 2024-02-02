@@ -33,13 +33,121 @@ defmodule Archethic.TransactionChainTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
 
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Recipient
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
+  alias Archethic.TransactionFactory
 
   doctest TransactionChain
 
   import Mox
   import ArchethicCase
+
+  describe "resolve_transaction_addresses/1" do
+    test "should resolve the genesis if local node knows it" do
+      address2 = random_address()
+      genesis2 = random_address()
+
+      MockDB |> expect(:get_genesis_address, fn ^address2 -> genesis2 end)
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{amount: 1, to: address2}
+              ]
+            }
+          }
+        )
+
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+    end
+
+    test "should resolve the genesis if local node does not know it" do
+      address2 = random_address()
+      genesis2 = random_address()
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: ~U[2021-03-25 15:11:29Z]
+      })
+
+      MockClient
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address2}, _ ->
+        {:ok, %GenesisAddress{address: genesis2, timestamp: DateTime.utc_now()}}
+      end)
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{amount: 1, to: address2}
+              ]
+            }
+          }
+        )
+
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+    end
+
+    test "should resolve the recipients" do
+      address2 = random_address()
+      genesis2 = random_address()
+
+      MockDB |> expect(:get_genesis_address, fn ^address2 -> genesis2 end)
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          recipients: [%Recipient{address: address2}]
+        )
+
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+    end
+
+    test "should resolve the token creation recipients" do
+      start_supervised!(Archethic.Reward.MemTables.RewardTokens)
+
+      address2 = random_address()
+      genesis2 = random_address()
+
+      MockDB |> expect(:get_genesis_address, fn ^address2 -> genesis2 end)
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          type: :token,
+          content: """
+          {
+           "aeip": [2, 8, 19],
+           "supply": 300000000,
+           "type": "fungible",
+           "name": "My token",
+           "symbol": "MTK",
+           "properties": {},
+           "recipients": [
+             {
+               "to": "#{Base.encode16(address2)}",
+               "amount": 100000000
+             }
+           ]
+          }
+          """
+        )
+
+      assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
+    end
+  end
 
   describe "fetch_last_address/1 should retrieve the last address for a chain" do
     test "when not conflicts" do

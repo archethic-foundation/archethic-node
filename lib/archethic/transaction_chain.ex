@@ -791,13 +791,12 @@ defmodule Archethic.TransactionChain do
   # ------------------------------------------------------------
 
   @doc """
-  Resolve all the last addresses from the transaction data
+  Resolve all the genesis addresses from the transaction data
   """
-  @spec resolve_transaction_addresses(Transaction.t(), DateTime.t()) ::
+  @spec resolve_transaction_addresses(Transaction.t()) ::
           %{Crypto.prepended_hash() => Crypto.prepended_hash()}
   def resolve_transaction_addresses(
-        tx = %Transaction{data: %TransactionData{recipients: recipients}},
-        time = %DateTime{}
+        tx = %Transaction{data: %TransactionData{recipients: recipients}}
       ) do
     burning_address = LedgerOperations.burning_address()
 
@@ -820,11 +819,9 @@ defmodule Archethic.TransactionChain do
           {burning_address, burning_address}
 
         to ->
-          nodes = Election.chain_storage_nodes(to, authorized_nodes)
-
-          case fetch_last_address(to, nodes, timestamp: time) do
-            {:ok, resolved} ->
-              {to, resolved}
+          case fetch_genesis_address(to, Election.chain_storage_nodes(to, authorized_nodes)) do
+            {:ok, genesis} ->
+              {to, genesis}
 
             _ ->
               {to, to}
