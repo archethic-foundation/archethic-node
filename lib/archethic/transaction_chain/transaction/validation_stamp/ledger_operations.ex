@@ -288,7 +288,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         contract_context \\ nil
       ) do
     # Since AEIP-19 we can consume from minted tokens
-    consolidated_inputs = tokens_to_mint ++ inputs
+    # Sort inputs, to have consistent results across all nodes
+    consolidated_inputs =
+      Enum.sort_by(tokens_to_mint ++ inputs, &{DateTime.to_unix(&1.timestamp), &1.from})
 
     %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
     %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
@@ -319,7 +321,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # replace token received by tokens in consumed_inputs in function new_token_unspent_outputs
       # to get only the new real unspent output
 
-      unspent_tokens =
+      new_unspent_outputs =
         new_token_unspent_outputs(
           tokens_balance,
           tokens_to_spend,
@@ -327,17 +329,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           consolidated_inputs,
           timestamp
         )
-
-      new_unspent_outputs =
-        [
-          %UnspentOutput{
-            from: change_address,
-            amount: uco_balance - uco_to_spend,
-            type: :UCO,
-            timestamp: timestamp
-          }
-          | unspent_tokens
-        ]
+        |> add_uco_utxo(consolidated_inputs, uco_balance, uco_to_spend, change_address, timestamp)
         |> Enum.filter(&(&1.amount > 0))
         |> add_state_utxo(inputs, encoded_state, change_address, timestamp)
 
@@ -383,15 +375,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           acc
 
         recv_amount when recv_amount - amount_to_spend > 0 ->
-          [
-            %UnspentOutput{
-              from: change_address,
-              amount: recv_amount - trunc_token_amount(token_id, amount_to_spend),
-              type: {:token, token_address, token_id},
-              timestamp: timestamp
-            }
-            | acc
-          ]
+          remaining_amount = recv_amount - trunc_token_amount(token_id, amount_to_spend)
+          type = {:token, token_address, token_id}
+
+          # Do not create new UTXO if one is already the same in the inputs
+          new_utxo =
+            Enum.find(
+              inputs,
+              %UnspentOutput{
+                from: change_address,
+                amount: remaining_amount,
+                type: type,
+                timestamp: timestamp
+              },
+              &(&1.type == type and &1.amount == remaining_amount)
+            )
+
+          [new_utxo | acc]
 
         _ ->
           acc
@@ -482,6 +482,28 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   # This reduces the storage size on both genesis's inputs and further transactions
   defp consolidate_inputs?(inputs), do: length(inputs) > 1
 
+  defp add_uco_utxo(utxos, inputs, uco_balance, uco_to_spend, change_address, timestamp)
+       when uco_balance - uco_to_spend > 0 do
+    remaining_uco = uco_balance - uco_to_spend
+
+    # Do not create new UTXO if one is already the same in the inputs
+    uco_utxo =
+      Enum.find(
+        inputs,
+        %UnspentOutput{
+          from: change_address,
+          amount: remaining_uco,
+          type: :UCO,
+          timestamp: timestamp
+        },
+        &(&1.type == :UCO and &1.amount == remaining_uco)
+      )
+
+    [uco_utxo | utxos]
+  end
+
+  defp add_uco_utxo(utxos, _, _, _, _, _), do: utxos
+
   defp add_state_utxo(utxos, _inputs, nil, _change_address, _timestamp), do: utxos
 
   defp add_state_utxo(utxos, _inputs, encoded_state, change_address, timestamp) do
@@ -494,6 +516,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       }
       | utxos
     ]
+
     # TODO: active during AEIP21 Phase2
     # include_new_state? =
     #   case Enum.find(inputs, &(&1.type == :state)) do
