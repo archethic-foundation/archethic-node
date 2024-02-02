@@ -250,7 +250,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         movement = %__MODULE__{type: {:token, token_address, _token_id}},
         tx_type
       )
-      when tx_type != :node_rewards do
+      when tx_type not in [:node_rewards, :token] do
     if Reward.is_reward_token?(token_address),
       do: %__MODULE__{movement | type: :UCO},
       else: movement

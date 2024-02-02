@@ -2,7 +2,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   use ArchethicCase
 
   import ArchethicCase
-
+  import Mock
+  alias Archethic.Reward
   alias Archethic.Reward.MemTables.RewardTokens
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
@@ -317,6 +318,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       movement = %TransactionMovement{to: address, amount: 30, type: :UCO}
 
       assert movement == TransactionMovement.maybe_convert_reward(movement, :transfer)
+    end
+
+    test "should not even check if tx type is token" do
+      address = random_address()
+      token_address = random_address()
+
+      movement = %TransactionMovement{
+        to: address,
+        amount: 30,
+        type: {:token, token_address, 0}
+      }
+
+      with_mock(Reward, is_reward_token?: fn _ -> false end) do
+        assert movement == TransactionMovement.maybe_convert_reward(movement, :token)
+
+        assert_not_called(Reward.is_reward_token?(:_))
+      end
     end
   end
 end
