@@ -792,11 +792,17 @@ defmodule Archethic.TransactionChain do
 
   @doc """
   Resolve all the genesis addresses from the transaction data
+
+  **This function raises if it cannot fetch a genesis**
   """
   @spec resolve_transaction_addresses(Transaction.t()) ::
           %{Crypto.prepended_hash() => Crypto.prepended_hash()}
   def resolve_transaction_addresses(
-        tx = %Transaction{data: %TransactionData{recipients: recipients}}
+        tx = %Transaction{
+          type: type,
+          address: address,
+          data: %TransactionData{recipients: recipients}
+        }
       ) do
     burning_address = LedgerOperations.burning_address()
 
@@ -823,14 +829,26 @@ defmodule Archethic.TransactionChain do
             {:ok, genesis} ->
               {to, genesis}
 
-            _ ->
-              {to, to}
+            {:error, :network_issue} ->
+              Logger.error("Could not resolve movement address: #{Base.encode16(to)}",
+                transaction_address: Base.encode16(address),
+                transaction_type: type
+              )
+
+              raise "Could not resolve movement address"
           end
       end,
+      max_concurrency: 20,
       on_timeout: :kill_task
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.map(fn {:ok, res} -> res end)
+    |> Enum.map(fn
+      {:exit, {%RuntimeError{message: msg}, _stack}} ->
+        # bubble up the error
+        raise msg
+
+      {:ok, res} ->
+        res
+    end)
     |> Enum.into(%{})
   end
 

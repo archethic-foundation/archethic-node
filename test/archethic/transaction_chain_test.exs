@@ -147,6 +147,36 @@ defmodule Archethic.TransactionChainTest do
 
       assert %{^address2 => ^genesis2} = TransactionChain.resolve_transaction_addresses(tx)
     end
+
+    test "should raise if there is a network issue" do
+      address2 = random_address()
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: ~U[2021-03-25 15:11:29Z]
+      })
+
+      MockClient
+      |> expect(:send_message, fn _, %GetGenesisAddress{address: ^address2}, _ ->
+        {:error, :network_issue}
+      end)
+
+      tx =
+        TransactionFactory.create_valid_transaction([],
+          recipients: [%Recipient{address: address2}]
+        )
+
+      assert_raise RuntimeError, "Could not resolve movement address", fn ->
+        TransactionChain.resolve_transaction_addresses(tx)
+      end
+    end
   end
 
   describe "fetch_last_address/1 should retrieve the last address for a chain" do
