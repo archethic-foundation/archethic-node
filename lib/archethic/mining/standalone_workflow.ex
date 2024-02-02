@@ -93,19 +93,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       if Transaction.network_type?(tx.type) do
         P2P.list_nodes()
       else
-        targets_resolved_addresses = resolved_addresses |> Enum.into(%{}) |> Map.values()
-
-        Task.Supervisor.async_stream_nolink(
-          Archethic.TaskSupervisor,
-          targets_resolved_addresses,
-          fn address ->
-            {:ok, genesis_address} =
-              TransactionChain.fetch_genesis_address(address, previous_storage_nodes)
-
-            [genesis_address, address]
-          end
-        )
-        |> Enum.flat_map(fn {:ok, res} -> res end)
+        resolved_addresses
+        |> Map.values()
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
