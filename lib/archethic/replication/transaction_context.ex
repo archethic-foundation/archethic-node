@@ -56,10 +56,19 @@ defmodule Archethic.Replication.TransactionContext do
   @doc """
   Fetch the transaction unspent outputs for a transaction address at a given time
   """
-  @spec fetch_transaction_unspent_outputs(address :: Crypto.versioned_hash()) ::
+  @spec fetch_transaction_unspent_outputs(transaction :: Transaction.t()) ::
           list(VersionedUnspentOutput.t())
-  def fetch_transaction_unspent_outputs(address) when is_binary(address) do
-    storage_nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
-    TransactionChain.fetch_unspent_outputs(address, storage_nodes) |> Enum.to_list()
+  def fetch_transaction_unspent_outputs(tx) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+    previous_address = Transaction.previous_address(tx)
+    previous_storage_nodes = Election.chain_storage_nodes(previous_address, authorized_nodes)
+
+    {:ok, genesis_address} =
+      TransactionChain.fetch_genesis_address(previous_address, previous_storage_nodes)
+
+    genesis_storage_nodes = Election.chain_storage_nodes(genesis_address, authorized_nodes)
+
+    TransactionChain.fetch_unspent_outputs(genesis_address, genesis_storage_nodes, true)
+    |> Enum.to_list()
   end
 end

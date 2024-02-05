@@ -22,6 +22,7 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.P2P.Message.GetGenesisAddress
 
   alias Archethic.Replication
+  alias Archethic.Replication.TransactionContext
 
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -36,6 +37,7 @@ defmodule Archethic.ReplicationTest do
 
   doctest Archethic.Replication
 
+  import Mock
   import Mox
   import ArchethicCase
 
@@ -82,27 +84,18 @@ defmodule Archethic.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok,
-         %UnspentOutputList{
-           unspent_outputs:
-             VersionedUnspentOutput.wrap_unspent_outputs(
-               unspent_outputs,
-               current_protocol_version()
-             )
-         }}
-
       _, %GetTransaction{}, _ ->
-        {:ok, %NotFound{}}
-
-      _, %GetTransactionChainLength{}, _ ->
-        %TransactionChainLength{length: 1}
-
-      _, %GetGenesisAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
-    assert :ok = Replication.validate_transaction(tx, nil)
+    with_mock(TransactionContext, [:passthrough],
+      fetch_transaction_unspent_outputs: fn _ ->
+        VersionedUnspentOutput.wrap_unspent_outputs(unspent_outputs, current_protocol_version())
+      end
+    ) do
+      assert :ok = Replication.validate_transaction(tx, nil)
+      assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))
+    end
   end
 
   test "validate_transaction with a state" do
@@ -155,19 +148,22 @@ defmodule Archethic.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
-
       _, %GetTransaction{address: ^previous_address}, _ ->
         {:ok, prev_tx}
     end)
 
-    assert :ok =
-             Replication.validate_transaction(next_tx, %Contract.Context{
-               status: :tx_output,
-               trigger: {:datetime, now},
-               timestamp: now
-             })
+    with_mock(TransactionContext, [:passthrough],
+      fetch_transaction_unspent_outputs: fn _ -> unspent_outputs end
+    ) do
+      assert :ok =
+               Replication.validate_transaction(next_tx, %Contract.Context{
+                 status: :tx_output,
+                 trigger: {:datetime, now},
+                 timestamp: now
+               })
+
+      assert_called(TransactionContext.fetch_transaction_unspent_outputs(:_))
+    end
   end
 
   test "validate_and_store_transaction/3" do

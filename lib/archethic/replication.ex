@@ -307,7 +307,7 @@ defmodule Archethic.Replication do
       transaction_type: type
     )
 
-    previous_address
+    tx
     |> TransactionContext.fetch_transaction_unspent_outputs()
     |> tap(fn inputs ->
       Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
