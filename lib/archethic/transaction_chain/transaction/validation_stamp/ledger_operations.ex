@@ -436,24 +436,32 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end)
   end
 
-  defp get_uco_to_consume(inputs, uco_to_spend, uco_balance) do
-    cond do
-      uco_to_spend > 0 -> optimize_inputs_to_consume(inputs, uco_to_spend, uco_balance)
-      consolidate_inputs?(inputs) -> inputs
-      true -> []
+  defp get_uco_to_consume(inputs, uco_to_spend, uco_balance) when uco_to_spend > 0,
+    do: optimize_inputs_to_consume(inputs, uco_to_spend, uco_balance)
+
+  # The consolidation happens when there are at least more than one UTXO of the same type
+  # This reduces the storage size on both genesis's inputs and further transactions
+  defp get_uco_to_consume(inputs, _, _) when length(inputs) > 1, do: inputs
+  defp get_uco_to_consume(_, _, _), do: []
+
+  defp get_token_to_consume(inputs, key, tokens_to_spend, tokens_balance)
+       when is_map_key(tokens_to_spend, key) do
+    amount_to_spend = Map.get(tokens_to_spend, key)
+    token_balance = Map.get(tokens_balance, key)
+    optimize_inputs_to_consume(inputs, amount_to_spend, token_balance)
+  end
+
+  defp get_token_to_consume(inputs, _, _, _) when length(inputs) > 1, do: inputs
+  defp get_token_to_consume(_, _, _, _), do: []
+
+  defp get_call_to_consume(inputs, %ContractContext{trigger: {:transaction, address, _}}) do
+    case Enum.find(inputs, &(&1.from == address)) do
+      nil -> []
+      contract_call_input -> [contract_call_input]
     end
   end
 
-  defp get_token_to_consume(inputs, key, tokens_to_spend, tokens_balance) do
-    case Map.get(tokens_to_spend, key) do
-      nil ->
-        if consolidate_inputs?(inputs), do: inputs, else: []
-
-      amount_to_spend ->
-        token_balance = Map.get(tokens_balance, key)
-        optimize_inputs_to_consume(inputs, amount_to_spend, token_balance)
-    end
-  end
+  defp get_call_to_consume(_, _), do: []
 
   defp optimize_inputs_to_consume(inputs, _, _) when length(inputs) == 1, do: inputs
 
@@ -470,22 +478,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       input -> Enum.reject(inputs, &(&1 == input))
     end
   end
-
-  defp get_call_to_consume(inputs, %ContractContext{trigger: {:transaction, address, _}}) do
-    case Enum.find(inputs, &(&1.from == address)) do
-      nil ->
-        []
-
-      contract_call_input ->
-        [contract_call_input]
-    end
-  end
-
-  defp get_call_to_consume(_, _), do: []
-
-  # The consolidation happens when there are at least more than one UTXO of the same type
-  # This reduces the storage size on both genesis's inputs and further transactions
-  defp consolidate_inputs?(inputs), do: length(inputs) > 1
 
   defp add_uco_utxo(utxos, inputs, uco_balance, uco_to_spend, change_address, timestamp)
        when uco_balance - uco_to_spend > 0 do
