@@ -122,7 +122,11 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
   @spec process_transaction(ReplicationAttestation.t(), Transaction.t(), list(Node.t())) :: :ok
   def process_transaction(
-        attestation,
+        attestation = %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{
+            genesis_address: genesis_address
+          }
+        },
         tx = %Transaction{
           address: address,
           type: type
@@ -133,11 +137,15 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
     node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
 
+    last_chain_node? = Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list)
+    io_movement_node? = Election.io_storage_node?(tx, Crypto.first_node_public_key(), node_list)
+    genesis_node? = Election.chain_storage_node?(genesis_address, Crypto.first_node_public_key(), node_list)
+
     cond do
-      Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list) ->
+      last_chain_node? ->
         Replication.sync_transaction_chain(tx, node_list, self_repair?: true)
 
-      Election.io_storage_node?(tx, Crypto.first_node_public_key(), node_list) ->
+      io_movement_node? or genesis_node? ->
         Replication.synchronize_io_transaction(tx, self_repair?: true)
 
       true ->
