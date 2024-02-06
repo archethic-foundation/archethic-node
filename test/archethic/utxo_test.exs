@@ -1,5 +1,6 @@
 defmodule Archethic.UTXOTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.UTXO
   alias Archethic.UTXO.MemoryLedger
@@ -25,20 +26,20 @@ defmodule Archethic.UTXOTest do
 
   describe "load_transaction/2" do
     test "should load outputs as io storage nodes but not for chain" do
-      destination_address = ArchethicCase.random_address()
-      destination_previous_address = ArchethicCase.random_address()
-      destination_genesis_address = ArchethicCase.random_address()
+      destination_address = random_address()
+      destination_previous_address = random_address()
+      destination_genesis_address = random_address()
 
-      transaction_address = ArchethicCase.random_address()
-      transaction_previous_address = ArchethicCase.random_address()
-      transaction_genesis_address = ArchethicCase.random_address()
+      transaction_address = random_address()
+      transaction_previous_address = random_address()
+      transaction_genesis_address = random_address()
 
       tx = %Transaction{
         address: transaction_address,
         type: :transfer,
         validation_stamp: %ValidationStamp{
           timestamp: ~U[2023-09-10 05:00:00.000Z],
-          protocol_version: ArchethicCase.current_protocol_version(),
+          protocol_version: current_protocol_version(),
           ledger_operations: %LedgerOperations{
             transaction_movements: [
               %TransactionMovement{to: destination_address, amount: 100_000_000, type: :UCO}
@@ -57,7 +58,7 @@ defmodule Archethic.UTXOTest do
             ]
           }
         },
-        previous_public_key: ArchethicCase.random_public_key()
+        previous_public_key: random_public_key()
       }
 
       MockDB
@@ -113,19 +114,19 @@ defmodule Archethic.UTXOTest do
     end
 
     test "should load outputs as chain storage node" do
-      destination_address = ArchethicCase.random_address()
-      destination_previous_address = ArchethicCase.random_address()
-      destination_genesis_address = ArchethicCase.random_address()
+      destination_address = random_address()
+      destination_previous_address = random_address()
+      destination_genesis_address = random_address()
 
-      transaction_address = ArchethicCase.random_address()
-      transaction_previous_address = ArchethicCase.random_address()
-      transaction_genesis_address = ArchethicCase.random_address()
+      transaction_address = random_address()
+      transaction_previous_address = random_address()
+      transaction_genesis_address = random_address()
 
       tx = %Transaction{
         address: transaction_address,
         type: :transfer,
         validation_stamp: %ValidationStamp{
-          protocol_version: ArchethicCase.current_protocol_version(),
+          protocol_version: current_protocol_version(),
           timestamp: ~U[2023-09-10 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
@@ -145,7 +146,7 @@ defmodule Archethic.UTXOTest do
             ]
           }
         },
-        previous_public_key: ArchethicCase.random_public_key()
+        previous_public_key: random_public_key()
       }
 
       MockDB
@@ -203,19 +204,19 @@ defmodule Archethic.UTXOTest do
     end
 
     test "should load genesis outputs as IO and then as chain storage node to consume outputs" do
-      destination_address = ArchethicCase.random_address()
-      destination_previous_address = ArchethicCase.random_address()
-      destination_genesis_address = ArchethicCase.random_address()
+      destination_address = random_address()
+      destination_previous_address = random_address()
+      destination_genesis_address = random_address()
 
-      transaction_address = ArchethicCase.random_address()
-      transaction_previous_address = ArchethicCase.random_address()
-      transaction_genesis_address = ArchethicCase.random_address()
+      transaction_address = random_address()
+      transaction_previous_address = random_address()
+      transaction_genesis_address = random_address()
 
       tx1 = %Transaction{
         address: destination_address,
         type: :transfer,
         validation_stamp: %ValidationStamp{
-          protocol_version: ArchethicCase.current_protocol_version(),
+          protocol_version: current_protocol_version(),
           timestamp: ~U[2023-09-10 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
@@ -239,14 +240,14 @@ defmodule Archethic.UTXOTest do
             ]
           }
         },
-        previous_public_key: ArchethicCase.random_public_key()
+        previous_public_key: random_public_key()
       }
 
       tx2 = %Transaction{
         address: transaction_address,
         type: :transfer,
         validation_stamp: %ValidationStamp{
-          protocol_version: ArchethicCase.current_protocol_version(),
+          protocol_version: current_protocol_version(),
           timestamp: ~U[2023-09-12 05:00:00.000Z],
           ledger_operations: %LedgerOperations{
             transaction_movements: [
@@ -270,7 +271,7 @@ defmodule Archethic.UTXOTest do
             ]
           }
         },
-        previous_public_key: ArchethicCase.random_public_key()
+        previous_public_key: random_public_key()
       }
 
       MockDB
@@ -340,7 +341,7 @@ defmodule Archethic.UTXOTest do
 
   describe("stream_unspent_outputs/1") do
     test "should return empty if there is nothing" do
-      assert ArchethicCase.random_address() |> UTXO.stream_unspent_outputs() |> Enum.empty?()
+      assert random_address() |> UTXO.stream_unspent_outputs() |> Enum.empty?()
     end
 
     test "should be able to return unspent outputs" do
@@ -351,7 +352,7 @@ defmodule Archethic.UTXOTest do
           amount: 100_000_000,
           timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
         },
-        protocol_version: ArchethicCase.current_protocol_version()
+        protocol_version: current_protocol_version()
       })
 
       assert [%VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Bob0"}}] =
@@ -369,7 +370,7 @@ defmodule Archethic.UTXOTest do
               amount: 100_000_000,
               timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond)
             },
-            protocol_version: ArchethicCase.current_protocol_version()
+            protocol_version: current_protocol_version()
           }
         ]
       end)
