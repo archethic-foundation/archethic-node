@@ -246,4 +246,35 @@ defmodule Archethic.TransactionChain.TransactionSummary do
 
   def resolve_movements_addresses(%__MODULE__{movements_addresses: movements_addresses}),
     do: movements_addresses
+
+  def equals?(
+        _comparand = %__MODULE__{
+          address: address1,
+          type: type1,
+          validation_stamp_checksum: checksum_1,
+          movements_addresses: movements_addresses1,
+          version: version1
+        },
+        _comparator = %__MODULE__{
+          address: address2,
+          type: type2,
+          validation_stamp_checksum: checksum_2,
+          movements_addresses: movements_addresses2,
+          version: version2
+        }
+      )
+      when address1 == address2 and type1 == type2 and checksum_1 == checksum_2 and
+             version1 == version2 and version1 <= 2 do
+    # During AEIP-21 deployment phases, 
+    # transaction summary from beacon and from transaction will differ
+    # because some will included resolve movements address with or without genesis addresses
+    # Hence we have to find a common factor as the comparand transaction summary movements addresses coming from the transaction's stamp
+
+    movements_addresses1
+    |> MapSet.new()
+    |> MapSet.intersection(MapSet.new(movements_addresses2))
+    |> MapSet.to_list() == movements_addresses1
+  end
+
+  def equals?(tx_summary1, tx_summary2), do: tx_summary1 == tx_summary2
 end

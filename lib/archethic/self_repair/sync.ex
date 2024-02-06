@@ -1,6 +1,6 @@
 defmodule Archethic.SelfRepair.Sync do
   @moduledoc false
-  
+
   alias Archethic.{
     BeaconChain,
     Crypto,
@@ -351,25 +351,37 @@ defmodule Archethic.SelfRepair.Sync do
   end
 
   # To avoid beacon chain database migration we have to support both summaries with genesis address and without
-  # Hence, we need to adjust or revised the attestation to include the genesis address
-  # which is not present in the version 1 of transaction's summary
+  # Hence, we need to adjust or revised the attestation to include the genesis addresses
+  # which is not present in the version 1 of transaction's summary.
+  # Also to unify the handling of attestation post AEIP-21, the genesis addresses are included in movements
   defp adjust_attestation(
          attestation = %ReplicationAttestation{
-           transaction_summary: %TransactionSummary{
-             address: tx_address,
-             version: 1
-           }
+           transaction_summary:
+             tx_summary = %TransactionSummary{
+               address: tx_address,
+               version: version
+             }
          },
          download_nodes
-       ) do
-    storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
-    {:ok, genesis_address} = TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
+       )
+       when version <= 2 do
+    genesis_address =
+      Map.get_lazy(tx_summary, :genesis_address, fn ->
+        storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
+        {:ok, genesis_address} = TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
+        genesis_address
+      end)
 
-    put_in(
-      attestation,
-      [Access.key(:transaction_summary), Access.key(:genesis_address)],
-      genesis_address
-    )
+    resolved_movements_addresses =
+      TransactionSummary.resolve_movements_addresses(tx_summary, download_nodes)
+
+    adjusted_tx_summary = %{
+      tx_summary
+      | genesis_address: genesis_address,
+        movements_addresses: resolved_movements_addresses
+    }
+
+    %{attestation | transaction_summary: adjusted_tx_summary}
   end
 
   defp adjust_attestation(attestation, _), do: attestation

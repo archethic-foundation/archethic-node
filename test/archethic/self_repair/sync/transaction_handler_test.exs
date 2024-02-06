@@ -398,7 +398,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
           TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
       }
 
-      message = "Transaction downloaded is different than expected"
+      message = "Error downloading transaction"
 
       assert_raise RuntimeError, message, fn ->
         TransactionHandler.download_transaction(
