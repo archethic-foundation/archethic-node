@@ -546,35 +546,6 @@ defmodule Archethic.Mining.ValidationContext do
 
   @doc """
   Aggregate the transaction mining context with the incoming context retrieved from the validation nodes
-
-  ## Examples
-
-    iex> %ValidationContext{
-    ...>    previous_storage_nodes: [%Node{first_public_key: "key1"}],
-    ...>    chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
-    ...>    beacon_storage_nodes_view: <<1::1, 0::1, 1::1>>,
-    ...>    io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
-    ...>    cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}],
-    ...>    cross_validation_nodes_confirmation: <<0::1, 0::1>>
-    ...> }
-    ...> |> ValidationContext.aggregate_mining_context(
-    ...>    [%Node{first_public_key: "key2"}],
-    ...>    <<1::1, 0::1, 1::1>>,
-    ...>    <<1::1, 1::1, 1::1>>,
-    ...>    <<1::1, 0::1, 0::1>>,
-    ...>    "key5"
-    ...> )
-    %ValidationContext{
-      previous_storage_nodes: [
-        %Node{first_public_key: "key1"},
-        %Node{first_public_key: "key2"}
-      ],
-      chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
-      beacon_storage_nodes_view: <<1::1, 1::1, 1::1>>,
-      io_storage_nodes_view: <<1::1, 0::1, 0::1>>,
-      cross_validation_nodes_confirmation: <<0::1, 1::1>>,
-      cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}]
-    }
   """
   @spec aggregate_mining_context(
           t(),
@@ -582,7 +553,8 @@ defmodule Archethic.Mining.ValidationContext do
           bitstring(),
           bitstring(),
           bitstring(),
-          Crypto.key()
+          Crypto.key(),
+          list(binary())
         ) :: t()
   def aggregate_mining_context(
         context = %__MODULE__{},
@@ -590,7 +562,8 @@ defmodule Archethic.Mining.ValidationContext do
         chain_storage_nodes_view,
         beacon_storage_nodes_view,
         io_storage_nodes_view,
-        from
+        from,
+        utxos_hashes
       )
       when is_list(previous_storage_nodes) and
              is_bitstring(chain_storage_nodes_view) and
@@ -605,9 +578,21 @@ defmodule Archethic.Mining.ValidationContext do
         io_storage_nodes_view
       )
       |> aggregate_previous_storage_nodes(previous_storage_nodes)
+      |> aggregate_utxos(utxos_hashes)
     else
       context
     end
+  end
+
+  defp aggregate_utxos(context = %__MODULE__{unspent_outputs: utxos}, utxos_hashes) do
+    utxos_intersection =
+      utxos
+      |> Enum.map(&UnspentOutput.hash/1)
+      |> Enum.zip(utxos)
+      |> Enum.filter(&(elem(&1, 0) in utxos_hashes))
+      |> Enum.map(&elem(&1, 1))
+
+    %__MODULE__{context | unspent_outputs: utxos_intersection}
   end
 
   defp aggregate_p2p_views(

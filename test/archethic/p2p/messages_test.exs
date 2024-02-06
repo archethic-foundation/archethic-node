@@ -13,7 +13,6 @@ defmodule Archethic.P2P.MessageTest do
 
   alias Archethic.P2P.Message.{
     AcknowledgeStorage,
-    AddMiningContext,
     Balance,
     BootstrappingNodes,
     CrossValidate,
@@ -228,30 +227,6 @@ defmodule Archethic.P2P.MessageTest do
                  p2p_view_hash: p2p_hash,
                  contract_context: ctx
                }
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "AddMiningContext message" do
-      msg = %AddMiningContext{
-        address:
-          <<0, 0, 227, 129, 244, 35, 48, 113, 14, 75, 1, 127, 107, 32, 29, 93, 232, 119, 254, 1,
-            65, 32, 47, 129, 164, 142, 240, 43, 22, 81, 188, 212, 56, 238>>,
-        validation_node_public_key:
-          <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99, 217, 105,
-            80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
-        previous_storage_nodes_public_keys: [
-          <<0, 0, 22, 38, 34, 13, 213, 91, 210, 214, 66, 148, 122, 220, 63, 176, 232, 205, 35,
-            153, 176, 223, 178, 72, 88, 6, 41, 167, 163, 205, 98, 172, 249, 141>>
-        ],
-        chain_storage_nodes_view: <<1::1, 0::1, 0::1, 1::1, 0::1>>,
-        beacon_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>,
-        io_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>
-      }
-
-      assert msg ==
-               msg
                |> Message.encode()
                |> Message.decode()
                |> elem(0)

@@ -328,4 +328,17 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       timestamp: timestamp
     }
   end
+
+  @doc """
+  Return a hash of the utxo
+  Used for cheap comparaison
+
+  TOCHECK: can I really use mining.protocol_version ?
+  """
+  @spec hash(t()) :: binary()
+  def hash(utxo) do
+    utxo
+    |> serialize(Archethic.Mining.protocol_version())
+    |> then(&:crypto.hash(:sha256, &1))
+  end
 end

@@ -284,6 +284,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Workflow.add_mining_context(
         coordinator_pid,
+        [],
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1, 1::1>>,
@@ -395,6 +396,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Workflow.add_mining_context(
         coordinator_pid,
+        [],
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1>>,
@@ -520,6 +522,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Workflow.add_mining_context(
         coordinator_pid,
+        [],
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1>>,
@@ -666,6 +669,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Workflow.add_mining_context(
         coordinator_pid,
+        [],
         Enum.at(validation_nodes, 1).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1>>,
@@ -675,6 +679,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Workflow.add_mining_context(
         coordinator_pid,
+        [],
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1>>,
@@ -956,6 +961,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       Workflow.add_mining_context(
         coordinator_pid,
+        [],
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1, 1::1>>,
