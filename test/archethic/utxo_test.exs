@@ -337,6 +337,63 @@ defmodule Archethic.UTXOTest do
                  |> Enum.to_list()
       end
     end
+
+    test "should load contract call unspent output" do
+      destination_address = random_address()
+      destination_genesis_address = random_address()
+
+      transaction_address = random_address()
+
+      tx = %Transaction{
+        address: transaction_address,
+        type: :transfer,
+        validation_stamp: %ValidationStamp{
+          timestamp: ~U[2023-09-10 05:00:00.000Z],
+          protocol_version: current_protocol_version(),
+          recipients: [destination_address]
+        },
+        previous_public_key: random_public_key()
+      }
+
+      MockDB
+      |> stub(:get_genesis_address, fn
+        ^destination_address -> destination_genesis_address
+        addr -> addr
+      end)
+
+      me = self()
+
+      MockUTXOLedger
+      |> stub(:append, fn genesis_address, utxo ->
+        send(me, {:append_utxo, genesis_address, utxo})
+      end)
+
+      with_mock(Election,
+        chain_storage_nodes: fn
+          ^destination_genesis_address, _ ->
+            [%Node{first_public_key: Crypto.first_node_public_key()}]
+
+          _, _ ->
+            []
+        end
+      ) do
+        UTXO.load_transaction(tx)
+
+        assert [
+                 %VersionedUnspentOutput{
+                   unspent_output: %UnspentOutput{from: ^transaction_address, type: :call}
+                 }
+               ] =
+                 destination_genesis_address
+                 |> MemoryLedger.stream_unspent_outputs()
+                 |> Enum.to_list()
+
+        assert_receive {:append_utxo, ^destination_genesis_address,
+                        %VersionedUnspentOutput{
+                          unspent_output: %UnspentOutput{from: ^transaction_address, type: :call}
+                        }}
+      end
+    end
   end
 
   describe("stream_unspent_outputs/1") do
