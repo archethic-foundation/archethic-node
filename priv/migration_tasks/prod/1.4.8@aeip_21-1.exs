@@ -37,6 +37,7 @@ defmodule Migration_1_4_8 do
 
   @table_name :archethic_utxo_ledger
   @table_stats_name :archethic_utxo_ledger_stats
+  @last_protocol_version 7
 
   def run() do
     authorized_nodes = P2P.authorized_and_available_nodes()
@@ -73,7 +74,7 @@ defmodule Migration_1_4_8 do
 
         inputs = fetch_transaction_inputs(last_chain_address, authorized_nodes)
 
-        ingest_inputs(genesis_address, last_transaction, inputs, authorized_nodes)
+        ingest_inputs(genesis_address, last_transaction, inputs)
 
         # Log each 500 addresses
         if rem(index, 500) == 0 do
@@ -164,28 +165,13 @@ defmodule Migration_1_4_8 do
     TransactionChain.fetch_inputs(address, storage_nodes, DateTime.utc_now())
   end
 
-  defp ingest_inputs(genesis_address, nil, inputs, authorized_nodes) do
+  defp ingest_inputs(genesis_address, nil, inputs) do
     # Delete memory table and DB file before inserting entire utxos
     DBLedger.flush(genesis_address, [])
     :ets.delete(@table_name, genesis_address)
     :ets.delete(@table_stats_name, genesis_address)
 
-    Task.Supervisor.async_stream(
-      TaskSupervisor,
-      inputs,
-      fn input = %TransactionInput{from: from} ->
-        storage_nodes = Election.storage_nodes(from, authorized_nodes)
-
-        %Transaction{validation_stamp: %ValidationStamp{protocol_version: version}} =
-          fetch_transaction(from, storage_nodes)
-
-        {input, version}
-      end,
-      timeout: 30_000
-    )
-    |> Enum.each(fn {:ok, {input, version}} ->
-      ingest_pending_log_inputs(genesis_address, input, version)
-    end)
+    Enum.each(inputs, &ingest_input(genesis_address, &1))
   end
 
   defp ingest_inputs(
@@ -196,8 +182,7 @@ defmodule Migration_1_4_8 do
              ledger_operations: %LedgerOperations{unspent_outputs: unspent_outputs}
            }
          },
-         inputs,
-         _
+         inputs
        ) do
     versionned_utxos =
       Enum.map(
@@ -222,7 +207,7 @@ defmodule Migration_1_4_8 do
 
     unspent_outputs
     |> filter_pending_inputs(inputs)
-    |> Enum.each(&ingest_pending_log_inputs(genesis_address, &1, version))
+    |> Enum.each(&ingest_input(genesis_address, &1))
   end
 
   defp filter_pending_inputs(unspent_outputs, inputs) do
@@ -230,10 +215,9 @@ defmodule Migration_1_4_8 do
     Enum.reject(inputs, &Enum.member?(mapped_utxos, {&1.type, &1.from, &1.amount}))
   end
 
-  defp ingest_pending_log_inputs(
+  defp ingest_input(
          genesis_address,
-         %TransactionInput{from: from, type: type, amount: amount, timestamp: timestamp},
-         version
+         %TransactionInput{from: from, type: type, amount: amount, timestamp: timestamp}
        ) do
     versionned_utxo = %VersionedUnspentOutput{
       unspent_output: %UnspentOutput{
@@ -242,7 +226,7 @@ defmodule Migration_1_4_8 do
         amount: amount,
         timestamp: timestamp
       },
-      protocol_version: version
+      protocol_version: @last_protocol_version
     }
 
     Loader.add_utxo(versionned_utxo, genesis_address)
