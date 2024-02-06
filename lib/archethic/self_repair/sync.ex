@@ -1,5 +1,6 @@
 defmodule Archethic.SelfRepair.Sync do
   @moduledoc false
+  
   alias Archethic.{
     BeaconChain,
     Crypto,

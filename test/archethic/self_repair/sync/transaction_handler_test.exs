@@ -157,10 +157,18 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
           }
         }
 
+        node_list = [
+          %Node{
+            first_public_key: Crypto.first_node_public_key(),
+            geo_patch: "AAA",
+            network_patch: "AAA"
+          }
+        ]
+
         assert true =
                  TransactionHandler.download_transaction?(
                    attestation,
-                   []
+                   node_list
                  )
       end
     end
@@ -183,10 +191,18 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
           }
         }
 
+        node_list = [
+          %Node{
+            first_public_key: Crypto.first_node_public_key(),
+            geo_patch: "AAA",
+            network_patch: "AAA"
+          }
+        ]
+
         assert true =
                  TransactionHandler.download_transaction?(
                    attestation,
-                   []
+                   node_list
                  )
       end
     end
@@ -215,10 +231,18 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
           }
         }
 
+        node_list = [
+          %Node{
+            first_public_key: Crypto.first_node_public_key(),
+            geo_patch: "AAA",
+            network_patch: "AAA"
+          }
+        ]
+
         assert true =
                  TransactionHandler.download_transaction?(
                    attestation,
-                   []
+                   node_list
                  )
       end
     end

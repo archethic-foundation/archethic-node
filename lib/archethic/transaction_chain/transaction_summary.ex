@@ -13,6 +13,9 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     version: 2
   ]
 
+  alias Archethic.Election
+
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -203,4 +206,35 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   """
   @spec transform(binary(), t()) :: t()
   def transform(_, tx_summary), do: tx_summary
+
+  @doc """
+  Resolve movements addresses
+
+  Before AEIP-21, we need to fetch the genesis address as movements are not resolved to the genesis addresses
+  Hence this function is useful for self-repair transition for the AEIP-21 integration
+  """
+  @spec resolve_movements_addresses(t(), list(Node.t())) :: Enumerable.t() | list(binary())
+  def resolve_movements_addresses(
+        %__MODULE__{movements_addresses: addresses, version: version},
+        node_list
+      )
+      when version <= 2 do
+    addresses
+    |> Task.async_stream(fn address ->
+      storage_nodes = Election.chain_storage_nodes(address, node_list)
+
+      case TransactionChain.fetch_genesis_address(address, storage_nodes) do
+        {:ok, genesis_address} ->
+          [genesis_address, address]
+
+        _ ->
+          [address]
+      end
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.flat_map(fn {:ok, res} -> res end)
+  end
+
+  def resolve_movements_addresses(%__MODULE__{movements_addresses: movements_addresses}),
+    do: movements_addresses
 end

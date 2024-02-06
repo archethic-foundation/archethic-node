@@ -32,13 +32,12 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   @spec download_transaction?(ReplicationAttestation.t(), list(Node.t())) :: boolean()
   def download_transaction?(
         %ReplicationAttestation{
-          transaction_summary: %TransactionSummary{
-            address: address,
-            type: type,
-            movements_addresses: mvt_addresses,
-            genesis_address: genesis_address,
-            version: summary_version
-          }
+          transaction_summary:
+            tx_summary = %TransactionSummary{
+              address: address,
+              type: type,
+              genesis_address: genesis_address
+            }
         },
         node_list
       ) do
@@ -46,39 +45,26 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     genesis_chain_storage_nodes = Election.chain_storage_nodes(genesis_address, node_list)
     node_key = Crypto.first_node_public_key()
 
-    if Utils.key_in_node_list?(last_chain_storage_nodes, node_key) or
-         Utils.key_in_node_list?(genesis_chain_storage_nodes, node_key) do
+    last_chain_node? = Utils.key_in_node_list?(last_chain_storage_nodes, node_key)
+    genesis_node? = Utils.key_in_node_list?(genesis_chain_storage_nodes, node_key)
+
+    if last_chain_node? do
       not TransactionChain.transaction_exists?(address)
     else
-      io_node? =
-        mvt_addresses
-        |> Task.async_stream(fn address ->
-          case summary_version do
-            # Before AEIP-21, we fetch the genesis address to avoid multiple beacon chain's data changes
-            1 ->
-              storage_nodes = Election.chain_storage_nodes(address, node_list)
+      if TransactionChain.transaction_exists?(address, :io) do
+        false
+      else
+        io_node? =
+          tx_summary
+          |> TransactionSummary.resolve_movements_addresses(node_list)
+          |> Enum.any?(fn address ->
+            address
+            |> Election.chain_storage_nodes(node_list)
+            |> Utils.key_in_node_list?(Crypto.first_node_public_key())
+          end)
 
-              case TransactionChain.fetch_genesis_address(address, storage_nodes) do
-                {:ok, genesis_address} ->
-                  [genesis_address, address]
-
-                _ ->
-                  [address]
-              end
-
-            _ ->
-              [address]
-          end
-        end)
-        |> Stream.filter(&match?({:ok, _}, &1))
-        |> Stream.flat_map(fn {:ok, res} -> res end)
-        |> Enum.any?(fn address ->
-          address
-          |> Election.chain_storage_nodes(node_list)
-          |> Utils.key_in_node_list?(Crypto.first_node_public_key())
-        end)
-
-      io_node? and not TransactionChain.transaction_exists?(address, :io)
+        genesis_node? or io_node?
+      end
     end
   end
 
