@@ -2,6 +2,9 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   @moduledoc """
   Represents transaction header or extract to summarize it
   """
+
+  @version 2
+
   defstruct [
     :timestamp,
     :address,
@@ -10,7 +13,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     :validation_stamp_checksum,
     :genesis_address,
     movements_addresses: [],
-    version: 2
+    version: @version
   ]
 
   alias Archethic.Election
@@ -37,7 +40,11 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   @doc """
   Convert a transaction into transaction info
   """
-  @spec from_transaction(transaction :: Transaction.t(), genesis_address :: binary()) :: t()
+  @spec from_transaction(
+          transaction :: Transaction.t(),
+          genesis_address :: binary(),
+          version :: non_neg_integer()
+        ) :: t()
   def from_transaction(
         %Transaction{
           address: address,
@@ -51,7 +58,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
                 }
             }
         },
-        genesis_address
+        genesis_address,
+        version \\ @version
       )
       when is_binary(genesis_address) do
     raw_stamp = validation_stamp |> ValidationStamp.serialize() |> Utils.wrap_binary()
@@ -64,7 +72,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
       type: type,
       fee: fee,
       validation_stamp_checksum: validation_stamp_checksum,
-      genesis_address: genesis_address
+      genesis_address: genesis_address,
+      version: version
     }
   end
 
