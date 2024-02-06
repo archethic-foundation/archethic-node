@@ -33,6 +33,11 @@ defmodule Migration_1_4_8 do
 
   alias Archethic.Utils
 
+  require Logger
+
+  @table_name :archethic_utxo_ledger
+  @table_stats_name :archethic_utxo_ledger_stats
+
   def run() do
     authorized_nodes = P2P.authorized_and_available_nodes()
 
@@ -43,16 +48,22 @@ defmodule Migration_1_4_8 do
       |> Map.get(:enrollment_date)
       |> BeaconChain.next_summary_dates()
       |> Stream.flat_map(fn summary_date ->
+        Logger.debug("Migration_1_4_8 - Fetch genesis addresses for summary at #{summary_date}")
+
         summary_date
         |> get_summary_replication_attestations(authorized_nodes)
         |> fetch_elected_genesis_addresses(authorized_nodes, node_key)
       end)
       |> Enum.uniq()
+      |> Enum.with_index()
+
+    nb_genesis_addresses = length(elected_genesis_addresses)
+    Logger.debug("Migration_1_4_8 - Retrieved #{nb_genesis_addresses} genesis addresses to store")
 
     Task.Supervisor.async_stream(
       TaskSupervisor,
       elected_genesis_addresses,
-      fn genesis_address ->
+      fn {genesis_address, index} ->
         last_chain_address = fetch_last_chain_address(genesis_address, authorized_nodes)
 
         last_transaction =
@@ -63,6 +74,12 @@ defmodule Migration_1_4_8 do
         inputs = fetch_transaction_inputs(last_chain_address, authorized_nodes)
 
         ingest_inputs(genesis_address, last_transaction, inputs, authorized_nodes)
+
+        # Log each 500 addresses
+        if rem(index, 500) == 0 do
+          percentage = (index * 100 / nb_genesis_addresses) |> Float.round(2)
+          Logger.debug("Migration_1_4_8 - Processed #{percentage}% of genesis addresses")
+        end
       end,
       timeout: :infinity
     )
@@ -97,7 +114,8 @@ defmodule Migration_1_4_8 do
         [tx_address | movements_addresses]
         |> fetch_genesis_addresses(authorized_nodes)
         |> Enum.filter(&genesis_node?(&1, authorized_nodes, node_key))
-      end
+      end,
+      max_concurrency: System.schedulers_online() * 4
     )
     |> Stream.flat_map(fn {:ok, genesis_addresses} -> genesis_addresses end)
     |> Stream.uniq()
@@ -147,6 +165,11 @@ defmodule Migration_1_4_8 do
   end
 
   defp ingest_inputs(genesis_address, nil, inputs, authorized_nodes) do
+    # Delete memory table and DB file before inserting entire utxos
+    DBLedger.flush(genesis_address, [])
+    :ets.delete(@table_name, genesis_address)
+    :ets.delete(@table_stats_name, genesis_address)
+
     Task.Supervisor.async_stream(
       TaskSupervisor,
       inputs,
@@ -157,7 +180,8 @@ defmodule Migration_1_4_8 do
           fetch_transaction(from, storage_nodes)
 
         {input, version}
-      end
+      end,
+      timeout: 30_000
     )
     |> Enum.each(fn {:ok, {input, version}} ->
       ingest_pending_log_inputs(genesis_address, input, version)
@@ -188,6 +212,10 @@ defmodule Migration_1_4_8 do
           protocol_version: version
         }
       )
+
+    # Delete memory table before inserting entire utxos
+    :ets.delete(@table_name, genesis_address)
+    :ets.delete(@table_stats_name, genesis_address)
 
     DBLedger.flush(genesis_address, versionned_utxos)
     Enum.each(versionned_utxos, &MemoryLedger.add_chain_utxo(genesis_address, &1))
