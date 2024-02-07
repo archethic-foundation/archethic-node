@@ -30,6 +30,13 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   If not successful, perform storage nodes election based on the transaction movements.
   """
   @spec download_transaction?(ReplicationAttestation.t(), list(Node.t())) :: boolean()
+  def download_transaction?(%ReplicationAttestation{
+        transaction_summary: %TransactionSummary{
+          version: 1
+        }
+      }),
+      do: true
+
   def download_transaction?(
         %ReplicationAttestation{
           transaction_summary: %TransactionSummary{
@@ -95,7 +102,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     timeout = Message.get_max_timeout()
 
     acceptance_resolver = fn tx = %Transaction{} ->
-      # TODO: 
+      # TODO:
       # we can add a verification to ensure the proof of integrity is the right one
       # using the previous transaction and hence asserting the TransactionSummary.validation_stamp_checksum
       # in order to remove malicious node given false transaction's data

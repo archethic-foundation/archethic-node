@@ -26,6 +26,8 @@ defmodule Archethic.SelfRepair.Sync do
   }
 
   alias Archethic.BeaconChain.Subset.P2PSampling
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
 
   alias __MODULE__.TransactionHandler
@@ -395,7 +397,11 @@ defmodule Archethic.SelfRepair.Sync do
     Task.Supervisor.async_stream(
       TaskSupervisor,
       attestations,
-      &{&1, TransactionHandler.download_transaction(&1, download_nodes)},
+      fn attestation ->
+        tx = TransactionHandler.download_transaction(attestation, download_nodes)
+        consolidated_attestation = consolidate_recipients(attestation, tx)
+        {consolidated_attestation, tx}
+      end,
       on_timeout: :kill_task,
       timeout: Message.get_max_timeout() + 2000,
       max_concurrency: 100
@@ -405,6 +411,31 @@ defmodule Archethic.SelfRepair.Sync do
     end)
     |> Stream.run()
   end
+
+  defp consolidate_recipients(
+         attestation = %ReplicationAttestation{
+           transaction_summary: tx_summary = %TransactionSummary{
+             version: 1,
+             movements_addresses: movements_addresses
+           }
+         },
+         %Transaction{validation_stamp: %ValidationStamp{recipients: recipients}}
+       ) do
+    consolidated_movements_addresses =
+      recipients
+      |> Task.async_stream(fn recipient ->
+        {:ok, genesis_address} = TransactionChain.fetch_genesis_address(recipient, P2P.authorized_and_available_nodes())
+        [recipient, genesis_address]
+      end)
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.flat_map(& &1)
+      |> Enum.concat(movements_addresses)
+
+    adjusted_summary = %{tx_summary | movements_addresses: consolidated_movements_addresses}
+    %{attestation | transaction_summary: adjusted_summary}
+  end
+
+  defp consolidate_recipients(attestation, _tx), do: attestation
 
   defp sync_node(end_of_node_synchronizations) do
     end_of_node_synchronizations

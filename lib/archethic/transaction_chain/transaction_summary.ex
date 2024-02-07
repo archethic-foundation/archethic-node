@@ -55,7 +55,8 @@ defmodule Archethic.TransactionChain.TransactionSummary do
               ledger_operations:
                 operations = %LedgerOperations{
                   fee: fee
-                }
+                },
+              recipients: recipients
             }
         },
         genesis_address,
@@ -65,10 +66,19 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     raw_stamp = validation_stamp |> ValidationStamp.serialize() |> Utils.wrap_binary()
     validation_stamp_checksum = :crypto.hash(:sha256, raw_stamp)
 
+    movements_addresses =
+      if version >= 2 do
+        operations
+        |> LedgerOperations.movement_addresses()
+        |> Enum.concat(recipients)
+      else
+        LedgerOperations.movement_addresses(operations)
+      end
+
     %__MODULE__{
       address: address,
       timestamp: timestamp,
-      movements_addresses: LedgerOperations.movement_addresses(operations),
+      movements_addresses: movements_addresses,
       type: type,
       fee: fee,
       validation_stamp_checksum: validation_stamp_checksum,
@@ -265,7 +275,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
       )
       when address1 == address2 and type1 == type2 and checksum_1 == checksum_2 and
              version1 == version2 and version1 <= 2 do
-    # During AEIP-21 deployment phases, 
+    # During AEIP-21 deployment phases,
     # transaction summary from beacon and from transaction will differ
     # because some will included resolve movements address with or without genesis addresses
     # Hence we have to find a common factor as the comparand transaction summary movements addresses coming from the transaction's stamp
