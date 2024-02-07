@@ -586,8 +586,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  },
                  %UnspentOutput{
                    from: "@Alice2",
-                   # TODO: active after part 2 of AEIP-21
-                   #  amount: 200_000_000,
                    amount: 900_000_000,
                    type: {:token, "@CharlieToken", 0},
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
@@ -663,20 +661,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    amount: 160_000_000,
                    type: :UCO,
                    timestamp: ~U[2022-10-10 10:44:38.983Z]
-                 },
-                 # TODO to remove after part 2 of AEIP2
-                 %UnspentOutput{
-                   from: "@CharlieToken",
-                   amount: 100_000_000,
-                   type: {:token, "@CharlieToken", 1},
-                   timestamp: ~U[2022-10-09 08:39:10.463Z]
-                 },
-                 # TODO to remove after part 2 of AEIP2
-                 %UnspentOutput{
-                   from: "@CharlieToken",
-                   amount: 100_000_000,
-                   type: {:token, "@CharlieToken", 3},
-                   timestamp: ~U[2022-10-09 08:39:10.463Z]
                  }
                ],
                consumed_inputs: ^expected_consumed_inputs
@@ -998,6 +982,29 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       token_address = random_address()
       old_timestamp = ~U[2023-11-09 10:39:10Z]
 
+      expected_consumed_inputs =
+        [
+          %UnspentOutput{
+            from: from,
+            amount: 200_000_000,
+            type: :UCO,
+            timestamp: old_timestamp
+          },
+          %UnspentOutput{
+            from: from,
+            amount: 100_000_000,
+            type: {:token, token_address, 0},
+            timestamp: old_timestamp
+          },
+          %UnspentOutput{
+            from: from,
+            amount: 100_000_000,
+            type: {:token, token_address, 0},
+            timestamp: old_timestamp
+          }
+        ]
+        |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
+
       assert {true,
               %LedgerOperations{
                 unspent_outputs: [
@@ -1014,6 +1021,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                     timestamp: ^transaction_timestamp
                   }
                 ],
+                consumed_inputs: ^expected_consumed_inputs,
                 fee: 40_000_000
               }} =
                LedgerOperations.consume_inputs(
@@ -1043,7 +1051,20 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  |> VersionedUnspentOutput.wrap_unspent_outputs(current_protocol_version())
                )
 
-      assert {true, ops} =
+      assert {true,
+              %LedgerOperations{
+                unspent_outputs: [
+                  %UnspentOutput{
+                    from: "@Alice2",
+                    amount: 500_000_000,
+                    type: {:token, "@Token1", 0}
+                  }
+                ],
+                consumed_inputs: [
+                  %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Charlie1"}},
+                  %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Tom5"}}
+                ]
+              }} =
                LedgerOperations.consume_inputs(
                  %LedgerOperations{},
                  "@Alice2",
@@ -1071,20 +1092,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                    }
                  ]
                )
-
-      assert %LedgerOperations{
-               unspent_outputs: [
-                 %UnspentOutput{
-                   from: "@Alice2",
-                   amount: 500_000_000,
-                   type: {:token, "@Token1", 0}
-                 }
-               ],
-               consumed_inputs: [
-                 %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Charlie1"}},
-                 %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: "@Tom5"}}
-               ]
-             } = ops
     end
 
     test "should consume state if it's not the same" do
@@ -1142,14 +1149,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       assert {true,
               %LedgerOperations{
                 consumed_inputs: [],
-                unspent_outputs: [
-                  %UnspentOutput{
-                    type: :state,
-                    from: "@Alice2",
-                    encoded_payload: ^state,
-                    timestamp: ^tx_validation_time
-                  }
-                ]
+                unspent_outputs: []
               }} =
                LedgerOperations.consume_inputs(
                  %LedgerOperations{fee: 0},
@@ -1160,6 +1160,29 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  [],
                  state,
                  nil
+               )
+    end
+
+    test "should not return any utxo if nothing is spent" do
+      assert {true,
+              %LedgerOperations{
+                fee: 0,
+                unspent_outputs: [],
+                consumed_inputs: []
+              }} =
+               LedgerOperations.consume_inputs(
+                 %LedgerOperations{fee: 0},
+                 "@Alice2",
+                 ~U[2022-10-10 10:44:38.983Z],
+                 [
+                   %UnspentOutput{
+                     from: "@Bob3",
+                     amount: 2_000_000_000,
+                     type: :UCO,
+                     timestamp: ~U[2022-10-09 08:39:10.463Z]
+                   }
+                   |> VersionedUnspentOutput.wrap_unspent_output(current_protocol_version())
+                 ]
                )
     end
 
@@ -1205,7 +1228,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       assert {true,
               %LedgerOperations{
                 fee: 0,
-                unspent_outputs: unspent_outputs,
+                unspent_outputs: [],
                 consumed_inputs: consumed_inputs
               }} =
                LedgerOperations.consume_inputs(
@@ -1223,9 +1246,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                )
 
       # order does not matter
-      assert Enum.all?(unspent_outputs, &(&1 in utxo_not_used)) and
-               length(unspent_outputs) == length(utxo_not_used)
-
       assert Enum.all?(consumed_inputs, &(&1 in consumed_utxo)) and
                length(consumed_inputs) == length(consumed_utxo)
     end
@@ -1270,7 +1290,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       assert {true,
               %LedgerOperations{
                 fee: 0,
-                unspent_outputs: unspent_outputs,
+                unspent_outputs: [],
                 consumed_inputs: consumed_inputs
               }} =
                LedgerOperations.consume_inputs(
@@ -1282,9 +1302,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                )
 
       # order does not matter
-      assert Enum.all?(unspent_outputs, &(&1 in optimized_utxo)) and
-               length(unspent_outputs) == length(optimized_utxo)
-
       assert Enum.all?(consumed_inputs, &(&1 in consumed_utxo)) and
                length(consumed_inputs) == length(consumed_utxo)
     end
@@ -1334,7 +1351,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         assert {true,
                 %LedgerOperations{
                   fee: 0,
-                  unspent_outputs: unspent_outputs,
+                  unspent_outputs: [],
                   consumed_inputs: consumed_inputs
                 }} =
                  LedgerOperations.consume_inputs(
@@ -1346,9 +1363,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
                  )
 
         # order does not matter
-        assert Enum.all?(unspent_outputs, &(&1 in optimized_utxo)) and
-                 length(unspent_outputs) == length(optimized_utxo)
-
         assert Enum.all?(consumed_inputs, &(&1 in consumed_utxo)) and
                  length(consumed_inputs) == length(consumed_utxo)
       end)
