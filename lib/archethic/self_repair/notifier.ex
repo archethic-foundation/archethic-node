@@ -140,7 +140,9 @@ defmodule Archethic.SelfRepair.Notifier do
          %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+             protocol_version: protocol_version,
+             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements},
+             recipients: recipients
            }
          },
          prev_available_nodes,
@@ -151,7 +153,27 @@ defmodule Archethic.SelfRepair.Notifier do
       |> Election.chain_storage_nodes(prev_available_nodes)
       |> Enum.map(& &1.first_public_key)
 
-    resolved_addresses = [genesis_address | Enum.map(transaction_movements, & &1.to)]
+    movements_addresses =
+      transaction_movements
+      |> Enum.map(& &1.to)
+      |> Enum.concat(recipients)
+
+    # Before AEIP-21, resolve movements included only last addresses,
+    # then we have to resolve the genesis address for all the movements
+    resolved_addresses =
+      if protocol_version <= 7 do
+        Task.async_stream(movements_addresses, fn address ->
+          {:ok, resolved_genesis_address} =
+            TransactionChain.fetch_genesis_address(address, P2P.authorized_and_available_nodes())
+
+          [address, resolved_genesis_address]
+        end)
+        |> Stream.filter(&match?({:ok, _}, &1))
+        |> Stream.flat_map(& &1)
+        |> Enum.reduce([genesis_address], &[&1 | &2])
+      else
+        [genesis_address | movements_addresses]
+      end
 
     prev_io_nodes =
       resolved_addresses
