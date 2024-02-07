@@ -188,12 +188,7 @@ defmodule Migration_1_4_8 do
       Enum.map(
         unspent_outputs,
         &%VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: &1.from,
-            type: &1.type,
-            amount: &1.amount,
-            timestamp: &1.timestamp
-          },
+          unspent_output: UnspentOutput.cast(&1),
           protocol_version: version
         }
       )
@@ -215,17 +210,9 @@ defmodule Migration_1_4_8 do
     Enum.reject(inputs, &Enum.member?(mapped_utxos, {&1.type, &1.from, &1.amount}))
   end
 
-  defp ingest_input(
-         genesis_address,
-         %TransactionInput{from: from, type: type, amount: amount, timestamp: timestamp}
-       ) do
+  defp ingest_input(genesis_address, input) do
     versionned_utxo = %VersionedUnspentOutput{
-      unspent_output: %UnspentOutput{
-        from: from,
-        type: type,
-        amount: amount,
-        timestamp: timestamp
-      },
+      unspent_output: UnspentOutput.cast(input),
       protocol_version: @last_protocol_version
     }
 
