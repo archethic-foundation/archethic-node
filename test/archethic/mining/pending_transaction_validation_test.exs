@@ -69,6 +69,84 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     :ok
   end
 
+  describe "validate_non_fungible_token_transfer" do
+    test "should return error if nft token is not sent by unit" do
+      ledger = %Ledger{
+        token: %TokenLedger{
+          transfers: [
+            %TokenTransfer{
+              to: random_address(),
+              amount: 123,
+              token_address: random_address(),
+              token_id: 1
+            }
+          ]
+        }
+      }
+
+      tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
+
+      assert {:error, "Non fungible token can only be sent by unit"} =
+               PendingTransactionValidation.validate(tx)
+
+      ledger = %Ledger{
+        token: %TokenLedger{
+          transfers: [
+            %TokenTransfer{
+              to: random_address(),
+              amount: 200_000_000,
+              token_address: random_address(),
+              token_id: 1
+            }
+          ]
+        }
+      }
+
+      tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
+
+      assert {:error, "Non fungible token can only be sent by unit"} =
+               PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return ok if nft token is sent in unit" do
+      ledger = %Ledger{
+        token: %TokenLedger{
+          transfers: [
+            %TokenTransfer{
+              to: random_address(),
+              amount: 100_000_000,
+              token_address: random_address(),
+              token_id: 1
+            }
+          ]
+        }
+      }
+
+      tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return ok if fungible token is sent in fraction" do
+      ledger = %Ledger{
+        token: %TokenLedger{
+          transfers: [
+            %TokenTransfer{
+              to: random_address(),
+              amount: 123,
+              token_address: random_address(),
+              token_id: 0
+            }
+          ]
+        }
+      }
+
+      tx = TransactionFactory.create_non_valided_transaction(type: :transfer, ledger: ledger)
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+  end
+
   describe "validate_size/1" do
     test "should return :ok when the transaction size is less than 3.1MB" do
       tx =
@@ -516,33 +594,14 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
     end
 
     test "should return an error when a node transaction content is greater than content_max_size " do
-      {public_key, _} = Crypto.derive_keypair("seed", 0)
-      certificate = Crypto.get_key_certificate(public_key)
-
-      content_pretext =
-        <<80, 20, 10, 200, 3000::16, 4000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24,
-          115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64,
-          157, 137>>
-
-      random_content = :crypto.strong_rand_bytes(4 * 1024 * 1024)
-
-      content =
-        content_pretext <> random_content <> <<byte_size(certificate)::16, certificate::binary>>
+      content = :crypto.strong_rand_bytes(4 * 1024 * 1024)
 
       tx =
         TransactionFactory.create_non_valided_transaction(
-          type: :node,
+          type: :data,
           content: content,
           seed: "seed"
         )
-
-      MockDB
-      |> stub(:get_last_chain_address, fn address ->
-        address
-      end)
-      |> stub(:get_transaction, fn _address, [:address, :type], _ ->
-        {:error, :transaction_not_exists}
-      end)
 
       assert {:error, "Transaction data exceeds limit"} =
                PendingTransactionValidation.validate(tx)
