@@ -90,8 +90,8 @@ defmodule Mix.Tasks.Archethic.Migrate do
 
   defp unload_module(module) do
     # Unload the module from code memory
-    :code.delete(module)
     :code.purge(module)
+    :code.delete(module)
   end
 
   defp read_file(path) do
