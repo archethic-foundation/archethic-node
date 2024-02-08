@@ -30,11 +30,12 @@ defmodule Archethic.UTXO do
   def load_transaction(tx = %Transaction{}) do
     authorized_nodes = P2P.authorized_and_available_nodes()
 
-    # Ingest all the movements to fill up the UTXO list
-    ingest_utxo(tx, authorized_nodes)
+    # Ingest all the movements and recipients to fill up the UTXO list
+    ingest_movements(tx, authorized_nodes)
+    ingest_recipients(tx, authorized_nodes)
 
     # Consume the transaction to update the unspent outputs from the consumed inputs
-    consume_utxo(tx, authorized_nodes)
+    consume_utxos(tx, authorized_nodes)
 
     Logger.info("Loaded into in memory UTXO tables",
       transaction_address: Base.encode16(tx.address),
@@ -42,7 +43,7 @@ defmodule Archethic.UTXO do
     )
   end
 
-  defp ingest_utxo(
+  defp ingest_movements(
          %Transaction{
            address: address,
            type: tx_type,
@@ -75,6 +76,36 @@ defmodule Archethic.UTXO do
     end)
   end
 
+  defp ingest_recipients(
+         %Transaction{
+           address: address,
+           validation_stamp: %ValidationStamp{
+             recipients: recipients,
+             timestamp: timestamp,
+             protocol_version: protocol_version
+           }
+         },
+         authorized_nodes
+       ) do
+    recipients
+    |> Enum.each(fn recipient ->
+      genesis_address = DB.get_genesis_address(recipient)
+
+      if genesis_node?(genesis_address, authorized_nodes) do
+        utxo = %VersionedUnspentOutput{
+          unspent_output: %UnspentOutput{
+            from: address,
+            type: :call,
+            timestamp: timestamp
+          },
+          protocol_version: protocol_version
+        }
+
+        Loader.add_utxo(utxo, genesis_address)
+      end
+    end)
+  end
+
   defp consolidate_movements(transaction_movements, protocol_version, tx_type)
        when protocol_version < 5 do
     transaction_movements
@@ -85,7 +116,7 @@ defmodule Archethic.UTXO do
   defp consolidate_movements(transaction_movements, _protocol_version, _tx_type),
     do: transaction_movements
 
-  defp consume_utxo(tx = %Transaction{}, authorized_nodes) do
+  defp consume_utxos(tx = %Transaction{}, authorized_nodes) do
     case find_genesis_address(tx) do
       {:ok, genesis_address} ->
         if genesis_node?(genesis_address, authorized_nodes) do
