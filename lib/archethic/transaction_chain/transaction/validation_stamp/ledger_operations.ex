@@ -245,24 +245,24 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         tokens_to_mint ++ inputs,
         &{DateTime.to_unix(&1.unspent_output.timestamp), &1.unspent_output.from}
       )
+      |> Enum.map(fn
+        utxo = %UnspentOutput{from: ^change_address} ->
+          # As the minted tokens are used internally during transaction's validation
+          # and doesn't not exists outside, we use the burning address
+          # to identify inputs coming from the token's minting.
+          %{utxo | from: burning_address()}
+
+        utxo ->
+          utxo
+      end)
 
     %{uco: uco_balance, token: tokens_balance} = ledger_balances(consolidated_inputs)
     %{uco: uco_to_spend, token: tokens_to_spend} = total_to_spend(fee, movements)
 
     if sufficient_funds?(uco_balance, uco_to_spend, tokens_balance, tokens_to_spend) do
       consumed_utxos =
-        consolidated_inputs
-        |> Enum.map(fn
-          utxo = %VersionedUnspentOutput{unspent_output: %UnspentOutput{from: ^change_address}} ->
-            # As the minted tokens are used internally during transaction's validation
-            # and doesn't not exists outside, we use the burning address
-            # to identify inputs coming from the token's minting.
-            put_in(utxo, [Access.key!(:unspent_output), Access.key!(:from)], burning_address())
-
-          utxo ->
-            utxo
-        end)
-        |> get_inputs_to_consume(
+        get_inputs_to_consume(
+          consolidated_inputs,
           uco_to_spend,
           tokens_to_spend,
           uco_balance,
@@ -271,18 +271,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           contract_context
         )
 
-      # TODO: To active on the part 2 of the AEIP-21
-      # replace token received by tokens in consumed_inputs in function new_token_unspent_outputs
-      # to get only the new real unspent output
-
-      consolidated_inputs = Enum.map(consolidated_inputs, & &1.unspent_output)
+      consolidated_inputs = VersionedUnspentOutput.unwrap_unspent_outputs(consolidated_inputs)
 
       new_unspent_outputs =
-        new_token_unspent_outputs(
+        tokens_utxos(
           tokens_balance,
           tokens_to_spend,
-          change_address,
+          tokens_to_mint,
           consolidated_inputs,
+          change_address,
           timestamp
         )
         |> add_uco_utxo(consolidated_inputs, uco_balance, uco_to_spend, change_address, timestamp)
@@ -298,61 +295,84 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
   end
 
-  defp new_token_unspent_outputs(
-         tokens_received,
+  defp tokens_utxos(
+         tokens_balance,
          tokens_to_spend,
+         tokens_to_mint,
+         utxos,
          change_address,
-         inputs,
          timestamp
        ) do
-    # Reject Token not used to inject back in the new unspent outputs
-    tokens_not_used =
-      tokens_received
-      |> Enum.reject(&Map.has_key?(tokens_to_spend, elem(&1, 0)))
-      |> Enum.map(fn {{token_address, token_id}, amount} ->
-        # if we can't find the original input, it means there was a merge
-        # we update the utxo's from & timestamp
-        Enum.find(
-          inputs,
-          %UnspentOutput{
-            from: change_address,
-            amount: amount,
-            type: {:token, token_address, token_id},
-            timestamp: timestamp
-          },
-          &(&1.type == {:token, token_address, token_id} && &1.amount == amount)
-        )
-      end)
-
-    Enum.reduce(tokens_to_spend, tokens_not_used, fn {{token_address, token_id}, amount_to_spend},
-                                                     acc ->
-      case Map.get(tokens_received, {token_address, token_id}) do
-        nil ->
+    tokens_consolidated_not_consumed =
+      Enum.reduce(tokens_balance, [], fn {{token_address, token_id}, amount}, acc ->
+        if Map.has_key?(tokens_to_spend, {token_address, token_id}) do
           acc
-
-        recv_amount when recv_amount - amount_to_spend > 0 ->
-          remaining_amount = recv_amount - amount_to_spend
+        else
           type = {:token, token_address, token_id}
 
-          # Do not create new UTXO if one is already the same in the inputs
-          new_utxo =
-            Enum.find(
-              inputs,
+          case Enum.find(
+                 utxos,
+                 &(&1.type == type and &1.amount == amount)
+               ) do
+            nil ->
+              [
+                %UnspentOutput{
+                  from: change_address,
+                  amount: amount,
+                  type: type,
+                  timestamp: timestamp
+                }
+                | acc
+              ]
+
+            _ ->
+              acc
+          end
+        end
+      end)
+
+    tokens_minted_not_consumed =
+      Enum.reject(tokens_to_mint, fn %UnspentOutput{type: {:token, token_address, token_id}} ->
+        Enum.any?(tokens_to_spend, fn
+          {{^token_address, ^token_id}, _amount} -> true
+          _ -> false
+        end)
+      end)
+
+    # consolidate the remainders of spent tokens
+    Enum.reduce(
+      tokens_to_spend,
+      tokens_minted_not_consumed ++ tokens_consolidated_not_consumed,
+      fn {{token_address, token_id}, amount_to_spend}, acc ->
+        balance =
+          Enum.find_value(tokens_balance, fn
+            {{^token_address, ^token_id}, amount} -> amount
+            _ -> false
+          end)
+
+        type = {:token, token_address, token_id}
+        remaining_amount = balance - amount_to_spend
+
+        case Enum.find(
+               utxos,
+               &(&1.type == type and &1.amount == remaining_amount)
+             ) do
+          nil ->
+            [
               %UnspentOutput{
                 from: change_address,
                 amount: remaining_amount,
                 type: type,
                 timestamp: timestamp
-              },
-              &(&1.type == type and &1.amount == remaining_amount)
-            )
+              }
+              | acc
+            ]
 
-          [new_utxo | acc]
-
-        _ ->
-          acc
+          _ ->
+            acc
+        end
       end
-    end)
+    )
   end
 
   defp get_inputs_to_consume(
@@ -432,63 +452,53 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   end
 
   defp add_uco_utxo(utxos, inputs, uco_balance, uco_to_spend, change_address, timestamp)
-       when uco_balance - uco_to_spend > 0 do
+       when uco_to_spend > 0 do
     remaining_uco = uco_balance - uco_to_spend
 
-    # Do not create new UTXO if one is already the same in the inputs
-    uco_utxo =
-      Enum.find(
-        inputs,
-        %UnspentOutput{
-          from: change_address,
-          amount: remaining_uco,
-          type: :UCO,
-          timestamp: timestamp
-        },
-        &(&1.type == :UCO and &1.amount == remaining_uco)
-      )
+    case Enum.find(inputs, &(&1.type == :UCO and &1.amount == remaining_uco)) do
+      nil ->
+        [
+          %UnspentOutput{
+            from: change_address,
+            amount: remaining_uco,
+            type: :UCO,
+            timestamp: timestamp
+          }
+          | utxos
+        ]
 
-    [uco_utxo | utxos]
+      _ ->
+        utxos
+    end
   end
 
   defp add_uco_utxo(utxos, _, _, _, _, _), do: utxos
 
   defp add_state_utxo(utxos, _inputs, nil, _change_address, _timestamp), do: utxos
 
-  defp add_state_utxo(utxos, _inputs, encoded_state, change_address, timestamp) do
-    [
-      %UnspentOutput{
-        type: :state,
-        encoded_payload: encoded_state,
-        timestamp: timestamp,
-        from: change_address
-      }
-      | utxos
-    ]
+  defp add_state_utxo(utxos, inputs, encoded_state, change_address, timestamp) do
+    include_new_state? =
+      case Enum.find(inputs, &(&1.type == :state)) do
+        nil ->
+          true
 
-    # TODO: active during AEIP21 Phase2
-    # include_new_state? =
-    #   case Enum.find(inputs, &(&1.type == :state)) do
-    #     nil ->
-    #       true
+        %UnspentOutput{encoded_payload: previous_encoded_state} ->
+          encoded_state != previous_encoded_state
+      end
 
-    #     %UnspentOutput{encoded_payload: previous_state} ->
-    #       encoded_state != previous_state
-    #   end
-
-    # if include_new_state? do
-    #   [
-    #     %UnspentOutput{
-    #       type: :state,
-    #       encoded_payload: encoded_state,
-    #       timestamp: timestamp,
-    #       from: change_address
-    #     }
-    #     | utxos
-    #   ]
-    # else
-    #   utxos
-    # end
+    if include_new_state? do
+      [
+        %UnspentOutput{
+          type: :state,
+          encoded_payload: encoded_state,
+          timestamp: timestamp,
+          from: change_address
+        }
+        | utxos
+      ]
+    else
+      utxos
+    end
   end
 
   @doc """
