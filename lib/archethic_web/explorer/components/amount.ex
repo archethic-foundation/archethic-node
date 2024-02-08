@@ -63,29 +63,27 @@ defmodule ArchethicWeb.Explorer.Components.Amount do
     """
   end
 
-  defp get_token_name(_, _, token_id) when token_id > 0, do: "NFT ##{token_id}"
-
-  defp get_token_name(token_properties, token_address, _token_id) do
+  defp get_token_name(token_properties, token_address, token_id) do
     case Map.get(token_properties, :symbol) do
       nil ->
         short_address(token_address)
 
       symbol ->
-        if String.length(symbol) > @max_symbol_len do
-          content_tag(
-            "span",
-            String.slice(symbol, 0..(@max_symbol_len - 1)) <> "...",
-            "data-tooltip": symbol <> " minted at " <> Base.encode16(token_address),
-            class: "mono"
-          )
-        else
-          content_tag(
-            "span",
-            symbol,
-            "data-tooltip": symbol <> " minted at " <> Base.encode16(token_address),
-            class: "mono"
-          )
-        end
+        text =
+          if String.length(symbol) > @max_symbol_len do
+            String.slice(symbol, 0..(@max_symbol_len - 1)) <> "..."
+          else
+            symbol
+          end
+
+        text = text <> if token_id > 0, do: " ##{token_id}", else: ""
+
+        content_tag(
+          "span",
+          text,
+          "data-tooltip": symbol <> " minted at " <> Base.encode16(token_address),
+          class: "mono"
+        )
     end
   end
 

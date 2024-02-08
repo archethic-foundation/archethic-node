@@ -80,13 +80,14 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       ) do
     start = System.monotonic_time()
 
-    with :ok <- validate_size(tx),
-         :ok <- valid_not_exists(tx),
+    with :ok <- do_accept_transaction(tx, validation_time),
          :ok <- valid_previous_signature(tx),
+         :ok <- validate_size(tx),
          :ok <- validate_contract(tx),
          :ok <- validate_ownerships(tx),
-         :ok <- do_accept_transaction(tx, validation_time),
-         :ok <- validate_previous_transaction_type(tx) do
+         :ok <- validate_non_fungible_token_transfer(tx),
+         :ok <- validate_previous_transaction_type(tx),
+         :ok <- valid_not_exists(tx) do
       :telemetry.execute(
         [:archethic, :mining, :pending_transaction_validation],
         %{duration: System.monotonic_time() - start},
@@ -179,6 +180,15 @@ defmodule Archethic.Mining.PendingTransactionValidation do
           {:halt, {:error, formated_reason}}
       end
     end)
+  end
+
+  defp validate_non_fungible_token_transfer(%Transaction{
+         data: %TransactionData{ledger: %Ledger{token: %TokenLedger{transfers: token_transfer}}}
+       }) do
+    # non fungible token can be sent only by unit
+    if Enum.any?(token_transfer, &(&1.token_id != 0 and &1.amount != @unit_uco)),
+      do: {:error, "Non fungible token can only be sent by unit"},
+      else: :ok
   end
 
   defp do_accept_transaction(
