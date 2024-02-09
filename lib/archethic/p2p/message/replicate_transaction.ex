@@ -2,28 +2,26 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
   @moduledoc """
   Represents a message to initiate the replication of the transaction
   """
-  @enforce_keys [:transaction]
-  defstruct [:transaction, :contract_context]
+  @enforce_keys [:transaction, :genesis_address]
+  defstruct [:transaction, :genesis_address, :contract_context]
 
   alias Archethic.Contracts.Contract
   alias Archethic.Crypto
-  alias Archethic.DB
   alias Archethic.Election
   alias Archethic.P2P
   alias Archethic.P2P.Message.ReplicationError
   alias Archethic.P2P.Message.Ok
   alias Archethic.Replication
-  alias Archethic.Utils
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),
+          genesis_address: Crypto.prepended_hash(),
           contract_context: nil | Contract.Context.t()
         }
 
@@ -32,75 +30,86 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         %__MODULE__{
           transaction:
             tx = %Transaction{
-              validation_stamp: %ValidationStamp{
-                timestamp: validation_time,
-                ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
-              }
+              type: type,
+              validation_stamp: %ValidationStamp{timestamp: validation_time}
             },
+          genesis_address: genesis_address,
           contract_context: contract_context
         },
         _
       ) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
-      if Transaction.network_type?(tx.type) do
-        Replication.validate_and_store_transaction_chain(tx, contract_context)
-      else
-        resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
+      authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+      node_public_key = Crypto.first_node_public_key()
 
-        authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
+      cond do
+        Transaction.network_type?(type) ->
+          Replication.validate_and_store_transaction_chain(tx, contract_context)
 
-        io_storage_nodes =
-          resolved_addresses
-          |> Map.values()
-          |> Enum.concat([LedgerOperations.burning_address()])
-          |> Election.io_storage_nodes(authorized_nodes)
-
-        chain_genesis_storage_nodes =
-          case tx |> Transaction.previous_address() |> DB.find_genesis_address() do
-            {:ok, genesis_address} ->
-              Election.chain_storage_nodes(genesis_address, authorized_nodes)
-
-            _ ->
-              []
-          end
-
-        node_public_key = Crypto.first_node_public_key()
-
-        # We need to determine whether the node is responsible of the chain genesis pool as the transaction have been received as an I/O transaction.
-        chain_genesis_node? =
-          Utils.key_in_node_list?(chain_genesis_storage_nodes, Crypto.first_node_public_key())
-
-        # We need to determine whether the node is responsible of the transaction movements destination genesis pool
-        io_genesis_node? =
-          transaction_movements
-          |> Enum.flat_map(fn %TransactionMovement{to: to} ->
-            to
-            |> DB.get_genesis_address()
-            |> Election.chain_storage_nodes(authorized_nodes)
-          end)
-          |> P2P.distinct_nodes()
-          |> Utils.key_in_node_list?(node_public_key)
-
-        genesis_node? = chain_genesis_node? or io_genesis_node?
-
-        # Replicate tx only if the current node is one of the I/O storage nodes or one of the genesis nodes
-        if Utils.key_in_node_list?(io_storage_nodes, node_public_key) or genesis_node? do
+        Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes) ->
           Replication.validate_and_store_transaction(tx)
-        end
+
+        io_node?(tx, node_public_key, authorized_nodes) ->
+          Replication.validate_and_store_transaction(tx)
+
+        true ->
+          :skip
       end
     end)
 
     %Ok{}
   end
 
-  @spec serialize(t()) :: bitstring()
-  def serialize(%__MODULE__{transaction: tx, contract_context: nil}) do
-    <<Transaction.serialize(tx)::bitstring, 0::8>>
+  defp io_node?(
+         %Transaction{
+           validation_stamp: %ValidationStamp{
+             protocol_version: protocol_version,
+             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements},
+             recipients: recipients
+           }
+         },
+         node_public_key,
+         authorized_nodes
+       ) do
+    transaction_movements
+    |> Enum.map(& &1.to)
+    |> Enum.concat(recipients)
+    |> then(fn addresses ->
+      # TODO to delete after AEIP-21 phase 2 since we will never receive tx with version <= 7
+      # We might keep it one version to handle hot reload upgrading but still reveive old transaction
+      if protocol_version <= 7 do
+        Enum.flat_map(addresses, fn address ->
+          nodes = Election.chain_storage_nodes(address, authorized_nodes)
+
+          case TransactionChain.fetch_genesis_address(address, nodes) do
+            {:ok, genesis} -> [genesis, address]
+            _ -> [address]
+          end
+        end)
+      else
+        addresses
+      end
+    end)
+    |> Enum.uniq()
+    |> Enum.any?(&Election.chain_storage_node?(&1, node_public_key, authorized_nodes))
   end
 
-  def serialize(%__MODULE__{transaction: tx, contract_context: contract_context}) do
+  @spec serialize(t()) :: bitstring()
+  def serialize(%__MODULE__{
+        transaction: tx,
+        contract_context: nil,
+        genesis_address: genesis_address
+      }) do
+    <<Transaction.serialize(tx)::bitstring, 0::8, genesis_address::binary>>
+  end
+
+  def serialize(%__MODULE__{
+        transaction: tx,
+        contract_context: contract_context,
+        genesis_address: genesis_address
+      }) do
     <<Transaction.serialize(tx)::bitstring, 1::8,
-      Contract.Context.serialize(contract_context)::bitstring>>
+      Contract.Context.serialize(contract_context)::bitstring, genesis_address::binary>>
   end
 
   @spec deserialize(bitstring()) :: {t(), bitstring()}
@@ -113,8 +122,14 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
         <<1::8, rest::bitstring>> -> Contract.Context.deserialize(rest)
       end
 
+    {genesis_address, rest} = Utils.deserialize_address(rest)
+
     {
-      %__MODULE__{transaction: tx, contract_context: contract_context},
+      %__MODULE__{
+        transaction: tx,
+        contract_context: contract_context,
+        genesis_address: genesis_address
+      },
       rest
     }
   end

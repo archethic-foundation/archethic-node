@@ -402,7 +402,12 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     |> P2P.broadcast_message(attestation)
   end
 
-  defp notify_io_nodes(context = %ValidationContext{}) do
+  defp notify_io_nodes(
+         context = %ValidationContext{
+           genesis_address: genesis_address,
+           contract_context: contract_context
+         }
+       ) do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     context
@@ -414,7 +419,11 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         transaction_type: validated_tx.type
       )
     end)
-    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
+    |> P2P.broadcast_message(%ReplicateTransaction{
+      transaction: validated_tx,
+      contract_context: contract_context,
+      genesis_address: genesis_address
+    })
   end
 
   defp notify_previous_chain(
