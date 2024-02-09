@@ -5,9 +5,7 @@ defmodule Archethic.UTXOTest do
   alias Archethic.UTXO
   alias Archethic.UTXO.MemoryLedger
 
-  alias Archethic.Crypto
   alias Archethic.Election
-  alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.UnspentOutput

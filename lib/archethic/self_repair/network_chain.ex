@@ -60,8 +60,9 @@ defmodule Archethic.SelfRepair.NetworkChain do
         Task.Supervisor.async_stream_nolink(
           Archethic.TaskSupervisor,
           nodes_to_resync,
-          fn %Node{last_address: last_address} ->
-            SelfRepair.replicate_transaction(last_address)
+          fn %Node{first_public_key: first_public_key, last_address: last_address} ->
+            genesis_address = Crypto.derive_address(first_public_key)
+            SelfRepair.replicate_transaction(last_address, genesis_address)
           end,
           ordered: false,
           on_timeout: :kill_task,
@@ -77,12 +78,14 @@ defmodule Archethic.SelfRepair.NetworkChain do
   def synchronous_resync(type) do
     :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: type})
 
+    genesis_address = get_genesis_address(type)
+
     case verify_synchronization(type) do
       {:error, addresses} when is_list(addresses) ->
         Task.Supervisor.async_stream_nolink(
           Archethic.TaskSupervisor,
           addresses,
-          &SelfRepair.replicate_transaction(&1),
+          &SelfRepair.replicate_transaction(&1, genesis_address),
           ordered: false,
           on_timeout: :kill_task
         )
@@ -125,6 +128,11 @@ defmodule Archethic.SelfRepair.NetworkChain do
     last_schedule_date = OracleChain.get_last_scheduling_date(DateTime.utc_now())
     do_verify_synchronization(genesis_address, last_schedule_date)
   end
+
+  defp get_genesis_address(:oracle), do: OracleChain.genesis_address()
+
+  defp get_genesis_address(type) when type in [:origin, :node_shared_secrets],
+    do: SharedSecrets.genesis_address(type)
 
   defp do_verify_synchronization(nil, _), do: :ok
 
