@@ -264,7 +264,7 @@ defmodule Archethic.SelfRepair do
 
         update_last_address(address, authorized_nodes)
       else
-        Replication.synchronize_io_transaction(tx, self_repair?: true)
+        Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)
       end
     else
       true -> {:error, :transaction_already_exists}

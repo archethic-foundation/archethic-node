@@ -147,29 +147,25 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
     verify_transaction(attestation, tx)
 
     node_list = [P2P.get_node_info() | node_list] |> P2P.distinct_nodes()
-
-    last_chain_node? =
-      Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list)
-
-    io_movement_node? =
-      movements_addresses
-      |> Election.io_storage_nodes(node_list)
-      |> Utils.key_in_node_list?(Crypto.first_node_public_key())
-
-    genesis_node? =
-      Election.chain_storage_node?(genesis_address, Crypto.first_node_public_key(), node_list)
+    node_public_key = Crypto.first_node_public_key()
 
     cond do
-      last_chain_node? ->
+      Election.chain_storage_node?(address, type, node_public_key, node_list) ->
         Replication.sync_transaction_chain(tx, genesis_address, node_list, self_repair?: true)
 
-      io_movement_node? or genesis_node? ->
-        Replication.synchronize_io_transaction(tx, self_repair?: true)
+      Election.chain_storage_node?(genesis_address, node_public_key, node_list) ->
+        Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)
+
+      io_node?(movements_addresses, node_public_key, node_list) ->
+        Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)
 
       true ->
         :ok
     end
   end
+
+  defp io_node?(addresses, node_public_key, nodes),
+    do: addresses |> Election.io_storage_nodes(nodes) |> Utils.key_in_node_list?(node_public_key)
 
   defp verify_transaction(
          attestation = %ReplicationAttestation{version: 1},
