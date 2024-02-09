@@ -38,7 +38,7 @@ defmodule Archethic.SelfRepair.RepairWorker do
             NotifierSupervisor,
             {__MODULE__,
              [
-               first_address: genesis_address,
+               genesis_address: genesis_address,
                storage_addresses: storage_addresses,
                io_addresses: io_addresses
              ]}
@@ -49,21 +49,22 @@ defmodule Archethic.SelfRepair.RepairWorker do
   end
 
   def init(args) do
-    first_address = Keyword.fetch!(args, :first_address)
+    genesis_address = Keyword.fetch!(args, :genesis_address)
     storage_addresses = Keyword.fetch!(args, :storage_addresses)
     io_addresses = Keyword.fetch!(args, :io_addresses)
 
-    Registry.register(RepairRegistry, first_address, [])
+    Registry.register(RepairRegistry, genesis_address, [])
 
     Logger.info(
       "Notifier Repair Worker start with storage_addresses #{Enum.map_join(storage_addresses, ", ", &Base.encode16(&1))}, " <>
         "io_addresses #{inspect(Enum.map(io_addresses, &Base.encode16(&1)))}",
-      address: Base.encode16(first_address)
+      address: Base.encode16(genesis_address)
     )
 
     data = %{
       storage_addresses: storage_addresses,
-      io_addresses: io_addresses
+      io_addresses: io_addresses,
+      genesis_address: genesis_address
     }
 
     {:ok, start_repair(data)}
@@ -104,10 +105,11 @@ defmodule Archethic.SelfRepair.RepairWorker do
   defp start_repair(
          data = %{
            storage_addresses: [],
-           io_addresses: [address | rest]
+           io_addresses: [address | rest],
+           genesis_address: genesis_address
          }
        ) do
-    pid = repair_task(address, false)
+    pid = repair_task(address, genesis_address, false)
 
     data
     |> Map.put(:io_addresses, rest)
@@ -116,20 +118,21 @@ defmodule Archethic.SelfRepair.RepairWorker do
 
   defp start_repair(
          data = %{
-           storage_addresses: [address | rest]
+           storage_addresses: [address | rest],
+           genesis_address: genesis_address
          }
        ) do
-    pid = repair_task(address, true)
+    pid = repair_task(address, genesis_address, true)
 
     data
     |> Map.put(:storage_addresses, rest)
     |> Map.put(:task, pid)
   end
 
-  defp repair_task(address, storage?) do
+  defp repair_task(address, genesis_address, storage?) do
     %Task{pid: pid} =
       Task.async(fn ->
-        SelfRepair.replicate_transaction(address, storage?)
+        SelfRepair.replicate_transaction(address, genesis_address, storage?)
       end)
 
     pid

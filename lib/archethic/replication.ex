@@ -112,13 +112,19 @@ defmodule Archethic.Replication do
   @doc """
   Replicate and store the transaction chain from the transaction cached in the pool
   """
-  @spec sync_transaction_chain(Transaction.t(), list(Node.t()), opts :: sync_options()) :: :ok
+  @spec sync_transaction_chain(
+          tx :: Transaction.t(),
+          genesis_address :: Crypto.prepended_hash(),
+          nodes :: list(Node.t()),
+          opts :: sync_options()
+        ) :: :ok
   def sync_transaction_chain(
         tx = %Transaction{
           address: address,
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
+        _genesis_address,
         download_nodes \\ P2P.authorized_and_available_nodes(),
         opts \\ []
       ) do
@@ -179,16 +185,18 @@ defmodule Archethic.Replication do
   """
   @spec validate_and_store_transaction_chain(
           validated_tx :: Transaction.t(),
-          contract_context :: nil | Contract.Context.t()
+          contract_context :: nil | Contract.Context.t(),
+          genesis_address :: Crypto.prepended_hash()
         ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
   def validate_and_store_transaction_chain(
         tx = %Transaction{address: address, type: type},
-        contract_context
+        contract_context,
+        genesis_address
       ) do
     case validate_transaction(tx, contract_context) do
       :ok ->
-        sync_transaction_chain(tx)
+        sync_transaction_chain(tx, genesis_address)
 
       {:error, reason} ->
         Logger.warning("Invalid transaction for replication - #{inspect(reason)}",

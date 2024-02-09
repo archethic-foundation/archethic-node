@@ -18,6 +18,8 @@ defmodule Archethic.SelfRepairTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
 
+  alias Archethic.TransactionFactory
+
   import ArchethicCase
   import Mox
   import Mock
@@ -91,17 +93,16 @@ defmodule Archethic.SelfRepairTest do
     end
 
     test "should replicate a new transaction" do
-      address = random_address()
+      tx = %Transaction{address: address} = TransactionFactory.create_valid_transaction()
+      genesis_address = Transaction.previous_address(tx)
 
       MockClient
-      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ ->
-        {:ok, %Transaction{address: address}}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ -> {:ok, tx} end)
 
-      with_mock(Replication, sync_transaction_chain: fn _, _, _ -> :ok end) do
-        assert :ok = SelfRepair.replicate_transaction(address, true)
+      with_mock(Replication, sync_transaction_chain: fn _, _, _, _ -> :ok end) do
+        assert :ok = SelfRepair.replicate_transaction(address, genesis_address, true)
 
-        assert_called(Replication.sync_transaction_chain(:_, :_, :_))
+        assert_called(Replication.sync_transaction_chain(:_, genesis_address, :_, :_))
       end
     end
 
@@ -132,23 +133,15 @@ defmodule Archethic.SelfRepairTest do
     end
 
     test "should replicate a new transaction" do
-      address = random_address()
+      tx = %Transaction{address: address} = TransactionFactory.create_valid_transaction()
+      genesis_address = Transaction.previous_address(tx)
 
       MockClient
-      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ ->
-        {:ok,
-         %Transaction{
-           address: address,
-           type: :transfer,
-           validation_stamp: %ValidationStamp{
-             timestamp: ~U[2023-04-01 00:00:00Z]
-           }
-         }}
-      end)
+      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ -> {:ok, tx} end)
 
-      with_mock(Replication, synchronize_io_transaction: fn _, _ -> :ok end) do
-        assert :ok = SelfRepair.replicate_transaction(address, false)
-        assert_called(Replication.synchronize_io_transaction(:_, :_))
+      with_mock(Replication, synchronize_io_transaction: fn _, _, _ -> :ok end) do
+        assert :ok = SelfRepair.replicate_transaction(address, genesis_address, false)
+        assert_called(Replication.synchronize_io_transaction(:_, genesis_address, :_))
       end
     end
 

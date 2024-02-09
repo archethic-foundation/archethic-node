@@ -221,6 +221,7 @@ defmodule Archethic.ReplicationTest do
 
     p2p_context()
     tx = TransactionFactory.create_valid_transaction(unspent_outputs)
+    genesis_address = Transaction.previous_address(tx)
 
     MockDB
     |> expect(:write_transaction, fn ^tx, _ ->
@@ -262,7 +263,7 @@ defmodule Archethic.ReplicationTest do
         {:ok, %NotFound{}}
     end)
 
-    assert :ok = Replication.validate_and_store_transaction_chain(tx, nil)
+    assert :ok = Replication.validate_and_store_transaction_chain(tx, nil, genesis_address)
     assert_receive :replicated
   end
 

@@ -273,12 +273,12 @@ defmodule Archethic.Bootstrap do
 
     Crypto.set_node_key_index(length)
 
+    node_genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
+
     reward_address =
       if length > 0 do
         {:ok, last_address} =
-          Crypto.first_node_public_key()
-          |> Crypto.derive_address()
-          |> TransactionChain.fetch_last_address(closest_bootstrapping_nodes)
+          TransactionChain.fetch_last_address(node_genesis_address, closest_bootstrapping_nodes)
 
         {:ok, %Transaction{data: %TransactionData{content: content}}} =
           TransactionChain.fetch_transaction(last_address, closest_bootstrapping_nodes)
@@ -298,7 +298,11 @@ defmodule Archethic.Bootstrap do
 
     :ok = Sync.load_storage_nonce(closest_bootstrapping_nodes)
 
-    Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
+    Replication.sync_transaction_chain(
+      validated_tx,
+      node_genesis_address,
+      closest_bootstrapping_nodes
+    )
   end
 
   defp update_node(_ip, _port, _http_port, _transport, [], _reward_address) do
@@ -317,7 +321,13 @@ defmodule Archethic.Bootstrap do
 
     {:ok, validated_tx} = TransactionHandler.send_transaction(tx, closest_bootstrapping_nodes)
 
-    Replication.sync_transaction_chain(validated_tx, closest_bootstrapping_nodes)
+    node_genesis_address = Crypto.first_node_public_key() |> Crypto.derive_address()
+
+    Replication.sync_transaction_chain(
+      validated_tx,
+      node_genesis_address,
+      closest_bootstrapping_nodes
+    )
   end
 
   @doc """
