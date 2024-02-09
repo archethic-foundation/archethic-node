@@ -161,7 +161,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
 
     cond do
       last_chain_node? ->
-        Replication.sync_transaction_chain(tx, node_list, self_repair?: true)
+        Replication.sync_transaction_chain(tx, genesis_address, node_list, self_repair?: true)
 
       io_movement_node? or genesis_node? ->
         Replication.synchronize_io_transaction(tx, self_repair?: true)
