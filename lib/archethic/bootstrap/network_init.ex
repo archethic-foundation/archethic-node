@@ -221,9 +221,10 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
   @spec self_replication(Transaction.t()) :: :ok
   def self_replication(tx = %Transaction{}) do
-    :ok = Replication.sync_transaction_chain(tx)
-
     genesis_address = Transaction.previous_address(tx)
+
+    :ok = Replication.sync_transaction_chain(tx, genesis_address)
+
     tx_summary = TransactionSummary.from_transaction(tx, genesis_address)
 
     attestation = %ReplicationAttestation{

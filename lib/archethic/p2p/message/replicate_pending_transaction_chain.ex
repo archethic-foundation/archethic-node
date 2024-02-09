@@ -27,12 +27,13 @@ defmodule Archethic.P2P.Message.ReplicatePendingTransactionChain do
         Task.Supervisor.start_child(TaskSupervisor, fn ->
           authorized_nodes = P2P.authorized_and_available_nodes(validation_time)
 
-          Replication.sync_transaction_chain(tx, authorized_nodes)
+          Replication.sync_transaction_chain(tx, genesis_address, authorized_nodes)
           tx_summary = TransactionSummary.from_transaction(tx, genesis_address)
 
           ack = %AcknowledgeStorage{
-            address: tx.address,
-            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+            address: address,
+            signature:
+              tx_summary |> TransactionSummary.serialize() |> Crypto.sign_with_first_node_key()
           }
 
           P2P.send_message(sender_public_key, ack)
