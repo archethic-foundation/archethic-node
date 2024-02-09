@@ -44,7 +44,7 @@ defmodule Archethic.P2P.Message.ReplicateTransaction do
 
       cond do
         Transaction.network_type?(type) ->
-          Replication.validate_and_store_transaction_chain(tx, contract_context)
+          Replication.validate_and_store_transaction_chain(tx, contract_context, genesis_address)
 
         Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes) ->
           Replication.validate_and_store_transaction(tx)
