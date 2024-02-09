@@ -309,7 +309,7 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
     Task.Supervisor.async_nolink(
       TaskSupervisor,
       fn ->
-        assigns = [token_properties: get_token_properties(token_addresses)]
+        assigns = [token_properties: WebUtils.get_token_properties(token_addresses)]
 
         send(pid, {:async_assign, assigns})
       end,
@@ -349,37 +349,6 @@ defmodule ArchethicWeb.Explorer.TransactionDetailsLive do
   end
 
   defp get_token_addresses(acc, []), do: acc
-
-  defp get_token_properties(token_addresses) do
-    Task.async_stream(token_addresses, fn token_address ->
-      case Archethic.search_transaction(token_address) do
-        {:ok, %Transaction{data: %TransactionData{content: content}, type: type}}
-        when type in [:token, :mint_rewards] ->
-          {token_address, content}
-
-        _ ->
-          :error
-      end
-    end)
-    |> Enum.reduce(%{}, fn
-      {:ok, {token_address, content}}, acc ->
-        case Jason.decode(content) do
-          {:ok, map} ->
-            properties = %{
-              decimals: Map.get(map, "decimals", 8),
-              symbol: Map.get(map, "symbol", Map.get(map, "name"))
-            }
-
-            Map.put(acc, token_address, properties)
-
-          _ ->
-            acc
-        end
-
-      _, acc ->
-        acc
-    end)
-  end
 
   defp handle_invalid_address(socket, address) do
     socket

@@ -1,71 +1,98 @@
 <div class="body">
   <div class="text_title">Transaction chain</div>
-  <div class="text_subtitle">Explore the transactions of a single chain.</div>
+  <%= cond do %>
+    <% assigns[:genesis_address] == nil -> %>
+      <div class="text_subtitle">Explore the transactions of a single chain.</div>
+      <form
+        action={Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive)}
+        class="form-container"
+      >
+        <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
 
-  <form
-    action={Routes.live_path(@socket, ArchethicWeb.Explorer.TransactionChainLive)}
-    class="form-container"
-  >
-    <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
-
-    <div class="level">
-      <div class="level-left">
-        <div class="level-item">
-          <input
-            id="address"
-            name="address"
-            class="input-field"
-            type="text"
-            maxlength="68"
-            placeholder="Enter transaction address"
-            required
-            value={@address}
-          />
-
-          <%= if assigns[:error] != nil do %>
-            <p class="help is-danger"><%= @error %></p>
-          <% end %>
+        <div class="level">
+          <div class="level-left">
+            <div class="level-item">
+              <input
+                id="address"
+                name="address"
+                class="input-field"
+                type="text"
+                maxlength="68"
+                placeholder="Enter transaction address"
+                required
+                value={
+                  if assigns[:address] do
+                    Base.encode16(@address)
+                  else
+                    ""
+                  end
+                }
+              />
+            </div>
+            <div class="level-item">
+              <button type="submit" class="app-button shadow">Search</button>
+            </div>
+          </div>
         </div>
-        <div class="level-item">
-          <button type="submit" class="app-button shadow">Search</button>
-        </div>
-      </div>
-    </div>
-  </form>
+      </form>
+    <% true -> %>
+      <div class="text_subtitle mono"><%= Base.encode16(@genesis_address) %></div>
+  <% end %>
 </div>
 
-<%= if @address != "" and assigns[:error] == nil do %>
-  <%= if Enum.count(@transaction_chain) == 0 do %>
+<%= cond do %>
+  <% assigns[:error] != nil -> %>
     <div class="ae-box ae-purple shadow">
-      <p class="heading">No transaction yet existing for this chain</p>
+      <p class="help is-danger"><%= @error %></p>
     </div>
-  <% else %>
-    <div class="columns">
-      <div class="column">
-        <div class="box1 my-4 has-text-centered">
-          <h1>Transactions count</h1>
-          <h2><%= @chain_size %></h2>
-        </div>
-      </div>
-      <div class="column">
-        <div class="box2 my-4 has-text-centered">
-          <h1>UCO Balance</h1>
-          <h2>
-            <%= from_bigint(@uco_balance) %> UCO
-            <%= if @uco_balance > 0 do %>
-              (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
-            <% end %>
-          </h2>
-        </div>
+  <% assigns[:address] == nil -> %>
+    <div></div>
+  <% true -> %>
+    <div class="my-4 is-size-4">
+      <%= case Enum.count(@chain_utxos) do %>
+        <% 0 -> %>
+          0 unspent output
+        <% 1 -> %>
+          1 unspent output
+        <% n -> %>
+          <%= n %> unspent outputs
+      <% end %>
+    </div>
+
+    <div class="ae-box ae-purple shadow">
+      <div class="pt-2">
+        <UnspentOutputList.display_all
+          utxos={@chain_utxos}
+          socket={@socket}
+          uco_price_now={@uco_price_now}
+          token_properties={@token_properties}
+          display_status?={false}
+        />
       </div>
     </div>
 
-    <TransactionsList.display_all
-      transactions={@transaction_chain}
-      page={@page}
-      total={@chain_size}
-      socket={@socket}
-      uco_price_now={@uco_price}
-    />
-  <% end %>
+    <div class="my-4 is-size-4">
+      <%= case @chain_size do %>
+        <% 0 -> %>
+          0 transaction
+        <% 1 -> %>
+          1 transaction
+        <% n -> %>
+          <%= n %> transactions
+      <% end %>
+    </div>
+
+    <%= if @chain_size == 0 do %>
+      <div class="ae-box ae-purple shadow">
+        <p class="heading">No transaction yet existing for this chain</p>
+      </div>
+    <% else %>
+      <TransactionsList.display_all
+        transactions={@chain_txs}
+        page={@page}
+        total={@chain_size}
+        socket={@socket}
+        uco_price_now={@uco_price_now}
+      />
+    <% end %>
 <% end %>
