@@ -158,19 +158,31 @@ defmodule Archethic.SelfRepair.Notifier do
       |> Enum.map(& &1.to)
       |> Enum.concat(recipients)
 
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
     # Before AEIP-21, resolve movements included only last addresses,
     # then we have to resolve the genesis address for all the movements
     resolved_addresses =
       if protocol_version <= 7 do
-        Task.async_stream(movements_addresses, fn address ->
-          {:ok, resolved_genesis_address} =
-            TransactionChain.fetch_genesis_address(address, P2P.authorized_and_available_nodes())
+        Task.async_stream(
+          movements_addresses,
+          fn address ->
+            storage_nodes = Election.chain_storage_nodes(address, authorized_nodes)
 
-          [address, resolved_genesis_address]
-        end)
+            {:ok, resolved_genesis_address} =
+              TransactionChain.fetch_genesis_address(
+                address,
+                storage_nodes
+              )
+
+            [address, resolved_genesis_address]
+          end,
+          on_timeout: :kill_task,
+          max_concurrency: length(movements_addresses)
+        )
         |> Stream.filter(&match?({:ok, _}, &1))
-        |> Stream.flat_map(& &1)
-        |> Enum.reduce([genesis_address], &[&1 | &2])
+        |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
+        |> Enum.concat([genesis_address])
       else
         [genesis_address | movements_addresses]
       end

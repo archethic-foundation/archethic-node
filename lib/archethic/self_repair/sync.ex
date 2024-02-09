@@ -414,21 +414,32 @@ defmodule Archethic.SelfRepair.Sync do
 
   defp consolidate_recipients(
          attestation = %ReplicationAttestation{
-           transaction_summary: tx_summary = %TransactionSummary{
-             version: 1,
-             movements_addresses: movements_addresses
-           }
+           transaction_summary:
+             tx_summary = %TransactionSummary{
+               version: 1,
+               movements_addresses: movements_addresses
+             }
          },
-         %Transaction{validation_stamp: %ValidationStamp{recipients: recipients}}
+         %Transaction{validation_stamp: %ValidationStamp{recipients: recipients = [_ | _]}}
        ) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
     consolidated_movements_addresses =
       recipients
-      |> Task.async_stream(fn recipient ->
-        {:ok, genesis_address} = TransactionChain.fetch_genesis_address(recipient, P2P.authorized_and_available_nodes())
-        [recipient, genesis_address]
-      end)
+      |> Task.async_stream(
+        fn recipient ->
+          genesis_nodes = Election.chain_storage_nodes(recipient, authorized_nodes)
+
+          {:ok, genesis_address} =
+            TransactionChain.fetch_genesis_address(recipient, genesis_nodes)
+
+          [recipient, genesis_address]
+        end,
+        on_timeout: :kill_task,
+        max_concurrency: length(recipients)
+      )
       |> Stream.filter(&match?({:ok, _}, &1))
-      |> Stream.flat_map(& &1)
+      |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
       |> Enum.concat(movements_addresses)
 
     adjusted_summary = %{tx_summary | movements_addresses: consolidated_movements_addresses}

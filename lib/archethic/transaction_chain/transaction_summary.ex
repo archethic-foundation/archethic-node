@@ -234,28 +234,35 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   """
   @spec resolve_movements_addresses(t(), list(Node.t())) :: Enumerable.t() | list(binary())
   def resolve_movements_addresses(
-        %__MODULE__{movements_addresses: addresses, version: version},
+        %__MODULE__{movements_addresses: addresses = [_ | _], version: version},
         node_list
       )
       when version <= 2 do
     addresses
-    |> Task.async_stream(fn address ->
-      storage_nodes = Election.chain_storage_nodes(address, node_list)
+    |> Task.async_stream(
+      fn address ->
+        storage_nodes = Election.chain_storage_nodes(address, node_list)
 
-      case TransactionChain.fetch_genesis_address(address, storage_nodes) do
-        {:ok, genesis_address} ->
-          [genesis_address, address]
+        case TransactionChain.fetch_genesis_address(address, storage_nodes) do
+          {:ok, genesis_address} ->
+            [genesis_address, address]
 
-        _ ->
-          [address]
-      end
-    end)
+          _ ->
+            [address]
+        end
+      end,
+      on_timeout: :kill_task,
+      max_concurrency: length(addresses)
+    )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.flat_map(fn {:ok, res} -> res end)
   end
 
-  def resolve_movements_addresses(%__MODULE__{movements_addresses: movements_addresses}),
-    do: movements_addresses
+  def resolve_movements_addresses(
+        %__MODULE__{movements_addresses: movements_addresses},
+        _node_list
+      ),
+      do: movements_addresses
 
   def equals?(
         _comparand = %__MODULE__{
