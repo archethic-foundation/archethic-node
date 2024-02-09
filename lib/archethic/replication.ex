@@ -213,9 +213,17 @@ defmodule Archethic.Replication do
 
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
   """
-  @spec validate_and_store_transaction(Transaction.t(), opts :: sync_options()) ::
+  @spec validate_and_store_transaction(
+          tx :: Transaction.t(),
+          genesis_address :: Crypto.prepended_hash(),
+          opts :: sync_options()
+        ) ::
           :ok | {:error, TransactionValidator.error()} | {:error, :transaction_already_exists}
-  def validate_and_store_transaction(tx = %Transaction{address: address, type: type}, opts \\ [])
+  def validate_and_store_transaction(
+        tx = %Transaction{address: address, type: type},
+        genesis_address,
+        opts \\ []
+      )
       when is_list(opts) do
     if TransactionChain.transaction_exists?(address, :io) do
       Logger.warning("Transaction already exists",
@@ -234,7 +242,7 @@ defmodule Archethic.Replication do
 
       case TransactionValidator.validate(tx) do
         :ok ->
-          synchronize_io_transaction(tx, opts)
+          synchronize_io_transaction(tx, genesis_address, opts)
 
           :telemetry.execute(
             [:archethic, :replication, :validation],
@@ -262,13 +270,18 @@ defmodule Archethic.Replication do
   @doc """
   Synchronize an io transaction into DB an memory table
   """
-  @spec synchronize_io_transaction(Transaction.t(), opts :: sync_options()) :: :ok
+  @spec synchronize_io_transaction(
+          tx :: Transaction.t(),
+          genesis_address :: Crypto.prepended_hash(),
+          opts :: sync_options()
+        ) :: :ok
   def synchronize_io_transaction(
         tx = %Transaction{
           address: address,
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
+        _genesis_address,
         opts \\ []
       )
       when is_list(opts) do
