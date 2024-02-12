@@ -60,10 +60,7 @@ defmodule Archethic.UTXOTest do
       }
 
       MockDB
-      |> stub(:get_genesis_address, fn
-        ^destination_address -> destination_genesis_address
-        addr -> addr
-      end)
+      |> expect(:get_genesis_address, fn ^destination_address -> destination_genesis_address end)
 
       me = self()
 
@@ -72,16 +69,13 @@ defmodule Archethic.UTXOTest do
         send(me, {:append_utxo, genesis_address, utxo})
       end)
 
-      with_mock(Election,
-        chain_storage_nodes: fn
-          ^destination_genesis_address, _ ->
-            [%Node{first_public_key: Crypto.first_node_public_key()}]
-
-          _, _ ->
-            []
+      with_mock(Election, [:passthrough],
+        chain_storage_node?: fn
+          ^destination_genesis_address, _, _ -> true
+          _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx)
+        UTXO.load_transaction(tx, transaction_genesis_address)
 
         assert [
                  %VersionedUnspentOutput{
@@ -148,10 +142,7 @@ defmodule Archethic.UTXOTest do
       }
 
       MockDB
-      |> stub(:find_genesis_address, fn
-        ^transaction_address -> {:ok, transaction_genesis_address}
-        _addr -> {:error, :not_found}
-      end)
+      |> expect(:get_genesis_address, fn ^destination_address -> destination_genesis_address end)
 
       me = self()
 
@@ -160,16 +151,13 @@ defmodule Archethic.UTXOTest do
         send(me, {:flush_outputs, genesis_address, utxos})
       end)
 
-      with_mock(Election,
-        chain_storage_nodes: fn
-          ^transaction_genesis_address, _ ->
-            [%Node{first_public_key: Crypto.first_node_public_key()}]
-
-          _, _ ->
-            []
+      with_mock(Election, [:passthrough],
+        chain_storage_node?: fn
+          ^transaction_genesis_address, _, _ -> true
+          _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx)
+        UTXO.load_transaction(tx, transaction_genesis_address)
 
         assert [
                  %VersionedUnspentOutput{
@@ -273,14 +261,9 @@ defmodule Archethic.UTXOTest do
       }
 
       MockDB
-      |> stub(:get_genesis_address, fn
+      |> expect(:get_genesis_address, 2, fn
         ^destination_address -> destination_genesis_address
-        ^transaction_address -> transaction_genesis_address
         ^transaction_previous_address -> transaction_genesis_address
-      end)
-      |> stub(:find_genesis_address, fn
-        ^transaction_address -> {:ok, transaction_genesis_address}
-        _addr -> {:error, :not_found}
       end)
 
       me = self()
@@ -293,16 +276,13 @@ defmodule Archethic.UTXOTest do
         send(me, {:flush_outputs, genesis_address, outputs})
       end)
 
-      with_mock(Election,
-        chain_storage_nodes: fn
-          ^transaction_genesis_address, _ ->
-            [%Node{first_public_key: Crypto.first_node_public_key()}]
-
-          _, _ ->
-            []
+      with_mock(Election, [:passthrough],
+        chain_storage_node?: fn
+          ^transaction_genesis_address, _, _ -> true
+          _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx1)
+        UTXO.load_transaction(tx1, destination_genesis_address)
 
         assert [
                  %VersionedUnspentOutput{
@@ -318,7 +298,7 @@ defmodule Archethic.UTXOTest do
                  |> MemoryLedger.stream_unspent_outputs()
                  |> Enum.to_list()
 
-        UTXO.load_transaction(tx2)
+        UTXO.load_transaction(tx2, transaction_genesis_address)
 
         assert [
                  %VersionedUnspentOutput{
@@ -341,6 +321,7 @@ defmodule Archethic.UTXOTest do
       destination_genesis_address = random_address()
 
       transaction_address = random_address()
+      transaction_genesis_address = random_address()
 
       tx = %Transaction{
         address: transaction_address,
@@ -354,10 +335,7 @@ defmodule Archethic.UTXOTest do
       }
 
       MockDB
-      |> stub(:get_genesis_address, fn
-        ^destination_address -> destination_genesis_address
-        addr -> addr
-      end)
+      |> expect(:get_genesis_address, fn ^destination_address -> destination_genesis_address end)
 
       me = self()
 
@@ -366,16 +344,13 @@ defmodule Archethic.UTXOTest do
         send(me, {:append_utxo, genesis_address, utxo})
       end)
 
-      with_mock(Election,
-        chain_storage_nodes: fn
-          ^destination_genesis_address, _ ->
-            [%Node{first_public_key: Crypto.first_node_public_key()}]
-
-          _, _ ->
-            []
+      with_mock(Election, [:passthrough],
+        chain_storage_node?: fn
+          ^destination_genesis_address, _, _ -> true
+          _, _, _ -> false
         end
       ) do
-        UTXO.load_transaction(tx)
+        UTXO.load_transaction(tx, transaction_genesis_address)
 
         assert [
                  %VersionedUnspentOutput{
