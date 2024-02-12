@@ -124,7 +124,7 @@ defmodule Archethic.Replication do
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        _genesis_address,
+        genesis_address,
         download_nodes \\ P2P.authorized_and_available_nodes(),
         opts \\ []
       ) do
@@ -147,18 +147,15 @@ defmodule Archethic.Replication do
       ingest? =
         if Transaction.network_type?(type),
           do: true,
-          else:
-            address
-            |> Election.chain_storage_nodes(download_nodes)
-            |> Utils.key_in_node_list?(first_node_key)
+          else: Election.chain_storage_node?(address, first_node_key, download_nodes)
 
-      if ingest?, do: ingest_transaction(tx, ingest_opts)
+      if ingest?, do: ingest_transaction(tx, genesis_address, ingest_opts)
     end)
     |> Stream.run()
 
     TransactionChain.write_transaction(tx)
 
-    :ok = ingest_transaction(tx, ingest_opts)
+    :ok = ingest_transaction(tx, genesis_address, ingest_opts)
 
     Logger.info("Replication finished",
       transaction_address: Base.encode16(address),
@@ -281,12 +278,12 @@ defmodule Archethic.Replication do
           type: type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
-        _genesis_address,
+        genesis_address,
         opts \\ []
       )
       when is_list(opts) do
     :ok = TransactionChain.write_transaction(tx, :io)
-    ingest_transaction(tx, Keyword.put(opts, :io_transaction?, true))
+    ingest_transaction(tx, genesis_address, Keyword.put(opts, :io_transaction?, true))
 
     Logger.info("Replication finished",
       transaction_address: Base.encode16(address),
@@ -571,8 +568,12 @@ defmodule Archethic.Replication do
   - Transactions with smart contract deploy instances of them or can put in pending state waiting approval signatures
   - Code approval transactions may trigger the TestNets deployments or hot-reloads
   """
-  @spec ingest_transaction(Transaction.t(), opts :: ingest_options()) :: :ok
-  def ingest_transaction(tx = %Transaction{}, opts \\ []) when is_list(opts) do
+  @spec ingest_transaction(
+          tx :: Transaction.t(),
+          genesis_address :: Crypto.prepended_hash(),
+          opts :: ingest_options()
+        ) :: :ok
+  def ingest_transaction(tx = %Transaction{}, genesis_address, opts \\ []) when is_list(opts) do
     io_transaction? = Keyword.get(opts, :io_transaction?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
 
@@ -582,7 +583,7 @@ defmodule Archethic.Replication do
     P2P.load_transaction(tx)
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx, io_transaction?: io_transaction?)
-    UTXO.load_transaction(tx)
+    UTXO.load_transaction(tx, genesis_address)
 
     Contracts.load_transaction(tx,
       execute_contract?: not self_repair?,
