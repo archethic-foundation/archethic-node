@@ -387,6 +387,12 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
   defp read_transaction(fd, fields, limit, position, acc \\ %{})
 
+  # this prevent an infinite loop in case of corrupted file
+  defp read_transaction(fd, _fields, 0, _position, _acc) do
+    {:ok, filename} = :file.pid2name(fd)
+    raise %RuntimeError{message: "Corrupted file: #{filename}"}
+  end
+
   defp read_transaction(_fd, _fields, limit, position, acc) when limit == position, do: acc
 
   defp read_transaction(fd, fields, limit, position, acc) do
