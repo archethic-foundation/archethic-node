@@ -287,10 +287,12 @@ defmodule Archethic.TransactionChain.TransactionSummary do
     # because some will included resolve movements address with or without genesis addresses
     # Hence we have to find a common factor as the comparand transaction summary movements addresses coming from the transaction's stamp
 
-    movements_addresses1
+    mapset_addresses1 = MapSet.new(movements_addresses1)
+
+    movements_addresses2
     |> MapSet.new()
-    |> MapSet.intersection(MapSet.new(movements_addresses2))
-    |> MapSet.to_list() == movements_addresses1
+    |> MapSet.intersection(mapset_addresses1)
+    |> MapSet.equal?(mapset_addresses1)
   end
 
   def equals?(tx_summary1, tx_summary2), do: tx_summary1 == tx_summary2
