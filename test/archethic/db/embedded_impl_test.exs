@@ -719,6 +719,95 @@ defmodule Archethic.DB.EmbeddedTest do
 
       types = EmbeddedImpl.list_transactions([:type]) |> Enum.map(& &1.type)
       assert Enum.all?(types, &(&1 in [:node, :transfer, :oracle]))
+      assert 3 == Enum.count(types)
+    end
+  end
+
+  describe "stream_chain" do
+    test "should stream all the transactions" do
+      seed = "seed"
+
+      genesis_address =
+        Crypto.derive_keypair(seed, 0)
+        |> elem(0)
+        |> Crypto.derive_address()
+
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 0,
+          type: :node,
+          timestamp: ~U[2020-03-30 10:13:00.000Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 1,
+          type: :transfer,
+          timestamp: ~U[2020-04-02 10:13:00.000Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 2,
+          type: :oracle,
+          timestamp: ~U[2020-04-10 10:13:00.000Z]
+        )
+
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.write_transaction(tx2)
+      EmbeddedImpl.write_transaction(tx3)
+
+      assert [^tx1, ^tx2, ^tx3] = EmbeddedImpl.stream_chain(genesis_address, []) |> Enum.to_list()
+    end
+
+    test "should raise on corrupted data that could have triggered infinite loop", %{
+      db_path: db_path
+    } do
+      seed = "seed"
+
+      genesis_address =
+        Crypto.derive_keypair(seed, 0)
+        |> elem(0)
+        |> Crypto.derive_address()
+
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 0,
+          type: :node,
+          timestamp: ~U[2020-03-30 10:13:00.000Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 1,
+          type: :transfer,
+          timestamp: ~U[2020-04-02 10:13:00.000Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          seed: seed,
+          index: 2,
+          type: :oracle,
+          timestamp: ~U[2020-04-10 10:13:00.000Z]
+        )
+
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.write_transaction(tx2)
+      EmbeddedImpl.write_transaction(tx3)
+
+      # insert corruption
+      filepath = ChainWriter.chain_path(db_path, genesis_address)
+      File.write(filepath, <<0::64>>, [:append])
+
+      assert_raise(RuntimeError, fn ->
+        EmbeddedImpl.stream_chain(genesis_address, []) |> Enum.to_list()
+      end)
     end
   end
 
