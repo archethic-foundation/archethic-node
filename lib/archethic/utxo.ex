@@ -1,6 +1,5 @@
 defmodule Archethic.UTXO do
   @moduledoc false
-  alias Archethic.DB
 
   alias Archethic.Crypto
 
@@ -8,6 +7,7 @@ defmodule Archethic.UTXO do
 
   alias Archethic.P2P
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
@@ -17,8 +17,6 @@ defmodule Archethic.UTXO do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.VersionedUnspentOutput
-
-  alias Archethic.Utils
 
   alias Archethic.UTXO.DBLedger
   alias Archethic.UTXO.Loader
@@ -34,9 +32,14 @@ defmodule Archethic.UTXO do
     authorized_nodes = P2P.authorized_and_available_nodes()
     node_public_key = Crypto.first_node_public_key()
 
+    # TODO: After AEIP-21 phase 2, protocol_version <= 7 will come only from self repair or notifier
+    # Self repair is already resolvong the genesis addresses. We should find a way to avoid resolving
+    # the genesis addresses many times for the same transaction
+    tx = if protocol_version <= 7, do: resolve_io_genesis(tx, authorized_nodes), else: tx
+
     # Ingest all the movements and recipients to fill up the UTXO list
-    ingest_movements(tx, authorized_nodes)
-    ingest_recipients(tx, authorized_nodes)
+    ingest_movements(tx, node_public_key, authorized_nodes)
+    ingest_recipients(tx, node_public_key, authorized_nodes)
 
     # Consume the transaction to update the unspent outputs from the consumed inputs
     if Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes),
@@ -58,14 +61,13 @@ defmodule Archethic.UTXO do
              ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
            }
          },
+         node_public_key,
          authorized_nodes
        ) do
     transaction_movements
     |> consolidate_movements(protocol_version, tx_type)
     |> Enum.each(fn %TransactionMovement{to: to, amount: amount, type: type} ->
-      genesis_address = DB.get_genesis_address(to)
-
-      if genesis_node?(genesis_address, authorized_nodes) do
+      if Election.chain_storage_node?(to, node_public_key, authorized_nodes) do
         utxo = %VersionedUnspentOutput{
           unspent_output: %UnspentOutput{
             from: address,
@@ -76,7 +78,7 @@ defmodule Archethic.UTXO do
           protocol_version: protocol_version
         }
 
-        Loader.add_utxo(utxo, genesis_address)
+        Loader.add_utxo(utxo, to)
       end
     end)
   end
@@ -90,13 +92,12 @@ defmodule Archethic.UTXO do
              protocol_version: protocol_version
            }
          },
+         node_public_key,
          authorized_nodes
        ) do
     recipients
     |> Enum.each(fn recipient ->
-      genesis_address = DB.get_genesis_address(recipient)
-
-      if genesis_node?(genesis_address, authorized_nodes) do
+      if Election.chain_storage_node?(recipient, node_public_key, authorized_nodes) do
         utxo = %VersionedUnspentOutput{
           unspent_output: %UnspentOutput{
             from: address,
@@ -106,7 +107,7 @@ defmodule Archethic.UTXO do
           protocol_version: protocol_version
         }
 
-        Loader.add_utxo(utxo, genesis_address)
+        Loader.add_utxo(utxo, recipient)
       end
     end)
   end
@@ -121,10 +122,56 @@ defmodule Archethic.UTXO do
   defp consolidate_movements(transaction_movements, _protocol_version, _tx_type),
     do: transaction_movements
 
-  defp genesis_node?(genesis_address, nodes) do
-    genesis_nodes = Election.chain_storage_nodes(genesis_address, nodes)
-    Utils.key_in_node_list?(genesis_nodes, Crypto.first_node_public_key())
+  defp resolve_io_genesis(
+         tx = %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{transaction_movements: movements},
+             recipients: recipients
+           }
+         },
+         authorized_nodes
+       )
+       when length(movements) + length(recipients) > 0 do
+    resolved_addresses =
+      movements
+      |> Enum.map(& &1.to)
+      |> Enum.concat(recipients)
+      |> Task.async_stream(
+        fn address ->
+          nodes = Election.chain_storage_nodes(address, authorized_nodes)
+
+          case TransactionChain.fetch_genesis_address(address, nodes) do
+            {:ok, genesis} -> {address, genesis}
+            _ -> {address, address}
+          end
+        end,
+        on_timeout: :kill_task,
+        max_concurrency: length(movements) + length(recipients)
+      )
+      |> Enum.map(fn {:ok, addresses} -> addresses end)
+      |> Map.new()
+
+    tx
+    |> update_in(
+      [
+        Access.key!(:validation_stamp),
+        Access.key!(:ledger_operations),
+        Access.key!(:transaction_movements)
+      ],
+      fn movements ->
+        Enum.map(movements, &%TransactionMovement{&1 | to: Map.get(resolved_addresses, &1.to)})
+      end
+    )
+    |> update_in(
+      [
+        Access.key!(:validation_stamp),
+        Access.key!(:recipients)
+      ],
+      fn recipients -> Enum.map(recipients, &Map.get(resolved_addresses, &1)) end
+    )
   end
+
+  defp resolve_io_genesis(tx, _), do: tx
 
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
