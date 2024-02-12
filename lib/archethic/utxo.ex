@@ -26,16 +26,21 @@ defmodule Archethic.UTXO do
 
   require Logger
 
-  @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(tx = %Transaction{}) do
+  @spec load_transaction(tx :: Transaction.t(), genesis_address :: Crypto.prepended_hash()) :: :ok
+  def load_transaction(
+        tx = %Transaction{validation_stamp: %ValidationStamp{protocol_version: protocol_version}},
+        genesis_address
+      ) do
     authorized_nodes = P2P.authorized_and_available_nodes()
+    node_public_key = Crypto.first_node_public_key()
 
     # Ingest all the movements and recipients to fill up the UTXO list
     ingest_movements(tx, authorized_nodes)
     ingest_recipients(tx, authorized_nodes)
 
     # Consume the transaction to update the unspent outputs from the consumed inputs
-    consume_utxos(tx, authorized_nodes)
+    if Election.chain_storage_node?(genesis_address, node_public_key, authorized_nodes),
+      do: Loader.consume_inputs(tx, genesis_address)
 
     Logger.info("Loaded into in memory UTXO tables",
       transaction_address: Base.encode16(tx.address),
@@ -115,33 +120,6 @@ defmodule Archethic.UTXO do
 
   defp consolidate_movements(transaction_movements, _protocol_version, _tx_type),
     do: transaction_movements
-
-  defp consume_utxos(tx = %Transaction{}, authorized_nodes) do
-    case find_genesis_address(tx) do
-      {:ok, genesis_address} ->
-        if genesis_node?(genesis_address, authorized_nodes) do
-          Loader.consume_inputs(tx, genesis_address)
-        end
-
-      _ ->
-        # ignore if genesis's address is not found
-        :ok
-    end
-  end
-
-  defp find_genesis_address(tx = %Transaction{address: address}) do
-    case DB.find_genesis_address(address) do
-      {:ok, genesis_address} ->
-        # This happens when the last transaction is ingested in the system (i.e last's tx chain)
-        {:ok, genesis_address}
-
-      {:error, :not_found} ->
-        # This might happens when the transaction haven't been yet synchronized but the previous transaction is already in the system (i.e genesis's chain)
-        tx
-        |> Transaction.previous_address()
-        |> DB.find_genesis_address()
-    end
-  end
 
   defp genesis_node?(genesis_address, nodes) do
     genesis_nodes = Election.chain_storage_nodes(genesis_address, nodes)
