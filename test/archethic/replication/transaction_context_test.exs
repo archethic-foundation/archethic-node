@@ -1,5 +1,6 @@
 defmodule Archethic.Replication.TransactionContextTest do
   use ArchethicCase
+  import ArchethicCase
 
   alias Archethic.Account.MemTables.UCOLedger
 
@@ -22,8 +23,6 @@ defmodule Archethic.Replication.TransactionContextTest do
 
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.VersionedTransactionInput
-  alias Archethic.P2P.Message.GetGenesisAddress
-  alias Archethic.P2P.Message.GenesisAddress
 
   import Mox
 
@@ -49,32 +48,26 @@ defmodule Archethic.Replication.TransactionContextTest do
   end
 
   test "stream_transaction_chain/1 should retrieve the previous transaction chain" do
-    pub1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::bitstring>>
-    pub2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::bitstring>>
+    pub1 = random_public_key()
+    pub2 = random_public_key()
 
+    genesis = random_address()
     addr1 = Crypto.derive_address(pub1)
     addr2 = Crypto.derive_address(pub2)
 
     MockDB
-    |> stub(:get_last_chain_address_stored, fn _ -> addr1 end)
+    |> expect(:get_last_chain_address_stored, fn ^genesis -> addr1 end)
 
     MockClient
-    |> stub(:send_message, fn
-      _, %GetTransactionChain{address: ^addr2, paging_state: ^addr1}, _ ->
+    |> expect(:send_message, fn
+      _, %GetTransactionChain{address: ^genesis, paging_state: ^addr1}, _ ->
         {:ok,
          %TransactionList{
            transactions: [
-             %Transaction{
-               previous_public_key: pub1
-             },
-             %Transaction{
-               previous_public_key: pub2
-             }
+             %Transaction{previous_public_key: pub1},
+             %Transaction{previous_public_key: pub2}
            ]
          }}
-
-      _, %GetGenesisAddress{}, _ ->
-        {:ok, %GenesisAddress{address: "@Alice0", timestamp: DateTime.utc_now()}}
     end)
 
     P2P.add_and_connect_node(%Node{
@@ -90,14 +83,11 @@ defmodule Archethic.Replication.TransactionContextTest do
     })
 
     chain =
-      TransactionContext.stream_transaction_chain(addr2, P2P.authorized_and_available_nodes())
+      genesis
+      |> TransactionContext.stream_transaction_chain(addr2, P2P.authorized_and_available_nodes())
       |> Enum.to_list()
 
-    assert [
-             %Transaction{
-               previous_public_key: ^pub1
-             }
-           ] = chain
+    assert [%Transaction{previous_public_key: ^pub1}] = chain
   end
 
   test "fetch_transaction_inputs/2 should retrieve the inputs of a transaction at a given date" do
