@@ -361,7 +361,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
       type: :keychain,
       movements_addresses: [],
       fee: 0,
-      validation_stamp_checksum: :crypto.strong_rand_bytes(32)
+      validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+      genesis_address: ArchethicCase.random_address()
     }
 
     sig = tx_summary |> TransactionSummary.serialize() |> Crypto.sign_with_last_node_key()

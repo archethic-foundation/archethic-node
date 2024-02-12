@@ -30,6 +30,40 @@ defmodule Archethic.BeaconChain.SummaryAggregateTest do
     :ok
   end
 
+  test "symmetric serialization" do
+    summary_aggregate = %SummaryAggregate{
+      version: 1,
+      summary_time: ~U[2022-03-01 00:00:00Z],
+      replication_attestations: [
+        %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{
+            address: ArchethicCase.random_address(),
+            type: :transfer,
+            timestamp: ~U[2022-02-01 10:00:00.204Z],
+            fee: 10_000_000,
+            validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+            genesis_address: ArchethicCase.random_address()
+          },
+          confirmations: [{0, :crypto.strong_rand_bytes(32)}]
+        }
+      ],
+      p2p_availabilities: %{
+        <<0>> => %{
+          node_availabilities: <<1::1, 0::1, 1::1>>,
+          node_average_availabilities: [0.5, 0.7, 0.8],
+          end_of_node_synchronizations: [ArchethicCase.random_public_key()],
+          network_patches: ["ABC", "DEF"]
+        }
+      },
+      availability_adding_time: 900
+    }
+
+    {^summary_aggregate, _} =
+      summary_aggregate
+      |> SummaryAggregate.serialize()
+      |> SummaryAggregate.deserialize()
+  end
+
   describe "aggregate/1" do
     test "should aggregate multiple network patches into a single one" do
       assert %SummaryAggregate{

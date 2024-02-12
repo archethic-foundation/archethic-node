@@ -11,6 +11,7 @@ defmodule Archethic.Mining.ValidationContext do
     :validation_stamp,
     :validation_time,
     :contract_context,
+    :genesis_address,
     resolved_addresses: %{},
     unspent_outputs: [],
     cross_validation_stamps: [],
@@ -101,7 +102,8 @@ defmodule Archethic.Mining.ValidationContext do
           storage_nodes_confirmations: list({index :: non_neg_integer(), signature :: binary()}),
           pending_transaction_error_detail: binary(),
           sub_replication_tree_validations: list(Crypto.key()),
-          contract_context: nil | Contract.Context.t()
+          contract_context: nil | Contract.Context.t(),
+          genesis_address: binary()
         }
 
   @doc """

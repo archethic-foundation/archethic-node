@@ -141,4 +141,14 @@ defmodule Archethic.UTXO.MemoryLedger do
         %{size: size}
     end
   end
+
+  @doc """
+  Remove UTXO entries from a given genesis
+  """
+  @spec clear_genesis(binary()) :: :ok
+  def clear_genesis(genesis_address) do
+    :ets.delete(@table_name, genesis_address)
+    :ets.delete(@table_stats_name, genesis_address)
+    :ok
+  end
 end

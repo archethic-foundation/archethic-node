@@ -245,10 +245,11 @@ defmodule Archethic.DB.EmbeddedTest do
           %ReplicationAttestation{
             transaction_summary: %TransactionSummary{
               type: :transfer,
-              address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+              address: ArchethicCase.random_address(),
               fee: 100_000_000,
               timestamp: ~U[2020-08-31 20:00:00.232Z],
-              validation_stamp_checksum: :crypto.strong_rand_bytes(32)
+              validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+              genesis_address: ArchethicCase.random_address()
             },
             confirmations: Enum.map(0..2, &{&1, "signature#{&1}"})
           }

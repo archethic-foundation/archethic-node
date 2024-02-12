@@ -11,6 +11,27 @@ defmodule Archethic.BeaconChain.ReplicationAttestationTest do
 
   doctest ReplicationAttestation
 
+  test "symmetric serialization" do
+    for version <- 1..2 do
+      attestation = %ReplicationAttestation{
+        version: version,
+        transaction_summary: %TransactionSummary{
+          address: ArchethicCase.random_address(),
+          type: :transfer,
+          timestamp: ~U[2022-01-27 09:14:22.000Z],
+          fee: 10_000_000,
+          validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+          genesis_address: ArchethicCase.random_address()
+        }
+      }
+
+      assert {^attestation, _} =
+               attestation
+               |> ReplicationAttestation.serialize()
+               |> ReplicationAttestation.deserialize()
+    end
+  end
+
   describe "reached_threshold?/1" do
     setup do
       # Summary timer each hour
