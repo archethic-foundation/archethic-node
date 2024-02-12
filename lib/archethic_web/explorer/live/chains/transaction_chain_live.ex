@@ -12,6 +12,7 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchethicWeb.Explorer.Components.TransactionsList
   alias ArchethicWeb.Explorer.Components.UnspentOutputList
+  alias ArchethicWeb.Explorer.Components.Amount
   alias ArchethicWeb.WebUtils
 
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -28,7 +29,8 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
           _ ->
             with {:ok, address} <- decode_address(encoded_address),
                  {chain_size, chain_txs, genesis_address} <- fetch_data(address),
-                 chain_utxos <- Archethic.get_unspent_outputs(genesis_address) do
+                 chain_utxos <- Archethic.get_unspent_outputs(genesis_address),
+                 balance <- get_balance(chain_utxos) do
               # asynchronously fetch the token properties
               Task.async(fn -> fetch_token_properties(chain_utxos) end)
 
@@ -40,6 +42,7 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
                 chain_utxos: chain_utxos,
                 chain_txs: chain_txs,
                 chain_size: chain_size,
+                balance: balance,
                 uco_price_now: OracleChain.get_uco_price(DateTime.utc_now()),
                 token_properties: %{}
               }
@@ -130,5 +133,15 @@ defmodule ArchethicWeb.Explorer.TransactionChainLive do
      end)
      |> Enum.uniq()
      |> WebUtils.get_token_properties()}
+  end
+
+  defp get_balance(utxos) do
+    Enum.reduce(utxos, %{}, fn
+      %UnspentOutput{type: type, amount: amount}, acc ->
+        Map.update(acc, type, amount, &(&1 + amount))
+
+      _, acc ->
+        acc
+    end)
   end
 end

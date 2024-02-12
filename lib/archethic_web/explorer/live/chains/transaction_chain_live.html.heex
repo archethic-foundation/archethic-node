@@ -48,19 +48,21 @@
   <% assigns[:address] == nil -> %>
     <div></div>
   <% true -> %>
-    <div class="my-4 is-size-4">
-      <%= case Enum.count(@chain_utxos) do %>
-        <% 0 -> %>
-          0 unspent output
-        <% 1 -> %>
-          1 unspent output
-        <% n -> %>
-          <%= n %> unspent outputs
-      <% end %>
-    </div>
-
-    <div class="ae-box ae-purple shadow">
-      <div class="pt-2">
+    <div class="ae-box ae-purple shadow" x-data="{tab: 'balance'}">
+      <div class="tabs is-medium">
+        <ul>
+          <li x-bind:class="tab == 'balance' ? 'is-active' : ''">
+            <a @click="tab = 'balance'">Balance</a>
+          </li>
+          <li x-bind:class="tab == 'utxos' ? 'is-active' : ''">
+            <a @click="tab = 'utxos'">
+              Unspent outputs (<%= Enum.count(@chain_utxos) %>)
+            </a>
+          </li>
+        </ul>
+      </div>
+      <%!--- UTXOS --%>
+      <div x-show="tab == 'utxos'" style="margin-left: 2em">
         <UnspentOutputList.display_all
           utxos={@chain_utxos}
           socket={@socket}
@@ -68,6 +70,28 @@
           token_properties={@token_properties}
           display_status?={false}
         />
+      </div>
+      <%!--- BALANCE --%>
+      <div x-show="tab == 'balance'" class="content">
+        <ul style="list-style-type: none">
+          <%= for {type, amount} <- @balance, type == :UCO do %>
+            <li>
+              <Amount.uco amount={amount} uco_price_now={@uco_price_now} />
+            </li>
+          <% end %>
+          <%= for {{:token, token_address, token_id}, amount} <- @balance do %>
+            <li>
+              <Amount.token
+                amount={amount}
+                token_address={token_address}
+                token_id={token_id}
+                token_properties={@token_properties}
+                max_length={20}
+                socket={@socket}
+              />
+            </li>
+          <% end %>
+        </ul>
       </div>
     </div>
 
