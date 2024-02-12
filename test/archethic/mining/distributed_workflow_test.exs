@@ -854,9 +854,11 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           send(me, :ack_replication_validation)
           {:ok, %Ok{}}
 
-        %Node{first_public_key: first_public_key}, %ReplicatePendingTransactionChain{}, _ ->
+        %Node{first_public_key: first_public_key},
+        %ReplicatePendingTransactionChain{genesis_address: genesis_address},
+        _ ->
           tx = Agent.get(agent_pid, & &1)
-          tx_summary = TransactionSummary.from_transaction(tx)
+          tx_summary = TransactionSummary.from_transaction(tx, genesis_address)
 
           {other_validator_pub, other_validator_pv} =
             Crypto.generate_deterministic_keypair("seed")

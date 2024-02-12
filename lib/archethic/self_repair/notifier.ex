@@ -121,12 +121,14 @@ defmodule Archethic.SelfRepair.Notifier do
   end
 
   defp sync_chain(address, unavailable_nodes, prev_available_nodes, new_available_nodes) do
+    genesis_address = TransactionChain.get_genesis_address(address)
+
     address
     |> TransactionChain.get([
       :address,
       validation_stamp: [ledger_operations: [:transaction_movements]]
     ])
-    |> Stream.map(&get_previous_election(&1, prev_available_nodes))
+    |> Stream.map(&get_previous_election(&1, prev_available_nodes, genesis_address))
     |> Stream.filter(&storage_or_io_node?(&1, unavailable_nodes))
     |> Stream.filter(&notify?(&1))
     |> Stream.map(&new_storage_nodes(&1, new_available_nodes))
@@ -138,18 +140,52 @@ defmodule Archethic.SelfRepair.Notifier do
          %Transaction{
            address: address,
            validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+             protocol_version: protocol_version,
+             ledger_operations: %LedgerOperations{transaction_movements: transaction_movements},
+             recipients: recipients
            }
          },
-         prev_available_nodes
+         prev_available_nodes,
+         genesis_address
        ) do
     prev_storage_nodes =
-      Election.chain_storage_nodes(address, prev_available_nodes)
+      address
+      |> Election.chain_storage_nodes(prev_available_nodes)
       |> Enum.map(& &1.first_public_key)
 
-    resolved_addresses =
+    movements_addresses =
       transaction_movements
       |> Enum.map(& &1.to)
+      |> Enum.concat(recipients)
+
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    # Before AEIP-21, resolve movements included only last addresses,
+    # then we have to resolve the genesis address for all the movements
+    resolved_addresses =
+      if protocol_version <= 7 do
+        Task.async_stream(
+          movements_addresses,
+          fn address ->
+            storage_nodes = Election.chain_storage_nodes(address, authorized_nodes)
+
+            {:ok, resolved_genesis_address} =
+              TransactionChain.fetch_genesis_address(
+                address,
+                storage_nodes
+              )
+
+            [address, resolved_genesis_address]
+          end,
+          on_timeout: :kill_task,
+          max_concurrency: length(movements_addresses)
+        )
+        |> Stream.filter(&match?({:ok, _}, &1))
+        |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
+        |> Enum.concat([genesis_address])
+      else
+        [genesis_address | movements_addresses]
+      end
 
     prev_io_nodes =
       resolved_addresses

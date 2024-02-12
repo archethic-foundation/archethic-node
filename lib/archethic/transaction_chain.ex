@@ -212,7 +212,7 @@ defmodule Archethic.TransactionChain do
            :validation_stamp
          ]) do
       {:ok, tx} ->
-        {:ok, TransactionSummary.from_transaction(tx)}
+        {:ok, TransactionSummary.from_transaction(tx, get_genesis_address(address))}
 
       _ ->
         {:error, :not_found}
