@@ -117,29 +117,22 @@ defmodule Archethic.BeaconChain.Subset.SummaryCacheTest do
       transaction_attestations: [
         %ReplicationAttestation{
           transaction_summary: %TransactionSummary{
-            address:
-              <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232,
-                166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+            address: ArchethicCase.random_address(),
             timestamp: ~U[2020-06-25 15:11:53.000Z],
             type: :transfer,
             movements_addresses: [],
             fee: 10_000_000,
-            validation_stamp_checksum: :crypto.strong_rand_bytes(32)
+            validation_stamp_checksum: :crypto.strong_rand_bytes(32),
+            genesis_address: ArchethicCase.random_address()
           },
           confirmations: [
-            {0,
-             <<129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217, 100,
-               172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138, 201, 2, 32,
-               75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188, 119, 6, 8, 48, 201,
-               244, 138, 99, 52, 22, 1, 97, 123, 140, 195>>}
+            {0, :crypto.strong_rand_bytes(32)}
           ]
         }
       ],
       end_of_node_synchronizations: [
         %EndOfNodeSync{
-          public_key:
-            <<0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
-              100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
+          public_key: ArchethicCase.random_public_key(),
           timestamp: ~U[2020-06-25 15:11:53Z]
         }
       ],

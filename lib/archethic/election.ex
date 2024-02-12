@@ -658,6 +658,16 @@ defmodule Archethic.Election do
   end
 
   @doc """
+  Determine if a node's public key must be a chain storage node
+  """
+  @spec chain_storage_node?(binary, Crypto.key(), list(Node.t())) :: boolean()
+  def chain_storage_node?(address, public_key, node_list) do
+    address
+    |> chain_storage_nodes(node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
+
+  @doc """
   Determine if a node's public key must be a beacon storage node
   """
   @spec beacon_storage_node?(DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()

@@ -1,5 +1,6 @@
 defmodule Archethic.SelfRepair.Sync do
   @moduledoc false
+
   alias Archethic.{
     BeaconChain,
     Crypto,
@@ -9,6 +10,7 @@ defmodule Archethic.SelfRepair.Sync do
     PubSub,
     SelfRepair,
     TaskSupervisor,
+    TransactionChain,
     Utils
   }
 
@@ -24,6 +26,8 @@ defmodule Archethic.SelfRepair.Sync do
   }
 
   alias Archethic.BeaconChain.Subset.P2PSampling
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
 
   alias __MODULE__.TransactionHandler
@@ -290,7 +294,12 @@ defmodule Archethic.SelfRepair.Sync do
 
     attestations_to_sync =
       attestations
-      |> Enum.filter(&TransactionHandler.download_transaction?(&1, nodes_including_self))
+      |> Task.async_stream(&adjust_attestation(&1, download_nodes))
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.filter(fn {:ok, attestation} ->
+        TransactionHandler.download_transaction?(attestation, nodes_including_self)
+      end)
+      |> Enum.map(fn {:ok, attestation} -> attestation end)
 
     synchronize_transactions(attestations_to_sync, download_nodes)
 
@@ -343,6 +352,42 @@ defmodule Archethic.SelfRepair.Sync do
     store_last_sync_date(summary_time)
   end
 
+  # To avoid beacon chain database migration we have to support both summaries with genesis address and without
+  # Hence, we need to adjust or revised the attestation to include the genesis addresses
+  # which is not present in the version 1 of transaction's summary.
+  # Also to unify the handling of attestation post AEIP-21, the genesis addresses are included in movements
+  defp adjust_attestation(
+         attestation = %ReplicationAttestation{
+           transaction_summary:
+             tx_summary = %TransactionSummary{
+               address: tx_address,
+               version: version
+             }
+         },
+         download_nodes
+       )
+       when version <= 2 do
+    genesis_address =
+      Map.get_lazy(tx_summary, :genesis_address, fn ->
+        storage_nodes = Election.chain_storage_nodes(tx_address, download_nodes)
+        {:ok, genesis_address} = TransactionChain.fetch_genesis_address(tx_address, storage_nodes)
+        genesis_address
+      end)
+
+    resolved_movements_addresses =
+      TransactionSummary.resolve_movements_addresses(tx_summary, download_nodes)
+
+    adjusted_tx_summary = %{
+      tx_summary
+      | genesis_address: genesis_address,
+        movements_addresses: resolved_movements_addresses
+    }
+
+    %{attestation | transaction_summary: adjusted_tx_summary}
+  end
+
+  defp adjust_attestation(attestation, _), do: attestation
+
   defp synchronize_transactions([], _), do: :ok
 
   defp synchronize_transactions(attestations, download_nodes) do
@@ -352,7 +397,11 @@ defmodule Archethic.SelfRepair.Sync do
     Task.Supervisor.async_stream(
       TaskSupervisor,
       attestations,
-      &{&1, TransactionHandler.download_transaction(&1, download_nodes)},
+      fn attestation ->
+        tx = TransactionHandler.download_transaction(attestation, download_nodes)
+        consolidated_attestation = consolidate_recipients(attestation, tx)
+        {consolidated_attestation, tx}
+      end,
       on_timeout: :kill_task,
       timeout: Message.get_max_timeout() + 2000,
       max_concurrency: 100
@@ -362,6 +411,42 @@ defmodule Archethic.SelfRepair.Sync do
     end)
     |> Stream.run()
   end
+
+  defp consolidate_recipients(
+         attestation = %ReplicationAttestation{
+           transaction_summary:
+             tx_summary = %TransactionSummary{
+               version: 1,
+               movements_addresses: movements_addresses
+             }
+         },
+         %Transaction{validation_stamp: %ValidationStamp{recipients: recipients = [_ | _]}}
+       ) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    consolidated_movements_addresses =
+      recipients
+      |> Task.async_stream(
+        fn recipient ->
+          genesis_nodes = Election.chain_storage_nodes(recipient, authorized_nodes)
+
+          {:ok, genesis_address} =
+            TransactionChain.fetch_genesis_address(recipient, genesis_nodes)
+
+          [recipient, genesis_address]
+        end,
+        on_timeout: :kill_task,
+        max_concurrency: length(recipients)
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.flat_map(fn {:ok, addresses} -> addresses end)
+      |> Enum.concat(movements_addresses)
+
+    adjusted_summary = %{tx_summary | movements_addresses: consolidated_movements_addresses}
+    %{attestation | transaction_summary: adjusted_summary}
+  end
+
+  defp consolidate_recipients(attestation, _tx), do: attestation
 
   defp sync_node(end_of_node_synchronizations) do
     end_of_node_synchronizations

@@ -136,7 +136,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         io_storage_nodes: P2P.distinct_nodes(io_storage_nodes ++ genesis_storage_nodes),
         validation_time: validation_time,
         resolved_addresses: resolved_addresses,
-        contract_context: contract_context
+        contract_context: contract_context,
+        genesis_address: genesis_address
       )
 
     validation_context =
@@ -178,7 +179,12 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     |> ValidationContext.cross_validate()
   end
 
-  defp start_replication(context = %ValidationContext{contract_context: contract_context}) do
+  defp start_replication(
+         context = %ValidationContext{
+           contract_context: contract_context,
+           genesis_address: genesis_address
+         }
+       ) do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     replication_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -215,7 +221,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       )
 
       P2P.broadcast_message(replication_nodes, %ReplicatePendingTransactionChain{
-        address: validated_tx.address
+        address: validated_tx.address,
+        genesis_address: genesis_address
       })
     else
       errors = Enum.filter(results, &match?(%ReplicationError{}, &1))
@@ -291,14 +298,15 @@ defmodule Archethic.Mining.StandaloneWorkflow do
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: address, type: type},
-              validation_time: validation_time
+              validation_time: validation_time,
+              genesis_address: genesis_address
             }
         }
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
          validated_tx <- ValidationContext.get_validated_transaction(context),
-         tx_summary <- TransactionSummary.from_transaction(validated_tx),
+         tx_summary <- TransactionSummary.from_transaction(validated_tx, genesis_address),
          true <-
            Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
       new_context = ValidationContext.add_storage_confirmation(context, node_index, signature)
@@ -368,11 +376,12 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp notify_attestation(
          context = %ValidationContext{
            welcome_node: welcome_node,
-           storage_nodes_confirmations: confirmations
+           storage_nodes_confirmations: confirmations,
+           genesis_address: genesis_address
          }
        ) do
     validated_tx = ValidationContext.get_validated_transaction(context)
-    tx_summary = TransactionSummary.from_transaction(validated_tx)
+    tx_summary = TransactionSummary.from_transaction(validated_tx, genesis_address)
 
     attestation =
       ReplicationAttestationMessage.from_replication_attestation(%ReplicationAttestation{

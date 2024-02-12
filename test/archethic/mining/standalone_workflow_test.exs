@@ -85,7 +85,7 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
             {:ok, %NotFound{}}
 
           tx ->
-            tx_summary = TransactionSummary.from_transaction(tx)
+            tx_summary = TransactionSummary.from_transaction(tx, Transaction.previous_address(tx))
             {:ok, tx_summary}
         end
 
@@ -96,9 +96,9 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
         Agent.update(agent_pid, fn _ -> tx end)
         {:ok, %Ok{}}
 
-      _, %ReplicatePendingTransactionChain{}, _ ->
+      _, %ReplicatePendingTransactionChain{genesis_address: genesis_address}, _ ->
         tx = Agent.get(agent_pid, & &1)
-        tx_summary = TransactionSummary.from_transaction(tx)
+        tx_summary = TransactionSummary.from_transaction(tx, genesis_address)
         sig = Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
 
         send(me, {:ack_replication, sig, Crypto.first_node_public_key()})
