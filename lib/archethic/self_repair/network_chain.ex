@@ -78,14 +78,14 @@ defmodule Archethic.SelfRepair.NetworkChain do
   def synchronous_resync(type) do
     :telemetry.execute([:archethic, :self_repair, :resync], %{count: 1}, %{network_chain: type})
 
-    genesis_address = get_genesis_address(type)
-
     case verify_synchronization(type) do
       {:error, addresses} when is_list(addresses) ->
         Task.Supervisor.async_stream_nolink(
           Archethic.TaskSupervisor,
           addresses,
-          &SelfRepair.replicate_transaction(&1, genesis_address),
+          fn {genesis_address, address} ->
+            SelfRepair.replicate_transaction(address, genesis_address)
+          end,
           ordered: false,
           on_timeout: :kill_task
         )
@@ -99,21 +99,24 @@ defmodule Archethic.SelfRepair.NetworkChain do
   @doc """
   Verify if the last stored transaction is the last one on the network
   """
-  @spec verify_synchronization(atom()) :: :ok | :error | {:error, list(Crypto.prepended_hash())}
+  @spec verify_synchronization(atom()) ::
+          :ok
+          | :error
+          | {:error, list({Crypto.prepended_hash(), Crypto.prepended_hash()})}
   def verify_synchronization(:origin) do
     genesis_addresses = SharedSecrets.genesis_address(:origin)
 
-    last_addresses =
+    address_by_genesis =
       Task.Supervisor.async_stream(TaskSupervisor, genesis_addresses, fn genesis ->
         validate_last_address(genesis)
       end)
       |> Stream.filter(&match?({:ok, {:error, _}}, &1))
-      |> Enum.flat_map(fn {_, {_, last_address}} -> last_address end)
+      |> Enum.map(fn {_, {_, res}} -> res end)
 
-    if Enum.empty?(last_addresses) do
+    if Enum.empty?(address_by_genesis) do
       :ok
     else
-      {:error, last_addresses}
+      {:error, address_by_genesis}
     end
   end
 
@@ -129,18 +132,16 @@ defmodule Archethic.SelfRepair.NetworkChain do
     do_verify_synchronization(genesis_address, last_schedule_date)
   end
 
-  defp get_genesis_address(:oracle), do: OracleChain.genesis_address()
-
-  defp get_genesis_address(type) when type in [:origin, :node_shared_secrets],
-    do: SharedSecrets.genesis_address(type)
-
   defp do_verify_synchronization(nil, _), do: :ok
 
   defp do_verify_synchronization(genesis_address, last_schedule_date) do
     if valid_schedule?(genesis_address, last_schedule_date) do
       :ok
     else
-      validate_last_address(genesis_address)
+      case validate_last_address(genesis_address) do
+        {:error, res = {_, _}} -> {:error, [res]}
+        res -> res
+      end
     end
   end
 
@@ -167,7 +168,7 @@ defmodule Archethic.SelfRepair.NetworkChain do
            acceptance_resolver: &(&1.timestamp > local_last_address_timestamp)
          ) do
       {:ok, remote_last_address} ->
-        {:error, [remote_last_address]}
+        {:error, {genesis_address, remote_last_address}}
 
       {:error, :acceptance_failed} ->
         :ok
