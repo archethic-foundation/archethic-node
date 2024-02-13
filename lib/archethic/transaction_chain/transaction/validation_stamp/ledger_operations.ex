@@ -333,10 +333,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     tokens_minted_not_consumed =
       Enum.reject(tokens_to_mint, fn %UnspentOutput{type: {:token, token_address, token_id}} ->
-        Enum.any?(tokens_to_spend, fn
-          {{^token_address, ^token_id}, _amount} -> true
-          _ -> false
-        end)
+        Map.has_key?(tokens_to_spend, {token_address, token_id})
       end)
 
     # consolidate the remainders of spent tokens
@@ -344,12 +341,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       tokens_to_spend,
       tokens_minted_not_consumed ++ tokens_consolidated_not_consumed,
       fn {{token_address, token_id}, amount_to_spend}, acc ->
-        balance =
-          Enum.find_value(tokens_balance, fn
-            {{^token_address, ^token_id}, amount} -> amount
-            _ -> false
-          end)
-
+        balance = Map.get(tokens_balance, {token_address, token_id})
         type = {:token, token_address, token_id}
         remaining_amount = balance - amount_to_spend
 
