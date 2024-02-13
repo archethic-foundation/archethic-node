@@ -67,18 +67,12 @@ defmodule Archethic.UTXO do
     transaction_movements
     |> consolidate_movements(protocol_version, tx_type)
     |> Enum.each(fn %TransactionMovement{to: to, amount: amount, type: type} ->
-      if Election.chain_storage_node?(to, node_public_key, authorized_nodes) do
-        utxo = %VersionedUnspentOutput{
-          unspent_output: %UnspentOutput{
-            from: address,
-            amount: amount,
-            timestamp: timestamp,
-            type: type
-          },
-          protocol_version: protocol_version
-        }
+      utxo = %UnspentOutput{from: address, amount: amount, timestamp: timestamp, type: type}
 
-        Loader.add_utxo(utxo, to)
+      with true <- Election.chain_storage_node?(to, node_public_key, authorized_nodes),
+           false <- utxo_consumed?(to, utxo) do
+        %VersionedUnspentOutput{unspent_output: utxo, protocol_version: protocol_version}
+        |> Loader.add_utxo(to)
       end
     end)
   end
@@ -172,6 +166,47 @@ defmodule Archethic.UTXO do
   end
 
   defp resolve_io_genesis(tx, _), do: tx
+
+  defp utxo_consumed?(genesis_address, utxo = %UnspentOutput{timestamp: utxo_timestamp}) do
+    {_, last_timestamp} = TransactionChain.get_last_address(genesis_address)
+
+    if DateTime.compare(last_timestamp, utxo_timestamp) == :gt do
+      genesis_address
+      |> TransactionChain.list_chain_addresses()
+      |> Stream.filter(fn {_, timestamp} -> DateTime.compare(timestamp, utxo_timestamp) == :gt end)
+      |> Enum.any?(fn {address, _} ->
+        {protocol_version, consumed_inputs, unspent_outputs} = get_transaction_fields(address)
+
+        if protocol_version < 7,
+          do: not Enum.member?(unspent_outputs, utxo),
+          else: Enum.member?(consumed_inputs, utxo)
+      end)
+    else
+      false
+    end
+  end
+
+  defp get_transaction_fields(address) do
+    fields = [
+      validation_stamp: [
+        :protocol_version,
+        ledger_operations: [:consumed_inputs, :unspent_outputs]
+      ]
+    ]
+
+    {:ok,
+     %Transaction{
+       validation_stamp: %ValidationStamp{
+         protocol_version: protocol_version,
+         ledger_operations: %LedgerOperations{
+           consumed_inputs: consumed_inputs,
+           unspent_outputs: unspent_outputs
+         }
+       }
+     }} = TransactionChain.get_transaction(address, fields)
+
+    {protocol_version, consumed_inputs, unspent_outputs}
+  end
 
   @doc """
   Returns the list of all the inputs which have not been consumed for the given chain's address
