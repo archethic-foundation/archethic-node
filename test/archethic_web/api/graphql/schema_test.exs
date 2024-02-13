@@ -460,8 +460,8 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
         _, %GetBalance{}, _ ->
           {:ok, %Balance{uco: 218_000_000}}
 
-        _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+        _, %GetGenesisAddress{address: address}, _ ->
+          {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
       end)
 
       conn =
@@ -487,8 +487,8 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
              }
            }}
 
-        _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+        _, %GetGenesisAddress{address: address}, _ ->
+          {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
       end)
 
       conn =

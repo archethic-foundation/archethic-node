@@ -37,8 +37,8 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
   end
 
   def get_balance(address) do
-    with {:ok, last_address} <- Archethic.get_last_transaction_address(address),
-         {:ok, %{uco: uco, token: token_balances}} <- Archethic.get_balance(last_address) do
+    with {:ok, genesis_address} <- Archethic.fetch_genesis_address(address),
+         {:ok, %{uco: uco, token: token_balances}} <- Archethic.get_balance(genesis_address) do
       balance = %{
         uco: uco,
         token:

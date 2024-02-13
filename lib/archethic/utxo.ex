@@ -251,4 +251,31 @@ defmodule Archethic.UTXO do
       mem_stream
     end
   end
+
+  @doc """
+  Returns the balance for an address using the unspent outputs
+  """
+  @spec get_balance(binary()) :: %{
+          uco: amount :: pos_integer(),
+          token: %{
+            {address :: binary(), token_id :: non_neg_integer()} => amount :: pos_integer()
+          }
+        }
+  def get_balance(address) do
+    address
+    |> stream_unspent_outputs()
+    |> Enum.reduce(%{uco: 0, token: %{}}, fn
+      %VersionedUnspentOutput{unspent_output: %UnspentOutput{type: :UCO, amount: amount}}, acc ->
+        Map.update!(acc, :uco, &(&1 + amount))
+
+      %VersionedUnspentOutput{
+        unspent_output: %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}
+      },
+      acc ->
+        update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
+
+      _, acc ->
+        acc
+    end)
+  end
 end
