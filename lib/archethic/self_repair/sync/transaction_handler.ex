@@ -48,26 +48,14 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         },
         node_list
       ) do
-    last_chain_storage_nodes = Election.chain_storage_nodes_with_type(address, type, node_list)
-    genesis_chain_storage_nodes = Election.chain_storage_nodes(genesis_address, node_list)
     node_key = Crypto.first_node_public_key()
 
-    last_chain_node? = Utils.key_in_node_list?(last_chain_storage_nodes, node_key)
-    genesis_node? = Utils.key_in_node_list?(genesis_chain_storage_nodes, node_key)
-
-    if last_chain_node? do
+    if Election.chain_storage_node?(address, type, node_key, node_list) or
+         Election.chain_storage_node?(genesis_address, node_key, node_list) do
       not TransactionChain.transaction_exists?(address)
     else
-      if TransactionChain.transaction_exists?(address, :io) do
-        false
-      else
-        io_node? =
-          movements_addresses
-          |> Election.io_storage_nodes(node_list)
-          |> Utils.key_in_node_list?(Crypto.first_node_public_key())
-
-        genesis_node? or io_node?
-      end
+      io_node?(movements_addresses, node_key, node_list) and
+        not TransactionChain.transaction_exists?(address, :io)
     end
   end
 
@@ -154,7 +142,7 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandler do
         Replication.sync_transaction_chain(tx, genesis_address, node_list, self_repair?: true)
 
       Election.chain_storage_node?(genesis_address, node_public_key, node_list) ->
-        Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)
+        Replication.sync_transaction_chain(tx, genesis_address, node_list, self_repair?: true)
 
       io_node?(movements_addresses, node_public_key, node_list) ->
         Replication.synchronize_io_transaction(tx, genesis_address, self_repair?: true)

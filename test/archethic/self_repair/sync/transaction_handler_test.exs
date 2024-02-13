@@ -116,12 +116,9 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
     test "should return true when the node only a chain genesis storage node" do
       with_mock(Election, [:passthrough],
-        chain_storage_nodes: fn
-          "@Alice1", _ ->
-            [%Node{first_public_key: ArchethicCase.random_public_key()}]
-
-          "@Alice0", _ ->
-            [%Node{first_public_key: Crypto.first_node_public_key()}]
+        chain_storage_node?: fn
+          "@Alice1", _, _ -> false
+          "@Alice0", _, _ -> true
         end
       ) do
         attestation = %ReplicationAttestation{

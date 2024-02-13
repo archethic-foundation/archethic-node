@@ -564,9 +564,10 @@ defmodule Archethic.SelfRepair.SyncTest do
         assert :ok = Sync.process_summary_aggregate(summary, current_nodes_view)
 
         assert_called(
-          Election.chain_storage_nodes_with_type(
+          Election.chain_storage_node?(
             transfer_tx.address,
             transfer_tx.type,
+            Crypto.first_node_public_key(),
             current_nodes_view_with_self
           )
         )
