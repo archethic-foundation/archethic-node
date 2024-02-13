@@ -87,17 +87,38 @@ defmodule ArchethicWeb.API.GraphQL.Schema.Resolver do
   end
 
   def get_inputs(address, paging_offset \\ 0, limit \\ 0) do
-    inputs =
-      address
-      |> Archethic.get_transaction_inputs(paging_offset, limit)
-      |> Enum.map(&TransactionInput.to_map/1)
+    tx_time_inputs = Archethic.get_transaction_inputs(address, paging_offset, limit)
 
-    case limit do
-      0 ->
-        {:ok, inputs}
+    case Archethic.fetch_genesis_address(address) do
+      {:ok, genesis_address} ->
+        genesis_inputs =
+          genesis_address
+          |> Archethic.get_unspent_outputs()
+          |> Enum.map(&TransactionInput.from_utxo/1)
 
-      limit ->
-        {:ok, Enum.take(inputs, limit)}
+        inputs =
+          tx_time_inputs
+          |> Enum.map(fn input ->
+            spent? =
+              not Enum.any?(genesis_inputs, fn genesis_input ->
+                input.from == genesis_input.from and input.type == genesis_input.type
+              end)
+
+            %{input | spent?: spent?}
+          end)
+          |> Enum.map(&TransactionInput.to_map/1)
+          |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
+
+        case limit do
+          0 ->
+            {:ok, inputs}
+
+          limit ->
+            {:ok, Enum.take(inputs, limit)}
+        end
+
+      {:error, _} ->
+        {:error, "Network issue"}
     end
   end
 

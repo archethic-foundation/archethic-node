@@ -10,6 +10,8 @@ defmodule Archethic.TransactionChain.TransactionInput do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
     as: TransactionMovementType
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias Archethic.Utils
 
   @type t() :: %__MODULE__{
@@ -211,7 +213,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
     %{
       amount: amount,
       from: from,
-      type: :UCO,
+      type: "UCO",
       spent: spent?,
       timestamp: timestamp
     }
@@ -227,7 +229,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
     %{
       amount: amount,
       from: from,
-      type: :token,
+      type: "token",
       token_address: token_address,
       token_id: token_id,
       spent: spent?,
@@ -238,7 +240,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
   def to_map(%__MODULE__{amount: _, from: from, spent?: spent?, type: :call, timestamp: timestamp}) do
     %{
       from: from,
-      type: :call,
+      type: "call",
       spent: spent?,
       timestamp: timestamp
     }
@@ -254,10 +256,18 @@ defmodule Archethic.TransactionChain.TransactionInput do
       }) do
     %{
       from: from,
-      type: :state,
+      type: "state",
       spent: spent?,
       timestamp: timestamp,
       encoded_payload: encoded_payload |> State.deserialize() |> elem(0)
     }
+  end
+
+  @doc """
+  Convert an UnspentOutput into a TransactionInput struct
+  """
+  @spec from_utxo(UnspentOutput.t()) :: t()
+  def from_utxo(utxo = %UnspentOutput{}) do
+    struct(__MODULE__, Map.from_struct(utxo))
   end
 end

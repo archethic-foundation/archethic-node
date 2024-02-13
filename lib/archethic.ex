@@ -349,29 +349,6 @@ defmodule Archethic do
   def get_transaction_inputs(address, paging_offset \\ 0, limit \\ 0)
       when is_binary(address) and is_integer(paging_offset) and paging_offset >= 0 and
              is_integer(limit) and limit >= 0 do
-    # check the last transaction inputs to determine if a utxo is spent or not
-    {:ok, latest_address} = get_last_transaction_address(address)
-
-    if latest_address == address do
-      do_get_transaction_inputs(address, paging_offset, limit)
-    else
-      # TODO: latest inputs can be huge, we should have an other way to determine if a inputs
-      # is spent or not
-      latest_tx_inputs = do_get_transaction_inputs(latest_address, 0, 0)
-      current_tx_inputs = do_get_transaction_inputs(address, paging_offset, limit)
-
-      Enum.map(current_tx_inputs, fn input ->
-        spent? =
-          not Enum.any?(latest_tx_inputs, fn input2 ->
-            input.from == input2.from and input.type == input2.type
-          end)
-
-        %TransactionInput{input | spent?: spent?}
-      end)
-    end
-  end
-
-  defp do_get_transaction_inputs(address, paging_offset, limit) do
     nodes = Election.chain_storage_nodes(address, P2P.authorized_and_available_nodes())
 
     address
@@ -382,12 +359,12 @@ defmodule Archethic do
   @doc """
   Request to fetch the unspent outputs for a transaction address from the closest nodes
   """
-  @spec get_unspent_outputs(address :: Crypto.prepended_hash()) ::
-          list(UnspentOutput.t())
+  @spec get_unspent_outputs(address :: Crypto.prepended_hash()) :: list(UnspentOutput.t())
   def get_unspent_outputs(address) do
     nodes = Election.storage_nodes(address, P2P.authorized_and_available_nodes())
 
-    TransactionChain.fetch_unspent_outputs(address, nodes)
+    address
+    |> TransactionChain.fetch_unspent_outputs(nodes)
     |> VersionedUnspentOutput.unwrap_unspent_outputs()
   end
 

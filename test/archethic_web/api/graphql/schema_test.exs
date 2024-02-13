@@ -10,13 +10,26 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
   alias TransactionChain.{Transaction, TransactionData, TransactionData.Ownership}
   alias TransactionChain.{TransactionInput, TransactionSummary, VersionedTransactionInput}
 
+  alias TransactionChain.Transaction.ValidationStamp.LedgerOperations.{
+    UnspentOutput,
+    VersionedUnspentOutput
+  }
+
   alias P2P.{Node, Message}
   alias Message.{GetTransactionChainLength, TransactionChainLength, Balance, GenesisAddress}
   alias Message.{GetBalance, GetLastTransactionAddress, GetTransaction, NotFound}
-  alias Message.{GetTransactionChain, GetTransactionInputs, LastTransactionAddress}
+
+  alias Message.{
+    GetTransactionChain,
+    GetTransactionInputs,
+    LastTransactionAddress,
+    GetGenesisAddress
+  }
+
   alias Message.{TransactionInputList, TransactionList, GetGenesisAddress}
   alias Message.{GetBeaconSummariesAggregate, GetCurrentSummaries, GetBeaconSummaries}
   alias Message.{BeaconSummaryList, TransactionSummaryList}
+  alias Message.{GetUnspentOutputs, UnspentOutputList}
 
   alias ArchethicWeb.API.GraphQL.Schema.Resolver
 
@@ -563,8 +576,10 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
   end
 
   describe "query: transaction_inputs" do
-    test "should return a list of ledger inputs", %{conn: conn} do
-      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    test "should return a list of ledger inputs combining genesis unspent outputs and tx inputs",
+         %{conn: conn} do
+      addr = ArchethicCase.random_address()
+      from = ArchethicCase.random_address()
 
       MockClient
       |> stub(:send_message, fn
@@ -574,24 +589,40 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
              inputs: [
                %VersionedTransactionInput{
                  input: %TransactionInput{
-                   from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-                   amount: 20_200_000,
+                   from: from,
+                   amount: 100_000_000,
                    type: :UCO,
-                   timestamp: DateTime.from_unix!(1_614_951_694)
+                   timestamp: ~U[2020-01-01 00:00:00Z]
                  },
                  protocol_version: 1
                }
              ]
            }}
 
-        _, %GetLastTransactionAddress{address: address}, _ ->
-          {:ok, %LastTransactionAddress{address: address}}
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: from,
+                   amount: 100_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2020-01-01 00:00:00Z]
+                 },
+                 protocol_version: 1
+               }
+             ]
+           }}
+
+        _, %GetGenesisAddress{address: address}, _ ->
+          {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
       end)
 
       conn =
         post(conn, "/api", %{
           "query" =>
-            "query { transaction_inputs(address: \"#{Base.encode16(addr)}\") { type, amount, timestamp } }"
+            "query { transaction_inputs(address: \"#{Base.encode16(addr)}\") { type, amount, spent } }"
         })
 
       assert %{
@@ -599,8 +630,69 @@ defmodule ArchethicWeb.API.GraphQL.SchemaTest do
                  "transaction_inputs" => [
                    %{
                      "type" => "UCO",
-                     "amount" => 20_200_000,
-                     "timestamp" => 1_614_951_694
+                     "amount" => 100_000_000,
+                     "spent" => false
+                   }
+                 ]
+               }
+             } = json_response(conn, 200)
+    end
+
+    test "should return flag tx input as spent if not present in the genesis", %{conn: conn} do
+      addr = ArchethicCase.random_address()
+      from = ArchethicCase.random_address()
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransactionInputs{}, _ ->
+          {:ok,
+           %TransactionInputList{
+             inputs: [
+               %VersionedTransactionInput{
+                 input: %TransactionInput{
+                   from: from,
+                   amount: 100_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2020-01-01 00:00:00Z]
+                 },
+                 protocol_version: 1
+               }
+             ]
+           }}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [
+               %VersionedUnspentOutput{
+                 unspent_output: %UnspentOutput{
+                   from: ArchethicCase.random_address(),
+                   amount: 500_000_000,
+                   type: :UCO,
+                   timestamp: ~U[2020-10-01 00:00:00Z]
+                 },
+                 protocol_version: 1
+               }
+             ]
+           }}
+
+        _, %GetGenesisAddress{address: address}, _ ->
+          {:ok, %GenesisAddress{address: address, timestamp: DateTime.utc_now()}}
+      end)
+
+      conn =
+        post(conn, "/api", %{
+          "query" =>
+            "query { transaction_inputs(address: \"#{Base.encode16(addr)}\") { type, amount, spent } }"
+        })
+
+      assert %{
+               "data" => %{
+                 "transaction_inputs" => [
+                   %{
+                     "type" => "UCO",
+                     "amount" => 100_000_000,
+                     "spent" => true
                    }
                  ]
                }
