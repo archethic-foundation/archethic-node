@@ -25,7 +25,6 @@ defmodule Archethic do
   alias Archethic.SelfRepair
   alias Archethic.SelfRepair.NetworkChain
   alias Archethic.SelfRepair.NetworkView
-  alias Archethic.SharedSecrets
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -99,8 +98,8 @@ defmodule Archethic do
       :ok ->
         true
 
-      {:error, addresses} ->
-        SharedSecrets.genesis_address(:node_shared_secrets) |> SelfRepair.resync(addresses, [])
+      {:error, [{genesis_address, address}]} ->
+        SelfRepair.resync(genesis_address, [address], [])
         false
 
       :error ->
